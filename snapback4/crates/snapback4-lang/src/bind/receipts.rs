@@ -1,5 +1,5 @@
 //! Named receipt families compiled to ordinary metered IR.
-// @ref LLP 3000.022#14 — allocation stays explicit in the prototype.
+// @ref LLP 3000.022#14 — the clause owns allocation, snapshots and metered receipt progress.
 use super::{catalog::Catalog, operation_name};
 use crate::{ast::*, diag::Diagnostic};
 use snapback4_core::schema::{ReceiptFamily, Schema};
@@ -399,6 +399,24 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
                 continue;
             }
             let family = ReceiptFamily {
+                scope: match &table
+                    .columns
+                    .iter()
+                    .find(|c| c.name == clause.group)
+                    .unwrap()
+                    .type_
+                    .kind
+                {
+                    TypeKind::Ref { table } => table.clone(),
+                    _ => unreachable!(),
+                },
+                counter: clause.counter.clone(),
+                messages: table.name.clone(),
+                message_group: clause.group.clone(),
+                position: clause.position.clone(),
+                sender: clause.sender.clone(),
+                count: clause.count.clone(),
+                floor: clause.floor.clone(),
                 name: clause.name.clone(),
                 members: clause.members.clone(),
                 group: clause.member_group.clone(),
@@ -411,6 +429,10 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
                 seen: operation_name(&module, &clause.operations[2]),
                 compact: operation_name(&module, &clause.operations[5]),
             };
+            if let Err(reason) = allocation_admission(schema, &family) {
+                errors.push(refuse(&clause.site, reason));
+                continue;
+            }
             let binding = schema
                 .delivery
                 .iter_mut()
@@ -419,7 +441,7 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
             binding.compact = Some(family.compact.clone());
             // All semantic coordinates plus the template version fence SDK debt.
             binding.semantics = Some(format!(
-                "receipts.v2:{}:{}:{}:{}:{}:{}:{}",
+                "receipts.v3:{}:{}:{}:{}:{}:{}:{}",
                 serde_json::to_string(&family).unwrap(),
                 clause.counter,
                 clause.floor,
@@ -435,7 +457,7 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
                 .unwrap(),
                 include_str!("receipts.q")
             ));
-            binding.semantics = Some(format!("receipts.v2:{}", binding.compute_fingerprint()));
+            binding.semantics = Some(format!("receipts.v3:{}", binding.compute_fingerprint()));
             binding.fingerprint = binding.compute_fingerprint();
             schema.receipts.push(family);
         }
@@ -505,4 +527,70 @@ fn public_reason(reason: &str) -> String {
             }
         })
         .collect()
+}
+
+// The server authorizes inserts before reading accounting state. Those rules
+// must depend on authored identity, never on not-yet-assigned fields.
+fn allocation_admission(schema: &Schema, family: &ReceiptFamily) -> Result<(), String> {
+    let tables = [&family.scope, &family.members, &family.messages];
+    if tables
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        != 3
+    {
+        return Err("receipt scope, members and messages must be distinct tables".into());
+    }
+    for name in tables {
+        let table = &schema.tables[name];
+        let assigned: Vec<_> = family.assigned(name).collect();
+        if assigned
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            != assigned.len()
+            || schema
+                .receipts
+                .iter()
+                .any(|f| f.assigned(name).any(|c| assigned.contains(&c)))
+        {
+            return Err(
+                "receipt accounting fields must be distinct and owned by exactly one family".into(),
+            );
+        }
+        let mut rule_fields = std::collections::BTreeSet::new();
+        table.rules.insert.fields(&mut rule_fields);
+        table.rules.read.fields(&mut rule_fields);
+        for field in assigned {
+            if rule_fields.contains(field)
+                || table.sequences.contains_key(field)
+                || table.written_by.contains_key(field)
+                || table.maintained.contains_key(field)
+                || table.recorded.contains_key(field)
+            {
+                return Err(format!(
+                    "receipt accounting {name}.{field} cannot decide read/insert authority or have another engine owner"
+                ));
+            }
+            if let Some(default) = table.defaults.get(field)
+                && *default
+                    != snapback4_core::schema::ColumnDefault::Literal(snapback4_core::Value::Int(0))
+            {
+                return Err(format!(
+                    "receipt accounting {name}.{field} must omit its default or use zero"
+                ));
+            }
+        }
+    }
+    let scope = &schema.tables[&family.scope];
+    if scope.is_expiring()
+        || scope.ephemeral.is_some()
+        || scope.through.is_some()
+        || scope.immutable_fields().any(|f| f == family.counter)
+    {
+        return Err(
+            "receipt scope must be durable and non-expiring with a mutable engine counter".into(),
+        );
+    }
+    Ok(())
 }

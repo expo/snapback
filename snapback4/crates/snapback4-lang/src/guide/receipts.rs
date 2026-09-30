@@ -65,20 +65,12 @@ query messageReceipts(conversation: conversations, c: cursor ?):
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
-  chat = conversations[conversation] ! else NOT_FOUND
-  ordinal = chat.lastOrdinal + 1
-  recipients = 0
-  for member in members where .conversation = conversation:
-    if member.principal != viewer:
-      recipients = recipients + 1
-  update conversations[chat] { lastOrdinal: ordinal }
-  m = insert messages { conversation, sender: viewer, ordinal, recipients, text, at: now }
+  m = insert messages { conversation, sender: viewer, text, at: now }
   return m.id
 
 mutation add(conversation: conversations, principal: principal):
   require exists members[conversation, viewer] else NOT_MEMBER
-  chat = conversations[conversation] ! else NOT_FOUND
-  insert members { conversation, principal, joinedOrdinal: chat.lastOrdinal } if absent
+  insert members { conversation, principal } if absent
   return null
 
 mutation leave(conversation: conversations):
@@ -120,7 +112,7 @@ and member watermarks. Without overrides, names use the family prefix:
 `chatCompact`, `chatRuns`, `chatDeliveredOrdinal` and `chatSeenOrdinal`.
 `member .conversation, .principal` maps membership coordinates; `counter`,
 `floor` and `count` name the scope counter, membership floor and message count.
-Allocation and membership accounting remain explicit. Multiple distinct families
+The engine allocates each message ordinal atomically, captures the number of other members, and stamps each join at the current high ordinal. Omit these fields and the counter from writes; supplied values refuse `E_RECEIPTS_OWNED`. Failed/no-op inserts consume no ordinal. Receipt scopes cannot be deleted by application writes, so their counters cannot reset; archive them with an ordinary field. Sends require current membership and a readable scope; a newly created scope allows its first join. Read/insert rules cannot depend on assigned accounting fields. Multiple distinct families
 may coexist, with at most 50 members and 64 disjoint runs per member.
 Membership must be group-readable and synced in full; malformed declarations refuse `E_RECEIPTS_CLAUSE`. Unsupported mappings name the field and reason at that clause. Progress fields and
 runs refuse ordinary writes with `E_RECEIPTS_OWNED`. Deleting a member retires their runs atomically, even for an authorized
@@ -137,7 +129,7 @@ later runs still merge. Long gaps persist partial endpoints across calls. `RUNS_
 before the count. Replaying its write id returns that success.
 Maintenance success never acknowledges delivery. Each step
 uses the ordinary meter; a refusal rolls back its transaction.
-Seen may queue and predict under ordinary coverage; only settled delivery
+Creating receipt scopes, sends and joins queue offline without predicted rows: a device cannot know the next server ordinal or current membership. Show the durable queued-write state until settlement; committed history is ordered by server transaction order. Replaying a write id allocates nothing twice. Seen may queue and predict under ordinary coverage; only settled delivery
 reports can establish committed receipt state. Reports assert the recipient's
 own observation; no protocol can prove that a person actually read a message.
 
@@ -145,10 +137,10 @@ For custom semantics, use the complete expert recipe in `guide manual-receipts`.
 It retains `reports delivery of ... by ...` and the same SDK behavior.
 An existing starter store may replace that recipe with the clause in one
 schema adoption: keep names, columns, indexes, membership floors and counters;
-remove only declarations the clause generates and explicit run deletion from
-leave. Existing rows survive; no backfill invents delivery. Other manual
+remove declarations the clause generates, explicit run deletion from leave,
+and authored allocation, recipient counts and join-floor writes. Existing rows survive; no backfill invents delivery. Other manual
 layouts keep working and require an explicit data migration before opting in.
-Upgrade engines and devices together; v2 changes the capability and delivery
+Upgrade engines and devices together; v3 changes the capability and delivery
 fingerprint, retiring old SDK debt for recollection.
 
 The older `useReceipts` history-walking hook does not scale to a large group:

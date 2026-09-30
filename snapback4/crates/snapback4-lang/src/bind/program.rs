@@ -1103,7 +1103,7 @@ impl<'a> Binder<'a> {
         // Materialize the same defaults in the insert expression so its returned row is the written image.
         for column in &info.decl.columns {
             if !given.contains(&column.name) && let Some(default) = &column.default {
-                if column.written_by.is_some() {
+                if column.written_by.is_some() || self.schema.receipt_assigned(&info.decl.name, &column.name) {
                     // Preserve omission until the engine checks supplied-field authority.
                     given.insert(column.name.clone());
                     continue;
@@ -1118,7 +1118,7 @@ impl<'a> Binder<'a> {
                 given.insert(column.name.clone());
             }
         }
-        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !info.decl.columns.iter().any(|c| c.name == **name && c.sequence.is_some()) && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
+        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !self.schema.receipt_assigned(&info.decl.name, name) && !info.decl.columns.iter().any(|c| c.name == **name && c.sequence.is_some()) && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
         if !missing.is_empty() {
             return Err(type_error(site, format!("insert into {} omits required column{} {}", info.decl.name, if missing.len() == 1 { "" } else { "s" }, missing.join(", ")), format!("insert {} {{ {} }}", info.decl.name, given.iter().cloned().chain(missing.iter().map(|m| format!("{m}: <{}>", info.columns.get(*m).map(print::scalar_type).unwrap_or_default()))).collect::<Vec<_>>().join(", "))));
         }

@@ -1,7 +1,15 @@
 use serde::{Deserialize, Serialize};
-// @ref LLP 3000.022#14 — names and mappings are explicit; v2 owns metered compaction.
+// @ref LLP 3000.022#14 — names and mappings are explicit; v3 owns allocation and membership snapshots.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ReceiptFamily {
+    pub scope: String,
+    pub counter: String,
+    pub messages: String,
+    pub message_group: String,
+    pub position: String,
+    pub sender: String,
+    pub count: String,
+    pub floor: String,
     pub name: String,
     pub members: String,
     pub group: String,
@@ -28,7 +36,15 @@ impl<'de> Deserialize<'de> for ReceiptFamily {
                 self,
                 mut map: A,
             ) -> Result<Self::Value, A::Error> {
-                const NAMES: [&str; 11] = [
+                const NAMES: [&str; 19] = [
+                    "scope",
+                    "counter",
+                    "messages",
+                    "message_group",
+                    "position",
+                    "sender",
+                    "count",
+                    "floor",
                     "name",
                     "members",
                     "group",
@@ -41,8 +57,8 @@ impl<'de> Deserialize<'de> for ReceiptFamily {
                     "seen",
                     "compact",
                 ];
-                let mut fields: [String; 11] = Default::default();
-                let mut seen = 0_u16;
+                let mut fields: [String; 19] = Default::default();
+                let mut seen = 0_u32;
                 while let Some(key) = map.next_key::<String>()? {
                     let Some(i) = NAMES.iter().position(|n| *n == key) else {
                         let _ = map.next_value::<serde::de::IgnoredAny>()?;
@@ -54,10 +70,18 @@ impl<'de> Deserialize<'de> for ReceiptFamily {
                     seen |= 1 << i;
                     fields[i] = map.next_value()?;
                 }
-                if seen != 2047 {
+                if seen != (1 << 19) - 1 {
                     return Err(serde::de::Error::custom("incomplete receipt mappings"));
                 }
                 let [
+                    scope,
+                    counter,
+                    messages,
+                    message_group,
+                    position,
+                    sender,
+                    count,
+                    floor,
                     name,
                     members,
                     group,
@@ -71,6 +95,14 @@ impl<'de> Deserialize<'de> for ReceiptFamily {
                     compact,
                 ] = fields;
                 Ok(ReceiptFamily {
+                    scope,
+                    counter,
+                    messages,
+                    message_group,
+                    position,
+                    sender,
+                    count,
+                    floor,
                     name,
                     members,
                     group,
@@ -86,5 +118,30 @@ impl<'de> Deserialize<'de> for ReceiptFamily {
             }
         }
         deserializer.deserialize_map(Family)
+    }
+}
+
+impl ReceiptFamily {
+    pub fn assigned<'a>(&'a self, table: &str) -> impl Iterator<Item = &'a str> {
+        [
+            (self.scope.as_str(), self.counter.as_str()),
+            (&self.members, &self.floor),
+            (&self.messages, &self.position),
+            (&self.messages, &self.count),
+        ]
+        .into_iter()
+        .filter_map(move |(owner, field)| (owner == table).then_some(field))
+    }
+}
+impl super::Schema {
+    pub fn receipt_assigned(&self, table: &str, field: &str) -> bool {
+        self.receipts
+            .iter()
+            .any(|f| f.assigned(table).any(|c| c == field))
+    }
+    pub fn receipt_insert(&self, table: &str) -> bool {
+        self.receipts
+            .iter()
+            .any(|f| table == f.messages || table == f.members || table == f.scope)
     }
 }

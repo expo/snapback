@@ -278,7 +278,7 @@ impl Runner<'_> {
     pub(super) fn sequence_result(&mut self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         if table.sequences.is_empty() {
-            return Ok(row);
+            return self.receipt_result(name, row);
         }
         let stored = self.metered_scan(|runner, allowance| runner.tx.get(allowance, name, row.field("id")?.as_str()?))?.expect("just inserted");
         let stored = self.project_row(name, stored)?;
@@ -292,7 +292,7 @@ impl Runner<'_> {
                 fields.insert("pending".into(), Value::Bool(true));
             }
         }
-        Ok(row)
+        self.receipt_result(name, row)
     }
 }
 

@@ -323,7 +323,7 @@ fn family_mappings_operations_and_semantics_are_explicit() {
         b.schema.delivery[0].fingerprint
     );
     let caps = serde_json::to_string(&b.schema).unwrap();
-    assert!(caps.contains("declarative-receipts-v2"));
+    assert!(caps.contains("declarative-receipts-v3"));
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed_at(
         [
@@ -383,15 +383,17 @@ fn distinct_families_map_membership_identity_and_keep_ownership_separate() {
     let base = r#"
 table groups:
   total: int
+  alertTotal: int
   public
   sync public
 table audience:
   group: groups
   who: principal
   joined: int
+  alertJoined: int
   unique group, who
   cap 50 by group
-  immutable group, who, joined
+  immutable group, who, joined, alertJoined
   read <- exists audience[.group, viewer]
   update <- .who = viewer
   delete <- viewer = 'service:admin'
@@ -420,6 +422,8 @@ table notes:
         message
             .replace("table notes:", "table alerts:")
             .replace("receipts inbox ", "receipts alerts ")
+            .replace("counter .total", "counter .alertTotal")
+            .replace("floor .joined", "floor .alertJoined")
     );
     let source = source.replace(
         "read <- exists audience[.group, viewer]",
@@ -432,7 +436,7 @@ table notes:
         [
             (
                 "groups".into(),
-                object([("id", id("c")), ("total", Value::Int(3))]),
+                object([("id", id("c")), ("total", Value::Int(3)), ("alertTotal", Value::Int(3))]),
             ),
             (
                 "audience".into(),
@@ -441,6 +445,7 @@ table notes:
                     ("group", id("c")),
                     ("who", id("bob")),
                     ("joined", Value::Int(0)),
+                    ("alertJoined", Value::Int(0)),
                 ]),
             ),
         ],

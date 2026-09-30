@@ -150,18 +150,6 @@ table messages:
   insert <- .sender = viewer and exists members[.conversation, viewer]
   delete <- .sender = viewer
   sync to members[.conversation]
-mutation seed():
-  chat = insert conversations { creator: viewer, lastOrdinal: 2131 }
-  insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
-  insert members { conversation: chat.id, principal: 'dev:bob', joinedOrdinal: 0 }
-  insert messages { conversation: chat.id, ordinal: 1, sender: viewer, recipients: 1 }
-  insert messages { conversation: chat.id, ordinal: 2000, sender: viewer, recipients: 1 }
-  for i in range(0,64):
-    insert messages { conversation: chat.id, ordinal: 2001 + i * 2, sender: viewer, recipients: 1 }
-    insert messages { conversation: chat.id, ordinal: 2002 + i * 2, sender: viewer, recipients: 1 }
-  insert messages { conversation: chat.id, ordinal: 2130, sender: viewer, recipients: 1 }
-  insert messages { conversation: chat.id, ordinal: 2131, sender: viewer, recipients: 1 }
-  return chat.id
 mutation erase(conversation: conversations):
   delete messages[conversation, 1]
   delete messages[conversation, 2000]
@@ -175,7 +163,14 @@ query fetched(conversation: conversations):
 `;
  const {url}=await server(t,'',source);
  const post=(persona,path,body)=>fetch(`${url}${path}`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':persona},body:JSON.stringify(body)}).then(r=>r.json());
- const chat=(await post('alice','/m/seed',{id:'seed',args:{}})).result;assert.ok(chat);
+ // Restore the same sparse historical layout through administrative seed;
+ // application mutations cannot write v3 accounting fields.
+ const chat='c', rows=[
+   {table:'conversations',row:{id:chat,creator:'dev:alice',lastOrdinal:2131}},
+   ...['alice','bob'].map(principal=>({table:'members',row:{id:principal,conversation:chat,principal:`dev:${principal}`,joinedOrdinal:0}})),
+   ...[1,2000,...Array.from({length:128},(_,i)=>2001+i),2130,2131].map(ordinal=>({table:'messages',row:{id:`m${ordinal}`,conversation:chat,ordinal,sender:'dev:alice',recipients:1}})),
+ ];
+ const restored=await post('alice','/seed',rows);assert.equal(restored.seeded,rows.length,JSON.stringify(restored));
  for(let i=0;i<64;i++) {
    const r=await post('bob','/m/chatDelivered',{id:`run${i}`,args:{conversation:chat,from:2002+i*2,through:2002+i*2}});assert.equal(r.state,'sent',JSON.stringify(r));
  }

@@ -588,10 +588,16 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   assert.equal((await page.evaluate(() => window.pendingDM())).some(w => w.op === "openDirect"), true);
   const opening = await page.evaluate(() => window.routeDM().opening);
   await page.evaluate(() => window.profileDM());
+  await page.evaluate(() => window.holdPendingDM(true));
   await page.evaluate(other => window.openDM(other), carol.principal);
+  await page.waitForFunction(() => window.pendingDMReads > 0);
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 2, "an empty initial hook snapshot must not recreate a queued opening");
+  assert.equal(await page.evaluate(() => window.routeDM().screen), "dm", "wait for durable custody before choosing the opening");
+  await page.evaluate(() => window.holdPendingDM(false));
   await page.getByTestId("composer").waitFor();
   assert.equal(await page.evaluate(() => window.routeDM().id), provisional);
-  assert.equal(await page.evaluate(() => window.routeDM().opening), opening, "reopening a prediction recovers its original settlement owner");
+  assert.equal(await page.evaluate(() => window.routeDM().opening), opening, "reopening queued creation recovers its original settlement owner");
   await page.getByTestId("composer").fill("sent against the provisional ID");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send"));

@@ -79912,3 +79912,63 @@ Report and evidence: reports/20260930-rx-declarative-receipts/round4/REPORT.md.
 This closes the supplied P2; allocation/count/floor work remains deferred.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — RY round 0: receipt allocation and membership snapshots
+
+Continued RX at dcc785038a2f on sb4-intent/ry-receipts-allocation. The receipt
+clause now owns each scope's high ordinal, message ordinal/recipient snapshot
+and member join floor. Successful message insert arms allocate under the writer
+transaction; failed, duplicate and replayed writes consume no position. Joins
+stamp the current high without consuming it, and removal/rejoin retains RX's
+retirement semantics. Explicit application accounting writes refuse, including
+system-run mutations; administrative seed/restore can preserve history. Bounded
+membership index counts avoid charging for private member payloads. Counter
+updates preserve private scope values and need no authored update grant. Scope
+delete/reinsert is refused to prevent ordinal identity reset. Generic sequence
+counters remain independent. Capability and fingerprint semantics advance to v3.
+
+Receipt scope creation, sends and joins queue durably without predicted rows.
+Server commitment supplies the final history order and recipient snapshot;
+there is no invented local delivery position. The social schema drops from
+231 to 223 lines. The DM resolver recovers pending openings without a predicted
+lookup row and awaits the durable queue before treating the hook's initial
+empty snapshot as absence. LLP 3000.022 §14, LLP 3000.028 §8 and the compiled
+receipt/social guides describe these choices.
+
+Verification: 2,560 reference-model transitions across memory/SQLite devices;
+eight concurrent server connections allocate 80 contiguous messages with
+write-id replay; two offline devices restart, reconnect interleaved, converge
+exactly once and acquire honest delivery/read receipts. Receipt suite 60/60,
+affected device checks 127/127, core sequence checks 46/46 and whole guide
+106/106 pass. Public-client starter M3 coverage checks allocated positions,
+snapshots, join/rejoin floors and delivery/read progress.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+
+    == 1 failure(s) in 1311 s
+
+Rust: 4,441 passes and 33 existing ignores; clients: 5,351 passes, one failure
+and ten existing skips; fixtures: 9/9; serial models: 79/79 with both full
+5,000-sequence walks. The sole full-run failure is ours: the declarative SDK
+long-hole fixture supplied historical accounting fields through an application
+mutation. Restoring the identical sparse history through administrative seed
+preserves every compaction assertion and passes the whole integration file 4/4.
+Baseline failures: none. Environmental failures: none. The inherited nominal
+60-second suite bar remains exceeded. No counts or timeouts were relaxed.
+
+Source stayed fixed throughout the full run. The subsequent starter audit
+found and reproduced our pending-hook restoration race (three openings instead
+of two). The real-browser detecting control fails, then the awaited-queue fix
+passes all eight route/recovery checks. Final starter checks 9/9 and whole guide
+106/106 also pass. Engine, binder and wasm remained unchanged after the full run;
+its exact red result is retained alongside the corrective affected checks.
+
+Wasm: 1,992,140 B raw / 597,386 B gzip on Rust 1.97.0, wasm-bindgen 0.2.127 and
+locked Binaryen 132. The v3 descriptor, device ownership/lifetime checks and
+runtime queue guard require a 139 B increase over the inherited 597,247 B
+ratchet; allocation/counting stay server-only. Set the ratchet exactly to the
+measured 597,386 B, without added slack. This is a whole-artifact measurement;
+no runtime ceiling changed. Report, all failure classifications, logs, source
+and artifact hashes: reports/20260930-ry-receipts-allocation/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

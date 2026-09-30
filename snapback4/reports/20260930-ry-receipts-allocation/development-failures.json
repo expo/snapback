@@ -1,0 +1,187 @@
+{
+  "affected-and-guide.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "definitions::w11_every_registered_code_quotes_its_definition"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test guide`"
+    ],
+    "summaries": [
+      "test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.86s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+      "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+      "test result: FAILED. 105 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.37s"
+    ]
+  },
+  "affected-first.log.gz": {
+    "classification": "ours",
+    "failures": [],
+    "errors": [
+      "error[E0283]: type annotations needed",
+      "error: could not compile `snapback4-core` (lib) due to 1 previous error"
+    ],
+    "summaries": []
+  },
+  "affected-model.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "allocation::failed_noop_and_metered_sends_preserve_counter",
+      "allocation::offline_two_devices_memory",
+      "allocation::allocation_model_sqlite",
+      "allocation::simultaneous_writers_allocate_without_gaps_or_duplicates",
+      "allocation::offline_two_devices_sqlite",
+      "allocation::allocation_model_memory",
+      "round1::distinct_families_map_membership_identity_and_keep_ownership_separate"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 47 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.14s"
+    ]
+  },
+  "affected-second.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "round1::distinct_families_map_membership_identity_and_keep_ownership_separate"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 47 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.46s"
+    ]
+  },
+  "allocation-final.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "allocation::ownership_initialization_results_and_scope_authority"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 48 filtered out; finished in 5.15s"
+    ]
+  },
+  "allocation-guards.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "allocation::sequence_counters_and_other_groups_cannot_consume_receipt_positions",
+      "allocation::ownership_initialization_results_and_scope_authority"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 48 filtered out; finished in 5.18s"
+    ]
+  },
+  "compile.log.gz": {
+    "classification": "ours",
+    "failures": [],
+    "errors": [
+      "error[E0277]: the trait bound `ir::KeyProvenance: Default` is not satisfied",
+      "error[E0599]: no method named `heap_bytes` found for enum `value::Value` in the current scope",
+      "error[E0277]: the trait bound `ir::KeyProvenance: Default` is not satisfied",
+      "error[E0599]: no method named `heap_bytes` found for enum `value::Value` in the current scope",
+      "error[E0308]: mismatched types",
+      "error: could not compile `snapback4-core` (lib) due to 5 previous errors"
+    ],
+    "summaries": []
+  },
+  "device-affected.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "census::authoring_census"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-device --test readauth`"
+    ],
+    "summaries": [
+      "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s",
+      "test result: FAILED. 80 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.67s"
+    ]
+  },
+  "model-second.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "allocation::allocation_model_memory",
+      "allocation::offline_two_devices_memory",
+      "allocation::allocation_model_sqlite",
+      "allocation::offline_two_devices_sqlite",
+      "allocation::simultaneous_writers_allocate_without_gaps_or_duplicates"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.36s"
+    ]
+  },
+  "model-third.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "allocation::allocation_model_memory",
+      "allocation::offline_two_devices_memory",
+      "allocation::allocation_model_sqlite",
+      "allocation::offline_two_devices_sqlite",
+      "allocation::simultaneous_writers_allocate_without_gaps_or_duplicates"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.37s"
+    ]
+  },
+  "starter-e2e.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "social DM native: concurrent opens converge, held keys resolve offline and an offline race settles",
+      "social DM web: concurrent opens converge, held keys resolve offline and an offline race settles"
+    ],
+    "errors": [
+      "AssertionError [ERR_ASSERTION]: covered creation predicts its proposed conversation"
+    ],
+    "summaries": [
+      "\u2139 tests 9",
+      "\u2139 pass 7",
+      "\u2139 fail 2",
+      "\u2139 skipped 0"
+    ]
+  },
+  "wasm-confirm.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "wasm gzip exceeds inherited ratchet before authorized increase"
+    ],
+    "errors": [
+      "wasm 1992140 B raw, 597386 B gzip (budget 597247: OVER by 139 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ],
+    "summaries": []
+  },
+  "wasm-final.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "wasm gzip exceeds inherited ratchet before authorized increase"
+    ],
+    "errors": [
+      "wasm 1992140 B raw, 597386 B gzip (budget 597247: OVER by 139 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ],
+    "summaries": []
+  },
+  "wasm-first.log.gz": {
+    "classification": "ours",
+    "failures": [
+      "wasm gzip exceeds inherited ratchet before authorized increase"
+    ],
+    "errors": [
+      "wasm 1992462 B raw, 597549 B gzip (budget 597247: OVER by 302 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ],
+    "summaries": []
+  }
+}

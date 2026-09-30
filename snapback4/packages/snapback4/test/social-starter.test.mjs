@@ -156,6 +156,9 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   const message = await write(a, api.send, { conversation, text: "coffee tomorrow", photo: null });
   await b.sync();
   await until(async () => (await b.query(api.history, { conversation })).data?.[0]?.id === message, "ordinary history");
+  const allocated = (await b.query(api.history, { conversation })).data[0];
+  assert.equal(allocated.ordinal, 1); assert.equal(allocated.recipients, 1);
+  assert.equal((await b.query(api.receiptMember, { conversation })).data.joinedOrdinal, 0);
   await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.[0]?.receipt === "delivered", "SDK delivery reporter");
   await write(b, api.seen, { conversation, through: 1 });
   await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.[0]?.receipt === "read", "seen receipt");
@@ -214,6 +217,17 @@ test("social starter runs through the public client: feed, likes, receipts, typi
     return "loading" in read ? false : read;
   }, "ordinary retained search ready");
   assert.deepEqual(allSearch.data.map(row => row.id), [message], "ordinary all-chat search keeps the departed hit online");
+  // RY: the clause stamps a fresh floor on rejoin and snapshots recipients.
+  const high = (await a.query(api.conversationScreen, { conversation })).data.lastOrdinal;
+  await write(a, api.add, { conversation, principal: b.viewer() }); await b.sync();
+  assert.equal((await b.query(api.receiptMember, { conversation })).data.joinedOrdinal, high);
+  const rejoined = await write(a, api.send, { conversation, text: "new membership", photo: null });
+  await b.sync();
+  const afterJoin = await until(async () => (await b.query(api.history, { conversation })).data?.find(row => row.id === rejoined), "rejoined history");
+  assert.equal(afterJoin.ordinal, high + 1); assert.equal(afterJoin.recipients, 1);
+  await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.find(row => row.id === rejoined)?.receipt === "delivered", "rejoin delivery");
+  await write(b, api.seen, { conversation, through: high + 1 });
+  await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.find(row => row.id === rejoined)?.receipt === "read", "rejoin read");
   const previous = b.viewer();
   await bob.auth.logout(); await bob.auth.guest();
   assert.notEqual(bob.client.viewer(), previous);
@@ -270,10 +284,9 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
   assert.equal(queued.state, "pending", JSON.stringify(queued));
   const admission = (await local.pendingWrites()).find(w => w.id === opening);
   assert.ok(admission, "creation enters SDK custody offline");
-  assert.ok(admission.predicted.includes(`conversations/${provisional}`), "covered creation predicts its proposed conversation");
-  const predicted = await local.query(api.directConversation, { other: peer });
-  assert.equal(predicted.data?.conversation, provisional, JSON.stringify(predicted));
-  assert.equal(predicted.data.pending, true);
+  assert.deepEqual(admission.predicted, [], "receipt scope and join creation waits for server accounting");
+  const pendingPair = await local.query(api.directConversation, { other: peer });
+  assert.equal(pendingPair.data, null, JSON.stringify(pendingPair));
   const proposals = [mintId(), mintId()];
   let completed = 0;
   const concurrent = [

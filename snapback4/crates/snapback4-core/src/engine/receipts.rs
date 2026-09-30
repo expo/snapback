@@ -8,19 +8,258 @@ use crate::{
 };
 
 fn owned() -> RuntimeError {
-    RuntimeError::Structural { code: "E_RECEIPTS_OWNED", message: "receipt progress is engine-owned; call delivered or seen for the signed-in recipient (guide receipts)".into() }
+    RuntimeError::Structural { code: "E_RECEIPTS_OWNED", message: "receipt accounting and progress are engine-owned; omit allocation, floor and count fields; call delivered or seen for the signed-in recipient (guide receipts)".into() }
 }
 impl Runner<'_> {
+    // @ref LLP 3000.022#14.3 — no local ordinal or snapshot can claim a server position.
+    pub(super) fn receipt_insert_fields(
+        &mut self,
+        table: &str,
+        row: Value,
+    ) -> Result<Value, RuntimeError> {
+        if !self.schema.receipt_insert(table) {
+            return Ok(row);
+        }
+        if self.device {
+            return Err(RuntimeError::Prediction(
+                "receipt allocation and joins queue until server settlement (guide receipts)"
+                    .into(),
+            ));
+        }
+        #[cfg(feature = "sqlite")]
+        {
+            self.assign_receipt_fields(table, row)
+        }
+        #[cfg(not(feature = "sqlite"))]
+        {
+            Ok(row)
+        }
+    }
+
+    #[cfg(feature = "sqlite")]
+    fn assign_receipt_fields(
+        &mut self,
+        table: &str,
+        mut row: Value,
+    ) -> Result<Value, RuntimeError> {
+        use crate::{error::MeterKind, schema::Effect};
+        // Supplied fields were checked before defaults. New scope counters are
+        // always zero; trusted seed/import images retain their explicit values.
+        if self.context.is_system() && self.receipt_operation.is_empty() {
+            return Ok(row);
+        }
+        if !self.check_rule(table, Effect::Insert, None, &row)? {
+            return Err(self.rule_refusal(table, Effect::Insert, "insert rule"));
+        }
+        self.meter.heap(super::write_target::row_copy_ceiling(
+            &self.schema.tables[table],
+        ))?;
+        for f in &self.schema.receipts {
+            if table == f.scope {
+                set(&mut row, &f.counter, 0)?;
+            }
+            if table != f.members && table != f.messages {
+                continue;
+            }
+            let sending = table == f.messages;
+            let group = row
+                .field(if sending { &f.message_group } else { &f.group })?
+                .clone();
+            let scope = self.receipt_scope(f, &group)?;
+            let high = scope.field(&f.counter)?.as_int()?;
+            if high < 0 || high > crate::value::I53_MAX {
+                return Err(RuntimeError::Input(
+                    "receipt counter must be a nonnegative safe integer".into(),
+                ));
+            }
+            if sending {
+                if high == crate::value::I53_MAX {
+                    return Err(super::sequences::exhausted());
+                }
+                // The admitted group-wide audience makes the complete membership
+                // population readable to this member. Do not infer zero from a
+                // filtered scan by a non-member (even one granted insert).
+                let members = &self.schema.tables[&f.members];
+                let (index, _) = members
+                    .indexes
+                    .iter()
+                    .find(|(_, i)| {
+                        i.unique && i.columns() == [f.group.as_str(), f.principal.as_str()]
+                    })
+                    .unwrap();
+                let own = self.get(&crate::ir::Read {
+                    site: "receipt membership".into(),
+                    table: f.members.clone(),
+                    index: index.clone(),
+                    key: vec![
+                        crate::ir::Expr::Literal(group.clone()),
+                        crate::ir::Expr::Literal(Value::Id(self.context.viewer.clone())),
+                    ],
+                    provenance: crate::ir::KeyProvenance::Computed,
+                })?;
+                if own == Value::Null && !self.context.is_system() {
+                    return Err(RuntimeError::Require {
+                        code: "NOT_MEMBER".into(),
+                        site: None,
+                    });
+                }
+                // Membership is non-expiring and capped. Count index keys, not
+                // private member payloads; their sizes cannot influence the
+                // logical receipt meter or a count's refusal boundary.
+                let (total, sender) = self.metered_scan(|runner, allowance| {
+                    let total = runner.tx.count_prefix(
+                        allowance,
+                        &f.members,
+                        index,
+                        &[group.clone()],
+                        50,
+                    )?;
+                    let sender = runner.tx.count_prefix(
+                        allowance,
+                        &f.members,
+                        index,
+                        &[group.clone(), row.field(&f.sender)?.clone()],
+                        1,
+                    )?;
+                    Ok((total, sender))
+                })?;
+                self.meter.step(total + 1)?;
+                self.meter.charge(MeterKind::Examined, total + 1)?;
+                self.meter.charge(MeterKind::IndexEntries, total + 1)?;
+                let count = (total - sender) as i64;
+                set(&mut row, &f.position, high + 1)?;
+                set(&mut row, &f.count, count)?;
+            } else {
+                set(&mut row, &f.floor, high)?;
+            }
+        }
+        Ok(row)
+    }
+
+    #[cfg(feature = "sqlite")]
+    fn receipt_scope(
+        &mut self,
+        f: &crate::schema::ReceiptFamily,
+        group: &Value,
+    ) -> Result<Value, RuntimeError> {
+        let created = self
+            .created_rows
+            .contains_key(&(f.scope.clone(), group.as_str()?.into()));
+        let scope = if created {
+            self.metered_scan(|runner, allowance| {
+                runner.fetch(allowance, &f.scope, group.as_str()?)
+            })?
+            .unwrap_or(Value::Null)
+        } else {
+            self.get(&crate::ir::Read {
+                site: "receipt counter".into(),
+                table: f.scope.clone(),
+                index: "byId".into(),
+                key: vec![crate::ir::Expr::Literal(group.clone())],
+                provenance: crate::ir::KeyProvenance::Computed,
+            })?
+        };
+        if scope == Value::Null {
+            return Err(RuntimeError::Require {
+                code: "NOT_FOUND".into(),
+                site: None,
+            });
+        }
+        // get() proves row authority but projects private fields. Preserve the
+        // complete stored image when the engine replaces only its own counter.
+        self.metered_scan(|runner, allowance| runner.fetch(allowance, &f.scope, group.as_str()?))?
+            .ok_or_else(|| RuntimeError::Require {
+                code: "NOT_FOUND".into(),
+                site: None,
+            })
+    }
+
+    // Only successful message insert arms consume a position. A duplicate
+    // if-absent or any later refusal leaves both images unchanged by rollback.
+    pub(super) fn commit_receipt_counter(
+        &mut self,
+        table: &str,
+        row: &Value,
+    ) -> Result<(), RuntimeError> {
+        #[cfg(feature = "sqlite")]
+        if !self.context.is_system() || !self.receipt_operation.is_empty() {
+            for f in &self.schema.receipts {
+                if table != f.messages {
+                    continue;
+                }
+                let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
+                let copy = super::write_target::row_copy_ceiling(&self.schema.tables[&f.scope]);
+                self.meter.heap(copy)?;
+                let mut new = old.clone();
+                set(&mut new, &f.counter, row.field(&f.position)?.as_int()?)?;
+                // The clause owns precisely this derived field; ordinary scope
+                // update authority is neither required nor lent to the caller.
+                self.reserve_maintains(&f.scope, &self.schema.tables[&f.scope])?;
+                self.replace_authorized(
+                    &f.scope,
+                    old,
+                    new,
+                    true,
+                    &Value::Row(Default::default()),
+                    copy,
+                )?;
+            }
+        }
+        #[cfg(not(feature = "sqlite"))]
+        let _ = (table, row);
+        Ok(())
+    }
+
+    pub(super) fn receipt_result(
+        &mut self,
+        table: &str,
+        row: Value,
+    ) -> Result<Value, RuntimeError> {
+        // The caller owns the insert image. Return only newly assigned ints,
+        // not a read of other columns or a grant to read the new scope before
+        // its founding membership exists. Devices never reach this path.
+        #[cfg(feature = "sqlite")]
+        if self.schema.receipt_insert(table) {
+            self.meter.heap(super::write_target::row_copy_ceiling(
+                &self.schema.tables[table],
+            ))?;
+            let stored = self
+                .metered_scan(|runner, allowance| {
+                    runner.tx.get(allowance, table, row.field("id")?.as_str()?)
+                })?
+                .ok_or_else(|| RuntimeError::Require {
+                    code: "NOT_FOUND".into(),
+                    site: None,
+                })?;
+            let mut row = row;
+            for family in &self.schema.receipts {
+                for field in family.assigned(table) {
+                    set(&mut row, field, stored.field(field)?.as_int()?)?;
+                }
+            }
+            return Ok(row);
+        }
+        #[cfg(not(feature = "sqlite"))]
+        let _ = table;
+        Ok(row)
+    }
+
     pub(super) fn refuse_receipt_fields(
         &self,
         table: &str,
         patch: &Value,
         inserting: bool,
     ) -> Result<(), RuntimeError> {
-        if self.context.is_system() {
+        if self.context.is_system() && self.receipt_operation.is_empty() {
             return Ok(());
         }
         for family in &self.schema.receipts {
+            if family
+                .assigned(table)
+                .any(|field| patch.as_object().is_ok_and(|p| p.contains_key(field)))
+            {
+                return Err(owned());
+            }
             if family.members != table {
                 continue;
             }
@@ -40,8 +279,16 @@ impl Runner<'_> {
         }
         Ok(())
     }
+    pub(super) fn refuse_receipt_scope_delete(&self, table: &str) -> Result<(), RuntimeError> {
+        if (!self.context.is_system() || !self.receipt_operation.is_empty())
+            && self.schema.receipts.iter().any(|f| f.scope == table)
+        {
+            return Err(owned());
+        }
+        Ok(())
+    }
     pub(super) fn refuse_receipt_table(&self, table: &str) -> Result<(), RuntimeError> {
-        if self.context.is_system() {
+        if self.context.is_system() && self.receipt_operation.is_empty() {
             return Ok(());
         }
         if self.schema.receipts.iter().any(|f| {
@@ -109,4 +356,14 @@ impl Runner<'_> {
         }
         Ok(())
     }
+}
+
+#[cfg(feature = "sqlite")]
+fn set(row: &mut Value, field: &str, value: i64) -> Result<(), RuntimeError> {
+    if let Value::Row(fields) | Value::Map(fields) = row {
+        fields.insert(field.into(), Value::Int(value));
+    } else {
+        return Err(RuntimeError::Input("receipt insert must be a row".into()));
+    }
+    Ok(())
 }
