@@ -1,0 +1,12 @@
+{
+  "step": "wasm-build",
+  "command": [
+    "bash",
+    "scripts/build-wasm.sh"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-049/snapback4",
+  "start": 1790700858.5562391,
+  "end": 1790700862.652823,
+  "seconds": 4.097,
+  "exit": 0
+}

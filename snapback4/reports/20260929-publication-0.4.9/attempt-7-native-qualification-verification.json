@@ -1,0 +1,12 @@
+{
+  "step": "native-qualification-verification",
+  "command": [
+    "python3",
+    "/Users/ccheever/sb4-pub-049/helpers-0.4.9/native-verify.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-049/snapback4",
+  "start": 1790700976.267023,
+  "end": 1790700976.432822,
+  "seconds": 0.166,
+  "exit": 0
+}
