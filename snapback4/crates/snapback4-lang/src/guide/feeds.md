@@ -234,9 +234,9 @@ A full page ending at the floor is data; its next page is withheld. Pending
 backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains
 unavailable. The server cannot replace a prediction before it is observed.
 
-At your follow/unfollow call, the mounted answer becomes `revalidating` (loading
-with `keep: false`); re-reads stay incomplete until the edge is observed. Then
-copied posts appear, or unfollowed posts disappear; remaining work stays incomplete.
+Your follow/unfollow call or recovery marks mounted answers `revalidating` (loading
+with `keep: false`); re-reads stay incomplete until observation. Then posts appear or
+disappear; a quiet author's page is complete and empty. Remaining work stays incomplete.
 Render `loading || revalidating || !complete` as “Updating…” before testing
 `data.length === 0` for “No posts”. Continue with `next` or retry after cleanup;
 cursors are not snapshots.

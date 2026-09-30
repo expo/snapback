@@ -9,7 +9,19 @@ export class FollowingIntents {
   private waiting = new Set<string>();
   constructor(private readonly backend: () => BackendJson | null,
     private readonly queued: () => Promise<Queued[]>,
-    private readonly changed: (tables: string[]) => void) {}
+    private readonly changed: (tables: string[]) => void,
+    private readonly viewer: string) {}
+
+  // Hosts report the committed entries before notifying pending-write readers
+  // or starting delivery, including orphan adoption and admission replay.
+  recovered(entries: readonly Queued[]): void {
+    const tables = [...new Set(entries.filter(entry => this.ownPending(entry)).flatMap(entry => this.feeds(entry.op)))];
+    if (tables.length) this.changed(tables);
+  }
+
+  private ownPending(entry: Queued): boolean {
+    return entry.viewer === this.viewer && entry.observed_seq == null;
+  }
 
   private feeds(op: string): string[] {
     const backend = this.backend();
@@ -43,7 +55,7 @@ export class FollowingIntents {
     const intersects = (op: string) => this.feeds(op).some(table => reads.has(table));
     const entries = await this.queued();
     const pending = [...this.calls.values()].some(intersects)
-      || entries.some(entry => entry.observed_seq == null && intersects(entry.op));
+      || entries.some(entry => this.ownPending(entry) && intersects(entry.op));
     if (pending) for (const timeline of backend.schema.timelines ?? []) {
       for (const suffix of ["Feed", "Edges", "Work"]) {
         const table = `${timeline.name}${suffix}`;

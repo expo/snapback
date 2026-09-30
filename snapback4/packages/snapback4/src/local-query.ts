@@ -356,7 +356,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
-      if (followingPending && "data" in result.read) result.read = { ...result.read, complete: false };
+      if (followingPending && "data" in result.read) result.read = readyRead<R>({ ...result.read, complete: false }, pendingHere);
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
       return { ...result, read: readyRead<R>({ ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) }, pendingHere) };

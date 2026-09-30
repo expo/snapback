@@ -1,0 +1,89 @@
+setup wasm { loading: true }
+ready wasm
+non-edge wasm post
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729744118,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729744118,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+non-edge wasm like
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729744124,
+      card: [Object],
+      id: 'own',
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729744124,
+      card: [Object],
+      id: 'own',
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+✖ reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs (109628.696927ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109633.28225
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:1:1
+✖ reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs (109628.696927ms)
+  'Promise resolution is still pending but the event loop has already resolved'

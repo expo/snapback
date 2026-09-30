@@ -1,0 +1,15 @@
+✖ reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs (114266.3134ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 114270.900796
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:1:1
+✖ reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs (114266.3134ms)
+  'Promise resolution is still pending but the event loop has already resolved'

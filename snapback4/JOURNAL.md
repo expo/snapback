@@ -79183,3 +79183,52 @@ raw traces, complete failure ledger and harness:
 reports/20260929-fw-follow-window/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+### 2026-09-30 — FW round 1: Following invalidation follows edge custody
+
+Read the FW round 0 prompt/report and both reviews (Astra NOT READY; Grok
+READY WITH CHANGES). Merged origin/main fc8deceab4 first, preserving the other
+lanes and FW. Resolved local.ts/local-query.ts together and regenerated the
+conflicted delivery-await-boundary.json through awaitBoundary(). The merge is
+882d25763b; no push or publication.
+
+Both browser adapters now report committed outbox entries before pending-write
+notification or delivery. Recovered, adopted and restored own edges synchronously
+invalidate only reads of their timeline's Feed/Edges/Work tables. Restoration
+reports durable entries even when a lost save reply leaves no new write to
+commit. Both recovered invalidation and publication qualification require the
+current viewer. Calls retain their existing synchronous marker, and process
+restart uses the same durable publication check. The merge recomputes the new
+existence discriminator when Following becomes incomplete. No Rust engine,
+contract.ts, storage-format, authorization, horizon or 50/1,000-event change.
+
+All 24 causal cases pass, including four independent two-tab Chromium/IndexedDB
+adoption cases across both browser adapters, plus both-device scope, empty-author,
+overlap, offline and viewer tests, process restart and committed-image restore.
+Actual round 0 fails all four adoption controls, both viewer controls and the
+restore control. Broad-gate and stuck-gate mutants each fail both relevant device
+cases. Other newly covered liveness paths already passed round 0; no false
+baseline failure is claimed. An additional recovered-refusal audit passes 1/1
+without another product change. All 66 original report/tool/measurement files
+remain byte-for-byte unchanged, preserving the measured 313-to-0 result and its
+scope. Guide feeds remains 401 lines; LLP 3000.016 records the revised custody
+rule; local.ts remains 1,500 lines.
+
+Affected integration 138/138, whole guide 105/105, await classification 1/1,
+SDK typecheck/build, docs budget and ref-check pass (525 LLPs, 9,970 refs,
+0 errors or unchecked). Ran scripts/test.sh exactly once, exit 0:
+
+    == 0 failure(s) in 1293 s
+
+Full-suite failures: ours 0, baseline 0, environmental 0. Rust 4,362 passes and
+33 declared ignores; clients 5,308 passes and ten existing skips; fixtures 9/9;
+serial models 79/79 including both full 5,000-sequence walks. No cancellations,
+reduced counts or relaxed timeouts. The inherited nominal 60-second suite bar
+remains exceeded. No product source changed after the full run began.
+
+Wasm is 1,978,828 B raw / 593,295 B gzip, 424 B below the unchanged 593,719 B
+ratchet. No budget increase. Report, source/artifact hashes, all failures including
+superseded harness probes, and causal tools:
+reports/20260929-fw-follow-window/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

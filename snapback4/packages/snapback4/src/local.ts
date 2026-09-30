@@ -136,8 +136,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
   let stopSuspend: (() => void) | undefined;
   let sendingAllowed = !core.onSuspend;
-  let stopOutbox: (() => void) | undefined;
-  let flushRecovered: (() => void) | undefined;
+  let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
+  let followingIntents!: FollowingIntents;
   let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined, deliveryQueue: ReturnType<typeof localDelivery> | undefined, deliveryWitness = false;
   try {
@@ -156,7 +156,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const state = await call({ op: "state" });
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
-  stopOutbox = core.onOutbox?.(time => { clock.raiseIssued(time ?? 0); pending.notify(); flushRecovered?.(); });
+  stopOutbox = core.onOutbox?.((time, entries) => { clock.raiseIssued(time ?? 0); followingIntents?.recovered(entries ?? []); pending.notify(); flushRecovered?.(); });
   await clock.attach(core);
   if (session && session.expiresAt <= clock.issuedDeviceNow()) {
     await forgetSession(base, sessions);
@@ -190,7 +190,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
   };
   const answers = new LocalReads();
-  const followingIntents = new FollowingIntents(() => backend, queued, tables => { const delivery: (() => void)[] = []; invalidateAnswers(delivery, "admit", tables); for (const notify of delivery) notify(); });
+  followingIntents = new FollowingIntents(() => backend, queued, tables => { const delivery: (() => void)[] = []; invalidateAnswers(delivery, "admit", tables); for (const notify of delivery) notify(); }, principal);
   const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), acquireRead);
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
@@ -882,8 +882,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get partitionCurrent() { return partitionCurrent; },
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
-      principal, signal: signal ?? aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify,
-      followingPending: (tables: ReadonlySet<string>) => followingIntents.pending(tables),
+      principal, signal: signal ?? aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify, followingPending: (tables: ReadonlySet<string>) => followingIntents.pending(tables),
       post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined, undefined, signal),
       searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, undefined, decode, signal),
       refreshSearch: (name: string) => refreshSearchRoots(watches, name, backend?.schema.operations?.[name]?.search?.cursor, notify, scheduleRead),
