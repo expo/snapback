@@ -1,0 +1,532 @@
+diff --git a/llp/3000.023-answers-stay-on-screen.rfc.md b/llp/3000.023-answers-stay-on-screen.rfc.md
+index 400ac7db91..afbcb83d2d 100644
+--- a/llp/3000.023-answers-stay-on-screen.rfc.md
++++ b/llp/3000.023-answers-stay-on-screen.rfc.md
+@@ -5,7 +5,7 @@
+ **Systems:** Snapback 4 — the client SDK (`ReadObservation`, the local and online clients, the app facade, React hooks), the client guide
+ **Author:** Claude Opus 5.5 (for Charlie Cheever)
+ **Date:** 2026-09-27
+-**Revised:** 2026-09-30 (QS round 0: bounded settled one-shot reads, §11); 2026-09-29 (LL round 1: held-only parking preserves changing fallback routes and terminal refusals; every pending-cut watch resumes at publication, §10); 2026-09-29 (LL round 0: event-driven pending-cut resumption and media dependency invalidation, §10); 2026-09-29 (PQ round 7: merge RL plain revalidation and PQ queued change bounds into §10); 2026-09-29 (PQ round 6: background presence shares change-version checks through memory and publication, §10); 2026-09-29 (PQ round 5: raw local resubscription applies its retention policy, §10); 2026-09-29 (PQ round 4: queued episodes start at attempt execution; disjoint remembered answers survive commits, §10); 2026-09-27 (Accepted after three dual-family rounds: round 0 NOT READY from both, round 1 NOT READY and READY WITH CHANGES, round 2 READY WITH CHANGES from both, applied in r3: `publish({ loading })` always replaces and retention is its own method; the episode is an absolute timestamp written once; one stable loading snapshot; normalized per-call retention; KG's hold marks `revalidating`, clears on every source withdrawal, and follows `retain`; `usePage` checks its cache's deadlines); 2026-09-27 (r2: round 1 (Grok READY WITH CHANGES, Astra NOT READY): one non-renewable episode deadline per displayed answer, shared by the facade and checked by snapshots and peeks, whose withdrawal lets the in-flight read still publish; three watch keys; `retain: false` wins; the reset fence and re-read for every watch; `usePage` carries `revalidating`; fallback success keeps retaining; presence samples excluded; corrected sites); 2026-09-27 (r1: retention is bounded and marked `revalidating`; unsuccessful re-reads withdraw; `keep` has three states; every protection that followed `keep` follows retention; the facade needs KG's deadline invariant); 2026-09-27 (initial)
++**Revised:** 2026-09-30 (QS round 1: terminal refusals across facade deadlines, impossible held reads and mock settlement, §11); 2026-09-30 (QS round 0: bounded settled one-shot reads, §11); 2026-09-29 (LL round 1: held-only parking preserves changing fallback routes and terminal refusals; every pending-cut watch resumes at publication, §10); 2026-09-29 (LL round 0: event-driven pending-cut resumption and media dependency invalidation, §10); 2026-09-29 (PQ round 7: merge RL plain revalidation and PQ queued change bounds into §10); 2026-09-29 (PQ round 6: background presence shares change-version checks through memory and publication, §10); 2026-09-29 (PQ round 5: raw local resubscription applies its retention policy, §10); 2026-09-29 (PQ round 4: queued episodes start at attempt execution; disjoint remembered answers survive commits, §10); 2026-09-27 (Accepted after three dual-family rounds: round 0 NOT READY from both, round 1 NOT READY and READY WITH CHANGES, round 2 READY WITH CHANGES from both, applied in r3: `publish({ loading })` always replaces and retention is its own method; the episode is an absolute timestamp written once; one stable loading snapshot; normalized per-call retention; KG's hold marks `revalidating`, clears on every source withdrawal, and follows `retain`; `usePage` checks its cache's deadlines); 2026-09-27 (r2: round 1 (Grok READY WITH CHANGES, Astra NOT READY): one non-renewable episode deadline per displayed answer, shared by the facade and checked by snapshots and peeks, whose withdrawal lets the in-flight read still publish; three watch keys; `retain: false` wins; the reset fence and re-read for every watch; `usePage` carries `revalidating`; fallback success keeps retaining; presence samples excluded; corrected sites); 2026-09-27 (r1: retention is bounded and marked `revalidating`; unsuccessful re-reads withdraw; `keep` has three states; every protection that followed `keep` follows retention; the facade needs KG's deadline invariant); 2026-09-27 (initial)
+ **Related:** [LLP 3000.019](./3000.019-what-the-builder-still-wrote.rfc.md) §3.3 (P3: `keep` is the application's choice, which this RFC revisits), [LLP 3000.021](./3000.021-what-the-comparative-builder-still-wrote.rfc.md), [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md) §6 (the facade's fences)
+ 
+ > **Current model:** §10 revises the episode and failure policy in §§3–6.
+@@ -772,7 +772,10 @@ budget, not a fresh raw budget per facade retry. Terminal store/session/close
+ refusals win over timeout. Aborting ends the caller's wait even if an adapter
+ ignores abort; existing signal fences prevent its late answer from publishing
+ or adopting transport evidence. Raw attempts also observe their client's
+-lifetime when entered through the facade.
++lifetime when entered through the facade. The function-identity map also exposes
++the raw terminal-refusal callback to each facade: a facade timeout can win
++before the raw catch runs. Local callbacks include both partition refusals and
++terminal change-stream refusals; the public scope fence remains first.
+ 
+ Admitted writes precede a successful one-shot. The online tier cannot return
+ data while its write queue remains unresolved. The local tier can return a
+@@ -792,7 +795,19 @@ offline link immediately and starts its existing probe for future calls.
+ Neither waits for reconnection. Closed, signed-out, replaced, restored and
+ reset-store refusal codes remain those of the existing fences. A schema reset
+ can require another round; it cannot bypass adoption. Held-only queries retain
+-their no-server rule and refuse if their device answer stays unavailable.
++their no-server rule. After acquisition, a held loading candidate that actually
++read unsynced tables (or needs ephemeral server data), with no pending prediction,
++refuses non-retryable `E_QUERY_HELD` in the first publication round. Its message
++says to use the online path without `held`, or sync the required data. The engine's
++actual read tables, not every possible static branch, identify that stable miss.
++A concurrent commit still invalidates the candidate; acquisition and pending
++writes retain the bounded retry path. Offline unavailability remains `E_OFFLINE`.
++Observations keep loading; no evaluator answer or existence predicate changes.
++
++The mock uses the same settlement helper, a version fence around its existing
++evaluator, and terminal close/sign-out checks. Its handlers return values or
++pages, not `Read` envelopes; it does not emulate Quarry acquisition. Partial
++empty predictions are still ready, and are not an offline-link diagnosis.
+ 
+ Observations, hooks, retention, withdrawal, queues, row deadlines and existence
+ semantics remain §10 and LLP 3000.031. Direct reads share evaluators and
+diff --git a/snapback4/crates/snapback4-lang/src/guide/bounds.rs b/snapback4/crates/snapback4-lang/src/guide/bounds.rs
+index 3d5f8d40f6..583b567fee 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/bounds.rs
++++ b/snapback4/crates/snapback4-lang/src/guide/bounds.rs
+@@ -35,11 +35,13 @@ non-uniform read rules keep their bounded page execution and coverage contract.
+ Mutations retain their uniform-read and
+ plain-prefix admission rules; a cut aborts the transaction, never commits a
+ partial total. A streaming query total with a meter cut or unknown device
+-coverage leaves the client read `loading`, never a partial count or sum.
++coverage leaves the client observation `loading`, never a partial count or sum.
+ Unknown earlier reads also make a streaming scalar unavailable, including
+ inputs saved in locals or used as domain bounds; a fallback cannot establish
+ coverage.
+ 
++For one-shots, see `guide client`.
++
+ ## Allocation and completeness
+ 
+ Heap is a cumulative allocation and binding budget. Streaming aggregates
+@@ -53,7 +55,7 @@ concatenation and other allocating builtins, local bindings, and owned
+ copies count. Inspecting a held value's length or sum borrows it; row and
+ map clones share their immutable image. A heap cut stops a query immediately
+ with no available value or continuation, since an interrupted scalar or shape
+-has no valid partial answer. The client read is `loading`; narrow the query or
++has no valid partial answer. The client observation is `loading`; narrow the query or
+ use a maintained view for a total. Its cut site remains internal;
+ the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).
+ An unfinished maintained lookup or live aggregate uses the same unavailable
+@@ -110,7 +112,7 @@ and a seek as a prefix. Sorting or grouping a page only processes that page.
+ `sha256(text)` charges the input's UTF-8 byte length plus one to steps before
+ hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
+ cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
+-the client read `loading`, as other query heap cuts do. A mutation rolls
++the client observation `loading`, as other query heap cuts do. A mutation rolls
+ back on either cut.
+ 
+ ### Measuring a growth curve
+diff --git a/snapback4/crates/snapback4-lang/src/guide/client.md b/snapback4/crates/snapback4-lang/src/guide/client.md
+index 1d78984757..7f4dc4c0d2 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/client.md
++++ b/snapback4/crates/snapback4-lang/src/guide/client.md
+@@ -29,17 +29,17 @@ Membership with no horizon, synced in the conversation's own group with the mess
+ Queueing needs no membership answer: only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable.
+ 
+ `waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
+-Clear on submit; restore refused text only into an empty draft, otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
++Restore refused text into empty drafts; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
+ Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Keep saved text; Dismiss only after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
+ 
+ ## Honest read boundaries
+ 
+-`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale; `existence(await query(...))` excludes loading.
+-Use `existence(read)`; after `isReady(read)`, `read.existence` narrows point data.
++`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority; exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online unless `held`; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale.
++`existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
+ 
+ | Meaning | UI decision |
+ | --- | --- |
+-| `loading` | No answer yet or withheld: keep composers, headers and routes mounted. |
++| `loading` | Unavailable: keep composers, headers and routes mounted. |
+ | `denied` | Refusal: show its message; disable the durable action. |
+ | `present` | Nonempty top-level value: render it, even with incomplete coverage. |
+ | `absent` | Proven empty answer: resolve the missing route/row. |
+@@ -69,14 +69,10 @@ function ConversationList() {
+ }
+ ```
+ 
+-Keep decorations separate.
+-
+ ## Expo and acquisition
+ 
+ Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
+ 
+-Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide witness`: native proof; `guide reads`: live timings; `guide sync`: acquisition and offline reopening.
+-
+ ## Receipts
+ 
+ `guide receipts`: schema, mutations, `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.
+diff --git a/snapback4/crates/snapback4-lang/src/guide/codes.rs b/snapback4/crates/snapback4-lang/src/guide/codes.rs
+index b9418d16bb..418909593d 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/codes.rs
++++ b/snapback4/crates/snapback4-lang/src/guide/codes.rs
+@@ -83,7 +83,7 @@ pub const CODES: &[(&str, &str)] = &[
+     ("FEED_PULL_CAP", "the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds."),
+     ("FEED_PROMOTION_PULL_CAP", "another follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. Until every saturated follower frees a slot, every later follow refuses the same way and the author stays at 50 followers, gaining no new followers. A server-run query over public follows and pullCounts identifies the blocker by used = 32 in 51 reads (one scan plus 50 count lookups). More than 32 shared authors needs a separate serving design. guide feeds."),
+     ("E_QUERY_RETRY", "family client — a one-shot did not obtain a publishable answer within four publication rounds or 30 seconds including queue, transport and authority waits. Retry the query; ready may still be partial or stale. guide client."),
+-    ("E_QUERY_HELD", "this query is declared held and runs only on the device. Call it with the local client; for server search, use the grouped or newest form in guide search, section Search every chat I'm in. A held read never falls back to the server."),
++    ("E_QUERY_HELD", "this query is held: device only, no server fallback. Use the local client over acquired data. If required data cannot sync, remove held for online fallback or sync that data. See guide search for server forms."),
+     ("E_SHAPE_EXCEEDS_METER", "following an inclusive cursor starved the same first returned shape again, leaving an empty page at the same position. The refusal names the read site and meter ceiling (8,192 examined rows). Bound the shape's read with `first N`/`last N`, or move it out of the returned shape; guide reads. If an earlier read spent the meter, the refusal names that read as the one to bound."),
+     ("E_INDEX_KEY_BYTES", "family schema — an encoded index key, including its components, encoding overhead and appended id, must fit 2048 bytes on every store; table and index labels together have 512 UTF-8 bytes. Bound indexed text with <=N, reduce the composite key or shorten the labels; check names the column and suggests a bound. Writes enforce the same limits. guide indexes."),
+     ("E_ADMISSION", "family store — custody could not keep a mutation. Nothing new was admitted. Restore the session, exclusive web device or writable storage named by site/rewrite, then retry the same id. Wait for app.ready; writes need no acquisition gate. An unidentified client waits up to 15 seconds without custody; reload loses the call. See `guide writes`."),
+diff --git a/snapback4/crates/snapback4-lang/src/guide/feeds.md b/snapback4/crates/snapback4-lang/src/guide/feeds.md
+index 9dd62296ca..3d6b1813e2 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/feeds.md
++++ b/snapback4/crates/snapback4-lang/src/guide/feeds.md
+@@ -224,10 +224,10 @@ be fully synced, floored, or online only; the feed uses its private owned edges.
+ An inbox page within its floor needs no posts. A shaped page is complete offline
+ only when every card is held too. A recent repost of an old original, or a quiet
+ author's old post, may need the server even on the first page. A horizon card miss, required online-only card, or inbox scan past its floor withholds the
+-**whole query** as `{ loading: true }`, with no data or continuation. Offline,
++**whole observation** as `{ loading: true }`, with no data or continuation. Offline,
+ while a predictable write remains unobserved, or for a `held` query, it stays
+ withheld. Otherwise the client retries the original input cursor on the server;
+-a transport failure stays loading. Remembered answers never replace this result.
++a transport failure stays loading. One-shot `query()` settles under `guide client`. Remembered answers never replace this result.
+ 
+ An examined-meter cut above the floor remains partial data with its continuation.
+ A full page ending at the floor is data; its next page is withheld. Pending
+diff --git a/snapback4/crates/snapback4-lang/src/guide/offline_interactions.md b/snapback4/crates/snapback4-lang/src/guide/offline_interactions.md
+index 9b41bf8ceb..981ba8f142 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/offline_interactions.md
++++ b/snapback4/crates/snapback4-lang/src/guide/offline_interactions.md
+@@ -40,6 +40,8 @@ The earlier private-table pilot held three like keys and one repost key for
+ u0500 in 568 logical row bytes. That pilot was not this implementation, and
+ its four-key size is neither a lifetime bound nor this policy's byte cost.
+ 
++Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide reads` for live timings and `guide sync` for acquisition and offline reopening.
++
+ ## Conversation membership
+ 
+ A no-horizon membership table synced within the conversation's own group with the messages' audience holds every current readable membership after that group's first acquisition. The viewer's row is `present` or `absent` offline unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal, not denial or absence. Offline `absent` is absence at the acquired watermark, including after leaving. This does not apply to windowed, online-only or differently partitioned memberships, or follow from retained messages.
+@@ -107,6 +109,8 @@ only` and keep the owner read on the server; this loses offline aggregate
+ and absence coverage. Do not narrow the public source to make this view private.
+ See `guide maintains` for the inheritance rules.
+ 
++Keep server-needing decorations separate.
++
+ ## Retained message search
+ 
+ The social starter uses one ordinary search per scope in either link state.
+diff --git a/snapback4/crates/snapback4-lang/src/guide/reads.rs b/snapback4/crates/snapback4-lang/src/guide/reads.rs
+index d4bbfe1258..c57750c0aa 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/reads.rs
++++ b/snapback4/crates/snapback4-lang/src/guide/reads.rs
+@@ -79,8 +79,9 @@ as do held queries and retained left groups. While this device holds a predictab
+ that query asks no server; a write with an unknown predicted footprint blocks
+ every query. Writes to unrelated tables do not hold it. A withheld answer
+ (a total/extremum over input past the horizon, a point read past it, or another
+-speculative answer) stays `loading`; a local partial answer (`complete: false`,
++speculative answer) stays `loading` in observations; a local partial answer (`complete: false`,
+ e.g. an order unlike the window's) stays partial.
++For one-shots, see `guide client`.
+ Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
+ decorations in their own query so the main list never waits on them.
+ Keep the screen shell and draft mounted; render current reads.
+@@ -170,7 +171,7 @@ do not change read rules, meter bounds or completeness.
+ `count(messages where .roomId = roomId)` and `sum(orders where .owner =
+ viewer, .amount)` stream their domains. They authorize and filter each row,
+ then release it. They do not retain a page of bodies. A meter cut or unknown
+-device coverage leaves the client read `loading`, never a partial total.
++device coverage leaves the client observation `loading`, never a partial total.
+ Use a maintained view for a total that should be updated with each write.
+ `count(page)` still counts only that page.
+ An unpaged aggregate keeps enum inequalities and membership predicates as
+@@ -187,7 +188,7 @@ admission; rule probes keep exact-key semantics.
+ 
+ A resumable read-meter cut after every required head is known can carry `next`
+ after its last fully shaped emitted row, subject to final-answer eligibility.
+-Heap exhaustion clears the whole page and leaves the client read `loading`, with no continuation,
++Heap exhaustion clears the whole page and leaves the client observation `loading`, with no continuation,
+ even during the drain. Step exhaustion aborts; output exhaustion can refuse.
+ A uniform matching scan is always lazy. Opening and word-limit cuts cannot
+ supply continuation. A terminal full page need not carry `next`. Following a
+diff --git a/snapback4/crates/snapback4-lang/src/guide/search_all.md b/snapback4/crates/snapback4-lang/src/guide/search_all.md
+index 16c280bdec..1189f12945 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/search_all.md
++++ b/snapback4/crates/snapback4-lang/src/guide/search_all.md
+@@ -66,8 +66,8 @@ and generation, and continuations bind that validated identity. An unsynced
+ replacement or generation change withdraws the attempt until ordinary sync
+ establishes the new incarnation; its next observation starts with fresh source
+ positions. An unsynced audience change withdraws the stale page and
+-refreshes the first page of a live `usePage` observation. A one-shot query returns
+-loading; request a fresh first page to restart. Each observation still makes one
++refreshes the first page of a live `usePage` observation. A one-shot query refuses
++`E_QUERY_RETRY`; request a fresh first page to restart. Each observation still makes one
+ server call. An unrelated sync or an older-message edit preserves pagination.
+ An online composition starts fresh from a plain offline/server cursor, which
+ does not carry a validated store or audience identity. Resetting device rows
+@@ -198,3 +198,7 @@ history, even for empty matches. Label offline results as searched on this devic
+ The local clients never fall back to the server for a held query, even at a
+ horizon, meter cut or word cut. Choose this scope only for an explicitly
+ device-only feature; ordinary search above owns online/offline routing.
++
++A held one-shot requiring unsynced data refuses non-retryable `E_QUERY_HELD`.
++Remove `held` for online fallback, or sync that data. Temporary misses follow
++`guide client`'s bound.
+diff --git a/snapback4/crates/snapback4-lang/src/guide/why/E_QUERY_HELD.md b/snapback4/crates/snapback4-lang/src/guide/why/E_QUERY_HELD.md
+index 79b9de2c19..dff51e7f8c 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/why/E_QUERY_HELD.md
++++ b/snapback4/crates/snapback4-lang/src/guide/why/E_QUERY_HELD.md
+@@ -47,3 +47,6 @@ incomplete below every limit. A full `first 1` page is complete without a cursor
+ online-only source or no read sites gets no source-coverage line.
+ Sources include reads nested in expressions such as the search text after `matching`.
+ For full server history beyond holdings, use the grouped or newest form on the search card.
++
++For unsynced data, local one-shots refuse non-retryable E_QUERY_HELD.
++Remove held to read online, or sync it.
+diff --git a/snapback4/crates/snapback4-lang/src/guide/witness.md b/snapback4/crates/snapback4-lang/src/guide/witness.md
+index 7e7d649f83..6c4453be7d 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/witness.md
++++ b/snapback4/crates/snapback4-lang/src/guide/witness.md
+@@ -46,7 +46,7 @@ three `segments` marked `passed` mean:
+   explained refusal for compiler-declared device-answerable reads. Loading,
+   a thrown query or an uncaught JS error fails for those reads. Server-only
+   reads are recorded as `online-only: unavailable offline (expected)` with
+-  their actual `loading` or `E_OFFLINE`-style refusal. The driver reads
++  their actual `E_OFFLINE`-style refusal. The driver reads
+   the committed compiler generation actually served by its owned backend and
+   includes its generation and complete eligible query facts in each receipt.
+   Before querying, the helper matches every runs/held fact and the generation
+diff --git a/snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json b/snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json
+index 110663399f..0e8153ea8f 100644
+--- a/snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json
++++ b/snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json
+@@ -39,7 +39,7 @@
+     "id": "reads-06",
+     "card": "reads",
+     "home": "Details",
+-    "text": "Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,\non the server and either device store. An empty page with `cut: 'meter'`\nmeans partial: retry narrower, or continue if `next` exists; never \"no matches\".\n`words` means the first term expanded past 32 words in an admitted non-uniform scope: narrow that\nterm or use scoped search (guide search). If both limits cut, `meter` wins.\nDevice reads and uniform server reads keep precise reasons.\nNon-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.\n`null` means \"not disclosed here\", not \"not cut\"; it also covers a horizon,\nmissing coverage. For `complete: false` with\n`cut: null`, render \"Results may be incomplete\", even when empty; never \"no matches\".\nA complete empty page has `cut: null` and `complete: true`.\nSame-key observations retain their last answer marked `revalidating` during\nplain refetch, reconnect and transport failure. Omitted `keep` and `keep: true`\nshare this policy; `keep: false` withdraws immediately. Known change evidence\nstarts a nonrenewable one-second bound when the replacement attempt begins;\nfailure or timeout withdraws, and a later accepted answer can still publish.\nA notified cut keeps older replica answers ineligible until sync publishes it.\nA whole server answer at that cut may replace sooner. Expiry, sign-out,\ncredential, store, schema and generation resets still withdraw immediately.\n`fresh` and `since` describe server freshness, independently of revalidation.\nWith `keep: true`, a watch also lingers for 30 seconds after its last subscriber\nleaves, sharing the same observation, expiry, invalidation and reset fences.\nLocal commits still revalidate it while unmounted; account/backend changes,\n`clear_rows`, `settle_exit`, ephemeral resets and close end its authority.\nSee `guide client` for the complete retention and screen-lifetime recipe.\nA ready list read always carries an array; an absent point can still be null.\n`usePage` returns `items: []` while its first page is loading; earlier pages\nremain visible while a later page is unavailable.\n\nFor ordinary device reads, online fallback asks the server only for a missing\nfact or unknown presence; a meter or word cut and a cursorless page stay local,\nas do held queries and retained left groups. While this device holds a predictable pending write to a table a query reads,\nthat query asks no server; a write with an unknown predicted footprint blocks\nevery query. Writes to unrelated tables do not hold it. A withheld answer\n(a total/extremum over input past the horizon, a point read past it, or another\nspeculative answer) stays `loading`; a local partial answer (`complete: false`,\ne.g. an order unlike the window's) stays partial.\nKeep a screen query locally complete (`snapback4 why <query>`); put server-needing\ndecorations in their own query so the main list never waits on them.\nKeep the screen shell and draft mounted; render current reads."
++    "text": "Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,\non the server and either device store. An empty page with `cut: 'meter'`\nmeans partial: retry narrower, or continue if `next` exists; never \"no matches\".\n`words` means the first term expanded past 32 words in an admitted non-uniform scope: narrow that\nterm or use scoped search (guide search). If both limits cut, `meter` wins.\nDevice reads and uniform server reads keep precise reasons.\nNon-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.\n`null` means \"not disclosed here\", not \"not cut\"; it also covers a horizon,\nmissing coverage. For `complete: false` with\n`cut: null`, render \"Results may be incomplete\", even when empty; never \"no matches\".\nA complete empty page has `cut: null` and `complete: true`.\nSame-key observations retain their last answer marked `revalidating` during\nplain refetch, reconnect and transport failure. Omitted `keep` and `keep: true`\nshare this policy; `keep: false` withdraws immediately. Known change evidence\nstarts a nonrenewable one-second bound when the replacement attempt begins;\nfailure or timeout withdraws, and a later accepted answer can still publish.\nA notified cut keeps older replica answers ineligible until sync publishes it.\nA whole server answer at that cut may replace sooner. Expiry, sign-out,\ncredential, store, schema and generation resets still withdraw immediately.\n`fresh` and `since` describe server freshness, independently of revalidation.\nWith `keep: true`, a watch also lingers for 30 seconds after its last subscriber\nleaves, sharing the same observation, expiry, invalidation and reset fences.\nLocal commits still revalidate it while unmounted; account/backend changes,\n`clear_rows`, `settle_exit`, ephemeral resets and close end its authority.\nSee `guide client` for the complete retention and screen-lifetime recipe.\nA ready list read always carries an array; an absent point can still be null.\n`usePage` returns `items: []` while its first page is loading; earlier pages\nremain visible while a later page is unavailable.\n\nFor ordinary device reads, online fallback asks the server only for a missing\nfact or unknown presence; a meter or word cut and a cursorless page stay local,\nas do held queries and retained left groups. While this device holds a predictable pending write to a table a query reads,\nthat query asks no server; a write with an unknown predicted footprint blocks\nevery query. Writes to unrelated tables do not hold it. A withheld answer\n(a total/extremum over input past the horizon, a point read past it, or another\nspeculative answer) stays `loading` in observations; a local partial answer (`complete: false`,\ne.g. an order unlike the window's) stays partial.\nFor one-shots, see `guide client`.\nKeep a screen query locally complete (`snapback4 why <query>`); put server-needing\ndecorations in their own query so the main list never waits on them.\nKeep the screen shell and draft mounted; render current reads."
+   },
+   {
+     "id": "reads-07",
+@@ -129,7 +129,7 @@
+     "id": "reads-21",
+     "card": "reads",
+     "home": "Details",
+-    "text": "`count(messages where .roomId = roomId)` and `sum(orders where .owner =\nviewer, .amount)` stream their domains. They authorize and filter each row,\nthen release it. They do not retain a page of bodies. A meter cut or unknown\ndevice coverage leaves the client read `loading`, never a partial total.\nUse a maintained view for a total that should be updated with each write.\n`count(page)` still counts only that page.\nAn unpaged aggregate keeps enum inequalities and membership predicates as\nresidual filters on its streaming scan. It does not turn them into a bounded\nmerge page: `count(tasks where .status != 'done')` and\n`sum(tasks where .status in ['todo', 'doing'], .n)` return either the whole\nauthorized total or null on interruption. Scan admission remains unchanged."
++    "text": "`count(messages where .roomId = roomId)` and `sum(orders where .owner =\nviewer, .amount)` stream their domains. They authorize and filter each row,\nthen release it. They do not retain a page of bodies. A meter cut or unknown\ndevice coverage leaves the client observation `loading`, never a partial total.\nUse a maintained view for a total that should be updated with each write.\n`count(page)` still counts only that page.\nAn unpaged aggregate keeps enum inequalities and membership predicates as\nresidual filters on its streaming scan. It does not turn them into a bounded\nmerge page: `count(tasks where .status != 'done')` and\n`sum(tasks where .status in ['todo', 'doing'], .n)` return either the whole\nauthorized total or null on interruption. Scan admission remains unchanged."
+   },
+   {
+     "id": "reads-22",
+@@ -147,7 +147,7 @@
+     "id": "reads-24",
+     "card": "reads",
+     "home": "Details",
+-    "text": "A resumable read-meter cut after every required head is known can carry `next`\nafter its last fully shaped emitted row, subject to final-answer eligibility.\nHeap exhaustion clears the whole page and leaves the client read `loading`, with no continuation,\neven during the drain. Step exhaustion aborts; output exhaustion can refuse.\nA uniform matching scan is always lazy. Opening and word-limit cuts cannot\nsupply continuation. A terminal full page need not carry `next`. Following a\ncursor does not clear earlier incompleteness in `usePage`."
++    "text": "A resumable read-meter cut after every required head is known can carry `next`\nafter its last fully shaped emitted row, subject to final-answer eligibility.\nHeap exhaustion clears the whole page and leaves the client observation `loading`, with no continuation,\neven during the drain. Step exhaustion aborts; output exhaustion can refuse.\nA uniform matching scan is always lazy. Opening and word-limit cuts cannot\nsupply continuation. A terminal full page need not carry `next`. Following a\ncursor does not clear earlier incompleteness in `usePage`."
+   },
+   {
+     "id": "reads-25",
+diff --git a/snapback4/packages/snapback4-expo/README.md b/snapback4/packages/snapback4-expo/README.md
+index 5f1218e59d..aebca0af53 100644
+--- a/snapback4/packages/snapback4-expo/README.md
++++ b/snapback4/packages/snapback4-expo/README.md
+@@ -80,7 +80,7 @@ update selected at runtime. The JS smoke helper consumes compiler query facts
+ from the driver, bound to the generation actually served. It checks every
+ runs/held fact against the kept backend before querying. Stale facts fail;
+ device-answerable loading fails, while server-only offline
+-loading or E_OFFLINE is recorded as expected unavailability. Server-only reads
++E_OFFLINE is recorded as expected unavailability. Server-only reads
+ must answer online in prime and restart. Conditional native-module queries
+ require an application witness; generic smoke refuses that unsupported shape. Client semantics are unchanged.
+ 
+diff --git a/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md b/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
+index bceef5567e..75533717bf 100644
+--- a/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
++++ b/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
+@@ -1847,6 +1847,13 @@ it mints a session for `member:<email>` and returns only `{ principal }`.
+ 
+ ### The mock (`snapback4/mock`)
+ 
++One-shot queries use the same bounded settlement rules as `guide client`:
++retired publications reread, genuine exhaustion is retryable `E_QUERY_RETRY`,
++and closed/signed-out clients refuse. Only unavailable offline reads use
++`E_OFFLINE`. Mock query handlers return values or pages, not `Read` envelopes;
++the mock has no Quarry acquisition or server fallback. Pending predictions can
++make an empty ready answer partial; they do not prove the link is offline.
++
+ `createMockClient({ viewer, tables, ops })` is a client with the same
+ card over in-memory tables, for component tests: `ops` is `{ queries:
+ { name: (tables, args, viewer) => value | page(rows, next) }, mutations:
+diff --git a/snapback4/packages/snapback4/src/app-client.ts b/snapback4/packages/snapback4/src/app-client.ts
+index ea5cd70329..568b206ee1 100644
+--- a/snapback4/packages/snapback4/src/app-client.ts
++++ b/snapback4/packages/snapback4/src/app-client.ts
+@@ -11,7 +11,7 @@ import { episodeDeadline } from "./read-episode.ts";
+ import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
+ import { residencyError } from "./residency.ts";
+ import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
+-import { queryAttempt, settledQuery } from "./query-settlement.ts";
++import { queryAttempt, queryRefusal, settledQuery } from "./query-settlement.ts";
+ 
+ /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
+  * The raw client may retain private rotation/logout custody after this fence.
+@@ -80,7 +80,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
+         const read = publish();
+         return read && approveDelivery(read) ? read : undefined;
+       };
+-    }, () => valid() ? undefined : why(), queries.signal),
++    }, () => valid() ? queryRefusal(raw) : why(), queries.signal),
+     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
+       const loading: Read<R> = { loading: true };
+diff --git a/snapback4/packages/snapback4/src/local-query.ts b/snapback4/packages/snapback4/src/local-query.ts
+index 5181578ad6..dc134e1353 100644
+--- a/snapback4/packages/snapback4/src/local-query.ts
++++ b/snapback4/packages/snapback4/src/local-query.ts
+@@ -28,7 +28,7 @@ import type { Queued } from "./local-types.ts";
+ import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
+ import type { ColdReadControl } from "./device-control.ts";
+ 
+-type Result<R> = { deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
++type Result<R> = { heldUnavailable?: boolean; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+ type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
+ type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
+ type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+@@ -357,6 +357,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
+         else env.serverAnswers.delete(key, result.seq);
+       }
+       if (followingPending && "data" in result.read) result.read = readyRead<R>({ ...result.read, complete: false }, pendingHere);
++      // @ref LLP 3000.023#11 — an acquired held read needing unsynced data
++      // cannot improve by retrying. Keep this fact internal; observations keep
++      // their loading state. Pending writes/acquisition are temporary misses.
++      if (held && origin === "local" && "loading" in result.read && env.partitionCurrent && env.caughtUp && !pendingResult)
++        result.heldUnavailable = ephemeral || !!latest?.outcome.tables?.some(table => !env.backend.schema.tables[table]?.sync);
+       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
+       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
+       return { ...result, read: readyRead<R>({ ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) }, pendingHere) };
+diff --git a/snapback4/packages/snapback4/src/local.ts b/snapback4/packages/snapback4/src/local.ts
+index b741589c4e..afb647bdb6 100644
+--- a/snapback4/packages/snapback4/src/local.ts
++++ b/snapback4/packages/snapback4/src/local.ts
+@@ -1,5 +1,5 @@
+ import { readyRead } from "./read-existence.ts";
+-import { settledQuery } from "./query-settlement.ts";
++import { heldQueryRefusal, settledQuery } from "./query-settlement.ts";
+ import { matchingReads } from "./read-key.ts";
+ import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
+ import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
+@@ -1186,9 +1186,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+       const writes = "data" in result.read ? await queued() : []; checkRead(signal); return () => {
+         if ("data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) return;
+         if ("data" in result.read && writes.some(w => w.observed_seq == null && (!w.predictable || result.served || result.localWakeup))) return;
+-        if (publishLocal(result, () => true)) return "loading" in result.read && link === "offline" ? { denied: offline() } : result.read;
++        if (publishLocal(result, () => true)) return "loading" in result.read && (link === "offline" || result.heldUnavailable)
++          ? { denied: link === "offline" ? offline() : heldQueryRefusal() } : result.read;
+       };
+-    }, unavailable, aborter.signal),
++    }, () => unavailable() ?? changesStopped ?? partitionDenied, aborter.signal),
+     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+       const keep = options?.keep;
+       const key = observationKey(op, args, options);
+diff --git a/snapback4/packages/snapback4/src/mock.ts b/snapback4/packages/snapback4/src/mock.ts
+index 6ed2acb370..ce6791901e 100644
+--- a/snapback4/packages/snapback4/src/mock.ts
++++ b/snapback4/packages/snapback4/src/mock.ts
+@@ -1,4 +1,5 @@
+ import { readyRead } from "./read-existence.ts";
++import { settledQuery } from "./query-settlement.ts";
+ import { routeMutations } from "./ephemeral.ts";
+ import { mockSignals } from "./mock-ephemeral.ts";
+ // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no
+@@ -65,6 +66,10 @@ export function createMockClient(options: MockOptions): MockClient {
+   let viewer = options.viewer;
+   let seq = 0;
+   let version = 0;
++  let closed = false;
++  const unavailable = (): Refusal | undefined => link === "signed-out"
++    ? { code: "E_AUTH", family: "auth", message: "sign in to read" }
++    : closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : undefined;
+   let lastServer = Date.now();
+   const listeners = new Set<() => void>();
+   const linkListeners = new Set<(link: Link) => void>();
+@@ -130,10 +135,12 @@ export function createMockClient(options: MockOptions): MockClient {
+       return outcome as Promise<Act<never>>;
+     },
+     tables,
+-    async query(op, args) {
++    query: settledQuery(async (op, args) => {
++      const revision = version;
+       const read = evaluate(op, args);
+-      return "loading" in read ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
+-    },
++      return () => revision !== version ? undefined : "loading" in read && link === "offline"
++        ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
++    }, unavailable),
+     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
+       let seen = -1;
+       let snapshot: Read<R> = { loading: true };
+@@ -209,7 +216,7 @@ export function createMockClient(options: MockOptions): MockClient {
+     async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
+     async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
+     async signOut() { client.setLink("signed-out"); await client.close(); },
+-    async close() { pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
++    async close() { closed = true; pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
+     setLink(next) {
+       link = next;
+       if (next === "online") for (const [id, entry] of pending) pending.set(id, { ...entry, state: "sent" });
+diff --git a/snapback4/packages/snapback4/src/query-settlement.ts b/snapback4/packages/snapback4/src/query-settlement.ts
+index 2a522c9bd1..cc88ac4c2e 100644
+--- a/snapback4/packages/snapback4/src/query-settlement.ts
++++ b/snapback4/packages/snapback4/src/query-settlement.ts
+@@ -7,7 +7,19 @@ export const QUERY_ROUNDS = 4;
+ const expired = Symbol("one-shot deadline");
+ type Publication<R> = () => Read<R> | undefined;
+ type Attempt = <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => Promise<Publication<R>>;
+-const attempts = new WeakMap<Client["query"], Attempt>();
++type Unavailable = () => Refusal | null | undefined;
++const attempts = new WeakMap<Client["query"], { run: Attempt; unavailable: Unavailable }>();
++
++// A facade's deadline can win before the raw attempt's catch resumes. Read its
++// terminal state synchronously at that outer decision, including store halts.
++export function queryRefusal(client: Client): Refusal | null | undefined {
++  return attempts.get(client.query)?.unavailable();
++}
++
++export function heldQueryRefusal(): Refusal {
++  return { code: "E_QUERY_HELD", family: "client", retryable: false, site: "client.query", guide: "search",
++    message: "this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data" };
++}
+ 
+ function retry(): Refusal {
+   return { code: "E_QUERY_RETRY", family: "client", retryable: true, site: "client.query", guide: "client",
+@@ -18,12 +30,12 @@ function retry(): Refusal {
+ // add approval inside this budget, rather than nesting independent retry loops.
+ export async function queryAttempt<A, R>(client: Client, op: Query<A, R>, args: A, signal: AbortSignal): Promise<Publication<R>> {
+   const attempt = attempts.get(client.query);
+-  if (attempt) return attempt(op, args, signal);
++  if (attempt) return attempt.run(op, args, signal);
+   const read = await duringRead(client.query(op, args), signal);
+   return () => read;
+ }
+ 
+-export function settledQuery(run: Attempt, unavailable: () => Refusal | null | undefined, lifetime?: AbortSignal): Client["query"] {
++export function settledQuery(run: Attempt, unavailable: Unavailable, lifetime?: AbortSignal): Client["query"] {
+   const attempt: Attempt = async <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => {
+     checkRead(signal);
+     const denied = unavailable();
+@@ -74,6 +86,6 @@ export function settledQuery(run: Attempt, unavailable: () => Refusal | null | u
+     };
+     return settle();
+   };
+-  attempts.set(query, attempt);
++  attempts.set(query, { run: attempt, unavailable });
+   return query;
+ }
+diff --git a/snapback4/packages/snapback4/test/helpers/one-shot.mjs b/snapback4/packages/snapback4/test/helpers/one-shot.mjs
+index a69495db93..55fe30e9c5 100644
+--- a/snapback4/packages/snapback4/test/helpers/one-shot.mjs
++++ b/snapback4/packages/snapback4/test/helpers/one-shot.mjs
+@@ -43,11 +43,17 @@ query insights():
+   return total['room']
+ query heldInsights() held:
+   return total['room']
++query heldChoice() held:
++  if messages['item'].body = 'image-1':
++    return total['room']
++  return 7
++query heldItem() held:
++  return messages['item']
+ query keyed(tag: int):
+   return messages['item']
+ `;
+ 
+-export async function setup(t, tier, { fetch: intercept, device: wrap } = {}) {
++export async function setup(t, tier, { fetch: intercept, device: wrap, changes } = {}) {
+   const f = await fixture(t, program);
+   const controls = {}; globalThis[key] = controls;
+   let online = true;
+@@ -55,9 +61,9 @@ export async function setup(t, tier, { fetch: intercept, device: wrap } = {}) {
+     const path = new URL(input).pathname;
+     if (path === '/auth/refresh') return Response.json({ ok: true, session });
+     if (path === '/auth/logout') return Response.json({ ok: true });
+-    if (path === '/changes') return parked(init.signal);
++    if (path === '/changes') return changes ? changes(init.signal) : parked(init.signal);
+     if (!online) throw new TypeError('test link down');
+-    const headers = new Headers(init?.headers); headers.delete('authorization'); headers.set('x-snapback-persona', 'bob');
++    const headers = new Headers(init?.headers); const persona = headers.get('authorization') === 'Bearer alice-session' ? 'alice' : 'bob'; headers.delete('authorization'); headers.set('x-snapback-persona', persona);
+     const send = () => fetch(input, { ...init, headers });
+     return intercept ? intercept(path, init, send) : send();
+   };
+diff --git a/snapback4/packages/snapback4/test/one-shot.test.mjs b/snapback4/packages/snapback4/test/one-shot.test.mjs
+index dc627aa9a8..962648e04b 100644
+--- a/snapback4/packages/snapback4/test/one-shot.test.mjs
++++ b/snapback4/packages/snapback4/test/one-shot.test.mjs
+@@ -59,7 +59,8 @@ for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
+   test(`${tier}: an unavailable held online-only view refuses instead of returning loading`, async t => {
+     const f = await setup(t, tier);
+     const up = record(t, await f.client.query(q('heldInsights'), {}));
+-    assert.equal(up.denied?.code, 'E_QUERY_RETRY');
++    assert.equal(up.denied?.code, 'E_QUERY_HELD');
++    assert.equal(up.denied.retryable, false);
+     await f.offline();
+     const down = record(t, await f.client.query(q('heldInsights'), {}));
+     assert.equal(down.denied?.code, 'E_OFFLINE');

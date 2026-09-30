@@ -1,0 +1,31 @@
+✔ sequence by wasm: provisional rule refusal queues for the server (5578.629435ms)
+✔ sequence by wasm: provisional require refusal queues for the server (5088.205266ms)
+✔ sequence by wasm: provisional constraint refusal queues for the server (5191.438454ms)
+✔ sequence by wasm: provisional named constraint refusal queues for the server (5180.548026ms)
+✔ sequence by wasm: provisional postcondition refusal queues for the server (5182.885971ms)
+✔ sequence by wasm: provisional sequence key refusal queues for the server (5171.190199ms)
+✔ sequence by wasm: provisional old refusal queues for the server (5167.114319ms)
+✔ sequence by wasm: provisional empty index refusal queues for the server (5179.394563ms)
+✔ sequence by wasm: provisional cap group refusal queues for the server (5171.623913ms)
+✔ sequence by wasm: provisional upsert index refusal queues for the server (5180.485623ms)
+✔ sequence by wasm: provisional postcondition index refusal queues for the server (5175.493418ms)
+✖ ready list reads survive account restoration, new chat acquisition and pending unread counts (5689.741253ms)
+ℹ unavailable inbox device reply: {"ok":{"complete":false,"cut":null,"loading":true,"nextExpiry":null,"retained":false,"tables":["members","messages"],"unknown":true}}
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57371.863091
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/page-ready.test.mjs:31:1
+✖ ready list reads survive account restoration, new chat acquisition and pending unread counts (5689.741253ms)
+  TypeError: Cannot read properties of undefined (reading '0')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/page-ready.test.mjs:124:26)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

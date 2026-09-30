@@ -1,0 +1,433 @@
+✔ W7c dev exposes meters by default and explicitly for a real account (630.943431ms)
+ℹ meter={"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":195,"probes":0,"rowsWritten":0,"steps":5}
+✔ W7c serve ignores meters by default and explicitly for a real account (468.209681ms)
+✔ W6d online: caller id retries share pending writes and retained receipts (438.779751ms)
+ℹ tier=online posts=1 applied=1 terminal_events=1
+✔ W6d online: malformed caller ids fail locally (180.444931ms)
+✔ W6d online: input key order is immaterial and an evicted receipt never readmits on the same client (708.066219ms)
+ℹ tier=online retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d online: two client POSTs with the caller id apply once after a lost reply (547.468801ms)
+ℹ tier=online retry_posts=2 applied=1 historical_results=0
+✔ W6d web: caller id retries share pending writes and retained receipts (702.640725ms)
+ℹ tier=web posts=1 applied=1 terminal_events=1
+✔ W6d web: malformed caller ids fail locally (218.629485ms)
+✔ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (2050.016625ms)
+ℹ tier=web retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d web: two client POSTs with the caller id apply once after a lost reply (1327.675287ms)
+ℹ tier=web retry_posts=2 applied=1 historical_results=0
+✔ W6d web: one client POST recovers the caller id from sync after a lost reply (379.828595ms)
+ℹ tier=web recovery_posts=1 applied=1 terminal_events=1 replayed=true
+✔ W6d web: reopen deduplicates the queued caller id before prediction (1138.60863ms)
+ℹ tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6d native: caller id retries share pending writes and retained receipts (363.550392ms)
+ℹ tier=native posts=1 applied=1 terminal_events=1
+✔ W6d native: malformed caller ids fail locally (280.788291ms)
+✔ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (5252.962327ms)
+ℹ tier=native retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d native: two client POSTs with the caller id apply once after a lost reply (1416.198104ms)
+ℹ tier=native retry_posts=2 applied=1 historical_results=0
+✔ W6d native: one client POST recovers the caller id from sync after a lost reply (544.939719ms)
+ℹ tier=native recovery_posts=1 applied=1 terminal_events=1 replayed=true
+✔ W6d native: reopen deduplicates the queued caller id before prediction (1240.13443ms)
+ℹ tier=native reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6b password character minimum and byte maximum through HTTP (3877.498598ms)
+ℹ HTTP: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b password character minimum and byte maximum through client (2999.275711ms)
+ℹ client: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b identity forms advertise and enforce the guest choice (986.633056ms)
+✔ sent results reach online, process-device and queued-write callers (1191.084628ms)
+✔ online: immediate lost first acknowledgement preserves the same-id replay receipt (1061.08509ms)
+ℹ wire={"head":3,"id":"01M3SCMDSWFKM2ZNB2F3KRFP2E","replayed":true,"seq":3,"state":"sent","store_id":"8b6e6ed1bc09e05384576698b8f1bc73"}; client={"state":"sent","id":"01M3SCMDSWFKM2ZNB2F3KRFP2E","seq":3,"replayed":true}; result key=false
+✔ online: queued lost first acknowledgement preserves the same-id replay receipt (1076.715752ms)
+ℹ wire={"head":3,"id":"01M3SCMECAZ9XWN56TRMA5D3GX","replayed":true,"seq":3,"state":"sent","store_id":"a50b29e45ddac83a4143b42ee1f527ad"}; client={"state":"sent","id":"01M3SCMECAZ9XWN56TRMA5D3GX","seq":3,"replayed":true}; result key=false
+✔ process-device: immediate lost first acknowledgement preserves the same-id replay receipt (1622.651454ms)
+ℹ wire={"head":3,"id":"01M3SCMFQW8ESJTK0G2JF1ZC5Y","replayed":true,"seq":3,"state":"sent","store_id":"dd05f6fa089b1d0579a56de4fffa322b"}; client={"state":"sent","id":"01M3SCMFQW8ESJTK0G2JF1ZC5Y","seq":3,"replayed":true}; result key=false
+✔ process-device: queued lost first acknowledgement preserves the same-id replay receipt (1473.219064ms)
+ℹ wire={"head":3,"id":"01M3SCMHBQH9P25PJ2RYKYVNCC","replayed":true,"seq":3,"state":"sent","store_id":"7c363769c6456d84d8a5b1102fd87d88"}; client={"state":"sent","id":"01M3SCMHBQH9P25PJ2RYKYVNCC","seq":3,"replayed":true}; result key=false
+✔ write types require replay narrowing through mutate, onWrite and useMutation (1567.731791ms)
+✔ createApp forwards asset retention (viewed, 68 bytes) through a real offline reopen (1581.161214ms)
+✔ createApp forwards asset retention (viewed, 67 bytes) through a real offline reopen (635.295904ms)
+✔ createApp forwards asset retention (none, 68 bytes) through a real offline reopen (554.329575ms)
+✔ createApp forwards local waitSeconds while retaining app-owned identity (642.404772ms)
+✔ online createApp ignores settings that apply only with a device (356.929766ms)
+✔ ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes (1819.597211ms)
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+✔ dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits (2418.275139ms)
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 2152 ms
+✔ id-only video predicts after offline reopen and its ordinary bytes are retained (2628.563239ms)
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+✔ W7r1 hidden versus absent non-uniform reads under dev (531.823554ms)
+ℹ absent={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2} hidden={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2}
+✔ W7r1 hidden versus absent non-uniform reads under serve (468.647245ms)
+✔ W8R1a dev withholds hidden population cuts (4830.18218ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a serve withholds hidden population cuts (5616.6578ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a online server-run observations keep explicit withdrawal during a replacing fetch (4580.842092ms)
+✔ W8R1a native server-run observations keep explicit withdrawal during a replacing fetch (3068.404436ms)
+✔ W8R1a web server-run observations keep explicit withdrawal during a replacing fetch (3214.760873ms)
+✔ W8a online uniform words continue while nonuniform words and meter cuts remain bounded (2839.144414ms)
+✔ W8a native uniform words continue while nonuniform words and meter cuts remain bounded (4979.542944ms)
+✔ W8a web uniform words continue while nonuniform words and meter cuts remain bounded (3772.800666ms)
+✔ W8a dev refuses held queries with a rewrite (294.721456ms)
+✔ W8a serve refuses held queries with a rewrite (177.472645ms)
+✔ W8a native held horizon stays local online, including observe (422.748415ms)
+✔ W8a web held horizon stays local online, including observe (313.512006ms)
+✔ W13b native cursorless read stays local online (588.552498ms)
+ℹ native cursorless: rows=1 complete=true /q/=0
+✔ W13b native meter read stays local online (4438.087907ms)
+ℹ native meter: rows=0 complete=false /q/=0
+✔ W13b native horizon and presence use server knowledge only online (377.451079ms)
+✔ W13b web cursorless read stays local online (275.556866ms)
+ℹ web cursorless: rows=1 complete=true /q/=0
+✔ W13b web meter read stays local online (1983.427278ms)
+ℹ web meter: rows=0 complete=false /q/=0
+✔ W13b web horizon and presence use server knowledge only online (299.327271ms)
+✔ W13b dev logs a measured cut (836.013024ms)
+ℹ snapback4 dev: read filtered (guest:01M3SCP8F4SEJ4GR1KDGY7F5TE) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered
+ℹ snapback4 dev: read filtered (dev:alice) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered; suppressed 5 repeated read cuts
+✔ W13b serve hides a measured cut (603.394878ms)
+✔ CCP admission boundary: native (5209.081145ms)
+ℹ native: waitSeconds=0 returned pending in 0.981 ms
+ℹ native: default returned pending in 4001.086 ms
+ℹ native: waitSeconds=1.9 returned pending in 1003.216 ms
+✔ CCP admission boundary: web (5248.258503ms)
+ℹ web: waitSeconds=0 returned pending in 1.301 ms
+ℹ web: default returned pending in 4001.851 ms
+ℹ web: waitSeconds=1.9 returned pending in 1001.353 ms
+✔ CCP admission boundary: online (1397.477281ms)
+ℹ online: waitSeconds=0 returned pending in 0.542 ms
+ℹ online: default waited for release, returned sent in 171.642 ms
+ℹ online: waitSeconds=1.9 returned pending in 1001.677 ms
+✔ CCP admission boundary: app-online (1417.225255ms)
+ℹ app-online: waitSeconds=0 returned pending in 0.765 ms
+ℹ app-online: default waited for release, returned sent in 171.467 ms
+ℹ app-online: waitSeconds=1.9 returned pending in 1001.239 ms
+✔ CCP zero-wait native admit reject fails before dispatch (244.62838ms)
+ℹ native reject: 1 admission, 0 dispatches, outcome=failed
+✔ CCP zero-wait native admit deny fails before dispatch (240.156306ms)
+ℹ native deny: 1 admission, 0 dispatches, outcome=failed
+✔ CCP zero-wait web admit reject fails before dispatch (220.017865ms)
+ℹ web reject: 1 admission, 0 dispatches, outcome=failed
+✔ CCP zero-wait web admit deny fails before dispatch (632.793971ms)
+ℹ web deny: 1 admission, 0 dispatches, outcome=failed
+✔ createApp online: false authority refusal never collects delivery (760.776078ms)
+✔ createApp online: throw authority refusal never collects delivery (743.51435ms)
+✔ createApp online: superseded answer never reports; approved successor reports exactly once (944.859093ms)
+✔ createApp online: episode expiry before approval never collects (1445.847133ms)
+✔ createApp online: row expiry before approval never collects (944.3702ms)
+✔ createApp online: peer approval shares one collection of the exact manifest (1041.071328ms)
+✔ createApp online: temporary session-store failure at raw publication cannot report unseen 41 (439.717617ms)
+✔ createApp online: a new peer can approve the same answer after storage recovers (1346.650083ms)
+✔ createApp online: a new peer can refuse the same answer after storage recovers (1143.001436ms)
+✔ createApp online: query waits for final approve check before accepting delivery (641.608088ms)
+✔ createApp online: query waits for final false check before accepting delivery (741.721803ms)
+✔ createApp online: query waits for final throw check before accepting delivery (741.385658ms)
+✔ createApp online: query waits for final expired check before accepting delivery (954.840246ms)
+✔ createApp online: background-only delivery waits for facade approval with changes held (950.190485ms)
+✔ createApp local: false authority refusal never collects delivery (1182.579198ms)
+✔ createApp local: throw authority refusal never collects delivery (1127.527858ms)
+✔ createApp local: superseded answer never reports; approved successor reports exactly once (963.561329ms)
+✔ createApp local: episode expiry before approval never collects (1507.194759ms)
+✔ createApp local: row expiry before approval never collects (1396.388065ms)
+✔ createApp local: peer approval shares one collection of the exact manifest (1184.9627ms)
+✔ createApp local: temporary session-store failure at raw publication cannot report unseen 41 (476.045226ms)
+✔ createApp local: a new peer can approve the same answer after storage recovers (1376.34636ms)
+✔ createApp local: a new peer can refuse the same answer after storage recovers (1181.631406ms)
+✔ createApp local: query waits for final approve check before accepting delivery (662.423323ms)
+✔ createApp local: query waits for final false check before accepting delivery (764.683835ms)
+✔ createApp local: query waits for final throw check before accepting delivery (767.10844ms)
+✔ createApp local: query waits for final expired check before accepting delivery (1080.828809ms)
+✔ createApp local: background-only delivery waits for facade approval with changes held (1036.540234ms)
+✔ createApp local: superseding an approved answer fences its delayed collection commit (1398.967931ms)
+✔ mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes (16.450251ms)
+✔ mock supplied ids execute and emit once (online) (22.442384ms)
+✔ mock supplied ids execute and emit once (offline) (21.402835ms)
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (540.382278ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (167.861117ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (166.863802ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (213.748609ms)
+✔ process keep=false: sign-out never replaces its denial with loading (208.682154ms)
+✔ process keep=true: sign-out never replaces its denial with loading (218.443326ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (23.771467ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.187883ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (20.988865ms)
+✔ wasm: an unrelated replicated write preserves online-only memory offline (173.150236ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (220.272889ms)
+✔ apply: remembered dependencies with footprint [] (0.308092ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.139168ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.062233ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.072139ms)
+✔ apply: remembered dependencies with footprint undefined (0.08703ms)
+✔ admit: remembered dependencies with footprint [] (0.055794ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.082363ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.044287ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.034552ms)
+✔ admit: remembered dependencies with footprint undefined (0.042624ms)
+✔ settle: remembered dependencies with footprint [] (0.030355ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.02636ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.029324ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.054642ms)
+✔ settle: remembered dependencies with footprint undefined (0.029805ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.02691ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.024837ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.025027ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.029003ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.020982ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.279278ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.225127ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.283385ms)
+✔ queued observation still withdraws at row expiry (0.469433ms)
+✔ queued observation still withdraws at reset (0.250535ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (189.045345ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (222.935451ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (198.7877ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (216.102207ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (212.08863ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (257.891665ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (241.839991ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (251.42429ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (189.940807ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (193.027244ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (192.317561ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (240.484559ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (239.307104ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (240.171771ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, failure (0.688642ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, timeout (0.305848ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, failure (0.28045ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, timeout (0.319649ms)
+✔ rule 1: sign-out during local cannot publish private data (1019.496606ms)
+✔ rule 1: sign-out during dispatch cannot publish private data (1004.843228ms)
+✔ rule 1: sign-out during transport cannot publish private data (1002.910591ms)
+✔ rule 1: sign-out during delivery cannot publish private data (1004.500263ms)
+✔ rule 1: sign-out during publication cannot publish private data (1004.002277ms)
+✔ rule 1: close during local cannot publish private data (1004.713763ms)
+✔ rule 1: close during dispatch cannot publish private data (1003.151271ms)
+✔ rule 1: close during transport cannot publish private data (1003.17098ms)
+✔ rule 1: close during delivery cannot publish private data (1004.322156ms)
+✔ rule 1: close during publication cannot publish private data (1003.028267ms)
+✔ closing a raw local handle stops its episode timer but keeps the deadline (3.137704ms)
+✔ wasm: resubscribing a raw local handle starts a bounded episode (1553.369815ms)
+✔ wasm: resubscribing a raw local handle rearms its original episode (1212.027877ms)
+✔ process: resubscribing a raw local handle starts a bounded episode (1259.254526ms)
+✔ process: resubscribing a raw local handle rearms its original episode (1263.010215ms)
+✔ closed raw local handle checks its device deadline when closed before it is due (0.621983ms)
+✔ closed raw local handle checks its device deadline when closed after it is due (0.195473ms)
+✔ closed raw local handle checks its server deadline when closed before it is due (0.276565ms)
+✔ closed raw local handle checks its server deadline when closed after it is due (0.199799ms)
+✔ a closed remembered answer ignores a local wakeup but still checks its server deadline (0.588393ms)
+✔ raw snapshot latches its device row deadline before timers, keep=undefined (0.46699ms)
+✔ raw peek latches its device row deadline before timers, keep=undefined (0.199909ms)
+✔ raw snapshot latches its server row deadline before timers, keep=undefined (0.247651ms)
+✔ raw peek latches its server row deadline before timers, keep=undefined (0.272589ms)
+✔ raw snapshot latches its device row deadline before timers, keep=true (0.282023ms)
+✔ raw peek latches its device row deadline before timers, keep=true (0.220961ms)
+✔ raw snapshot latches its server row deadline before timers, keep=true (0.150475ms)
+✔ raw peek latches its server row deadline before timers, keep=true (0.170826ms)
+✔ wasm: real hidden/missing reads match and an admitted insert demotes retained absence (702.80424ms)
+✔ native: real hidden/missing reads match and an admitted insert demotes retained absence (237.191933ms)
+✔ online: same-key row arrival and delete replace absent/present existence (111.267515ms)
+✔ process: same-key row arrival and delete replace absent/present existence (1178.209898ms)
+✔ wasm: same-key row arrival and delete replace absent/present existence (1136.069354ms)
+✔ publication decision table: top level × completeness/cut/next × freshness × pending footprint (24.570405ms)
+✔ whole-union helper and cold pending predicate use the same five words (0.248743ms)
+✔ empty publication cannot prove absence when pending storage fails or the incarnation changes (0.598677ms)
+✔ queued existence cache propagates failure and fences stale results before notifying (0.52019ms)
+✔ pending inserts recompute retained absence, including already revalidating and facade-held answers (1.281221ms)
+✔ facade-held answers keep their own dependency set before replacement approval (0.442062ms)
+✔ usePage publishes existence on the combined read; items alone prove nothing (1.682792ms)
+✔ completed empty page chains use pending facts, not a predecessor cursor partial (0.689775ms)
+✔ two-page existence combines coverage and the final cursor with actual pending predicates (10.076997ms)
+✔ published replacements recompute existence even when a caller spreads the predecessor (0.462213ms)
+✔ replacing fetch outcome: answer (1.508172ms)
+✔ replacing fetch outcome: loading (0.210746ms)
+✔ replacing fetch outcome: denied (0.175924ms)
+✔ replacing fetch outcome: failure (0.445137ms)
+✔ reset during a fetch clears its answer immediately and fences the returned publication (0.225287ms)
+✔ composition retains the previous answer through successful HTTP settlement (0.254732ms)
+✔ a reset during stale-response backoff prevents the next request (24.715262ms)
+✔ schema discovery withdraws an overlapping invalidation: keep=undefined (24.957395ms)
+✔ schema discovery withdraws an overlapping invalidation: keep=true (6.151311ms)
+✔ online link loss follows evidence for a live settled answer immediately, keep=undefined (4.74273ms)
+✔ online link loss follows evidence for a live invalidated answer immediately, keep=undefined (5.872815ms)
+✔ online link loss follows evidence for a live settled answer immediately, keep=false (4.29614ms)
+✔ online link loss follows evidence for a live invalidated answer immediately, keep=false (6.813755ms)
+✔ online link loss follows evidence for a live settled answer immediately, keep=true (5.304733ms)
+✔ online link loss follows evidence for a live invalidated answer immediately, keep=true (6.628237ms)
+✔ review: reset delivery retains a prior emission across concurrent lookup (420.267999ms)
+✔ review: acknowledged success retirement retains prior emission across lookup (11.100932ms)
+✔ review: pre-dispatch receipt recovery survives post-commit host failure (8.046473ms)
+✔ review: pending subscriber triggers duplicate successful recovery without a host delay (10.272971ms)
+✔ replacement cannot duplicate a success still in an older flush snapshot (38.049512ms)
+✔ a delayed queue snapshot protects emissions until its entries can own delivery (0.192068ms)
+✔ a failed queue snapshot releases emission cleanup (0.389013ms)
+✔ a retired settlement keeps its emitted refusal across a queue read (0.127832ms)
+✔ overlapping receipt notifications keep their emission marker: replacement-first (0.659188ms)
+✔ overlapping receipt notifications keep their emission marker: acknowledgement-first (0.113009ms)
+✔ receipt emission protection releases after settle throws (0.306519ms)
+✔ receipt emission protection releases after publish throws (0.125498ms)
+✔ receipt emission protection releases after replacement-publish throws (0.135493ms)
+✔ a queued send follows a settled receipt without waiting for an intermediate sync (12.552999ms)
+✔ a success followed by a terminal refusal syncs the committed write before the batch finishes (14.447028ms)
+✔ an early flush exit syncs an earlier success when another owner retires the tail (11.265638ms)
+✔ repeating media failure cannot gate an already queued send and retries stay bounded (32.921895ms)
+✔ a committed admission still sends when media housekeeping keeps failing (13.478226ms)
+✔ repeating post-commit receipt-save failure cannot gate an already queued send (19.716067ms)
+✔ the observation catch schedules the only retry that can publish an earlier success (12.582493ms)
+✔ a durable refusal still completes when its observation queue read fails (10.770357ms)
+✔ receipt-save retry preserves refusal notification deduplication through observation (11.981131ms)
+✔ the final flush sync publishes an earlier success when the tail retires before its queue lookup (9.758229ms)
+✔ recovered refusal delivery survives post-commit media failure (7.238171ms)
+✔ recovered refusal delivery survives post-commit host failure (6.846464ms)
+✔ replacement retired-success delivery survives post-commit state failure (1007.755454ms)
+✔ replacement retired-success delivery survives post-commit metadata failure (1006.936786ms)
+✔ replacement retired-success delivery survives post-commit media failure (1006.515114ms)
+✔ replacement retired-success delivery survives post-commit host failure (1006.428134ms)
+✔ keepalive refusal delivery survives post-commit media failure (1013.751512ms)
+✔ keepalive refusal delivery survives post-commit host failure (1013.18966ms)
+✔ receipt head observations do not rescan retained media until publication or replacement (62.76966ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (32.380082ms)
+✖ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (15.097494ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (44.670017ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (14.976312ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (11.470236ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (8.726802ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (1021.94796ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (1014.07731ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (1030.62637ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (1019.579799ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (1023.053387ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (1022.175841ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (12.505217ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (31.354575ms)
+✖ finding 2: delayed server answer cannot escape its incarnation (43.050489ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (44.835314ms)
+✖ finding 2: delayed watch answer cannot escape its incarnation (10.656586ms)
+✖ finding 2: changes observation drops freshness while a mutation holds the network queue (195.047713ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (11.545027ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (11.633851ms)
+✔ finding 2: a delayed device read is retried before returning (42.246894ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (11.331327ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (7.719523ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1009.770073ms)
+✔ replacement receipts use exit transport without replaying known writes (1007.16644ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (35.375783ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (12.383404ms)
+✔ review extra: repeating acknowledged-observation failure cannot strand queued tail (50.027017ms)
+ℹ tests 269
+ℹ suites 0
+ℹ pass 265
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103663.775291
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-review.test.mjs:806:1
+✖ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (15.097494ms)
+  AssertionError [ERR_ASSERTION]: unavailable partitions cannot recover the retired answer
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_OFFLINE',
+  +     family: 'link',
+  +     message: 'the request did not complete: offline; check the connection and server logs before retrying',
+  +     retryable: true
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/store-reset-review.test.mjs:837:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: offline; check the connection and server logs before retrying', retryable: true } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/store-reset-review.test.mjs:1060:52
+✖ finding 2: delayed server answer cannot escape its incarnation (43.050489ms)
+  AssertionError [ERR_ASSERTION]: a query the device cannot run stays withheld offline
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_OFFLINE',
+  +     family: 'link',
+  +     message: 'the request did not complete: offline; check the connection and server logs before retrying',
+  +     retryable: true
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/store-reset-review.test.mjs:1078:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: offline; check the connection and server logs before retrying', retryable: true } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/store-reset-review.test.mjs:1060:52
+✖ finding 2: delayed watch answer cannot escape its incarnation (10.656586ms)
+  AssertionError [ERR_ASSERTION]: a query the device cannot run stays withheld offline
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_OFFLINE',
+  +     family: 'link',
+  +     message: 'the request did not complete: offline; check the connection and server logs before retrying',
+  +     retryable: true
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/store-reset-review.test.mjs:1078:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: offline; check the connection and server logs before retrying', retryable: true } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/store-reset-review.test.mjs:1081:1
+✖ finding 2: changes observation drops freshness while a mutation holds the network queue (195.047713ms)
+  AssertionError [ERR_ASSERTION]: a reset cannot replace an unobserved prediction with either store’s server answer
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/store-reset-review.test.mjs:1092:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

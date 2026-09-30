@@ -1,0 +1,554 @@
+✔ event slots wasm: owned-event fallback waits for the source prediction (8423.619055ms)
+✔ event slots wasm: rejected owned events cannot make a speculative scan publishable (8006.348572ms)
+✔ bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages (8905.241449ms)
+✖ bounded Following wasm: unknown conditions preserve static and helper dependencies (4503.942801ms)
+✔ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (5092.290836ms)
+✔ bounded Following wasm: a known branch wins over static server routing (4197.911991ms)
+✖ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (4310.43021ms)
+✔ bounded Following wasm: a late card miss and oversized withheld output still use fallback (1138.746299ms)
+✔ bounded Following wasm: untaken online-only card branches remain answerable when held (502.933789ms)
+✔ bounded Following wasm: composed reads withhold the entire answer across the prediction fence (8057.81989ms)
+✔ bounded Following wasm: exact offline pages, original-cursor fallback and quiet authors (1140.391115ms)
+✔ bounded Following wasm: a predicted post fences fallback until observation (8157.451659ms)
+✔ bounded Following wasm: online-only cards withhold offline (196.276783ms)
+✔ bounded Following wasm: repost prediction needs a held original (8193.150294ms)
+✔ bounded Following wasm: held cards and transport failures stay withheld (381.20343ms)
+✔ bounded Following wasm: online-only repost cards use the prediction fence before server routing (8168.016856ms)
+✖ bounded Following wasm: a response racing prediction admission is invalidated (4290.556999ms)
+✔ bounded Following wasm: repost horizon misses withhold but full-source nulls remain data (189.492873ms)
+✖ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (14047.413561ms)
+✔ event slots native: owned-event fallback waits for the source prediction (8049.536133ms)
+✔ event slots native: rejected owned events cannot make a speculative scan publishable (8009.939781ms)
+✔ bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages (9018.257355ms)
+✖ bounded Following native: unknown conditions preserve static and helper dependencies (4536.157455ms)
+✔ bounded Following native: a scalar cut before the feed keeps its possible reads fenced (4951.61877ms)
+✔ bounded Following native: a known branch wins over static server routing (4238.676675ms)
+✖ bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows (4320.94157ms)
+✔ bounded Following native: a late card miss and oversized withheld output still use fallback (1143.724177ms)
+✔ bounded Following native: untaken online-only card branches remain answerable when held (519.944357ms)
+✔ bounded Following native: composed reads withhold the entire answer across the prediction fence (8012.969962ms)
+✔ bounded Following native: exact offline pages, original-cursor fallback and quiet authors (1213.083784ms)
+✔ bounded Following native: a predicted post fences fallback until observation (8256.957594ms)
+✔ bounded Following native: online-only cards withhold offline (213.454053ms)
+✔ bounded Following native: repost prediction needs a held original (8213.686814ms)
+✔ bounded Following native: held cards and transport failures stay withheld (393.222426ms)
+✔ bounded Following native: online-only repost cards use the prediction fence before server routing (8266.787264ms)
+✖ bounded Following native: a response racing prediction admission is invalidated (4422.910917ms)
+✔ bounded Following native: repost horizon misses withhold but full-source nulls remain data (224.001714ms)
+✖ bounded Following native: inbox floors use all routing branches and preserve meter prefixes (13599.21752ms)
+✔ bounded Following native query module: executed dependencies fence fallback until prediction observation (11950.797582ms)
+✔ online home-screen manifest sends exact positions without an application mutate (273.997546ms)
+✔ online calls judge out-of-order heads against their own dispatch floors (12.530515ms)
+✔ local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore (288.152737ms)
+✔ online sign-out clears the viewer immediately while giving an active report its bounded drain (276.485286ms)
+✔ an unrelated generation preserves an online range refusal (584.478936ms)
+✔ online query below the publication floor accepts no manifest (479.467621ms)
+✔ online E_OFFLINE reaches the existing probe and reconnects the same attempt (512.024138ms)
+✔ online one-shot acceptance belongs to its final returned answer (2.319097ms)
+✔ online adapter parks E_BOUND why once until the next start (8.260754ms)
+✔ online adapter parks E_BOUND denied once until the next start (6.109699ms)
+✔ online adapter parks E_BOUND headless once until the next start (8.486271ms)
+✔ local adapter parks E_BOUND why once until the next start (8.163839ms)
+✔ local adapter parks E_BOUND denied once until the next start (6.187055ms)
+✔ local adapter parks E_BOUND headless once until the next start (4.666065ms)
+✔ expired server replies: recover, keep=undefined (3265.6749ms)
+✔ expired server replies: recover, keep=false (2738.021082ms)
+✔ expired server replies: recover, keep=true (2812.838001ms)
+✔ expired server replies: close watch, keep=undefined (1884.482442ms)
+✔ expired server replies: close watch, keep=false (2843.664263ms)
+✔ expired server replies: close watch, keep=true (2338.762523ms)
+✔ expired server replies: close client, keep=undefined (2842.332596ms)
+✔ expired server replies: close client, keep=false (2840.383203ms)
+✔ expired server replies: close client, keep=true (2832.66412ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (641.927578ms)
+✔ expired warm server answer withdraws before retry, keep=false (175.490793ms)
+✔ expired warm server answer withdraws before retry, keep=true (319.390225ms)
+✔ a loading server reply retires memory before a speculative transport failure (435.121972ms)
+✔ applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: false) (374.713111ms)
+✔ applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: true) (256.634217ms)
+✔ an unavailable held rerun clears its answer without a server fallback (212.80472ms)
+✔ transport failures are loading and an explained server refusal lasts until the next result (71.891995ms)
+✔ a local observation has no remembered answer after a failed replacing fetch (211.23701ms)
+✔ a server-class observation uses ordinary device-fallback retention during HTTP (211.467106ms)
+✔ a predicted membership removal clears a kept private answer before the pending send (226.815875ms)
+✔ predicted expireSecret: every commit clears the pending observation (5128.681978ms)
+✔ predicted expireMember: every commit clears the pending observation (5120.185999ms)
+✔ online client drops a heap-aborted private answer within one fetch, including after revoke (189.071993ms)
+✔ online revoke fences an already authorized HTTP response held across its commit (195.157525ms)
+✔ an unavailable HTTP response predating a cost-reducing write must refetch (189.194205ms)
+✖ ready list reads survive account restoration, new chat acquisition and pending unread counts (1383.046308ms)
+✔ unavailable server list responses end retention in both clients (734.980627ms)
+✔ loading server replies retain expiry retries and missing data cannot become ready undefined (211.840074ms)
+✔ integration: device observations use the issued clock; server deadlines use the estimate (4.5223ms)
+✔ integration: retained read-through fallback obeys the common router (publish) (0.81401ms)
+✔ integration: retained read-through fallback obeys the common router (prediction) (0.479408ms)
+✔ integration: retained read-through fallback obeys the common router (issued expiry) (0.335683ms)
+✔ integration: retained read-through fallback obeys the common router (server expiry) (0.313469ms)
+✔ rule 2: known complete branch wins (native=false, held=false) (0.208092ms)
+✔ rule 2: known complete branch wins (native=false, held=true) (0.127902ms)
+✔ rule 2: known complete branch wins (native=true, held=false) (0.12033ms)
+✔ rule 2: known complete branch wins (native=true, held=true) (0.135773ms)
+✔ rule 3: engine-withheld offline (0.292017ms)
+✔ rule 3: engine-withheld prediction (0.143925ms)
+✔ rule 3: engine-withheld held (0.114832ms)
+✔ rule 3: engine-withheld server (0.257196ms)
+✔ rule 3: engine-withheld transport failure (0.250506ms)
+✔ rule 4: available unknown Following offline (0.235994ms)
+✔ rule 4: available unknown Following prediction (0.109574ms)
+✔ rule 4: available unknown Following held (0.095704ms)
+✔ rule 4: available unknown Following server (0.127541ms)
+✔ rule 4: available unknown Following transport failure (0.14673ms)
+✔ rule 4: unknown conditions retain static possible reads, including slash IDs (0.154782ms)
+✔ rules 2/3: an unrelated profile read runs before considering a pending post (0.245518ms)
+✔ rule 3: known meter prefixes stay partial without fallback (0.22678ms)
+✔ rule 5: prediction arriving at delivery keeps withholding (0.235233ms)
+✔ rule 5: prediction arriving at publication keeps withholding (0.1265ms)
+✔ rule 5: prediction arriving at delivery keeps local data (0.090055ms)
+✔ rule 5: prediction arriving at publication keeps local data (0.086439ms)
+✔ rules 3/4: remembered pages cannot replace withholding (0.314211ms)
+✔ rules 3/4: remembered pages cannot replace local data (0.277316ms)
+✔ rule 5: a native program stays opaque after local execution (0.139469ms)
+✔ rule 5: observed entries and predictable no-ops release the fence (0.236735ms)
+✔ rule 3: device preflight E_PREDICT cannot certify local coverage (0.21289ms)
+✔ rule 3: device preflight E_NATIVE cannot certify local coverage (0.145519ms)
+✔ rule 1: router itself refuses E_AUTH during delivery (0.282123ms)
+✔ rule 1: router itself refuses E_CLOSED during delivery (0.121091ms)
+✔ rule 1: router itself refuses E_AUTH during publication (0.172057ms)
+✔ rule 1: router itself refuses E_CLOSED during publication (0.188492ms)
+✔ native client reset with an unobserved prediction (1019.688139ms)
+✔ native client reset with an unobserved prediction held (1002.237688ms)
+✔ native client install failure with an unobserved prediction (1001.727363ms)
+✔ native client install failure with an unobserved prediction held (1002.270458ms)
+✔ rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=false) (0.574622ms)
+✔ rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=true) (0.19341ms)
+✔ rules 4/5: unknown placeholder null recovers memory, never speculative data (0.984816ms)
+✔ rules 4/5: unknown placeholder [] recovers memory, never speculative data (0.480861ms)
+✔ rules 4/5: unknown placeholder true recovers memory, never speculative data (0.457556ms)
+✔ rules 4/5: unknown placeholder false recovers memory, never speculative data (0.851516ms)
+✔ rules 4/5: unknown placeholder 0 recovers memory, never speculative data (0.432077ms)
+✔ rules 4/5: unknown placeholder {"online":true} recovers memory, never speculative data (0.584416ms)
+✔ rules 4/5: unknown placeholder [null] recovers memory, never speculative data (0.442083ms)
+✔ rule 5: remembered answer rechecks prediction during recovery (0.550706ms)
+✔ rule 5: remembered answer rechecks sign-out during recovery (0.308202ms)
+✔ rule 5: remembered answer rechecks close during recovery (0.250115ms)
+✔ rule 5: remembered answer rechecks prediction during publication (0.240611ms)
+✔ rule 5: remembered answer rechecks sign-out during publication (0.290525ms)
+✔ rule 5: remembered answer rechecks close during publication (0.232849ms)
+✔ rule 4: local freshness is decided at publication (transport failure=false) (0.333159ms)
+✔ rule 4: local freshness is decided at publication (transport failure=true) (0.329304ms)
+✔ rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (false) (0.682724ms)
+✔ rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (true) (0.315083ms)
+✔ rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (false) (0.2534ms)
+✔ rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (true) (0.279579ms)
+✔ rule 5: composed {"loading":true} survives unless fenced (false) (0.261752ms)
+✔ rule 5: composed {"loading":true} survives unless fenced (true) (0.329624ms)
+✔ rule 5: authoritative {"loading":true} retires earlier memory (0.627ms)
+✔ rule 5: authoritative {"denied":{"code":"NO","family":"application","message":"no"}} retires earlier memory (0.529253ms)
+✔ rule 4: non-speculative unknown [] stays partial without an id (provenance={}) (0.465989ms)
+✔ rule 4: non-speculative unknown 0 stays partial without an id (provenance={}) (0.269093ms)
+✔ rule 4: non-speculative unknown null stays partial without an id (provenance={}) (0.254872ms)
+✔ rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={}) (0.237827ms)
+✔ rule 4: non-speculative unknown [] stays partial without an id (provenance={"speculative":false}) (0.275573ms)
+✔ rule 4: non-speculative unknown 0 stays partial without an id (provenance={"speculative":false}) (0.249945ms)
+✔ rule 4: non-speculative unknown null stays partial without an id (provenance={"speculative":false}) (0.242915ms)
+✔ rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={"speculative":false}) (0.227852ms)
+✔ rule 4: retained [] composition survives offline/transport failure=false (0.477456ms)
+✔ rule 4: retained [] composition survives offline/transport failure=true (0.330525ms)
+✔ rule 4: retained 0 composition survives offline/transport failure=false (0.213109ms)
+✔ rule 4: retained 0 composition survives offline/transport failure=true (0.254982ms)
+✔ rule 4: speculative values with engine held=false, fenced=false (0.477736ms)
+✔ rule 4: speculative values with engine held=false, fenced=true (0.355873ms)
+✔ rule 4: speculative values with engine held=true, fenced=false (0.336715ms)
+✔ rule 4: speculative values with engine held=true, fenced=true (0.429975ms)
+✔ rule 4: online partial freshness requires caughtUp=false, identityChecked=false (0.35996ms)
+✔ rule 4: online partial freshness requires caughtUp=false, identityChecked=true (0.231007ms)
+✔ rule 4: online partial freshness requires caughtUp=true, identityChecked=false (0.180731ms)
+✔ rule 4: online partial freshness requires caughtUp=true, identityChecked=true (0.223815ms)
+✔ rules 4/5: remembered since is the original observation time (1.188392ms)
+✔ rule 5: memory expires at recovery, with no expired answer or repeated deadline (1.112617ms)
+✔ rule 5: memory expires at publication, with no expired answer or repeated deadline (0.98047ms)
+✔ rule 5: expiry does not replace authoritative {"denied":{"code":"E_BOUND","family":"bound","message":"ceiling"}} (0.481491ms)
+✔ rule 5: expiry does not replace authoritative {"loading":true} (0.27964ms)
+✔ rule 4: speculative refusal is a placeholder (fenced=false) (0.543926ms)
+✔ rule 4: speculative refusal is a placeholder (fenced=true) (0.335753ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=false) (0.442423ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=true) (0.333641ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=false) (0.220851ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=true) (0.2071ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=false, failed=false) (0.198958ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=false, failed=true) (0.227811ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=true, failed=false) (0.20691ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=true, failed=true) (0.197356ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=false, failed=false) (0.229835ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=false, failed=true) (0.290886ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=true, failed=false) (0.230987ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=true, failed=true) (0.190966ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=false) (1.006479ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=true) (0.488432ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=false) (0.389333ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=true) (0.378957ms)
+✔ rules 4/5: a withheld local retry keeps its future deadline (speculative) (0.658457ms)
+✔ rules 4/5: a withheld local retry keeps its future deadline (unavailable) (0.383966ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (data, false) (0.630395ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (data, true) (0.29382ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (speculative, false) (0.330565ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (speculative, true) (0.369655ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (unavailable, false) (0.334902ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (unavailable, true) (0.301893ms)
+✔ rules 1/5: sign-out during local expiry retry still fences publication (0.555653ms)
+✔ rules 1/5: close during local expiry retry still fences publication (0.282574ms)
+✔ rules 1/5: incarnation during local expiry retry still fences publication (0.279749ms)
+✔ rule 5: delayed server data expires during transport (0.731827ms)
+✔ rule 5: delayed server data expires during publication (1.065497ms)
+✔ rule 5: delayed composed data expires during transport (0.900731ms)
+✔ rule 5: delayed composed data expires during publication (0.425128ms)
+✔ rule 5: an initial expired server answer schedules only a live watch (watch=false) (0.561652ms)
+✔ rule 5: an initial expired server answer schedules only a live watch (watch=true) (0.396655ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=false) (0.809814ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=true) (0.398677ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=false) (0.299048ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=true) (0.292018ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=false) (0.754812ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=true) (0.325287ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=false) (0.311146ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=true) (0.33322ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=false) (0.297335ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=true) (0.335212ms)
+✔ rules 3/4: expiry retry respects offline (0.433029ms)
+✔ rules 3/4: expiry retry respects prediction (0.227601ms)
+✔ rules 3/4: expiry retry respects held (0.218408ms)
+✔ rules 3/4: expiry retry respects transport failure (0.309364ms)
+✔ rules 4/5: expiry retry composes retained rows with its server answer (0.64687ms)
+✔ rule 5: expiry fallback rechecks predictions at final publication (speculative=false) (0.538107ms)
+✔ rule 5: expiry fallback rechecks predictions at final publication (speculative=true) (0.278036ms)
+✔ rule 5: an expired retry server answer dirties the watch without retiring valid memory (0.534952ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (publish) (0.823735ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (issued expiry) (0.338047ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (server expiry) (0.336304ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=false) (0.552408ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=true) (0.251747ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=false) (0.261122ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=true) (0.252008ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=false) (0.272508ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=true) (0.292909ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=false) (0.250896ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=true) (0.258387ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=false) (0.378277ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=true) (0.386048ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=false) (0.294933ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=true) (0.28001ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=false) (0.255143ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=true) (0.25989ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=false) (0.295233ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=true) (0.287461ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=false) (0.684316ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=true) (0.197836ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=false) (0.191848ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=true) (0.169945ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=false) (0.285758ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=true) (0.205729ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=false) (0.145418ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=true) (0.141021ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=false) (0.171557ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=true) (0.207632ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=false) (0.144627ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=true) (0.145148ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=false) (0.164667ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=true) (0.147ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=false) (0.136084ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=true) (0.144326ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=false) (0.477676ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=true) (0.167912ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=false) (0.135433ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=true) (0.149755ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=false) (0.144316ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=true) (0.136004ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=false) (0.130275ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=true) (0.161532ms)
+✔ composed delivery omits coordinates from replaced server rows (rows=false) (0.620751ms)
+✔ composed delivery omits coordinates from replaced server rows (rows=true) (0.304146ms)
+✔ retaining fallback keeps A while the second local composition read waits: keep=undefined (1.333709ms)
+✔ retaining fallback keeps A while the second local composition read waits: keep=true (0.410315ms)
+✔ review: reset delivery retains a prior emission across concurrent lookup (432.04559ms)
+✔ review: acknowledged success retirement retains prior emission across lookup (10.527312ms)
+✔ review: pre-dispatch receipt recovery survives post-commit host failure (7.896428ms)
+✔ review: pending subscriber triggers duplicate successful recovery without a host delay (9.766321ms)
+✔ replacement cannot duplicate a success still in an older flush snapshot (34.128353ms)
+✔ a delayed queue snapshot protects emissions until its entries can own delivery (0.182333ms)
+✔ a failed queue snapshot releases emission cleanup (0.385268ms)
+✔ a retired settlement keeps its emitted refusal across a queue read (0.12005ms)
+✔ overlapping receipt notifications keep their emission marker: replacement-first (0.648231ms)
+✔ overlapping receipt notifications keep their emission marker: acknowledgement-first (0.094772ms)
+✔ receipt emission protection releases after settle throws (0.180481ms)
+✔ receipt emission protection releases after publish throws (0.079519ms)
+✔ receipt emission protection releases after replacement-publish throws (0.092288ms)
+✔ a queued send follows a settled receipt without waiting for an intermediate sync (12.203053ms)
+✔ a success followed by a terminal refusal syncs the committed write before the batch finishes (14.058796ms)
+✔ an early flush exit syncs an earlier success when another owner retires the tail (10.160001ms)
+✔ repeating media failure cannot gate an already queued send and retries stay bounded (31.580864ms)
+✔ a committed admission still sends when media housekeeping keeps failing (13.455732ms)
+✔ repeating post-commit receipt-save failure cannot gate an already queued send (20.029397ms)
+✔ the observation catch schedules the only retry that can publish an earlier success (12.140821ms)
+✔ a durable refusal still completes when its observation queue read fails (10.627121ms)
+✔ receipt-save retry preserves refusal notification deduplication through observation (11.694472ms)
+✔ the final flush sync publishes an earlier success when the tail retires before its queue lookup (9.877517ms)
+✔ recovered refusal delivery survives post-commit media failure (6.509478ms)
+✔ recovered refusal delivery survives post-commit host failure (5.974836ms)
+✔ replacement retired-success delivery survives post-commit state failure (1006.419497ms)
+✔ replacement retired-success delivery survives post-commit metadata failure (1006.705817ms)
+✔ replacement retired-success delivery survives post-commit media failure (1006.416833ms)
+✔ replacement retired-success delivery survives post-commit host failure (1005.409453ms)
+✔ keepalive refusal delivery survives post-commit media failure (1014.195524ms)
+✔ keepalive refusal delivery survives post-commit host failure (1012.787313ms)
+✔ receipt head observations do not rescan retained media until publication or replacement (65.340002ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (17.014707ms)
+✔ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (39.595559ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (12.276244ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (13.68191ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (10.771037ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (7.686372ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (1018.897242ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (1013.789255ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (1027.799769ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (1018.751764ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (1028.529823ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (1020.731212ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (12.528822ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (31.391579ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (43.614243ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (43.537669ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (10.005449ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (195.873799ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (11.969533ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (12.44748ms)
+✔ finding 2: a delayed device read is retried before returning (45.188313ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (11.510625ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (8.119101ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1009.773785ms)
+✔ replacement receipts use exit transport without replaying known writes (1006.538395ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (29.261116ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (12.146549ms)
+✔ review extra: repeating acknowledged-observation failure cannot strand queued tail (37.88879ms)
+✔ wasm: persisted device reacquires after two backend replacements and preserves an unsent write (2852.130466ms)
+ℹ reset observed: A={"generation":1,"native":null,"watermark":3}, B={"generation":1,"native":null,"watermark":0}, local={"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true}}, queue=[{"args":{"body":"unsent"},"id":"01M3SCT5BT3DEGEZHKASMT7YHW","new_ids":["01M3SCT5BVXA3RR25S8X3PM5EM"],"now":1790779921787,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice","store_id":"73e2a62be8457880250bff4cb4610bdd"}], reply={"request":{"generation":1,"from":3,"limit":10000,"after":null,"stream":false,"pending":["01M3SCT5BT3DEGEZHKASMT7YHW"],"store_id":"9601f7c49c338fddd882638a4a6d7a73"},"reply":{"acknowledged":{},"events":[],"generation":1,"images_at":1,"joined":{},"more":false,"now":1790779921932,"snapshot":false,"store_id":"73e2a62be8457880250bff4cb4610bdd","watermark":1}}
+ℹ reacquired: B rows=2, C rows=2, pending POSTs=1, resets=2
+✔ sync store identity survives a server restart; a live client detects an equal-watermark replacement (2451.658289ms)
+ℹ server: identity length=32, restart IDs=1, replacement IDs=2, equal watermark=3
+✔ wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID (1264.622725ms)
+ℹ receipts across reset: known POSTs=0, unknown POSTs=1, duplicate replay=true
+✔ wasm: a replacement reloads backend programs even when the generation number repeats (1215.509059ms)
+ℹ tests 335
+ℹ suites 0
+ℹ pass 326
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 207591.169137
+
+✖ failing tests:
+
+test at packages/snapback4/test/bounded-following.test.mjs:274:3
+✖ bounded Following wasm: unknown conditions preserve static and helper dependencies (4503.942801ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:314:16)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:383:3
+✖ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (4310.43021ms)
+  AssertionError [ERR_ASSERTION]: an unrelated held page cannot validate a speculative profile
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:420:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:644:3
+✖ bounded Following wasm: a response racing prediction admission is invalidated (4290.556999ms)
+  AssertionError [ERR_ASSERTION]: the response predating admission cannot replace a prediction
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:652:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:666:3
+✖ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (14047.413561ms)
+  TypeError: Cannot read properties of undefined (reading 'length')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:723:76)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/bounded-following.test.mjs:274:3
+✖ bounded Following native: unknown conditions preserve static and helper dependencies (4536.157455ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:314:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:383:3
+✖ bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows (4320.94157ms)
+  AssertionError [ERR_ASSERTION]: an unrelated held page cannot validate a speculative profile
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:420:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:644:3
+✖ bounded Following native: a response racing prediction admission is invalidated (4422.910917ms)
+  AssertionError [ERR_ASSERTION]: the response predating admission cannot replace a prediction
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:652:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:666:3
+✖ bounded Following native: inbox floors use all routing branches and preserve meter prefixes (13599.21752ms)
+  TypeError: Cannot read properties of undefined (reading 'length')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:723:76)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/page-ready.test.mjs:31:1
+✖ ready list reads survive account restoration, new chat acquisition and pending unread counts (1383.046308ms)
+  AssertionError [ERR_ASSERTION]: an unknown non-speculative scan is partial data even when empty
+  
+  undefined !== []
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/page-ready.test.mjs:97:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

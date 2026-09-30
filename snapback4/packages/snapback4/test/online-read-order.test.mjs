@@ -132,7 +132,7 @@ for (const event of ['replacement', 'regression', 'revoke', 'close', 'sign-out']
     const client = createClient({ url: 'http://order.test', persona: 'alice', fetch: async (url, init) => {
       requests++;
       if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: ++seq, store_id: store });
-      return Response.json({ ...ready(JSON.parse(init.body).args.buffer ? ['buffered private'] : [], seq), store_id: store });
+      return Response.json({ ...ready(JSON.parse(init.body).args.buffer && seq === 2 ? ['buffered private'] : [], seq), store_id: store });
     } });
     t.after(async () => { resume.resolve(); await client.close(); });
     await client.query(q, {});
@@ -144,7 +144,7 @@ for (const event of ['replacement', 'regression', 'revoke', 'close', 'sign-out']
     else await (event === 'close' ? client.close() : client.signOut());
     const before = requests; resume.resolve();
     const read = await pending;
-    if (event === 'revoke') assert.deepEqual(read, { loading: true });
+    if (event === 'revoke') assert.deepEqual(read.data, []);
     else assert.equal(read.denied?.code, event === 'replacement' ? 'E_STORE_REPLACED' : event === 'regression' ? 'E_STORE_RESTORE' : 'E_CLOSED');
-    assert.equal(requests, before, 'the outer fence discards without starting another retry loop');
+    assert.equal(requests, before + (event === 'revoke' ? 1 : 0), 'a retired answer rereads; terminal scopes never retry');
   });

@@ -1,0 +1,21 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (137.042028ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (2153.37127ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (57.495045ms)
+  ✔ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (296.066301ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (102.588917ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1416.738449ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (433.807387ms)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (259.660733ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (403.440773ms)
+  ✔ observations make retention explicit (9.14524ms)
+  ✔ account reset clears draft and stops the prior typing owner (191.178477ms)
+✔ social recipes in React/browser: real online signals and media, controlled read interleavings (7660.6987ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8076.756697

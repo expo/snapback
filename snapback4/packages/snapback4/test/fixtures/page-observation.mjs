@@ -90,7 +90,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     // Neither a new fallback nor the already pending response may replace it.
     const pendingPublications = snapshots.length, pendingReplies = replies.length;
     const direct = await reader.client.query(q("inbox"), {});
-    check(direct.loading, "pending prediction withholds the unavailable total");
+    check(direct.denied?.code === "E_QUERY_RETRY", "pending prediction refuses the unavailable one-shot total");
     check(requests.filter(path => path === "q/inbox").length === pendingBefore, "prediction fence prevents fallback dispatch");
     holdInbox = false; releaseInbox();
     await until(() => replies.length > pendingReplies && inbox.getSnapshot().loading, "withheld rerun after old response");

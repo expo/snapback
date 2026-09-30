@@ -834,7 +834,7 @@ test("FF1: committed reset invalidates watches and acquisition before a denied s
   assert.deepEqual(atFailure.acquisition, [false]);
   assert.equal(f.client.acquired, false, "failed inspection cannot retain retired acquisition");
   f.offline(true);
-  assert.deepEqual(await f.client.query(remote, {}), { loading: true }, "unavailable partitions cannot recover the retired answer");
+  assert.equal((await f.client.query(remote, {})).denied?.code, f.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "unavailable partitions cannot recover the retired answer");
   f.offline(false);
   const retryAt = f.syncRequests.length;
   await f.client.sync();
@@ -1075,7 +1075,7 @@ for (const mode of ["server", "horizon", "watch"]) test(`finding 2: delayed ${mo
   f.offline(true); await f.client.sync();
   const offline = await f.client.query(op, args);
   if (mode === "horizon") assert.ok(offline.data.every(row => row.body === "B"));
-  else assert.deepEqual(offline, { loading: true }, "a query the device cannot run stays withheld offline");
+  else assert.equal(offline.denied?.code, "E_OFFLINE", "a one-shot the device cannot run refuses offline");
 });
 
 test("finding 2: changes observation drops freshness while a mutation holds the network queue", async t => {
@@ -1089,7 +1089,7 @@ test("finding 2: changes observation drops freshness while a mutation holds the 
   const read = await f.client.query(thread, args);
   const during = f.stats().syncStarts;
   barrier.resolve(); await write;
-  assert.deepEqual(read, { loading: true }, "a reset cannot replace an unobserved prediction with either store’s server answer");
+  assert.equal(read.denied?.code, "E_QUERY_RETRY", "a reset cannot replace an unobserved prediction with either store’s server answer");
   assert.equal(before, during, "the assertion runs before queued sync can start");
 });
 

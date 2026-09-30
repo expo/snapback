@@ -1,0 +1,104 @@
+✔ online: online-only view settles with link up and refuses offline without a served answer (198.21605ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ online: concurrent write retires the final continuation and query rereads (199.414296ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":782,"indexEntries":0,"outputBytes":98,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ online: deadline crossed after evaluation rereads before return (195.678866ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ wasm: online-only view settles with link up and refuses offline without a served answer (586.050289ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ wasm: concurrent write retires the final continuation and query rereads (219.804744ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ wasm: deadline crossed after evaluation rereads before return (231.028631ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: online-only view settles with link up and refuses offline without a served answer (249.308075ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ process: concurrent write retires the final continuation and query rereads (260.840715ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: deadline crossed after evaluation rereads before return (279.919757ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: online-only view settles with link up and refuses offline without a served answer (174.533605ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-online: concurrent write retires the final continuation and query rereads (203.843656ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":782,"indexEntries":0,"outputBytes":98,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-online: deadline crossed after evaluation rereads before return (184.774379ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-wasm: online-only view settles with link up and refuses offline without a served answer (198.313625ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-wasm: concurrent write retires the final continuation and query rereads (217.302583ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-wasm: deadline crossed after evaluation rereads before return (248.361245ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: online-only view settles with link up and refuses offline without a served answer (262.306782ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-process: concurrent write retires the final continuation and query rereads (347.957006ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: deadline crossed after evaluation rereads before return (291.698575ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ wasm: online-only view with an admitted unobserved write, link up (300.610045ms)
+ℹ [{"id":"01M3SCAHTJW3YP0K75VRM65VWG","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAHTJW3YP0K75VRM65VWH"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ wasm: online-only view with an admitted unobserved write, link down (188.059663ms)
+ℹ [{"id":"01M3SCAJ3YMS96P6RG9H4PP895","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAJ3YMS96P6RG9H4PP896"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ process: online-only view with an admitted unobserved write, link up (354.056641ms)
+ℹ [{"id":"01M3SCAJBC6EMT344PWJ8Q8H6F","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAJBC6EMT344PWJ8Q8H6G"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ process: online-only view with an admitted unobserved write, link down (240.054422ms)
+ℹ [{"id":"01M3SCAJPHQ53AQEGQT55HTSQX","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAJPHQ53AQEGQT55HTSQY"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-wasm: online-only view with an admitted unobserved write, link up (310.7526ms)
+ℹ [{"id":"01M3SCAJWVEFYMBZ5DA7JQH5KE","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAJWVEFYMBZ5DA7JQH5KF"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ app-wasm: online-only view with an admitted unobserved write, link down (199.169689ms)
+ℹ [{"id":"01M3SCAK6FAER4PTN8PF4KB27Z","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAK6FAER4PTN8PF4KB280"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-process: online-only view with an admitted unobserved write, link up (365.923511ms)
+ℹ [{"id":"01M3SCAKE63AGCQ000PK1YCRSG","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAKE63AGCQ000PK1YCRSH"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ app-process: online-only view with an admitted unobserved write, link down (249.450048ms)
+ℹ [{"id":"01M3SCAKSN2ZQJAPNAZ6HM6DBB","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SCAKSP2J7JRD9E12VEYPGD"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ online: a mounted answer's withdrawn deadline cannot return loading to a one-shot (204.877706ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot (234.893795ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: a mounted answer's withdrawn deadline cannot return loading to a one-shot (285.602276ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: a mounted answer's withdrawn deadline cannot return loading to a one-shot (207.670172ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot (245.394999ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: a mounted answer's withdrawn deadline cannot return loading to a one-shot (304.272245ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: a write during facade approval forces another read (200.796999ms)
+ℹ {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":792,"indexEntries":0,"outputBytes":103,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-wasm: a write during facade approval forces another read (201.124239ms)
+ℹ {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: a write during facade approval forces another read (316.136501ms)
+ℹ {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ online: mounted observations do not starve a one-shot (173.447867ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+✔ wasm: mounted observations do not starve a one-shot (199.773584ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: mounted observations do not starve a one-shot (258.692043ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: mounted observations do not starve a one-shot (175.640895ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+✔ app-wasm: mounted observations do not starve a one-shot (214.435054ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: mounted observations do not starve a one-shot (271.735628ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10426.029516

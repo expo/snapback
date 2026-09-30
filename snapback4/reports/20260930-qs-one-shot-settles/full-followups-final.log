@@ -1,0 +1,17 @@
+(node:2329139) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ wasm: population growth cannot mint new IDs during prediction replay (896.091262ms)
+✔ native: population growth cannot mint new IDs during prediction replay (438.271968ms)
+✔ every delivery await is explicitly classified (161.767105ms)
+✔ local fallback rejects its manifest when expiry changes before acceptance (773.45267ms)
+✔ expired server replies: recover, keep=undefined (6296.499848ms)
+✔ expired server replies: recover, keep=false (3018.480969ms)
+✔ expired server replies: recover, keep=true (3248.503263ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12677.323037

@@ -238,7 +238,7 @@ async function observations(client, t) {
 }
 function assertUnknown(answers) {
   for (const [name, answer] of Object.entries(answers)) {
-    assert.deepEqual(answer, { loading: true }, `${name}: no fabricated absence or authoritative refusal`);
+    assert.equal(answer.denied?.code, "E_OFFLINE", `${name}: no fabricated absence or authoritative refusal`);
     assert.equal("data" in answer, false);
   }
 }
@@ -637,7 +637,7 @@ for (const form of ["rule", "require", "constraint", "named constraint", "postco
     assert.equal(held.length, 1);
     assert.equal(held[0].predictable, false);
     assert.deepEqual(held[0].predicted, []);
-    assert.deepEqual((await client.query(query("history"), { conversationId: "c" })).data, []);
+    assert.equal((await client.query(query("history"), { conversationId: "c" })).denied?.code, "E_QUERY_RETRY", "one-shot cannot answer ahead of an admitted unpredicted write");
     f.mode("online"); await client.sync();
     await until(async () => (await client.write(write.id))?.state === "sent", "server did not accept ordinal 6");
     await until(async () => (await client.query(query("history"), { conversationId: "c" })).data?.[0]?.ordinal === 6, "settled ordinal was not delivered");

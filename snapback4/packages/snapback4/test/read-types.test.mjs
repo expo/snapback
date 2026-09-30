@@ -25,6 +25,25 @@ test('ready literals require the discriminant', () => {
 const read: Read<{id: string}> = {data: {id: 'row'}, complete: true, cut: null, fresh: true};`);
   assert.deepEqual(result.codes, [2322], result.text);
 });
+test('awaited query excludes loading, including existence, while observe retains it', () => {
+  const result = check(`import { existence, type Client, type Query, type SettledRead, type Read } from './src/contract.ts';
+declare const client: Client, op: Query<{}, { id: string } | null>;
+async function consumer() {
+  const read = await client.query(op, {});
+  const settled: SettledRead<{ id: string } | null> = read;
+  const state: 'present' | 'absent' | 'partial' | 'denied' = existence(read);
+  type Loading = Extract<typeof read, { loading: true }>;
+  // @ts-expect-error no loading value can inhabit the settled type
+  const impossible: Loading = { loading: true };
+  // @ts-expect-error existence cannot be loading after an await
+  if (existence(read) === 'loading') throw Error('unreachable');
+  const observed: Read<unknown> = client.observe(op, {}).getSnapshot();
+  const all: 'loading' | 'present' | 'absent' | 'partial' | 'denied' = existence(observed);
+  if ('denied' in read) return read.denied;
+  return read.data;
+}`);
+  assert.deepEqual(result.codes, [], result.text);
+});
 test('Astra nullable consumer: absent arrays cannot be assigned to null', () => {
   const result = check(null, 'nullable-consumer.ts');
   assert.deepEqual(result.codes, [2322], result.text);

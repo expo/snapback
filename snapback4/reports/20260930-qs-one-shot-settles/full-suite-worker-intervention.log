@@ -1,0 +1,1 @@
+QS full-suite worker intervention: pid=2094839, file=packages/snapback4/test/follow-window.test.mjs, elapsed=615.70s, signal=SIGTERM. Frozen positive timers strand settled-query backoff and fixture cleanup beyond its 30s test guard. Category: ours. The suite parent and other stages continue; no second scripts/test.sh invocation.

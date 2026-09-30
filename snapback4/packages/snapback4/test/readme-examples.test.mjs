@@ -295,8 +295,7 @@ test("profile screen waits for proven existence and uses each replacement", asyn
   assert.ok(source);
   const screen = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nprofileScreen;`, { api: { myProfile: {} }, existence });
   for (const [answer, expected] of [
-    [{ loading: true }, "loading"],
-    [readyRead({ data: null, complete: false, cut: null, fresh: false }), "loading"],
+    [readyRead({ data: null, complete: false, cut: null, fresh: false }), "partial"],
     [{ denied: { message: "unavailable" } }, "error"],
     [readyRead({ data: null, complete: true, cut: null, fresh: true }), "profile"],
     [readyRead({ data: { handle: "alice" }, complete: true, cut: null, fresh: true }), "app"],

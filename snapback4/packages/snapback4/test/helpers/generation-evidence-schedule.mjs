@@ -59,11 +59,11 @@ export async function generationSchedule({ createLocalClient, host, seed, f, old
     phase = 'notified'; change.resolve(); await entered.promise;
     capture('generation-before-sync-failure');
     old.resolve(); failed.resolve(); await until(() => client.link() === 'offline');
-    if (!releaseEarly) model.observe(await pending);
+    if (!releaseEarly) assert.equal((await pending).denied?.code, 'E_OFFLINE', 'retired one-shot refuses after adoption transport fails');
     for (let n = 0; n < 3 + rand(5); n++) await turn();
     clock.set(clock.get() + 1250); capture('generation-after-sync-failure');
     assert.equal(watch.getSnapshot().loading, true, 'failed adoption stays withdrawn');
-    model.observe(await client.query(q('item'), {}));
+    assert.equal((await client.query(q('item'), {})).denied?.code, 'E_OFFLINE');
     phase = 'recover'; await client.sync();
     await until(() => watch.getSnapshot().denied?.code === 'APP_DENIED', 'new program applies at the unchanged sequence');
     capture('generation-adopted');

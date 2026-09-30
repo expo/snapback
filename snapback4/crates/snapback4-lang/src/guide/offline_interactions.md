@@ -40,6 +40,8 @@ The earlier private-table pilot held three like keys and one repost key for
 u0500 in 568 logical row bytes. That pilot was not this implementation, and
 its four-key size is neither a lifetime bound nor this policy's byte cost.
 
+Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide reads` for live timings and `guide sync` for acquisition and offline reopening.
+
 ## Conversation membership
 
 A no-horizon membership table synced within the conversation's own group with the messages' audience holds every current readable membership after that group's first acquisition. The viewer's row is `present` or `absent` offline unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal, not denial or absence. Offline `absent` is absence at the acquired watermark, including after leaving. This does not apply to windowed, online-only or differently partitioned memberships, or follow from retained messages.
@@ -106,6 +108,8 @@ the public offline summary and its replica cost. Alternatively, add `online
 only` and keep the owner read on the server; this loses offline aggregate
 and absence coverage. Do not narrow the public source to make this view private.
 See `guide maintains` for the inheritance rules.
+
+Keep server-needing decorations separate.
 
 ## Retained message search
 

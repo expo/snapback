@@ -37,7 +37,7 @@ for (const worker of [false, true]) for (const name of ['follow', 'unfollow']) t
   await keeper.evaluate(() => window.sync()); // Discover the live donor and wait for its Web Lock release.
   const oldCount = name === 'follow' ? 0 : 1, newCount = 1 - oldCount;
   await keeper.evaluate(n => window.ready(n), oldCount);
-  await keeper.evaluate(() => window.pauseTimers());
+  // Keep query retry timers runnable; write/apply gates own the causal boundary.
   {
     stage(name, 'offline'); await donor.evaluate(() => window.offline());
     await keeper.evaluate(() => window.hold());
@@ -53,7 +53,7 @@ for (const worker of [false, true]) for (const name of ['follow', 'unfollow']) t
     assert.ok(pending.some(entry => entry.id === write.id));
     assert.ok(honest(await keeper.evaluate(() => window.snapshot())), `${name}: custody must invalidate the mounted answer before transport`);
     assert.ok(honest(await keeper.evaluate(() => window.query())));
-    assert.equal((await keeper.evaluate(() => window.disjoint())).complete, true);
+    assert.equal((await keeper.evaluate(() => window.disjoint())).denied?.code, 'E_QUERY_RETRY');
     await keeper.evaluate(() => window.send()); await keeper.evaluate(() => window.atSync());
     assert.ok(honest(await keeper.evaluate(() => window.snapshot())), `${name}: receipt is not observation`);
     await keeper.evaluate(() => window.apply()); await keeper.evaluate(n => window.ready(n), newCount);

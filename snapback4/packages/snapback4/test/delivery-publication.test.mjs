@@ -73,7 +73,7 @@ for(const change of ['commit','credential','expiry'])test(`local fallback reject
  if(change==='credential')ending=h.client.signOut();
  if(change==='expiry')await delay(120);
  held.resolve();const result=await read;await ending;
- if(change==='credential')assert.equal(result.denied.code,'E_CLOSED');else if(change==='expiry')assert.ok('loading' in result);else assert.ok('data' in result);
+ if(change==='credential')assert.equal(result.denied.code,'E_CLOSED');else {assert.ok('data' in result);if(change==='expiry')assert.ok(h.queries>=2,'expired candidate rereads without collecting its manifest');}
  assert.deepEqual(h.debt(),[]);assert.deepEqual(h.reports,[]);
 });
 test('a query below its local restore floor creates no delivery debt',async t=>{

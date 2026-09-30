@@ -46,7 +46,7 @@ three `segments` marked `passed` mean:
   explained refusal for compiler-declared device-answerable reads. Loading,
   a thrown query or an uncaught JS error fails for those reads. Server-only
   reads are recorded as `online-only: unavailable offline (expected)` with
-  their actual `loading` or `E_OFFLINE`-style refusal. The driver reads
+  their actual `E_OFFLINE`-style refusal. The driver reads
   the committed compiler generation actually served by its owned backend and
   includes its generation and complete eligible query facts in each receipt.
   Before querying, the helper matches every runs/held fact and the generation

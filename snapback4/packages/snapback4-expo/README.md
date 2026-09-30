@@ -80,7 +80,7 @@ update selected at runtime. The JS smoke helper consumes compiler query facts
 from the driver, bound to the generation actually served. It checks every
 runs/held fact against the kept backend before querying. Stale facts fail;
 device-answerable loading fails, while server-only offline
-loading or E_OFFLINE is recorded as expected unavailability. Server-only reads
+E_OFFLINE is recorded as expected unavailability. Server-only reads
 must answer online in prime and restart. Conditional native-module queries
 require an application witness; generic smoke refuses that unsupported shape. Client semantics are unchanged.
 

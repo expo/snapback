@@ -108,7 +108,7 @@ for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation
         await until(()=>matches(watches[i]?.getSnapshot()),`${op} watch mismatch: ${JSON.stringify(watches[i]?.getSnapshot())}; expected ${JSON.stringify(data)}/${complete}`);
         const result=await client.query({kind:'query',name:op},args);
         if(placeholder) {
-          assert.deepEqual(result,{loading:true},op);
+          assert.equal(result.denied?.code,client.link()==='offline'?'E_OFFLINE':'E_QUERY_RETRY',op);
           const raw=(await core.call({op:'query',name:op,viewer:'dev:alice',args,now:Date.now()})).ok;
           assert.deepEqual(raw.data,data,`${op} raw authorization filter`);
           assert.equal(raw.complete,false);assert.equal(raw.unknown,true);

@@ -1,0 +1,42 @@
+{
+  "productUnchanged": [
+    "snapback4/packages/snapback4/src/app-client.ts",
+    "snapback4/packages/snapback4/src/client.ts",
+    "snapback4/packages/snapback4/src/contract.ts",
+    "snapback4/packages/snapback4/src/local.ts",
+    "snapback4/packages/snapback4/src/mock.ts",
+    "snapback4/packages/snapback4/src/query-settlement.ts"
+  ],
+  "changedAfterSuiteStart": [
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+    "snapback4/packages/snapback4/test/acquisition.test.mjs",
+    "snapback4/packages/snapback4/test/expired-server-watch.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot.test.mjs",
+    "snapback4/packages/snapback4/test/page-ready.test.mjs"
+  ],
+  "additionalChangedPaths": [
+    "llp/3000.028-one-query-online-or-offline.rfc.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/packages/snapback4/test/answers-stay-react.test.mjs",
+    "snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs",
+    "snapback4/packages/snapback4/test/delivery-publication.test.mjs",
+    "snapback4/packages/snapback4/test/fixtures/page-observation.mjs",
+    "snapback4/packages/snapback4/test/helpers/generation-evidence-schedule.mjs",
+    "snapback4/packages/snapback4/test/identity-review.test.mjs",
+    "snapback4/packages/snapback4/test/keep-clock.test.mjs",
+    "snapback4/packages/snapback4/test/online-store-order.test.mjs",
+    "snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "snapback4/packages/snapback4/test/ordinary-search.test.mjs",
+    "snapback4/packages/snapback4/test/overload.test.mjs",
+    "snapback4/packages/snapback4/test/readauth.test.mjs",
+    "snapback4/packages/snapback4/test/readme-examples.test.mjs",
+    "snapback4/packages/snapback4/test/review-probes.test.mjs",
+    "snapback4/packages/snapback4/test/social-browser.test.mjs",
+    "snapback4/packages/snapback4/test/social-starter.test.mjs",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs",
+    "snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs"
+  ]
+}

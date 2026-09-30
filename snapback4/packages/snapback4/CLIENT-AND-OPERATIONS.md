@@ -311,9 +311,9 @@ already manage their own session lifetime:
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
-The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance sends `speculative` only when true; an absent field means false, including in component coverage. It keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
-Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
-Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. Recovery preserves the next local wakeup separately from remembered data's server expiry. An elapsed local wakeup, whether during publication or from the watch timer, reruns its watch without withdrawing valid memory; only the remembered answer's own server deadline expires it, including during that rerun. Actual local-row deadlines still withdraw local or composed data. A retry needing the server clears the expired watch value during transport; a purely local retry publishes without a loading reset. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
+The shared local evaluator (one-shots and observations) runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance sends `speculative` only when true; an absent field means false, including in component coverage. It keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
+Inside that evaluator, engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
+One-shots settle these internal loading candidates under the [`query` contract](#the-card); observations can publish them. Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. Recovery preserves the next local wakeup separately from remembered data's server expiry. An elapsed local wakeup, whether during publication or from the watch timer, reruns its watch without withdrawing valid memory; only the remembered answer's own server deadline expires it, including during that rerun. Actual local-row deadlines still withdraw local or composed data. A retry needing the server clears the expired watch value during transport; a purely local retry publishes without a loading reset. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -450,7 +450,7 @@ The client owns the session, link, transport and read observation. Its options: 
 one of `persona` (development), `session` (from `snapback4/auth`, kept
 and restored for this JavaScript runtime by default), or `guest: true`
 (mint one when none is kept); `sessionStore`; `fetch`; `waitSeconds`. It
-has `query(op, args) → Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
+has `query(op, args) → Promise<SettledRead>`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
 unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
 shape), `mutate(op, args, options?) → Write`, `act(op, args, options?) → Act`, `link()`, `onLink`, `viewer()`,
 `onViewer`, `onWrite`, `session()`, `onSession`, `refreshSession()`,
@@ -793,6 +793,7 @@ type Read<T> =
   | Ready<T> // required existence: present | absent | partial, narrowed by result type
   | { loading: true }
   | { denied: Refusal };
+type SettledRead<T> = Exclude<Read<T>, { loading: true }>; // await client.query(...)
 type Write<R> =
   | { state: "pending"; id: string; reason?: string }
   | { state: "sent"; id: string; seq: number; replayed?: false; result: R }
@@ -801,6 +802,8 @@ type Write<R> =
 type Refusal = { code: string; family: string; message: string; detail?: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
+
+`client.query(op, args)` returns `Promise<SettledRead<R>>`. See `snapback4 guide client` for its settling rounds, total deadline, offline behavior and refusals. Ready may still be partial; `existence(await client.query(...))` never returns `"loading"`. Use `observe`/`useQuery` for later updates.
 
 To measure a real account's server read in development, use the online
 client (the same session or bearer token works alongside a local client):
@@ -1619,7 +1622,7 @@ const url = "http://127.0.0.1:4400";
 async function profileScreen(client: Client) {
   const profile = await client.query(api.myProfile, {});
   const state = existence(profile);
-  if (state === "loading" || state === "partial") return "loading";
+  if (state === "partial") return "partial"; // show a retry action; this answer will not update
   if (state === "denied") return "error";
   return state === "absent" ? "profile" : "app";
 }
@@ -1843,6 +1846,13 @@ use the conventional `snapback/worker.ts`, `.mts` or `.mjs` path. The invitation
 it mints a session for `member:<email>` and returns only `{ principal }`.
 
 ### The mock (`snapback4/mock`)
+
+One-shot queries use the same bounded settlement rules as `guide client`:
+retired publications reread, genuine exhaustion is retryable `E_QUERY_RETRY`,
+and closed/signed-out clients refuse. Only unavailable offline reads use
+`E_OFFLINE`. Mock query handlers return values or pages, not `Read` envelopes;
+the mock has no Quarry acquisition or server fallback. Pending predictions can
+make an empty ready answer partial; they do not prove the link is offline.
 
 `createMockClient({ viewer, tables, ops })` is a client with the same
 card over in-memory tables, for component tests: `ops` is `{ queries:

@@ -1,0 +1,64 @@
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3026.799828ms)
+  ✔ offline transport (39.30006ms)
+  ✖ retry exhaustion (32.515448ms)
+  ✔ reconnect (78.875524ms)
+✖ online keep=undefined: profile route gate (4087.029574ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3017.972772ms)
+  ✔ offline transport (39.962644ms)
+  ✖ retry exhaustion (31.649821ms)
+  ✔ reconnect (66.754171ms)
+✖ online keep=true: profile route gate (3713.47718ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 6
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7936.211962
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:79:108
+✖ retry exhaustion (32.515448ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:97:89)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:79:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:79:108
+✖ retry exhaustion (31.649821ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:97:89)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:79:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -94,10 +94,11 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   history.subscribe(() => snapshots.push(history.getSnapshot()));
   listRead(await app.client.query(query("history"), { chat }));
   const partial = await app.client.query(query("history"), { chat });
-  assert.deepEqual(partial.data, [], "an unknown non-speculative scan is partial data even when empty");
-  assert.equal(partial.complete, false);
+  assert.equal(partial.denied?.code, "E_QUERY_RETRY", "one-shot waits for the admitted nonpredictable startDM before answering");
   const observation = replies.findLast(row => row.name === "history").reply.ok;
   assert.equal(observation.unknown, true); assert.equal(Object.hasOwn(observation, "speculative"), false);
+  assert.deepEqual(observation.data, [], "the shared evaluator still yields the non-speculative partial device value");
+  assert.equal(observation.complete, false);
   holdSync = false;
   await until(async () => (await app.client.query(query("inbox"), {})).data?.some(row => row.chat === chat), "chat acquired");
   for (let n = 0; n < 3; n++) assert.equal((await bob.mutate(mutation("send"), { chat, body: `message ${n}` })).state, "sent");
@@ -120,7 +121,8 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   const raw = replies.filter(row => row.name === "inbox").at(-1).reply;
   t.diagnostic(`unavailable inbox device reply: ${JSON.stringify(raw)}`);
   listRead(local); // Before the fix: { data: null, complete: false, ... }.
-  assert.equal(local.data[0].unread, 3, "the server answers the unavailable device total");
+  assert.equal(local.denied?.code, "E_QUERY_RETRY", "one-shot cannot settle a server total ahead of the admitted profile write");
+  await until(() => inbox.getSnapshot().data?.[0]?.unread === 3, "observation still receives the server total");
   assert.equal(app.client.link(), "online");
   assert.ok(requests.filter(path => path === "/q/inbox").length > before, "unavailable predictions do not block server fallback");
   offline = true;
@@ -191,7 +193,7 @@ test("unavailable server list responses end retention in both clients", { timeou
   for (const client of clients) {
     if (client === local) await local.sync();
     else await client.query(query("ping"), {});
-    assert.deepEqual(await client.query(query("costly"), {}), { loading: true });
+    assert.equal((await client.query(query("costly"), {})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   }
   assert.ok(fetched.some(reply => reply.loading === true && reply.data === null && reply.complete === false), "legacy clients see an incomplete placeholder; current clients see loading");
   queryOffline = true;
@@ -225,6 +227,6 @@ test("loading server replies retain expiry retries and missing data cannot becom
   const watch = client.observe(query("page"), {});
   await until(() => Array.isArray(watch.getSnapshot().data), "expiry retries the unavailable answer");
   assert.equal(reads, 2);
-  assert.deepEqual(await client.query(query("missing"), {}), { loading: true });
+  assert.equal((await client.query(query("missing"), {})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   watch.close();
 });
