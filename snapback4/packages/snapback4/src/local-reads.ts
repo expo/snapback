@@ -21,7 +21,7 @@ export type ReadScopes = Record<string, Record<string, unknown>[]>;
 /** A composition depends on both evaluations; missing certification widens. */
 export function mergeReadScopes(left: ReadScopes | undefined, right: ReadScopes | undefined): ReadScopes | undefined {
   if (!left || !right) return undefined;
-  const scopes: ReadScopes = {};
+  const scopes: ReadScopes = Object.create(null);
   for (const source of [left, right]) for (const [table, groups] of Object.entries(source)) {
     const values = scopes[table] ??= [];
     for (const group of groups) if (!values.some(value => JSON.stringify(value) === JSON.stringify(group))) values.push(group);
@@ -30,7 +30,7 @@ export function mergeReadScopes(left: ReadScopes | undefined, right: ReadScopes 
 }
 type ScopeLoss = { table: string; data: unknown[]; watermark: number };
 function overlapsScope(tables: Set<string>, scopes: ReadScopes | undefined, loss: ScopeLoss): boolean {
-  return tables.has(loss.table) && (scopes === undefined || scopes[loss.table]?.some(group =>
+  return tables.has(loss.table) && (scopes === undefined || (Object.hasOwn(scopes, loss.table) ? scopes[loss.table] : undefined)?.some(group =>
     Object.entries(group).every(([index, value]) => JSON.stringify(value) === JSON.stringify(loss.data[Number(index)]))) === true);
 }
 
@@ -59,7 +59,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   changeCut?: number;
   /** Resume at sync publication even when its final footprint is disjoint. */
   waitingForSync?: boolean;
-  answerRevision?: number;
+  detachedEpoch?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
@@ -187,6 +187,9 @@ export function queuedPredictions(entries: readonly Queued[]): readonly string[]
 /** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
+  evidenceEpoch = 0;
+  evidence(): void { this.evidenceEpoch++; }
+  detach(watch: LocalWatch): void { watch.detachedEpoch = this.evidenceEpoch; }
   predictions: readonly string[] | null = null;
   admissions = 0;
   private scopeCuts: ScopeLoss[] = [];
@@ -215,6 +218,7 @@ export class LocalReads {
   // @ref LLP 3000.023#10 — change evidence retires recovery memory and
   // pre-change evaluations without resetting the displayed answer.
   changed(watch: LocalWatch, cut?: number): void {
+    this.evidence();
     this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
     watch.changeVersion = (watch.changeVersion ?? 0) + 1;
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
@@ -240,15 +244,19 @@ export class LocalReads {
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
   applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+    this.evidence();
     this.scopeCuts = this.scopeCuts.filter(loss => loss.watermark > watermark);
-    const ready: LocalWatch[] = [];
-    for (const watch of watches) {
-      if (watch.scopeCut !== undefined && watermark >= watch.scopeCut) delete watch.scopeCut;
-      if (watch.changeCut === undefined || watermark < watch.changeCut || watch.scopeCut !== undefined) continue;
-      delete watch.changeCut;
-      if (watch.waitingForSync) { delete watch.waitingForSync; ready.push(watch); }
-    }
-    return ready;
+    return [...watches].filter(watch => this.reconcile(watch, watermark));
+  }
+
+  /** A resumed owner checks the actual replica, never a saved publication cut. */
+  reconcile(watch: LocalWatch, watermark: number): boolean {
+    if (watch.scopeCut !== undefined && watermark >= watch.scopeCut) delete watch.scopeCut;
+    if (watch.changeCut === undefined || watermark < watch.changeCut || watch.scopeCut !== undefined) return false;
+    delete watch.changeCut;
+    const waiting = watch.waitingForSync === true;
+    delete watch.waitingForSync;
+    return waiting;
   }
 
   blocked(result: { read: import("./contract.ts").Read<unknown>; tables?: Set<string>; scopes?: ReadScopes | undefined }): number | undefined {
@@ -258,22 +266,16 @@ export class LocalReads {
     return cut;
   }
 
-  // @ref LLP 3000.023#10 — a detached handle missed commits and hard resets.
-  // Validate before reading or reinserting it, never after its queued attempt.
-  restore(watch: LocalWatch, detached: boolean, incarnation: number, denied: Refusal | null): void {
+  // @ref LLP 3000.023#10 — one epoch covers every channel a detached owner missed.
+  // A getter may discard a saved answer, but never parks an unregistered owner.
+  restore(watch: LocalWatch, detached: boolean, denied: Refusal | null): void {
     if (denied) {
       if (!("denied" in watch.snapshot) || watch.snapshot.denied.code !== denied.code) watch.reset({ denied });
       return;
     }
-    if (!("data" in watch.snapshot)) return;
-    const cut = this.blocked({ read: watch.snapshot, tables: watch.tables, scopes: watch.scopes });
-    if (cut !== undefined) {
-      this.changed(watch, cut); watch.scopeCut = cut; watch.waitingForSync = true;
-      watch.reset({ loading: true }, false, "membership-removal");
-    } else if (watch.incarnation !== incarnation || detached && watch.answerRevision !== this.revision) {
-      // No listener owned this answer across the revision. A new evaluation
-      // must certify it; this also covers a published removal and generation.
-      watch.reset({ loading: true }, false, "detached-change");
+    if (detached && watch.detachedEpoch !== this.evidenceEpoch) {
+      delete watch.scopeCut; delete watch.changeCut; delete watch.waitingForSync;
+      if (!("loading" in watch.snapshot)) watch.reset({ loading: true }, false, "detached-change");
     }
   }
 
@@ -301,6 +303,7 @@ export class LocalReads {
   withdrawScopes(watches: Iterable<LocalWatch>, page: { watermark: number; events?: { kind?: string; table?: string; data?: unknown }[] }, published: boolean, offline?: Refusal): () => void {
     const lost: ScopeLoss[] = (page.events ?? []).flatMap(event => event.kind === "scope" && event.table && Array.isArray(event.data)
       ? [{ table: event.table, data: event.data, watermark: page.watermark }] : []);
+    if (lost.length) this.evidence();
     this.serverAnswers.withdraw(lost);
     if (!published) for (const loss of lost) {
       const prior = this.scopeCuts.find(cut => cut.table === loss.table && JSON.stringify(cut.data) === JSON.stringify(loss.data));
@@ -320,6 +323,7 @@ export class LocalReads {
   }
 
   refuse(watches: Iterable<LocalWatch>, denied: Refusal): void {
+    this.evidence();
     this.serverAnswers.clear();
     const all = [...watches];
     const deliver = deferReadNotifications(() => { for (const watch of all) {
@@ -337,7 +341,7 @@ export class LocalReads {
   }
 
   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset"): void {
-    this.revision++;
+    this.revision++; this.evidence();
     if (reset) this.scopeCuts = [];
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);

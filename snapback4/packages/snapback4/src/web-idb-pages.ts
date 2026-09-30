@@ -13,7 +13,7 @@ const key = (c: Pick<Change, "s" | "k">) => JSON.stringify([c.s, c.k]);
 const page = (id: number, rows: Change[]): Page => ({ id, rows, keys: rows.map(key) });
 const size = (c: Change) => utf8Size(c.k) * 2 + utf8Size(c.v ?? "") + 80;
 const abort = (tx: IDBTransaction) => { try { tx.abort(); } catch { /* already aborted */ } };
-const fresh = (): Header => ({ next: 1, revision: 0, tails: {} });
+const fresh = (): Header => ({ next: 1, revision: 0, tails: Object.create(null) });
 
 /** The directory is a cache, fenced by a revision read inside every save.
  * It changes only after oncomplete. A stale owner must reload, never guess. */
@@ -111,7 +111,7 @@ export class RowPages {
       try {
         const header = JSON.parse(read.result.v) as Header;
         if (header.revision !== directory.header.revision) throw new Error("the row-page directory changed; reload the durable device");
-        nextHeader = { next: header.next, revision: header.revision + 1, tails: { ...header.tails } };
+        nextHeader = { next: header.next, revision: header.revision + 1, tails: Object.assign(Object.create(null), header.tails) };
         const groups = new Map<number, Change[]>(), additions = new Map<string, Change>();
         const put = (id: number, c: Change) => { if (!groups.has(id)) groups.set(id, []); groups.get(id)!.push(c); };
         for (const c of changes) {

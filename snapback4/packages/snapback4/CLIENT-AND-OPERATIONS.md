@@ -1343,10 +1343,11 @@ installation, or client close withdraws the answer immediately. A successful
 server fallback keeps retaining while device composition finishes, subject to
 any existing online-change episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
 Closing the client cancels row deadlines before publishing its stable denial. A
-closed local observation checks pending scope cuts, refusals, incarnation and
-revision before returning or resubscribing with a saved answer. Missing any
-commit/reset while detached withdraws that answer until re-evaluation, even for
-a disjoint commit. Otherwise resubscription rearms its original row deadlines.
+closed local observation records the client evidence epoch at detach. Any later
+change notification, commit, publication, scope loss, refusal or reset discards
+its saved answer before reuse, even for unrelated evidence. Getters never park
+detached owners. Resubscription checks the device watermark and evaluates before
+returning data; without later evidence it rearms the original row deadlines.
 Lingering handles remain live and keep precise audience matching. Observed server expiry also
 fences remembered answers, so clock rollback cannot recover the expired body,
 while preserving newer answers whose server deadlines have not arrived.

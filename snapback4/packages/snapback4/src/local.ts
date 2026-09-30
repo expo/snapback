@@ -25,7 +25,6 @@ import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
-// LLP 3000 §7: Rust owns the replica; this transport serves wasm, Expo and native.
 import { evaluateLocal } from "./local-query.ts";
 import { FollowingIntents } from "./local-following.ts";
 import { answerIdentity } from "./read-observation.ts";
@@ -113,7 +112,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
-  // One store per server/viewer; sync validates old evidence before backend adoption.
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online", linkRevision = 0;
   let generation = 0;
@@ -177,7 +175,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     networkTail = result.catch(() => {});
     return result;
   }
-  // Number admissions synchronously before prediction, continuing the durable outbox counter.
   let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1, seq = 0;
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
@@ -195,7 +192,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), acquireRead);
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
-  // Unversioned syncedAt may be server time; omit it until a wall-time resync.
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt:wall:1" })).ok ?? 0);
   let caughtUp = false, identityChecked = false, partitionCurrent = true;
   const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; backend_required?: boolean; restore_refusal?: Refusal };
@@ -217,8 +213,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const revision = incarnation;
     const state = (await call({ op: "sync_state", capture: false })).ok as { acquired: boolean } | undefined;
     if (revision === incarnation) {
-      // Compatible widening may preserve native acquisition. Revalidate it
-      // only after the new backend is installed and this read succeeds.
       if (afterAdoption && state?.acquired === true) partitionCurrent = true;
       setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
     }
@@ -431,7 +425,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
-      for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
+      answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
     });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -552,7 +546,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     await refusedSession(denied, revision);
     if (!denied.retryable && partitionDenied?.code !== "E_STORE_RESTORE") {
       if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
-      partitionDenied = denied;
+      answers.evidence(); partitionDenied = denied;
       if (denied.code === "E_STORE_RESTORE") pending.notify();
       for (const watch of watches.values()) void scheduleRead(watch);
     }
@@ -822,6 +816,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
+      answers.evidence();
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
@@ -953,7 +948,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion || !answers.current(watch, result)) return false;
-          watch.answerRevision = authority; watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
+          watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null);
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
@@ -986,6 +981,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion, startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
+      if (watch.detachedEpoch !== undefined && watch.changeCut !== undefined) {
+        const before = incarnation, state = await captureStore();
+        if (before !== incarnation) { watch.dirty = true; return; }
+        checkRead(signal); if (state) { answers.reconcile(watch, state.watermark); delete watch.detachedEpoch; }
+      }
       if (answers.deferUntilSync(watch, acquired, backend!, unavailable() ?? changesStopped ?? partitionDenied)) return;
       const result = await runLocal(watch.op, watch.args, watch, false, undefined, signal);
       checkRead(signal);
@@ -1002,7 +1002,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) return false;
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
-        watch.answerRevision = authority; watch.incarnation = revision;
+        watch.incarnation = revision;
         watch.tables = tables; watch.scopes = result.scopes;
         // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
         if (served) watch.presenceEvery = after;
@@ -1198,9 +1198,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
-          void scheduleRead(watch, "data" in watch.snapshot && watch.answerRevision !== answers.revision); },
-        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
-        (watch, detached) => answers.restore(watch, detached, incarnation, unavailable() ?? changesStopped ?? partitionDenied));
+          if (watch.detachedEpoch !== undefined) watch.changeCut = Math.max(watch.changeCut ?? 0, seq); void scheduleRead(watch); },
+        watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
+        (watch, detached) => answers.restore(watch, detached, unavailable() ?? changesStopped ?? partitionDenied));
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;

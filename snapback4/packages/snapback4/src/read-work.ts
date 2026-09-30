@@ -37,6 +37,7 @@ export class ReadWork<W> {
   private readonly active = new Map<W, AbortController>();
   private readonly delayed = new Map<W, ReturnType<typeof setTimeout>>();
   private starts = 0;
+  private urgentStarts = 0;
   private queued = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(private readonly later: (run: () => void) => ReturnType<typeof setTimeout> = run => setTimeout(run, 0),
@@ -73,13 +74,22 @@ export class ReadWork<W> {
   clear(): void {
     for (const watch of this.delayed.keys()) this.stopDelay(watch);
     for (const watch of this.pending.keys()) if (!this.active.has(watch)) this.changed(watch, "idle");
-    this.pending.clear(); this.urgent.clear();
+    this.pending.clear(); this.urgent.clear(); this.urgentStarts = 0;
     for (const attempt of this.active.values()) attempt.abort();
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
   }
   state(watch: W): ReadWorkState { return this.active.has(watch) ? "in-flight" : this.pending.has(watch) || this.delayed.has(watch) ? "queued" : "idle"; }
-  private *candidates(): Generator<W> { yield* this.urgent; yield* this.pending.keys(); }
+  // @ref LLP 3000.023#10 — at most eight urgent starts overtake waiting FIFO work.
+  private *candidates(): Generator<W> {
+    while (true) {
+      const ordinary = [...this.pending.keys()].find(watch => !this.urgent.has(watch) && !this.active.has(watch));
+      const urgent = [...this.urgent].find(watch => this.pending.has(watch) && !this.active.has(watch));
+      const watch = urgent !== undefined && (ordinary === undefined || this.urgentStarts < 8) ? urgent : ordinary;
+      if (watch === undefined) return;
+      yield watch;
+    }
+  }
   private arm(): void {
     if (this.queued || !this.pending.size || this.active.size >= 8) return;
     if (this.timer === undefined) this.timer = this.later(() => {
@@ -94,6 +104,7 @@ export class ReadWork<W> {
         if (!run) continue;
         if (this.starts === 8 || this.active.size === 8) break;
         if (this.active.has(watch)) continue;
+        this.urgentStarts = this.urgent.has(watch) ? Math.min(8, this.urgentStarts + 1) : 0;
         this.pending.delete(watch); this.urgent.delete(watch);
         const attempt = new AbortController();
         this.active.set(watch, attempt); this.starts++;

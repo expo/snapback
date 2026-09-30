@@ -79763,3 +79763,54 @@ Evidence, source snapshots and rerunnable controls:
 reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — PR round 3: one detached-evidence rule and bounded overtaking
+
+Merged origin/main `42ba3ffb90` first in `b30a06da77`, preserving both journal
+histories, native-smoke guidance and pressure guidance. Read rounds 0–2's
+prompts/reports and Astra's full round-2 review. One client evidence epoch now
+covers commits, accepted changes, publication, cuts, refusals and resets even
+without live owners. A detached handle records the epoch; later evidence
+discards its saved answer/cuts before reuse. Removed round 2's answerRevision
+bookkeeping and separate restore cases. Getters never park detached owners.
+Resumption checks the real device watermark once before evaluation, then consumes
+the detach marker; mounted changes keep their prior path. Pending scope and
+notified-cut authority, audience precision and closed deadlines remain.
+
+Evidence can overtake ordinary FIFO work at most eight starts; five ordinary
+reads start at 1/10/19/28/37 under continuing hot evidence. Eight starts/turn and
+eight active remain. Scope composition and other raw-name dictionaries use
+null prototypes/own keys; constructor, __proto__, toString and hasOwnProperty
+work on both real devices. All 21 core regressions fail on round 2; an additional
+mock __proto__ control fails there too. Final affected tests: 527 passed; final
+delivery fault/boundary checks: 321 passed. Whole guide: 106 passed, client card
+114 lines/1,196 words. Ref-check: 525 LLPs/10,013 refs, zero errors. LLP 3000.023
+§10 records the epoch and fairness rules.
+
+Ran scripts/test.sh exactly once, exit 0, exact summary:
+`== 0 failure(s) in 1261 s`. Rust 4,368 passes/33 existing ignores; client pool
+5,417 passes/10 existing skips; wrappers 9 passes; models 79 passes at full counts.
+Full-run failures: ours 0, baseline 0, environmental 0. All 1,659 recorded inputs
+stayed unchanged throughout. The full run precedes the final detached-only
+watermark optimization: only local.ts changes among those inputs afterward;
+527 affected and 321 boundary checks cover it, with final SDK/device bytes equal
+to the isolated measured candidate. No second full run or unchanged final-source
+full qualification is claimed. The inherited nominal 60-second budget remains
+exceeded. Earlier guide-budget and PQ ordering failures were ours and fixed
+without weakening assertions; the failure ledger retains them.
+
+Normal real-device/Chromium convergence delivers 42 unique messages per history
+with zero gaps, peak 116 queued/eight active. Forced gaps occur only in active
+attempts. LL completed 2,080 actions with zero timeouts. Initial broad watermark
+checks slowed both alternating loaded-process samples (173.673→204.450 and
+193.992→244.176 ms); the final path removes that needless mounted-read work.
+Final maximum flow p95, zero/three workers: wasm 70.583/93.483 ms; process
+127.581/179.059 ms. These shared-host measurements do not establish a universal
+latency improvement; all earlier slower samples remain recorded.
+
+Wasm stays 1,983,105 B raw/595,440 B gzip, exactly the unchanged cap. local.ts
+stays at 1,500 lines. Report, complete failure classifications, source boundaries,
+artifact hashes and compressed traces:
+reports/20260930-pr-subscription-pressure/round3/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

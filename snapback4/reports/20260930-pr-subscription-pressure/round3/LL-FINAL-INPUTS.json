@@ -1,0 +1,13 @@
+{
+  "packages/snapback4/dist/local.js": "987baac81627fa4a89be702af59f4ebcbd76809b75f384c2b5fdbe4ba57cfac2",
+  "packages/snapback4/dist/local-reads.js": "c92561357cd79bb1c4ca0212d617aab48a42729bc7ade977d9ef6669be3d24b5",
+  "packages/snapback4/dist/local-query.js": "dab23542106d2b6c830bff56fc54e08351a518ed0500bf4c0ceeee4f49348834",
+  "packages/snapback4/dist/observe-watch.js": "853b692c4bc2ec6f67b60e86b5a25bbf41a5c7705471a7c302f384b7cc277e6a",
+  "packages/snapback4/dist/read-work.js": "06f3b7c2ba41838fb74dbec6283bc4f3ed0a540b6bd35b2d2cce9836115ff08a",
+  "packages/snapback4/dist/app-client.js": "5757e434db7b261c272d823b582c7820d2a1fa2a8df3e19a375df3a6d5aa0208",
+  "packages/snapback4/dist/read-observation.js": "f7b32b50b1b334bf4d2bda650ac1eeec53a4e706adad42fc00ab7dae7059a21c",
+  "packages/snapback4/dist/read-episode.js": "3dd19a2db5f7e866c16f8830304a0efb837da0b52982fb1c34a9f3ae2f47feac",
+  "target/debug/snapback4": "6d88688b89fd6578fe5a15c2d070076d224c64fcfbb9196896c16368ee5c78ae",
+  "target/debug/snapback4-ll-measure": "f8daeed8324f3a4bc16df863d03a6699630c5c76ecd87e39030e4c86e19b9ee8",
+  "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "5b1a9a11d1922c3a4e67168914c295c070d3457e8cffe10594b377d00d7518f4"
+}

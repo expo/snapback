@@ -1,0 +1,40 @@
+{
+  "branch": "sb4-intent/pr-subscription-pressure",
+  "round2": "1a602df58d",
+  "mergedMain": "42ba3ffb90",
+  "merge": "b30a06da77",
+  "fullSuite": {
+    "invocations": 1,
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1261 s",
+    "sourceInputs": 1659,
+    "changedDuringRun": [],
+    "rustPassed": 4368,
+    "rustIgnored": 33,
+    "clientsPassed": 5417,
+    "clientsSkipped": 10,
+    "fixtureWrappersPassed": 9,
+    "modelsPassed": 79,
+    "failures": {
+      "ours": 0,
+      "baseline": 0,
+      "environmental": 0
+    }
+  },
+  "afterFull": {
+    "changedSource": [
+      "packages/snapback4/src/local.ts"
+    ],
+    "description": "Limit watermark check to resumed detached owners, consume marker after successful check and check cancellation first.",
+    "affectedPassed": 527,
+    "boundaryPassed": 321
+  },
+  "wholeGuidePassed": 106,
+  "wasmRaw": 1983105,
+  "wasmGzip": 595440,
+  "wasmBudget": 595440,
+  "LLActions": 2080,
+  "LLTimeouts": 0,
+  "pushed": false,
+  "published": false
+}

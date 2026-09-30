@@ -1,0 +1,8 @@
+{
+  "packages/snapback4/dist/local.js": true,
+  "packages/snapback4/dist/local-reads.js": true,
+  "packages/snapback4/dist/read-work.js": true,
+  "target/debug/snapback4": true,
+  "target/debug/snapback4-ll-measure": true,
+  "packages/snapback4/src/wasm/snapback4_device_bg.wasm": true
+}

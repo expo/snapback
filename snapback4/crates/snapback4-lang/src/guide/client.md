@@ -3,20 +3,17 @@
 Submit at custody.
 
 ```tsx
-import { useState } from "react";
-import { useMutation, useQuery } from "snapback4/react";
+import { useState } from "react"; import { useMutation, useQuery } from "snapback4/react";
 import { existence, isReady } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 export function Composer({ conversationId }: { conversationId: string }) {
-  const [draft, setDraft] = useState("");
-  const send = useMutation(api.send);
+  const [draft, setDraft] = useState(""); const send = useMutation(api.send);
   const member = useQuery(api.myMembership, { conversationId });
   const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
   const [submitted, setSubmitted] = useState("");
   async function submit() {
     if (blocked) return;
-    const text = draft; setSubmitted(text); setDraft("");
-    const write = await send.run({ conversationId, body: text }, { waitSeconds: 0 });
+    const text = draft; setSubmitted(text); setDraft(""); const write = await send.run({ conversationId, body: text }, { waitSeconds: 0 });
     if (write.state === "failed") setDraft(current => current || text);
   }
   return <><input value={draft} onChange={e => setDraft(e.target.value)} />
@@ -52,17 +49,15 @@ Search with `usePage` per scope: render `page.items`, classify `page.read`. Show
 ## Queries in rows
 
 Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paged lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
-At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence rereads precede ordinary queued work; occupied slots can still cause sibling withdrawal.
+At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-function MemberCount({ conversationId }: { conversationId: string }) {
-  const members = useQuery(api.members, { conversationId });
+function MemberCount({ conversationId }: { conversationId: string }) { const members = useQuery(api.members, { conversationId });
   return <span>{"data" in members ? members.data.length : "…"}</span>;
 }
-function ConversationList() {
-  const page = usePage(api.inboxCards, {});
+function ConversationList() { const page = usePage(api.inboxCards, {});
   return <>{page.items.map(row => <span key={row.id}>{row.title} ({row.memberCount})</span>)}
     {page.hasMore && <button onClick={page.loadMore}>More</button>}</>;
 }
@@ -70,15 +65,14 @@ function ConversationList() {
 
 Server/composed scope metadata preserves unrelated rooms. Unknown selectors use table-wide withdrawal; see [read boundaries](CLIENT-AND-OPERATIONS.md).
 
-If a screen flashes empty, call `inspect(client)` from `snapback4/inspection` to enable collection: compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout` means exhausted budget; online evidence includes capacity wait. `latency` reports queue/attempt p50/p95/max for 256 completed attempts; withdrawals keep 64. Counts include linger; direct/presence reads are excluded.
-Development overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled returns null and starts no timer; enabled samples every 250 ms. No arguments/values.
+Screen flashes empty: `inspect(client)` from `snapback4/inspection` enables collection. Compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Counts include linger, exclude direct/presence reads.
+Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null, no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
 
-Social uses `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide witness` for native proof, `guide reads` for timings, `guide sync` for Worker choices/acquisition.
+Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide sync` covers acquisition/Workers.
 
-Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
-
+Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). Proves Release/local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
 
 ## Receipts
 
