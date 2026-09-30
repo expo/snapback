@@ -1,0 +1,42 @@
+{
+  "snapback4/crates/snapback4/src/verbs/witness.rs": {
+    "bytes": 38451,
+    "sha256": "2bdb9bf72e10abec70dbf2193bc55950b55f4ec89a35013ef4d759d8f9f52d6a"
+  },
+  "snapback4/crates/snapback4/tests/witness.rs": {
+    "bytes": 45715,
+    "sha256": "5b97196f3c27827eda460a5082b07e48ad75ed6860f9d6388c59b9ad5a48fe67"
+  },
+  "snapback4/target/debug/snapback4": {
+    "bytes": 71519392,
+    "sha256": "61348ef580a11e3eebf5c5c611304b0a0fdeac684635a76a947f6bd36e74b205"
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1978828,
+    "sha256": "e0652576d56704990bf9cc8d745626de5219aa1c69d864623738888a77a93a50",
+    "gzip9Bytes": 593233
+  },
+  "wasmBudget": {
+    "gzip": 593719,
+    "sha256": "1134dde35461ce939cefec4af6e7ff4bd702698d4ef5025b53f959fcb99b7949"
+  },
+  "base": "69a12dcceacf7ec05f6271ba237f53dcba595dc5",
+  "main": "0dad042375057d2dad8c429424713986581432e7",
+  "merge": "e112fb6e11b8f7fe7425d74e5bcbdfa4eb6fc642",
+  "snapback4/packages/snapback4/bin/witness-acquire.js": {
+    "bytes": 25370,
+    "sha256": "7747419678d75e57189be31180077246bf9a11ddd25615e5fef3737a9fc2af5f"
+  },
+  "snapback4/packages/snapback4/test/witness-acquire.test.mjs": {
+    "bytes": 32452,
+    "sha256": "55bac8ac5fa47232a3d742828426ad561531d191e14ece48ad5935fbf8c7dd4a"
+  },
+  "snapback4/packages/snapback4/src/node-fetch.ts": {
+    "bytes": 5640,
+    "sha256": "b0f47efb41cbdac14197e45af6ae5679211d354c65294ec860640551c9153d51"
+  },
+  "snapback4/packages/snapback4/dist/node-fetch.js": {
+    "bytes": 5040,
+    "sha256": "0d810e8ebf0920724b0e1b77a172db818f87ecb8f2413ddbdb041d6efa6646cb"
+  }
+}

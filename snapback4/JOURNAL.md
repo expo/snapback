@@ -79776,3 +79776,43 @@ Evidence, source snapshots and rerunnable controls:
 reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 4: preserve app lookup failure causes
+
+Read rounds 0–3 prompts/reports and complete reviews, including Astra's round 3
+P2. Merged origin/main 0dad042375 first in e112fb6e11; the only conflict was
+append-only journal entries, and both histories are intact. Nothing pushed or
+published.
+
+App-container lookup now propagates simctl's safe category and message instead
+of replacing every error with “app is not installed”. Timeout keeps
+E_WITNESS_TIMEOUT and --timeout advice; interruption, spawn failure and simulator
+failure remain distinct. A nonzero lookup cannot distinguish an absent app from
+an unavailable simulator, so it retains E_WITNESS_SIMULATOR without inventing a
+cause. Argument values and tool prose remain excluded. Audited the other witness
+wrappers; no further timeout-discarding mapping was found. The only production
+change is this lookup, extracted so its real subprocess path runs in a portable
+regression test. No SDK/engine/device/wire edits beyond incoming main.
+
+The new six-case regression fails under round 3's unchanged mapping (all five
+refusals collapse to E_WITNESS_APP; success passes) and passes after the fix.
+Rust witness units pass 14/14, portable integration 13/13, whole guide 107/107.
+Node witness checks finish 77 passed / 2 failed / zero cancelled or skipped,
+including all 160 passing token-echo invocations. The two failures are an
+incoming-main interaction: KA's internal retry adds a proxy-observed sync attempt
+that the existing acquisition receipt does not count. Both proofs still refuse.
+Focused current-transport tests repeat both failures; substituting only round 3's
+transport passes 2/2 with the same final binary, helper and remaining SDK. No
+assertion was weakened. Classification: ours 0, inherited main/integration 2,
+environmental 0. The retry/accounting defect remains follow-up work outside the
+explicit “change nothing else” scope; no green Node qualification is claimed.
+
+Full suite omitted as requested. Evidence is Linux subprocess/protocol and
+mocked preparation, not real simulator execution; Darwin-only tests are not
+claimed run. Existing wasm measured, not rebuilt: 1,978,828 B raw / 593,233 B gzip,
+unchanged and 486 B below the 593,719 B cap. Report, audit, detecting patch,
+all failures and source/artifact identities:
+reports/20260930-bn-envelope-proof/round4/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

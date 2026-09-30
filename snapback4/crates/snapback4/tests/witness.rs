@@ -514,11 +514,14 @@ mod driver {
     }
     #[test]
     fn cli_missing_app_never_starts_a_backend() {
-        for (mode, code) in [("missing", "E_WITNESS_APP")] {
+        for (mode, code) in [("missing", "E_WITNESS_SIMULATOR")] {
             let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());
             assert!(!output.status.success()); let err = String::from_utf8_lossy(&output.stderr);
             assert!(err.contains(code), "{err}");
-            if mode == "missing" { assert!(err.contains("--bundle-id") && err.contains("--udid") && err.contains("witness ios --build"), "{err}"); }
+            if mode == "missing" {
+                assert!(err.contains("--bundle-id") && err.contains("--udid") && err.contains("simulator/runtime"), "{err}");
+                assert!(!err.contains("No such app") && !err.contains("is not installed"), "tool prose and inferred causes stay out: {err}");
+            }
             assert!(!fixture.0.join(".snapback4").exists());
         }
     }

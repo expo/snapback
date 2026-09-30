@@ -114,6 +114,10 @@ fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
     Ok(text.trim().to_owned())
 }
 
+fn installed_app(udid: &str, bundle: &str, timeout: Duration) -> Result<String> {
+    simctl(&["get_app_container", udid, bundle, "app"], timeout)
+}
+
 fn output(path: &Path) -> Result<File> { OpenOptions::new().create(true).append(true).open(path).map_err(|e| error("E_WITNESS_ARTIFACT", format!("cannot open command log; check --artifacts permissions: {e}"))) }
 fn read_rows(path: &Path, final_file: bool) -> Result<Vec<Value>> {
     match fs::read(path) {
@@ -407,7 +411,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     options.port = _port.local_addr().map_err(|e| error("E_WITNESS_PORT", e))?.port();
     let project_lease = preparation::check_project(&options)?;
     let proof = preparation::prepare_app(&mut options, &udid)?;
-    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|_| error("E_WITNESS_APP", "--bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product"))?;
+    let app = installed_app(&udid, &options.bundle, options.timeout)?;
     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
     let plist = Path::new(&app).join("Info.plist");
     let mut build = json!({});
@@ -486,6 +490,65 @@ pub fn run(args: &[String]) -> i32 {
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(problem) => { if problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("{problem}"); } else { eprintln!("{problem}; see snapback4 guide witness"); } 1 } }
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn app_lookup_preserves_safe_simctl_diagnostics() {
+        const MODE: &str = "SNAPBACK4_TEST_APP_LOOKUP";
+        if let Ok(mode) = std::env::var(MODE) {
+            // A separate test process owns PATH and the interruption flag.
+            if mode == "interrupted" { INTERRUPTED.store(true, Ordering::Relaxed); }
+            let timeout = if mode == "timeout" { Duration::ZERO } else { Duration::from_secs(30) };
+            let result = installed_app("private-udid-value", "private-bundle-value", timeout);
+            if mode == "success" {
+                assert_eq!(result.unwrap(), "/fixture/app");
+                return;
+            }
+            let problem = result.unwrap_err();
+            let expected = match mode.as_str() {
+                "timeout" => "E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout",
+                "interrupted" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+                "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime",
+                "spawn" => "E_WITNESS_PROCESS:",
+                _ => panic!("unknown fixture mode"),
+            };
+            assert!(problem.starts_with(expected), "{mode}: {problem}");
+            for private in ["private-udid-value", "private-bundle-value", "private-tool-output"] {
+                assert!(!problem.contains(private), "argument or tool output leaked");
+            }
+            assert!(!problem.contains("is not installed"), "lookup failure must not invent a cause");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("sb4-app-lookup-{}-{}", std::process::id(), now()));
+        fs::create_dir(&dir).unwrap();
+        let tool = dir.join("xcrun");
+        fs::write(&tool, r#"#!/bin/sh
+case "$SNAPBACK4_TEST_APP_LOOKUP" in
+  success) printf '/fixture/app\n' ;;
+  timeout|interrupted) printf 'private-tool-output\n' >&2; exec /bin/sleep 30 ;;
+  missing) printf 'No such app: private-tool-output %s\n' "$*" >&2; exit 1 ;;
+  *) printf 'Simulator unavailable: private-tool-output %s\n' "$*"; exit 1 ;;
+esac
+"#).unwrap();
+        fs::set_permissions(&tool, fs::Permissions::from_mode(0o755)).unwrap();
+        let mut failures = Vec::new();
+        for mode in ["success", "timeout", "interrupted", "unavailable", "missing", "spawn"] {
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics", "--nocapture"])
+                .env(MODE, mode).env("PATH", if mode == "spawn" { dir.join("absent") } else { dir.clone() })
+                .output().unwrap();
+            if !output.status.success() {
+                failures.push(format!("{mode}: {}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)));
+            }
+        }
+        fs::remove_dir_all(dir).unwrap();
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
 }
 
 #[cfg(test)]
