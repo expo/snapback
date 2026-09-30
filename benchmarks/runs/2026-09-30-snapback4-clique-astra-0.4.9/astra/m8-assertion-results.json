@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md §M8 / shots/m8-a01-insights.png",
+      "note": "Insights screen shows all six lifetime totals matching the server: {\"posts\":105,\"likesReceived\":169,\"repostsReceived\":15,\"repliesReceived\":18,\"followers\":3,\"following\":2} Screen values independently cross-checked against direct SQL counts over the store and against api.insights."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl assertion \"m8-a02-insights-like-refresh\"",
+      "note": "Required, passed: beforeLikes=142 -> afterLikes=143 after Bob’s like, observed on a refresh of Alice’s Insights in refreshMs 1842. The harness self-test deliberately fails a stale-Insights variant, so this is not a cached read."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md §M8 m8-a03",
+      "note": "7 consecutive UTC-day buckets; a post created now bucketed under today (97->98); every bucket matched an independent SQL count over [day*86400000,(day+1)*86400000)"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md §M8 / shots/m8-a04-insights-days.png",
+      "note": "all 7 day rows render, including 6 zero-activity day(s) shown as explicit zeros rather than omitted"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md §M8 m8-a05",
+      "note": "in a window containing exactly two posts, the 2-like post ranks first and the 1-like post second — most likes in the trailing 24h ranks first Run on a fresh isolated backend instance (port 49365) so residual likes from earlier suite runs could not confound the ranking."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md §M8 m8-a06",
+      "note": "after advancing the server clock 25h, the 9-like post (and every other >24h post) is absent while a fresh 1-like post is present"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md §M8 m8-a07",
+      "note": "two posts with 2 likes each: newer at index 2, older at 3 — tie breaks newest-first"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §M8 digest / grading/work/results-digest.json",
+      "note": "exactly one digest per active user with all clients closed; gtarget counts exactly {\"newFollowers\":1,\"newPostsInFollowing\":2,\"unreadMessages\":2,\"unreadChats\":1}; tombstoned message excluded"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §M8 digest",
+      "note": "gidle (no activity, no incoming) received no digest while 4 active users did"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §M8 digest",
+      "note": "the next period had no new activity and emitted 0 digests"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §M8 digest",
+      "note": "backend SIGTERM+restart inside the period; still exactly one digest per user for that period (4 total, unchanged on the next tick). Idempotency: `once [p.principal, periodEnd]`"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §M8 digest",
+      "note": "7 messages in 2 chats gtarget is not a member of contributed 0 to its counts (unread stayed 2/1); tombstoned message also excluded"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl assertion \"m8-a13-same-account-message-live\"",
+      "note": "Required, passed: with Alice signed in on two harness contexts, a message sent on client 1 appeared live on client 2 in visibleMs 2046."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl assertion \"m8-a14-cross-device-read-state\"",
+      "note": "Required, passed: opening the conversation on Alice client 1 cleared sm-chats-unread on client 2 in clearVisibleMs 2558.5."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl assertion \"m8-a15-dual-offline-convergence\"",
+      "note": "Required, passed: both warm-offline Alice clients queued a message in the same chat and on reconnect both settled in observed server-arrival order with no loss and no duplicates (firstFlushMs 830.4, secondFlushMs 1714.2)."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl assertion \"m8-a16-dual-offline-receipts\"",
+      "note": "Required, passed: after the dual-offline reconnect both flushed messages advanced their receipts normally (firstReadMs 12.2, secondReadMs 13.9, totalMs 14.5)."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl segment-summary choreography.supplementalExternal",
+      "note": "Compose offline, kill and relaunch still offline, queued messages still pending (durable offline queue across restart). iOS-simulator native-artifact assertion. The m8 segment summary records supplementalExternal [{\"id\":\"ios-simulator-m8\",\"pass\":null,\"receipt\":null,\"status\":\"not-recorded\",\"reason\":\"M8 simulator evidence is recorded separately from web green\",\"requiredForGreen\":false}] - no simulator recording or structured receipt was produced, only iOS Hermes bundle exports (evidence/native-artifacts.json, artifacts/m8-ios-release). The frozen grader prompt forbids scoring simulator assertions from builder assertions or by re-running the simulator, so this records not-run. Correctly did not gate M8 web green (greenRequired:false)."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8.jsonl segment-summary choreography.supplementalExternal",
+      "note": "On reconnect after the offline restart the queued messages flush in order and reach read. iOS-simulator native-artifact assertion. The m8 segment summary records supplementalExternal [{\"id\":\"ios-simulator-m8\",\"pass\":null,\"receipt\":null,\"status\":\"not-recorded\",\"reason\":\"M8 simulator evidence is recorded separately from web green\",\"requiredForGreen\":false}] - no simulator recording or structured receipt was produced, only iOS Hermes bundle exports (evidence/native-artifacts.json, artifacts/m8-ios-release). The frozen grader prompt forbids scoring simulator assertions from builder assertions or by re-running the simulator, so this records not-run. Correctly did not gate M8 web green (greenRequired:false)."
+    }
+  }
+}

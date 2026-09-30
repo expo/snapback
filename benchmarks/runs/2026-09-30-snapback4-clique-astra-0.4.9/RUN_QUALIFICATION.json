@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-30T03:01:27.116101+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.9",
+      "integrity": "sha512-ukiRFGGXquayyFr2J6X2lW74R3aJEPIbwmjn+jmTTZLUGIAI5gUE2OfgOeakrD4ZQTI45Q65zN5I87JJKf1n0Q=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.9",
+      "integrity": "sha512-O68J4wEo4hVG40IIl6fypyXb4BsiybXnYiauroYZEIlwr3qfT9xTF/sH0hdLjMgZXhnnh6RLYA5H0JhfgSYLxQ=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.9",
+      "integrity": "sha512-xQ96CUa7UYkTmIEPla7OI2pvXFccELmmrx0jJ1TI4Su5e5+o5XNzJdu+38Mei9t0UkTtHcnUVS4bV4usOhsdbA=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "0.4.9: answers stay on screen through plain revalidation, bounded only after change evidence (lane RL, LLP 3000.023); bounded per-row observations with no loading flashes (lane PQ); first-paste Quarry: familiar aliases, paste-ready repairs and a terse verdict-first check (lane AG); web cold acquisition in about two seconds on Linux (lane AQ); quiet empty reads and counted refusals in dev (lane DX); supervised declared workers and a durable completion ledger (lane WK); asset hooks that recover from transient failures (lane AV); scale-curve storage fixes (lane PF) and truthful overload (lane FU); a first write waits for backend identity instead of an internal refusal (lane EA, cal26 d-01); native execution in minutes with witness ios --build (lane NP); a social starter that queues offline sends and resolves DM routes (lane SR); heavy-account acquisition with 60% less wasm memory (lane HV); live-path costs removed (lane LL); wasm headroom (lane WD). Published from the M5 fallback after five cuts; runs on the M1 after publication. Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal26",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-09-30T03:01:27.117272+00:00"
+  },
+  "load": "20:01  up 44 days, 13:55, 3 users, load averages: 7.83 7.03 6.05",
+  "node": "v24.18.0",
+  "host": "MacBookPro"
+}
