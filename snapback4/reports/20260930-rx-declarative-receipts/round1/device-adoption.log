@@ -1,0 +1,28 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 2.73s
+     Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-d889afe7ff648456)
+
+running 2 tests
+
+thread 'device_round1::partial_acquisition_adoption_and_replay_memory' (601357) panicked at crates/snapback4-lang/tests/declarative_receipts/device_round1.rs:19:5:
+assertion `left == right` failed
+  left: Int(0)
+ right: Int(3)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test device_round1::partial_acquisition_adoption_and_replay_memory ... FAILED
+
+thread 'device_round1::partial_acquisition_adoption_and_replay_sqlite' (601358) panicked at crates/snapback4-lang/tests/declarative_receipts/device_round1.rs:19:5:
+assertion `left == right` failed
+  left: Int(0)
+ right: Int(3)
+test device_round1::partial_acquisition_adoption_and_replay_sqlite ... FAILED
+
+failures:
+
+failures:
+    device_round1::partial_acquisition_adoption_and_replay_memory
+    device_round1::partial_acquisition_adoption_and_replay_sqlite
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`

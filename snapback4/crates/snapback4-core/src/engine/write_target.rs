@@ -195,6 +195,7 @@ impl Runner<'_> {
         if let Some(condition) = condition { validate_condition(condition)?; }
         let key = target.key.iter().map(|e| self.expr(e)).collect::<Result<Vec<_>, _>>()?;
         let patch = self.expr_input(patch)?;
+        self.refuse_receipt_fields(&target.table, &patch, false)?;
         self.refuse_recorded(&target.table, &patch)?;
         crate::engine::sequences::refuse_fields(&self.schema.tables[&target.table], &target.table, &patch)?;
         let definition = self.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?;

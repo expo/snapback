@@ -79288,6 +79288,116 @@ Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
 
+### 2026-09-30 — RX round 0: declarative receipt prototype
+
+LLP 3000.022 §14 records the RFC and the implemented boundary. The social
+starter declares `receipts by .conversation, .ordinal from .sender to members`;
+the compiler supplies watermarks, runs, receipt projection, reporting and
+progress reads. Existing SDK delivery reporting and visible `useReceipts`
+use the same public operations. Shared-interpreter ownership checks refuse
+application progress forgery; authorized member removal deletes its bounded
+runs in the same metered transaction. Server delivery skips expired/deleted
+positions up to the first live blocker. Manual schemas retain their behavior,
+and `guide manual-receipts` preserves the original expert recipe.
+
+Starter schema: 294 → 225 physical lines (−69, 23.5%). Primary receipt guide:
+350 → 308 lines, within its existing budget. This is a prototype: application
+mutations still allocate ordinals, count recipients and capture join floors.
+Multiple families, arbitrary-layout migration tooling, raw-core descriptor
+admission, detailed source mapping and large-backlog qualification remain.
+At the 64-run bound, expired holes between already-held runs can require an
+explicit held-run re-report; automatic compaction of that chain is not claimed.
+The exact starter-store adoption path is tested and documented.
+
+Final affected tests: receipts 9/9, existing delivery 16/16, whole guide
+105/105, readauth 81/81. Generated schedules compare handwritten/declarative
+servers and memory/SQLite devices after each of 1,200 transitions, including
+out-of-order delivery, seen, removal/rejoin, expiry and deletion. Authority,
+offline prediction, replay, atomic meter refusal and manual-store adoption
+pass. Existing receipt behavior assertions are unchanged. Final CLI build and
+ref-check pass (525 LLPs, 9,974 refs, 0 errors or unchecked).
+
+Ran scripts/test.sh exactly once, exit 1:
+
+    == 1 failure(s) in 1531 s
+       cargo test
+
+The sole failing test was ours: readauth `census::authoring_census` needed the
+new manual card and generated delivery's server-only classification. Reviewed
+its 12 additions and 3 removals, updated it, and all 81 readauth tests pass on
+rerun. Baseline failures 0; environmental failures 0. The full run remains
+recorded red. It recorded 4,368 Rust passes, one failure and 33 existing
+ignores; client integration 5,308 passes and ten existing skips; fixture
+wrappers 9/9; serial models 79/79 including their full 5,000-sequence walks.
+Build, wasm, release guard, docs budget and typechecks passed. No counts,
+timeouts or checks were reduced; the inherited 60-second suite bar remains
+exceeded. Final additive parser compatibility and census corrections were
+checked by affected reruns; core/wasm code did not change after the full run
+began. The full suite was not rerun.
+
+Wasm: 1,988,236 B raw / 596,247 B gzip, 2,528 B above the old 593,719 B
+ratchet. Raise it to 597,247 B (measured plus 1,000 B) in this commit, as
+authorized, for receipt metadata, shared-interpreter ownership and metered
+member-removal cleanup. No logical meter ceiling changed. Report, exact logs,
+original starter and artifact hashes:
+reports/20260930-rx-declarative-receipts/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+### 2026-09-30 — RX round 1: named receipt families and convergent cleanup
+
+Merged origin/main at f1b1f0077eee40b6eeedac224ebd078c04cea173 first, preserving
+both sides without conflicts. Read both complete round-zero reviews. Authorized
+membership deletion now retires exactly that member's runs through metered
+storage custody, including services outside the runs audience; rollback remains
+atomic. Generated delivery compacts covered runs and deleted/expired gaps before
+the 64-run cap, with a shared 1,024-position probe budget. Separate bounded
+compaction commits progress during saturation; the SDK retries owed delivery
+with a fresh id after committed maintenance. Maintenance never acknowledges
+coverage. Self-only or incomplete membership audiences refuse E_RECEIPTS_CLAUSE.
+
+LLP 3000.022 §14 settles named families, accounting/identity/watermark mappings,
+public operation names and semantic versioning. The unpublished round-zero form
+becomes `receipts chat ...:` with a mapping block. Multiple families coexist;
+the starter explicitly preserves its public/storage names. Capability
+`declarative-receipts-v2` and template/descriptor-bound delivery fingerprints
+fence semantic changes, including maintenance. Manual schemas keep their old
+fingerprints. Automatic ordinal allocation, recipient counts and join-floor
+custody remain for the next round. The settled mappings accommodate them.
+
+Six new seeded schedules have 2,016 state comparison checkpoints across both
+device stores: 64 interval runs, out-of-order bridges, saturation, service
+removal with runs still present and rejoin. Compare stored watermarks/runs and
+projections. The original expiry/deletion schedules now compare represented
+live coverage and replicated storage; exact raw-state equivalence is scoped to
+contiguous live histories. Partial acquisition, adoption with pending writes,
+reopen and duplicate-id authoritative replay pass on both device stores. Controls
+against unchanged round-zero product source fail nine Rust and six SDK assertions
+as intended. Final affected tests: receipts 21/21, binding 5/5, whole guide
+105/105, device delivery 30/30, readauth 81/81, SDK queue 66/66 and real-client
+delivery 4/4. Existing receipt behavior assertions are unchanged.
+
+Ran scripts/test.sh exactly once, exit 0:
+
+    == 0 failure(s) in 1344 s
+
+No failing checks/tests: ours 0, baseline 0, environmental 0. Rust 4,383 passed,
+0 failed, 33 existing ignores; client pool 5,315 passed, 0 failed, 10 existing
+skips; serial models 79/79 with full 5,000-sequence walks; fixture tests 9/9.
+Build, wasm, release guard, docs budget and typechecks passed. The final reference
+audit passes: 525 LLP docs, 9,975 refs, zero errors or unchecked. No counts,
+timeouts or checks were reduced; the inherited 60-second suite bar is still
+exceeded. Product source was final before the full run; the additive await
+classification pin/comment was finalized during Rust, before client tests.
+
+Wasm: 1,988,204 B raw / 596,444 B gzip by the canonical build command, 803 B
+below the unchanged 597,247 B ratchet. An initial derived decoder exceeded the
+cap; a streaming decoder removed the excess. No runtime ceilings changed.
+Starter: 294 original → 225 round zero → 231 round one lines (63 fewer than
+manual); primary guide 321 lines, below 350. Report, corrected development
+failures, exact logs and artifact hashes:
+reports/20260930-rx-declarative-receipts/round1/REPORT.md.
 ## 2026-09-30 — NS round 0: native smoke at every Expo milestone
 
 Both Expo starters now generate `npm run native:smoke` beside `export:ios`.
@@ -79542,6 +79652,50 @@ Report, failure ledger, full log, source manifests, reproduction tools and raw
 measurements: `reports/20260930-qx-first-instinct-forms/`. Local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
 
+### 2026-09-30 — RX round 2: receipt compaction beyond live blockers
+
+Read both prior prompts/reports and both review pairs. Merged origin/main
+9d03e946232b4017564f3e7c6aa87bd424ce8d58 first in 85dc73c0e7, retaining both
+append-only journal histories. Nothing pushed or published.
+
+The generated Quarry fold now normalizes later runs even when a live blocker
+holds the prefix. One shared 1,024-position probe allowance covers every gap;
+partial run endpoints persist through bounded maintenance. The 1–131 deleted
+and mixed-expiry reproduction becomes [2,131] with position 1 still sent and
+prefix zero. A 9,000-position hole after that blocker converges within the
+unchanged meters. Generated locals/arguments avoid collisions; 510 generated
+field/scope cases run all six public surfaces. All six public names enter the
+fingerprint. Compact refuses omitted fingerprints with E_DELIVERY_BINDING.
+Grok's label and partial-leave witnesses are in-tree, the latter on both stores.
+Automatic allocation, recipient counts and join floors stay for the next round.
+
+Final affected checks pass: receipts 37/37, delivery 16/16, whole guide 105/105,
+device delivery 30/30, readauth 81/81 and real-SDK integration 4/4. Round-one
+product controls fail five compaction/fingerprint checks and five naming/hash
+checks; both scratch witnesses already pass on round one. Ownership still
+refuses application run updates. Reference audit and documentation budget pass.
+
+Ran scripts/test.sh exactly once, exit 1:
+
+    == 1 failure(s) in 1355 s
+       client tests
+
+The sole failure was ours: the existing real-SDK maintenance fixture used
+absent gaps, so the repaired fold merged its runs before saturation. Added live
+blockers, asserted all 64 runs, then removed blockers in stages. Preserved every
+maintenance/retry/fingerprint/coverage assertion; its complete file passes 4/4.
+Product source did not change during the full run. Baseline failures 0;
+environmental failures 0; unresolved failures 0. The full run remains recorded
+red and was not rerun. Rust 4,400 passes and 33 existing ignores; clients 5,314
+passes, that one failure and ten existing skips; serial models 79/79 including
+both full 5,000-sequence walks; fixture wrappers 9/9. No counts, ceilings or
+timeouts were reduced. The inherited nominal 60-second suite bar is exceeded.
+
+Wasm remains 1,988,204 B raw / 596,444 B gzip, 803 B below the unchanged
+597,247 B ratchet. No budget increase. Starter remains 231 lines versus the
+original 294; primary guide remains 321/350. Report, complete failure ledger,
+controls, exact logs and source/artifact hashes:
+reports/20260930-rx-declarative-receipts/round2/REPORT.md.
 
 ## 2026-09-30 — NS round 3: final native-smoke review fixes
 
@@ -79683,5 +79837,78 @@ increase. Every intermediate implementation, harness and detecting failure is
 classified; the stale-SDK measurement probe is retained separately. Report,
 raw samples, source/artifact hashes and full log:
 reports/20260930-qx-first-instinct-forms/round1/REPORT.md.
+## 2026-09-30 — RX round 3: generated receipt call and source custody
+
+Merged origin/main 42ba3ffb904f first in e7f07f2bc144, keeping both journal
+histories and both delivery fault-instrument comments. Read all prior RX prompts,
+reports and review pairs. Generated receipt primitives now bypass the authored
+function catalog, the fold uses a reserved helper name, and viewer input is
+compiler-owned. The max(a,b)=a+b duplicate-[2,2] reproduction leaves the run at
+[2,2] and messages 1, 3 and 4 sent. Every generated multi-column message/member
+probe names its columns, so additional unique pairs and caps remain compatible.
+All emitted expression and declaration sites belong to the receipts clause;
+unsupported mappings name the author's mapping and reason there. LLP 3000.022
+§14 and the primary receipt guide are updated together.
+
+The generated corpus covers 21 mapping positions × 65 spellings: 1,190 compile
+and execute all six surfaces, 123 refuse at the clause, and 52 refuse in authored
+syntax before expansion. Every template primitive/helper spelling is tested as
+an authored function and table. Round-two compiler negative controls yield
+2 passes / 7 failures, detecting all three requested findings. Two narrower
+memory/SQLite retained-run fixtures isolate the existing receipt coverage guard;
+disabling only that guard yields 0 passes / 2 failures. Product core is unchanged.
+
+Final affected checks: compiler units 25/25, receipts 46/46, delivery 16/16,
+delivery clause 6/6, integration 3/3, replay conversion 2 passes / 1 existing
+ignore, device delivery 30/30, readauth 81/81 and whole guide 106/106. Ran
+scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1290 s
+
+All 13 stages pass: Rust 4,415 passes with 33 existing ignores, clients 5,342
+passes with ten existing skips, fixtures 9/9 and serial models 79/79, retaining
+both full 5,000-sequence walks. Full-run failures: ours 0, baseline 0,
+environmental 0. Product and test source stayed fixed throughout. Development
+fixture/compiler/guide failures were ours and corrected; each is retained and
+classified in the report. The inherited nominal 60-second suite bar is exceeded.
+No timeout, count, runtime ceiling or wasm ratchet was relaxed.
+
+Wasm: 1,988,204 B raw / 596,444 B gzip, 803 B below the unchanged 597,247 B
+ratchet. Primary receipt guide 322/350 lines; starter still 231 versus manual
+294. Documentation budget, scoped corpus audit, ref-check and diff check pass.
+This closes the known actionable supplied review findings. Next round takes
+automatic ordinal allocation, recipient counts and join floors. Report and
+retained controls/logs: reports/20260930-rx-declarative-receipts/round3/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-30 — RX round 4: scope reads name their id key
+
+Merged origin/main 0dad04237505 first in 415b38135d, without conflicts,
+keeping both sides. Read the round 0–3 prompts/reports and the complete
+round-three reviews. Grok's remaining P2 is fixed by changing the three
+scope reads in generated delivered, compact and seen to name id explicitly.
+Audited the receipt and delivery generation paths: they share receipts.q;
+member/message/run probes already name their columns, and delivery.rs emits
+bindings rather than reads. No other product code changed.
+
+New unique-slug and unique-creatorId scope fixtures exercise all six generated
+surfaces. Both fail on round-three product code with the reported positional
+arity diagnostic, then pass after the fix. Reporting [3,3] leaves live message
+1 sent across the hole and after compaction; reporting 1 and seen reaches read.
+The existing v2 template digest changes the declarative delivery fingerprint;
+manual compatibility remains covered by its pinned tests.
+
+Affected verification: receipts 48/48, delivery 16/16, delivery clause 6/6,
+integration 3/3, replay conversion 2 passes / 1 existing ignore, device delivery
+30/30, whole guide 106/106; SDK receipts 97/97, no skips or cancellations.
+CLI/SDK builds, ref-check, formatting and diff checks pass. Final failures:
+ours 0, baseline 0, environmental 0; the two expected negative controls are
+retained. No full suite was run this round, as requested. The retained wasm
+matches round three's hash and remeasures at 1,988,204 B raw / 596,444 B gzip,
+803 B below the unchanged ratchet; it was not rebuilt.
+
+Report and evidence: reports/20260930-rx-declarative-receipts/round4/REPORT.md.
+This closes the supplied P2; allocation/count/floor work remains deferred.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.

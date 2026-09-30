@@ -1,0 +1,180 @@
+# Manual receipts: the expert recipe
+
+Use this recipe when you need custom receipt semantics or multiple receipt families. The SDK reports delivery through the mutation clause and the screen reports seen positions.
+
+```quarry
+table conversations:
+  title: text 1..50 ?
+  creatorId: principal
+  lastOrdinal: int default 0
+  read <- exists members[.id, viewer]
+  insert <- .creatorId = viewer
+  update <- exists members[.id, viewer]
+  after insert <- exists members[conversation = .id, principal = .creatorId]
+  retain delivered-history
+  sync to members[.id]
+
+table members:
+  conversation: conversations
+  principal: principal
+  joinedOrdinal: int
+  deliveredOrdinal: int default 0
+  seenOrdinal: int default 0
+  unique conversation, principal
+  cap 50 by conversation
+  immutable conversation, principal, joinedOrdinal
+  read <- exists members[.conversation, viewer]
+  insert <- created conversations[.conversation] or exists members[.conversation, viewer]
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  sync to members[.conversation]
+
+table runs:
+  conversation: conversations
+  principal: principal
+  fromOrdinal: int
+  throughOrdinal: int
+  unique conversation, principal, fromOrdinal
+  cap 64 by conversation, principal
+  cap 3200 by conversation
+  read <- exists members[.conversation, viewer]
+  insert <- .principal = viewer and exists members[.conversation, viewer]
+  delete <- .principal = viewer
+  sync to members[.conversation]
+
+table messages:
+  conversation: conversations
+  sender: principal
+  ordinal: int
+  recipients: int
+  text: text <=2000
+  quote: messages ?
+  at: time
+  unique byConversationOrdinal: conversation, ordinal
+  immutable conversation, sender, ordinal, recipients, at
+  read <- exists members[.conversation, viewer]
+  insert <- .sender = viewer and exists members[.conversation, viewer]
+  retain delivered-history
+  sync to members[.conversation] last 500 by byConversationOrdinal
+
+fn receipt(m: messages):
+  state = 'read'
+  remaining = 0
+  for member in members where .conversation = m.conversation:
+    if member.principal != m.sender and member.joinedOrdinal < m.ordinal:
+      remaining = remaining + 1
+      if m.ordinal > member.deliveredOrdinal:
+        run = first(runs[conversation = m.conversation, principal = member.principal, fromOrdinal <= m.ordinal] last 1 by .fromOrdinal)
+        if run = null or run.throughOrdinal < m.ordinal:
+          return 'sent'
+      if member.seenOrdinal < m.ordinal:
+        state = 'delivered'
+  return state if remaining > 0 or m.recipients > 0 else 'sent'
+
+query conversationScreen(conversation: conversations):
+  return conversations[conversation]
+
+query inbox(c: cursor ?):
+  return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
+
+query history(conversation: conversations, c: cursor ?):
+  return messages where .conversation = conversation last 20 by .ordinal after c
+
+query messageReceipts(conversation: conversations, c: cursor ?):
+  return messages where .conversation = conversation last 20 by .ordinal after c { id, receipt: receipt(.) }
+
+query receiptMember(conversation: conversations):
+  return members[conversation, viewer]
+
+query progress(conversation: conversations, c: cursor ?):
+  me = members[conversation, viewer] ! else NOT_MEMBER
+  delivered = max(me.deliveredOrdinal, me.joinedOrdinal)
+  return { member: me, runs: runs where .conversation = conversation and .principal = viewer, ahead: messages where .conversation = conversation and .ordinal > delivered and .ordinal <= delivered + 100 last 100 by .ordinal after c }
+
+mutation send(conversation: conversations, text: text <=2000):
+  require exists members[conversation, viewer] else NOT_MEMBER
+  chat = conversations[conversation] ! else NOT_FOUND
+  ordinal = chat.lastOrdinal + 1
+  recipients = 0
+  for member in members where .conversation = conversation:
+    if member.principal != viewer:
+      recipients = recipients + 1
+  update conversations[chat] { lastOrdinal: ordinal }
+  m = insert messages { conversation, sender: viewer, ordinal, recipients, text, at: now }
+  return m.id
+
+mutation add(conversation: conversations, principal: principal):
+  require exists members[conversation, viewer] else NOT_MEMBER
+  chat = conversations[conversation] ! else NOT_FOUND
+  insert members { conversation, principal, joinedOrdinal: chat.lastOrdinal } if absent
+  return null
+
+mutation leave(conversation: conversations):
+  me = members[conversation, viewer] ! else NOT_MEMBER
+  for run in runs where .conversation = conversation and .principal = viewer:
+    delete runs[run]
+  delete members[me]
+  return null
+
+mutation delivered(conversation: conversations, from: int, through: int)
+  reports delivery of messages by .conversation, .ordinal:
+  me = members[conversation, viewer] ! else NOT_MEMBER
+  chat = conversations[conversation] ! else NOT_FOUND
+  require 0 < from and from <= through else NOT_A_RUN
+  require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
+  prefix = max(me.deliveredOrdinal, me.joinedOrdinal)
+  held = first(runs where .conversation = conversation and .principal = viewer and .fromOrdinal <= from last 1 by .fromOrdinal)
+  if through <= prefix or (held != null and held.throughOrdinal >= through):
+    return null
+  low = from
+  high = through
+  for run in runs where .conversation = conversation and .principal = viewer and .fromOrdinal <= through + 1 and .throughOrdinal + 1 >= from:
+    low = min(low, run.fromOrdinal)
+    high = max(high, run.throughOrdinal)
+    delete runs[run]
+  if low <= prefix + 1:
+    update members[me] { deliveredOrdinal: high }
+  else:
+    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
+    insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
+  return null
+
+mutation seen(conversation: conversations, through: int):
+  me = members[conversation, viewer] ! else NOT_MEMBER
+  chat = conversations[conversation] ! else NOT_FOUND
+  require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
+  if through > me.seenOrdinal:
+    update members[me] { seenOrdinal: through }
+  return null
+
+table profiles:
+  principal: principal
+  name: text <=80
+  unique principal
+  public 'display names are public'
+  sync last 500 by .id
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text <=16
+  unique message, principal
+  cap 32 by message
+  immutable message, principal
+  read through .message
+  online only
+
+query messageAuthor(message: messages):
+  return profiles[principal = messages[message].sender]
+
+query quotedMessage(message: messages):
+  return messages[messages[message].quote]
+
+query messageReactions(message: messages):
+  return reactions where .message = message first 32 by .principal
+
+```
+
+The body remains the original contiguous, message-only recipe. For deleted or
+expired gaps use `guide sequences`; use `guide receipts` for the generated
+form, authority rules, delivery scheduling and the visible-screen hook.

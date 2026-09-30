@@ -9,6 +9,8 @@ use std::collections::BTreeSet;
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "Schema")]
 struct Wire {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    receipts: Vec<ReceiptFamily>,
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
@@ -40,6 +42,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("declarative-receipts-v2", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
     ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),

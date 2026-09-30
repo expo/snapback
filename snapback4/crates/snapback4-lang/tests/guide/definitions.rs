@@ -112,6 +112,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_RECEIPTS_CLAUSE", "malformed declarations refuse `E_RECEIPTS_CLAUSE`"),
+    ("E_RECEIPTS_OWNED", "Progress fields and runs refuse ordinary writes with `E_RECEIPTS_OWNED`"),
     ("EMPTY_READ", "EMPTY_READ is optional local evidence"),
     ("E_DELIVERY_BINDING", "a report's binding changed or was removed"),
     ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),

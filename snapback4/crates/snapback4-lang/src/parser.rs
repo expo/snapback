@@ -176,7 +176,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -195,6 +195,50 @@ impl Parser {
     fn table_line(&mut self, table: &mut TableDecl) -> Fallible<()> {
         let token = self.peek().clone();
         match token.value.as_str() {
+            "receipts" if self.peek_at(1).value != ":" => {
+                let site = self.take("receipts")?.site;
+                if table.receipts.is_some() {
+                    return Err(Diagnostic::new(&site, "E_RECEIPTS_CLAUSE", "duplicate receipts clause", "keep one receipts clause").guide("receipts"));
+                }
+                let name = self.word()?.value;
+                self.take("by")?; self.take(".")?;
+                let group = self.word()?.value;
+                self.take(",")?; self.take(".")?;
+                let position = self.word()?.value;
+                self.take("from")?; self.take(".")?;
+                let sender = self.word()?.value;
+                self.take("to")?;
+                let members = self.word()?.value;
+                self.take(":")?; self.newline()?; self.take_kind(Kind::Indent)?;
+                let mut clause = ReceiptsDecl {
+                    member_group: group.clone(), principal: "principal".into(),
+                    counter: String::new(), floor: String::new(), count: String::new(),
+                    delivered_field: format!("{name}DeliveredOrdinal"), seen_field: format!("{name}SeenOrdinal"),
+                    runs: format!("{name}Runs"),
+                    operations: ["Receipt", "Delivered", "Seen", "Member", "Progress", "Compact"].iter().map(|suffix|format!("{name}{suffix}")).collect(),
+                    name, group, position, sender, members, site: site.clone(),
+                };
+                let mut keys = std::collections::BTreeSet::new();
+                while !self.at_kind(Kind::Dedent) {
+                    let key = self.word()?.value;
+                    if !keys.insert(key.clone()) { return Err(Diagnostic::new(&site,"E_RECEIPTS_CLAUSE","duplicate receipt mapping","keep each mapping once").guide("receipts")); }
+                    match key.as_str() {
+                        "member" => { self.take(".")?; clause.member_group = self.word()?.value; self.take(",")?; self.take(".")?; clause.principal = self.word()?.value; }
+                        "counter" | "floor" | "count" => {
+                            self.take(".")?; let value = self.word()?.value;
+                            match key.as_str() { "counter" => clause.counter = value, "floor" => clause.floor = value, _ => clause.count = value }
+                        }
+                        "watermarks" => { self.take(".")?; clause.delivered_field = self.word()?.value; self.take(",")?; self.take(".")?; clause.seen_field = self.word()?.value; }
+                        "runs" => clause.runs = self.word()?.value,
+                        "operations" => { clause.operations.clear(); for i in 0..6 { if i > 0 { self.take(",")?; } clause.operations.push(self.word()?.value); } }
+                        _ => return Err(Diagnostic::new(&site,"E_RECEIPTS_CLAUSE","unknown receipt mapping","use member, counter, floor, count, watermarks, runs or operations").guide("receipts")),
+                    }
+                    self.newline()?;
+                }
+                self.take_kind(Kind::Dedent)?;
+                table.receipts = Some(clause);
+                Ok(())
+            }
             "public" => {
                 let site = self.take("public")?.site;
                 let reason = if self.at_kind(Kind::Str) { self.take_kind(Kind::Str)?.value } else { format!("{} is public", table.name) };

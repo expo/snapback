@@ -76,6 +76,7 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
+    pub(super) receipt_operation: String,
     #[cfg(feature = "sqlite")]
     pub(super) delivery: super::delivery::Tracking,
     pub(crate) tx: super::authorized_scan::GuardedRows<'a>,
@@ -247,6 +248,7 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
+            receipt_operation: String::new(),
             #[cfg(feature = "sqlite")]
             delivery: Default::default(),
             tx: super::authorized_scan::GuardedRows::new(tx),
@@ -338,6 +340,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        self.receipt_operation = program.name.clone();
         self.prepare_components(program);
         self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());
         self.prediction_guards = self.schema.operations.get(&program.name)

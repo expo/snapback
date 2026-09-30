@@ -1,0 +1,31 @@
+{
+  "merge_commit": "85dc73c0e7af70a97babeb1dabeb8fb19c2b50df",
+  "raw_bytes": 1988204,
+  "gzip_bytes": 596444,
+  "budget_bytes": 597247,
+  "budget_changed": false,
+  "hashes": {
+    "snapback4/crates/snapback4-lang/src/bind/receipts.rs": "a8c1a1971afa5735e1dde434288cdba51f8568d7a7ea3ecc518695b53669643a",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.q": "771cf18cb2f224b6d844ccc0cbd128b7158caead68dfe0a62819a8e6234a56e4",
+    "snapback4/crates/snapback4-core/src/schema/delivery.rs": "2fd486d9c07c86f206e4bde571a4aca218fa388ed5094c0a805f461369d82379",
+    "snapback4/crates/snapback4-lang/src/guide/receipts.rs": "fe7c8313fd6b59bfe38414a083433e5538b43b5314a630ac21815b88e164caa9",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts.rs": "2c974a185260db8258fb8c6531b9dbbf5f9af451743ed42172b7b254cbb14cf2",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/names.rs": "c49f9c32ca4b2113f3c0f967744179833bbbb85a5d5076bd6115ab84c5c82f01",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/round2.rs": "024eeef4a41195c03363120f579cdf605bcc0bd48dc34294c7c5ad2251ac1429",
+    "snapback4/metrics/wasm-budget.json": "9e50a4156a40cc903c824f3a79f2102e14800e8fd4ab001006f2c2790cdbbb67",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "fe7a6fbd5ed83ca1cc8e9b872103594d9218b60053b2bfdb964e8ba0bfe0734b"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "wasm_bindgen": "wasm-bindgen 0.2.127",
+    "node": "v24.13.1",
+    "bun": "1.3.14"
+  },
+  "post_start_test_fix": {
+    "path": "snapback4/packages/snapback4/test/delivery-integrated.test.mjs",
+    "before_sha256": "b19fa54d8e56bfcad36716dd0106568126847af77dbd35c368b46587b67e44cc",
+    "after_sha256": "326aa29f6583a19c708318ea7a65ce821a703d5f9b1c372058c8b7e9d581bf91",
+    "reason": "Keep the maintenance witness genuinely saturated under gap-aware run normalization.",
+    "verification": "integrated-final.log.gz: 4 passed, 0 failed"
+  }
+}

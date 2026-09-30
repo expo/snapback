@@ -309,3 +309,38 @@ for(const wake of ['reconnect','start','timer'])test(`a due full park cannot rep
  h.advance(60000);await h.q.wake(wake);await h.flush();assert.equal(h.calls.length,0);assert.deepEqual(groups(await h.state())[0].attempt,attempt);
  h.advance(1000);await h.flush();assert.equal(h.calls[0].id,'committed-1');await h.flush();assert.equal(h.calls[1].args.from,41);
 });
+
+// RX v2: maintenance success is never delivery coverage. Each chunk commits
+// independently so a saturated long expired hole cannot roll back all progress.
+test('receipt compaction resumes full runs and retries coverage with fresh ids', async t => {
+ let advances=0;
+ const full={accepted:true,json:{head:10,state:'failed',why:{code:'RUNS_FULL'}}};
+ const h=harness(t,{send:async c=>c.mutation==='compactChat'
+   ? (++advances,{accepted:true,json:{state:'sent',head:10,result:true}})
+   : advances<9 ? full : ok});
+ await h.q.accept(manifest([['c',9131]],{...binding,compact:'compactChat'}));
+ for(let i=0;i<12;i++) await h.flush();
+ assert.equal(advances,9);
+ assert.equal(h.calls.length,19);
+ assert.equal(new Set(h.calls.map(c=>c.id)).size,19);
+ assert.deepEqual(h.calls.filter(c=>c.mutation==='compactChat').map(c=>c.args),Array(9).fill({conversation:'c'}));
+ assert.ok(h.calls.every(c=>c.delivery.fingerprint===binding.fingerprint));
+ assert.deepEqual(groups(await h.state())[0].reported,[[9131,9131]]);
+});
+for(const outcome of ['blocked','uncertain','refused','unaccepted'])test(`receipt compaction ${outcome} preserves debt without a busy loop`,async t=>{
+ const h=harness(t,{send:async c=> {
+   if(c.mutation!=='compactChat')return {accepted:true,json:{head:10,why:{code:'RUNS_FULL'}}};
+   if(outcome==='uncertain')throw Error('lost maintenance reply');
+   return {accepted:outcome!=='unaccepted',json:{head:10,state:outcome==='refused'?'failed':'sent',result:outcome!=='blocked'}};
+ }});
+ await h.q.accept(manifest([['c',131]],{...binding,compact:'compactChat'}));await h.flush();
+ assert.equal(h.calls.length,2);assert.deepEqual(groups(await h.state())[0].reported,[]);
+ assert.equal(groups(await h.state())[0].parked[0].kind,'full');
+});
+test('stale compaction reply cannot acknowledge or retry a replaced binding',async t=>{
+ const pending=deferred();
+ const h=harness(t,{send:async c=>c.mutation==='compactChat'?pending.promise:{accepted:true,json:{head:10,why:{code:'RUNS_FULL'}}}});
+ await h.q.accept(manifest([['c',131]],{...binding,compact:'compactChat'}));await h.flush();
+ await h.q.reset(true);pending.resolve({accepted:true,json:{head:10,state:'sent',result:true}});await settle();
+ assert.equal(h.calls.length,2);assert.deepEqual(groups(await h.state()),[]);
+});

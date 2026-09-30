@@ -461,7 +461,7 @@ impl Binder<'_> {
                 let (recurse, ty) = self.walk(table, seed, column, *depth, site, out)?;
                 Ok((LoopDomain::Recurse(recurse), ty))
             }
-            A::Call { name, args, site } if name == "range" => {
+            A::Call { name, args, site } if name == "range" || name == "$builtin:range" => {
                 if args.len() != 2 { return Err(type_error(site, "range takes two int expressions", "for i in range(0, n):")); }
                 let (start, start_ty) = self.expr(&args[0], out)?;
                 let mut setup = setup::Body::default();
