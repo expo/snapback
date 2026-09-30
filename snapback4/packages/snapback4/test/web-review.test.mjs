@@ -340,18 +340,18 @@ Object.assign(window, { acquisition, prepareClient, rawClient, preAqStore });
       const name='acquisition-buckets', store=indexedDbPersistence();
       await store.load(name);
       const put=IDBObjectStore.prototype.put, get=IDBObjectStore.prototype.get, transaction=IDBDatabase.prototype.transaction;
-      let gets=0,buckets=0,transactions=0,strict=true;
+      let gets=0,markers=0,buckets=0,transactions=0,strict=true;
       IDBDatabase.prototype.transaction=function(...args){const tx=transaction.apply(this,args);if(this.name===name&&tx.mode==='readwrite'){transactions++;strict&&=tx.durability==='strict';}return tx;};
-      IDBObjectStore.prototype.get=function(...args){if(this.transaction.db.name===name)gets++;return get.apply(this,args);};
+      IDBObjectStore.prototype.get=function(...args){if(this.transaction.db.name===name){if(JSON.stringify(args[0])==='["$format","row-buckets"]')markers++;else gets++;}return get.apply(this,args);};
       IDBObjectStore.prototype.put=function(row,...args){if(this.transaction.db.name===name&&row.s==='$bucket')buckets++;return put.call(this,row,...args);};
       const rows=Array.from({length:10000},(_,n)=>({s:'s',k:`row-${n}`,v:`${n}:`+'x'.repeat(250)}));
       try {await store.save(name,rows.concat([{s:'m',k:'watermark',v:'one'}]));}
       finally{IDBObjectStore.prototype.put=put;IDBObjectStore.prototype.get=get;IDBDatabase.prototype.transaction=transaction;}
       const restored=await indexedDbPersistence().load(name), expected=new Map(rows.map(r=>[r.k,r.v]));
-      return {gets,buckets,transactions,strict,rows:restored.filter(r=>r.s==='s').length,
+      return {gets,markers,buckets,transactions,strict,rows:restored.filter(r=>r.s==='s').length,
         correct:restored.filter(r=>r.s==='s').every(r=>expected.get(r.k)===r.v),watermark:await store.read(name,'m','watermark')};
     });
-    assert.deepEqual(result,{gets:64,buckets:64,transactions:1,strict:true,rows:10000,correct:true,watermark:'one'});
+    assert.deepEqual(result,{gets:64,markers:1,buckets:64,transactions:1,strict:true,rows:10000,correct:true,watermark:'one'});
   });
   await t.test('a root split, later child writes and their conditional commit are atomic', async () => {
     const result=await page.evaluate(async()=>{

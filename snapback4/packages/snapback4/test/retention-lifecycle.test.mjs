@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.023#3.4 — lifecycle withdrawals finish across peers before application callbacks.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -174,7 +175,7 @@ for (const tier of ["online", "wasm"]) {
     assert.equal(owner.presenceRefresh, null);
     assert.equal(owner.lingering, undefined);
     assert.equal(calls, 0, "close detaches before any raw withdrawal notification");
-    owner.publish({ data: "late old-owner result", complete: true, fresh: true, cut: null });
+    owner.publish(readyRead({ data: "late old-owner result", complete: true, fresh: true, cut: null }));
     for (const subscriber of owner.subscribers) subscriber();
     f.answer("private B", 8000);
     const replacement = facade.client.observe(q, {}, options);

@@ -1,3 +1,4 @@
+import { existence, isReady } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, Image, Text, TextInput, View, type ViewToken } from "react-native";
 import { useClient, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
@@ -9,7 +10,7 @@ import { api } from "../snapback/generated/api";
 import { useOnlineArm } from "./useOnlineArm";
 import { useTyping } from "./useTyping";
 import { useOnceMedia } from "./useOnceMedia";
-import { ReadState, PhotoPicker } from "./ui";
+import { PhotoPicker } from "./ui";
 
 // @ref LLP 3000.028#8 — route and composer ownership do not follow query status.
 export function ConversationScreen({ conversation, url, visible = true, ownerKey = conversation, proposed, other }: { conversation: string; url: string; visible?: boolean; ownerKey?: string; proposed?: string; other?: string }) {
@@ -62,9 +63,9 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed, other
     }
     catch (error) { setProblem(String(error)); }
   }, [journal, restore]);
-  const currentMember = "data" in member && !!member.data && !member.revalidating;
+  const currentMember = isReady(member) && member.existence === "present" && !member.revalidating;
   // Custody is not authority: only a confirmed absence/refusal blocks a send.
-  const canSend = !("denied" in member || ("data" in member && !member.data && member.complete && member.fresh && !member.revalidating));
+  const canSend = !(existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating));
   const seen = useRef(0);
   useEffect(() => { seen.current = 0; setSelected(undefined); }, [conversation]);
   const reportSeen = useCallback((through: number) => {
@@ -92,8 +93,8 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed, other
   }
   return <View style={{ flex: 1, padding: 16 }} testID="conversation-screen">
     {proposals.some(p => !p.canonical) && <ResolveProposal conversation={conversation} resolve={resolve} />}
-    <Text accessibilityRole="header">{"data" in room && room.data ? room.data.title : "Conversation"}</Text>
-    <ReadState read={room} /><Text>{link}</Text>
+    <Text accessibilityRole="header">{isReady(room) && room.existence === "present" ? room.data.title : "Conversation"}</Text>
+    <Text>{existence(room) === "loading" ? "Loading…" : existence(room) === "partial" ? "Partial results" : "denied" in room ? room.denied.message : ""}</Text><Text>{link}</Text>
     {/* Composer lives above every transient read and the recycled message list. */}
     <TextInput testID="composer" accessibilityLabel="Message" value={draft} multiline
       onChangeText={text => { setDraft(text); typing.change(text); }} onBlur={typing.stop} />
@@ -163,7 +164,7 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
   const byId = new Map("data" in receipts ? receipts.data.map(row => [row.id, row.receipt]) : []);
   const next = "data" in history ? history.next : null;
   return <View>
-    <ReadState read={history} /><ReadState read={receipts} />
+    <Text>{existence(history) === "loading" ? "Loading…" : existence(history) === "partial" ? "Partial results" : "denied" in history ? history.denied.message : ""}</Text><Text>{existence(receipts) === "loading" ? "Loading…" : existence(receipts) === "partial" ? "Partial results" : "denied" in receipts ? receipts.denied.message : ""}</Text>
     {"data" in history && <FlatList testID={c ? `history-${c}` : "history"} data={rows} keyExtractor={row => row.id} onViewableItemsChanged={onViewableItemsChanged}
       renderItem={({ item: row }) => <View testID={`message-${row.id}`}>
         <Text>{row.text}{row.pending ? " · Sending…" : byId.has(row.id) ? ` · ${byId.get(row.id)}` : ""}</Text>
@@ -177,13 +178,13 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
 export function OnceViewer({ message, asset, onClose }: { message: string; asset: string; onClose(): void }) {
   const media = useOnceMedia();
   const row = useQuery(api.messagePhoto, { id: message }, { keep: false });
-  const invalid = "denied" in row || ("data" in row && (!row.data || row.data.photo?.id !== asset));
+  const invalid = existence(row) === "denied" || existence(row) === "absent" || (isReady(row) && row.existence === "present" && row.data.photo?.id !== asset);
   const ended = useRef(false); ended.current ||= invalid;
   useEffect(() => { if (invalid) { media.close(); onClose(); } }, [invalid, media.close, onClose]);
   return <View testID="once-viewer">
     <Button title="Close photo" onPress={() => { media.close(); onClose(); }} />
     {media.view?.url ? <Image accessibilityLabel="Once photo" source={{ uri: media.view.url }} style={{ width: 240, height: 240 }} /> :
-      <Button title="Open media" disabled={!!media.view || ended.current || !("data" in row) || row.revalidating} onPress={() => void media.open(asset)} />}
+      <Button title="Open media" disabled={!!media.view || ended.current || !isReady(row) || row.existence !== "present" || row.revalidating} onPress={() => void media.open(asset)} />}
     <Text>{media.view?.problem}</Text>
   </View>;
 }

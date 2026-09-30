@@ -1,9 +1,9 @@
 # complete battery red: swift-client
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260927T175940Z.8112f4ef6400`
+**Reopened by battery run:** `local.20260929T185743Z.aee02735615b`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `ea7ecc896c166c31caf88f843e0c4dce4ea900b6`
+**Closed at revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `swift-client`
 **Failure signature:** `sha256:7edbc50e4e71fbf16a40dc7d45e9c2319469812f59fed484dd2b35c525baa134`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260928T042704Z.b8400c29128e`
-**Last processed run:** `local.20260928T150340Z.ea7ecc896c16`
+**Last observed run:** `local.20260930T043534Z.fc8deceab43c`
+**Last processed run:** `local.20260930T133254Z.763535814fd9`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `b8400c29128e21b6367ba8d420296bedf108dff5`
+**Last observed revision:** `fc8deceab43cacacd6355534001045aa003bb806`
 **Consecutive red runs:** `2`
 **Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

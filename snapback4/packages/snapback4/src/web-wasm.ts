@@ -50,7 +50,7 @@ async function initializeWasm(source: BufferSource | WebAssembly.Module, identit
   }
   const module = source instanceof WebAssembly.Module ? source : await WebAssembly.compile(source);
   const exports = new Map(WebAssembly.Module.exports(module).map(e => [e.name, e.kind]));
-  if (exports.get("memory") !== "memory" || ["webdevice_new", "webdevice_call", "webdevice_drain", "__wbg_webdevice_free"].some(name => exports.get(name) !== "function")) {
+  if (exports.get("memory") !== "memory" || ["webdevice_new", "webdevice_call", "webdevice_drain", "webdevice_drain_chunk", "__wbg_webdevice_free"].some(name => exports.get(name) !== "function")) {
     throw new Error("wasm: the module does not export the Snapback device runtime; use the wasm shipped with this package");
   }
   const initialized = await init({ module_or_path: module });

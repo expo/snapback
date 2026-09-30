@@ -1,0 +1,10 @@
+1e9360a343ce93d940b1406582f96efafc250321 B1: share admission and prediction gating for every local read
+5e032c68974ac824a951966a19813697f56122dc B2: preserve Read covariance and document structural narrowing
+91a67cad046e790ed0d10a16ca8a21e951ce26e0 B3: cover generated nullable arrays as null or empty lists
+afb7bbf8e11bcd4f6844494f5ff5b3362d98afb7 4/6/8: name read existence and clarify its documented guarantees
+c720682c47cc1771a91e5218a6eafe3c8049e8be 5: route missing-row and offline-membership questions to their cards
+ab8e2ce10a6b20429a81eecd712d57bcadd4c4cb 7: normalize the remaining ready-read fixtures through readyRead
+dc00009d1170d81f67c0d1b1770f0d515c6508db 8: finish the LLP existence revision prose
+5d42e0c83656a22070995927136b2ac652146c3e B2: witness structural row-array subtype compatibility
+3f13dc44d7d4a59b42d3aded7bf184fddcc9f535 Qualification: keep the React replay harness stable during cold startup
+6812b3b5e4dd7aa94f14cb220c114f05c8e8b716 Qualification: write each counted refusal as a complete line

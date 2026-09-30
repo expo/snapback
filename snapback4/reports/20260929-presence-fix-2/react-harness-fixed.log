@@ -1,0 +1,86 @@
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3041.798084ms)
+  ✔ offline transport (59.927167ms)
+  ✔ retry exhaustion (204.678541ms)
+  ✔ reconnect (110.416625ms)
+✔ process keep=undefined: profile route gate (5334.81575ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (24.211084ms)
+  ✔ own send and settlement (22.013042ms)
+  ✔ edit (18.374083ms)
+  ✔ delete (18.136ms)
+  ✔ membership removal (17.407125ms)
+✔ process keep=undefined: chat history and membership removal (1817.974209ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3034.79725ms)
+  ✔ offline transport (55.877625ms)
+  ✔ retry exhaustion (202.930291ms)
+  ✔ reconnect (99.325917ms)
+✔ process keep=true: profile route gate (4296.325583ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (29.014166ms)
+  ✔ own send and settlement (22.583209ms)
+  ✔ edit (21.777667ms)
+  ✔ delete (19.937625ms)
+  ✔ membership removal (21.279084ms)
+✔ process keep=true: chat history and membership removal (1881.410292ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3030.881959ms)
+  ✔ offline transport (54.37175ms)
+  ✔ retry exhaustion (200.136875ms)
+  ✔ reconnect (94.373042ms)
+✔ wasm keep=undefined: profile route gate (4463.78775ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (27.353292ms)
+  ✔ own send and settlement (28.277792ms)
+  ✔ edit (19.432333ms)
+  ✔ delete (19.547083ms)
+  ✔ membership removal (22.122625ms)
+✔ wasm keep=undefined: chat history and membership removal (1766.007416ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3028.559708ms)
+  ✔ offline transport (53.392666ms)
+  ✔ retry exhaustion (200.730416ms)
+  ✔ reconnect (91.990708ms)
+✔ wasm keep=true: profile route gate (4219.742375ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (25.50175ms)
+  ✔ own send and settlement (18.888458ms)
+  ✔ edit (18.922083ms)
+  ✔ delete (18.563542ms)
+  ✔ membership removal (19.506125ms)
+✔ wasm keep=true: chat history and membership removal (1789.279542ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3013.234041ms)
+  ✔ offline transport (35.647042ms)
+  ✔ retry exhaustion (195.365458ms)
+  ✔ reconnect (70.44975ms)
+✔ online keep=undefined: profile route gate (4159.514208ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (21.732708ms)
+  ✔ own send and settlement (15.864459ms)
+  ✔ edit (15.114792ms)
+  ✔ delete (14.737541ms)
+  ✔ membership removal (15.731458ms)
+✔ online keep=undefined: chat history and membership removal (845.290416ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3017.354709ms)
+  ✔ offline transport (37.6075ms)
+  ✔ retry exhaustion (194.763ms)
+  ✔ reconnect (71.66475ms)
+✔ online keep=true: profile route gate (4168.8745ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (23.784625ms)
+  ✔ own send and settlement (17.290084ms)
+  ✔ edit (14.535666ms)
+  ✔ delete (16.80775ms)
+  ✔ membership removal (23.9245ms)
+✔ online keep=true: chat history and membership removal (1045.775708ms)
+ℹ tests 66
+ℹ suites 0
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36804.0415

@@ -1,9 +1,9 @@
 # complete battery red: required-surface-build-fixtures
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260908T030804Z.a75c98406a26`
+**Reopened by battery run:** `local.20260930T043534Z.fc8deceab43c`
 **Closure:** `determinate PASS`
-**Closed at revision:** `e6c89816b6d292a5310cf59cdc3a43003b37af29`
+**Closed at revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `required-surface-build-fixtures`
 **Failure signature:** `sha256:c1d896281a636a2dad39528d094313dd243c2ba35a807b15edf0ec0bbf5d6aa2`
 **First observed run:** `local.20260830T072833Z.94397bad48fa`
-**Last observed run:** `local.20260908T030804Z.a75c98406a26`
-**Last processed run:** `local.20260908T125200Z.e6c89816b6d2`
+**Last observed run:** `local.20260930T043534Z.fc8deceab43c`
+**Last processed run:** `local.20260930T133254Z.763535814fd9`
 **Detected at revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
-**Last observed revision:** `a75c98406a2678df2b2247b61481fdea5aac470d`
+**Last observed revision:** `fc8deceab43cacacd6355534001045aa003bb806`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

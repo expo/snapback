@@ -1,0 +1,112 @@
+setup wasm { loading: true }
+ready wasm
+non-edge wasm post
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729814114,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729814114,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+write {
+  state: 'sent',
+  id: '01M3QX1031385TJCATATC32FY2',
+  seq: 3,
+  result: {
+    at: 1790729814120,
+    authorId: 'dev:bob',
+    id: 'own',
+    parentId: null,
+    removed: false
+  }
+}
+non-edge wasm like
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729814120,
+      card: [Object],
+      id: 'own',
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790729814120,
+      card: [Object],
+      id: 'own',
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+write {
+  state: 'sent',
+  id: '01M3QX1031385TJCATATC32FYB',
+  seq: 5,
+  result: {
+    at: 1790729814135,
+    id: '01M3QX1031385TJCATATC32FYC',
+    postId: 'first',
+    principal: 'dev:bob'
+  }
+}
+✖ reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs (72113.453549ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72118.502218
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:1:1
+✖ reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs (72113.453549ms)
+  'Promise resolution is still pending but the event loop has already resolved'

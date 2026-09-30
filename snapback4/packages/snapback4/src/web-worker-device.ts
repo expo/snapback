@@ -36,7 +36,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
   const suspension = new WebWorkerSuspend(host, journal);
   const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
   const admissions = new Set<string>(), outbox = new Map<string, Queued>();
-  const listeners = new Set<(floor?: number) => void>();
+  const listeners = new Set<(floor: number | undefined, entries: readonly Queued[]) => void>();
   const waiting = new Map<string, AbortController>();
   let chain: Promise<unknown> = Promise.resolve(), closing: Promise<void> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined, retries = 0;
@@ -68,13 +68,18 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     const changes = await tx.commit([...journal.cleanup(outbox), ...extra], durable);
     remember(changes);
     const floor = Math.max(0, ...[...outbox.values()].map(e => e.now ?? 0));
-    if (!statusOnly && changes.some(c => c.s === "o")) for (const notify of listeners) notify(floor);
+    const entries = changes.filter(c => c.s === "o" && c.v !== null).map(c => JSON.parse(c.v!) as Queued);
+    if (!statusOnly && changes.some(c => c.s === "o")) for (const notify of listeners) notify(floor, entries);
     journal.cleanup(outbox);
   };
   const recover = async (tx: WorkerTransaction, orphans: boolean) => {
     // A host failure restores its journal/outbox; use the durable image on
     // every transaction so no private mirror survives a lost commit reply.
     journal.load([...tx.journal]); outbox.clear(); remember(tx.journal);
+    if (!recovered && outbox.size) {
+      const entries = [...outbox.values()];
+      for (const notify of listeners) notify(Math.max(0, ...entries.map(e => e.now ?? 0)), entries);
+    }
     if (!recovered || orphans) {
       if (await adoptWorkerOrphans(tx, name, claim.name, persist, extra => settle(tx, extra), waitForLock, journal.authority)) retry();
     }

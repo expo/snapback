@@ -32,6 +32,23 @@ fn encode<T: Serialize>(value: &T) {
     same_decode(serde_json::to_vec(value), codec::to_vec(value), true);
 }
 
+#[test]
+fn constructed_field_maps_keep_the_baseline_tagged_bytes() {
+    use std::collections::BTreeMap;
+    use snapback4_core::value::ObjectFields;
+    for count in [0, 1, 8, 64, 1024] {
+        let entries: Vec<_> = (0..count).rev().map(|i| {
+            (format!("field{}", i % 37), Value::Array(vec![Value::Int(i), Value::String("\0\n☃".into()), Value::Bytes(vec![0, 255])]))
+        }).collect();
+        let old: BTreeMap<_, _> = entries.clone().into_iter().collect();
+        let new: ObjectFields = entries.into_iter().collect();
+        for (old, new) in [(Value::Row(old.clone().into()), Value::Row(new.clone())), (Value::Map(old.into()), Value::Map(new))] {
+            assert_eq!(codec::to_vec(&new).unwrap(), serde_json::to_vec(&old).unwrap());
+            assert_eq!(snapback4_core::value::digest(&new), snapback4_core::value::digest(&old));
+        }
+    }
+}
+
 fn differential<T: Serialize + DeserializeOwned + std::fmt::Debug>(text: &str) {
     decode::<T>(text);
     if let Ok(value) = serde_json::from_str::<T>(text) { encode(&value); }

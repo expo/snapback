@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-existence.js";
 // Protocol doubles: the core/CLI suite separately proves durable HTTP behavior.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -128,7 +129,7 @@ test("query and mutation preserve card receipts and use the delegated session", 
   const result = await invoke(async (_, ctx) => {
     assert.equal(ctx.principal, "member:alice");
     const read = await ctx.query(query("documents.at"), { revision: 3 });
-    assert.deepEqual(read, { data: { text: "hello" }, complete: false, cut: "meter", fresh: true, next: "cursor", meter: expectedMeter });
+    assert.deepEqual(read, readyRead({ data: { text: "hello" }, complete: false, cut: "meter", fresh: true, next: "cursor", meter: expectedMeter }));
     const saved = await ctx.mutate(mutation("summaries.save"), { text: "summary" }, { id: ctx.writeIdFor("save") });
     assert.equal(saved.replayed, true);
     assert.equal(Object.hasOwn(saved, "result"), false);

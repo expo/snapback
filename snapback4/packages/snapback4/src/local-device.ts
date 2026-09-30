@@ -7,6 +7,7 @@ import { admissionCapture } from "./admission.ts";
 import { deviceControl, type DeviceControlSnapshot } from "./device-control.ts";
 import { deviceRestore, type RestoreFence } from "./device-restore.ts";
 import { admissionOwnership, type AdmissionAuthorityContext } from "./admission-authority.ts";
+import type { Queued } from "./local-types.ts";
 
 // @ref LLP 3000.022#4 — supplementary manifests require a conditional host commit.
 export const deliveryCommit = Symbol.for("snapback4.deliveryCommit");
@@ -28,8 +29,8 @@ export interface DeviceCore {
   /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
   onClient?(client: LocalClient, url: string): void | (() => void);
   readonly media?: MediaStorage;
-  /** Web recovery reports committed admission time before later device calls. */
-  onOutbox?(listener: (issuedFloor?: number) => void): () => void;
+  /** Web recovery reports committed time and entries before later device calls. */
+  onOutbox?(listener: (issuedFloor: number | undefined, entries: readonly Queued[]) => void): () => void;
   /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   /** A host with fallible work after commit must synchronously expose the

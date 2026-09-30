@@ -56,9 +56,14 @@ and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
 SDK default: plain revalidation retains, change evidence bounds it; no cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
-Membership and receipt decorations withdraw immediately. Only denial or a current
-absent membership disables Send; unknown membership can queue a durable write
-for server authorization. Protected content needs a current answer. Account change clears UI
+Membership and receipt decorations withdraw immediately. No-horizon membership
+shares the messages' audience within the conversation's group; after acquisition,
+`absent` proves absence at the acquired watermark unless pending work blocks it.
+Queueing a durable write needs no membership answer: only `denied`, or
+`existence(member) === "absent"` when fresh and not revalidating, disables Send.
+A stale absent row offline still queues; the server authorizes or refuses at sync.
+`loading` and `partial` never disable Send. Protected content needs a current
+answer; retained rows grant no authority. Account change clears UI
 state through `AppProvider`. Delivery is reported by the SDK's
 `reports delivery` binding; only foreground visible settled messages report
 `seen`. Receipts appear on each bubble, using the same cursor as its history
@@ -95,8 +100,8 @@ current server hits with this device's retained hits after leave; offline it
 searches acquired holdings. The online tier has only current server access.
 Immutable `conversation` and `at` give `(at, id)` continuation; `usePage` accumulates
 by message ID. Refresh to see matches before the cursor. The screen shows “Partial
-results” only when the combined read has `complete: false`, including an
-empty incomplete answer. A complete page may still have more matches.
+results” only when `existence(page.read) === "partial"`; nonempty answers are present
+even with incomplete coverage. A complete page may still have more matches.
 Search order is time and the acquired history window is ordinal, so missing
 retained coverage can keep results incomplete. See `snapback4 guide search`
 for cuts and continuation limits.

@@ -814,7 +814,7 @@ impl<'a> Runner<'a> {
                 };
                 #[cfg(not(feature = "sqlite"))]
                 let value = {
-                    let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+                    let fields = crate::small_map::try_collect(values.iter().map(|(key, value)| -> Result<_, RuntimeError> { Ok((key.clone(), self.expr(value)?)) }))?;
                     Value::Row(fields.into())
                 };
                 self.meter.heap(expression_heap(&value))?;

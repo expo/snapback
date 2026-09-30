@@ -1,0 +1,11 @@
+bun install v1.3.14 (0d9b296a)
+
++ binaryen@132.0.0
++ expo-image-picker@57.0.20
++ expo-linking@57.0.11
++ expo-router@57.0.23
++ playwright-core@1.55.1
++ react-native-safe-area-context@5.7.0
++ react-native-screens@4.26.2
+
+578 packages installed [534.00ms]

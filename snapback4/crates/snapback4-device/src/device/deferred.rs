@@ -123,7 +123,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     for (name, id, effect) in rows(tx)? {
         inherited.insert((name, id), RecordedRow { present: effect.image.is_some(), changed: false, admission: effect.admission });
     }
-    let recording = Recording::new(tx, inherited, metadata(tx)?.into_iter().collect());
+    let recording = Recording::new(tx, inherited, snapback4_core::small_map::collect(metadata(tx)?));
     events_recording(&recording, schema, generation, page, &mut BTreeSet::new(), Some(&recording.rows), &mut delivery::Candidates::default())?;
     let mut row_delta = Vec::new();
     for ((name, id), row) in recording.rows.borrow().iter().filter(|(_, row)| row.changed) {

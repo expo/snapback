@@ -69,7 +69,7 @@
   },
   "client.ts": {
     "count": 58,
-    "sha256": "19e9771b98725bc911e4f8b121d7d84a7696e82cc4d4529257a94d158dfc0881"
+    "sha256": "01e4528cec6e3ca3deb6f6044b6697076776c5e0b88e8fa94d638dc44142e86d"
   },
   "clock.ts": {
     "count": 7,
@@ -163,6 +163,10 @@
     "count": 3,
     "sha256": "20bfb19c94cb1c29e283b0842c02267ba266c62b285449d61dfd5630da4d0f52"
   },
+  "local-following.ts": {
+    "count": 1,
+    "sha256": "c8a795b4cf3c5f622500bca28e008a254ab73ac03b924d8a0fbd3fd40a261946"
+  },
   "local-native.ts": {
     "count": 5,
     "sha256": "d3a4d7a52d5e1659b18148b60132ab3cad4234b68e9f748b78719f8299214815"
@@ -172,16 +176,16 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-query.ts": {
-    "count": 30,
-    "sha256": "d3a34b2521e361e75e03fe86a690ddd01bfc44a6f5d08827ba560ccb405c0060"
+    "count": 32,
+    "sha256": "6c980b8ab21b622c54acf5a4dd109527042100db08037eb2c796a9e9c31116fd"
   },
   "local-read-deadlines.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-reads.ts": {
-    "count": 0,
-    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    "count": 1,
+    "sha256": "de47abe7ed6ee282cbfc0c5213049dd0031f0b19322e9fe8ce3bf7dbf7b92a2c"
   },
   "local-receipts.ts": {
     "count": 19,
@@ -205,7 +209,7 @@
   },
   "local.ts": {
     "count": 164,
-    "sha256": "8f3aed24c6348a4777d895ec8fe4f2ae7117a5b272af92892d3fa322e7dc838c"
+    "sha256": "ab26ce2cace6ba688ab71aafaf5fe9b33b2b38827cf0656647289af4c8cb7504"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -256,6 +260,10 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "read-episode.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "read-existence.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
@@ -347,13 +355,21 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "web-drain.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "web-idb-buckets.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "web-idb-pages.ts": {
+    "count": 3,
+    "sha256": "e3b802d95b865fec2440760f59bf88802bfae0ada8f9cbbe6e065930fdb37fbe"
+  },
   "web-idb.ts": {
-    "count": 14,
-    "sha256": "c8121c14f42e600ce0451840d920fe1179c07664c980ea1811c76029589fd983"
+    "count": 16,
+    "sha256": "0a0da37553cc7a3cb65a6dcfb687d1155bc32381e38e74232b4346567b902e13"
   },
   "web-journal-execution.ts": {
     "count": 1,
@@ -401,7 +417,7 @@
   },
   "web.ts": {
     "count": 47,
-    "sha256": "22ee8531c1b3f8ec2c3c359155a8031e5aa2ac0d7c931be0f322c7736905ec9f"
+    "sha256": "61f0e0b6e126322c96432d50a848c9d7a45e11ca50bd4531276f94f38cd25dd8"
   },
   "worker-ledger.ts": {
     "count": 6,

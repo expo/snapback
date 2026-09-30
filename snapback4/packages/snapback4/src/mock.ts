@@ -1,3 +1,4 @@
+import { readyRead } from "./read-existence.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { mockSignals } from "./mock-ephemeral.ts";
 // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no
@@ -95,8 +96,8 @@ export function createMockClient(options: MockOptions): MockClient {
     if (link === "signed-out") return { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } };
     const value = fn(tables, args as never, viewer);
     const fresh = link === "online";
-    if (isPage(value)) return fresh ? { data: value.data as R, complete: true, cut: null, fresh, next: value.next } : { data: value.data as R, complete: true, cut: null, fresh, since: lastServer, next: value.next };
-    return fresh ? { data: value as R, complete: true, cut: null, fresh } : { data: value as R, complete: true, cut: null, fresh, since: lastServer };
+    if (isPage(value)) return fresh ? readyRead({ data: value.data as R, complete: true, cut: null, fresh, next: value.next }, queue.length > 0) : readyRead({ data: value.data as R, complete: true, cut: null, fresh, since: lastServer, next: value.next }, queue.length > 0);
+    return fresh ? readyRead({ data: value as R, complete: true, cut: null, fresh }, queue.length > 0) : readyRead({ data: value as R, complete: true, cut: null, fresh, since: lastServer }, queue.length > 0);
   };
 
   function settleOne(entry: (typeof queue)[number]) {

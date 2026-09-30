@@ -1,0 +1,2 @@
+WARNING: measuring a dirty source tree; sha identifies the base, not the measured artifact (dirty=true).
+attribute-wasm: Node 24 required; export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH

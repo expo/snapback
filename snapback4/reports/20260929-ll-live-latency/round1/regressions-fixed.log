@@ -1,0 +1,206 @@
+TAP version 13
+# Subtest: process: pending cut preserves transition before sync publication
+ok 1 - process: pending cut preserves transition before sync publication
+  ---
+  duration_ms: 4195.415905
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_STORE: terminal sync refusal
+# Subtest: process: pending cut preserves refusal before sync publication
+ok 2 - process: pending cut preserves refusal before sync publication
+  ---
+  duration_ms: 484.639828
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_STORE: terminal sync refusal
+# Subtest: process: pending cut preserves held-refusal before sync publication
+ok 3 - process: pending cut preserves held-refusal before sync publication
+  ---
+  duration_ms: 502.617951
+  type: 'test'
+  ...
+# Subtest: wasm: pending cut preserves transition before sync publication
+ok 4 - wasm: pending cut preserves transition before sync publication
+  ---
+  duration_ms: 3005.360141
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_STORE: terminal sync refusal
+# Subtest: wasm: pending cut preserves refusal before sync publication
+ok 5 - wasm: pending cut preserves refusal before sync publication
+  ---
+  duration_ms: 207.660873
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_STORE: terminal sync refusal
+# Subtest: wasm: pending cut preserves held-refusal before sync publication
+ok 6 - wasm: pending cut preserves held-refusal before sync publication
+  ---
+  duration_ms: 287.066394
+  type: 'test'
+  ...
+# Subtest: process: child-add keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 7 - process: child-add keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 667.65811
+  type: 'test'
+  ...
+# Subtest: process: child-replace keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 8 - process: child-replace keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 282.549725
+  type: 'test'
+  ...
+# Subtest: process: child-remove keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 9 - process: child-remove keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 715.50107
+  type: 'test'
+  ...
+# Subtest: process: parent keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 10 - process: parent keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 496.252742
+  type: 'test'
+  ...
+# Subtest: process: joined-profile keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 11 - process: joined-profile keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 505.789975
+  type: 'test'
+  ...
+# Subtest: process: authorization keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 12 - process: authorization keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 509.639004
+  type: 'test'
+  ...
+# Subtest: process: unknown-footprint keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 13 - process: unknown-footprint keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 489.276277
+  type: 'test'
+  ...
+# Subtest: process: child-add keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+ok 14 - process: child-add keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 500.660939
+  type: 'test'
+  ...
+# Subtest: process: unknown-footprint keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+ok 15 - process: unknown-footprint keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 500.940418
+  type: 'test'
+  ...
+# Subtest: process: child-add keep=false held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 16 - process: child-add keep=false held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 495.427135
+  type: 'test'
+  ...
+# Subtest: process: child-add keep=true held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 17 - process: child-add keep=true held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 503.219012
+  type: 'test'
+  ...
+# Subtest: process: child-add keep=undefined held=false expire=true drives mounted reads from change through apply without elapsed timers
+ok 18 - process: child-add keep=undefined held=false expire=true drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 500.963312
+  type: 'test'
+  ...
+# Subtest: process: child-add keep=true held=false expire=true drives mounted reads from change through apply without elapsed timers
+ok 19 - process: child-add keep=true held=false expire=true drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 503.442056
+  type: 'test'
+  ...
+# Subtest: wasm: child-add keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 20 - wasm: child-add keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 711.845822
+  type: 'test'
+  ...
+# Subtest: wasm: child-replace keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 21 - wasm: child-replace keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 407.316908
+  type: 'test'
+  ...
+# Subtest: wasm: child-remove keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 22 - wasm: child-remove keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 433.316272
+  type: 'test'
+  ...
+# Subtest: wasm: parent keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 23 - wasm: parent keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 653.106061
+  type: 'test'
+  ...
+# Subtest: wasm: joined-profile keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 24 - wasm: joined-profile keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 494.177722
+  type: 'test'
+  ...
+# Subtest: wasm: authorization keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 25 - wasm: authorization keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 511.95204
+  type: 'test'
+  ...
+# Subtest: wasm: unknown-footprint keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 26 - wasm: unknown-footprint keep=undefined held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 491.951597
+  type: 'test'
+  ...
+# Subtest: wasm: child-add keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+ok 27 - wasm: child-add keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 511.059964
+  type: 'test'
+  ...
+# Subtest: wasm: unknown-footprint keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+ok 28 - wasm: unknown-footprint keep=undefined held=true expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 416.394372
+  type: 'test'
+  ...
+# Subtest: wasm: child-add keep=false held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 29 - wasm: child-add keep=false held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 264.249999
+  type: 'test'
+  ...
+# Subtest: wasm: child-add keep=true held=false expire=false drives mounted reads from change through apply without elapsed timers
+ok 30 - wasm: child-add keep=true held=false expire=false drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 389.368069
+  type: 'test'
+  ...
+# Subtest: wasm: child-add keep=undefined held=false expire=true drives mounted reads from change through apply without elapsed timers
+ok 31 - wasm: child-add keep=undefined held=false expire=true drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 458.541375
+  type: 'test'
+  ...
+# Subtest: wasm: child-add keep=true held=false expire=true drives mounted reads from change through apply without elapsed timers
+ok 32 - wasm: child-add keep=true held=false expire=true drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 651.385823
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16679.690377

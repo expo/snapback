@@ -1291,7 +1291,7 @@ mod tests {
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
         assert_eq!(document.tables.iter().map(|table| table.name.as_str()).collect::<Vec<_>>(), ["profiles", "conversations", "memberships", "messages", "readMarkers"]);
         assert_eq!(document.maintains.len(), 1);
-        assert_eq!(document.programs.iter().map(|program| program.name.as_str()).collect::<Vec<_>>(), ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "room", "markRead"]);
+        assert_eq!(document.programs.iter().map(|program| program.name.as_str()).collect::<Vec<_>>(), ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "myMembership", "room", "markRead"]);
         let messages = &document.tables[3];
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();

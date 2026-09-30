@@ -5,6 +5,7 @@
     "": {
       "name": "snapback4-workspace",
       "devDependencies": {
+        "binaryen": "132.0.0",
         "expo-image-picker": "~57.0.17",
         "expo-linking": "~57.0.10",
         "expo-router": "~57.0.21",
@@ -50,7 +51,7 @@
     },
     "packages/snapback4": {
       "name": "snapback4",
-      "version": "0.4.8",
+      "version": "0.4.9",
       "bin": {
         "snapback4": "bin/snapback4.js",
       },
@@ -66,8 +67,8 @@
         "typescript": "5.9.3",
       },
       "optionalDependencies": {
-        "snapback4-darwin-arm64": "0.4.8",
-        "snapback4-linux-x64": "0.4.8",
+        "snapback4-darwin-arm64": "0.4.9",
+        "snapback4-linux-x64": "0.4.9",
       },
       "peerDependencies": {
         "react": "^19.0.0",
@@ -78,11 +79,11 @@
     },
     "packages/snapback4-darwin-arm64": {
       "name": "snapback4-darwin-arm64",
-      "version": "0.4.8",
+      "version": "0.4.9",
     },
     "packages/snapback4-expo": {
       "name": "snapback4-expo",
-      "version": "0.4.8",
+      "version": "0.4.9",
       "devDependencies": {
         "expo-modules-core": "*",
         "typescript": "5.9.3",
@@ -94,7 +95,7 @@
     },
     "packages/snapback4-linux-x64": {
       "name": "snapback4-linux-x64",
-      "version": "0.4.8",
+      "version": "0.4.9",
     },
   },
   "packages": {
@@ -515,6 +516,8 @@
     "baseline-browser-mapping": ["baseline-browser-mapping@2.11.22", "", { "bin": { "baseline-browser-mapping": "dist/cli.cjs" } }, "sha512-pWc4w51fBFd7mav43/zKRC+RI6f4yfzQoVlfvE8dECePyfkn1bzLp01Fj0QACcyCZyFhiEMyD2qScfKRWgWibA=="],
 
     "big-integer": ["big-integer@1.6.52", "", {}, "sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg=="],
+
+    "binaryen": ["binaryen@132.0.0", "", { "bin": { "wasm-as": "bin/wasm-as", "wasm2js": "bin/wasm2js", "wasm-dis": "bin/wasm-dis", "wasm-opt": "bin/wasm-opt", "wasm-merge": "bin/wasm-merge", "wasm-shell": "bin/wasm-shell", "wasm-reduce": "bin/wasm-reduce", "wasm-metadce": "bin/wasm-metadce", "wasm-ctor-eval": "bin/wasm-ctor-eval" } }, "sha512-4Usg7yEvwO3FMso3Oov6qkOOHSod1IEv+boKkh77kTljM+eNBouqCTbqWswGzbG+vDNO/b/v2C4gfEh1WgB9Lg=="],
 
     "bplist-creator": ["bplist-creator@0.1.0", "", { "dependencies": { "stream-buffers": "2.2.x" } }, "sha512-sXaHZicyEEmY86WyueLTQesbeoH/mquvarJaQNbjuOQO+7gbFcDEWqKmcWA4cOTLzFlfgvkiVxolk1k5bBIpmg=="],
 

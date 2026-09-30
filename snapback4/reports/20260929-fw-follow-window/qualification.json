@@ -1,0 +1,24 @@
+{
+  "base": "6a2eaebf414599670d84d01c9302f5dc051ddb30",
+  "source": {
+    "snapback4/packages/snapback4/src/backend.ts": "c817280808022d101098668fca63939266c134e42ff0e5271d3001011e717d08",
+    "snapback4/packages/snapback4/src/local-following.ts": "5e3c195fbd0049508bbeb5875e89844c72f0530758b1cebcc04c29f95250dec9",
+    "snapback4/packages/snapback4/src/local-query.ts": "6709647db2f00a166f5d046b368c4bac61146119ec2c2f3d9957eba3552408d8",
+    "snapback4/packages/snapback4/src/local.ts": "92326a461e2d60cefa98de120b33b57456a04215f20f1f2b01b86ff0f90903a2",
+    "snapback4/crates/snapback4-lang/src/guide/feeds.md": "a6c20358689816210bf786072499a8b5678ad518ef644a5ae1cce3d1934f88ac",
+    "snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs": "c3689c68866d39b9c94f20caad10e6967fe01873bc9c4d61779a78e07c34359c",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "a89f277940df256ef8d6f6c27329392f53706bf6af8b40977929feef782ff5bf",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "b9c1a9367cbc5cbded82fb9208858a5b3e9233c681208183569c1aee5a9396b0",
+    "snapback4/reports/20260929-fw-follow-window/tools/measure.mjs": "066542b92dd29bcc2be00b08b01437ea3d57bda6a51b055372dadd5394f48a89"
+  },
+  "wasm": {
+    "raw": 1978828,
+    "gzip": 593295,
+    "budget": 593719,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae"
+  },
+  "measurement_server_sha256": "34174f8d4b3843ee963a0d65a97fb26c7b51206553155e55ceb628f6b982872f",
+  "process_measurement_device_sha256": "6235a8da94147e515027e702fb0ae10c861de5263df13988b768c17151dbab4a",
+  "baseline_process_sdk_local_sha256": "82d9d07f4bba46e8782b465341e8e17053650a9ac22e4bf5830f4f4a2e82d786",
+  "process_measurement_server_sha256": "34174f8d4b3843ee963a0d65a97fb26c7b51206553155e55ceb628f6b982872f"
+}

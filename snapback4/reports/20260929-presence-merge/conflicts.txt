@@ -1,0 +1,16 @@
+snapback4/JOURNAL.md
+snapback4/crates/snapback4-lang/src/guide/client.md
+snapback4/crates/snapback4/src/dev_refusal_response.rs
+snapback4/crates/snapback4/src/dev_refusals.rs
+snapback4/crates/snapback4/src/main.rs
+snapback4/crates/snapback4/src/serve.rs
+snapback4/crates/snapback4/src/verbs.rs
+snapback4/crates/snapback4/tests/dev_refusals.rs
+snapback4/crates/snapback4/tests/dev_refusals/round3.rs
+snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
+snapback4/packages/snapback4/src/contract.ts
+snapback4/packages/snapback4/src/local-query.ts
+snapback4/packages/snapback4/src/read-approval.ts
+snapback4/packages/snapback4/src/read-observation.ts
+snapback4/packages/snapback4/test/delivery-await-boundary.json
+snapback4/packages/snapback4/test/readme-examples.test.mjs

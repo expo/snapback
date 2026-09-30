@@ -89,6 +89,33 @@ mod tests {
         assert_eq!(lines[1], "SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread=\"worker\" reason=\"shutdown\"", "{text}");
     }
     #[test]
+    fn counted_line_stays_intact_between_uncoordinated_writes() {
+        // Lifecycle diagnostics bypass Rust's stderr lock. Model another
+        // complete diagnostic arriving after every underlying writer call.
+        struct Interleaved(Vec<u8>);
+        impl Write for Interleaved {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.extend_from_slice(bytes);
+                self.0.extend_from_slice(b"SNAPBACK4_THREAD_EXIT reason=shutdown\n");
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        let mut console = Console::default();
+        let mut out = Interleaved(Vec::new());
+        let now = Instant::now();
+        let identity = json!({"instance":"test"});
+        let record = json!({"operation":"add","code":"E_RULE","clause":"insert rule"});
+        for _ in 0..8 { console.push_at(record.clone(), now, &identity, &mut out); }
+        console.flush_all(&identity, &mut out);
+        let text = String::from_utf8(out.0).unwrap();
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "{text}");
+        assert!(lines[0].starts_with("dev refusal: add:"), "{text}");
+        assert!(lines[0].contains("code \"E_RULE\"; count 8; window 1s;"), "{text}");
+        assert_eq!(lines[1], "SNAPBACK4_THREAD_EXIT reason=shutdown");
+    }
+    #[test]
     fn counts_repeats_without_sliding_and_separates_causes() {
         let mut console = Console::default();
         let mut out = Vec::new();

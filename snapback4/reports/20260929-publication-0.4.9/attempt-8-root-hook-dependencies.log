@@ -1,0 +1,7 @@
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [3]
+
+$ node scripts/require-bun-package-manager.mjs
+
+Checked 549 installs across 625 packages (no changes) [231.00ms]

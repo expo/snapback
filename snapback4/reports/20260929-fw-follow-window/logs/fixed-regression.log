@@ -1,0 +1,12 @@
+✔ wasm keep=undefined: own follow/unfollow stay honest across admission, settlement and apply (719.985214ms)
+✔ wasm keep=false: own follow/unfollow stay honest across admission, settlement and apply (188.972955ms)
+✔ process keep=undefined: own follow/unfollow stay honest across admission, settlement and apply (1485.684516ms)
+✔ process keep=false: own follow/unfollow stay honest across admission, settlement and apply (1511.331471ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4059.389981

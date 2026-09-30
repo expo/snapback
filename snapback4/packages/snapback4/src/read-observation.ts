@@ -1,3 +1,4 @@
+import { pendingRead, readyRead, readyExistence } from "./read-existence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
@@ -5,7 +6,7 @@ import { beginEpisode, copyEpisode, episodeDeadline, ReadEpisode } from "./read-
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
-const owners = new WeakMap<Read<unknown>, ReadObservation<unknown>>();
+const owners = new WeakMap<Read<unknown>, ReadObservation<any>>();
 export function answerIdentity(read: Read<unknown>): object { return identities.get(read) ?? read; }
 export function answerObservation(read: Read<unknown>): ReadObservation<unknown> | undefined { return owners.get(read); }
 
@@ -17,16 +18,30 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
   return to;
 }
 
-export function offlineAnswer<T>(read: Read<T>, confirmedAt?: number): Read<T> {
-  if (!("data" in read) || (!read.fresh && read.since !== undefined)) return read;
-  return copyAnswer(read, { ...read, fresh: false, since: read.since ?? confirmedAt ?? Date.now() });
+/** Reclassify a copy without renewing its answer identity or retention episode. */
+export function answerExistence<T>(read: Read<T>, pending: boolean): Read<T> {
+  if (!("data" in read)) return read;
+  const next = readyExistence(read, pending);
+  // Empty page chains notify pending changes even while a cursor keeps them partial.
+  return read.existence !== next || next !== "present" && pendingRead(read) !== pending
+    ? copyAnswer<T>(read, readyRead<T>(read, pending)) : read;
 }
 
-// @ref LLP 3000.023#3.3 — revalidation preserves freshness, since and answer identity.
-export function revalidatingAnswer<T>(read: Read<T>, bounded = false): Read<T> {
+export function offlineAnswer<T>(read: Read<T>, confirmedAt?: number): Read<T> {
+  if (!("data" in read) || (!read.fresh && read.since !== undefined)) return read;
+  return copyAnswer<T>(read, readyRead<T>({ ...read, fresh: false, since: read.since ?? confirmedAt ?? Date.now() }, pendingRead(read)));
+}
+
+// @ref LLP 3000.023#10 — change evidence can bound an already plain revalidation.
+// @ref LLP 3000.031#1.1 — pending changes reclassify the held answer, preserving its identity.
+export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: boolean): Read<T> {
   if (!("data" in read)) return read;
-  if (read.revalidating) { beginEpisode(read, read, bounded); return read; }
-  const copy = copyAnswer(read, { ...read, revalidating: true });
+  const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
+  const next = readyExistence(read, blocked);
+  if (read.revalidating && read.existence === next && (next === "present" || pendingRead(read) === blocked)) {
+    beginEpisode(read, read, bounded); return read;
+  }
+  const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
   beginEpisode(read, copy, bounded);
   return copy;
 }
@@ -39,6 +54,17 @@ export class ReadObservation<T> {
     this.retain = keep !== false; this.linger = keep === true;
     // Opening facades can share notification ownership before the first answer.
     owners.set(this.snapshot, this);
+  }
+  /** Local observations supply the current queue predicate, including admissions. */
+  pending: (() => boolean) | undefined;
+  updateExistence(): boolean {
+    const read = this.snapshot;
+    if (!("data" in read) || !this.pending) return false;
+    const next = answerExistence<T>(read, this.pending());
+    if (read === next) return false;
+    this.snapshot = next;
+    this.deliver("answer")();
+    return true;
   }
   onWithdrawal: () => void = () => {};
   private readonly episode = new ReadEpisode(() => {
@@ -72,6 +98,7 @@ export class ReadObservation<T> {
     if (denied) return this.snapshot;
     checkReadExpiry(this);
     this.episode.check();
+    this.updateExistence();
     return this.snapshot;
   }
 
@@ -124,7 +151,7 @@ export class ReadObservation<T> {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, !queued && this.changePending);
+    this.snapshot = revalidatingAnswer(this.snapshot, !queued && this.changePending, this.pending?.());
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();
@@ -157,14 +184,17 @@ export class ReadObservation<T> {
     this.revision++;
     this.changePending = false;
     this.episode.clear();
-    if ("data" in read && read.since !== undefined) read = { ...read, since: Math.min(read.since, Date.now()) };
-    this.snapshot = { ...read };
+    // Every replacement classifies its own value and facts, never the previous answer.
+    // @ref LLP 3000.031#1.1 — existence is recomputed on each published answer.
+    this.snapshot = "data" in read ? readyRead<T>({ ...read,
+      ...(read.since !== undefined ? { since: Math.min(read.since, Date.now()) } : {}),
+    }, this.pending?.() ?? pendingRead(read)) : { ...read };
     this.transportOffline = this.transportOffline && "data" in read && !read.fresh;
     identities.set(this.snapshot, {});
     owners.set(this.snapshot, this);
     this.kept = false;
     // Freshness age uses wall time even when row deadlines use issued device time.
-    this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
+    this.since = "data" in this.snapshot ? this.snapshot.since ?? (this.snapshot.fresh ? Date.now() : undefined) : undefined;
     const deliver = this.deliver(change);
     if (!deferred) deliver();
     return deliver;

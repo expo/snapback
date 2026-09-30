@@ -1,4 +1,5 @@
-import type { Query } from "./contract.ts";
+import type { Queued } from "./local-types.ts";
+import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
@@ -20,6 +21,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
+  setExistenceTables(tables: Set<string> | null): void;
   /** Re-runs a watch whose server answer read presence (LLP 3000.018), every
    * `presenceEvery` ms from then on. */
   presenceRefresh: ReturnType<typeof setTimeout> | null;
@@ -34,6 +36,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
+  /** Resume at sync publication even when its final footprint is disjoint. */
+  waitingForSync?: boolean;
   answerRevision?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
@@ -150,9 +154,36 @@ export class RememberedAnswers {
   }
 }
 
+export function queuedPredictions(entries: readonly Queued[]): readonly string[] | null {
+  const predicted = entries.filter(e => e.observed_seq == null && e.predictable === true);
+  return predicted.some(e => !e.predicted) ? null : [...new Set(predicted.flatMap(e => [...predictedTables(e.predicted!)]))];
+}
+
 /** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
+  predictions: readonly string[] | null = null;
+  admissions = 0;
+  // @ref LLP 3000.031#1.1 — one-shot and observed reads share the admission fence.
+  admitting(watches: () => Iterable<LocalWatch>): () => void {
+    const notify = () => { for (const watch of watches()) if (watch.updateExistence()) notifyLocalWatch(watch); };
+    this.admissions++; notify();
+    return () => { this.admissions--; notify(); };
+  }
+  pending(tables: Set<string> | null, predictions = this.predictions): boolean {
+    return this.admissions > 0 || pendingTables(predictions, tables);
+  }
+  async readQueued(run: () => Promise<Queued[]>, watches: Iterable<LocalWatch>): Promise<Queued[]> {
+    const revision = this.revision, entries = await run();
+    if (revision === this.revision) {
+      this.queued(entries);
+      for (const watch of watches) if (watch.updateExistence()) notifyLocalWatch(watch);
+    }
+    return entries;
+  }
+  queued(entries: readonly Queued[]): void {
+    this.predictions = queuedPredictions(entries);
+  }
   readonly serverAnswers = new RememberedAnswers();
 
   // @ref LLP 3000.023#10 — change evidence retires recovery memory and
@@ -163,11 +194,31 @@ export class LocalReads {
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
   }
 
+  // @ref LLP 3000.023#10 — only held queries forbid every future server fallback.
+  // Previous routing cannot prove the next branch or coverage. Terminal
+  // refusals must reach runLocal's checkpoint even after a watch has parked.
+  deferUntilSync(watch: LocalWatch, acquired: boolean, backend: BackendJson, denied: Refusal | null): boolean {
+    if (watch.kept) watch.reload();
+    const program = backend.programs.find(program => program.name === watch.op.name);
+    const held = backend.schema.operations?.[watch.op.name]?.held ?? program?.held ?? watch.op.held ?? false;
+    if (!denied && acquired && watch.changeCut !== undefined) {
+      watch.waitingForSync = true;
+      return held;
+    }
+    delete watch.waitingForSync;
+    return false;
+  }
+
   // @ref LLP 3000.023#10 — an old replica cannot discharge reported change
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
-  applied(watches: Iterable<LocalWatch>, watermark: number): void {
-    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) delete watch.changeCut;
+  applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+    const ready: LocalWatch[] = [];
+    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) {
+      delete watch.changeCut;
+      if (watch.waitingForSync) { delete watch.waitingForSync; ready.push(watch); }
+    }
+    return ready;
   }
 
   current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; serverOnly?: boolean; seq?: number | undefined }): boolean {
@@ -189,9 +240,10 @@ export class LocalReads {
 
   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[]): void {
     this.revision++;
+    this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) delete watch.changeCut;
+      if (reset) { delete watch.changeCut; delete watch.waitingForSync; }
       if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
@@ -204,4 +256,17 @@ export class LocalReads {
       watch.presenceEvery = undefined;
     }
   }
+}
+
+// @ref LLP 3000.031#1.1 — an unknown footprint blocks even a read of no tables.
+export function pendingTables(predictions: readonly string[] | null, tables: Set<string> | null): boolean {
+  return predictions === null || predictions.some(table => tables === null || tables.has(table));
+}
+
+export function localWatch(keep: boolean | undefined, op: Query<unknown, unknown>, args: unknown, key: string, incarnation: number,
+  pending: (tables: Set<string> | null) => boolean): LocalWatch {
+  const watch: LocalWatch = Object.assign(new ReadObservation<unknown>(keep), { op, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation,
+    setExistenceTables(tables: Set<string> | null) { watch.pending = () => pending(tables); } });
+  watch.setExistenceTables(null);
+  return watch;
 }

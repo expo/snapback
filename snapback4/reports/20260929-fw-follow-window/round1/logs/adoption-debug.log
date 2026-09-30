@@ -1,0 +1,34 @@
+open false
+opened
+open false
+opened
+follow offline
+follow close donor
+browser deadlock guard
+✖ Chromium worker=false: mounted Following tracks adopted follow and unfollow custody (40300.37954ms)
+open true
+opened
+open true
+opened
+follow offline
+follow close donor
+✖ reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs (73284.892355ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73288.774485
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:37
+✖ Chromium worker=false: mounted Following tracks adopted follow and unfollow custody (40300.37954ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:42:18)
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:1:1
+✖ reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs (73284.892355ms)
+  'Promise resolution is still pending but the event loop has already resolved'

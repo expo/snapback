@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 const sdk = process.env.RL_ORACLE_SDK ? pathToFileURL(resolve(process.env.RL_ORACLE_SDK) + '/') : new URL('../dist/', import.meta.url);
+const { readyRead } = await import(new URL('read-existence.js', sdk));
 const { createLocalClient } = await import(new URL('local.js', sdk));
 const { answerObservation } = await import(new URL('read-observation.js', sdk));
 import { fixture, opener, q, parked, until, source } from './helpers/answers-stay.mjs';
@@ -17,7 +18,8 @@ import { generationSchedule } from './helpers/generation-evidence-schedule.mjs';
 const turn = () => new Promise(resolve => setImmediate(resolve));
 const seeds = Number(process.env.RL_SEEDS ?? 300);
 test('reference rejects transient empty member answers and sign-out loading', () => {
-  const model = new MixedModel(), empty = { data: null, complete: true, fresh: true, cut: null };
+  const model = new MixedModel(), empty = readyRead({ data: null, complete: true, fresh: true, cut: null });
+  assert.equal(empty.existence, 'absent');
   assert.throws(() => model.observe(empty, 1000), /empty answer/);
   assert.throws(() => model.check(empty), /empty direct answer/);
   model.apply(2, 1000); model.observe(empty, 1000);
@@ -27,8 +29,8 @@ test('reference rejects transient empty member answers and sign-out loading', ()
   assert.throws(() => model.observe({ loading: true }, 1000), /sign-out must publish/);
   model.observe({ denied: { code: 'E_AUTH' } }, 1000);
   const generation = new GenerationModel();
-  generation.observe({ data: { body: 'image-5' } }); generation.notify();
-  assert.throws(() => generation.observe({ data: { body: 'image-5' }, revalidating: true }), /retired program/);
+  generation.observe(readyRead({ data: { body: 'image-5' }, complete: true, fresh: true, cut: null })); generation.notify();
+  assert.throws(() => generation.observe(readyRead({ data: { body: 'image-5' }, revalidating: true, complete: true, fresh: true, cut: null })), /retired program/);
   generation.observe({ loading: true }); generation.observe({ denied: { code: 'APP_DENIED' } });
 });
 // @ref LLP 3000#publication-suite-under-contention — aggregate guards count hosted work.

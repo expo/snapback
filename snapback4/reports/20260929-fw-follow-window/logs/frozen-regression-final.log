@@ -1,0 +1,136 @@
+wasm undefined undefined follow call
+wasm undefined undefined follow admitted
+wasm undefined undefined follow settled
+wasm undefined undefined follow applied
+wasm undefined undefined follow published
+wasm undefined undefined follow call
+wasm undefined undefined follow admitted
+wasm undefined undefined follow settled
+wasm undefined undefined follow applied
+wasm undefined undefined follow published
+wasm undefined undefined unfollow call
+wasm undefined undefined unfollow admitted
+wasm undefined undefined unfollow settled
+wasm undefined undefined unfollow applied
+wasm undefined undefined unfollow published
+✔ wasm keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (702.131716ms)
+wasm undefined 0 follow call
+wasm undefined 0 follow admitted
+wasm undefined 0 follow settled
+wasm undefined 0 follow applied
+wasm undefined 0 follow published
+wasm undefined 0 follow call
+wasm undefined 0 follow admitted
+wasm undefined 0 follow settled
+wasm undefined 0 follow applied
+wasm undefined 0 follow published
+wasm undefined 0 unfollow call
+wasm undefined 0 unfollow admitted
+wasm undefined 0 unfollow settled
+wasm undefined 0 unfollow applied
+wasm undefined 0 unfollow published
+✔ wasm keep=undefined wait=0: own follow/unfollow stay honest across admission, settlement and apply (300.952075ms)
+wasm false undefined follow call
+wasm false undefined follow admitted
+wasm false undefined follow settled
+wasm false undefined follow applied
+wasm false undefined follow published
+wasm false undefined follow call
+wasm false undefined follow admitted
+wasm false undefined follow settled
+wasm false undefined follow applied
+wasm false undefined follow published
+wasm false undefined unfollow call
+wasm false undefined unfollow admitted
+wasm false undefined unfollow settled
+wasm false undefined unfollow applied
+wasm false undefined unfollow published
+✔ wasm keep=false wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (315.727434ms)
+wasm false 0 follow call
+wasm false 0 follow admitted
+wasm false 0 follow settled
+wasm false 0 follow applied
+wasm false 0 follow published
+wasm false 0 follow call
+wasm false 0 follow admitted
+wasm false 0 follow settled
+wasm false 0 follow applied
+wasm false 0 follow published
+wasm false 0 unfollow call
+wasm false 0 unfollow admitted
+wasm false 0 unfollow settled
+wasm false 0 unfollow applied
+wasm false 0 unfollow published
+✔ wasm keep=false wait=0: own follow/unfollow stay honest across admission, settlement and apply (365.333736ms)
+process undefined undefined follow call
+process undefined undefined follow admitted
+process undefined undefined follow settled
+process undefined undefined follow applied
+process undefined undefined follow published
+process undefined undefined follow call
+process undefined undefined follow admitted
+process undefined undefined follow settled
+process undefined undefined follow applied
+process undefined undefined follow published
+process undefined undefined unfollow call
+process undefined undefined unfollow admitted
+process undefined undefined unfollow settled
+process undefined undefined unfollow applied
+process undefined undefined unfollow published
+✔ process keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (1501.764567ms)
+process undefined 0 follow call
+process undefined 0 follow admitted
+process undefined 0 follow settled
+process undefined 0 follow applied
+process undefined 0 follow published
+process undefined 0 follow call
+process undefined 0 follow admitted
+process undefined 0 follow settled
+process undefined 0 follow applied
+process undefined 0 follow published
+process undefined 0 unfollow call
+process undefined 0 unfollow admitted
+process undefined 0 unfollow settled
+process undefined 0 unfollow applied
+process undefined 0 unfollow published
+✔ process keep=undefined wait=0: own follow/unfollow stay honest across admission, settlement and apply (1548.022139ms)
+process false undefined follow call
+process false undefined follow admitted
+process false undefined follow settled
+process false undefined follow applied
+process false undefined follow published
+process false undefined follow call
+process false undefined follow admitted
+process false undefined follow settled
+process false undefined follow applied
+process false undefined follow published
+process false undefined unfollow call
+process false undefined unfollow admitted
+process false undefined unfollow settled
+process false undefined unfollow applied
+process false undefined unfollow published
+✔ process keep=false wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (1487.180426ms)
+process false 0 follow call
+process false 0 follow admitted
+process false 0 follow settled
+process false 0 follow applied
+process false 0 follow published
+process false 0 follow call
+process false 0 follow admitted
+process false 0 follow settled
+process false 0 follow applied
+process false 0 follow published
+process false 0 unfollow call
+process false 0 unfollow admitted
+process false 0 unfollow settled
+process false 0 unfollow applied
+process false 0 unfollow published
+✔ process keep=false wait=0: own follow/unfollow stay honest across admission, settlement and apply (1522.978498ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36696.280805

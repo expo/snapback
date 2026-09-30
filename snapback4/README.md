@@ -63,6 +63,30 @@ the current bearer token. Viewer-authorized asset responses use
 `Cache-Control: private, no-store`; a valid range beyond the file answers
 416 with `Content-Range: bytes */N`, and view-once assets refuse every Range.
 
+## Building the web device
+
+From `snapback4/`, run `bun install --frozen-lockfile` before
+`bash scripts/build-wasm.sh`. The workspace pins **binaryen 132.0.0** in
+`package.json` and `bun.lock`; the build invokes its portable Node executable
+at `node_modules/binaryen/bin/wasm-opt`. Node 24, Rust from
+`rust-toolchain.toml` and wasm-bindgen 0.2.127 complete the measured toolchain.
+The optimizer is required on Linux and macOS, including publication Macs.
+A missing or mismatched installation refuses with the install command above;
+optimizer failures refuse the build. A system `wasm-opt` is never consulted.
+
+This removes the host-dependent optional optimization that left the merged HV/WD
+device 3,099 B above the unchanged 593,719 B gzip budget on publication Macs.
+The pinned pass yields 593,295 B on Linux and 593,652 B on macOS; the Linux
+raw Rust/wasm-bindgen output is 596,818 B gzip. The optimizer gives identical
+output for identical input across hosts, while upstream Rust builds still have
+an open [reproducibility issue](../issues/20260929-snapback4-device-wasm-not-reproducible-across-hosts.md).
+Both `build-wasm.sh` and `measure-wasm.sh` use the same optimizer and passes,
+keeping a pass only when its gzip is smaller. Measurement includes the workspace
+manifest and lockfile in its dirty-source check. Binaryen is a development-only
+dependency (about 108.54 MB installed), with no addition to the client package or
+runtime. See [HV round 4](reports/20260929-hv-heavy-acquisition/round4/REPORT.md)
+for clean-install costs, artifact hashes and reproducibility checks.
+
 ## Publishing
 
 From `snapback4/`, `node scripts/publish.mjs` runs the blocking suite before

@@ -1,0 +1,2 @@
+7bd5b13fcdbd8a496f6f2710fb252c588ee51eed32626d040a7e0e114ff548a9  packages/snapback4/src/wasm/snapback4_device_bg.wasm
+Byte-identical after full-suite build at 6812b3b5e4dd7aa94f14cb220c114f05c8e8b716.

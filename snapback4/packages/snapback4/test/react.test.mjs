@@ -122,7 +122,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
               return { client, auth: { getSnapshot: () => snapshot, onChange: () => () => {} }, close: () => client.close() };
             }
           `;
-          if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, markRead: { kind: "mutation", name: "markRead" }, room: { kind: "query", name: "room" }, thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" } };';
+          if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, markRead: { kind: "mutation", name: "markRead" }, room: { kind: "query", name: "room" }, myMembership: { kind: "query", name: "myMembership" }, thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" } };';
           if (id === "\0home-views") return "export const Inbox = () => null; export const Thread = () => null;";
           if (id === "\0witness-launch") return "export const witness = () => null;";
           if (id === "\0witness") return "export const runWitness = () => Promise.resolve();";

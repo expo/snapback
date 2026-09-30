@@ -1,0 +1,34 @@
+[
+  {
+    "name": "merged-round0",
+    "path": "target/wd/round1/merged-round0/snapback4_device_bg.wasm",
+    "rawBytes": 1957172,
+    "gzipBytes": 583326,
+    "sha256": "d38930a1cb2affca651a48554e0cb5b6b63ee28cf73dbe89d465f8c0b22e3dfc",
+    "webAssemblyValidate": true
+  },
+  {
+    "name": "merged-round0-binaryen",
+    "path": "target/wd/round1/merged-round0-binaryen/snapback4_device_bg.wasm",
+    "rawBytes": 1931181,
+    "gzipBytes": 580261,
+    "sha256": "5164c625441d3fea40414654de208e3c7a1a6df9d7155110b34ee90435017496",
+    "webAssemblyValidate": true
+  },
+  {
+    "name": "fixed-no-binaryen",
+    "path": "target/wd/round1/fixed-no-binaryen/snapback4_device_bg.wasm",
+    "rawBytes": 1980279,
+    "gzipBytes": 584341,
+    "sha256": "6673009dd7ea52393795ebe259704f367eebea5a9cbc30a2650a36d19cbb499c",
+    "webAssemblyValidate": true
+  },
+  {
+    "name": "fixed-binaryen",
+    "path": "target/wd/round1/fixed-binaryen/snapback4_device_bg.wasm",
+    "rawBytes": 1954344,
+    "gzipBytes": 581808,
+    "sha256": "bfb03efc431872b7c06ac9db1c23858f4e1ebe6c33366b55b9f3b609b96ec926",
+    "webAssemblyValidate": true
+  }
+]

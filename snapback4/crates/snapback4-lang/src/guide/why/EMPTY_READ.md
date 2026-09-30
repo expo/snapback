@@ -1,7 +1,7 @@
 # Empty answers — EMPTY_READ
 
-EMPTY_READ is optional local evidence that a query returned null, an empty
-array, or a composed answer containing either, without an instrumented cause.
+EMPTY_READ is optional local evidence that a query returned a top-level null or empty
+array. A composed answer containing either is not empty.
 It does not prove denial: no one typing, no reactions yet, or a profile not
 created are ordinary answers. It is not a caller refusal. Default `dev` neither
 prints nor records these answers. `snapback4 dev --trace-empty` records them
@@ -9,6 +9,10 @@ only in `snapback4 why recent`, with operation, request and time; it still
 prints no empty-result notices. Visibility filtering with an evaluated read
 rule remains outside this stream. An application's explicit `require … else
 EMPTY_READ` is a real refusal and is still logged.
+
+`cause: no-candidate` means the key or prefix matched no stored row for this
+viewer at this generation; it is not proof about another viewer or a device.
+`unrecorded` means neither a probe miss nor a rule cause was recorded.
 
 To investigate one read, run these from the backend project, replacing
 OPERATION, TABLE and DIR with your query, table and fixture directory:

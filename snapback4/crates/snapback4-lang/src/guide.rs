@@ -69,6 +69,8 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("react", "client"), ("hooks", "client"), ("expo", "client"), ("ios", "client"), ("react native", "client"),
     ("dm", "social"), ("direct message", "social"), ("chat", "social"),
     ("composer", "client"), ("unread", "client"),
+    ("existence", "client"), ("what does a missing row mean", "client"),
+    ("loading or absent", "client"), ("unknown membership offline", "offline-interactions"),
     ("typing", "ephemeral"),
     ("clock", "jobs"), ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),

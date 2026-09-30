@@ -1,9 +1,9 @@
 # complete battery red: exact-graffiti-contract
 
 **Status:** Open
-**Reopened by battery run:** `local.20260929T091155Z.f56e8048aa9f`
+**Reopened by battery run:** `local.20260930T133254Z.763535814fd9`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `b8400c29128e21b6367ba8d420296bedf108dff5`
+**Closed at revision:** `fc8deceab43cacacd6355534001045aa003bb806`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `exact-graffiti-contract`
 **Failure signature:** `sha256:7f025602c44cd5ef01b471efbd37d5ca070b3640c91b0077295fd22e81e19c45`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260929T091155Z.f56e8048aa9f`
-**Last processed run:** `local.20260929T091155Z.f56e8048aa9f`
+**Last observed run:** `local.20260930T133254Z.763535814fd9`
+**Last processed run:** `local.20260930T133254Z.763535814fd9`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `f56e8048aa9f1c9dc50f29991bd3c96be79044dc`
+**Last observed revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

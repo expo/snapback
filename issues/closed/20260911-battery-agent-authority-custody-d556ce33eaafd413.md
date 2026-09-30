@@ -1,9 +1,9 @@
 # complete battery red: agent-authority-custody
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260924T233800Z.4619cf3fc2e4`
+**Reopened by battery run:** `local.20260930T043534Z.fc8deceab43c`
 **Closure:** `determinate PASS`
-**Closed at revision:** `da526005226e44c135b46f5f962ff76fefc83720`
+**Closed at revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `agent-authority-custody`
 **Failure signature:** `sha256:d556ce33eaafd413177cae349c86f28bcae21e207c411a9edff9be9b033464ee`
 **First observed run:** `local.20260911T062045Z.15c134d056d0`
-**Last observed run:** `local.20260924T233800Z.4619cf3fc2e4`
-**Last processed run:** `local.20260925T100530Z.da526005226e`
+**Last observed run:** `local.20260930T043534Z.fc8deceab43c`
+**Last processed run:** `local.20260930T133254Z.763535814fd9`
 **Detected at revision:** `15c134d056d084448d7db766b03df5b47db9a40c`
-**Last observed revision:** `4619cf3fc2e4ca05247e9c0efd55a08ed4e9f335`
+**Last observed revision:** `fc8deceab43cacacd6355534001045aa003bb806`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

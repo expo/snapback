@@ -1,0 +1,46 @@
+✔ process: child-add drives mounted reads from change through apply without elapsed timers (320.760536ms)
+✔ process: child-replace drives mounted reads from change through apply without elapsed timers (280.705626ms)
+✔ process: child-remove drives mounted reads from change through apply without elapsed timers (275.658809ms)
+✔ process: parent drives mounted reads from change through apply without elapsed timers (276.865967ms)
+✔ process: joined-profile drives mounted reads from change through apply without elapsed timers (286.1977ms)
+✔ process: authorization drives mounted reads from change through apply without elapsed timers (296.219534ms)
+✔ process: unknown-footprint drives mounted reads from change through apply without elapsed timers (274.608048ms)
+✔ wasm: child-add drives mounted reads from change through apply without elapsed timers (655.314559ms)
+✔ wasm: child-replace drives mounted reads from change through apply without elapsed timers (233.443786ms)
+✔ wasm: child-remove drives mounted reads from change through apply without elapsed timers (240.015386ms)
+✔ wasm: parent drives mounted reads from change through apply without elapsed timers (223.49459ms)
+✔ wasm: joined-profile drives mounted reads from change through apply without elapsed timers (228.511272ms)
+✔ wasm: authorization drives mounted reads from change through apply without elapsed timers (239.405834ms)
+✔ wasm: unknown-footprint drives mounted reads from change through apply without elapsed timers (230.835041ms)
+ℹ Error: Test "process: child-add drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "process: child-replace drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "process: child-remove drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "process: parent drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "process: joined-profile drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "process: authorization drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "process: unknown-footprint drives mounted reads from change through apply without elapsed timers" at packages/snapback4/test/live-propagation.test.mjs:29:3 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+✖ packages/snapback4/test/live-propagation.test.mjs (8069.257596ms)
+✔ retained media: unrelated footprint keeps authorization and revocation (18.475442ms)
+✔ retained media: home footprint keeps authorization and revocation (1.201519ms)
+✔ retained media: authorization footprint keeps authorization and revocation (0.736913ms)
+✔ retained media: unknown footprint keeps authorization and revocation (0.609603ms)
+✔ retained media: legacy footprint keeps authorization and revocation (0.672998ms)
+✔ retained media: empty footprint keeps authorization and revocation (0.606458ms)
+✔ retained media: malformed footprint keeps authorization and revocation (0.544986ms)
+✔ retained media: expiry footprint keeps authorization and revocation (0.485186ms)
+✔ process: live asset-home dependencies preserve unrelated bytes and revoke on membership loss (344.798997ms)
+✔ wasm: live asset-home dependencies preserve unrelated bytes and revoke on membership loss (678.037587ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 24
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8076.190876
+
+✖ failing tests:
+
+test at packages/snapback4/test/live-propagation.test.mjs:1:1
+✖ packages/snapback4/test/live-propagation.test.mjs (8069.257596ms)
+  'test failed'

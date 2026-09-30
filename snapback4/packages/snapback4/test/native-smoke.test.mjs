@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-existence.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSmoke } from '../../snapback4-expo/src/smoke.ts';
@@ -12,7 +13,7 @@ function fixture(segment, options = {}) {
   const state = { ...structuredClone(prime), watermark: segment === 'restart' ? 8 : 7, ...options.state };
   const client = { viewer: () => prime.viewer, link: () => segment === 'offline' ? 'offline' : 'online', acquired: true,
     query: async (op, args) => { reads.push([op, args]); if (options.query) return options.query(op, args);
-      return { data: [{ body: 'PRIVATE ROW CONTENT' }], complete: true, fresh: false, cut: null }; } };
+      return readyRead({ data: [{ body: 'PRIVATE ROW CONTENT' }], complete: true, fresh: false, cut: null }); } };
   const device = { call: async req => {
     calls.push(req);
     if (req.op === 'witness_state') return { ok: structuredClone(state) };

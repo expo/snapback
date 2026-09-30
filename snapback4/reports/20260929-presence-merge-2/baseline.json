@@ -1,0 +1,13 @@
+{
+  "branch": "sb4/presence",
+  "head": "61cce6cbcb521e7d16211b538eccdfe0593ed310",
+  "main": "4226fc9733a40e68d4996ee0bee234df463b1bba",
+  "mergeBase": "398552255dab53ad9aa2e347f47bded11d65aad0",
+  "wasmRaw": 2040781,
+  "wasmGzip": 592916,
+  "wasmSha256": "7bd5b13fcdbd8a496f6f2710fb252c588ee51eed32626d040a7e0e114ff548a9",
+  "budget": {
+    "gzip": 593719,
+    "set": "2026-09-28"
+  }
+}

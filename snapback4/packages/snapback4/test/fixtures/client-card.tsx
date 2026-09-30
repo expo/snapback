@@ -56,5 +56,33 @@ declare const read: import("snapback4/contract").Read<string[]>;
 if ("data" in read) {
   const cut: "meter" | "words" | null = read.cut;
   // @ts-expect-error cut is required on every ready read, including complete empty pages
-  const missingCut: typeof read = { data: [], complete: true, fresh: true };
+  const missingCut: typeof read = { existence: "absent", data: [], complete: true, fresh: true };
 }
+
+import { isReady, existence, type Read, type Ready, type ReadCut } from "snapback4/contract";
+type Row = { id: string };
+declare const point: Read<Row | null>;
+if (isReady(point)) {
+  const before: Row | null = point.data;
+  if (point.existence === "present") { const row: Row = point.data; }
+  if (point.existence === "absent") {
+    const row: null | (Row & []) = point.data, complete: true = point.complete, cut: null = point.cut;
+  }
+  if (point.existence === "partial") { const row: Row | null = point.data; }
+}
+declare const scalar: Read<boolean>;
+if (isReady(scalar)) {
+  const value: boolean = scalar.data;
+}
+// @ts-expect-error a scalar value cannot be absent
+const scalarAbsence: Read<boolean> = { existence: "absent", data: false, complete: true, cut: null, fresh: true };
+declare const array: Ready<readonly Row[]>;
+if (array.existence === "absent") { const rows: readonly Row[] = array.data; }
+// @ts-expect-error existence is required on every ready constructor
+const missingExistence: Read<Row | null> = { data: null, complete: true, cut: null, fresh: false };
+// @ts-expect-error nullable absence proves completeness
+const incompleteAbsence: Read<Row | null> = { existence: "absent", data: null, complete: false, cut: null, fresh: true };
+// @ts-expect-error present nullable results exclude null
+const presentNull: Read<Row | null> = { existence: "present", data: null, complete: true, cut: null, fresh: true };
+function genericRead<T>(read: Read<T>): T | undefined { if (isReady(read)) return read.data; }
+const word: "loading" | "denied" | "present" | "absent" | "partial" = existence(point);

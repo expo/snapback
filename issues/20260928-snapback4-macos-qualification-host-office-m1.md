@@ -151,3 +151,20 @@ was introduced on Linux. This result does not qualify Darwin or those skipped
 conditional lanes. The ticket remains **Open** for the actual M1 publication
 record after calibration is idle. This lane committed locally only; no push
 or publication.
+
+## 2026-09-29 — 0.4.9 on the M1: the dry run failed again under load; published from the M5 fallback
+
+0.4.9 was first cut on the M1 at `7fd2795935` (from main `6d8e530674`, after lane MT's ten-CPU pool). The native half, client preparation and a Linux qualification against the M1's client passed.
+
+- **Attempt 1** stopped at once: `publication source is dirty`. The native witness step appends a line to `snapback4/metrics/witness.jsonl`. Before a dry run, save that line and restore the file: `cp snapback4/metrics/witness.jsonl ~/sb4-pub-<TAG>/witness.jsonl.native-<TAG> && git checkout snapback4/metrics/witness.jsonl`. The records commit restores it. The M5 kit now does this; `~/sb4-pub-template` on the M1 does not yet.
+- **Attempt 2**: `== 3 failure(s) in 11298 s`, with the M1's load near 80 while no calibration was running.
+  - `cargo test` alone took 8,276 s.
+  - The failures were timing assertions: the clique_03 replay's "celebrity write ratio 23.1 exceeds 3", the typing-expiry test's 30 s timeout, and a web admission review file whose failure cascaded.
+
+0.4.9 then moved to the black M5, where it took four more cuts. When the M5 was briefly offline, the fourth cut (a7caaa9234) also ran here: its native half and a Linux qualification against the M1's client passed, but dry-run attempt 3 failed 12 client tests and attempt 4, with client files serial, failed 27. They cluster in Chromium-driven browser tests: web admission review (180 s timeouts, and a hang on an idle dev server), web startup, and the IndexedDB journal and orphan tests. The same files pass on the M5. One suspect is `witness/lib.mjs` `chromiumExecutable()`, which picks the highest-sorted Playwright chromium build in the cache (1193, 1234 and 1243 here) rather than the revision `playwright-core` expects; lane SL has the evidence. The M5's dry runs exposed defects unrelated to host speed: the first macOS run of lanes PQ and WK, and publication-only checks that lane suites never run (the published-0.2.33 byte pin). Each was fixed on main (`a5e690077a`, `77bbb5c4ff`). The 0.4.9 publication records state every attempt.
+
+**Assessment.** Lane MT removed the file-level timeouts on an idle ten-CPU host. The M1's ambient load is the remaining obstacle; it is not from calibrations, which are already excluded. The ruling to move macOS qualification to the M1 stands. This ticket stays open with two paths:
+- make the remaining wall-clock assertions load-tolerant, for example by measuring the celebrity write ratio against a control taken in the same run;
+- or reserve the M1 for publication windows.
+
+Separately, run a lane's new client test files on a Mac before a release cut. PQ and WK passed every Linux suite and failed only on macOS. The Apartment mini ran such a canary for the final cut's new lanes (`~/sb4-canary.sh`): all green.

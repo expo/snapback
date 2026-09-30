@@ -22,6 +22,12 @@ export const scope = {
   'changes.ts': '*',
   'local-search.ts': '*',
   'local-query.ts': ['route'],
+  // LLP 3000.031 boundary review: publish's new pending() wait is query-only;
+  // LocalReads.readQueued awaits the existing local-receipts readQueued I/O
+  // (instrumented above) before updating an in-memory existence cache. Neither
+  // adds delivery I/O or absorbs failures. read-existence.test.mjs exercises
+  // rejection and incarnation/revision fencing at both new continuation sites.
+  // client.ts changes only erased generic arguments; read-existence is sync.
   // The shared decoder now owns both mutation-body I/O and optional query
   // decoding. Retry waits/send calls remain covered by their caller awaits.
   'http-response.ts': ['readResponse'],
@@ -90,6 +96,11 @@ export function instrument(destination) {
 // worker.ts and worker-ledger.ts perform server effects, outside device mutation
 // delivery. Their new awaits are covered by supervised-workers/worker tests:
 // lost acknowledgements, durable replay, failed handlers and process contention.
+// local-following.pending and local-query.publish's followingPending await read
+// existing outbox custody before query publication; neither admits, dispatches,
+// settles nor observes a write. Failure withholds the read. The causal Following
+// regression covers admission/settlement/apply, including zero-wait retirement;
+// mutation delivery continues through the unchanged classified sites above.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

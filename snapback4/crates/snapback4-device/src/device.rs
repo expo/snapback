@@ -495,7 +495,7 @@ impl<S: DeviceStore> Device<S> {
         Ok(Self { delivery_now: 0,
             store,
             schema: backend.schema,
-            programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(),
+            programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
             generation: backend.generation,
             backend_identity,
             store_identity,
@@ -595,7 +595,7 @@ impl<S: DeviceStore> Device<S> {
             self.native_digest = None;
         }
         self.schema = backend.schema;
-        self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        self.programs = snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p)));
         self.generation = backend.generation;
         self.backend_identity = backend_identity;
         self.store_identity = adopted_store;
@@ -852,7 +852,7 @@ impl<S: DeviceStore> Device<S> {
                         let staged: snapshot::Staged = decoded(data)?;
                         after = key.clone();
                         if !staged.acquired && !history::is_left(&groups, table_name, &history::row_key(table, &staged.row)?) { continue; }
-                        tx.put(table_name, table, &staged.row, None)?;
+                        tx.put_staged(key, table_name, table, &staged.row)?;
                         if staged.acquired {
                             delivery_candidates.put(&self.schema, table_name, staged.row.field("id")?.as_str()?);
                             media::remember(&tx, table_name, table, &staged.row, self.generation)?;

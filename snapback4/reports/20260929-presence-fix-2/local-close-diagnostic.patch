@@ -1,0 +1,53 @@
+--- snapback4/packages/snapback4/test/app.test.mjs
++++ snapback4/packages/snapback4/test/_local-close-trace.probe.mjs
+@@ -1,4 +1,5 @@
+ import test from "node:test";
++import { spawn as spawnChild } from "node:child_process";
+ import assert from "node:assert/strict";
+ import { join } from "node:path";
+ import { setTimeout as delay } from "node:timers/promises";
+@@ -6,7 +7,34 @@
+ import { defaultFetch as fetch } from "../dist/node-fetch.js";
+ import { createApp } from "../dist/app.js";
+ import { memorySessionStore, restoreSession, keepSession, sessionKey, refreshSession, logout as revokeSession } from "../dist/auth.js";
+-import { processDevice } from "../dist/native.js";
++import { processDevice as realProcessDevice } from "../dist/native.js";
++function processDevice(options) {
++  if (!options.dir.endsWith('effect-device')) return realProcessDevice(options);
++  const started = performance.now();
++  const stamp = (...parts) => console.error('CLOSE_TRACE', Math.round(performance.now() - started), ...parts);
++  const native = realProcessDevice({ ...options, spawn(command, args) {
++    const child = spawnChild(command, args);
++    const kill = child.kill.bind(child);
++    child.kill = (...args) => { stamp('child kill'); return kill(...args); };
++    child.on('exit', () => stamp('child exit'));
++    child.on('close', () => stamp('child close'));
++    return child;
++  } });
++  return { async open(...args) {
++    stamp('open begin');
++    const core = await native.open(...args); stamp('open end');
++    return { ...core, async call(request, ...rest) {
++      stamp('call begin', request.op, request.key ?? '');
++      try { return await core.call(request, ...rest); }
++      finally { stamp('call end', request.op, request.key ?? ''); }
++    }, async close() {
++      stamp('core close begin');
++      try { return await core.close(); }
++      finally { stamp('core close end'); }
++    } };
++  } };
++}
++
+ import { createSmoke } from "../../snapback4-expo/src/smoke.ts";
+ 
+ import { binary, until, server } from "./helpers/app-server.mjs";
+@@ -1018,7 +1046,7 @@
+   await app.ready; await app.auth.guest(); const prior = app.client;
+   const outcome = kind === 'mutation' ? app.mutate(add, { body: 'committed' }) : prior.upload(new Uint8Array([1]));
+   await until(() => entered); assert.equal(signal, undefined);
+-  await Promise.race([app.close(), delay(500).then(() => assert.fail('close waited for an effect body'))]);
++  console.error('CLOSE_BEGIN', kind, performance.now()); await Promise.race([app.close().then(() => console.error('CLOSE_END', kind, performance.now())), delay(500).then(() => { console.error('CLOSE_TIMEOUT', kind, performance.now()); assert.fail('close waited for an effect body'); })]);
+   if (kind === 'upload') assert.equal((await outcome).why?.code, 'E_CLOSED');
+   const write = await outcome;
+   if (kind === 'mutation') {

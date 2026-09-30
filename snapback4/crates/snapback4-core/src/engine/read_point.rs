@@ -82,7 +82,7 @@ impl Runner<'_> {
                     _ => false,
                 }
             } else {
-                let mut fields: BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
+                let mut fields: BTreeMap<_, _> = crate::small_map::collect(index.columns().into_iter().zip(key.iter().cloned()));
                 let group_fields = m.group_fields();
                 if group_fields.iter().all(|f| fields.contains_key(f)) {
                     let group: Vec<_> = group_fields.iter().map(|f| fields[f].clone()).collect();
@@ -110,7 +110,7 @@ impl Runner<'_> {
                 if self.beyond_horizon { return Ok((unavailable_aggregate(), 0)); }
                 // The parent-key view is derived locally from fully held children;
                 // its generated table need not have an invertible sync audience.
-                let fields = index.columns().into_iter().zip(key.iter().cloned()).collect::<BTreeMap<_,_>>();
+                let fields = crate::small_map::collect(index.columns().into_iter().zip(key.iter().cloned()));
                 let row = self.live_aggregate_inner(m, Value::Row(fields.into()))?.unwrap_or(Value::Null);
                 *emitted = true;
                 // Key-authorized and computed from the caller's key and the disclosed total: sealed without a lookup.
@@ -143,7 +143,7 @@ impl Runner<'_> {
         let Some(row) = found else {
             if absent && stored_authorization {
                 // The same reservation owns a live row or a logical zero.
-                let mut fields: BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
+                let mut fields: BTreeMap<_, _> = crate::small_map::collect(index.columns().into_iter().zip(key.iter().cloned()));
                 let m = maintained.expect("maintained aggregate");
                 if !m.by.iter().all(|field| fields.contains_key(field)) { return Ok((unavailable_aggregate(), 0)); }
                 let group: Vec<_> = m.by.iter().map(|field| fields[field].clone()).collect();

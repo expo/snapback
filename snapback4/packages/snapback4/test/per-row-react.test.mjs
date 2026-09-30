@@ -143,19 +143,35 @@ for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row h
   const { url, dir } = await appServer(t, '', readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8'));
   const seed = Array.from({ length: 1000 }, (_, slot) => ({ table: 'cards', row: { id: 'c' + slot, slot, owner: 'dev:alice', label: 'original' } }));
   assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(seed) }).then(r => r.json())).seeded, 1000);
-  let core;
-  t.after(async () => { await core?.close(); });
+  const cores = [];
+  t.after(async () => {
+    await Promise.all(cores.map(async opened => { const core = await opened.catch(() => undefined); await core?.close(); }));
+  });
   const page = await browserFixture(t, localRowsHarness, async page => {
     await page.addInitScript(config => { window.pqConfig = config; }, { url, tier });
     if (tier === 'process') {
       // The hooks and SDK run in Chromium; these bindings carry the unmodified
       // process adapter's device calls to its real SQLite process on Node.
-      await page.exposeFunction('pqOpen', async (name, backend) => { core = await processDevice({ binary, dir: join(dir, 'react-device') }).open(name, backend); });
-      await page.exposeFunction('pqCall', request => core.call(request));
-      await page.exposeFunction('pqClose', () => core.close());
+      // A development-server reload can open another device. Each bridge owns
+      // its handle, and teardown closes even handles abandoned by that reload.
+      await page.exposeFunction('pqOpen', async (name, backend) => {
+        const id = cores.length;
+        const opened = processDevice({ binary, dir: join(dir, 'react-device') }).open(name, backend);
+        cores.push(opened);
+        await opened;
+        return id;
+      });
+      await page.exposeFunction('pqCall', async (id, request) => (await cores[id]).call(request));
+      await page.exposeFunction('pqClose', async id => (await cores[id]).close());
     }
   });
   await page.waitForFunction(() => window.pq?.ready);
+  if (tier === 'process') {
+    const opened = cores.length;
+    await page.reload();
+    await page.waitForFunction(() => window.pq?.ready);
+    assert.ok(cores.length > opened, 'a reload owns a new process handle');
+  }
   await page.evaluate(() => window.pq.edit());
   await page.waitForFunction(() => window.pq?.finished() || window.pq?.result().loading > 0);
   const result = await page.evaluate(() => window.pq.result());
@@ -179,8 +195,8 @@ const {url, tier} = window.pqConfig, reads = new Map(), revalidated = new Set(),
 let edited = false, loading = 0, calls = 0;
 const wall = Date.now(), realStart = performance.now();
 const base = tier === 'process' ? { async open(name, backend) {
-  await window.pqOpen(name, backend);
-  return { call: request => window.pqCall(request), close: () => window.pqClose() };
+  const id = await window.pqOpen(name, backend);
+  return { call: request => window.pqCall(id, request), close: () => window.pqClose(id) };
 } } : webDevice({worker: tier === 'worker'});
 const client = await createLocalClient({url, persona:'alice', name:'pq-real-clock', device:{async open(...args){
   const core = await base.open(...args);

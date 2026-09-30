@@ -89,7 +89,7 @@ impl Runner<'_> {
         let source = &self.schema.tables[&maintain.source];
         self.read_tables.insert(maintain.source.clone());
         let Some(sync) = source.sync.as_ref().filter(|sync| sync.horizon.is_none()) else { return Ok(false) };
-        let fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key).map(|(field, value)| (maintain.aliases.get(&field).cloned().unwrap_or(field), value)).collect();
+        let fields: std::collections::BTreeMap<_, _> = crate::small_map::collect(index.columns().into_iter().zip(key).map(|(field, value)| (maintain.aliases.get(&field).cloned().unwrap_or(field), value)));
         let columns = match &sync.audience { Audience::Public => vec![], Audience::Column(column) => vec![column.clone()], Audience::Target { prefix, .. } => prefix.clone() };
         let Some(prefix) = columns.iter().map(|column| fields.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
         let Some((index, _)) = source.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&columns)) else { return Ok(false) };

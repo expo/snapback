@@ -1,0 +1,29 @@
+{
+  "sourceHead": "8c0a3dd10f592a1eee8ff65a9ae63cc95744dc50",
+  "checkedInputs": 1686,
+  "changedInputs": [],
+  "originalJournalPrefix": true,
+  "mainBudgetUnchanged": true,
+  "suiteExit": 0,
+  "suiteLine": "== 0 failure(s) in 4928 s",
+  "client": {
+    "pass": 5280,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 9
+  },
+  "models": {
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "wasm": {
+    "raw": 1954659,
+    "gzip": 581329,
+    "sha256": "751df32a7defddccb653acdd49bda0384d6c7092196b7756b4286dea64fe9381",
+    "budget": 593719
+  },
+  "refCheckLine": "ref-check: ok \u2014 525 LLP docs, 9955 refs in 29817 files, 0 errors, 0 unchecked",
+  "refCheckExit": 0
+}

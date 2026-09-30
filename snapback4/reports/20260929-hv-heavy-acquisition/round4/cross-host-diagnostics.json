@@ -1,0 +1,26 @@
+{
+  "cargoRaw": {
+    "linux": {
+      "bytes": 2518352,
+      "sha256": "61b5e994565f50db71b8d4dfae4c95be6f58a4bb829af8009e22d33c958e5265"
+    },
+    "mac": {
+      "bytes": 2518632,
+      "sha256": "14a9796c0dfd1989ea1dd94c5bba5ece70bb791cb69a792f48f516a223239d8a"
+    }
+  },
+  "sameMacCargoInputThroughLinuxBindgen": {
+    "bytes": 1979135,
+    "sha256": "49c7e8d9aeab8c03fcc7279a94059b1b71fca498d410b46d935f523257b9a031",
+    "differingOffsetsFromMacOutput": [
+      1979113
+    ],
+    "macSuffix": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000<\tproducers\u0001\fprocessed-by\u0002\u0006walrus\u00060.26.5\fwasm-bindgen\u00070.2.127",
+    "linuxSuffix": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000<\tproducers\u0001\fprocessed-by\u0002\u0006walrus\u00060.26.4\fwasm-bindgen\u00070.2.127"
+  },
+  "sameLinuxBindgenInputThroughMacOptimizer": {
+    "inputSha256": "93eb53b1ea2090befc70dbb19f1acd46498c2ef9a4b417d6fdf0181841b0a250",
+    "outputSha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "appleGzipBytes": 593714
+  }
+}

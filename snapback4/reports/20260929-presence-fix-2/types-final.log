@@ -1,0 +1,12 @@
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (315.024208ms)
+✔ ready literals require the discriminant (179.622875ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (174.343791ms)
+✔ Read is covariant and every narrowed arm retains its result type (175.335125ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1014.788458

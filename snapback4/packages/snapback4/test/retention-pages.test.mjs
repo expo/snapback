@@ -1,10 +1,11 @@
+import { readyRead } from "../dist/read-existence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Pages } from "../dist/react-pages.js";
 import { ReadObservation } from "../dist/read-observation.js";
 import { bindWatchPeek, observeWatch, observationKey } from "../dist/observe-watch.js";
 const q = { kind: "query", name: "pages" };
-const ready = (data, next) => ({ data, next, complete: true, cut: null, fresh: true });
+const ready = (data, next) => (readyRead({ data, next, complete: true, cut: null, fresh: true }));
 function fixture(t, op = q) {
   const watches = new Map();
   const client = { observe(op, args, options) {

@@ -1,0 +1,108 @@
+diff --git a/snapback4/crates/snapback4-device/src/memory_index.rs b/snapback4/crates/snapback4-device/src/memory_index.rs
+index 88ce709e82..4c4a450aba 100644
+--- a/snapback4/crates/snapback4-device/src/memory_index.rs
++++ b/snapback4/crates/snapback4-device/src/memory_index.rs
+@@ -60,11 +60,56 @@ impl Index {
+         if page.is_empty() { self.pages.remove(floor); }
+         Some(value)
+     }
+-    pub fn range(&self, Range { start, end }: Range<Key>) -> impl DoubleEndedIterator<Item = (&Key, &Rc<str>)> {
++    pub fn range(&self, Range { start, end }: Range<Key>) -> Entries<'_> {
+         let floor = self.floor(&start);
+         let upper = self.pages.partition_point(|(floor, _)| floor < &end).max(floor);
+-        self.pages[floor..upper].iter().flat_map(|(_, page)| page.iter())
+-            .filter(move |(key, _)| key >= &start && key < &end).map(|(key, value)| (key, value))
++        let mut pages = self.pages[floor..upper].iter();
++        let mut front = &[][..];
++        let mut back = &[][..];
++        if start < end {
++            if let Some((_, page)) = pages.next() {
++                let lo = page.partition_point(|(key, _)| key < &start);
++                let hi = page.partition_point(|(key, _)| key < &end);
++                front = &page[lo..hi];
++            }
++            if let Some((_, page)) = pages.next_back() {
++                let hi = page.partition_point(|(key, _)| key < &end);
++                back = &page[..hi];
++            }
++        } else { pages = [].iter(); }
++        Entries { pages, front: front.iter(), back: back.iter() }
++    }
++}
++// Clip boundary pages once; share one traversal across every store caller.
++// @ref LLP 3000.007#20.4 — compact index ranges keep full byte ordering.
++pub(super) struct Entries<'a> {
++    pages: std::slice::Iter<'a, (Key, Vec<Entry>)>,
++    front: std::slice::Iter<'a, Entry>,
++    back: std::slice::Iter<'a, Entry>,
++}
++impl<'a> Iterator for Entries<'a> {
++    type Item = (&'a Key, &'a Rc<str>);
++    #[inline(never)]
++    fn next(&mut self) -> Option<Self::Item> {
++        loop {
++            if let Some((key, value)) = self.front.next() { return Some((key, value)); }
++            match self.pages.next() {
++                Some((_, page)) => self.front = page.iter(),
++                None => return self.back.next().map(|(key, value)| (key, value)),
++            }
++        }
++    }
++}
++impl DoubleEndedIterator for Entries<'_> {
++    #[inline(never)]
++    fn next_back(&mut self) -> Option<Self::Item> {
++        loop {
++            if let Some((key, value)) = self.back.next_back() { return Some((key, value)); }
++            match self.pages.next_back() {
++                Some((_, page)) => self.back = page.iter(),
++                None => return self.front.next_back().map(|(key, value)| (key, value)),
++            }
++        }
+     }
+ }
+ impl PartialEq for Index {
+@@ -102,6 +147,43 @@ mod tests {
+         assert_eq!(index.range(Key::plain(&[])..Key::plain(&[255])).count(), 0);
+     }
+     #[test]
++    fn clipped_ranges_match_tree_when_consumed_from_both_ends() {
++        let mut index = Index::default();
++        let mut tree = BTreeMap::new();
++        for n in 0..1100u32 {
++            let key = Key::plain(&(n * 3).to_be_bytes());
++            let value: Rc<str> = n.to_string().into();
++            index.push_unsorted(key.clone(), value.clone());
++            tree.insert(key, value);
++        }
++        index.finish();
++        // Leave stale lower directory bounds as ordinary deletes do.
++        for n in (0..1100u32).step_by(256) {
++            let key = Key::plain(&(n * 3).to_be_bytes());
++            index.remove(&key); tree.remove(&key);
++        }
++        for start in [0, 1, 3, 767, 768, 769, 1536, 3000, 3297, 3300, 4000] {
++            for end in [0, 2, 767, 768, 770, 1540, 3001, 3297, 3300, 4000] {
++                let range = Key::plain(&u32::to_be_bytes(start))..Key::plain(&u32::to_be_bytes(end));
++                if start > end { assert_eq!(index.range(range).count(), 0); continue; }
++                for reverse_first in [false, true] {
++                    let mut actual = index.range(range.clone());
++                    let mut expected = tree.range(range.clone());
++                    let mut reverse = reverse_first;
++                    loop {
++                        let pair = if reverse { (actual.next_back(), expected.next_back()) }
++                            else { (actual.next(), expected.next()) };
++                        assert_eq!(pair.0, pair.1, "range {start}..{end}");
++                        if pair.1.is_none() { break; }
++                        reverse = !reverse;
++                    }
++                    assert!(actual.next().is_none());
++                    assert!(actual.next_back().is_none());
++                }
++            }
++        }
++    }
++    #[test]
+     fn pages_match_a_tree_through_splits_updates_deletes_and_ranges() {
+         let mut pages = Index::default(); let mut tree = BTreeMap::new();
+         for n in 0..4000u32 {

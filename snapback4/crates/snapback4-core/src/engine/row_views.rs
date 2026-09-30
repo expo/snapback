@@ -241,7 +241,7 @@ impl Runner<'_> {
     }
     fn view_source_uniform(name: &str, source: &crate::schema::Table, key: &String, parent: &Value) -> bool {
         let expression = crate::ir::Expr::Literal(parent.clone());
-        let pins = std::collections::BTreeMap::from([(key, &expression)]);
+        let pins = crate::small_map::collect([(key, &expression)]);
         let rule = source.rules.read.device_audience_rule();
         super::rules::prefix_visibility(name, source, &rule, &pins).uniform
     }
@@ -675,7 +675,7 @@ impl Runner<'_> {
             }
             let value = member.field(&k.member_key)?.clone();
             let expression = crate::ir::Expr::Literal(value.clone());
-            let pins = std::collections::BTreeMap::from([(&k.source_key, &expression)]);
+            let pins = crate::small_map::collect([(&k.source_key, &expression)]);
             let rule = source.rules.read.device_audience_rule();
             let visibility = super::rules::prefix_visibility(&m.source, source, &rule, &pins);
             if visibility.decided_true {

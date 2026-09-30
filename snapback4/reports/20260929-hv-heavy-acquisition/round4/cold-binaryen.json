@@ -1,0 +1,9 @@
+{
+  "wallSeconds": 0.62611632514745,
+  "exit": 0,
+  "tarballBytes": 23273804,
+  "unpackedBytes": 108542397,
+  "integrity": "sha512-4Usg7yEvwO3FMso3Oov6qkOOHSod1IEv+boKkh77kTljM+eNBouqCTbqWswGzbG+vDNO/b/v2C4gfEh1WgB9Lg==",
+  "tarballSha256": "6543555fb29bb92548f325c7dc18e9ab7dbb1215edda25993d1e3f71d85b8618",
+  "note": "Isolated exact dependency, empty Bun cache and no node_modules; includes resolution, download and extraction. Full frozen workspace installs separately measured with warm cache."
+}

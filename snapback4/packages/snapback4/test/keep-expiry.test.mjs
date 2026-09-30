@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-existence.js";
 // A kept answer's live deadlines survive commits, unavailable reads and lingering.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -13,7 +14,7 @@ import { server, binary, until } from "./helpers/app-server.mjs";
 const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", import.meta.url));
 const q = { kind: "query", name: "secret" };
 const edit = { kind: "mutation", name: "edit" };
-const ready = data => ({ data, complete: true, fresh: true, cut: null });
+const ready = data => (readyRead({ data, complete: true, fresh: true, cut: null }));
 const source = `use personas alice
 table secrets:
   body: text

@@ -1,0 +1,110 @@
+{
+  "sqlite": {
+    "inputAndHarness": 42226903,
+    "peak": 66785996,
+    "retained": 42254013,
+    "applyMs": 38882.450712,
+    "drainMs": 0.012402999999999994,
+    "allocated": 2623847965,
+    "apply": [
+      {
+        "allocated": 64531781,
+        "ms": 185.383993,
+        "peak": 61219118,
+        "phase": "call-10",
+        "retained": 42249334,
+        "start": 42246940
+      },
+      {
+        "allocated": 85938602,
+        "ms": 182.42434699999998,
+        "peak": 66764930,
+        "phase": "call-19",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85989874,
+        "ms": 205.949898,
+        "peak": 66776701,
+        "phase": "call-28",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 86008813,
+        "ms": 230.97002999999998,
+        "peak": 66782252,
+        "phase": "call-37",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 86020745,
+        "ms": 248.830431,
+        "peak": 66785996,
+        "phase": "call-46",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85996212,
+        "ms": 257.994505,
+        "peak": 66778559,
+        "phase": "call-55",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85989917,
+        "ms": 270.956674,
+        "peak": 66777503,
+        "phase": "call-64",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85983532,
+        "ms": 279.67989900000003,
+        "peak": 66774841,
+        "phase": "call-73",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 86002474,
+        "ms": 285.526873,
+        "peak": 66780393,
+        "phase": "call-82",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 59417001,
+        "ms": 215.536958,
+        "peak": 60049353,
+        "phase": "call-91",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 14858452,
+        "ms": 49.411590999999994,
+        "peak": 47815182,
+        "phase": "call-118",
+        "retained": 42249335,
+        "start": 42247393
+      },
+      {
+        "allocated": 1797110562,
+        "ms": 36469.785512999995,
+        "peak": 54332900,
+        "phase": "call-125",
+        "retained": 42251303,
+        "start": 42247393
+      }
+    ],
+    "incrementalPeak": 24559093,
+    "incrementalRetained": 27110
+  }
+}

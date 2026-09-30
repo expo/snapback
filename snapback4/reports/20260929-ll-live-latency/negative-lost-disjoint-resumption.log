@@ -1,0 +1,26 @@
+✖ wasm: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (10758.868031ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10920.146283
+
+✖ failing tests:
+
+test at packages/snapback4/test/live-propagation.test.mjs:31:3
+✖ wasm: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (10758.868031ms)
+  AssertionError [ERR_ASSERTION]: unknown notification wakes a parked disjoint watch after its cut applies
+      at eventTurns (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/live-propagation.test.mjs:26:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/live-propagation.test.mjs:95:43)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

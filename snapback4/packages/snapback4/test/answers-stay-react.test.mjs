@@ -42,7 +42,9 @@ window.replay = (input) => {
   return { mounts, unmounts, loading, renders, route: document.body.textContent };
 };`);
   const pkg = createRequire(join(root, 'packages/snapback4/package.json'));
-  const vite = await createServer({ root: dir, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } }, resolve: { alias: [
+  // Replay against a stable page: cold dependency optimization must not reload
+  // it and erase window.replay after the readiness check. No files change here.
+  const vite = await createServer({ root: dir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } }, resolve: { alias: [
     ...['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/client'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })),
     { find: 'test-peek', replacement: new URL('observe-watch.js', sdk).pathname },
     { find: 'snapback4/react', replacement: new URL('react.js', sdk).pathname },

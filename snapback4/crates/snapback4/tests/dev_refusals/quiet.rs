@@ -42,7 +42,7 @@ fn many_empty_reads_are_silent_and_do_not_advance_evidence() {
 fn tracing_records_unknown_empties_without_console_noise() {
     let dev = Host::start_with(project(), true, false, &["--trace-empty"]);
     assert_eq!(snapshot(&dev)["traceEmpty"], true);
-    for op in ["page", "point", "composed"] {
+    for op in ["page", "point"] {
         let reply = dev.post(&format!("/q/{op}"), json!({}));
         assert!(reply.get("denied").is_none());
         assert!(!reply.to_string().contains("EMPTY_READ"));
@@ -51,7 +51,8 @@ fn tracing_records_unknown_empties_without_console_noise() {
         let last = envelope["records"].as_array().unwrap().last().unwrap();
         assert_eq!(last["code"], "EMPTY_READ");
         assert_eq!(last["emptyRead"], true);
-        assert_eq!(last["clause"], "cause not instrumented");
+        assert_eq!(last["cause"], if op == "point" { "no-candidate" } else { "unrecorded" });
+        assert_eq!(last["clause"], if op == "point" { "no-candidate" } else { "no probe miss and no rule cause were recorded" });
     }
     // A real refusal is still printed, even if an application picked this code.
     assert_eq!(dev.post("/q/refused", json!({}))["denied"]["code"], "EMPTY_READ");

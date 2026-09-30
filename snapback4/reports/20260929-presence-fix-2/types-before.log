@@ -1,0 +1,135 @@
+✖ Astra consumer: a generic row reader accepts Read<T extends Row> (316.488834ms)
+✔ ready literals require the discriminant (187.836708ms)
+✖ Astra nullable consumer: absent arrays cannot be assigned to null (211.2295ms)
+✖ Read is covariant and every narrowed arm retains its result type (225.770417ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1113.168208
+
+✖ failing tests:
+
+test at packages/snapback4/test/read-types.test.mjs:19:1
+✖ Astra consumer: a generic row reader accepts Read<T extends Row> (316.488834ms)
+  AssertionError [ERR_ASSERTION]: [96mtest/fixtures/read-types/consumer.ts[0m:[93m4[0m:[93m80[0m - [91merror[0m[90m TS2345: [0mArgument of type 'Read<T>' is not assignable to parameter of type 'Read<Row>'.
+    Type 'ReadyMetadata & Absent<T> & (unknown extends T ? T : [T] extends [readonly unknown[]] ? unknown : null extends T ? { readonly data: T & null; readonly complete: true; readonly cut: T & null; } : never)' is not assignable to type 'Read<Row>'.
+      Type 'ReadyMetadata & Absent<T> & (unknown extends T ? T : [T] extends [readonly unknown[]] ? unknown : null extends T ? { readonly data: T & null; readonly complete: true; readonly cut: T & null; } : never)' is not assignable to type 'ReadyMetadata & Partial<Row>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Type 'ReadyMetadata & Absent<T> & (unknown extends T ? T : [T] extends [readonly unknown[]] ? unknown : null extends T ? { readonly data: T & null; readonly complete: true; readonly cut: T & null; } : never)' is not assignable to type 'Partial<Row>'.
+          Types of property 'presence' are incompatible.
+            Type '"absent"' is not assignable to type '"partial"'.
+  
+  [7m4[0m export function renderTypedRow<T extends Row>(read: Read<T>): void { renderRow(read); }
+  [7m [0m [91m                                                                               ~~~~[0m
+  
+  + actual - expected
+  
+  + [
+  +   2345
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-types.test.mjs:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 2345 ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/read-types.test.mjs:28:1
+✖ Astra nullable consumer: absent arrays cannot be assigned to null (211.2295ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   2322
+  - ]
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-types.test.mjs:30:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 2322 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/read-types.test.mjs:32:1
+✖ Read is covariant and every narrowed arm retains its result type (225.770417ms)
+  AssertionError [ERR_ASSERTION]: [96m__read_types.ts[0m:[93m3[0m:[93m58[0m - [91merror[0m[90m TS2322: [0mType 'Read<T>' is not assignable to type 'Read<U>'.
+    Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type 'Read<U>'.
+      Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Present<U & (unknown extends U ? U : null extends U ? {} : unknown)>)'.
+        Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type 'ReadyMetadata & Present<U & (unknown extends U ? U : null extends U ? {} : unknown)>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+          Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type 'Present<U & (unknown extends U ? U : null extends U ? {} : unknown)>'.
+            Types of property 'data' are incompatible.
+              Type 'T & (unknown extends T ? T : null extends T ? {} : unknown)' is not assignable to type 'U & (unknown extends U ? U : null extends U ? {} : unknown)'.
+                Type 'T & (unknown extends T ? T : null extends T ? {} : unknown)' is not assignable to type 'unknown extends U ? U : null extends U ? {} : unknown'.
+  
+  [7m3[0m function widen<U, T extends U>(read: Read<T>): Read<U> { return read; }
+  [7m [0m [91m                                                         ~~~~~~[0m
+  [96m__read_types.ts[0m:[93m4[0m:[93m55[0m - [91merror[0m[90m TS2322: [0mType 'Read<T>' is not assignable to type 'Read<T | null>'.
+    Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type 'Read<T | null>'.
+      Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Present<(T | null) & (unknown extends T | null ? T | null : null extends T | null ? {} : unknown)>)'.
+        Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type 'ReadyMetadata & Present<(T | null) & (unknown extends T | null ? T | null : null extends T | null ? {} : unknown)>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+          Type 'ReadyMetadata & Present<T & (unknown extends T ? T : null extends T ? {} : unknown)>' is not assignable to type 'Present<(T | null) & (unknown extends T | null ? T | null : null extends T | null ? {} : unknown)>'.
+            Types of property 'data' are incompatible.
+              Type 'T & (unknown extends T ? T : null extends T ? {} : unknown)' is not assignable to type '(T | null) & (unknown extends T | null ? T | null : null extends T | null ? {} : unknown)'.
+                Type 'T & (unknown extends T ? T : null extends T ? {} : unknown)' is not assignable to type 'T & (unknown extends T | null ? T | null : null extends T | null ? {} : unknown)'.
+                  Type 'T & (unknown extends T ? T : null extends T ? {} : unknown)' is not assignable to type 'unknown extends T | null ? T | null : null extends T | null ? {} : unknown'.
+  
+  [7m4[0m function nullable<T>(read: Read<T>): Read<T | null> { return read; }
+  [7m [0m [91m                                                      ~~~~~~[0m
+  [96m__read_types.ts[0m:[93m34[0m:[93m7[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"present" | "partial"' and '"absent"' have no overlap.
+  
+  [7m34[0m   if (read.presence === 'absent') { const impossible: never = read.data; }
+  [7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  [96m__read_types.ts[0m:[93m34[0m:[93m43[0m - [91merror[0m[90m TS2322: [0mType 'any' is not assignable to type 'never'.
+  
+  [7m34[0m   if (read.presence === 'absent') { const impossible: never = read.data; }
+  [7m  [0m [91m                                          ~~~~~~~~~~[0m
+  [96m__read_types.ts[0m:[93m34[0m:[93m68[0m - [91merror[0m[90m TS2339: [0mProperty 'data' does not exist on type 'never'.
+  
+  [7m34[0m   if (read.presence === 'absent') { const impossible: never = read.data; }
+  [7m  [0m [91m                                                                   ~~~~[0m
+  
+  + actual - expected
+  
+  + [
+  +   2322,
+  +   2322,
+  +   2367,
+  +   2322,
+  +   2339
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-types.test.mjs:69:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 2322, 2322, 2367, 2322, 2339 ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

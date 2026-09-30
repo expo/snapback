@@ -318,7 +318,7 @@ impl<'r> Runner<'r> {
         self.schema.refuse_private(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         let found = if crate::rows::disclosed::actual_size(table) {
-            self.live_lookup(_allowance, table_name, "byId", &table.indexes["byId"], &[Value::Id(id.into())])?
+            self.live_lookup(_allowance, table_name, "byId", &table.indexes["byId"], &[Value::Id(id.into())], #[cfg(feature = "sqlite")] None)?
         } else { self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, authority| {
             runner.tx.get(authority, table_name, id).map(|found| found.map(|mut row| {
                 materialize_optional_fields(&mut row, table);

@@ -1,9 +1,9 @@
 # complete battery red: app-cli-served-journey
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260924T130725Z.942753a689cd`
+**Reopened by battery run:** `local.20260929T185743Z.aee02735615b`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `4619cf3fc2e4ca05247e9c0efd55a08ed4e9f335`
+**Closed at revision:** `fc8deceab43cacacd6355534001045aa003bb806`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `app-cli-served-journey`
 **Failure signature:** `sha256:a595a6db590b5fd512917dea5a1ab1d1543a1ca843deadb1378755270375d693`
 **First observed run:** `local.20260915T190403Z.ca4844fb29ff`
-**Last observed run:** `local.20260924T130725Z.942753a689cd`
-**Last processed run:** `local.20260924T233800Z.4619cf3fc2e4`
+**Last observed run:** `local.20260929T185743Z.aee02735615b`
+**Last processed run:** `local.20260930T043534Z.fc8deceab43c`
 **Detected at revision:** `ca4844fb29ff71c92ad531a4bc2fa0e53b20d5fe`
-**Last observed revision:** `942753a689cd474aeff0cc571b2b4336ca4fe9f4`
+**Last observed revision:** `aee02735615b08a07096228bf60ae540fe9f5a5b`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
