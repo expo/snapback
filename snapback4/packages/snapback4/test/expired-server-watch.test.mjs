@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { defaultFetch } from '../dist/node-fetch.js';
-import { READ_WORK_LIFETIME } from '../dist/read-work.js';
+import { ReadWork } from '../dist/read-work.js';
 import { ServerClock } from '../dist/clock.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
@@ -57,9 +57,19 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       const timerContext = {};
       const timers = [];
       const realTimeout = globalThis.setTimeout;
+      const realRetry = ReadWork.prototype.retry;
+      let schedulingRetry = false;
+      t.mock.method(ReadWork.prototype, 'retry', function (...args) {
+        const previous = schedulingRetry;
+        schedulingRetry = context.getStore() === timerContext;
+        try { return realRetry.apply(this, args); }
+        finally { schedulingRetry = previous; }
+      });
       t.mock.method(globalThis, 'setTimeout', (callback, ms, ...args) => {
-        // Queue turns and the independent attempt deadline are not expiry backoff.
-        if (context.getStore() !== timerContext || ms === 0 || ms === READ_WORK_LIFETIME) return realTimeout(callback, ms, ...args);
+        // Only synchronous timer creation by this watch's real ReadWork.retry
+        // belongs to us. Undici inherits the watch's async context too, and its
+        // idle timer can equal the retry cap; neither context nor delay is an owner.
+        if (!schedulingRetry) return realTimeout(callback, ms, ...args);
         // Keep the product's requested delay; this test, not host scheduling,
         // releases its callback after checking the wait and single-flight state.
         const handle = realTimeout(() => {}, ms);

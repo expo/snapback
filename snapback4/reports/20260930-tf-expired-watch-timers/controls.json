@@ -1,0 +1,82 @@
+[
+  {
+    "name": "original-fixture-main-sdk",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "test/expired-server-watch.test.mjs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-tf/snapback4/target/tf-controls/original-fixture",
+    "exit": 0,
+    "seconds": 15.396757125854492,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "name": "pre-ka-fixed-fixture",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "test/expired-server-watch.test.mjs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-tf/snapback4/target/tf-controls/pre-ka/snapback4/packages/snapback4",
+    "exit": 0,
+    "seconds": 14.864078760147095,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "name": "pre-ka-delay-26",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "test/expired-server-watch.test.mjs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-tf/snapback4/target/tf-controls/pre-ka/snapback4/packages/snapback4",
+    "exit": 1,
+    "seconds": 3.357853412628174,
+    "counts": {
+      "tests": 12,
+      "pass": 3,
+      "fail": 9,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "name": "pre-ka-duplicate-timer",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "test/expired-server-watch.test.mjs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-tf/snapback4/target/tf-controls/pre-ka/snapback4/packages/snapback4",
+    "exit": 1,
+    "seconds": 3.298635721206665,
+    "counts": {
+      "tests": 12,
+      "pass": 3,
+      "fail": 9,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  }
+]

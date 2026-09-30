@@ -1,0 +1,17 @@
+{
+  "copiedFrom": "/home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/src/wasm",
+  "sourceCommit": "49164c847d",
+  "unchangedInputs": [
+    "snapback4/crates/snapback4-core",
+    "snapback4/crates/snapback4-device",
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml",
+    "snapback4/scripts/build-wasm.sh"
+  ],
+  "files": {
+    "packages/snapback4/src/wasm/snapback4_device.js": "0ff39271a3b554bd15ab0ef8589d4a40923f848df89b1c83b3ae74430640e485",
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm.d.ts": "587173d69c14dea3709830781a3ba2c70cc1ce6bc5430acccf388449def31301",
+    "packages/snapback4/src/wasm/snapback4_device.d.ts": "988d6b4aaa02df0fc607546c2fb7abaa78ff2630c4acee331b2f7ecb63b28caf",
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "a2e5db9131f2b439d9fa15826c1b60dbd6f6144c3b9529cc2da799d5d0036c52"
+  }
+}
