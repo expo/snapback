@@ -192,9 +192,13 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
 for (const keep of [undefined, false]) for (const mode of ["held", "retryExhausted", "unavailable", "throw"]) test(`online: revoked data, keep=${keep}, ${mode}`, { timeout: 60_000 }, async t => {
   const { url, kick } = await fixture(t);
   const readOp = query;
-  const blocked = deferred(), entered = deferred();
+  const blocked = deferred(), entered = deferred(), changes = deferred();
   let armed = false;
   const client = createClient({ url, persona: "bob", waitSeconds: 1, fetch: async (input, init) => {
+    // Keep initial change-feed catch-up from starting an unheld read that can
+    // answer after kick(). The first evidence delivery belongs to the commit
+    // below; every replacement query then enters the intended transport gate.
+    if (new URL(input).pathname === "/changes") await changes.promise;
     if (armed && new URL(input).pathname === "/q/secret") {
       entered.resolve(); await blocked.promise;
       if (mode === "throw") throw Error("failed post-commit read");
@@ -204,10 +208,11 @@ for (const keep of [undefined, false]) for (const mode of ["held", "retryExhaust
     return fetch(input, init);
   } });
   const watch = client.observe(readOp, {}, { keep });
-  t.after(async () => { blocked.resolve(); watch.close(); await client.close(); });
+  t.after(async () => { changes.resolve(); blocked.resolve(); watch.close(); await client.close(); });
   await until(() => watch.getSnapshot().data?.body === "private answer", "initial online answer");
   armed = true;
   assert.equal((await kick()).state, "sent");
+  changes.resolve();
   await entered.promise;
   assert.equal(client.viewer(), "dev:bob");
   if (keep === false) assert.deepEqual(watch.getSnapshot(), { loading: true });

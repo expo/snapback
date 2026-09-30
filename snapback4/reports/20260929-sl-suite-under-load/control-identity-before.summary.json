@@ -1,0 +1,36 @@
+{
+  "log": "control-identity-before.log",
+  "sha256": "b0423ecca356a4843c2163cb9e1312338a71abfcfdc6cdfe12441f6b1d835664",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 0,
+    "failed": 1,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 18,
+      "kind": "rust",
+      "details": [
+        "",
+        "",
+        "thread 'identity::device_cannot_clear_a_running_servers_rows' (3982399) panicked at crates/snapback4/tests/run_admission/identity.rs:285:10:",
+        "called `Result::unwrap()` on an `Err` value: Os { code: 32, kind: BrokenPipe, message: \"Broken pipe\" }",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "test identity::device_cannot_clear_a_running_servers_rows ... FAILED",
+        "",
+        "failures:",
+        "",
+        "failures:",
+        "    identity::device_cannot_clear_a_running_servers_rows",
+        "",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.11s"
+      ]
+    }
+  ]
+}

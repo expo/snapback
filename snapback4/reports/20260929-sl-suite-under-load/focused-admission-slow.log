@@ -1,0 +1,75 @@
+✔ immediate mounted form waits for identity and second save works (wasm) (3435.407452ms)
+ℹ {"tier":"wasm","identityAndFirstSaveMs":91.62547300000006}
+✔ pre-identity burst admits in call order with ordinary prediction (wasm) (2898.680871ms)
+✔ reload discards only the unadmitted call (wasm) (3372.181511ms)
+✔ identity timeout refuses publicly without custody (wasm) (3106.960466ms)
+✔ identity adoption refuses publicly without custody (wasm) (2887.229439ms)
+✔ identity incarnation refuses publicly without custody (wasm) (2876.250347ms)
+✔ identity restore refuses publicly without custody (wasm) (3052.796141ms)
+✔ immediate mounted form waits for identity and second save works (Worker) (3385.836364ms)
+ℹ {"tier":"Worker","identityAndFirstSaveMs":195.62609300000258}
+✔ pre-identity burst admits in call order with ordinary prediction (Worker) (3284.598316ms)
+✔ reload discards only the unadmitted call (Worker) (3595.916157ms)
+✔ identity timeout refuses publicly without custody (Worker) (3231.182263ms)
+✔ identity adoption refuses publicly without custody (Worker) (3001.705493ms)
+✔ identity incarnation refuses publicly without custody (Worker) (3006.854754ms)
+✔ identity restore refuses publicly without custody (Worker) (3018.167687ms)
+✔ fresh first save and burst wait in memory (process) (1299.187138ms)
+ℹ {"tier":"process","identityAndBurstMs":89.55832399999781}
+✔ close and reopen has no unadmitted custody (process) (1516.070404ms)
+✔ identity never arrives refuses within 15 seconds and recovers (process) (16183.38014ms)
+ℹ {"tier":"process","timeoutMs":15003.568033999996}
+✔ fresh first save and burst wait in memory (online) (973.656115ms)
+ℹ {"tier":"online","identityAndBurstMs":29.555034999997588}
+✔ close and reopen has no unadmitted custody (online) (488.451796ms)
+✔ identity never arrives refuses within 15 seconds and recovers (online) (15497.033381ms)
+ℹ {"tier":"online","timeoutMs":15011.256524999997}
+✔ process generation at ordinary admission refuses unsent (1172.174684ms)
+✔ process incarnation at ordinary admission refuses unsent (1173.145329ms)
+✔ ordinary native settlement stamps a live outbox before replacement (Grok round 2) (1170.095136ms)
+✔ timely identity does not expire behind an earlier ordinary admission (3.627479ms)
+✔ online incompatible-store signal interrupts a held probe before custody (481.345331ms)
+✔ web capture fences a replacement in the gap after the identity read (4.381019ms)
+✔ waiting calls pin first identity across store replacement (1485.405092ms)
+✔ waiting calls pin first identity across backend replacement (1486.219063ms)
+✔ final identity recheck hang produces a public unsent refusal (1156.504278ms)
+✔ final identity recheck reject produces a public unsent refusal (1157.290656ms)
+✔ waiting E_ADMISSION releases the same-id reservation (wasm) (2825.925224ms)
+✔ waiting E_ADMISSION releases the same-id reservation (Worker) (2996.325382ms)
+✔ final identity I/O keeps only the remaining deadline (queued=false) (1.751005ms)
+✔ final identity I/O keeps only the remaining deadline (queued=true) (1.176474ms)
+✔ adoption-required store waits before any custody (reopen=false) (1312.130383ms)
+✔ adoption-required store waits before any custody (reopen=true) (1569.65032ms)
+✔ temporary unreadiness after first identification continues the bounded wait (1.912057ms)
+✔ native admission fences backend-required after the final read (1160.237714ms)
+✔ empty browser capture reports a public identity refusal (1.098747ms)
+✔ browser transaction rejects backend replacement after synchronous capture (wasm) (2868.57302ms)
+✔ browser transaction rejects backend replacement after synchronous capture (Worker) (3144.469338ms)
+✔ FIFO wait behind identity I/O consumes the identity budget (1.72041ms)
+✔ browser transaction checks generation independently of backend (wasm) (2910.118001ms)
+✔ browser transaction checks generation independently of backend (Worker) (2903.532466ms)
+✔ FIFO deadline counts identity gaps between ordinary admissions (2.114631ms)
+✔ waiting admission after restored backend refresh: native descriptor (3.095792ms)
+✔ waiting admission after restored backend refresh: schema (1.381231ms)
+✔ waiting admission after restored backend refresh: programs (1.237816ms)
+✔ suspended runtime refuses late initial identity before timer delivery (1.112678ms)
+✔ suspended runtime refuses late final identity before timer delivery (0.792949ms)
+✔ offline cached backend to real /schema refresh preserves waiting admission (3587.402754ms)
+ℹ {"schemas":1,"nativeInstalls":1,"admissions":1,"posts":1}
+▶ backend comparison preserves interpreter semantics while normalizing representation
+  ✔ name (0.330215ms)
+  ✔ kind (0.21351ms)
+  ✔ args (0.232178ms)
+  ✔ body (0.275753ms)
+  ✔ native (0.197276ms)
+  ✔ read_time_granularity_ms (0.18669ms)
+  ✔ returned_shapes (0.198447ms)
+✔ backend comparison preserves interpreter semantics while normalizing representation (3.557434ms)
+ℹ tests 59
+ℹ suites 0
+ℹ pass 59
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 115226.685741

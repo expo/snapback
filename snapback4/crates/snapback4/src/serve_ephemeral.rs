@@ -21,8 +21,21 @@ impl Wake {
 #[derive(Default)]
 pub(super) struct Rate {
     buckets: Mutex<BTreeMap<String, (Instant, f64)>>,
+    #[cfg(test)]
+    fixed_now: Mutex<Option<Instant>>,
 }
 impl Rate {
+    fn now(&self) -> Instant {
+        #[cfg(test)]
+        if let Some(now) = *lock(&self.fixed_now) {
+            return now;
+        }
+        Instant::now()
+    }
+    #[cfg(test)]
+    pub(super) fn set_now(&self, now: Instant) {
+        *lock(&self.fixed_now) = Some(now);
+    }
     pub fn admit(&self, key: String, now: Instant) -> bool {
         let mut buckets = lock(&self.buckets);
         buckets.retain(|_, (at, _)| now.saturating_duration_since(*at) < Duration::from_secs(60));
@@ -160,7 +173,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     let key = crate::auth::bearer_token(&request)
         .map(|token| snapback4_core::value::digest(&token))
         .unwrap_or_else(|_| format!("persona:{principal}"));
-    if !shared.ephemeral_rate.admit(key, Instant::now()) {
+    if !shared.ephemeral_rate.admit(key, shared.ephemeral_rate.now()) {
         let mut why = Refusal::new(
             "E_RATE_LIMIT",
             "auth",

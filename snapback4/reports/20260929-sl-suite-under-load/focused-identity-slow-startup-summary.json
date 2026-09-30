@@ -1,0 +1,12 @@
+{
+  "run": "focused-identity-slow",
+  "exit": 0,
+  "trace_sha256": "a3e44de917acb841b395b348a6f2699b9d58f7f3f6b3a73eeaa704473a542a20",
+  "required_delay_ms": 300,
+  "child_exec_events": 5,
+  "resumed_child_execs": 5,
+  "ended_before_resume": 0,
+  "min_observed_delay_ms": 300.79434,
+  "max_observed_delay_ms": 300.819799,
+  "root_first_exec_delayed": false
+}

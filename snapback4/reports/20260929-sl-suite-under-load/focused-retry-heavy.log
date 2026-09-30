@@ -1,0 +1,23 @@
+✔ online keep=undefined: a due completion preserves a newer answer and retries (317.854693ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (227.005985ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (210.410093ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (987.672035ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (234.991368ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (243.585392ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (337.13589ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (339.505723ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (349.798245ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (301.260273ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (475.197333ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (11.003347ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (12.904437ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (10.065211ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (0.442483ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4444.208903

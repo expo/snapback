@@ -13,11 +13,11 @@
 **Battery gate:** `drift-prone-gate-fixtures`
 **Failure signature:** `sha256:0747ead1cd4c0edebe7a8401b5dcab943438a697e489a07c76cc9d64b726800a`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260930T043534Z.fc8deceab43c`
-**Last processed run:** `local.20260930T043534Z.fc8deceab43c`
+**Last observed run:** `local.20260930T133254Z.763535814fd9`
+**Last processed run:** `local.20260930T133254Z.763535814fd9`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `fc8deceab43cacacd6355534001045aa003bb806`
-**Consecutive red runs:** `13`
+**Last observed revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
+**Consecutive red runs:** `14`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

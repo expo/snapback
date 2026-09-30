@@ -1,0 +1,13 @@
+function onParserTimeout(parser) {
+      const { socket, timeoutType, client, paused } = parser.deref();
+      if (timeoutType === TIMEOUT_HEADERS) {
+        if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
+          assert(!paused, "cannot be paused while waiting for headers");
+          util.destroy(socket, new HeadersTimeoutError());
+        }
+      } else if (timeoutType === TIMEOUT_BODY) {
+        if (!paused) {
+          util.destroy(socket, new BodyTimeoutError());
+        }
+      } else if (timeoutType === TIMEOUT_KEEP_ALIVE) {
+        assert(client[kRunning

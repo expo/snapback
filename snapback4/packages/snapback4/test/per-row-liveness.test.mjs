@@ -51,7 +51,7 @@ async function deviceFixture(t, tier, wrap) {
 }
 
 for (const tier of ['online', 'wasm', 'process']) for (const [end, keep] of [['close', undefined], ['close', false], ['close', true], ['expire', undefined]]) {
-  test(`${tier} keep=${keep}: eight ${end === 'close' ? 'closed' : 'expired'} active reads cannot starve later observations or publish late`, { timeout: 15000 }, async t => {
+  test(`${tier} keep=${keep}: eight ${end === 'close' ? 'closed' : 'expired'} active reads cannot starve later observations or publish late`, { timeout: 4 * 60_000 }, async t => {
     const held = [], order = [], signals = [], watches = [];
     let client, allow = false;
     t.after(() => { allow = true; held.splice(0).forEach(release => release()); watches.forEach(w => w.close()); });
@@ -89,8 +89,12 @@ for (const tier of ['online', 'wasm', 'process']) for (const [end, keep] of [['c
     const mount = id => { const w = client.observe(point, { id }, { keep }); watches.push(w); w.subscribe(() => {}); return w; };
     const initial = Array.from({ length: 8 }, (_, i) => mount('c' + i));
     const pump = async predicate => {
-      for (let i = 0; i < 2000 && !predicate(); i++) {
-        if (end === 'expire') t.mock.timers.tick(1);
+      // Each barrier includes real device IPC. A fixed count of parent turns
+      // can finish while the child is descheduled; only state proves progress.
+      // Keep semantic time frozen until the explicit READ_WORK_LIFETIME step.
+      const deadline = performance.now() + 60_000;
+      while (!predicate() && performance.now() < deadline) {
+        if (end === 'expire') t.mock.timers.tick(0);
         await new Promise(resolve => setImmediate(resolve));
       }
       assert.ok(predicate(), 'controlled work made progress');

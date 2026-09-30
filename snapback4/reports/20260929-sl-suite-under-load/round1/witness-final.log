@@ -1,0 +1,27 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.9 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 0.43s
+     Running tests/witness.rs (target/debug/deps/witness-c30ce2f33c7840d4)
+
+running 10 tests
+test protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test bound_port_is_refused_without_stopping_its_owner ... ok
+test artifacts_require_bytes_and_bind_the_digest ... ok
+test receipts_refuse_malformed_and_truncated_lines_and_preserve_app_objects ... ok
+test simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control ... ok
+test artifact_reservation_has_one_winner_before_any_output_exists ... ok
+test witness_cli_refuses_missing_bundle_with_a_recipe ... ok
+test build_refuses_linux_before_any_native_helper_runs ... ok
+test witness_card_is_published_under_builder_words ... ok
+test preparation_selectors_are_exclusive_and_repack_is_withdrawn ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

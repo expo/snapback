@@ -78734,6 +78734,60 @@ Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
 
+## 2026-09-30 — SL round 0: publication suite under host contention
+
+Ran the complete suite at publication concurrency under no artificial load,
+16 busy workers, 48 busy workers and delayed executable startup. All failures,
+including SL's failed experiments, are retained and classified in
+[the report](reports/20260929-sl-suite-under-load/REPORT.md). Initial taskset-only
+runs are diagnostic: child threads escaped inherited affinity during slow startup.
+The corrected harness adds an inherited per-process guard and confines every
+qualified suite/load run to CPUs 80–95. The final requested unconfined run is
+the explicit exception. No builds, tests or load were run on the source Macs.
+
+Replaced scheduling assumptions with actual completion/readiness barriers,
+paired/interleaved thread-CPU controls, controlled browser/server/rate clocks,
+and work-proportional hang guards. Ownership is observed directly while SQLite
+is blocked, then held independently of SQLite's busy budget. Retry tests wait
+for real backoff installation and retain exact 25 ms assertions. Browser route
+callbacks drain before close; exit checks parse the named record rather than a
+whole stderr suffix. All seeds, histories, samples, assertions and inherited
+skip conditions remain. Deterministic negative controls preserve the original
+failures and demonstrate detection by the corrected fixtures. LLP 3000 records
+the contention rules and the guide removes an unsupported wall-clock promise.
+
+One native product correction formats a complete counted refusal line before
+writing, preventing raw lifecycle diagnostics from splitting its formatting
+fragments. The original writer fails the new interleaving regression; existing
+shutdown deadlines, counts and assertions remain. LLP 3000.015 records the
+framing requirement. The HTTP limiter's fixed clock is test-only. Wasm remains
+byte-identical: 2,040,531 B raw / 592,979 B gzip, 740 B below the 593,719 B cap.
+
+Three whole final-source heavy passes complete with exact footers
+`== 0 failure(s) in 3513 s`, `== 0 failure(s) in 3738 s` and
+`== 0 failure(s) in 3514 s`; all 48 load workers survive each. The final-source
+slow-start suite passes with `== 0 failure(s) in 2494 s`; all 14,776 resumed
+child execs wait at least 300.000010 ms, and six end before resume. The whole
+guide passes 99/99. Ran `scripts/test.sh` once unconfined, last, exit 0:
+`== 0 failure(s) in 1216 s`. Each final whole pass has Rust 4342, clients 5197,
+models 79 and wrappers 9, with 33 inherited Rust ignores and ten client skips;
+all 13 stages pass, with no cancellation or asynchronous error. Final-run
+failures: ours 0, baseline 0, environmental 0. Both 5000-sequence session models,
+the 3000-interleaving online model and all four 300-seed/history oracles retain
+full counts. The evidence validator binds every required run to unchanged
+source, inventories, load accounting, logs and startup trace.
+
+The heavy passes are not consecutive: final-source attempt 10 reproduces the
+baseline retained-history empty flash. Its unchanged assertion also fails in
+15/100 instrumented wasm and 18/100 process repetitions; the existing product
+ticket remains open. Search cursor reopen restarts after a prior reconnect;
+all ten deterministic controls fail, and a new product ticket records the
+cause without changing the oracle. Historical Mac cleanup stalls remain open.
+Darwin-only witness-driver cases are unexecuted on Linux; their two deliberate
+timeouts now use the real 120-second step budget and retain phase/cleanup
+checks. The inherited nominal 60-second complete-suite budget remains exceeded.
+Three resolved fixture tickets move to issues/closed with their evidence.
+
 ## 2026-09-29 — HV round 2: caller admission and canonical staged images
 
 Read both prior HV prompts/reports and the complete Astra r0n/Grok r0 reviews.
@@ -79344,5 +79398,48 @@ Starter: 294 original → 225 round zero → 231 round one lines (63 fewer than
 manual); primary guide 321 lines, below 350. Report, corrected development
 failures, exact logs and artifact hashes:
 reports/20260930-rx-declarative-receipts/round1/REPORT.md.
+## 2026-09-30 — SL round 1: independent witness and expiry guards
+
+Merged origin/main e05cec8e0a first in 5e1f861367, retaining both journal
+histories, both console-framing regression tests and both LLP revision histories.
+Addressed the two Astra P2 findings from SL round 0; no production behavior
+changes in this round. The model-guard descriptions now accurately say aggregate:
+10,000 seconds per session tier, 6,000 for online interleavings and 1,800 per
+mixed-evidence host, at unchanged counts. LLP 3000 records the guard boundaries.
+
+The witness fixture owns a dedicated process group with an independent
+150-second preparation watchdog beyond the driver's real 120-second step guard;
+multi-step scenarios get 600 seconds. File output avoids inherited-pipe hangs.
+On timeout it interrupts the driver for owned-child reaping, allows 15 seconds,
+then kills its group and waits. The unreaped leader reserves group identity.
+On normal exit ownership lasts through the original assertions, so forced
+cleanup cannot conceal a leaked backend. A separate control observes the leak
+before fixture destruction and confirms group cleanup afterward. The portable
+production-helper control passes at 120.13 seconds; removing only its deadline
+check produces WITNESS_FIXTURE_WATCHDOG at 150.14 seconds, with driver and fake
+simctl reaped. The Darwin CLI choreography remains unexecuted on Linux.
+
+Typing now observes actual expiry callbacks in the real React/HTTP/device
+fixture, retaining the timer's delay, handle and cancellation. Both ages pass;
+a retained mutation waking every 100 ms with its deadline check intact fails
+both ages on early wakeups. Query counts, offline behavior and deadline renders
+remain asserted. Final portable witness checks pass 10/10; both merged console
+guards pass within five console tests; the whole guide passes 105/105.
+
+Ran scripts/test.sh exactly once unconfined. Exact summary:
+`== 0 failure(s) in 1334 s`. All 13 script stages pass: Rust 4,364 with 33 existing
+ignores, clients 5,308 with ten existing skips, models 79 and fixture wrappers 9.
+No failed/cancelled tests or asynchronous errors. Full-run test failures: ours 0,
+baseline 0, environmental 0. The evidence wrapper separately returns 125 (ours):
+self-review corrected normal-exit watchdog cleanup during the run. This is not
+an unchanged-source qualification; final affected checks and witness controls
+were rerun. The report preserves both source snapshots and initial controls.
+Earlier environmental failures were two typing cases using stale generated
+wasm and a build missing main's locked Binaryen; frozen install/rebuild resolve
+them. Wasm is 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged cap.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Report and complete failure dispositions:
+reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.

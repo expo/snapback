@@ -77,7 +77,9 @@ query remote():
   const watch=client.observe({kind:'query',name:'remote'},{},{keep});
   const published=[]; watch.subscribe(()=>published.push(watch.getSnapshot())); t.after(()=>watch.close());
   await until(()=>resetOwner,'pre-reset fetch completed');
-  for(let i=0;i<60;i++) await pause();
+  // The replacement crosses the device process before reaching this held
+  // transport. Event-loop turns in the parent do not measure child progress.
+  await until(()=>queries>=2,'post-reset replacement reached the transport');
   assert.deepEqual(watch.getSnapshot(),{loading:true});
   assert.ok(published.every(read=>!('data' in read)),'the pre-reset result never reaches a subscriber');
   assert.equal(queries,2,'the reset retires the completed attempt and queues one replacement');

@@ -1,0 +1,16 @@
+{
+  "log": "focused-rust.log",
+  "sha256": "fb61e04680435b66d627ade649ac102a1a8fbef2bf598e79dca16dd2e6c902fd",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 39,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

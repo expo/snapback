@@ -1,0 +1,16 @@
+{
+  "log": "focused-ephemeral-heavy.log",
+  "sha256": "303a76c3e589827fd11cf696b9733475c26ada1f30a8554a7f8310f3d4977230",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

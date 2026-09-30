@@ -1,0 +1,24 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 2.13s
+     Running unittests src/main.rs (target/debug/deps/snapback4-9e3f1489d21ea2d4)
+
+running 1 test
+snapback4 worker: /tmp/sb4-reader-reuse-1452656-1790714687049680959-0/worker.mjs (pid 1452679)
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 worker: /tmp/sb4-reader-reuse-1452656-1790714687049680959-0/worker.mjs (pid 1452848)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 214 filtered out; finished in 0.57s
+

@@ -1,0 +1,16 @@
+{
+  "log": "focused-ownership-heavy.log",
+  "sha256": "c5182f4bb7f9d46c517c8b5ee2443f00fb7e41bbceef3c80df005739c8bff235",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

@@ -1,0 +1,16 @@
+{
+  "log": "focused-console-heavy.log",
+  "sha256": "5350f744808187a64daa02084949d5d2ef9b7f63f9137b164d34a61b730fcd8b",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

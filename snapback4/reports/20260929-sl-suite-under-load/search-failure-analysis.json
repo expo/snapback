@@ -1,0 +1,17 @@
+{
+  "run": "control-search-until-failure",
+  "completed_repetitions": 153,
+  "failed_repetition": 154,
+  "before_link_revision": 2,
+  "after_link_revision": 0,
+  "other_binding_fields_equal": true,
+  "unchanged_cursor_fields": {
+    "epoch": true,
+    "audience": true,
+    "identity": true,
+    "after": true,
+    "server": true,
+    "local": true
+  },
+  "same_rows": true
+}

@@ -1,0 +1,57 @@
+{
+  "source": "8a1ed4c2a7dd66718ef4fd72c1e2c135b3afa628d63eb1916b9deb53665838f5",
+  "heavy_passes": [
+    "qualified-heavy-9",
+    "qualified-heavy-11",
+    "qualified-heavy-12"
+  ],
+  "attempts": [
+    {
+      "name": "qualified-heavy-9",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3513 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-10",
+      "exit": 1,
+      "summary": [
+        "== 1 failure(s) in 3512 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-11",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3738 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-12",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3514 s"
+      ]
+    },
+    {
+      "name": "qualified-slow-3",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 2494 s"
+      ]
+    },
+    {
+      "name": "guide-full",
+      "exit": 0,
+      "summary": []
+    },
+    {
+      "name": "final-unconfined",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 1216 s"
+      ]
+    }
+  ]
+}

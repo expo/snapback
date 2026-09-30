@@ -1,0 +1,21 @@
+{
+  "log": "focused-admission-heavy.log",
+  "sha256": "8bb7cf966854415b9faa3fd574d6e9d071520285b694e10de8cd88417234f92d",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 59",
+    "ℹ suites 0",
+    "ℹ pass 59",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 98802.211932"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

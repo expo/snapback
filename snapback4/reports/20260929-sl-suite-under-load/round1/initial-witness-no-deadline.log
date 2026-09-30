@@ -1,0 +1,11 @@
+
+thread 'main' (864566) panicked at /home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4/tests/fixtures/witness-watchdog.rs:67:47:
+WITNESS_FIXTURE_WATCHDOG: driver exceeded independent fixture deadline; owned group stopped and driver reaped
+stdout: 
+stderr: E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes
+
+thread 'main' (864567) panicked at /home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-ym6oj1zg/no-deadline/probe.rs:64:9:
+assertion failed: error.contains("E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,0 +1,16 @@
+{
+  "log": "guide-full.log",
+  "sha256": "50ebc49bbd331cc0adf576aad8ae69057886d154fbb01893cd117b08d3fd1b0e",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 99,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

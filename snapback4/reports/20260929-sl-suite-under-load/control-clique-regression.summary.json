@@ -1,0 +1,36 @@
+{
+  "log": "control-clique-regression.log",
+  "sha256": "ca93228e58af3aea2bcfa43ca7e4d5d10859af2a74d81896cd62ae3da5144286",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 0,
+    "failed": 1,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 20,
+      "kind": "rust",
+      "details": [
+        "CLIQUE_READ {\"cpu_p95_ms\":10.83474,\"metered\":{\"examined\":118,\"heap_bytes\":206520,\"index_entries\":0,\"output_bytes\":10975,\"rows_written\":0,\"rule_probes\":37,\"steps\":1407},\"p95_ms\":10.835754,\"reader\":\"u0901\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "",
+        "thread 'application_fixture' (1452034) panicked at crates/snapback4-lang/tests/clique_03/measure.rs:58:5:",
+        "reader CPU ratios: 1.0198199366692309, 12.114626008551443",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "test application_fixture ... FAILED",
+        "",
+        "failures:",
+        "",
+        "failures:",
+        "    application_fixture",
+        "",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.95s"
+      ]
+    }
+  ]
+}

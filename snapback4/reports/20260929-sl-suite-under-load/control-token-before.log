@@ -1,0 +1,16 @@
+
+running 1 test
+
+thread 'release_token_owns_the_resolved_database_before_sqlite_open' (1397248) panicked at crates/snapback4/tests/run_admission.rs:245:5:
+rollback: E_STORE: database is locked
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test release_token_owns_the_resolved_database_before_sqlite_open ... FAILED
+
+failures:
+
+failures:
+    release_token_owns_the_resolved_database_before_sqlite_open
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 26 filtered out; finished in 18.65s
+

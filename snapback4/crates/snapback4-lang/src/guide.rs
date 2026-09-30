@@ -309,8 +309,8 @@ query expiringStories(c: cursor ?):
 This is an application table, separate from the server's `connected[p]`.
 That server-decided connection signal has no `expiresAt`.
 Held device observations republish at `nextExpiry`, including offline; render
-those rows directly. The browser witness measures their published expiry
-within a frame. JavaScript timers still wait while a page is suspended.
+those rows directly. Timers follow the row's deadline; a suspended page or a
+busy host can delay the callback.
 Only server-answered reads need a render-deadline filter to hide a returned
 row while its next network answer is pending. Return `expiresAt`, as above.
 In React, `useNow(deadline)` owns the timer and responds to clock estimates:

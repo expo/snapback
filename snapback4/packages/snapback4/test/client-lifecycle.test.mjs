@@ -1088,8 +1088,8 @@ for (const tier of ["wasm", "native"]) {
 
   test(`${tier}: population growth cannot mint new IDs during prediction replay`, { timeout: 12_000 }, async (t) => {
     const entered = deferred(), release = deferred(), syncEntered = deferred(), syncRelease = deferred();
-    const sendRelease = deferred();
-    const f = await fixture(t, "", [release, syncRelease, sendRelease]);
+    const sendRelease = deferred(), observations = deferred();
+    const f = await fixture(t, "", [release, syncRelease, sendRelease, observations]);
     await f.seed([{ table: "sources", row: { id: "source-0", owner: "dev:alice" } }]);
     let holdSync = false;
     let postedIds;
@@ -1105,6 +1105,11 @@ for (const tier of ["wasm", "native"]) {
       },
       close: () => core.close(),
     }), fetch: async (input, init) => {
+      // This case isolates the explicit sync's replay transaction. A background
+      // head captured before that sync is correctly refused after its watermark
+      // advances (store_reset tests assert that E_GENERATION). Keep those
+      // independent observers outside this transaction's refusal census.
+      if (["/changes", "/probe"].includes(new URL(input).pathname)) await held(observations, init.signal);
       if (new URL(input).pathname === "/sync" && holdSync) {
         holdSync = false; syncEntered.resolve(); await held(syncRelease, init.signal);
       }

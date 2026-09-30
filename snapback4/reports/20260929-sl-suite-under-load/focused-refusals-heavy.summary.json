@@ -1,0 +1,16 @@
+{
+  "log": "focused-refusals-heavy.log",
+  "sha256": "1b2e99ed7e99c0f2a0ffe5676f56091e4ed839ec7d4f2330529bb38ee26fbeb2",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 20,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

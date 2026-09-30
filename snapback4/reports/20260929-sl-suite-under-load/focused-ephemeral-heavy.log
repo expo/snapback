@@ -1,0 +1,31 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 14.53s
+     Running unittests src/main.rs (target/debug/deps/snapback4-9e3f1489d21ea2d4)
+
+running 14 tests
+test serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check ... ok
+test serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty ... ok
+test serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock ... ok
+test serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced ... ok
+test serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub ... ok
+test serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked ... ok
+test serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200 ... ok
+test serve::tests::ephemeral_tests::legacy_poll_reply_has_exact_base_shape ... ok
+test serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock ... ok
+test serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance ... ok
+test serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve ... ok
+test serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second ... ok
+test serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock ... ok
+test serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 201 filtered out; finished in 2.34s
+

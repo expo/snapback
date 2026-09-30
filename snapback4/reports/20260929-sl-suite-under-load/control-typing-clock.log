@@ -1,0 +1,31 @@
+TRACE before await page.clock.pauseAt(start);
+TRACE after await page.clock.pauseAt(start);
+TRACE before await page.evaluate(url => window.openClients(url), dev.api);
+TRACE after await page.evaluate(url => window.openClients(url), dev.api);
+TRACE before if (age) await page.clock.runFor(age);
+TRACE after if (age) await page.clock.runFor(age);
+TRACE before await page.evaluate(() => window.mount());
+TRACE after await page.evaluate(() => window.mount());
+TRACE before await until(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
+TRACE after await until(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
+TRACE before await page.clock.runFor(4500 - age - 1);
+TRACE after await page.clock.runFor(4500 - age - 1);
+TRACE before await page.clock.runFor(1001);
+TRACE after await page.clock.runFor(1001);
+TRACE before await page.evaluate(() => window.closeClients());
+✖ useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients (70002.284084ms)
+ℹ expiry 1790718373090; React expiry lateness online=1000 ms local=0 ms; online queries 3
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70156.914979
+
+✖ failing tests:
+
+test at target/sl-load/controls/typing-clock.test.mjs:28:30
+✖ useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients (70002.284084ms)
+  'test timed out after 70000ms'
