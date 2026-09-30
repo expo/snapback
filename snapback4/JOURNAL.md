@@ -79286,3 +79286,56 @@ and restart, not queued-write replay; an empty starter proves lifecycle only.
 Replay, populated histories and application assertions still need scenarios.
 Report: reports/20260930-ns-native-smoke/REPORT.md. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-30 — NS round 1: creation evidence and uninterrupted listener handoff
+
+Merged origin/main (`f1b1f0077e`) first, preserving both sides in `52b02b2de0`.
+Resolved both round 0 reviews: simulator reuse now requires a matching persisted
+per-user UDID/name/runtime/prefix record and a live available booted device;
+a name alone grants nothing. Runtime ordering is numeric, newest first, and
+creation deliberately selects the newest numbered supported iPhone generation.
+Created identity reaches the failed-run receipt before persistence/boot steps.
+
+The bound loopback socket stays owned across preparation and is inherited by
+dev, preserving HTTP connection limits. Restart uses the same handoff; the
+intentional offline interval still closes the listener to prove TCP refusal.
+No existing listener is reclaimed. Backend check runs inside the witness's
+exit-code wrapper as an owned process group, after backend/native project
+leases, held through execution. Missing schema gives exit 1, one message and
+a receipt. Both package READMEs now cite the requested round 0 starter cohort,
+with host/load and “Guidance, not a promise.” LLP 3000.030 §13 is current.
+
+Ten regression controls (eight Rust and two README checks) fail against a
+fresh build of exact round 0 `3f59b23d2c` and pass on round 1. Final local checks:
+40 driver/protocol, 22 init, 10 witness unit, 36 helper/preparation/native-smoke,
+21 periphery and 106 whole-guide checks pass. Source/ref/diff checks and client
+build pass. Initial Darwin SO_ACCEPTCONN and fake-created-UDID collisions were
+ours and are fixed; every development failure is retained and classified.
+No source changed after the full-suite snapshot; only result prose followed.
+
+Fresh starter native: cold 239.025 s; warm 93.667 / 82.528 / 86.251 s, median
+86.251 s (n=3); separate social 202.091 s. Every prime/offline/restart passes.
+Shared Apartment M5 Pro mini, 18 cores / 64 GiB, Xcode/iOS 27; cold load
+18.42–183.46, warm load 9.93–50.72, social 5.49–28.58. Tools/dependencies were
+installed before timing. The exact argument-free npm command used locally
+packed unpublished candidates; native scope remains lifecycle, not queued
+write replay or populated history. All 320 retained files, complete app/Xcode
+inventories and embedded/served/observed origins are verified. The one new
+sb4-ns- iPhone 18 Pro Max simulator and its creation record were deleted by
+exact UDID after collection. No other session's simulator was targeted.
+
+Ran scripts/test.sh once on eb1000, exit 0, exact summary:
+
+    == 0 failure(s) in 1357 s
+
+Full-suite failures: ours 0, baseline 0, environmental 0. Rust 4,366 passes /
+33 declared ignores; client pool 5,312 passes / 10 existing skips; fixtures
+9/9; serial models 79/79 with both full 5,000-sequence walks and the full
+3,000-sequence walk. No cancellations, reduced counts or relaxed timeouts.
+The nominal 60-second bar remains exceeded. Mac wasm 1,977,951 B raw /
+593,592 B gzip; Linux 1,978,828 / 593,225. Both fit the unchanged 593,719 B
+ratchet (127 / 494 B headroom). No budget increase.
+
+Report and bound evidence: reports/20260930-ns-native-smoke/round1/REPORT.md.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

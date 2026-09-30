@@ -1,0 +1,32 @@
+[
+  {
+    "sample": "cold",
+    "origin": "http://127.0.0.1:59322",
+    "backendStarts": 2,
+    "allSegmentOriginsMatch": true
+  },
+  {
+    "sample": "social",
+    "origin": "http://127.0.0.1:60216",
+    "backendStarts": 2,
+    "allSegmentOriginsMatch": true
+  },
+  {
+    "sample": "warm-1",
+    "origin": "http://127.0.0.1:60073",
+    "backendStarts": 2,
+    "allSegmentOriginsMatch": true
+  },
+  {
+    "sample": "warm-2",
+    "origin": "http://127.0.0.1:60128",
+    "backendStarts": 2,
+    "allSegmentOriginsMatch": true
+  },
+  {
+    "sample": "warm-3",
+    "origin": "http://127.0.0.1:60172",
+    "backendStarts": 2,
+    "allSegmentOriginsMatch": true
+  }
+]

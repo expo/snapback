@@ -273,7 +273,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         Some(crate::store_owner::host(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
-    let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
+    let server = crate::witness_socket::server(bind, port, dev)?;
     let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
     if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
     if let Mode::Release { owner, .. } = &mut mode {

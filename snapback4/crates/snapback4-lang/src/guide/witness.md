@@ -16,13 +16,13 @@ on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
 Both Expo starters provide these scripts. Export alone proves no native execution.
 
 The build route chooses a free backend port and writes fresh artifacts under
-`artifacts/native-smoke/<timestamp>`. It reuses an available booted device named
-`snapback4-smoke-…`, otherwise creates and boots one on the newest installed iOS
-runtime. It prints the name, UDID and runtime and records `simulator` in the receipt.
-It never automatically selects other devices. `--udid` chooses an explicit booted
+`artifacts/native-smoke/<timestamp>`. Reuse requires a persisted creation record
+in `$XDG_STATE_HOME/snapback4/witness/simulators` (default `~/.local/state/`),
+an available booted device and the smoke prefix; otherwise it creates a current iPhone.
+Newest iOS runtime wins. Device identity is recorded before boot; names alone prove no ownership. `--udid` chooses an explicit booted
 device; `--port` and `--artifacts` override defaults. Shared-host lanes can set
 `SNAPBACK4_SMOKE_DEVICE_PREFIX=sb4-ns-` to isolate selection and creation.
-The device stays available for warm runs; delete its recorded UDID when finished.
+The socket stays owned through backend startup. Devices remain for warm runs; delete their recorded UDIDs when finished.
 Without Xcode or an iOS runtime, one setup message appears before any build.
 
 Use matching `snapback4` and `snapback4-expo` packages, with `createApp` and
@@ -228,7 +228,7 @@ npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
 ```
 
 The driver owns `snapback4 dev --port 4400 --no-watch`; stop any manually
-started backend first. A bound port is refused, never reclaimed. Omitting `--udid` selects only a tool-named device, as described above. `--timeout 120` is the default
+started backend first. A bound port is refused, never reclaimed. Omitting `--udid` selects only a recorded tool-created device, as described above. `--timeout 120` is the default
 number of seconds per driver step. The app's configured origin must be
 `http://127.0.0.1:<port>`; the kit does not change its client configuration.
 A Release build embeds its JavaScript and needs no Metro server.

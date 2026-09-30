@@ -1,0 +1,27 @@
+{
+  "summary": "== 0 failure(s) in 1357 s",
+  "exit": 0,
+  "rust": {
+    "passed": 4366,
+    "failed": 0,
+    "ignored": 33
+  },
+  "client": {
+    "passed": 5312,
+    "failed": 0,
+    "skipped": 10
+  },
+  "fixtures": {
+    "passed": 9,
+    "failed": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "failureClassification": {
+    "ours": 0,
+    "baseline": 0,
+    "environmental": 0
+  }
+}

@@ -87,6 +87,6 @@ require an application witness; generic smoke refuses that unsupported shape. Cl
 After JS/assets edits, repeat `npm run native:smoke`; simulator selection and
 fresh artifact directories are automatic. Warm Xcode intermediates
 are reused; each run builds the current app and seals a new receipt. Repack
-is withdrawn. Five complete warm build-plus-smoke runs on the shared M5 Pro mini
-measured 159.841 s median / 197.562 s nearest-rank p95, all passing; cold native preparation was about six minutes, with smoke and setup
-additional. See `guide witness` for pins, scope and exact invocation.
+is withdrawn. Fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**.
+Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27; one-minute load: cold 3.61–61.41, warm 3.21–7.22, social 14.62–47.52.
+Tools/dependencies installed first. Guidance, not a promise. See `guide witness` for scope.

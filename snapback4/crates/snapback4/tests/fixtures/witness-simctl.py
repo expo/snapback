@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import socket
 import sqlite3
 import sys
 import time
@@ -24,14 +25,17 @@ if a[0] == 'list':
         sys.exit(1)
     runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
     kind = {'identifier': 'com.apple.CoreSimulator.SimDeviceType.iPhone-17', 'productFamily': 'iPhone'}
+    old_kind = {'identifier': 'com.apple.CoreSimulator.SimDeviceType.iPhone-11', 'productFamily': 'iPhone'}
     if a[1] == 'runtimes':
-        runtimes = [{'identifier': runtime, 'version': '26.5', 'isAvailable': True, 'supportedDeviceTypes': [kind]}]
-        if mode.startswith('auto-create'):
+        runtimes = [{'identifier': runtime, 'version': '26.5', 'isAvailable': True, 'supportedDeviceTypes': [kind, old_kind]}]
+        if mode.startswith('auto-create') or mode == 'reuse-order':
             runtimes += [{'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-9-3', 'version': '9.3', 'isAvailable': True},
                          {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-99', 'version': '99', 'isAvailable': False}]
+        if mode == 'reuse-order':
+            runtimes.append({'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-18-0', 'version': '18.0', 'isAvailable': True})
         print(json.dumps({'runtimes': [] if mode == 'no-runtime' else runtimes}))
     elif a[1] == 'devicetypes':
-        print(json.dumps({'devicetypes': [kind]}))
+        print(json.dumps({'devicetypes': [kind, old_kind]}))
     else:
         devices = [{'udid': udid, 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'prior', 'state': 'Booted', 'isAvailable': True}]
         if mode.startswith('auto-create'):
@@ -39,17 +43,31 @@ if a[0] == 'list':
             devices += [{'udid': 'unavailable', 'name': 'snapback4-smoke-unavailable', 'state': 'Booted', 'isAvailable': False}]
         devices += [{'udid': 'someone-else', 'name': 'mini-verify-iphone', 'state': 'Booted', 'isAvailable': True},
                     {'udid': 'near-prefix', 'name': 'other-snapback4-smoke-not-ours', 'state': 'Booted', 'isAvailable': True}]
-        print(json.dumps({'devices': {runtime: devices}}))
+        groups = {runtime: devices}
+        if mode == 'reuse-order':
+            # Lexically 18 < 26 < 9, numerically 26 > 18 > 9.
+            groups['com.apple.CoreSimulator.SimRuntime.iOS-18-0'] = [dict(devices[0], udid='owned-18')]
+            groups['com.apple.CoreSimulator.SimRuntime.iOS-9-3'] = [dict(devices[0], udid='owned-old')]
+        print(json.dumps({'devices': groups}))
 elif a[0] == 'create':
     assert a[1].startswith(os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-'))
     assert a[3] == 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
     print(udid)
 elif a[0] in ['boot', 'bootstatus']:
     assert a[1] == udid
+    if mode == 'auto-create-' + a[0] + '-fails':
+        sys.exit(1)
 elif a[0] == 'getenv':
     assert a == ['getenv', udid, 'HOME']
     print(root / 'data')
 elif a[0] == 'get_app_container':
+    if mode == 'port-custody' and not (root / '.snapback4/store.sqlite').exists():
+        try:
+            with socket.socket() as contender:
+                contender.bind(('127.0.0.1', int(os.environ['WITNESS_TEST_PORT'])))
+                (root / 'port-stolen').write_text('bound')
+        except OSError:
+            pass
     if mode == 'missing':
         print('No such app', file=sys.stderr)
         sys.exit(1)

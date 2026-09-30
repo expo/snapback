@@ -122,7 +122,7 @@ struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
     backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
     manifest: Value, events: Vec<Value>, observed: Vec<Value>,
-    _lease: File, proof: Option<Value>,
+    _lease: File, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
 }
 impl Run {
     fn event(&mut self, step: &str) { self.events.push(json!({ "step": step, "at": now() })); eprintln!("witness: {step}"); }
@@ -188,7 +188,7 @@ impl Run {
         self.events.push(json!({ "step": format!("{segment}-launched"), "pid": pid, "at": now() })); Ok(())
     }
     fn start_backend(&mut self) -> Result<()> {
-        let reservation = reserve(self.options.port)?;
+        let reservation = match self.reservation.take() { Some(listener) => listener, None => reserve(self.options.port)? };
         let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
         let stdout = self.path("backend-stdout.log");
         let offset = fs::metadata(&stdout).map_or(0, |m| m.len()) as usize;
@@ -196,8 +196,9 @@ impl Run {
         command.args(["dev", "--port", &self.options.port.to_string(), "--no-watch"])
             .env("SNAPBACK4_WITNESS_DRIVER", "1")
             .stdin(Stdio::null()).stdout(output(&stdout)?).stderr(output(&self.path("backend.log"))?);
-        drop(reservation);
+        crate::witness_socket::inherit(&mut command, &reservation);
         self.backend = Some(Owned::spawn(&mut command)?);
+        drop(reservation);
         let end = Instant::now() + self.options.timeout;
         loop {
             let child = self.backend.as_mut().unwrap();
@@ -384,7 +385,10 @@ impl Drop for Run {
 // @ref LLP 3000.007#20.10 — explicit simulator, owned backend and bound artifacts
 fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     platform(std::env::consts::OS)?;
-    let simulator = simulator::select(&options)?;
+    if options.build.is_some() && std::env::current_dir().ok().and_then(|p| crate::project::Project::locate(&p)).is_none() {
+        return Err(error("E_WITNESS_BUILD", "no snapback/schema.q here or above; run snapback4 init before native smoke"));
+    }
+    let simulator = simulator::select(&options, preparation)?;
     let udid = simulator["udid"].as_str().unwrap().to_owned();
     let runtime = simulator["runtime"].as_str().unwrap().to_owned();
     preparation["simulator"] = simulator.clone();
@@ -396,11 +400,8 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     let lease = preparation::lease(&Path::new(&home).join(".snapback4-witness-owner.lock"))?;
     let _port = reserve(options.port)?;
     options.port = _port.local_addr().map_err(|e| error("E_WITNESS_PORT", e))?.port();
-    if options.build.is_some() && super::check(&super::parse(&[])) != 0 {
-        return Err(error("E_WITNESS_BUILD", "backend check failed; repair the diagnostics before native smoke"));
-    }
+    let project_lease = preparation::check_project(&options)?;
     let proof = preparation::prepare_app(&mut options, &udid)?;
-    drop(_port);
     let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nUse witness ios --build <project> --smoke for the qualified adapter, or expo run:ios --configuration Release --device generic --no-bundler --output <private-output> then simctl install the exact product", options.bundle)))?;
     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
     let plist = Path::new(&app).join("Info.plist");
@@ -415,7 +416,6 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
         json!({ "executable": artifact(&Path::new(&app).join(build["CFBundleExecutable"].as_str().unwrap()))?,
             "javascript": artifact(&Path::new(&app).join("main.jsbundle"))? })
     } else { Value::Null };
-    let _reservation = reserve(options.port)?;
     if app_pid(&simctl(&["spawn", &udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
         return Err(error("E_WITNESS_APP", format!("{} is already running on {udid}; quit it before starting the witness", options.bundle)));
     }
@@ -433,7 +433,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
         "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", artifact_segment(&options))),
         "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&options)))).collect::<Vec<_>>() });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, proof })
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, _project_lease: project_lease, proof, reservation: Some(_port) })
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -479,7 +479,7 @@ pub fn run(args: &[String]) -> i32 {
         println!("witness: {label} — {}", run.path("run.json").display());
         Ok(())
     };
-    match execute() { Ok(()) => 0, Err(problem) => { eprintln!("{problem}"); if !problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("see snapback4 guide witness"); } 1 } }
+    match execute() { Ok(()) => 0, Err(problem) => { if problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("{problem}"); } else { eprintln!("{problem}; see snapback4 guide witness"); } 1 } }
 }
 
 #[cfg(test)]

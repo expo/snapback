@@ -118,15 +118,26 @@ mod driver {
             fs::write(dir.join("app/main.jsbundle"), "fake bundle for driver tests").unwrap();
             fs::write(dir.join("xcrun"), include_str!("fixtures/witness-simctl.py")).unwrap();
             fs::set_permissions(dir.join("xcrun"), fs::Permissions::from_mode(0o755)).unwrap();
+            let state = dir.with_extension("state").join("snapback4/witness/simulators");
+            fs::create_dir_all(&state).unwrap();
+            for (id, runtime) in [(dir.file_name().unwrap().to_str().unwrap(), "26-5"), ("owned-old", "9-3"), ("owned-18", "18-0"), ("deleted-device", "99")] {
+                fs::write(state.join(format!("{id}.json")), serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"}).to_string()).unwrap();
+            }
             Self(dir)
         }
         fn command(&self, mode: &str, port: u16, artifacts: &std::path::Path) -> Command {
+            if mode.starts_with("auto-create") {
+                // The fake create returns this fixture's UDID; do not seed a
+                // creation record for that future device.
+                fs::remove_file(self.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", self.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
             let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
             command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "5"])
                 .args(if mode.starts_with("smoke") { vec!["--smoke"] } else { vec!["--segment", "offline", "--prime"] })
                 .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
+                .env("XDG_STATE_HOME", self.0.with_extension("state")).env("WITNESS_TEST_PORT", port.to_string())
                 .env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
             command
         }
@@ -144,7 +155,7 @@ mod driver {
             }
         }
     }
-    impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); let _ = fs::remove_dir_all(self.0.with_extension("state")); } }
     #[test]
     fn automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime() {
         for (mode, prefix) in [("normal", "snapback4-smoke-"), ("auto-create", "snapback4-smoke-"), ("auto-create-lane", "sb4-ns-")] {
@@ -160,6 +171,86 @@ mod driver {
             assert_eq!(calls.contains("\"create\""), mode != "normal");
             assert!(!calls.contains("someone-else") && !calls.contains("near-prefix") && !calls.contains("unavailable"));
         }
+    }
+    #[test]
+    fn prefix_without_creation_record_is_ignored() {
+        let fixture = Fixture::new();
+        fs::remove_dir_all(fixture.0.with_extension("state")).unwrap();
+        let output = fixture.run("normal", Fixture::port());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(receipt["simulator"]["selection"], "created", "a matching name alone must not authorize reuse");
+        let id = receipt["udid"].as_str().unwrap();
+        let record: Value = serde_json::from_slice(&fs::read(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{id}.json"))).unwrap()).unwrap();
+        assert_eq!(record["udid"], receipt["udid"]);
+    }
+    #[test]
+    fn owned_devices_use_numeric_runtime_order() {
+        let fixture = Fixture::new();
+        let output = fixture.run("reuse-order", Fixture::port());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
+        assert_eq!(receipt["simulator"]["selection"], "reused");
+    }
+    #[test]
+    fn created_device_type_is_current_not_last_listed() {
+        let fixture = Fixture::new();
+        let output = fixture.run("auto-create-types", Fixture::port());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
+        assert_eq!(calls.iter().find(|c| c[0] == "create").unwrap()[2], "com.apple.CoreSimulator.SimDeviceType.iPhone-17");
+    }
+    #[test]
+    fn boot_failure_keeps_created_identity_in_receipt() {
+        for mode in ["auto-create-boot-fails", "auto-create-bootstatus-fails"] {
+            let fixture = Fixture::new();
+            let output = fixture.run(mode, Fixture::port());
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(receipt["simulator"]["selection"], "created");
+            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"));
+            assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
+            assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
+            assert!(receipt["simulator"]["name"].as_str().unwrap().starts_with("snapback4-smoke-"));
+        }
+    }
+    #[test]
+    fn preparation_keeps_origin_port_owned_until_backend_startup() {
+        let fixture = Fixture::new();
+        let output = fixture.run("port-custody", Fixture::port());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(!fixture.0.join("port-stolen").exists(), "origin became bindable between preparation and backend startup");
+    }
+    fn build_command(fixture: &Fixture) -> Command {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
+        command.args(["witness", "ios", "--build", ".", "--smoke", "--artifacts", "artifacts"])
+            .current_dir(&fixture.0).env("PATH", format!("{}:{}", fixture.0.display(), std::env::var("PATH").unwrap()))
+            .env("XDG_STATE_HOME", fixture.0.with_extension("state"))
+            .env("WITNESS_TEST_UDID", fixture.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", "normal");
+        command
+    }
+    #[test]
+    fn missing_schema_uses_one_message_and_witness_exit_one() {
+        let fixture = Fixture::new();
+        fs::remove_file(fixture.0.join("snapback/schema.q")).unwrap();
+        let output = build_command(&fixture).output().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(err.contains("no snapback/schema.q"), "{err}");
+        assert!(fixture.0.join("artifacts/smoke-ios-run.json").exists());
+    }
+    #[test]
+    fn project_lease_precedes_check_generation() {
+        let fixture = Fixture::new();
+        fs::create_dir_all(fixture.0.join(".snapback4-witness")).unwrap();
+        let lock = fs::File::create(fixture.0.join(".snapback4-witness/owner.lock")).unwrap();
+        lock.try_lock().unwrap();
+        let output = build_command(&fixture).output().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("owner already holds"));
+        assert!(!fixture.0.join("snapback/generated").exists(), "a second owner entered codegen before taking the lease");
     }
     #[test]
     fn missing_xcode_or_runtime_fails_once_before_build_or_backend() {
@@ -440,4 +531,37 @@ fn artifact_reservation_has_one_winner_before_any_output_exists() {
     assert!(protocol::reserve_artifacts(&dir, "another-segment").is_ok());
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2); // markers only; no output can decide this race
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[path = "../src/witness_socket.rs"]
+#[allow(dead_code)]
+mod witness_socket;
+
+#[test]
+fn dev_accepts_the_still_owned_listener_without_a_rebind_gap() {
+    use std::{fs, time::{Duration, Instant}, thread::sleep, process::Stdio};
+    let dir = std::env::temp_dir().join(format!("ns-listener-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "table rows:\n  body: text\n  public 'all'\n").unwrap();
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
+    command.args(["dev", "--port", &port.to_string(), "--no-watch"]).env("SNAPBACK4_WITNESS_DRIVER", "1")
+        .current_dir(&dir).stdout(fs::File::create(dir.join("stdout")).unwrap()).stderr(Stdio::null());
+    witness_socket::inherit(&mut command, &listener);
+    let mut child = command.spawn().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let ready = loop {
+        let text = fs::read_to_string(dir.join("stdout")).unwrap();
+        if text.lines().any(|s| s == format!("http://127.0.0.1:{port}")) { break true; }
+        if child.try_wait().unwrap().is_some() || Instant::now() >= deadline { break false; }
+        // A competing binder must fail throughout startup, including before ready.
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_err());
+        sleep(Duration::from_millis(10));
+    };
+    if child.try_wait().unwrap().is_none() { child.kill().unwrap(); }
+    child.wait().unwrap();
+    drop(listener);
+    fs::remove_dir_all(dir).unwrap();
+    assert!(ready, "dev must serve the inherited listener while the parent still owns it");
 }
