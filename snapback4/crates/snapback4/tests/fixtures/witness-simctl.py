@@ -27,9 +27,10 @@ if a[0] == 'list':
         sys.exit(1)
     runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
     kind = {'identifier': 'com.apple.CoreSimulator.SimDeviceType.iPhone-17', 'productFamily': 'iPhone'}
-    old_kind = {'identifier': 'com.apple.CoreSimulator.SimDeviceType.iPhone-11', 'productFamily': 'iPhone'}
+    kinds = [dict(kind, identifier='com.apple.CoreSimulator.SimDeviceType.iPhone-' + model)
+             for model in os.environ.get('WITNESS_TEST_DEVICE_TYPES', '17,11').split(',')]
     if a[1] == 'runtimes':
-        runtimes = [{'identifier': runtime, 'version': '26.5', 'isAvailable': True, 'supportedDeviceTypes': [kind, old_kind]}]
+        runtimes = [{'identifier': runtime, 'version': '26.5', 'isAvailable': True, 'supportedDeviceTypes': kinds}]
         if mode.startswith('auto-create') or mode == 'reuse-order':
             runtimes += [{'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-9-3', 'version': '9.3', 'isAvailable': True},
                          {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-99', 'version': '99', 'isAvailable': False}]
@@ -37,7 +38,9 @@ if a[0] == 'list':
             runtimes.append({'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-18-0', 'version': '18.0', 'isAvailable': True})
         print(json.dumps({'runtimes': [] if mode == 'no-runtime' else runtimes}))
     elif a[1] == 'devicetypes':
-        print(json.dumps({'devicetypes': [kind, old_kind]}))
+        # Keep the older-device-last control; invert only Air cases so their
+        # runtime order must win over this independent global list.
+        print(json.dumps({'devicetypes': list(reversed(kinds)) if any(t['identifier'].endswith('iPhone-Air') for t in kinds) else kinds}))
     else:
         devices = [{'udid': os.environ.get('WITNESS_TEST_PRIOR_UDID', udid), 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'prior', 'state': 'Booted', 'isAvailable': True}]
         if mode.startswith('auto-create'):

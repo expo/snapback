@@ -30,6 +30,30 @@ fn remember(preparation: &mut Value, selected: Value) -> Value {
     selected
 }
 
+fn iphone_rank(kind: &Value) -> Option<(u32, bool, bool, &str)> {
+    let model = kind["identifier"].as_str()?.rsplit("iPhone-").next()?;
+    let digits = &model[..model.bytes().take_while(|b| b.is_ascii_digit()).count()];
+    Some((digits.parse().ok()?, model == digits, model[digits.len()..].starts_with("-Pro"), model))
+}
+
+// @ref LLP 3000.030#13 — numbered generations rank numerically; unnumbered models use runtime order.
+fn device_type<'a>(types: &'a [Value], supported: Option<&[Value]>) -> Option<&'a Value> {
+    let candidates: Vec<_> = types.iter().enumerate().filter_map(|(index, kind)| {
+        if kind["productFamily"] != "iPhone" || kind["identifier"].as_str().is_none() { return None; }
+        let order = match supported {
+            Some(types) => types.iter().position(|t| t["identifier"] == kind["identifier"])?,
+            None => index,
+        };
+        Some((order, kind))
+    }).collect();
+    let numbered = candidates.iter().filter_map(|&(order, kind)| iphone_rank(kind).map(|rank| (rank, order, kind)))
+        .max_by_key(|(rank, _, _)| *rank).map(|(_, order, kind)| (order, kind));
+    // Compare only the best numbered model with unnumbered models. Mixing
+    // numeric and ordinal pairwise comparisons would not define a total order.
+    numbered.into_iter().chain(candidates.into_iter().filter(|(_, kind)| iphone_rank(kind).is_none()))
+        .max_by_key(|(order, _)| *order).map(|(_, kind)| kind)
+}
+
 pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value> {
     let runtimes = list("runtimes", options.timeout)?;
     let mut available: Vec<_> = runtimes["runtimes"].as_array().into_iter().flatten()
@@ -63,17 +87,9 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value
     }
     let runtime = available[0];
     let types = list("devicetypes", options.timeout)?;
-    let supported = runtime["supportedDeviceTypes"].as_array();
-    let kind = types["devicetypes"].as_array().into_iter().flatten().filter(|d| {
-        d["productFamily"] == "iPhone" && d["identifier"].as_str().is_some()
-            && supported.is_none_or(|s| s.iter().any(|t| t["identifier"] == d["identifier"]))
-    }).max_by_key(|d| {
-        // Prefer the newest numbered standard iPhone, then its Pro variants;
-        // simctl's list order is not a device-generation ordering.
-        let model = d["identifier"].as_str().unwrap().rsplit("iPhone-").next().unwrap();
-        let generation = model.split('-').next().unwrap().parse::<u32>().unwrap_or(0);
-        (generation, model == generation.to_string(), model.to_owned())
-    }).ok_or_else(|| error("E_WITNESS_PLATFORM", SETUP))?;
+    let kind = device_type(types["devicetypes"].as_array().map(Vec::as_slice).unwrap_or_default(),
+        runtime["supportedDeviceTypes"].as_array().map(Vec::as_slice))
+        .ok_or_else(|| error("E_WITNESS_PLATFORM", SETUP))?;
     owners.prepare()?;
     let name = format!("{prefix}{}-{}", now(), std::process::id());
     let runtime = runtime["identifier"].as_str().unwrap();

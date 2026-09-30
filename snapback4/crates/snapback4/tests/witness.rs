@@ -109,15 +109,16 @@ fn artifacts_require_bytes_and_bind_the_digest() {
 #[cfg(target_os = "macos")]
 mod driver {
     use super::*;
-    use std::{fs, path::PathBuf, os::unix::fs::PermissionsExt, sync::atomic::{AtomicUsize, Ordering}};
+    use std::{fs, path::PathBuf, os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt}, sync::atomic::{AtomicUsize, Ordering}};
     use serde_json::Value;
     struct Fixture(PathBuf, std::cell::RefCell<Vec<watchdog::Guarded>>);
     impl Fixture {
         fn new() -> Self {
             static SERIAL: AtomicUsize = AtomicUsize::new(0);
             let dir = std::env::temp_dir().join(format!("sb4-witness-driver-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
-            fs::create_dir_all(dir.join("app")).unwrap(); fs::create_dir_all(dir.join("data")).unwrap();
-            fs::create_dir_all(dir.join("snapback")).unwrap();
+            for name in ["app", "data", "snapback"] {
+                fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(name)).unwrap();
+            }
             fs::write(dir.join("snapback/schema.q"), "use personas alice\ntable rows:\n  body: text <=40\n  public 'fixture'\nquery rows():\n  return rows first 10\n").unwrap();
             fs::write(dir.join("app/Info.plist"), r#"<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.test</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleExecutable</key><string>TestApp</string></dict></plist>"#).unwrap();
             fs::write(dir.join("app/TestApp"), "fake app for driver tests").unwrap();
@@ -125,9 +126,11 @@ mod driver {
             fs::write(dir.join("xcrun"), include_str!("fixtures/witness-simctl.py")).unwrap();
             fs::set_permissions(dir.join("xcrun"), fs::Permissions::from_mode(0o755)).unwrap();
             let state = dir.with_extension("state").join("snapback4/witness/simulators");
-            fs::create_dir_all(&state).unwrap();
+            fs::DirBuilder::new().recursive(true).mode(0o700).create(&state).unwrap();
             for (id, runtime) in [(dir.file_name().unwrap().to_str().unwrap(), "26-5"), ("owned-old", "9-3"), ("owned-18", "18-0"), ("deleted-device", "99")] {
-                fs::write(state.join(format!("{id}.json")), serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"}).to_string()).unwrap();
+                use std::io::Write;
+                let mut record = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(state.join(format!("{id}.json"))).unwrap();
+                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"})).unwrap();
             }
             Self(dir, Default::default())
         }
@@ -183,7 +186,10 @@ mod driver {
             fs::remove_file(original).unwrap();
             record["udid"] = serde_json::json!("foreign");
             let path = state.join("foreign.json");
-            fs::write(&path, record.to_string()).unwrap();
+            use std::io::Write;
+            let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).unwrap();
+            write!(file, "{record}").unwrap();
+            drop(file);
             match mode {
                 "symlink" => {
                     fs::rename(&path, fixture.0.join("foreign.json")).unwrap();
@@ -238,7 +244,10 @@ mod driver {
         assert!(node.status.success());
         let node = String::from_utf8(node.stdout).unwrap();
         fs::write(fixture.0.join("stalled.mjs"), "import fs from 'node:fs'; fs.writeFileSync('checker-pid', String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
-        fs::write(fixture.0.join("checker"), format!("#!/bin/sh\nexec '{}' '{}'\n", node.trim(), fixture.0.join("stalled.mjs").display())).unwrap();
+        // The real checker has its own 30-second deadline. Keep the Node
+        // descendant and diagnostic pipes alive after its wrapper is reaped,
+        // so only the witness's 120-second startup guard ends this scenario.
+        fs::write(fixture.0.join("checker"), format!("#!/bin/sh\n'{}' '{}' &\nwait\n", node.trim(), fixture.0.join("stalled.mjs").display())).unwrap();
         fs::set_permissions(fixture.0.join("checker"), fs::Permissions::from_mode(0o755)).unwrap();
         let port = Fixture::port();
         let mut child = watchdog::Guarded::spawn(fixture.command("normal", port, std::path::Path::new("artifacts"))
@@ -301,11 +310,22 @@ mod driver {
     }
     #[test]
     fn created_device_type_is_current_not_last_listed() {
-        let fixture = Fixture::new();
-        let output = fixture.run("auto-create-types", Fixture::port());
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
-        assert_eq!(calls.iter().find(|c| c[0] == "create").unwrap()[2], "com.apple.CoreSimulator.SimDeviceType.iPhone-17");
+        for (models, expected) in [
+            ("17,11", "17"),
+            ("17e,16", "17e"),
+            ("17-Pro,17e,16", "17-Pro"),
+            ("17-Pro-Max,17-Pro,17e,16", "17-Pro-Max"),
+            ("17-Pro-Max,17,17e,16", "17"),
+            ("16,17e,Air", "Air"),
+            ("16,Air,17-Pro,17-Pro-Max", "17-Pro-Max"),
+        ] {
+            let fixture = Fixture::new();
+            let output = fixture.run_command(fixture.command("auto-create-types", Fixture::port(), std::path::Path::new("artifacts"))
+                .env("WITNESS_TEST_DEVICE_TYPES", models), watchdog::SCENARIO_GUARD);
+            assert!(output.status.success(), "{models}: {}", String::from_utf8_lossy(&output.stderr));
+            let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
+            assert_eq!(calls.iter().find(|c| c[0] == "create").unwrap()[2], format!("com.apple.CoreSimulator.SimDeviceType.iPhone-{expected}"), "{models}");
+        }
     }
     #[test]
     fn boot_failure_keeps_created_identity_in_receipt() {
@@ -338,14 +358,28 @@ mod driver {
     }
     #[test]
     fn missing_schema_uses_one_message_and_witness_exit_one() {
-        let fixture = Fixture::new();
-        fs::remove_file(fixture.0.join("snapback/schema.q")).unwrap();
-        let output = fixture.run_command(&mut build_command(&fixture), watchdog::SCENARIO_GUARD);
-        assert_eq!(output.status.code(), Some(1));
-        let err = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(err.lines().count(), 1, "{err}");
-        assert!(err.contains("no snapback/schema.q"), "{err}");
-        assert!(fixture.0.join("artifacts/smoke-ios-run.json").exists());
+        for missing_schema in [true, false] {
+            let fixture = Fixture::new();
+            if missing_schema { fs::remove_file(fixture.0.join("snapback/schema.q")).unwrap(); }
+            else { fs::write(fixture.0.join("snapback/generated"), "block codegen").unwrap(); }
+            let output = fixture.run_command(&mut build_command(&fixture), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let err = String::from_utf8_lossy(&output.stderr);
+            if missing_schema {
+                assert_eq!(err.lines().count(), 1, "{err}");
+                assert!(err.contains("no snapback/schema.q"), "{err}");
+            } else {
+                assert!(err.contains("backend check failed"), "{err}");
+                let path = fs::canonicalize(fixture.0.join("artifacts/check-stderr.log")).unwrap();
+                assert!(err.contains(&format!("see {}", path.display())), "{err}");
+                assert!(!err.contains("check-stdout.log"), "{err}");
+                let log = fs::read_to_string(fixture.0.join("artifacts/check-stderr.log")).unwrap();
+                assert!(log.contains("cannot write generated types"), "{log}");
+                assert!(err.contains(log.lines().next().unwrap()), "{err}");
+                assert!(!fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().contains("\"install\""));
+            }
+            assert!(fixture.0.join("artifacts/smoke-ios-run.json").exists());
+        }
     }
     #[test]
     fn project_lease_precedes_check_generation() {
@@ -562,7 +596,7 @@ mod driver {
     fn cli_refuses_an_existing_app_and_never_terminates_a_replacement() {
         let fixture = Fixture::new(); let output = fixture.run("running", Fixture::port());
         assert!(!output.status.success(), "existing app was taken over");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: dev.test is already running on "));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: dev.test is already running on "), "{}", String::from_utf8_lossy(&output.stderr));
         assert!(!fixture.0.join("process-events.jsonl").exists());
         assert!(!fixture.0.join(".snapback4").exists());
         let fixture = Fixture::new(); let output = fixture.run("replacement", Fixture::port());

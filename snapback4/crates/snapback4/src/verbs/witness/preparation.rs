@@ -92,7 +92,7 @@ pub(super) fn check_project(options: &Options) -> Result<Vec<File>> {
         if let Some(status) = child.status()? {
             if !status.success() {
                 let detail = fs::read_to_string(options.artifacts.join("check-stderr.log")).unwrap_or_default();
-                return Err(error("E_WITNESS_BUILD", format!("backend check failed: {}; see {}/check-stdout.log", detail.lines().next().unwrap_or("repair the schema diagnostics"), options.artifacts.display())));
+                return Err(error("E_WITNESS_BUILD", format!("backend check failed: {}; see {}/check-stderr.log", detail.lines().next().unwrap_or("repair the schema diagnostics"), options.artifacts.display())));
             }
             break;
         }

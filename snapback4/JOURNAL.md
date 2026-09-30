@@ -79497,3 +79497,41 @@ Report and complete failure dispositions:
 reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — NS round 3: final native-smoke review fixes
+
+Merged origin/main 9d03e94623 (SL) in 98ae0eb0a4, preserving both journal
+histories and the NS scenarios under SL's watchdog and 120-second step budget.
+Timeout preparation blocks until reaped. The stalled-checker fixture keeps its
+Node descendant and diagnostic pipes alive past the checker's own 30-second
+wrapper deadline, so the witness's startup deadline remains the tested event.
+The adapted interruption control still detects round 1's leaked listener before
+cleanup; the saved old binary hash and restored current binary are verified.
+
+Astra's fixture umask finding and Grok's remaining two Lows are fixed. Fixtures
+create private 0700 directories and 0600 records before intentional unsafe
+mutations. Device generation uses leading digits (17e included); plain and Pro
+variants rank deliberately, and unnumbered Air uses the runtime's supported-type
+order relative to the numbered winner. Seven cases cover those choices and the
+older-device-last control. Failed check names its actual stderr log, asserted
+alongside the diagnostic, exit 1 and no installation. LLP 3000.030 §13 is current.
+
+Final Mac checks: whole witness driver/protocol 47/47 under umask 0022 and 0002;
+witness units 11/11 under both; starter 22/22; whole guide 106/106. Ref-check and
+diff check pass. The report keeps every exact summary, including three detecting
+pre-fix controls and the round-1 listener control. Initial integrated driver run
+was 44/47: ours were the 17e/Pro tie-break and the checker deadline adaptation;
+one existing-app refusal failure lacked its diagnostic and remains unclassified.
+Its unchanged condition now prints stderr; focused and final whole runs pass.
+No earlier red invocation is relabeled green. The original fixture's older-last
+ordering was retained in the final 0002 run and a final full 0022 repetition.
+
+Wasm rebuilt here: 1,977,951 B raw / 593,592 B gzip, 127 B below the unchanged
+593,719 B ratchet. No full suite or new native timing run was needed or run in
+this round. No real simulator or other session's device was touched, no system
+setting changed, and only owned fixture processes were signaled. The requested
+native-smoke-fixtures-device-choice-log-name ticket was absent from main at the
+merged commit; all three named findings are resolved. Report and retained logs:
+reports/20260930-ns-native-smoke/round3/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
