@@ -1,0 +1,42 @@
+{
+  "name": "focused-typing-fixed",
+  "workers": 0,
+  "mode": "load",
+  "affinity": [
+    "taskset",
+    "-c",
+    "80-95"
+  ],
+  "guard": [
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/confine"
+  ],
+  "wrapper": [],
+  "command": [
+    "node",
+    "--test",
+    "packages/snapback4/test/typing-expiry.test.mjs"
+  ],
+  "harness_sha256": {
+    "confine": "f75c042ca47551b8bb172d24702a3a2a830fc8eb000429752302b18aff229241",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-09-29T20:46:50.396150+00:00",
+  "head": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "diff_sha256": "9b3257d540a69d01959e593295e12628a750a17c5e339bd8b160bebf4a4936af",
+  "tested_diff_sha256": "87de3cb8ab6c3a639c874c43283fe75c987f3e975c361e6934c9144aa0c6a430",
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1461292,
+  "exit": 0,
+  "elapsed_seconds": 3.872661310248077,
+  "end": "2026-09-29T20:46:54.351331+00:00"
+}

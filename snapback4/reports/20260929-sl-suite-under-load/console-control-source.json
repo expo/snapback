@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-30T03:50:07.685495+00:00",
+  "file": {
+    "path": "crates/snapback4/src/dev_refusal_console.rs",
+    "before_sha256": "25065864118d6b0e5ff2376342cbe096d30f37c7c32fc1cf463b6a024050e910",
+    "control": "target/sl-load/console-control.rs",
+    "control_sha256": "f3558e20814fa39ce56e6acc0889f9aeb292f435ef0339fb4dc57a2b190cd751",
+    "candidate": "target/sl-load/console-candidate.rs",
+    "candidate_sha256": "5e9f12c18abb754b5922e3139a70b6bee62dea8a9a003f597cc96c4f94f45877"
+  },
+  "tested_diff_sha256": "f5658bc15bebc7936ee331cdc6c73da8b34b026672061d3a9106255d194a2eb2"
+}

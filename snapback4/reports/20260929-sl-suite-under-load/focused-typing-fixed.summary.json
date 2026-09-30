@@ -1,0 +1,21 @@
+{
+  "log": "focused-typing-fixed.log",
+  "sha256": "46ff48010b5d3e3f3b8db97cb8e7db74c1178fcd827d43a981d7b68d532d2744",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 2",
+    "ℹ suites 0",
+    "ℹ pass 2",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 3837.307311"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

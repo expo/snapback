@@ -1,0 +1,41 @@
+{
+  "name": "qualified-idle",
+  "workers": 0,
+  "mode": "load",
+  "affinity": [
+    "taskset",
+    "-c",
+    "80-95"
+  ],
+  "guard": [
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/confine"
+  ],
+  "wrapper": [],
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "harness_sha256": {
+    "confine": "f75c042ca47551b8bb172d24702a3a2a830fc8eb000429752302b18aff229241",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-09-29T20:50:39.432578+00:00",
+  "head": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "diff_sha256": "418c3f5b1a24c3c308d2047f777457d20902edcecd6b33346d3e2990a54e63db",
+  "tested_diff_sha256": "302287dcb5980f4118836908d35c26ab5b28a3249c217e0eeddbbe341588c61d",
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1474399,
+  "exit": 1,
+  "elapsed_seconds": 1727.960640037898,
+  "end": "2026-09-29T21:19:27.474125+00:00"
+}

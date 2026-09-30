@@ -1,0 +1,12 @@
+{
+  "run_admission": {
+    "source": "snapback4/target/debug/deps/run_admission-0896b29051f5dde7",
+    "copy": "snapback4/target/sl-load/original-run_admission",
+    "sha256": "9071ad108147334cbc0732b1070bf3b09cdec79bcc2f0bffb534123dce65e1a0"
+  },
+  "clique_03": {
+    "source": "snapback4/target/debug/deps/clique_03-5af2363b552e4b1d",
+    "copy": "snapback4/target/sl-load/original-clique_03",
+    "sha256": "3d075f48dbdaf4f04a405369961ddece46581e08ae53fe2338abcc6dc2b35405"
+  }
+}

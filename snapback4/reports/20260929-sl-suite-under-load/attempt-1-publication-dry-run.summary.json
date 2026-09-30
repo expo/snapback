@@ -1,0 +1,172 @@
+{
+  "log": "attempt-1-publication-dry-run.log",
+  "sha256": "284c6f6c666da84846b94d085fdc26564f011cdabbcc2dc965728b1a3c8b3a8d",
+  "summary": [
+    "== 1 failure(s) in 5759 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (6 s)",
+    "-- ok: wasm build (2 s)",
+    "-- ok: docs budget (59 s)",
+    "-- ok: release guard (7 s)",
+    "-- ok: package typecheck (1 s)",
+    "-- ok: package build (1 s)",
+    "-- ok: chat app check (3 s)",
+    "-- ok: cargo test (1398 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (6 s)",
+    "-- FAIL: client tests (4043 s)",
+    "-- ok: client models (239 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 18 concurrent processes",
+    "-- available CPUs: 18; client file concurrency: 6",
+    "-- client test files: 237; concurrency: 6"
+  ],
+  "rust": {
+    "passed": 4349,
+    "failed": 0,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 6749.093458",
+    "ℹ tests 5099",
+    "ℹ suites 0",
+    "ℹ pass 5088",
+    "ℹ fail 6",
+    "ℹ cancelled 0",
+    "ℹ skipped 5",
+    "ℹ todo 0",
+    "ℹ duration_ms 4042608.133292",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 238991.582833"
+  ],
+  "wasm": [
+    "wasm 2040781 B raw, 592928 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 7912,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/per-row-liveness.test.mjs:1:1",
+        "✖ packages/snapback4/test/per-row-liveness.test.mjs (3707005.187416ms)",
+        "  'test failed'",
+        ""
+      ]
+    },
+    {
+      "line": 7916,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/per-row-retry.test.mjs:1:1",
+        "✖ packages/snapback4/test/per-row-retry.test.mjs (3668612.838209ms)",
+        "  'test failed'",
+        ""
+      ]
+    },
+    {
+      "line": 7920,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/supervised-workers.test.mjs:25:38",
+        "✖ dev declares two workers, injects usable secret seats, restarts independently and stops both (908.015625ms)",
+        "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+        "  ",
+        "    assert.ok(stderr.includes(`ledger:${expectedLedger}`))",
+        "  ",
+        "      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/supervised-workers.test.mjs:78:10)",
+        "      at async Test.run (node:internal/test_runner/test:1332:7)",
+        "      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {",
+        "    generatedMessage: true,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: false,",
+        "    expected: true,",
+        "    operator: '==',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 7937,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/supervised-workers.test.mjs:25:38",
+        "✖ serve declares two workers, injects usable secret seats, restarts independently and stops both (904.305ms)",
+        "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+        "  ",
+        "    assert.ok(stderr.includes(`ledger:${expectedLedger}`))",
+        "  ",
+        "      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/supervised-workers.test.mjs:78:10)",
+        "      at async Test.run (node:internal/test_runner/test:1332:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {",
+        "    generatedMessage: true,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: false,",
+        "    expected: true,",
+        "    operator: '==',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 7954,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/worker-regressions.test.mjs:688:53",
+        "✖ automatic snapshot validates checked project imports: entry-copy (30646.93875ms)",
+        "  AssertionError [ERR_ASSERTION]: worker regression timed out",
+        "      at until (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/worker-regressions.test.mjs:18:10)",
+        "      at async Object.start (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/worker-regressions.test.mjs:49:5)",
+        "      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/worker-regressions.test.mjs:710:5)",
+        "      at async Test.run (node:internal/test_runner/test:1332:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {",
+        "    generatedMessage: false,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: undefined,",
+        "    expected: undefined,",
+        "    operator: 'fail',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 7970,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/worker-regressions.test.mjs:688:53",
+        "✖ automatic snapshot validates checked project imports: linked-helper (12624.821ms)",
+        "  AssertionError [ERR_ASSERTION]: worker regression timed out",
+        "      at until (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/worker-regressions.test.mjs:18:10)",
+        "      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/worker-regressions.test.mjs:704:5)",
+        "      at async Test.run (node:internal/test_runner/test:1332:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {",
+        "    generatedMessage: false,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: undefined,",
+        "    expected: undefined,",
+        "    operator: 'fail',",
+        "    diff: 'simple'",
+        "  }"
+      ]
+    }
+  ]
+}

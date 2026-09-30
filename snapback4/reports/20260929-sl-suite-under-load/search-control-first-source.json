@@ -1,0 +1,17 @@
+{
+  "source": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+  "source_sha256": "429a31c6711083a181ee00ac89e7ae0b22a956116d2ea87328298b59fc523f2b",
+  "control": "target/sl-load/controls/ordinary-search-trace.test.mjs",
+  "control_sha256": "a0fb8cb2b323d38acc34932524133bd4c116ddebe2039b02c4a59bdc9e05e36f",
+  "seed": 130,
+  "hosts": [
+    "process",
+    "wasm"
+  ],
+  "repetitions_per_host": 100,
+  "schedules": [
+    "normal",
+    "current-only"
+  ],
+  "assertions": "unchanged"
+}

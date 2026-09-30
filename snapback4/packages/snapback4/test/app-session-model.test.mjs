@@ -1,9 +1,14 @@
+// @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
-  const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
+const count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
+// A hang guard for full histories, not a throughput assertion. Each history
+// drives three runtimes through storage/wire faults and fair recovery. Keep the
+// same two seconds per history used by the mixed-evidence oracle under load.
+for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: Math.max(240_000, count * 2000) }, async t => {
+  const coverage = {};
   for (let seed = 1; seed <= count; seed++) {
     t.signal.throwIfAborted();
     const sequence = generate(seed);

@@ -1,0 +1,4612 @@
+[
+  [
+    {
+      "ms": 195.4234059999999,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 195.45002599999998,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 210.54967099999976,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 210.90335099999993,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 210.9583029999999,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 211.0172010000001,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 211.07171299999982,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 213.2746649999999,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 219.2147500000001,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 219.276292,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 219.39591100000007,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 219.42270099999996,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "c6b4fce591860b55a72c5ad996641409"
+        }
+      }
+    },
+    {
+      "ms": 220.19233499999973,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 220.2321649999999,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 220.8211080000001,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 220.87843399999974,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 220.90547400000014,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 220.92008600000008,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 221.02153799999996,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 221.04852900000014,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 227.30598899999995,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 227.5462389999998,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 227.58510699999988,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 227.62215199999991,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 227.67463099999986,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 228.22024899999997,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 228.54516599999988,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 228.56891199999973,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 228.62434499999972,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 228.68315299999995,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 228.75494100000014,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 228.84173099999998,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 228.85250700000006,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 229.0775239999998,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 229.50292200000013,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 233.15380499999992,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 257.90217199999915,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 258.91239699999915,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 258.94971299999906,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 259.1594269999996,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 259.1947200000004,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 259.23539099999925,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 259.26667799999905,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 277.4015730000001,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 290.7099420000004,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 290.8156909999989,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 290.9263069999988,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 290.95282599999973,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "ae50283af37316f3a940b9d2530a80a0"
+        }
+      }
+    },
+    {
+      "ms": 291.6444729999994,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 291.67706199999975,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 292.190963,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 292.2444119999991,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 292.28039699999954,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 292.2920039999999,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 292.38629499999934,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 292.41193399999884,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 299.7447259999999,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 300.00202099999933,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 300.0753709999999,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 300.12717900000007,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 300.163313,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 300.69524,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 301.01598099999956,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 301.03684299999895,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 301.0909839999995,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 301.17141399999946,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 301.2493110000005,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 301.29162499999893,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 301.3016400000006,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 301.5475980000001,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 301.9401769999995,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 302.082519999999,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 245.25178899999992,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 245.27751700000044,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 259.05914699999994,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 259.29842500000086,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 259.34756899999957,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 259.39141500000005,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 259.44090900000083,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 259.5041230000006,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 265.97386200000074,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 266.03212899999926,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 266.14097199999924,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 266.17013600000064,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "972e4f4a6845d94342c8fafac0396e11"
+        }
+      }
+    },
+    {
+      "ms": 266.77289999999994,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 266.84988499999963,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 267.312989,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 267.36456700000053,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 267.39187800000036,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 267.4008809999996,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 267.4867099999992,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 267.5063790000004,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 274.1793120000002,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 274.5598430000009,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 274.6132830000006,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 274.66344799999933,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 274.7165669999995,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 275.94364700000006,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 276.26455800000076,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 276.28782300000057,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 276.34063199999946,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 276.39569499999925,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 276.4611729999997,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 276.49207899999965,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 276.5003309999993,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 276.7032450000006,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 280.13780399999996,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 280.37719300000026,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 215.2514680000004,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 215.27212900000086,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 222.21646899999905,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 222.43964400000004,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 222.47683900000084,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 222.5119620000005,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 222.55210199999965,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 238.07206699999915,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 244.59999199999947,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 244.66577099999995,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 244.76606100000026,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 244.79375299999992,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "b3e9346bcf6afb664d264f97d11bbf53"
+        }
+      }
+    },
+    {
+      "ms": 245.41760799999975,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 245.44511899999998,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 245.90760299999965,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 245.95289100000082,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 245.978298,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 245.9870319999991,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 246.077808,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 246.10046200000033,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 253.20886699999937,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 253.43727000000035,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 253.46758500000033,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 253.50592200000028,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 253.53735000000052,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 253.98421899999994,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 254.30309699999998,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 254.3235480000003,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 254.3621860000003,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 254.4218660000006,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 254.4833780000008,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 254.51499499999954,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 254.52293699999973,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 254.70940700000028,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 255.09175999999934,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 259.0472489999993,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 208.14937199999986,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 212.14412099999936,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 212.1762490000001,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 212.38511199999994,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 212.43285300000025,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 212.46949799999857,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 212.50496199999907,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 227.62323399999877,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 232.02542299999914,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 232.091993,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 232.18537300000025,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 232.2088679999997,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "c0b7783ddc677ac2726e38de2f0e186d"
+        }
+      }
+    },
+    {
+      "ms": 232.78349999999955,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 232.80405999999857,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 233.2890669999997,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 233.34100500000022,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 233.37402499999916,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 233.3829079999996,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 233.46004399999947,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 233.48245700000007,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 238.27945799999907,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 238.62657899999977,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 238.68189100000018,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 238.72903199999928,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 238.7857269999986,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 239.30922199999986,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 245.00355799999852,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 245.03299199999856,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 245.1129519999995,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 245.2133819999999,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 245.29106899999897,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 245.3307879999993,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 245.3401419999991,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 245.52860499999952,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 245.93356200000017,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 246.05267999999887,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 209.90617500000008,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 214.25427300000047,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 214.47244000000137,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 214.50899500000014,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 214.55247000000054,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 214.59304100000008,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 232.5902189999997,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 234.1681040000003,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 234.23173000000133,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 234.3246790000012,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 234.35125900000094,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "314a36a57fa722a2f3349fe085f7d6f9"
+        }
+      }
+    },
+    {
+      "ms": 240.01988600000004,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 240.06241000000045,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 240.62599500000033,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 240.684623000001,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 240.75579000000107,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 240.76581500000066,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 240.86158799999976,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 240.91161300000022,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 244.8265420000007,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 244.8456900000001,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 245.06182400000034,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 245.10548000000017,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 245.15140900000006,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 245.20923500000026,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 245.6742430000013,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 245.97711700000036,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 245.9976770000012,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 246.06394700000055,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 246.12318500000038,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 246.1934309999997,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 246.23019600000043,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 246.23806800000057,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 246.4332599999998,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 246.80804200000057,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 246.91789700000118,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 258.2982570000004,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 258.3244760000016,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 265.2682650000006,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 265.4731920000013,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 265.5125510000016,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 265.55298200000107,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 265.58880500000123,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 281.1052350000009,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 285.14178600000014,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 285.21397400000023,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 285.312672,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 285.33231200000046,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "9345f8bb863b9ed0aaf5be23873e6fc7"
+        }
+      }
+    },
+    {
+      "ms": 285.88141500000165,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 285.9022160000004,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 286.37517500000104,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 286.42707300000075,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 286.4565270000003,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 286.4646790000006,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 286.54662200000166,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 286.5655800000004,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 294.344701,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 294.5621170000013,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 294.5996640000012,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 294.63397500000065,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 294.6676950000001,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 302.60002600000007,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 302.8916740000004,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 302.91521900000043,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 302.9658650000001,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 303.0248330000013,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 303.1013980000007,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 303.14186900000095,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 303.14977,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 303.34188800000084,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 303.7494490000008,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 303.8652030000012,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 191.24944799999867,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 202.79226199999903,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 206.1481419999982,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 206.21526299999823,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 206.2705449999994,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 206.33064599999852,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 216.05168799999956,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 222.57144100000005,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 222.6873749999977,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 222.8239799999974,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 222.8653720000002,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "be6df13571e5e921990f8b465cb95023"
+        }
+      }
+    },
+    {
+      "ms": 229.51639199999772,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 229.54692799999975,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 230.09032200000001,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 230.14200899999923,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 230.18327099999806,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 230.1931059999988,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 230.29285600000003,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 230.32144899999912,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 231.792723999999,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 231.80945900000006,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 232.01117099999828,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 232.07529799999975,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 232.11615899999742,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 232.15193299999737,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 237.46851199999946,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 237.7661279999993,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 237.78668900000048,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 237.84991399999853,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 237.90715999999884,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 237.97613300000012,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 238.03794600000037,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 238.0463579999996,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 238.24362399999882,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 238.609332,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 238.7185959999988,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 172.19963199999984,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 172.22321799999918,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 185.97239799999807,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 186.2085619999998,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 186.2519969999994,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 186.30434599999717,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 186.34304399999746,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 192.7796419999977,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 199.25521899999876,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 199.31750199999806,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 199.4181929999977,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 199.44144799999776,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "e319f94b8b1f18dbeba69c76a7fe2927"
+        }
+      }
+    },
+    {
+      "ms": 207.12992399999712,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 207.15664399999878,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 207.61861599999975,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 207.66918199999782,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 207.7059369999988,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 207.71709399999963,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 207.82174099999975,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 207.84524599999713,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 214.93851899999936,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 215.16772199999832,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 215.2143219999998,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 215.25827799999752,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 215.28932499999792,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 215.74626999999964,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 216.60325399999783,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 216.62172199999986,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 216.66565799999807,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 216.7227129999992,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 216.80322399999932,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 216.83839699999953,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 216.84549699999843,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 217.03447099999903,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 217.40343399999983,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 220.79059099999722,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 163.8793399999995,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 163.9030559999992,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 170.6053920000013,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 170.81639899999936,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 170.8647009999986,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 170.91165199999887,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 170.9459629999983,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 183.8308479999978,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 196.1294740000012,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 196.21964899999875,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 196.3275509999985,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 196.35031499999968,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "0387937a7cb0442c01f84600ef690e92"
+        }
+      }
+    },
+    {
+      "ms": 198.92241099999956,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 198.94793899999786,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 199.39784299999883,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 199.44962099999975,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 199.49323599999843,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 199.50159899999926,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 199.5884389999992,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 199.60903999999937,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 209.00609600000098,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 209.2464970000001,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 209.2928060000013,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 209.3432619999985,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 209.3750089999994,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 209.83590999999797,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 210.11621000000014,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 210.13399700000082,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 210.1828800000003,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 210.24266999999963,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 210.31091200000083,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 210.3542869999983,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 210.36084699999992,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 210.55248399999982,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 210.92684599999848,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 215.85362099999838,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 190.43143199999759,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 190.45198299999902,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 197.37662300000375,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 197.59464000000298,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 197.63922699999966,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 197.68093000000226,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 197.71394899999723,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 209.83187400000315,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 218.69560099999944,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 218.77130500000203,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 218.87210600000253,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 218.89436900000146,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "6bfc15f382fab3fc600608a81bd026eb"
+        }
+      }
+    },
+    {
+      "ms": 219.4755609999993,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 219.4982549999986,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 219.97193400000106,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 220.01583000000392,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 220.05293600000005,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 220.06199999999808,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 220.14404300000024,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 220.16406200000347,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 229.4127060000028,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 229.6512040000016,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 229.69465900000068,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 229.73408799999743,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 229.7671679999985,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 230.1707230000029,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 230.46914000000106,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 230.48378200000298,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 230.53215500000078,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 230.59103300000424,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 230.66528400000243,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 230.7007670000021,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 230.70749700000306,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 230.89386699999886,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 231.2581530000025,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 231.43554900000163,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 233.5383109999966,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 233.55685899999662,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 234.21371299999737,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 234.4100980000003,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 234.44287700000132,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 234.47508499999822,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 234.5115399999995,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 255.42002199999843,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 259.5094719999979,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 259.5686910000004,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 259.66059900000255,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 259.6796979999999,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "ed177bd54e80412985c3ff937b4e1f74"
+        }
+      }
+    },
+    {
+      "ms": 260.21232600000076,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 260.23281699999643,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 260.6529769999979,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 260.69308699999965,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 260.71930599999905,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 260.72659700000077,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 260.8033720000021,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 260.8230919999987,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 264.60784499999863,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 265.0326819999973,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 265.06648300000234,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 265.10140500000125,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 265.13089899999613,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 267.44146300000284,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 267.71071700000175,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 267.72756200000003,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 267.76531799999793,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 267.81820799999696,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 267.8756540000031,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 267.9132899999968,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 267.9212520000001,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 268.09120699999767,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 268.4475109999985,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 271.42307099999744,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 161.8053310000032,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 161.82588200000464,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 168.79442800000106,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 169.00376200000028,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 169.04493300000468,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 169.08539400000154,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 169.11615000000165,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 181.2361080000046,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 188.78364200000215,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 188.84511400000338,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 188.94781800000055,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 188.97159400000237,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "654d6c9963d5916d661095e6a6dda709"
+        }
+      }
+    },
+    {
+      "ms": 189.57848400000512,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 189.59797300000355,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 190.05040100000042,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 190.10700600000564,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 190.1432300000015,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 190.15157300000283,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 190.23656000000483,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 190.2588240000041,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 197.8285010000036,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 198.05154500000208,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 198.09502000000066,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 198.13305700000637,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 198.16121000000567,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 198.59570100000565,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 198.88363300000492,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 198.90130900000077,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 198.9473980000039,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 199.0068470000042,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 199.0660960000023,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 199.10242100000323,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 199.1084800000026,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 199.28568500000256,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 199.64923000000272,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 199.808309,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 188.5877580000015,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 192.4636079999982,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 192.67380299999786,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 192.72280599999795,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 192.76544999999896,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 192.79738799999905,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 207.91850500000146,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 218.482892,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 218.57294700000057,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 218.67944600000192,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 218.70572600000014,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "4f2c1f7d40f31392118f252f20131e0b"
+        }
+      }
+    },
+    {
+      "ms": 219.27950599999895,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 219.30754799999704,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 219.75208399999974,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 219.81117300000187,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 219.8555090000009,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 219.8646030000018,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 219.95822300000145,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 219.98137800000404,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 223.4982799999998,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 223.51331200000277,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 223.72453900000255,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 223.77281100000255,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 223.82055299999774,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 223.85024700000213,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 227.71355900000344,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 227.99624200000108,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 228.01210600000195,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 228.07141499999852,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 228.1299530000033,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 228.19873599999846,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 228.2385359999971,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 228.24525600000197,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 228.446818000004,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 228.80809900000168,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 228.95280600000115,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ],
+  [
+    {
+      "ms": 238.11972799999785,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 238.1435829999973,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 246.27891899999668,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 26,
+        "seq": 4
+      }
+    },
+    {
+      "ms": 246.50752099999954,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 246.56394600000203,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 246.61351000000286,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 246.64656999999715,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 258.7749509999994,
+      "event": "leave-begin"
+    },
+    {
+      "ms": 267.31977899999765,
+      "event": "leave-committed"
+    },
+    {
+      "ms": 267.39746600000217,
+      "event": "device",
+      "detail": {
+        "op": "state",
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 267.5052169999981,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 267.5271500000017,
+      "event": "request",
+      "detail": {
+        "path": "/sync",
+        "body": {
+          "generation": 1,
+          "from": 4,
+          "limit": 10000,
+          "after": null,
+          "stream": false,
+          "pending": [],
+          "store_id": "6c7303629fc49013a91e2fd4e62920d6"
+        }
+      }
+    },
+    {
+      "ms": 268.16119099999923,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 268.1847760000019,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 268.6310850000009,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": true,
+        "retained": false,
+        "complete": false
+      }
+    },
+    {
+      "ms": 268.68195099999866,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 268.7188870000027,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 268.728151000003,
+      "event": "publish",
+      "detail": {
+        "rows": 26,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 268.8360820000016,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 4
+      }
+    },
+    {
+      "ms": 268.85824599999614,
+      "event": "request",
+      "detail": {
+        "path": "/q/history",
+        "body": {
+          "args": {
+            "room": "left"
+          }
+        }
+      }
+    },
+    {
+      "ms": 274.91611600000033,
+      "event": "server-query",
+      "detail": {
+        "room": "left",
+        "rows": 0,
+        "seq": 5
+      }
+    },
+    {
+      "ms": 275.1705379999985,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 275.2515990000029,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 275.29921099999774,
+      "event": "device",
+      "detail": {
+        "op": "queued"
+      }
+    },
+    {
+      "ms": 275.33098900000186,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 275.76576999999816,
+      "event": "device",
+      "detail": {
+        "op": "observe_store"
+      }
+    },
+    {
+      "ms": 276.07041700000264,
+      "event": "device",
+      "detail": {
+        "op": "apply"
+      }
+    },
+    {
+      "ms": 276.0867010000002,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 276.1751839999997,
+      "event": "device",
+      "detail": {
+        "op": "meta"
+      }
+    },
+    {
+      "ms": 276.2375679999968,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 276.31971099999646,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 276.35605499999656,
+      "event": "device",
+      "detail": {
+        "op": "set_meta"
+      }
+    },
+    {
+      "ms": 276.36302499999874,
+      "event": "publish",
+      "detail": {
+        "rows": 0,
+        "fresh": true,
+        "complete": true
+      }
+    },
+    {
+      "ms": 276.56022099999973,
+      "event": "device",
+      "detail": {
+        "op": "sync_state",
+        "acquired": true,
+        "watermark": 5
+      }
+    },
+    {
+      "ms": 276.9214129999964,
+      "event": "request",
+      "detail": {
+        "path": "/changes"
+      }
+    },
+    {
+      "ms": 277.0314169999983,
+      "event": "device",
+      "detail": {
+        "op": "query",
+        "name": "history",
+        "room": "left",
+        "rows": 25,
+        "unknown": false,
+        "retained": true,
+        "complete": false
+      }
+    }
+  ]
+]

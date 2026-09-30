@@ -122,7 +122,10 @@ mod driver {
         }
         fn command(&self, mode: &str, port: u16, artifacts: &std::path::Path) -> Command {
             let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
-            command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "5"])
+            // Use the published per-step budget, including first-exec scanning
+            // of the fake Python simctl. Intentional timeout cases below still
+            // withhold progress and assert the exact failing phase and cleanup.
+            command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "120"])
                 .args(if mode.starts_with("smoke") { vec!["--smoke"] } else { vec!["--segment", "offline", "--prime"] })
                 .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
@@ -286,7 +289,7 @@ mod driver {
             assert!(protocol::refused(port).unwrap());
             let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap_or_else(|e| panic!("{mode}: missing failure manifest: {e}; stderr: {error}"))).unwrap();
             if mode == "timeout" {
-                assert!(error.contains("app did not reach offline-done within 5 seconds"), "the receipt-step premise did not hold: {error}");
+                assert!(error.contains("app did not reach offline-done within 120 seconds"), "the receipt-step premise did not hold: {error}");
                 assert!(manifest["events"].as_array().unwrap().iter().any(|event| event["step"] == "waiting-offline-done"));
             }
             eprintln!("{mode}: {error}");

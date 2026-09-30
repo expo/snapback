@@ -1,0 +1,10 @@
+{
+  "tested_diff_sha256": "8a1ed4c2a7dd66718ef4fd72c1e2c135b3afa628d63eb1916b9deb53665838f5",
+  "source": "packages/snapback4/test/admit-before-identity.test.mjs",
+  "source_sha256": "ddd3a43f1a7b639d3ed1b33920ca2222120dd15dc6c18acc069aec33d49b4a26",
+  "applied": "2026-09-30T07:54:24.491383+00:00",
+  "controls": [
+    "control-route-drain-before",
+    "control-route-drain-after"
+  ]
+}

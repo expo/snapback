@@ -1,3 +1,4 @@
+// @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execute, generate, operations, round9Operations, round10Operations, round12Operations } from './helpers/online-client-model.mjs';
@@ -32,9 +33,13 @@ for (const op of ['login', 'guest']) for (const ending of ['signOut', 'close'])
 
 test('R1 replay seed 2345: the immediate-revocation model explicitly withdraws during a read', () => execute(generate(2345), 'client'));
 
-test('online clients preserve R1–R6 across 3,000 seeded interleavings', { timeout: 180_000 }, async t => {
-  const coverage = {}, count = Number(process.env.SNAPBACK4_ONLINE_SEQUENCES ?? 3000);
+const count = Number(process.env.SNAPBACK4_ONLINE_SEQUENCES ?? 3000);
+// Full wire/storage histories get the oracle's two-second-per-history hang
+// guard. A loaded host must execute the same seeds and coverage assertions.
+test('online clients preserve R1–R6 across 3,000 seeded interleavings', { timeout: Math.max(180_000, count * 2000) }, async t => {
+  const coverage = {};
   for (let seed = 1; seed <= count; seed++) {
+    t.signal.throwIfAborted();
     const tier = seed % 2 ? 'client' : 'app', sequence = generate(seed);
     // Query counters are per sequence; aggregate only coverage labels.
     const measured = {};

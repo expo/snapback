@@ -1,0 +1,16 @@
+{
+  "log": "focused-readiness.log",
+  "sha256": "d1d718327297f47769f828f3298a7c52ff4f021f7f0fcef297d7287717e07c57",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

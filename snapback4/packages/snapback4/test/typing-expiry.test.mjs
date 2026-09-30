@@ -1,3 +1,4 @@
+// @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 // Real React subscriptions over the server and the wasm/IndexedDB web device.
 // Holding /changes excludes server sweeps as a source of invalidation.
 import test from "node:test";
@@ -22,7 +23,9 @@ query typingNow(conversationId: conversations):
   return typing where .conversationId = conversationId
 `;
 
-for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age} ms before mount on both clients`, { timeout: 30_000 }, async t => {
+// One minute each for startup, mount, expiry delivery and cleanup. The 4.5 s
+// row lifetime below uses the controlled browser clock, not this hang guard.
+for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age} ms before mount on both clients`, { timeout: 4 * 60_000 }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
@@ -59,32 +62,52 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     const page = await browser.newPage();
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
+    // Separate process/browser startup from the 4.5-second semantic deadline.
+    // The browser owns its scheduling clock; the real server is advanced only
+    // after the pre-expiry assertions, with its supported dev clock control.
+    const start = Date.now() + 3_600_000;
+    await page.clock.install({ time: start - 60_000 });
     await page.goto(server.resolvedUrls.local[0]);
     await page.waitForFunction(() => typeof window.openClients === "function");
+    await page.clock.pauseAt(start);
+    const until = async predicate => {
+      const end = performance.now() + 60_000;
+      while (true) {
+        await page.clock.runFor(0);
+        const value = await page.evaluate(predicate);
+        if (value) return value;
+        assert.ok(performance.now() < end, `browser state did not settle: ${predicate}`);
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    };
     await page.evaluate(url => window.openClients(url), dev.api);
-    const expiresAt = Date.now() + 4500;
+    const expiresAt = start + 4500;
     const seeded = await fetch(`${dev.api}/seed`, { method: "POST", body: JSON.stringify([
       { table: "typing", row: { id: "typing", conversationId: "room", principal: "dev:alice", expiresAt } },
     ]) }).then(r => r.json());
     assert.equal(seeded.seeded, 1, JSON.stringify(seeded));
     // Different remaining lifetimes plus the no-early-evaluation assertion
     // below reject a fixed mount delay, including periodic fixed-delay polling.
-    if (age) await page.waitForTimeout(age);
+    if (age) await page.clock.runFor(age);
     await page.evaluate(() => window.mount());
-    await page.waitForFunction(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
+    await until(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
+    await page.clock.runFor(4500 - age - 1);
+    assert.deepEqual(await page.evaluate(() => ["online", "local"].map(tier => window.reads[tier].data?.length)), [1, 1],
+      "both clients retain the live row until its exact deadline");
+    const advanced = await fetch(`${dev.api}/dev/clock/advance`, { method: "POST", body: JSON.stringify({ duration: "2h" }) }).then(r => r.json());
+    assert.equal(advanced.advancedMs, 7_200_000);
+    await page.clock.runFor(1001);
     const deadline = expiresAt + 1000;
     // Online invalidation publishes loading, so a later IPC read can sample a
     // different render. Capture both ready expiry answers in the same browser
     // turn; the first expiry timestamps still enforce the original deadline.
-    const snapshot = await page.waitForFunction(() => {
+    const result = await until(() => {
       if (!["online", "local"].every(tier => window.expiredAt[tier] != null && window.reads[tier]?.data?.length === 0)) return false;
       return { reads: { ...window.reads }, requests: { ...window.requests }, mountedAt: window.mountedAt,
         visibleAt: { ...window.visibleAt }, expiredAt: { ...window.expiredAt }, evaluations: structuredClone(window.evaluations),
         rendered: document.getElementById("app").textContent };
     });
-    const result = await snapshot.jsonValue();
-    await snapshot.dispose();
-    // Measure the React render, not when the runner receives a browser IPC reply.
+    // Measure React renders in the controlled clock, never browser IPC latency.
     for (const tier of ["online", "local"]) {
       assert.ok(result.visibleAt[tier] < expiresAt, `${tier} renders the live row first`);
       const early = result.evaluations[tier].filter(at => at > result.visibleAt[tier] + 100 && at < expiresAt - 20);
@@ -100,6 +123,9 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     assert.equal(result.rendered, "online:0local:0", "useQuery must update both DOM subtrees");
     assert.deepEqual(errors, []);
     t.diagnostic(`expiry ${expiresAt}; React expiry lateness online=${result.expiredAt.online - expiresAt} ms local=${result.expiredAt.local - expiresAt} ms; online queries ${result.requests.queries}`);
+    // Teardown joins the real background loops, including a one-second retry
+    // already asleep after the deliberately offline sync. Let that timer run.
+    await page.clock.resume();
     await page.evaluate(() => window.closeClients());
   } finally {
     await browser?.close(); await server?.close(); await dev?.close();
@@ -132,7 +158,12 @@ const transport = tier => async (input, init) => {
     if (init?.signal?.aborted) reject(init.signal.reason);
     else init?.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true });
   });
-  return fetch(input, init);
+  const response = await fetch(input, init);
+  // Scheduling is under the browser clock. Do not sample the independent real
+  // server clock into it; server clock estimation has its own skew tests.
+  const headers = new Headers(response.headers);
+  headers.delete("x-snapback-time"); headers.delete("x-snapback-clock");
+  return new Response(response.body, { status: response.status, headers });
 };
 window.openClients = async url => {
   online = createClient({ url, persona: "alice", fetch: transport("online") });

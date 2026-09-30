@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-29T22:53:37.601Z",
+  "pid": 2499434,
+  "device_pid": 2499724,
+  "action": "set child exitCode=1; diagnostic stderr marker; tick only active mocked clock by 1000 ms",
+  "before": {
+    "mock_now": 25,
+    "pending_timer_at": 1025,
+    "active_network_requests": 0
+  },
+  "outcome": "Original paced retry assertion failure became visible; all remaining test cases executed; test and device processes exited. Full attempt is diagnostic, not qualifying.",
+  "evidence": [
+    "retry-stall-inspection.json",
+    "retry-stall-clock.json",
+    "retry-stall-release.json"
+  ]
+}

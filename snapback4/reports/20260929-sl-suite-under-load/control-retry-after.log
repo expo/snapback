@@ -1,0 +1,11 @@
+✔ process keep=undefined: a due completion preserves a newer answer and retries (1230.247234ms)
+ℹ retry installed at mock 0 ms, delay 25 ms
+ℹ clock advances to 25 ms
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1507.898431

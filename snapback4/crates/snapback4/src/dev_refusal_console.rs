@@ -40,8 +40,13 @@ impl Console {
     fn emit_first(&mut self, identity: &Value, out: &mut impl Write) {
         let entry = self.entries.pop_front().unwrap();
         let r = entry.record;
-        let _ = writeln!(out, "dev refusal: {}: {} — {} at {}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`",
+        // @ref LLP 3000.015#2.1 — a counted refusal remains one line beside lifecycle diagnostics.
+        // Raw signal/thread-exit writes do not share Rust's stderr lock. Format
+        // the complete line before touching the descriptor, so they cannot
+        // splice themselves between this message's formatting fragments.
+        let line = format!("dev refusal: {}: {} — {} at {}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
             r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or(""));
+        let _ = out.write_all(line.as_bytes());
     }
 }
 
@@ -49,6 +54,40 @@ impl Console {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn shutdown_diagnostic_cannot_split_a_counted_refusal_line() {
+        // Lifecycle diagnostics bypass Rust's stderr mutex. Simulate one
+        // arriving after the writer's first fragment, as observed at shutdown.
+        struct Interrupted { bytes: Vec<u8>, inserted: bool }
+        impl std::io::Write for Interrupted {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.bytes.extend_from_slice(bytes);
+                if !self.inserted {
+                    self.inserted = true;
+                    self.bytes.extend_from_slice(b"SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread=\"worker\" reason=\"shutdown\"\n");
+                }
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        let mut out = Interrupted { bytes: Vec::new(), inserted: false };
+        let mut console = Console::default();
+        let now = Instant::now();
+        let identity = json!({"storeId":"store", "instance":"instance"});
+        let record = json!({"operation":"add", "code":"E_RULE", "table":"rows",
+            "clause":"insert rule", "phase":"insert rule", "site":"schema.q:5:3",
+            "executionSite":"add:3", "generation":1, "requestId":2});
+        for _ in 0..8 { console.push_at(record.clone(), now, &identity, &mut out); }
+        assert!(out.bytes.is_empty(), "the aggregation window is still open");
+        console.flush_all(&identity, &mut out);
+        let text = String::from_utf8(out.bytes).unwrap();
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "{text}");
+        assert!(lines[0].starts_with("dev refusal: add: rows — insert rule at schema.q:5:3;"), "{text}");
+        assert!(lines[0].contains("code \"E_RULE\"; count 8; window 1s; first request 2;"), "{text}");
+        assert!(lines[0].ends_with("`snapback4 why recent --instance instance`"), "{text}");
+        assert_eq!(lines[1], "SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread=\"worker\" reason=\"shutdown\"", "{text}");
+    }
     #[test]
     fn counts_repeats_without_sliding_and_separates_causes() {
         let mut console = Console::default();

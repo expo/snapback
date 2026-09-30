@@ -78262,3 +78262,61 @@ Report and every failure/control disposition:
 reports/20260929-sr-starter-routes/round2/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — SL round 0: publication suite under host contention
+
+Ran the complete suite at publication concurrency under no artificial load,
+16 busy workers, 48 busy workers and delayed executable startup. All failures,
+including SL's failed experiments, are retained and classified in
+[the report](reports/20260929-sl-suite-under-load/REPORT.md). Initial taskset-only
+runs are diagnostic: child threads escaped inherited affinity during slow startup.
+The corrected harness adds an inherited per-process guard and confines every
+qualified suite/load run to CPUs 80–95. The final requested unconfined run is
+the explicit exception. No builds, tests or load were run on the source Macs.
+
+Replaced scheduling assumptions with actual completion/readiness barriers,
+paired/interleaved thread-CPU controls, controlled browser/server/rate clocks,
+and work-proportional hang guards. Ownership is observed directly while SQLite
+is blocked, then held independently of SQLite's busy budget. Retry tests wait
+for real backoff installation and retain exact 25 ms assertions. Browser route
+callbacks drain before close; exit checks parse the named record rather than a
+whole stderr suffix. All seeds, histories, samples, assertions and inherited
+skip conditions remain. Deterministic negative controls preserve the original
+failures and demonstrate detection by the corrected fixtures. LLP 3000 records
+the contention rules and the guide removes an unsupported wall-clock promise.
+
+One native product correction formats a complete counted refusal line before
+writing, preventing raw lifecycle diagnostics from splitting its formatting
+fragments. The original writer fails the new interleaving regression; existing
+shutdown deadlines, counts and assertions remain. LLP 3000.015 records the
+framing requirement. The HTTP limiter's fixed clock is test-only. Wasm remains
+byte-identical: 2,040,531 B raw / 592,979 B gzip, 740 B below the 593,719 B cap.
+
+Three whole final-source heavy passes complete with exact footers
+`== 0 failure(s) in 3513 s`, `== 0 failure(s) in 3738 s` and
+`== 0 failure(s) in 3514 s`; all 48 load workers survive each. The final-source
+slow-start suite passes with `== 0 failure(s) in 2494 s`; all 14,776 resumed
+child execs wait at least 300.000010 ms, and six end before resume. The whole
+guide passes 99/99. Ran `scripts/test.sh` once unconfined, last, exit 0:
+`== 0 failure(s) in 1216 s`. Each final whole pass has Rust 4342, clients 5197,
+models 79 and wrappers 9, with 33 inherited Rust ignores and ten client skips;
+all 13 stages pass, with no cancellation or asynchronous error. Final-run
+failures: ours 0, baseline 0, environmental 0. Both 5000-sequence session models,
+the 3000-interleaving online model and all four 300-seed/history oracles retain
+full counts. The evidence validator binds every required run to unchanged
+source, inventories, load accounting, logs and startup trace.
+
+The heavy passes are not consecutive: final-source attempt 10 reproduces the
+baseline retained-history empty flash. Its unchanged assertion also fails in
+15/100 instrumented wasm and 18/100 process repetitions; the existing product
+ticket remains open. Search cursor reopen restarts after a prior reconnect;
+all ten deterministic controls fail, and a new product ticket records the
+cause without changing the oracle. Historical Mac cleanup stalls remain open.
+Darwin-only witness-driver cases are unexecuted on Linux; their two deliberate
+timeouts now use the real 120-second step budget and retain phase/cleanup
+checks. The inherited nominal 60-second complete-suite budget remains exceeded.
+Three resolved fixture tickets move to issues/closed with their evidence.
+
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

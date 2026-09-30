@@ -1,0 +1,6 @@
+{
+  "expected_failure_exit": 101,
+  "restored_sha256": "ae3b7679df184d7e4f13174d1ff29c9ea2a84d877aeef4ac91468e2a5c0db600",
+  "original_sha256": "ae3b7679df184d7e4f13174d1ff29c9ea2a84d877aeef4ac91468e2a5c0db600",
+  "injected_source": "            // Temporary negative control: ten milliseconds of charged celebrity CPU.\n            if who == \"u0901\" {\n                let extra = cpu_time();\n                while cpu_time() - extra < std::time::Duration::from_millis(10) { std::hint::black_box(1); }\n            }\n            let used = (cpu_time() - charged).as_secs_f64() * 1000.0;"
+}

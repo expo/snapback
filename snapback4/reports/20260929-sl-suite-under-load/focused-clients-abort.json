@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-29T20:46:50.316118+00:00",
+  "classification": "ours",
+  "reason": "New paused browser clock prevents closeClients joining its one-second background retry; all expiry assertions passed in instrumented control. Abort only this test-file family; remaining focused files continue.",
+  "pids": [
+    1443544,
+    1443624,
+    1443811,
+    1443821,
+    1443822,
+    1443853,
+    1443854,
+    1443878,
+    1443923,
+    1443924
+  ]
+}

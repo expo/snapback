@@ -948,6 +948,7 @@ dependencies = [
 name = "snapback4-lang"
 version = "0.4.8"
 dependencies = [
+ "libc",
  "rusqlite",
  "serde",
  "serde_json",

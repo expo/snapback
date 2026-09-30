@@ -1,0 +1,55 @@
+{
+  "name": "guide-fact-corrected",
+  "workers": 0,
+  "mode": "load",
+  "affinity": [
+    "taskset",
+    "-c",
+    "80-95"
+  ],
+  "guard": [
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/confine"
+  ],
+  "wrapper": [],
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "guide",
+    "familiar::every_moved_fact_has_its_why_or_details_home",
+    "--",
+    "--exact"
+  ],
+  "harness_sha256": {
+    "confine": "f75c042ca47551b8bb172d24702a3a2a830fc8eb000429752302b18aff229241",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-09-29T21:20:45.340100+00:00",
+  "head": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "diff_sha256": "92f14e017e8d1a5ca63689c38b20c9f9f41a4e04648f277ad1bfc0ec9b2351dc",
+  "tested_diff_sha256": "64e5c41182080bd576b09bed5e34822e4aecce1f95a15ff0fba88ab2d8eddc62",
+  "test_overrides": {
+    "SNAPBACK4_SESSION_SEQUENCES": null,
+    "SNAPBACK4_ONLINE_SEQUENCES": null,
+    "RL_SEEDS": null,
+    "SNAPBACK4_WEB_ADMISSION_FOCUS": null,
+    "SNAPBACK4_CLIQUE_FULL": null
+  },
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1742569,
+  "exit": 0,
+  "elapsed_seconds": 1.645364104770124,
+  "end": "2026-09-29T21:20:47.070403+00:00"
+}

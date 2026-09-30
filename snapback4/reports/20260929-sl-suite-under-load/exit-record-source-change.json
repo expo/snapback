@@ -1,0 +1,24 @@
+{
+  "tested_diff_sha256": "70f35d6168988322c8d9b16dd2e052468e09513978d448daff20d8dc01e6bf97",
+  "source": "crates/snapback4/tests/check.rs",
+  "source_sha256": "0e96fbc26c5d53546dab638d35b92dcf6de9b26f045e2c699059e909ae2063ee",
+  "ownership_probe": {
+    "source": "crates/snapback4/tests/run_admission.rs",
+    "files": {
+      "before": {
+        "path": "target/sl-load/ownership-probe-before.rs",
+        "sha256": "f9b1a3d1ce794c3fdcce93b104720a494872738b81c8d034bd8746621902246a"
+      },
+      "candidate": {
+        "path": "target/sl-load/ownership-probe-candidate.rs",
+        "sha256": "a3cc9c0f27cf743d49bfd2145e28d71e0f4e3ad8bb0180c0592cb8f0c92bbb58"
+      }
+    }
+  },
+  "slow_exec_sha256": "9f7de62817bd1c774e8b7749d4df13d45332fdba844ce8baf799f98b4cdae80f",
+  "applied": "2026-09-30T06:47:01.631983+00:00",
+  "controls": [
+    "control-exit-record-before",
+    "control-exit-record-after"
+  ]
+}

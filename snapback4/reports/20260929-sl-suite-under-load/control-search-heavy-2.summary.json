@@ -1,0 +1,21 @@
+{
+  "log": "control-search-heavy-2.log",
+  "sha256": "1d6486cf9fb0856563b17e1f9a1566ae0e809878e73afa9dd6e26a7b3449cf57",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 200",
+    "ℹ suites 0",
+    "ℹ pass 200",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 282153.666823"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

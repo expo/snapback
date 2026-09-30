@@ -71,9 +71,11 @@ impl Drop for Serving {
     }
 }
 
-// Child scheduling and queue construction are setup, not the read-latency
-// assertion below. Loaded Darwin hosts can take longer than two seconds here.
-const SETUP_TIMEOUT: Duration = Duration::from_secs(10);
+// Each barrier permits one child startup or one queued supervisor turn. Shared
+// Darwin hosts can delay executable scanning and queued supervisor work.
+// This is a per-stage hang guard; the two-second read-latency assertions below
+// still apply after the explicitly observed worker/adoption state is reached.
+const SETUP_TIMEOUT: Duration = Duration::from_secs(60);
 #[track_caller]
 fn wait_setup(stage: &str, mut predicate: impl FnMut() -> bool) {
     let deadline = Instant::now() + SETUP_TIMEOUT;

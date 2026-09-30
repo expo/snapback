@@ -1,0 +1,6 @@
+
+running 1 test
+test release_token_owns_the_resolved_database_before_sqlite_open ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 13.63s
+

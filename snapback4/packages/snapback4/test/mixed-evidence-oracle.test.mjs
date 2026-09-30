@@ -31,8 +31,13 @@ test('reference rejects transient empty member answers and sign-out loading', ()
   assert.throws(() => generation.observe({ data: { body: 'image-5' }, revalidating: true }), /retired program/);
   generation.observe({ loading: true }); generation.observe({ denied: { code: 'APP_DENIED' } });
 });
-// 300 histories take about 200 s on both publication hosts; budget 2 s per history (600 s), still bounding a hang.
-for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: Math.max(240000, seeds * 2000) }, async t => {
+// @ref LLP 3000#publication-suite-under-contention — aggregate guards count hosted work.
+// Every seed runs three fresh clients: mixed evidence, generation, notification.
+// Each needs device startup and failure recovery/cleanup (including real retry
+// sleeps). Allow 2 s per hosted schedule, not per seed: 900 schedules / 1800 s
+// at the default 300 seeds. This bounds a hang without timing the host scheduler.
+const schedulesPerSeed = 3;
+for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: Math.max(240000, seeds * schedulesPerSeed * 2000) }, async t => {
   const typingSource = ephemeralSource.slice(ephemeralSource.indexOf('table typing:'), ephemeralSource.indexOf('table durableTyping:'));
   const f = await fixture(t, source + typingSource, { watch: true }), headers = { 'x-snapback-persona': 'bob' };
   const backend = await fetch(f.url + '/schema', { headers }).then(r => r.json());
@@ -69,6 +74,7 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
   t.after(() => Promise.all(closing));
   let wall = Date.now(); t.mock.method(Date, 'now', () => wall);
   for (let seed = 1; seed <= seeds; seed++) {
+    t.signal.throwIfAborted();
     const model = new MixedModel(), rand = random(seed), trace = [], failures = [], pending = [];
     let head = 1, hold, remoteHold, replacement, client, watch, signoutPending = false, localTime = cutoff - 1;
     const removalMode = rand(2);
@@ -200,14 +206,17 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
       signoutPending = true; closing.push(ending.then(() => capture('signout-settled')));
     } catch (error) { failures.push(String(error)); }
     finally { replacement?.release.resolve(); replacement = undefined; for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); if (client && !signoutPending) closing.push(client.close()); }
+    t.signal.throwIfAborted();
     try {
       await generationSchedule({ createLocalClient, host, seed, f, oldBackend: backend, nextBackend, generationFrames, rand,
         clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });
     } catch (error) { failures.push(String(error)); }
+    t.signal.throwIfAborted();
     try {
       await notificationSchedule({ createLocalClient, answerObservation, host, seed, f, backend, frames, empty, typing, rand,
         clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });
     } catch (error) { failures.push(String(error)); }
+    t.signal.throwIfAborted();
     if (closing.length >= 8) await Promise.all(closing.splice(0));
     results.push({ host, seed, failures, ...(seed <= 2 ? { trace } : {}) });
   }

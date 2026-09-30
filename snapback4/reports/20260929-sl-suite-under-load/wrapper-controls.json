@@ -1,0 +1,87 @@
+{
+  "at": "2026-09-29T20:35:02.283593+00:00",
+  "controls": [
+    {
+      "name": "affinity",
+      "command": [
+        "python3",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-child.py",
+        "affinity"
+      ],
+      "exit": 0,
+      "output": "affinity passed\n",
+      "elapsed_seconds": 0.02579295402392745
+    },
+    {
+      "name": "two-execs",
+      "command": [
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/slow-exec",
+        "300",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-two-execs.trace",
+        "/bin/sh",
+        "-c",
+        "/usr/bin/true; /usr/bin/true"
+      ],
+      "exit": 0,
+      "output": "",
+      "elapsed_seconds": 0.6136208726093173,
+      "delayed_execs": 2
+    },
+    {
+      "name": "signals",
+      "command": [
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/slow-exec",
+        "300",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-signals.trace",
+        "python3",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-child.py",
+        "signals"
+      ],
+      "exit": 0,
+      "output": "signals passed\n",
+      "elapsed_seconds": 0.03887405199930072,
+      "delayed_execs": 0
+    },
+    {
+      "name": "env-cleared",
+      "command": [
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/slow-exec",
+        "300",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-env-cleared.trace",
+        "python3",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-child.py",
+        "env-cleared"
+      ],
+      "exit": 0,
+      "output": "env-cleared passed\n",
+      "elapsed_seconds": 0.330528044141829,
+      "delayed_execs": 1
+    },
+    {
+      "name": "syscalls-bare",
+      "command": [
+        "python3",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-child.py",
+        "syscalls"
+      ],
+      "exit": 0,
+      "output": "syscalls passed\n",
+      "elapsed_seconds": 0.14041877817362547
+    },
+    {
+      "name": "syscalls-wrapped",
+      "command": [
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/slow-exec",
+        "300",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-syscalls-wrapped.trace",
+        "python3",
+        "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/wrapper-control-child.py",
+        "syscalls"
+      ],
+      "exit": 0,
+      "output": "syscalls passed\n",
+      "elapsed_seconds": 0.14218622911721468,
+      "delayed_execs": 0
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "source": "packages/snapback4/test/retained-history.test.mjs",
+  "source_sha256": "455834bd134c1c9920591f09b78e2a7d671d64ffaedad4842d42030ad10d5681",
+  "control": "target/sl-load/controls/retained-history-process-trace.test.mjs",
+  "control_sha256": "6fe750da1bf1e212924bca6f33ddc610d78f5a7b5366a9f7ac7e9a8fe79e049d",
+  "repetitions": 100,
+  "tier": "process",
+  "scenario": "R5 history",
+  "assertions": "unchanged"
+}
