@@ -90,6 +90,13 @@ impl Runner<'_> {
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, definition)?;
                 bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
+                // A total unique key can leave assigned fields as residual
+                // equalities; those consume provisional values too.
+                for (field, _) in equalities {
+                    if self.sequence_field_is_assigned(table, field) {
+                        self.provisional_sequence_read |= self.is_provisional(table, &row)?;
+                    }
+                }
                 if self.expired(definition, &row) || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
                 // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced is no witness.
                 if self.device && !crate::schema::timeline::holds_event(self.schema, table, &row) {

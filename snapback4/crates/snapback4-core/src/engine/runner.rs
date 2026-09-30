@@ -922,7 +922,13 @@ impl<'a> Runner<'a> {
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
-            Builtin::ReceiptSettled { table } => Ok(Value::Bool(!self.is_provisional(table, &args[0])?)),
+            Builtin::ReceiptSettled { table } => {
+                // @ref LLP 3000.022#14.3 — a pending receipt's null is provisional
+                // evidence even when its generated guard skips every field read.
+                let provisional = self.is_provisional(table, &args[0])?;
+                self.provisional_sequence_read |= provisional;
+                Ok(Value::Bool(!provisional))
+            },
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {
@@ -931,6 +937,7 @@ impl<'a> Runner<'a> {
                 }
             }
             Builtin::OptionalField { field } => {
+                self.provisional_sequence_read |= self.sequence_field_is_provisional(&args[0], field)?;
                 #[cfg(feature = "sqlite")]
                 self.delivery_field(&args[0], field);
                 Ok(args[0].field(field).cloned().unwrap_or(Value::Null))
@@ -967,6 +974,7 @@ impl<'a> Runner<'a> {
                 let mut groups: Vec<(Value, Vec<Value>)> = Vec::new();
                 for value in values {
                     self.meter.step(1)?;
+                    self.provisional_sequence_read |= self.sequence_field_is_provisional(&value, field)?;
                     let key = if *optional { value.field(field).unwrap_or(&Value::Null) } else { value.field(field)? }.clone();
                     let encoded = canonical_json(&key);
                     self.meter.heap(encoded.len() as u64 + key.expression_copy(ExpressionAccess(())))?;
@@ -1043,6 +1051,7 @@ impl<'a> Runner<'a> {
                 let mut values = into_array(args.remove(0))?;
                 for value in &values {
                     for key in keys {
+                        self.provisional_sequence_read |= self.sequence_field_is_provisional(value, &key.field)?;
                         if !key.optional { value.field(&key.field)?; }
                     }
                 }

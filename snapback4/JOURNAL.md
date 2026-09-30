@@ -80576,3 +80576,61 @@ inherited 597,247 B cap; NA does not raise it. Report, every sample and failure:
 reports/20260930-na-native-acquisition/round1/REPORT.md and FAILURES.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — RY round 2: receipt-dependent refusals keep outbox custody
+
+Read both prior prompts/reports and the complete Astra and Grok round-one
+reviews. Merged origin/main 267788df36 first in bf58d4a003, keeping both journal
+entries through the sole conflict. Rule probes and final-exists keys now track
+receipt-assigned ordinals/counts/floors, and generated settlement predicates
+record their provisional dependency before returning null. Pending receipt,
+receiptMember and progress follow-ups remain in the durable outbox with
+predictable: false, survive reopen and succeed after their antecedent settles.
+
+The reader audit also fixes residual rule equalities, live and stored row-keyed
+counts, generic maintained filters/sums, scalar extrema, collection keys and
+public one-hop recorded captures. A pending capture retains dependency when a
+later aggregate reads it. All readers share the allocation-field predicate;
+private captures and ordinary nondependent refusals keep their existing guards.
+No recipe/fingerprint/capability change: this completes the v4 prediction
+contract. LLP 3000.022 §14.3 and the receipts guide record it. Starter remains
+223 lines; allocation, membership counting and settled accounting are unchanged.
+
+New witnesses: 48 device cases across memory and SQLite, plus a private-capture
+compiler control. Restoring the exact round-one engine gives 38 expected
+admission failures and six passing controls; the four later public-capture
+witnesses give four more expected admission failures. All pass on final code.
+Initial affected checks: language/guide 336 passes and one existing ignore,
+device 134 passes, core 46 passes; whole guide 107/107.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1271 s
+
+All 13 stages pass: Rust workspace 4,501 passes / 33 existing ignores, clients
+5,577 passes / 10 existing skips, fixtures 9/9, serial models 79/79 including
+both full 5,000-sequence walks. No failures or cancellations: ours 0, baseline
+0, environmental 0. All 1,779 scoped source hashes match across that run.
+The inherited nominal 60-second bar remains exceeded; no timeout, count,
+concurrency policy or runtime ceiling changed.
+
+The full suite predates the public-capture correction discovered by an isolated
+harness during its serial models. After completion, changed recorded.rs,
+sequences.rs, four regression cases/private-control commentary and the byte
+ratchet; the report records exact source hashes. Subsequent final-code checks
+pass 364/364: receipts 115/115, whole guide 107/107, recorded/maintained/row-keyed
+language and device checks, and core capture tests. Did not repeat the full
+suite or claim its result includes the subsequent correction. Final reference
+check passes 525 LLP docs and 10,033 refs, with no errors or unchecked references.
+
+Final wasm is 2,005,133 B raw / 601,629 B gzip on Rust 1.97.0,
+wasm-bindgen 0.2.127 and locked Binaryen 132. The shared interpreter's missing
+receipt-dependency paths require +1,361 B gzip (~0.23%) over round one's
+600,268 B. This is a whole-artifact delta; public captures add 37 B gzip over
+the full-suite artifact. Set the ratchet exactly to measured 601,629 B with
+no slack; the final build passes. Server allocation/counting remain server-only.
+All development failures are ours and resolved; the report names every failure,
+including negative controls, fixture/compile mistakes and the two ratchet
+refusals. Evidence and audit: reports/20260930-ry-receipts-allocation/round2/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

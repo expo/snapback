@@ -614,7 +614,7 @@ impl Runner<'_> {
                     .map(|term| match term {
                         crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
                             // This inserted image owns a provisional ordinal even if no expression read it.
-                            self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
+                            self.provisional_sequence_read |= self.device && self.sequence_field_is_assigned(table_name, field);
                             row.field(field).cloned().unwrap_or(Value::Null)
                         },
                         crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),

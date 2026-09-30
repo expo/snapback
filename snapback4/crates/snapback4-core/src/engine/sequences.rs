@@ -58,9 +58,16 @@ impl Runner<'_> {
     // ordinals even when the requested suffix currently contains no rows.
     pub(super) fn observe_sequence_selection(&mut self, name: &str, index_name: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
         if !self.device || self.device_allowance.is_none() || self.provisional_sequence_read { return Ok(()); }
+        // A stored scalar aggregate can be zero/absent because a provisional
+        // source failed its filter, or can hold a provisional sum/group key.
+        // Observe inputs even when there is no target row to read.
+        if let Some(m) = self.schema.maintain_for(name).filter(|m| m.row_key.is_none())
+            && m.dependencies().iter().any(|field| self.sequence_field_is_assigned(&m.source, field)) {
+            self.observe_provisional_selection(&m.source, &self.schema.tables[&m.source].indexes["byId"], &[])?;
+        }
         let table = &self.schema.tables[name];
         let index = &table.indexes[index_name];
-        let Some(position) = index.components.iter().position(|part| part.column().is_some_and(|field| table.sequences.contains_key(field) || self.schema.receipt_assigned(name, field))) else { return Ok(()); };
+        let Some(position) = index.components.iter().position(|part| part.column().is_some_and(|field| self.sequence_field_is_assigned(name, field))) else { return Ok(()); };
         self.observe_provisional_selection(name, index, &prefix[..prefix.len().min(position)])
     }
 
@@ -103,10 +110,18 @@ impl Runner<'_> {
         Ok(())
     }
 
+    // @ref LLP 3000.022#14.3 — every reader uses the same allocation-field set,
+    // including receipt counters, member floors and recipient snapshots.
+    pub(super) fn sequence_field_is_assigned(&self, table: &str, field: &str) -> bool {
+        let (table, field) = self.schema.tables[table].recorded.get(field)
+            .map_or((table, field), |path| (path.table.as_str(), path.column.as_str()));
+        self.schema.tables[table].sequences.contains_key(field) || self.schema.receipt_assigned(table, field)
+    }
+
     pub(super) fn sequence_field_is_provisional(&self, row: &Value, field: &str) -> Result<bool, RuntimeError> {
         if !self.device || row.field("id").and_then(Value::as_str).is_err() { return Ok(false); }
-        for (name, table) in &self.schema.tables {
-            if (table.sequences.contains_key(field) || self.schema.receipt_assigned(name, field)) && self.is_provisional(name, row)? { return Ok(true); }
+        for name in self.schema.tables.keys() {
+            if self.sequence_field_is_assigned(name, field) && self.is_provisional(name, row)? { return Ok(true); }
         }
         Ok(false)
     }
@@ -121,7 +136,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn observe_sequence_columns(&mut self, name: &str, row: &Value, fields: &[String], inserting: bool) -> Result<(), RuntimeError> {
-        if self.device && fields.iter().any(|field| self.schema.tables[name].sequences.contains_key(field) || self.schema.receipt_assigned(name, field)) {
+        if self.device && fields.iter().any(|field| self.sequence_field_is_assigned(name, field)) {
             self.provisional_sequence_read |= inserting || self.is_provisional(name, row)?;
         }
         Ok(())
@@ -308,7 +323,7 @@ impl super::rules::Probe for SequenceProbe<'_, '_> {
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, old: bool) {
         self.runner.provisional_sequence_read |= (if old { self.old } else { self.next })
-            && self.runner.schema.tables[self.table].sequences.contains_key(field);
+            && self.runner.sequence_field_is_assigned(self.table, field);
     }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         super::rules::Probe::exists(&mut super::read::RuleProbe { runner: self.runner, allowance: self.allowance }, table, index, key, equalities)

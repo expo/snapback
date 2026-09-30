@@ -1,0 +1,26 @@
+{
+  "affected-lang-guide": {
+    "passed": 336,
+    "failed": 0,
+    "ignored": 1,
+    "targets_finished": 9
+  },
+  "affected-device": {
+    "passed": 134,
+    "failed": 0,
+    "ignored": 0,
+    "targets_finished": 5
+  },
+  "affected-core": {
+    "passed": 46,
+    "failed": 0,
+    "ignored": 0,
+    "targets_finished": 2
+  },
+  "capture-control": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0,
+    "targets_finished": 1
+  }
+}

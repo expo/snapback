@@ -60,7 +60,10 @@ impl<'a> Aggregate<'a> {
                     runner.meter.heap(row.expression_copy(ExpressionAccess(())))?;
                     projected = runner.aggregate_projection(row, projection)?;
                     &projected
-                } else if *row == Value::Null { row } else { row.field(field)? };
+                } else if *row == Value::Null { row } else {
+                    runner.provisional_sequence_read |= runner.sequence_field_is_provisional(row, field)?;
+                    row.field(field)?
+                };
                 if *next == Value::Null { return Ok(false); }
                 let replace = *value == Value::Null || if *max { next.total_cmp(value).is_gt() } else { next.total_cmp(value).is_lt() };
                 if replace {

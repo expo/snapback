@@ -65,6 +65,11 @@ impl Runner<'_> {
             if found.is_some() {
                 self.meter.heap(super::write_target::row_copy_ceiling(target))?;
             }
+            // @ref LLP 3000.022#14.3 — a pending receipt capture is not settled evidence.
+            if self.device && self.sequence_field_is_assigned(&field.table, &field.column)
+                && let Some(value) = live {
+                self.provisional_sequence_read |= self.is_provisional(&field.table, value)?;
+            }
             let value = live.map(|value| self.disclosed_row(target,value.clone()).into_value().field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
             self.meter.heap(80 + path.len() as u64 + super::write_target::column_copy_ceiling(&target.columns[&field.column]))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }

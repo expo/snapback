@@ -263,6 +263,25 @@ impl Runner<'_> {
             / steps;
         examined.min(steps) as usize
     }
+    // @ref LLP 3000.022#14.3 — stored counts and live recounts share the
+    // predicate dependency, even when a provisional row currently contributes zero.
+    fn observe_row_view_sequences(&mut self, m: &Maintain, u: &Value, index: &str) -> Result<(), RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        if self.device && self.device_allowance.is_some() && !self.provisional_sequence_read {
+            // @ref LLP 3000.020#3.2 — the whole predicate consumes sequences,
+            // including residual source columns and provisional member bounds.
+            let source_table = &self.schema.tables[&m.source];
+            let (mut source_sequence, mut member_sequence) = (false, false);
+            k.predicate.each_field(&mut |field| {
+                if let Some(field) = field.strip_prefix("$row.") { member_sequence |= self.sequence_field_is_assigned(&k.table, field); }
+                else { source_sequence |= self.sequence_field_is_assigned(&m.source, field); }
+            });
+            if source_sequence { self.observe_provisional_selection(&m.source, &source_table.indexes[index], std::slice::from_ref(u.field(&k.member_key)?))?; }
+            if member_sequence { self.provisional_sequence_read |= self.is_provisional(&k.table, u)?; }
+        }
+        Ok(())
+    }
+
     // Each decoded row is transient, as in the streaming aggregate consumer.
     fn view_scan(
         &mut self,
@@ -278,19 +297,7 @@ impl Runner<'_> {
         let prefix = std::slice::from_ref(u.field(&k.member_key)?);
         let device_live = self.device && live;
         let expiring = live && self.schema.tables[&m.source].is_expiring();
-        if device_live && self.device_allowance.is_some() && !self.provisional_sequence_read {
-            // @ref LLP 3000.020#3.2 — the whole predicate consumes sequences,
-            // including residual source columns and provisional member bounds.
-            let source_table = &self.schema.tables[&m.source];
-            let member_table = &self.schema.tables[&k.table];
-            let (mut source_sequence, mut member_sequence) = (false, false);
-            k.predicate.each_field(&mut |field| {
-                if let Some(field) = field.strip_prefix("$row.") { member_sequence |= member_table.sequences.contains_key(field); }
-                else { source_sequence |= source_table.sequences.contains_key(field); }
-            });
-            if source_sequence { self.observe_provisional_selection(&m.source, &source_table.indexes[index], prefix)?; }
-            if member_sequence { self.provisional_sequence_read |= self.is_provisional(&k.table, u)?; }
-        }
+        if device_live { self.observe_row_view_sequences(m, u, index)?; }
         // Keep bounds/cursor storage outside the transient row allocation scope.
         let cursor_bytes = crate::rows::word_heap::key_decode(
             self.schema.tables[&m.source].indexes[index].components.len() + 1,
@@ -740,6 +747,7 @@ impl Runner<'_> {
             if !complete { self.pending_view_read()?; }
             return Ok(Some(self.view_image(m, &member, total, !complete)?));
         }
+        self.observe_row_view_sequences(m, &member, &m.row_key.as_ref().unwrap().source_index())?;
         if pending(&row) { self.pending_view_read()?; }
         Ok(Some(row))
     }

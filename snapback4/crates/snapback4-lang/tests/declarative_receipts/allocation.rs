@@ -751,3 +751,6 @@ fn recipient_capture_never_prices_another_members_private_payload() {
 
 #[path = "prediction.rs"]
 mod prediction;
+
+#[path = "dependencies.rs"]
+mod dependencies;
