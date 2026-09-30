@@ -79912,3 +79912,32 @@ Report and evidence: reports/20260930-rx-declarative-receipts/round4/REPORT.md.
 This closes the supplied P2; allocation/count/floor work remains deferred.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — TF round 0: expired-watch fixture owns only retry timers
+
+Starting main 0dad042375, including KA merge 42ba3ffb90. The expired-server-watch
+fixture now captures timer creation only during the real ReadWork.retry call
+for its watched async context. The existing exported class supplies the test
+boundary; no product hook or source change. All assertions, the exact eight-delay
+sequence, timer counts, forced invalidation, single flight, recovery and close
+coverage remain unchanged. Undici's one-second idle timers run normally.
+
+On eb1000, Node 24.13.1: 50/50 unconfined file runs (five workers) and 20/20
+sequential file runs on CPUs 0–9 with ten CPU-load processes pass: 840/840 cases,
+zero failures, skips or cancellations. Focused file 12/12; expiry/keep group
+306/306 and separate full-count keep app model 18/18; whole guide 106/106.
+Ref-check and diff check pass. No full suite. Source and artifact hashes stayed
+unchanged through validation; wasm was reused from KA with matching source and
+digest, and this lane built its current server and SDK.
+
+Pre-KA SDK 28014164c6 passes the repaired fixture 12/12. Scratch mutations to
+26 ms backoff and one extra retry timer each fail all nine measured cases at
+the intended assertions, then are restored. A loader that retires warm sockets
+before opening the watch reproduces nine original-fixture failures; the fixed
+fixture passes all 12 while tracing 105 real undici timers. The ordinary original
+fixture also passed once; that evidence is retained with the deliberate reds.
+
+Imported QS's missing transport-timer ticket and closed it with the resolution.
+Report, per-run logs, load evidence and controls:
+reports/20260930-tf-expired-watch-timers/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

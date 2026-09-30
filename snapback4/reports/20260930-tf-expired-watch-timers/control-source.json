@@ -1,0 +1,10 @@
+{
+  "preKACommit": "28014164c6979995708e758c2090e53455101134",
+  "fixtureSHA256": "0d71331a7628733ad2044abdcda56c0f8dbad10733c8a7ab5182c5c1d4fae8bb",
+  "restoredLocalSHA256": "80390c6e891a406f51a45c3425068341547de9efea07865107cacbbf19c4086c",
+  "restoredReadWorkSHA256": "dfc2c8dd6ab313d6d8fe41e2a2f870e8175523e9fddcd3ebdf3f1b2dff1dbc0f",
+  "mutations": [
+    "expiry base delay 25 -> 26",
+    "one additional setTimeout inside ReadWork.retry"
+  ]
+}
