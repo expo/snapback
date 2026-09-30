@@ -1,7 +1,18 @@
 # Views: plan, maintain or materialize
 
-A `view` names derived data.
-It can plan a read, maintain an aggregate or materialize a feed for each reader.
+**Start here:** Use `view` for derived data: filters and unions plan reads, while counts update in the source transaction. For public post totals, use this excerpt from the complete example below; do not maintain counters in client writes.
+
+```quarry
+view postCount: count posts by .author
+query total(author: principal):
+  return postCount[author]
+```
+
+- `E_MAINTAIN_READ_RULE`: grouping lost an authorization field; retain it as a bare key or declare the aggregate's intended read rule.
+- `E_QUARRY_SYNTAX`: a view cannot have its own sync line; keep inherited sync or choose `online only` and lose offline coverage.
+- `N_MAINTAIN_SYNCED`: inherited sync has no source horizon; measure it, or use `online only` if offline totals are unnecessary.
+
+## Reference
 
 ```quarry
 table posts:
@@ -27,22 +38,11 @@ query total(author: principal):
   return postCount[author]
 ```
 
-A filter or projection is planned when read.
-Branches form a union without a copied application table. An aggregate is
-maintained in the source write's transaction. Public Following is materialized
-per reader when its source and edge rules admit that disclosure (`guide feeds`).
+A filter or projection is planned when read. Branches form a union without a copied application table. An aggregate is maintained in the source write's transaction. Public Following is materialized per reader when its source and edge rules admit that disclosure (`guide feeds`).
 
-Each union branch runs under its own source's read rule before filtering or
-projection. Branches have compatible fields and types. Identity includes both
-branch and source id; equal ids in different tables remain distinct events.
-The exposed `id` is the source id. Include a branch discriminator, such as
-`repost`, when forming a client list key.
-A predicate on a projected column reaches each source; a constant predicate
-selects branches. Order fields must map to source columns in every branch.
+Each union branch runs under its own source's read rule before filtering or projection. Branches have compatible fields and types. Identity includes both branch and source id; equal ids in different tables remain distinct events. The exposed `id` is the source id. Include a branch discriminator, such as `repost`, when forming a client list key. A predicate on a projected column reaches each source; a constant predicate selects branches. Order fields must map to source columns in every branch.
 
-A maintained view has rows `{ id, <group columns>, value }`. A full group key
-returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are
-both null. Pages return existing groups, using `first`/`last`, `by .column`
+A maintained view has rows `{ id, <group columns>, value }`. A full group key returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are both null. Pages return existing groups, using `first`/`last`, `by .column`
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 

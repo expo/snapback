@@ -11,7 +11,7 @@ impl Presence for Poll {
 }
 
 fn source() -> String {
-    let block = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap())[1].clone();
+    let block = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap()).into_iter().find(|block| block.contains("mutation send(")).unwrap();
     format!("{block}\nquery message(id: messages):\n  return messages[id]\n")
 }
 

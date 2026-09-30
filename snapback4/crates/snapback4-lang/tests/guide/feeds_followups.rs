@@ -26,7 +26,7 @@ fn all(e: &mut Engine, op: &str, now: i64) -> Vec<Value> {
 
 #[test]
 fn published_global_filters_originals_and_preserves_independent_reposts() {
-    let source = quarry(card("feeds").unwrap()).into_iter().find(|s| s.contains("query global(")).unwrap();
+    let source = quarry(card("feeds").unwrap()).into_iter().find(|s| s.contains("query global(") && s.contains("table posts:")).unwrap();
     let b = super::super::clean("populated-source feed", &source);
     assert!(b.schema.timelines.is_empty(), "the planned query needs no materialization");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();

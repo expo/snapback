@@ -5,7 +5,8 @@
 //! Every fenced ```quarry block below is compiled by `tests/guide.rs`, and
 //! the language card's block is run against the engine, so a card cannot
 //! promise a form the parser refuses. A block that declares a table compiles
-//! on its own; one that does not compiles beside the language card's schema.
+//! on its own; excerpts use their named starter/reference context, and other
+//! fragments compile beside the language card's schema.
 
 // @ref LLP 3000.007#20.19 — one orientation points to tested reference cards.
 #[path = "guide/why.rs"]
@@ -20,6 +21,9 @@ mod presence;
 mod receipts;
 #[path = "guide/social.rs"]
 mod social;
+#[path = "guide/start.rs"]
+mod start;
+pub use start::START_CARDS;
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
@@ -60,10 +64,11 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "manual-receipts", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("index", "start"),
     ("envelope", "bounds"), ("heaviest", "bounds"), ("1000", "bounds"),
     ("cold start", "bounds"), ("cold restart", "bounds"), ("acquire", "bounds"),
     ("latency", "bounds"), ("performance", "bounds"), ("p95", "bounds"),
@@ -145,6 +150,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(keyword)).map(|(_, target)| *target)
         .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(keyword)))?;
     Some(match keyword {
+        "start" => start::card(),
         "language" => LANGUAGE,
         "ephemeral" => include_str!("guide/ephemeral.md"),
         "from-sql" => include_str!("guide/from_sql.md"),

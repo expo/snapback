@@ -164,7 +164,7 @@ fn horizon_guard_remains_eligible_and_effect_only_presence_can_assert() {
     let source = snapback4_lang::guide::card("prediction").unwrap();
     assert!(source.contains("mutation notifyPost(body: text <=200, recipient: principal) predicts:"));
     assert!(source.contains("mutation saveDraft(id: drafts, body: text <=200) predicts:"));
-    let source = snapback4_lang::guide::quarry(source).into_iter().next().unwrap();
+    let source = snapback4_lang::guide::quarry(source).into_iter().find(|block| block.contains("mutation saveDraft(")).unwrap();
     let b = clean(&source);
     assert_eq!(b.schema.operations["guardedPost"].predicts.as_deref(), Some("eligible"));
     let lines = snapback4_lang::bind::residency::operation_lines("guardedPost", &b.schema.operations["guardedPost"]);
@@ -286,7 +286,7 @@ fn predicts_assertion_refuses_online_writes_and_explicit_server_but_keeps_horizo
         assert!(b.diagnostics[0].message.contains(reason));
         clean(&source.replace(" predicts:", ":"));
     }
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap()).remove(0);
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap()).into_iter().find(|block| block.contains("mutation saveDraft(")).unwrap();
     let b = clean(&source.replace("mutation guardedPost(id: notes, body: text <=200):", "mutation guardedPost(id: notes, body: text <=200) predicts:"));
     assert_eq!(b.schema.operations["guardedPost"].predicts.as_deref(), Some("eligible"));
 }

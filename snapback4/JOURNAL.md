@@ -80812,3 +80812,44 @@ No new LL or social-fallback timing claim. Existing wasm matches round 5:
 Full suite omitted as requested for a scheduling-only fix. Report and audit:
 reports/20260930-pr-subscription-pressure/round6/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-01 — GQ round 0: eight Start-here guide openings
+
+Language, sync, maintains, rules, prediction, client, search and feeds now
+start with a default pattern, one checked example and two or three registered
+mistakes with one-line fixes, each within 15 physical lines. `guide start`
+(alias `guide index`) assembles those exact openings: 112 opening lines,
+125 CLI output lines with headings and separation. Reference behavior,
+historical Quarry examples and whole-card ceilings stay; client falls from
+114 to 106 lines. Detailed diagnostic explanations stay in their reference
+sections. LLP 3000.011.000.000 §8 records this single-source card structure.
+No compiler, engine, authorization, sync, prediction or SDK behavior changes.
+
+Cal27's mirrored log supplies the actual task mapping. Reconstructed published
+0.4.9 output and the branch baseline give first-example depths totaling
+358 / 354 lines, versus 112 for the openings. These are orientation counts,
+not equivalent standalone programs or completed-task effort. The separate
+full-recipe table honestly retains deeper group-rule, Following, receipts and
+search lookups; some endpoints move later. Prediction, maintains and sync were
+explicitly consulted at M6/M8, not retroactively called M1–M5 evidence. No new
+builder timing or score claim. The original 19 captured card files were absent
+from the mirror; 17 named lookup outputs were reconstructed from npm 0.4.9.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1441 s` (exit 1).
+Cargo had 16 failures, all ours: contextual snippet assumptions, positional
+reference selectors and discovery prefixes. Repaired those and the deterministically
+shifted read-authorization census. All 411 affected Rust tests now pass,
+including whole guide 109/109; four existing aggregate tests stay ignored.
+All other full-suite stages passed, including 5,726 client tests (ten existing
+skips) and 79 models. Wasm remains 1,994,357 raw / 598,401 gzip bytes at the
+unchanged budget. All 2,329 captured source hashes stayed fixed during the
+full run; the later repairs have separate logs, not a claimed full-suite pass.
+
+Root registry/inventory checks remain red from unchanged Snapback 1 baseline
+drift and missing ignored generated demo files; the Snapback 4 diagnostic
+registry passes. No root indexed inputs changed or unrelated projections
+were regenerated. Ref-check and whitespace checks pass. Full report, reading
+tables, exact failure attribution and retained logs:
+reports/20260930-gq-guide-start-here/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

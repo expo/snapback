@@ -1,0 +1,261 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-gq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 7.27s
+     Running tests/guide.rs (target/debug/deps/guide-cd42a93f2457c573)
+
+running 109 tests
+test client::connection_presence_keeps_its_card ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test client::loading_or_absent_opens_client ... ok
+test client::missing_row_question_opens_client ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... FAILED
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... FAILED
+test client::unknown_membership_offline_opens_interactions ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... FAILED
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... FAILED
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... FAILED
+test definitions::every_card_separates_headings_from_prose ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... FAILED
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... FAILED
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... FAILED
+test following_cards_pin_examinations ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test natural_words_find_their_cards ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... FAILED
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... FAILED
+test language_following_uses_the_declaration ... ok
+test the_keywords_are_one_list ... FAILED
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test prediction_card_compiles_clean ... FAILED
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test the_template_compiles_clean ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... FAILED
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test the_readme_quarry_compiles_clean ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... FAILED
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test every_emitted_code_is_explained ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test every_card_compiles_clean ... FAILED
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test the_language_card_compiles_and_runs ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test rules::insert_rule_refusals ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test rules::admitted_hidden_updates ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test rules::insert_collision_visibility ... ok
+test rules::update_conditions ... ok
+test rules::update_rule_refusals ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+failures:
+
+---- client::existence_card_and_starters_teach_the_sdk_words stdout ----
+
+thread 'client::existence_card_and_starters_teach_the_sdk_words' (3989232) panicked at crates/snapback4-lang/tests/guide/client.rs:74:5:
+keep the client card concise
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- client::published::client_teaches_sdk_delivery_and_screen_seen stdout ----
+
+thread 'client::published::client_teaches_sdk_delivery_and_screen_seen' (3989237) panicked at crates/snapback4-lang/tests/guide/published.rs:175:5:
+assertion failed: client.contains("SDK owns delivery reporting")
+
+---- client::native_smoke_is_the_milestone_path_with_honest_limits stdout ----
+
+thread 'client::native_smoke_is_the_milestone_path_with_honest_limits' (3989236) panicked at crates/snapback4-lang/tests/guide/client.rs:125:9:
+assertion failed: text.lines().count() <= if name == "client" { 114 } else { 399 }
+
+---- definitions::why_rule_carries_the_target_visibility_contract stdout ----
+
+thread 'definitions::why_rule_carries_the_target_visibility_contract' (3989256) panicked at crates/snapback4-lang/tests/guide/definitions.rs:65:5:
+the original write-executing witness paragraph must stay intact: # Rules — Start here `insert` and `insert ... if absent` return E_RULE when the insert rule denies the viewer. A unique clash with a hidden row returns E_RULE for either insert form. For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null. If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null. Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable. For rule denial, an update condition or a secondary unique clash on an unreadable target, NOT_FOUND carries no row, index, column or branch detail. A missing update target or an incomplete upsert insert patch returns NOT_FOUND. An update condition on an unreadable target returns NOT_FOUND even if it would match; on a readable target, a false condition returns E_CONFLICT with a read-rule `current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an update or upsert-patch does not prove absence. A read denied by a table's rule answers as an empty page, not a refusal, and a client cannot tell it apart from an empty readable page — by design, so that a hidden row cannot be probed. For access UI, use a membership query the viewer may read, such as a conversation lookup readable by its members: a member gets the conversation even when its message page is empty. An explicit `require … else CODE` still refuses with the program's code. In `dev`, refusals and parked jobs record operation, code, request/job ID and Unix time per store/instance. Causes name the evaluated clause/source; replays and uninstrumented paths say `cause not instrumented`. Records describe only the named request/job. Visibility filtering is not recorded. Inspect `snapback4 why TABLE` for rules and residency. Unknown empty answers are silent and unrecorded by default; `dev --trace-empty` records them locally without console notices. `snapback4 why EMPTY_READ` gives rule, coverage and horizon investigation commands. Console repeats print counted one-second windows; `guide refusals` explains. With several live instances select `why recent --instance ID` (optionally `--store ID`). Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json` retains 32 records. Stopped/mismatched streams are rejected. The asynchronous 32-slot queue reports `dropped` on recovery; `why recent` refuses older snapshots while newer refusal evidence is pending or dropped. Query sites belong to the reader's generation; capture exhaustion points to `read through`. No arguments or row values are recorded, no HTTP endpoint exposes evidence, and production `serve` does not collect it. Caller bytes remain unchanged.
+
+---- feeds::builder_path_precedes_internals_and_older_spellings stdout ----
+
+thread 'feeds::builder_path_precedes_internals_and_older_spellings' (3989268) panicked at crates/snapback4-lang/tests/guide/feeds.rs:15:5:
+assertion `left == right` failed
+  left: ["Reference", "Global: a union view", "Following: a view for the reader", "Trending: a bounded predicate read", "Following contract", "Boundaries and refusals", "How it works", "Older spellings that still compile (do not use in new apps)"]
+ right: ["Global: a union view", "Following: a view for the reader", "Trending: a bounded predicate read", "Following contract", "Boundaries and refusals", "How it works", "Older spellings that still compile (do not use in new apps)"]
+
+---- familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block stdout ----
+
+thread 'familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block' (3989264) panicked at crates/snapback4-lang/tests/guide/familiar.rs:69:5:
+18300 -> 12821: less than 30% reduction
+
+---- feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof stdout ----
+
+thread 'feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof' (3989275) panicked at crates/snapback4-lang/tests/guide/feeds.rs:31:5:
+assertion failed: feeds.contains("same principal")
+
+---- feeds::followups::published_global_filters_originals_and_preserves_independent_reposts stdout ----
+
+thread 'feeds::followups::published_global_filters_originals_and_preserves_independent_reposts' (3989272) panicked at crates/snapback4-lang/tests/guide.rs:497:5:
+populated-source feed does not compile:
+schema.q:1:1 — E_QUARRY_UNKNOWN: unknown table posts
+  rewrite: declared names: none
+  guide: language
+schema.q:5:10 — E_QUARRY_UNKNOWN: unknown table posts
+  rewrite: declared names: none
+  guide: language
+
+---- start::openings_fit_without_growing_the_eight_reference_cards stdout ----
+
+thread 'start::openings_fit_without_growing_the_eight_reference_cards' (3989308) panicked at crates/snapback4-lang/tests/guide/start.rs:49:9:
+language: 826 > 825
+
+---- structural_admission_cards_name_every_host_and_the_web_trust_boundary stdout ----
+
+thread 'structural_admission_cards_name_every_host_and_the_web_trust_boundary' (3989310) panicked at crates/snapback4-lang/tests/guide.rs:1384:9:
+assertion failed: text.contains("the backend compiler's structural admission") &&
+    text.contains("hand-built or corrupted backend")
+
+---- the_keywords_are_one_list stdout ----
+
+thread 'the_keywords_are_one_list' (3989312) panicked at crates/snapback4-lang/tests/guide.rs:832:13:
+the language card does not list start
+
+---- prediction_card_compiles_clean stdout ----
+
+thread 'prediction_card_compiles_clean' (3989292) panicked at crates/snapback4-lang/tests/guide.rs:497:5:
+prediction sites does not compile:
+schema.q:2:10 — E_QUARRY_UNKNOWN: unknown table todos
+  rewrite: declared names: none
+  guide: language
+
+---- definitions::w11_every_registered_code_quotes_its_definition stdout ----
+
+thread 'definitions::w11_every_registered_code_quotes_its_definition' (3989254) panicked at crates/snapback4-lang/tests/guide/definitions.rs:119:5:
+first card paragraph lacks its defining fact:
+E_QUARRY_RULE_SPELLING: E_QUARRY_RULE_SPELLING locates a guessed table rule
+E_MAINTAIN_READ_RULE: E_MAINTAIN_READ_RULE names missing fields; state an explicit `read <-` when the aggregate needs its own audience.
+E_QUERY_RETRY: exhaustion refuses retryable `E_QUERY_RETRY`
+E_SYNC: E_SYNC means the sync declaration cannot deliver exactly its authorized audience.
+E_TIMELINE_ACTIVATE: Dev adopts automatically. Deploy needs `--allow-feed-adoption`
+E_TIMELINE_FILTER: Selection is not stable. Make selection columns immutable; use `.parentId = null and not .removed`
+E_TIMELINE_READ: The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows
+N_HORIZON_GUARD: `require not exists notes[id] else DUPLICATE` on an argument id also gets a persistent `N_HORIZON_GUARD` note: remove it only if its purpose is retry dedupe.
+N_SYNC_ORDER: Ascending reads and other indexes have unknown coverage.
+N_NO_HORIZON: A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`).
+E_QUARRY_RULE_SPELLING action/boundary: declare separate insert, update and delete rules for the operations intended
+E_MAINTAIN_READ_RULE action/boundary: state an explicit `read <-` when the aggregate needs its own audience
+E_MAINTAIN_READ_RULE action/boundary: Calendar keys and reference paths do not preserve rule fields
+E_QUERY_RETRY action/boundary: four rounds
+E_QUERY_RETRY action/boundary: 30 seconds
+E_QUERY_RETRY action/boundary: immediate `E_OFFLINE`
+E_SYNC action/boundary: use `sync` to infer delivery to the owner
+E_SYNC action/boundary: guard new memberships with existing membership or creation of the group
+E_TIMELINE_ACTIVATE action/boundary: Deploy needs `--allow-feed-adoption`
+E_TIMELINE_ACTIVATE action/boundary: Above 5,000,000 copies use planned `home`
+E_TIMELINE_ACTIVATE action/boundary: use fresh owned names
+E_TIMELINE_FILTER action/boundary: Make selection columns immutable
+E_TIMELINE_FILTER action/boundary: `.parentId = null and not .removed`
+E_TIMELINE_READ action/boundary: Read `following last 20 by .at after c`, then shape the rows
+N_HORIZON_GUARD action/boundary: remove it only if its purpose is retry dedupe
+N_HORIZON_GUARD action/boundary: `else EVENT_REMOVED` expresses an application invariant
+N_SYNC_ORDER action/boundary: Use `last N by .at, .id` for the example above, keeping the audience predicate and cursor
+N_SYNC_ORDER action/boundary: a held query stays local with incomplete coverage
+N_NO_HORIZON action/boundary: Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`
+N_NO_HORIZON action/boundary: An absent note does not certify bounded acquisition or a safe cold-start size
+
+---- familiar::every_moved_fact_has_its_why_or_details_home stdout ----
+
+thread 'familiar::every_moved_fact_has_its_why_or_details_home' (3989266) panicked at crates/snapback4-lang/tests/guide/familiar.rs:48:9:
+language-00 lost its Details home
+
+---- every_card_compiles_clean stdout ----
+
+thread 'every_card_compiles_clean' (3989260) panicked at crates/snapback4-lang/tests/guide.rs:501:9:
+assertion `left == right` failed: card feeds, block 3: []
+  left: 0
+ right: 1
+
+thread 'every_card_compiles_clean' (3989260) panicked at crates/snapback4-lang/tests/guide.rs:779:5:
+unclean blocks: ["feeds: 3"]
+
+
+failures:
+    client::existence_card_and_starters_teach_the_sdk_words
+    client::native_smoke_is_the_milestone_path_with_honest_limits
+    client::published::client_teaches_sdk_delivery_and_screen_seen
+    definitions::w11_every_registered_code_quotes_its_definition
+    definitions::why_rule_carries_the_target_visibility_contract
+    every_card_compiles_clean
+    familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block
+    familiar::every_moved_fact_has_its_why_or_details_home
+    feeds::builder_path_precedes_internals_and_older_spellings
+    feeds::followups::published_global_filters_originals_and_preserves_independent_reposts
+    feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof
+    prediction_card_compiles_clean
+    start::openings_fit_without_growing_the_eight_reference_cards
+    structural_admission_cards_name_every_host_and_the_web_trust_boundary
+    the_keywords_are_one_list
+
+test result: FAILED. 94 passed; 15 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.34s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

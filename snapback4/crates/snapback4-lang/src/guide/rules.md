@@ -1,7 +1,20 @@
 # Rules
 
-Rules decide who may read or write each row; a child uses `read through` to share its parent's audience.
-The engine keeps that inheritance valid across writes, expiry, sync and device prediction.
+**Start here:** Authorize rows at the table: owner equality for private data, membership for shared data, and `read through` for children. This default-starter owner pattern keeps reads and writes with the owner; missing write rules deny.
+
+```quarry
+table todos:
+  ownerId: principal
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+```
+
+- `E_QUARRY_SELF_EQUALITY`: a nested predicate compares its row to itself; capture the outer value in a local before entering that predicate.
+- `E_RULE`: the row rule refused the write; supply the authenticated owner or required membership, keeping the intended policy.
+
+## Reference
 
 ```quarry
 table orgs:
@@ -36,24 +49,11 @@ query discussion(issue: issues, c: cursor ?):
   comments where .issue = issue first 20 by .id after c
 ```
 
-A child names one required immutable reference, without a default, to an
-ordinary application table. `read through` is its whole read rule; put service
-grants on the parent. The parent's read-rule fields and authored expiry must
-be immutable. An insert also needs a live parent readable by the writer,
-before the child's insert rule runs. The engine captures those inputs; they
-travel with sync images but never appear in query rows or accept payload values.
+A child names one required immutable reference, without a default, to an ordinary application table. `read through` is its whole read rule; put service grants on the parent. The parent's read-rule fields and authored expiry must be immutable. An insert also needs a live parent readable by the writer, before the child's insert rule runs. The engine captures those inputs; they travel with sync images but never appear in query rows or accept payload values.
 
-Each child expires no later than its parent, through any number of levels.
-A parent's delete needs read authority and waits until its children are deleted
-and expired children swept. Its id cannot be reused while physical children remain.
-A mutable child deadline can shorten its life but cannot extend it past the parent.
+Each child expires no later than its parent, through any number of levels. A parent's delete needs read authority and waits until its children are deleted and expired children swept. Its id cannot be reused while physical children remain. A mutable child deadline can shorten its life but cannot extend it past the parent.
 
-`sync` infers exactly the parent's substituted audience after service grants
-are removed. A conjunction such as membership and an archived flag stays
-`online only`; `check --verbose` explains its server reads. A parent-pinned page resolves
-authorization once, while completeness still requires the child's own coverage.
-An unknown or mismatched parent takes the server fallback. Retained history
-stays marked `retained: true` beside the server's current page.
+`sync` infers exactly the parent's substituted audience after service grants are removed. A conjunction such as membership and an archived flag stays `online only`; `check --verbose` explains its server reads. A parent-pinned page resolves authorization once, while completeness still requires the child's own coverage. An unknown or mismatched parent takes the server fallback. Retained history stays marked `retained: true` beside the server's current page.
 On these syncing delivered-history children, `retained` is row metadata; name an
 application column `wasRetained` instead. Row shapes and spreads preserve the mark.
 

@@ -1,3 +1,5 @@
+#[path = "guide/context.rs"]
+mod guide_context;
 use snapback4_core::schema::{ColumnType, Schema};
 use snapback4_lang::{Bound, bind::rule_truth, compile, guide, recipe};
 // Exercise schema-only constraints and isolate this pass's cost without adding
@@ -233,8 +235,7 @@ fn published_blocks() -> Vec<(String, String)> {
     guide::KEYWORDS.iter().map(|name| (*name, guide::card(name).unwrap()))
         .chain([("README", README), ("CLIENT-AND-OPERATIONS", client), ("SERVER", server)])
         .flat_map(|(name, doc)| guide::quarry(doc).into_iter().enumerate().map(move |(index, block)| {
-            let source = if block.lines().any(|line| line.starts_with("table ")) { block }
-            else { format!("{}\n{block}", guide::language()) };
+            let source = guide_context::source(&block);
             (format!("{name} block {}", index + 1), source)
         })).collect()
 }

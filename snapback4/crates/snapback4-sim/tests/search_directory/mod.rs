@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 #[test]
 fn w10c_directory_uses_the_cards_single_query_and_resets_its_cursor() {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).remove(0);
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).into_iter().find(|block| block.contains("table profiles:")).unwrap();
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
