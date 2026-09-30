@@ -40,19 +40,22 @@ export function forwardInspection(client: Client, raw: Client, valid: () => bool
 }
 export class ObservationWork<W extends Watch> extends ReadWork<W> {
   private watches: () => Iterable<W> = () => [];
-  private readonly withdrawals: ReadInspection["recentWithdrawals"][number][] = [];
-  private readonly timings: { queueMs: number; attemptMs: number }[] = [];
-  constructor() {
-    const queued = new WeakMap<W, number>(), started = new WeakMap<W, { at: number; queueMs: number }>();
+  private diagnostics: {
+    withdrawals: ReadInspection["recentWithdrawals"][number][];
+    timings: { queueMs: number; attemptMs: number }[];
+    queued: WeakMap<W, number>;
+    started: WeakMap<W, { at: number; queueMs: number }>;
+  } | undefined;
+  constructor(private readonly pauseQueue = true) {
     super(undefined, (watch, state) => {
-      watch.withdrawal = (cause, code) => {
-        this.withdrawals.push({ at: Date.now(), query: watch.op.name, cause, ...(code ? { code } : {}) });
-        if (this.withdrawals.length > 64) this.withdrawals.shift();
-      };
+      watch.queueEpisode(this.pauseQueue && state === "queued");
+      if (!this.diagnostics) return;
+      const { queued, started, timings } = this.diagnostics;
+      this.track(watch);
       const now = performance.now(), attempt = started.get(watch);
       if (state !== "in-flight" && attempt) {
-        this.timings.push({ queueMs: attempt.queueMs, attemptMs: Math.max(0, now - attempt.at) });
-        if (this.timings.length > 256) this.timings.shift();
+        timings.push({ queueMs: attempt.queueMs, attemptMs: Math.max(0, now - attempt.at) });
+        if (timings.length > 256) timings.shift();
         started.delete(watch);
       }
       if (state === "queued" && !queued.has(watch)) queued.set(watch, now);
@@ -60,13 +63,27 @@ export class ObservationWork<W extends Watch> extends ReadWork<W> {
         started.set(watch, { at: now, queueMs: Math.max(0, now - (queued.get(watch) ?? now)) }); queued.delete(watch);
       }
       if (state === "idle") queued.delete(watch);
-      watch.queueEpisode(state === "queued");
     });
+  }
+  private track(watch: W): void {
+    watch.hasAnswered ||= "data" in watch.snapshot;
+    watch.withdrawal ??= (cause, code) => {
+      const withdrawals = this.diagnostics!.withdrawals;
+      withdrawals.push({ at: Date.now(), query: watch.op.name, cause, ...(code ? { code } : {}) });
+      if (withdrawals.length > 64) withdrawals.shift();
+    };
   }
   bind(client: Client, watches: Map<string, W>): void { this.watches = () => watches.values(); sources.set(client.observe, () => this.inspect()); }
   inspect(): ReadInspection {
+    if (!this.diagnostics) {
+      this.diagnostics = { withdrawals: [], timings: [], queued: new WeakMap(), started: new WeakMap() };
+      const now = performance.now();
+      for (const watch of this.watches()) if (this.state(watch) === "queued") this.diagnostics.queued.set(watch, now);
+    }
+    const { withdrawals, timings } = this.diagnostics;
     const groups = new Map<string, PressureCounts>(), totals = emptyCounts();
     for (const watch of this.watches()) {
+      this.track(watch);
       let counts = groups.get(watch.op.name);
       if (!counts) groups.set(watch.op.name, counts = emptyCounts());
       const read = watch.snapshot, state = this.state(watch);
@@ -78,7 +95,7 @@ export class ObservationWork<W extends Watch> extends ReadWork<W> {
     }
     for (const counts of groups.values()) for (const key of Object.keys(totals) as (keyof PressureCounts)[]) totals[key] += counts[key];
     return { version: 1, supported: true, totals, queries: [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([name, counts]) => ({ name, ...counts })),
-      recentWithdrawals: this.withdrawals.map(event => ({ ...event })),
-      latency: { samples: this.timings.length, queueMs: percentile(this.timings.map(x => x.queueMs)), attemptMs: percentile(this.timings.map(x => x.attemptMs)) } };
+      recentWithdrawals: withdrawals.map(event => ({ ...event })),
+      latency: { samples: timings.length, queueMs: percentile(timings.map(x => x.queueMs)), attemptMs: percentile(timings.map(x => x.attemptMs)) } };
   }
 }

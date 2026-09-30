@@ -79310,3 +79310,55 @@ interactive timeline, per-flow LL measurements, hashes, full output and raw trac
 reports/20260930-pr-subscription-pressure/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — PR round 1: audience-specific withdrawal under pressure
+
+Merged `origin/main` `f1b1f0077e` into lane PR before the review repairs
+(merge `c586a5904f`), preserving round 0's local queue clock and PQ's eight
+starts/eight active attempts. Applied scope removals now use private device
+read dependencies recorded before projection: point audiences and evaluated
+range/count prefixes. Leaving one room leaves the other room's mounted answers
+visible. Empty-table observations do not match. Raw subscribers receive staged
+withdrawals even with no published footprint; pending group cuts fence old
+replica/server answers, remounts and one-shot reads until publication, and
+parked watches recover even with an empty final footprint or an intervening
+offline period. Legacy/server/composed answers without certified group
+provenance remain conservative at the table boundary.
+
+Terminal local change-feed refusals publish immediately on wasm and process.
+Online ambiguous change evidence starts its budget on receipt and keeps it
+running while queued; local capacity waits remain excluded. Inspection does
+not collect diagnostic timings, answer history or per-watch callbacks before
+opt-in. Viewer withdrawals say `viewer`. The closed-facade comment now states
+that final deadlines may shorten but cannot extend. Public contract comments,
+the client card and LLP 3000.023 changed together. The withdrawal assertions now
+observe the following failure publication; convergence requires `inFlight`
+for legitimate timeouts. Deliberate stale-reply and idle-timeout controls show
+the old assertions miss those defects and the strengthened assertions catch them.
+
+Verification: 80 final affected tests plus the new-mount unit passed; 15 new
+regressions fail on round-0 SDK bytes. Rust device tests: 1,391 passes, zero
+failures, five existing ignores. Whole guide: 105 passes. Normal and forced
+active-timeout wasm/process convergence each finishes with 42 unique messages
+per history, with the eight-active bound intact. Reference check: zero errors.
+The one required complete `scripts/test.sh` invocation passed with the exact
+summary **`== 0 failure(s) in 1268 s`**; its client pool passed 5,335 tests
+(10 existing prerequisite/platform skips), then all 79 serial model tests passed.
+All 1,644 recorded inputs match before/after. The nominal 60-second suite budget
+remains unmet; no count, timeout or concurrency setting was weakened.
+
+LL's unchanged harness completed 1,920 trials over baseline, paired after and
+final cells with zero timeouts. Round-0 → final maximum per-flow publication
+p95, zero/three load workers: wasm 45.535/80.605 → 47.257/92.070 ms;
+process 79.111/399.202 → 81.163/195.408 ms. Asset-home medians are unchanged.
+Other lanes shared the host, so these are not controlled speedup/regression
+claims. Full flow tables, traces, hashes and every development failure's
+classification are in [the round-1 report](./reports/20260930-pr-subscription-pressure/round1/REPORT.md).
+
+Wasm measures **1,983,105 raw / 595,440 gzip bytes**, versus round 0
+1,978,828 / 593,225 (+4,277 raw / +2,215 gzip). The audience dependencies are
+necessary to preserve unrelated shaped/count answers without guessing query
+semantics in JavaScript. Per the lane prompt's explicit ratchet allowance,
+`metrics/wasm-budget.json` rises from 593,719 to exactly **595,440** (+1,721 B,
+no headroom), with the same reason in this commit. `local.ts` remains at 1,500
+lines. Nothing pushed or published.

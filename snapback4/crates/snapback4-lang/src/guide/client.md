@@ -46,13 +46,13 @@ Use `existence(read)`; `isReady(read)` then `read.existence` narrows point data.
 
 Only top-level `null`/`[]` is empty; `false`, `0`, nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
 Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
-Same-key plain refetch, reconnect, slow reads, transport failure and retry exhaustion retain `revalidating` answers without timeout. Completed replacements recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one second excluding queue wait; failure/timeout withdraws. Whole server answers can precede sync; older replicas cannot clear pending notifications. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets withdraw; generation changes withdraw before adoption, even without changed tables.
+Same-key plain refetch, reconnect and failed retries retain `revalidating` answers without timeout. Replacements recompute existence. Local changes get one second at attempt execution, excluding capacity wait; online change evidence includes queue wait because it may revoke access. Failure/timeout withdraws. Applied scope loss withdraws dependent groups immediately, including staged removals; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
 Search with `usePage` per scope: render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present. Unknown unread counts never hide conversations.
 
 ## Queries in rows
 
 Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paged lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
-At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. `keep: false` withdraws before queueing. The budget starts at attempt execution and pauses in the queue; retries never replenish it. Expiry/resets stay immediate. Unrelated writes preserve memory; clock refresh preserves unexpired answers.
+At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Unrelated writes preserve memory; clock refresh preserves unexpired answers.
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
@@ -70,7 +70,7 @@ function ConversationList() {
 
 Keep server-needing decorations separate.
 
-If a screen flashes empty, call `inspect(client)` from `snapback4/inspection`: compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout` means the replacement exhausted its second outside the capacity queue; expiry, denial and resets remain immediate. Reduce redundant decorations. `latency` reports queue/attempt p50/p95/max for the last 256 completed attempts; withdrawals keep 64. Counts include linger; direct/presence reads are excluded.
+If a screen flashes empty, call `inspect(client)` from `snapback4/inspection` to enable collection: compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout` means exhausted budget; online evidence includes capacity wait. Collection starts on first inspection. `latency` reports queue/attempt p50/p95/max for 256 completed attempts; withdrawals keep 64. Counts include linger; direct/presence reads are excluded.
 Development overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled returns null and starts no timer; enabled samples every 250 ms. No arguments/values.
 
 ## Expo and acquisition

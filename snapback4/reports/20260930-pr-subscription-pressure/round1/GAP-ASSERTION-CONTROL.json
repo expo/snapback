@@ -1,0 +1,8 @@
+{
+  "round0": {
+    "rejectedIdleTimeout": false
+  },
+  "round1": {
+    "rejectedIdleTimeout": true
+  }
+}

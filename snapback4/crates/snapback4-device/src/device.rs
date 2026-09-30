@@ -24,6 +24,7 @@ mod deferred;
 mod media;
 mod snapshot;
 mod history;
+mod read_scopes;
 mod search;
 mod recorded;
 mod expiry_clock;
@@ -221,6 +222,7 @@ const NATIVE_GENERATION: &str = "device:native:generation";
 pub struct Device<S: DeviceStore> {
     store: S,
     delivery_now: i64,
+    pub(crate) read_scopes: RefCell<serde_json::Value>,
     schema: Schema,
     programs: BTreeMap<String, Program>,
     generation: u64,
@@ -492,7 +494,7 @@ impl<S: DeviceStore> Device<S> {
             clear_native(&mut store)?;
         }
         let store_identity = store.meta(STORE_ID)?;
-        Ok(Self { delivery_now: 0,
+        Ok(Self { delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
             store,
             schema: backend.schema,
             programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
@@ -929,6 +931,7 @@ impl<S: DeviceStore> Device<S> {
     }
 
     pub(crate) fn query_observation_search(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool, search: bool, spent: Option<snapback4_core::meter::Metered>) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>, snapback4_core::engine::components::Provenance) {
+        *self.read_scopes.borrow_mut() = serde_json::json!({});
         let mut unknown = false;
         let mut retained = false;
         let mut components = Default::default();
@@ -949,7 +952,7 @@ impl<S: DeviceStore> Device<S> {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
                 return Err(error.refusal());
             }
-            let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
+            let reading = history::Reading { scopes: Some(&self.read_scopes), tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
             let (result, coverage, history_only, facts) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the

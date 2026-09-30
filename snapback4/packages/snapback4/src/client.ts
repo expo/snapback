@@ -349,7 +349,7 @@ export function createClient(options: ClientOptions): Client {
     if (viewer === next) return;
     viewer = next;
     void delivery?.reset(true);
-    resetWatches();
+    resetWatches(true, "viewer");
     if (credentials) for (const watch of watches.values()) void scheduleRead(watch);
     for (const listener of viewerListeners) listener(next);
   };
@@ -682,10 +682,11 @@ export function createClient(options: ClientOptions): Client {
     schedulePresence(watch, true, result.refresh);
   }
 
-  const readWork = new ObservationWork<Watch>();
+  const readWork = new ObservationWork<Watch>(false);
   function scheduleRead(watch: Watch, changed = false) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    watch.reload(changed, { queued: true }); notify(watch);
+    // Online change evidence may be revocation: its budget includes capacity wait.
+    watch.reload(changed, { queued: !changed }); notify(watch);
     acquireRead(watch);
   }
   function acquireRead(watch: Watch) {

@@ -53,14 +53,16 @@ export type ReadCut = "meter" | "words" | null;
  * A mounted same-key observation retains its answer during plain revalidation,
  * marked `revalidating: true`, until replacement, with no timeout. Transport
  * failure marks `fresh: false`; retry exhaustion also keeps the answer. Local
- * commits, online receipts, durable/ephemeral /changes and /sync publications
- * start one non-renewable second when the replacement attempt starts; failure
- * or the deadline withdraws to loading. Queueing cannot renew that deadline.
- * Commits re-read and replace directly from the replica.
+ * commits, durable/ephemeral change evidence and /sync publications start one
+ * non-renewable second at the replacement attempt; capacity queue wait pauses
+ * this budget. Online change
+ * evidence can be revocation, so its second starts on receipt and includes queue
+ * wait. Failure or timeout withdraws; a later accepted answer can still publish.
+ * Applied local scope loss withdraws dependent audience groups immediately,
+ * including staged removals; older replica answers wait for publication.
  * `keep: false` withdraws immediately; `keep: true` adds a 30 s subscriber-free
- * linger to the default retention policy. Visibility after membership removal
- * ends at the replacement answer, or the change bound. Gate actions on
- * `isReady(read) && !read.revalidating` when they require a completed re-read.
+ * linger. Gate actions on `isReady(read) && !read.revalidating` when they
+ * require a completed re-read.
  * Every option withdraws on expiry, a refusal, a viewer or credential change,
  * store reset, adoption or close. Retention never grants authority.
  * @ref LLP 3000.023#10 — all change evidence bounds retention.

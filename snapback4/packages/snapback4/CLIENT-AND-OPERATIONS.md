@@ -876,7 +876,7 @@ a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 By default, mounted same-key observations retain their answer through plain
 revalidation without a timeout, marked `revalidating: true`. All change
-evidence starts a one-second bound when its replacement attempt begins and withdraws on failure. Queue wait precedes a new episode; later queueing or plain refreshes never renew an existing deadline. Use
+evidence withdraws on failure or timeout. Local replacement attempts get one second excluding capacity queue wait; online change evidence starts its second immediately, including queue wait because it may revoke access. Applied local scope loss withdraws dependent audience groups immediately, even on staged pages; older replicas cannot restore them before publication. Retries never renew a budget. Use
 `keep: false` for immediate withdrawal. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression

@@ -23,15 +23,15 @@ import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
-import { queuedPredictions, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
+import { queuedPredictions, type ServerAnswer, type ReadScopes, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
-type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+type Outcome = Coverage & { scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
@@ -171,7 +171,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // are filtered separately. Local freshness is assigned only at publication.
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true }
       : readyRead({ data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null });
-    latest = { outcome, result: { read, tables, nextExpiry } };
+    latest = { outcome, result: { read, tables, nextExpiry, scopes: outcome.scopes } };
     return latest;
   };
   const server = async (provenance = false, retain = true): Promise<Candidate<R>> => {

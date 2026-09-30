@@ -95,6 +95,7 @@ window.openPressure = async ({url,persona,holdMs}) => { const state = { holdMs, 
     const timedOut = result.withdrawals.filter(w => w.query === 'history');
     for (const withdrawal of timedOut) {
       const exhaustedBeforeQueue = typeof withdrawal.queueEntry?.remainingMs === 'number' && withdrawal.queueEntry.remainingMs <= 0;
+      assert.equal(withdrawal.inFlight, true, 'a legitimate harness timeout requires an active attempt: ' + JSON.stringify(withdrawal));
       assert.ok(!withdrawal.queued || exhaustedBeforeQueue, 'capacity queue wait must never withdraw a mounted history: ' + JSON.stringify(withdrawal));
     }
     let lastData = -1;

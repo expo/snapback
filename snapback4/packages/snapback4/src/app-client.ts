@@ -177,7 +177,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         if (!valid()) return denied();
         // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
         const read = source?.getSnapshot() ?? (closed || held ? peekObservation(raw, op, args, options) : undefined);
-        // @ref LLP 3000.023#3.4 — closed facades keep only their final identity, under its original deadlines.
+        // @ref LLP 3000.023#3.4 — closed facades keep their final identity; deadlines may shorten, never extend (including later queue pauses).
         if (closed) {
           if ("denied" in snapshot) return snapshot;
           if ("loading" in snapshot) return snapshot;

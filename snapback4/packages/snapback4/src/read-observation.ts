@@ -69,13 +69,13 @@ export class ReadObservation<T> {
   readonly episodeQueue = new EpisodeQueue();
   queueEpisode(queued: boolean): void { this.episode.check(); this.episodeQueue.set(queued); }
   /** Private diagnostic callback; records transitions from data, never row contents. */
-  withdrawal: (cause: string, code?: string) => void = () => {};
+  withdrawal: ((cause: string, code?: string) => void) | undefined;
   hasAnswered = false;
   onWithdrawal: () => void = () => {};
   private readonly episode = new ReadEpisode(() => {
     if (!("data" in this.snapshot)) return;
     // @ref LLP 3000.023#3.1 — deadline withdrawal must allow the in-flight answer to publish.
-    this.withdrawal("change-timeout");
+    this.withdrawal?.("change-timeout");
     this.snapshot = { loading: true };
     owners.set(this.snapshot, this);
     this.kept = false;
@@ -187,8 +187,8 @@ export class ReadObservation<T> {
   }
 
   private replace(read: Read<T>, change: "answer" | "reset" | "expiry" = "answer", deferred = false, cause: string = change): () => void {
-    if ("data" in this.snapshot && !("data" in read)) this.withdrawal("denied" in read ? "denied" : cause === "answer" ? "unavailable" : cause, "denied" in read ? read.denied.code : undefined);
-    this.hasAnswered ||= "data" in read;
+    if ("data" in this.snapshot && !("data" in read)) this.withdrawal?.("denied" in read ? "denied" : cause === "answer" ? "unavailable" : cause, "denied" in read ? read.denied.code : undefined);
+    if (this.withdrawal) this.hasAnswered ||= "data" in read;
     this.revision++;
     this.changePending = false;
     this.episode.clear();
