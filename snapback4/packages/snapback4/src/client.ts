@@ -524,7 +524,7 @@ export function createClient(options: ClientOptions): Client {
       if (closed || storeRefusal || !credentials) return { ok: false };
     }
     if ((path.startsWith("/m/") || path.startsWith("/a/")) && storeIdentity) body = { ...(body as object), store_id: storeIdentity };
-    try { encoded = JSON.stringify(body); }
+    try { encoded = JSON.stringify(path.startsWith("/m/") ? { ...(body as object), retry_write: true } : body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
       // @ref LLP 3000.019#3.3 — the list follows dispatch, never receipt state.

@@ -1,0 +1,35 @@
+snapback4/reports/20260930-ka-keepalive-reuse/await-boundary-initial.log:18: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/await-boundary-initial.log:44: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/baseline-headers.log:17: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/baseline-headers.log:32: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/baseline-headers.log:48: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/baseline-headers.log:61: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/baseline-reset-control.log:23: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/baseline-reset-control.log:25: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/browser-headers.log:21: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/browser-headers.log:23: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/guide-final.log:115: new blank line at EOF.
+snapback4/reports/20260930-ka-keepalive-reuse/guide.log:157: new blank line at EOF.
+snapback4/reports/20260930-ka-keepalive-reuse/retry-initial.log:30: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/retry-initial.log:32: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/retry-initial.log:47: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/retry-initial.log:49: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/snapshot-before.log:17: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/snapshot-before.log:26: trailing whitespace.
++
+snapback4/reports/20260930-ka-keepalive-reuse/vendor-tests.log:156: new blank line at EOF.

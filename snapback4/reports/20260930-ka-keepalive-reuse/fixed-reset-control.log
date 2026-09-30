@@ -1,0 +1,12 @@
+{"path":"/q/ping","code":"ECONNRESET","message":"read ECONNRESET"}
+✔ socket reset: reused=true, reset again=false (58.797691ms)
+{"path":"/m/add","code":"ECONNRESET","message":"read ECONNRESET"}
+✔ a reset retry preserves one real durable mutation and its write ID (212.453945ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 371.944657

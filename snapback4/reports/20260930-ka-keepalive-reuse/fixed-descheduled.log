@@ -1,0 +1,10 @@
+{"round":0,"clients":1,"errors":[],"successes":1,"failures":[],"serverAlive":true,"serverLog":"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\nsnapback4 dev: http://127.0.0.1:38363  (schema: snapback/, types: /tmp/sb4-ka-deschedule-abd52f/snapback/generated/api.ts)\nstore: /tmp/sb4-ka-deschedule-abd52f/.snapback4/store.sqlite\nsnapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n"}
+✔ descheduled dev: idle pooled SDK socket (0) (5610.824518ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5691.837145
