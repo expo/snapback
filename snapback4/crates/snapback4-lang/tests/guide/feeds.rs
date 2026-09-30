@@ -12,7 +12,7 @@ fn text(s: &str) -> Value { Value::String(s.into()) }
 fn builder_path_precedes_internals_and_older_spellings() {
     let card = card("feeds").unwrap();
     let headings = card.lines().filter_map(|line| line.strip_prefix("## ")).collect::<Vec<_>>();
-    assert_eq!(headings, ["Global: a union view", "Following: a view for the reader", "Trending: a bounded predicate read", "Following contract", "Boundaries and refusals", "How it works", "Older spellings that still compile (do not use in new apps)"]);
+    assert_eq!(headings, ["Reference", "Global: a union view", "Following: a view for the reader", "Trending: a bounded predicate read", "Following contract", "Boundaries and refusals", "How it works", "Older spellings that still compile (do not use in new apps)"]);
     let (current, older) = card.split_once("## Older spellings").unwrap();
     for spelling in ["maintain ", "recipe", "bridge", "promotion", "size authors", "by by", "unique by"] {
         assert!(!current.contains(spelling), "current path teaches {spelling}");

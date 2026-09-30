@@ -1,0 +1,125 @@
+# Start here: the common application path
+
+Read these eight patterns in order; each named card continues with its complete reference. Examples identify their schema context; copy the full recipe when starting without it.
+
+# Quarry — the language card
+
+**Start here:** Declare typed tables, row rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
+
+```quarry
+table todos:
+  title: text <=200
+  ownerId: principal
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  sync to .ownerId last 100 by .id
+```
+
+- `E_QUARRY_TYPE`: wrong reference type; pass a reference to the declared table.
+- `E_QUARRY_PLACEMENT`: queries cannot write; use mutations or jobs.
+
+# Sync: the viewer's partition is the unit of sync
+
+**Start here:** Add `sync` to replicate each viewer's authorized rows; cap small owner collections as in the default starter, or use `last N` for history. Read history in the same descending order as its horizon.
+
+```quarry
+table todos:
+  ownerId: principal
+  cap 1000 by ownerId
+  read <- .ownerId = viewer
+  sync to .ownerId
+```
+
+- `E_SYNC`: the declared audience disagrees with the read rule; omit the audience to infer it, keeping the intended rule.
+- `N_SYNC_ORDER`: a page uses a different order than its horizon; use the sync order for covered history.
+- `N_NO_HORIZON`: a growing partition has no window; add `last N by .column` or an intended product cap.
+
+# Views: plan, maintain or materialize
+
+**Start here:** Use `view` for derived data: filters and unions plan reads, while counts update in the source transaction. For public post totals, use this excerpt from the complete example below; do not maintain counters in client writes.
+
+```quarry
+view postCount: count posts by .author
+query total(author: principal):
+  return postCount[author]
+```
+
+- `E_MAINTAIN_READ_RULE`: grouping lost an authorization field; retain it as a bare key or declare the aggregate's intended read rule.
+- `E_QUARRY_SYNTAX`: a view cannot have its own sync line; keep inherited sync or choose `online only` and lose offline coverage.
+- `N_MAINTAIN_SYNCED`: inherited sync has no source horizon; measure it, or use `online only` if offline totals are unnecessary.
+
+# Rules
+
+**Start here:** Authorize rows at the table: owner equality for private data, membership for shared data, and `read through` for children. This default-starter owner pattern keeps reads and writes with the owner; missing write rules deny.
+
+```quarry
+table todos:
+  ownerId: principal
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+```
+
+- `E_QUARRY_SELF_EQUALITY`: a nested predicate compares its row to itself; capture the outer value in a local before entering that predicate.
+- `E_RULE`: the row rule refused the write; supply the authenticated owner or required membership, keeping the intended policy.
+
+# Prediction: queued writes and local rows
+
+**Start here:** Write ordinary mutations against synced data; the client predicts when it holds the needed facts and otherwise queues. This mutation is from the default starter's todos schema; show pending writes even when there is no predicted row.
+
+```quarry
+mutation add(title: text <=200):
+  return insert todos { title, done: false, ownerId: viewer }
+```
+
+- `E_NOT_PREDICTABLE`: a `predicts` assertion reads server data; remove that dependency or drop the assertion and accept queued execution.
+- `E_PREDICT`: this device lacks a required fact; keep the queued write pending until sync rather than treating a missing local row as failure.
+- `N_HORIZON_GUARD`: an existence guard used only for retry deduplication blocks prediction; remove it and reuse the mutation write id.
+
+# Client: answers stay on screen
+
+**Start here:** Use reactive `useQuery`/`usePage` and classify `existence`; keep composers and receipts above transient rows. Page an inbox query.
+
+```tsx
+import { usePage } from "snapback4/react";
+import { existence } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+export function Inbox() { const page = usePage(api.inboxCards, {});
+  return <>{existence(page.read)}{page.items.map(row => <p key={row.id}>{row.title} ({row.memberCount})</p>)}<button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>;
+}
+```
+
+- `E_OFFLINE`: server data is unavailable; show unavailable and reconnect.
+- `E_QUERY_RETRY`: one-shot settlement exhausted its budget; retry, using reactive hooks for screens.
+
+# Search: word prefixes, on the server and on the device
+
+**Start here:** Declare `search` on text columns, then use `matching`, order and a cursor; the planner builds the word index. This directory query uses the profiles schema below; reset the cursor when the text changes and show incomplete results honestly.
+
+```quarry
+query people(q: text <=100, c: cursor ?):
+  return profiles matching q after c first 20 by .handle
+```
+
+- `E_QUARRY_TYPE`: a search column is not text; declare a text column before listing it in `search`.
+- `N_SEARCH_UNSCOPED`: authorization varies across the scan; pin the intended room, or preserve the wider domain and show partial results.
+- `E_CURSOR_INDEX`: an explicit index lacks a total order; use `by .column` so the planner supplies the page index.
+
+# Feeds: Global, Following and Trending
+
+**Start here:** Combine originals and reposts in a union view, then page it for Global; add the Following view below for per-reader delivery. This social-starter pattern uses the posts and reposts schema below; keep the branch flag in list keys.
+
+```quarry
+view activity:
+  posts where not .removed { post: .id, actor: .authorId, at, repost: false }
+  reposts { post: .postId, actor: .actorId, at, repost: true }
+query global(c: cursor ?):
+  return activity last 20 by .at after c { *, card: posts[.post] }
+```
+
+- `E_TIMELINE_FILTER`: unsupported selection; use immutable reply keys and `.parentId = null and not .removed` in `view activity`.
+- `E_TIMELINE_READ`: the Following page uses another order; use `following last 20 by .at after c`.
+- `E_TIMELINE_ACTIVATE`: deployment needs retained-source adoption approval; inspect the copy cost before using `--allow-feed-adoption`.
+
+

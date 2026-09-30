@@ -289,7 +289,9 @@ fn explain(code: &str, keyword: &str, dedicated: bool) -> Option<String> {
         let body = detail.split_once('\n').map_or(detail, |(_, body)| body.trim_start());
         return Some(format!("{code}: {explanation}\n\n{heading}\n\n{body}\nFull card: snapback4 guide {keyword}"));
     }
-    let paragraphs = prose(card);
+    // Start-here mistakes navigate; the reference still owns diagnostic detail.
+    let reference = card.find("\n## Reference").map_or(card, |at| &card[at + 1..]);
+    let paragraphs = prose(reference);
     let section = paragraphs.iter().find(|(_, paragraph)| paragraph.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code));
     if dedicated && section.is_none() { return None; }
     let mut text = format!("{code}: {explanation}\n\n");

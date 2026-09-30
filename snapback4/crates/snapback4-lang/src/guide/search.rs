@@ -1,8 +1,18 @@
 //! Search card, compiled with every other keyword card by tests/guide.rs.
 pub const CARD: &str = concat!(r##"# Search: word prefixes, on the server and on the device
 
-Search finds rows whose words begin with the terms a user types.
-The same word-prefix rules apply on the server and on the device.
+**Start here:** Declare `search` on text columns, then use `matching`, order and a cursor; the planner builds the word index. This directory query uses the profiles schema below; reset the cursor when the text changes and show incomplete results honestly.
+
+```quarry
+query people(q: text <=100, c: cursor ?):
+  return profiles matching q after c first 20 by .handle
+```
+
+- `E_QUARRY_TYPE`: a search column is not text; declare a text column before listing it in `search`.
+- `N_SEARCH_UNSCOPED`: authorization varies across the scan; pin the intended room, or preserve the wider domain and show partial results.
+- `E_CURSOR_INDEX`: an explicit index lacks a total order; use `by .column` so the planner supplies the page index.
+
+## Reference
 
 ```quarry
 table members:
@@ -40,21 +50,11 @@ query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by .handle
 ```
 
-Plain `check` counts and summarizes search warnings: unscoped completeness
-(`N_SEARCH_UNSCOPED`), word expansion (`N_SEARCH_WORDS`), opening refusal
-(`N_SEARCH_OPEN`), and per-hit roster work (`N_SEARCH_SHAPE`). `--verbose`
-adds explanations and rewrites; `--cost` adds execution costs.
+Plain `check` counts and summarizes search warnings: unscoped completeness (`N_SEARCH_UNSCOPED`), word expansion (`N_SEARCH_WORDS`), opening refusal (`N_SEARCH_OPEN`), and per-hit roster work (`N_SEARCH_SHAPE`). `--verbose` adds explanations and rewrites; `--cost` adds execution costs.
 
-An empty needle, including whitespace or punctuation that folds to no terms,
-browses in the query's order under the same read rule.
-This directory uses one query, ordered by handle, with `next` to continue;
-reset the cursor when changing the search text.
-For a screen that wants nothing until typing, put `if q = '': return []`
-before the read.
+An empty needle, including whitespace or punctuation that folds to no terms, browses in the query's order under the same read rule. This directory uses one query, ordered by handle, with `next` to continue; reset the cursor when changing the search text. For a screen that wants nothing until typing, put `if q = '': return []` before the read.
 
-`search body, caption` declares the searchable columns. The planner supplies
-the words index: one entry per distinct word of the
-named text columns, in that position, folded the same way everywhere
+`search body, caption` declares the searchable columns. The planner supplies the words index: one entry per distinct word of the named text columns, in that position, folded the same way everywhere
 (NFC, lowercase, a word boundary at every character that is not a letter
 or digit). The columns before it are the search's scope; the columns
 after it order the page and end in `id`, so a cursor continues it. A

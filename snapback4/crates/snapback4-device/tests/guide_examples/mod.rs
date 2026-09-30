@@ -43,7 +43,7 @@ fn w10r1_typing_card_extends_and_expires_on_both_stores() {
 
 #[test]
 fn w10r1_directory_card_pages_and_searches_on_both_stores() {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).remove(0);
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).into_iter().find(|block| block.contains("table profiles:")).unwrap();
     // The card also declares unrelated room queries. Only the directory's public
     // profiles need acquisition for these two operations; keep their query text verbatim.
     let source = source.replace("  public 'profiles are public'", "  public 'profiles are public'\n  sync public");

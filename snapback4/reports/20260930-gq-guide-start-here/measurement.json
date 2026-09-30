@@ -1,0 +1,159 @@
+{
+  "base": "096a1b78ef9ebceedf936b2293e253e0870c9e03",
+  "orientation": [
+    {
+      "card": "language",
+      "cal27_example_end": 18,
+      "branch_example_end": 18,
+      "start_end": 15,
+      "cal27_cli_lines": 803,
+      "branch_card_lines": 825,
+      "after_card_lines": 825,
+      "cal27_sha256": "65dd10fa1eebce06c99cb586677ab36868c8ce079cc064a37f51f20fcff2ed38"
+    },
+    {
+      "card": "sync",
+      "cal27_example_end": 70,
+      "branch_example_end": 70,
+      "start_end": 15,
+      "cal27_cli_lines": 506,
+      "branch_card_lines": 524,
+      "after_card_lines": 524,
+      "cal27_sha256": "b2649c1d9cb762be1c980e07a75b6c936cd99403b6496ce26558797f9604e36b"
+    },
+    {
+      "card": "maintains",
+      "cal27_example_end": 28,
+      "branch_example_end": 28,
+      "start_end": 13,
+      "cal27_cli_lines": 880,
+      "branch_card_lines": 879,
+      "after_card_lines": 879,
+      "cal27_sha256": "eabf4c6c11795b0a2209ea6cb215a2c2b0f8d76f56b4eb2c89d8aebaed44057a"
+    },
+    {
+      "card": "rules",
+      "cal27_example_end": 37,
+      "branch_example_end": 37,
+      "start_end": 15,
+      "cal27_cli_lines": 375,
+      "branch_card_lines": 374,
+      "after_card_lines": 374,
+      "cal27_sha256": "847f88517763809a21e88876c083345fffec1cbb6c296ebb19e9faa9039c42cf"
+    },
+    {
+      "card": "prediction",
+      "cal27_example_end": 57,
+      "branch_example_end": 57,
+      "start_end": 12,
+      "cal27_cli_lines": 367,
+      "branch_card_lines": 368,
+      "after_card_lines": 368,
+      "cal27_sha256": "0891291d412a6179a989d5cfc5c521b5a47558adbfeeb6573fe19959c2d2cef5"
+    },
+    {
+      "card": "client",
+      "cal27_example_end": 69,
+      "branch_example_end": 65,
+      "start_end": 15,
+      "cal27_cli_lines": 115,
+      "branch_card_lines": 114,
+      "after_card_lines": 106,
+      "cal27_sha256": "a857dbffd3c642bd2d888c44835c3e65f340f74be0e31bbf79e4cb0f2e72e4a3"
+    },
+    {
+      "card": "search",
+      "cal27_example_end": 40,
+      "branch_example_end": 40,
+      "start_end": 12,
+      "cal27_cli_lines": 401,
+      "branch_card_lines": 405,
+      "after_card_lines": 405,
+      "cal27_sha256": "55f96ae03f9c68fd189d497f02caa40f374bc68e090957d1ad6b208e8393b41b"
+    },
+    {
+      "card": "feeds",
+      "cal27_example_end": 39,
+      "branch_example_end": 39,
+      "start_end": 15,
+      "cal27_cli_lines": 402,
+      "branch_card_lines": 401,
+      "after_card_lines": 401,
+      "cal27_sha256": "f419c5302c55acd4c312ff1d47ae6c5a81fa73df845b3a00dcd3d6e000924d43"
+    }
+  ],
+  "task_recipes": [
+    {
+      "task": "M1 schema, query and insert",
+      "card": "language",
+      "endpoint": "query myNotes(",
+      "cal27": 18,
+      "branch": 18,
+      "after": 31
+    },
+    {
+      "task": "M1 client paged reads",
+      "card": "client",
+      "endpoint": "export function Inbox",
+      "cal27": 69,
+      "branch": 65,
+      "after": 12
+    },
+    {
+      "task": "M2 Following",
+      "card": "feeds",
+      "endpoint": "view following:",
+      "cal27": 119,
+      "branch": 119,
+      "after": 124
+    },
+    {
+      "task": "M3/M4 shared rules and child records",
+      "card": "rules",
+      "endpoint": "query discussion(",
+      "cal27": 37,
+      "branch": 37,
+      "after": 50
+    },
+    {
+      "task": "M3 history sync (sync card actually consulted M8)",
+      "card": "sync",
+      "endpoint": "query history(",
+      "cal27": 70,
+      "branch": 70,
+      "after": 83
+    },
+    {
+      "task": "M3/M5 receipts including screen seen",
+      "card": "receipts",
+      "endpoint": "function useReceipts(",
+      "cal27": 342,
+      "branch": 314,
+      "after": 314
+    },
+    {
+      "task": "M4/M5 all three search scopes",
+      "card": "search",
+      "endpoint": "query searchChat(",
+      "cal27": 379,
+      "branch": 383,
+      "after": 383
+    },
+    {
+      "task": "M6 prediction consultation",
+      "card": "prediction",
+      "endpoint": "mutation saveDraft(",
+      "cal27": 57,
+      "branch": 57,
+      "after": 67
+    },
+    {
+      "task": "M8 maintained totals consultation",
+      "card": "maintains",
+      "endpoint": "view postCount:",
+      "cal27": 28,
+      "branch": 28,
+      "after": 39
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+#[path = "../../snapback4-lang/tests/guide/context.rs"]
+mod guide_context;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
 use snapback4_core::{ir::{Expr, LaneSource, Scan}, json_codec::{from_text, to_text}};
@@ -99,14 +101,14 @@ fn every_corpus_lane_source_matches_and_keeps_canonical_bytes() {
 
 #[test]
 fn every_published_quarry_lane_source_matches_and_keeps_canonical_bytes() {
-    use snapback4_lang::guide::{KEYWORDS, LANGUAGE, card, language, quarry};
+    use snapback4_lang::guide::{KEYWORDS, LANGUAGE, card, quarry};
     let readme = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
     let mut docs: Vec<(&str, &str)> = KEYWORDS.iter().map(|k| (*k, card(k).unwrap())).collect();
     docs.extend([("language", LANGUAGE), ("README", readme)]);
     let (mut blocks, mut sources, mut variants) = (0, Vec::new(), [0usize; 4]);
     for (name, doc) in docs {
         for block in quarry(doc) {
-            let source = if block.lines().any(|line| line.starts_with("table ")) { block } else { format!("{}\n{block}", language()) };
+            let source = guide_context::source(&block);
             let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
             assert!(bound.diagnostics.is_empty(), "{name}: {:?}", bound.diagnostics);
             blocks += 1;

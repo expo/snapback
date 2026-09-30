@@ -12,24 +12,6 @@ use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::guide::{self, KEYWORDS, LANGUAGE, card, codes, explain_code, language, quarry};
 use std::collections::BTreeMap;
 
-#[test]
-fn every_card_introduces_the_feature_before_examples_and_reference_details() {
-    for name in KEYWORDS {
-        let text = card(name).unwrap();
-        let mut paragraphs = text.split("\n\n");
-        assert!(paragraphs.next().unwrap().starts_with("# "), "{name}: title first");
-        let lead = paragraphs.next().unwrap();
-        assert!(!lead.starts_with(['#', '`']), "{name}: introduce the feature before syntax");
-        assert!(lead.split_whitespace().count() <= 45, "{name}: keep the introduction short");
-        assert!((1..=2).contains(&lead.matches('.').count()), "{name}: one or two sentences");
-        let (opening, _) = text.split_once("```").expect("every card has an example");
-        assert!(!opening.contains("--") && !opening.contains("E_") && !opening.contains("N_"), "{name}: flags and refusals follow the example");
-        if *name != "feeds" {
-            // Feeds introduces its Global example with the named feature section.
-            assert!(paragraphs.next().unwrap().starts_with("```"), "{name}: show the example next");
-        }
-    }
-}
 
 #[test]
 fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
@@ -502,11 +484,11 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())])
 }
 
-/// A block that declares a table stands alone; another compiles beside the
-/// language card's schema.
-fn in_context(block: &str) -> String {
-    if block.lines().any(|line| line.starts_with("table ")) { block.to_owned() } else { format!("{}\n{block}", language()) }
-}
+#[path = "guide/context.rs"]
+mod guide_context;
+
+/// Compile standalone examples and explicitly contextual starter excerpts.
+fn in_context(block: &str) -> String { guide_context::source(block) }
 
 fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     let bound = compile(source);
@@ -514,7 +496,7 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     assert!(bound.diagnostics.is_empty(), "{label} does not compile:\n{}", list(&bound.diagnostics));
     // The populated-store feed deliberately teaches its sparse-scan limit.
     // Pin the actual card block and its one note; other examples stay clean.
-    if source == quarry(card("feeds").unwrap())[0] {
+    if quarry(card("feeds").unwrap()).iter().any(|block| block == source && block.contains("query home(") && !block.contains("view following:")) {
         assert_eq!(bound.notes.len(), 1, "{label}: {:?}", bound.notes);
         assert_eq!(bound.notes[0].code, "N_SPARSE_FILTER");
         return bound;
@@ -803,7 +785,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 10, "paved introduction, familiar forms, five preserved language blocks, field-authority, ephemeral declarations and membership paths");
+    assert_eq!(quarry(LANGUAGE).len(), 11, "Start here, paved introduction, familiar forms, five preserved language blocks, field-authority, ephemeral declarations and membership paths");
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an
@@ -846,9 +828,9 @@ fn the_keywords_are_one_list() {
     for keyword in KEYWORDS {
         assert!(card(keyword).is_some(), "{keyword} has no card");
         if *keyword != "language" {
-            assert!(on_card.contains(keyword), "the language card does not list {keyword}");
+            assert!(on_card.contains(keyword) || (*keyword == "start" && guide::listing().contains("snapback4 guide start")), "the language card does not list {keyword}");
         }
-        assert!(in_readme.contains(keyword) || (*keyword == "from-sql" && README.contains("snapback4 guide from-sql")), "the README's guide line does not list {keyword}");
+        assert!(in_readme.contains(keyword) || (*keyword == "from-sql" && README.contains("snapback4 guide from-sql")) || (*keyword == "start" && guide::listing().contains("snapback4 guide start")), "the README's guide line does not list {keyword}");
     }
 }
 
@@ -1091,7 +1073,7 @@ fn prediction_card_compiles_clean() {
     let blocks = quarry(text);
     assert!(!blocks.is_empty());
     for (i, block) in blocks.iter().enumerate() { clean(&format!("prediction block {i}"), &in_context(block)); }
-    let bound = clean("prediction sites", &blocks[0]);
+    let bound = clean("prediction sites", blocks.iter().find(|block| block.contains("mutation saveDraft(")).unwrap());
     for name in ["saveDraft", "post", "guardedPost", "notifyPost"] {
         assert_eq!(bound.schema.operations[name].predicts.as_deref(), Some("eligible"), "{name}");
     }
@@ -1486,3 +1468,6 @@ mod familiar;
 
 #[path = "guide/client.rs"]
 mod client;
+
+#[path = "guide/start.rs"]
+mod start;

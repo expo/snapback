@@ -1,0 +1,4 @@
+[diagnostics-registry] stale: guide/reference/diagnostics-registry.json
+[diagnostics-registry] stale: guide/reference/diagnostics.md
+[diagnostics-registry] stale: packages/snapback-client/diagnostic-codes.d.mts
+[diagnostics-registry] run node scripts/generate-diagnostics-registry.mjs

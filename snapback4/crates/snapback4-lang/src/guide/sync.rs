@@ -2,8 +2,21 @@
 //! The sync card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of sync
 
-Sync delivers each viewer's authorized rows to their device for live and offline reads.
-A table's sync declaration chooses its audience and acquisition horizon.
+**Start here:** Add `sync` to replicate each viewer's authorized rows; cap small owner collections as in the default starter, or use `last N` for history. Read history in the same descending order as its horizon.
+
+```quarry
+table todos:
+  ownerId: principal
+  cap 1000 by ownerId
+  read <- .ownerId = viewer
+  sync to .ownerId
+```
+
+- `E_SYNC`: the declared audience disagrees with the read rule; omit the audience to infer it, keeping the intended rule.
+- `N_SYNC_ORDER`: page and horizon orders differ; keep the intended selection (`first 1` can change), and restart pagination if changing order.
+- `N_NO_HORIZON`: a partition can grow; read the diagnostic's prediction warning before adding `last N by .column` or an intended cap.
+
+## Reference
 
 ```quarry
 table notices:
@@ -73,26 +86,13 @@ query searchHeld(q: text <=100, page: cursor ?) held:
 
 `await client.sync()` waits for a round begun after the call (sharing one follow-up if a round is in flight), so a successful sync reflects server commits acknowledged before the call instead of an older response; offline and refusal results still apply.
 
-Prove the envelope's heaviest account with `snapback4 witness acquire --as <persona> --restart`;
-`guide bounds` covers fresh acquisition, native-process timing and retained cold coverage.
+Prove the envelope's heaviest account with `snapback4 witness acquire --as <persona> --restart`; `guide bounds` covers fresh acquisition, native-process timing and retained cold coverage.
 
-The ordinary `history` page uses the horizon's index, with no membership
-`require`. Table rules protect server reads. Before acquisition or beyond
-coverage the local client can ask the server; after leave it keeps the
-retained page local, online and offline. Pin `conversationScreen` by id.
-Keep receipts, profiles, quotes and reactions in separate queries rendered
-beside history, as `guide app` and `guide receipts` show. A decoration that
-loads or refuses must not take the page with it.
+The ordinary `history` page uses the horizon's index, with no membership `require`. Table rules protect server reads. Before acquisition or beyond coverage the local client can ask the server; after leave it keeps the retained page local, online and offline. Pin `conversationScreen` by id. Keep receipts, profiles, quotes and reactions in separate queries rendered beside history, as `guide app` and `guide receipts` show. A decoration that loads or refuses must not take the page with it.
 
-On an explicitly indexed page, safe, non-optional leading equalities establish
-the bracket prefix and coverage. Extraction stops at a residual predicate,
-seek column or final index column. Other predicates and order stay intact;
-old cursors retain their validated index, scope and generation.
+On an explicitly indexed page, safe, non-optional leading equalities establish the bracket prefix and coverage. Extraction stops at a residual predicate, seek column or final index column. Other predicates and order stay intact; old cursors retain their validated index, scope and generation.
 
-`searchHeld` is an explicit device-only scope and never falls back, even online.
-For current server hits together with retained device hits, use one ordinary
-search in either link state (`guide search`), as the social starter does.
-N_HELD_UNKNOWN names a held query's read of a table, view or `read through`
+`searchHeld` is an explicit device-only scope and never falls back, even online. For current server hits together with retained device hits, use one ordinary search in either link state (`guide search`), as the social starter does. N_HELD_UNKNOWN names a held query's read of a table, view or `read through`
 parent with no `sync`, or `connected[...]` server presence, including reads
 inside helpers and shapes: move the read to its own query,
 or drop `held`. A horizon or word index alone does not cause this note.
