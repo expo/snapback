@@ -536,3 +536,26 @@ fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
     let help = Command::new(BIN).arg("--help").output().unwrap();
     assert!(!String::from_utf8_lossy(&help.stdout).contains("--recipe"));
 }
+
+#[test]
+fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
+    for social in [false, true] {
+        let dir = Dir::new();
+        let output = if social { Command::new(BIN).args(["new", "social", "--template", "social"]).current_dir(&dir.0).output().unwrap() }
+            else { dir.run("--expo") };
+        assert!(output.status.success(), "{output:?}");
+        let root = if social { dir.0.join("social") } else { dir.0.clone() };
+        let package: Value = serde_json::from_slice(&fs::read(root.join("package.json")).unwrap()).unwrap();
+        assert_eq!(package["scripts"]["native:smoke"], "snapback4 witness ios --build . --smoke");
+        assert_eq!(package["scripts"]["export:ios"], "expo export --platform ios");
+        assert_eq!(package["devDependencies"]["@expo/fingerprint"], "0.20.13");
+        let config: Value = serde_json::from_slice(&fs::read(root.join("app.json")).unwrap()).unwrap();
+        assert_eq!(config["expo"]["newArchEnabled"], true);
+        assert!(config["expo"]["plugins"].as_array().unwrap().contains(&json!("snapback4-expo/plugin")));
+        assert!(root.join("src/native-smoke.ts").exists());
+        let readme = fs::read_to_string(root.join("README.md")).unwrap();
+        for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "about 3 minutes warm", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {
+            assert!(readme.to_lowercase().contains(&text.to_lowercase()), "missing {text}");
+        }
+    }
+}

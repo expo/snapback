@@ -1,0 +1,10 @@
+{
+  "merge": "98ae0eb0a4129931f2b4a29320126357f9bd83f5",
+  "files": {
+    "snapback4/crates/snapback4/src/verbs/witness/simulator.rs": "5537713c9cf52493c8bd3bf52f6cf77b154ed90b5d478b097e048d0b229f1c27",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "b032815b0ed865bd24c1e67d60eb34640ab045969e402963d45e58b2fb6bc1ec",
+    "snapback4/crates/snapback4/tests/witness.rs": "dc36f2ebfbe16af62e39729d37de3e676797e8f6b7d8c3e635bc55a0782edd16",
+    "snapback4/crates/snapback4/tests/fixtures/witness-simctl.py": "968f76cdb24577bb79ae8e1388f1fd552db5db2645618151b34aa016a8c99915",
+    "snapback4/crates/snapback4/tests/fixtures/witness-watchdog.rs": "1d7c3fe955528fbf438f8bb74e5c3b630a70f3924421058aacf5a4ba72aef2f5"
+  }
+}

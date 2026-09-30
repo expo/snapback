@@ -77,6 +77,14 @@ impl Default for ConnectionLimits {
     }
 }
 
+impl ConnectionLimits {
+    // The next request must satisfy both limits. Round down so a peer never
+    // gets a longer lease than the parser actually grants it.
+    pub(crate) fn keep_alive_seconds(&self) -> u64 {
+        self.idle_timeout.min(self.header_timeout).as_secs()
+    }
+}
+
 pub(crate) struct ConnectionLease(Arc<AtomicUsize>);
 impl ConnectionLease {
     pub(crate) fn acquire(count: &Arc<AtomicUsize>, limit: usize) -> Option<Self> {

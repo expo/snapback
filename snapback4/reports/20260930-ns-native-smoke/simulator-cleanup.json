@@ -1,0 +1,34 @@
+{
+  "at": "2026-09-30T07:16:36.865025+00:00",
+  "devices": [
+    {
+      "udid": "A6EB04BE-8D27-48BF-81CD-18883058A238",
+      "before": [],
+      "deletedOrAlreadyDeleted": true
+    },
+    {
+      "udid": "596D7CD6-C9C6-437C-88A4-077EECC8052D",
+      "before": [],
+      "deletedOrAlreadyDeleted": true
+    },
+    {
+      "udid": "9B126451-3726-4571-A8C8-F1C334B35ECC",
+      "before": [
+        {
+          "dataPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/9B126451-3726-4571-A8C8-F1C334B35ECC/data",
+          "dataPathSize": 2031517696,
+          "logPath": "/Users/ccheever/Library/Logs/CoreSimulator/9B126451-3726-4571-A8C8-F1C334B35ECC",
+          "udid": "9B126451-3726-4571-A8C8-F1C334B35ECC",
+          "lastUsedAt": "2026-09-30T07:03:09Z",
+          "isAvailable": true,
+          "logPathSize": 327680,
+          "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-11",
+          "state": "Booted",
+          "name": "sb4-ns-1790751789343-32355"
+        }
+      ],
+      "deletedOrAlreadyDeleted": true
+    }
+  ],
+  "allOwnedDevicesAbsent": true
+}

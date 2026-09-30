@@ -171,7 +171,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     return Err("serving shared releases requires a filesystem supporting symbolic links".into());
     let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
     let worker = options.flags.get("worker").map(|path| Path::new(path).canonicalize().map_err(|e| format!("--worker {path}: {e}"))).transpose()?;
-    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker, owner: std::sync::Arc::new(owner) }, &bind.to_string())
+    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker, owner: std::sync::Arc::new(owner) }, &bind.to_string(), None)
 }
 
 pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {

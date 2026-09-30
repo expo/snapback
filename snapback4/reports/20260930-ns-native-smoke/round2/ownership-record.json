@@ -1,0 +1,15 @@
+{
+  "record": {
+    "name": "sb4-ns-1790777647371-91422",
+    "prefix": "sb4-ns-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "7CA91203-C914-497F-AFD9-C6C94CE957A9"
+  },
+  "recordPath": "/Users/ccheever/.local/state/snapback4/witness/simulators/7CA91203-C914-497F-AFD9-C6C94CE957A9.json",
+  "currentUid": 501,
+  "fileUid": 501,
+  "fileMode": "0o600",
+  "directoryUid": 501,
+  "directoryMode": "0o755"
+}

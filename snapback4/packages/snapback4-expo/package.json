@@ -8,9 +8,11 @@
   "exports": {
     ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
     "./witness": { "types": "./src/witness.ts", "default": "./src/witness.ts" },
+    "./plugin": "./plugin.cjs",
     "./package.json": "./package.json"
   },
   "files": [
+    "plugin.cjs",
     "src",
     "ios",
     "expo-module.config.json",

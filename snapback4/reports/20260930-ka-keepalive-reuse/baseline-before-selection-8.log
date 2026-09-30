@@ -1,0 +1,28 @@
+(node:2032441) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ccheever/sb4-intent/lane-ka/snapback4/reports/20260930-ka-keepalive-reuse/baseline-node-fetch.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ccheever/sb4-intent/lane-ka/snapback4/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"round":0,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (0) (7182.878523ms)
+{"round":1,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (1) (6778.591549ms)
+{"round":2,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (2) (6911.821712ms)
+{"round":3,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (3) (7049.956247ms)
+{"round":4,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (4) (6795.173797ms)
+{"round":5,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (5) (7078.953885ms)
+{"round":6,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (6) (7112.932146ms)
+{"round":7,"clients":48,"phase":"before-selection","idleMs":3500,"blockMs":1800,"pauses":1,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (7) (6773.407487ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 55774.865709

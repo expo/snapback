@@ -22,7 +22,7 @@ export function exitTransport(doFetch: typeof fetch, base: string, closed?: Abor
     const entry = entries[0];
     if (!entry?.store_id) return;
     // @ref LLP 3000.013#6 — server enforcement closes the race between validation and delivery.
-    const body = JSON.stringify({ id: entry.id, args: entry.args, newIds: entry.newIds, store_id: entry.store_id });
+    const body = JSON.stringify({ id: entry.id, args: entry.args, newIds: entry.newIds, store_id: entry.store_id, retry_write: true });
     const bytes = new TextEncoder().encode(body).byteLength;
     // No ordered batch exists. Never bypass a blocked head or dispatch its
     // successors without settlement; the remaining queue flushes on reopen.

@@ -106,6 +106,10 @@ export function instrument(destination) {
 // delivery.test.mjs injects lost/refused/unaccepted maintenance and a stale
 // incarnation reply; delivery-integrated exercises real fingerprint-bound
 // dispatch. The existing outbox delivery matrix sites stay unchanged.
+// node-fetch's two new awaits are below the classified doFetch boundaries.
+// keepalive-retry exercises a committed mutation with a lost reply, identical
+// ID/body/authority snapshots, exhausted retry, fresh failures and partial-response failure.
+// No outbox admission, settlement, persistence or publication await is added.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

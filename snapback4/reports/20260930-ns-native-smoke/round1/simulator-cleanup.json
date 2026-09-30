@@ -1,0 +1,26 @@
+{
+  "deleted": [
+    {
+      "simulator": {
+        "name": "sb4-ns-1790774558119-51432",
+        "prefix": "sb4-ns-",
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "3641D1D5-F689-44EF-BFD1-12C83A9AD191"
+      },
+      "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro-Max",
+      "ownershipRecordPath": "/Users/ccheever/.local/state/snapback4/witness/simulators/3641D1D5-F689-44EF-BFD1-12C83A9AD191.json",
+      "ownershipRecord": {
+        "name": "sb4-ns-1790774558119-51432",
+        "prefix": "sb4-ns-",
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "3641D1D5-F689-44EF-BFD1-12C83A9AD191"
+      },
+      "deleteStatus": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "allCreatedAbsent": true
+}

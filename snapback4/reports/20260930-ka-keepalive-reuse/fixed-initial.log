@@ -1,0 +1,11 @@
+{"clients":1,"pauses":0,"errors":[],"failedReads":[],"successes":1}
+✔ Node SDK query survives a client pause across the dev idle deadline (3681.449015ms)
+✔ Node default transport does not call unsupported socket QoS on ordinary requests (78.956093ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3770.17115

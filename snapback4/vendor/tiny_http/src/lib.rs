@@ -263,7 +263,7 @@ impl Server {
         Self::from_listener_with_limits(listener.into(), ssl_config, None)
     }
 
-    fn from_listener_with_limits(
+    pub fn from_listener_with_limits(
         listener: Listener,
         ssl_config: Option<SslConfig>,
         limits: Option<ConnectionLimits>,

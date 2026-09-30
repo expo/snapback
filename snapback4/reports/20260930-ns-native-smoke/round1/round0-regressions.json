@@ -1,0 +1,38 @@
+[
+  {
+    "test": "prefix_without_creation_record_is_ignored",
+    "round0Exit": 101
+  },
+  {
+    "test": "owned_devices_use_numeric_runtime_order",
+    "round0Exit": 101
+  },
+  {
+    "test": "created_device_type_is_current_not_last_listed",
+    "round0Exit": 101
+  },
+  {
+    "test": "boot_failure_keeps_created_identity_in_receipt",
+    "round0Exit": 101
+  },
+  {
+    "test": "preparation_keeps_origin_port_owned_until_backend_startup",
+    "round0Exit": 101
+  },
+  {
+    "test": "missing_schema_uses_one_message_and_witness_exit_one",
+    "round0Exit": 101
+  },
+  {
+    "test": "project_lease_precedes_check_generation",
+    "round0Exit": 101
+  },
+  {
+    "test": "dev_accepts_the_still_owned_listener_without_a_rebind_gap",
+    "round0Exit": 101
+  },
+  {
+    "test": "both package README measurements",
+    "round0Exit": 1
+  }
+]

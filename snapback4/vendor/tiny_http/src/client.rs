@@ -304,25 +304,7 @@ impl Iterator for ClientConnection {
             };
 
             // updating the status of the connection
-            let connection_header = rq
-                .headers()
-                .iter()
-                .find(|h| h.field.equiv("Connection"))
-                .map(|h| h.value.as_str());
-
-            let lowercase = connection_header.map(|h| h.to_ascii_lowercase());
-
-            match lowercase {
-                Some(ref val) if val.contains("close") => self.no_more_requests = true,
-                Some(ref val) if val.contains("upgrade") => self.no_more_requests = true,
-                Some(ref val)
-                    if !val.contains("keep-alive") && *rq.http_version() == HTTPVersion(1, 0) =>
-                {
-                    self.no_more_requests = true
-                }
-                None if *rq.http_version() == HTTPVersion(1, 0) => self.no_more_requests = true,
-                _ => (),
-            };
+            self.no_more_requests = rq.connection_closes();
 
             // returning the request
             return Some(rq);

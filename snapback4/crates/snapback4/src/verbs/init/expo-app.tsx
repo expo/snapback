@@ -1,3 +1,4 @@
+import { useNativeSmokeGuest } from "./src/native-smoke";
 import { useState } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -12,6 +13,7 @@ export function App() {
   </SafeAreaView></AppProvider>;
 }
 function Account() {
+  useNativeSmokeGuest();
   const auth = useAuth();
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <Text>Restoring your account…</Text>;

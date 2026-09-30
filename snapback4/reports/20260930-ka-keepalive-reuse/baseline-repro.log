@@ -1,0 +1,26 @@
+{"clients":1,"pauses":1,"errors":[{"path":"/q/ping","code":"UND_ERR_SOCKET","message":"other side closed"}],"failedReads":[{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying","retryable":true}}],"successes":0}
+✖ Node SDK query survives a client pause across the dev idle deadline (5969.341212ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6050.076034
+
+✖ failing tests:
+
+test at packages/snapback4/test/keepalive-reuse.test.mjs:25:1
+✖ Node SDK query survives a client pause across the dev idle deadline (5969.341212ms)
+  AssertionError [ERR_ASSERTION]: [{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying","retryable":true}}]
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/test/keepalive-reuse.test.mjs:50:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
