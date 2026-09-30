@@ -38,7 +38,7 @@ query @PROGRESS@(@ARG@: @SCOPE@, @CURSOR@: cursor ?):
 mutation @DELIVERED@(@ARG@: @SCOPE@, @FROM@: int, @THROUGH@: int)
   reports delivery of @MESSAGES@ by .@GROUP@, .@POSITION@: server
   $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
-  $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
+  $chat = @SCOPE@[id = @ARG@] ! else NOT_FOUND
   require 0 < @FROM@ and @FROM@ <= @THROUGH@ else NOT_A_RUN
   require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE
   $initial = receiptBuiltinMax($me.@DELIVERED_FIELD@, $me.@FLOOR@)
@@ -50,7 +50,7 @@ mutation @DELIVERED@(@ARG@: @SCOPE@, @FROM@: int, @THROUGH@: int)
 -- Maintenance commits partial progress without acknowledging any new live position.
 mutation @COMPACT@(@ARG@: @SCOPE@): server
   $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
-  $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
+  $chat = @SCOPE@[id = @ARG@] ! else NOT_FOUND
   $initial = receiptBuiltinMax($me.@DELIVERED_FIELD@, $me.@FLOOR@)
   $folded = @FOLD@(@ARG@, $initial, $chat.@COUNTER@ + 1, $chat.@COUNTER@)
   if $folded.prefix > $initial:
@@ -125,7 +125,7 @@ fn @FOLD@(@ARG@: @SCOPE@, $initial: int, $low: int, $high: int):
 
 mutation @SEEN@(@ARG@: @SCOPE@, @THROUGH@: int):
   $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
-  $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
+  $chat = @SCOPE@[id = @ARG@] ! else NOT_FOUND
   require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE
   if @THROUGH@ > $me.@SEEN_FIELD@:
     update @MEMBERS@[$me] { @SEEN_FIELD@: @THROUGH@ }

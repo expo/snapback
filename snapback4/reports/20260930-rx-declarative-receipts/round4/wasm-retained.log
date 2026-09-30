@@ -1,0 +1,7 @@
+Retained artifact only; no wasm rebuild.
+Path: packages/snapback4/src/wasm/snapback4_device_bg.wasm
+SHA-256: fe7a6fbd5ed83ca1cc8e9b872103594d9218b60053b2bfdb964e8ba0bfe0734b
+Raw: 1988204 B
+gzip -9 -c: 596444 B
+Budget: 597247 B
+Headroom: 803 B

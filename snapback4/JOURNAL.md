@@ -79793,3 +79793,34 @@ automatic ordinal allocation, recipient counts and join floors. Report and
 retained controls/logs: reports/20260930-rx-declarative-receipts/round3/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — RX round 4: scope reads name their id key
+
+Merged origin/main 0dad04237505 first in 415b38135d, without conflicts,
+keeping both sides. Read the round 0–3 prompts/reports and the complete
+round-three reviews. Grok's remaining P2 is fixed by changing the three
+scope reads in generated delivered, compact and seen to name id explicitly.
+Audited the receipt and delivery generation paths: they share receipts.q;
+member/message/run probes already name their columns, and delivery.rs emits
+bindings rather than reads. No other product code changed.
+
+New unique-slug and unique-creatorId scope fixtures exercise all six generated
+surfaces. Both fail on round-three product code with the reported positional
+arity diagnostic, then pass after the fix. Reporting [3,3] leaves live message
+1 sent across the hole and after compaction; reporting 1 and seen reaches read.
+The existing v2 template digest changes the declarative delivery fingerprint;
+manual compatibility remains covered by its pinned tests.
+
+Affected verification: receipts 48/48, delivery 16/16, delivery clause 6/6,
+integration 3/3, replay conversion 2 passes / 1 existing ignore, device delivery
+30/30, whole guide 106/106; SDK receipts 97/97, no skips or cancellations.
+CLI/SDK builds, ref-check, formatting and diff checks pass. Final failures:
+ours 0, baseline 0, environmental 0; the two expected negative controls are
+retained. No full suite was run this round, as requested. The retained wasm
+matches round three's hash and remeasures at 1,988,204 B raw / 596,444 B gzip,
+803 B below the unchanged ratchet; it was not rebuilt.
+
+Report and evidence: reports/20260930-rx-declarative-receipts/round4/REPORT.md.
+This closes the supplied P2; allocation/count/floor work remains deferred.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
