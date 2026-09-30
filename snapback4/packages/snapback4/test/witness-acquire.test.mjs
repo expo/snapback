@@ -156,7 +156,7 @@ for (const control of ['wipe', 'delete-row', 'change-groups', 'change-boundaries
 
 
 // Astra's proxy reproduction: acquire normally, then tamper only with reconnect.
-for (const fault of ['more-then-drop', 'denied', 'malformed-json', 'null', 'missing-fields', 'bad-more', 'behind-server', 'dropped-first', 'truncated-body', 'bad-ack', 'bad-acquisitions']) {
+for (const fault of ['more-then-drop', 'denied', 'malformed-json', 'null', 'missing-fields', 'bad-more', 'behind-server', 'dropped-first', 'drop-once', 'truncated-body', 'bad-ack', 'bad-acquisitions']) {
   test(`reconnect proof rejects ${fault} and records every attempted request`, async t => {
     const f = await fixture(t);
     let syncs = 0;
@@ -166,7 +166,7 @@ for (const fault of ['more-then-drop', 'denied', 'malformed-json', 'null', 'miss
         const body = Buffer.concat(chunks), headers = { ...req.headers };
         delete headers.host; delete headers['content-length'];
         const reconnect = req.url === '/sync' && ++syncs >= 3;
-        if (reconnect && (fault === 'dropped-first' || (fault === 'more-then-drop' && syncs > 3))) { res.destroy(); return; }
+        if (reconnect && (fault === 'dropped-first' || (fault === 'more-then-drop' && syncs > 3) || (fault === 'drop-once' && syncs === 3))) { res.destroy(); return; }
         const response = await fetch(f.url + req.url, { method: req.method, headers, ...(body.length ? { body } : {}) });
         let text = await response.text();
         if (reconnect) {
@@ -198,11 +198,30 @@ for (const fault of ['more-then-drop', 'denied', 'malformed-json', 'null', 'miss
     assert.equal(receipt.runs[0].restart.retained, false);
     const attempts = receipt.runs[0].requests.filter(r => r.path === '/sync');
     assert.equal(attempts.length, syncs, 'failed transports must not disappear');
+    if (['more-then-drop', 'dropped-first', 'drop-once'].includes(fault)) {
+      const firstFailure = fault === 'more-then-drop' ? 3 : 2;
+      // The old transport sends no retry; KA sends exactly one when reuse is proven.
+      assert.ok(syncs === firstFailure + 1 || syncs === firstFailure + 2);
+      assert.equal(attempts[firstFailure].http, 'unavailable');
+      assert.equal(attempts[firstFailure].outcome, 'failed');
+      assert.equal(attempts[firstFailure].error, 'transport failure before headers');
+      assert.equal(attempts[firstFailure].headerMs, null);
+      for (const [i, attempt] of attempts.entries()) {
+        assert.equal(attempt.cause, i > firstFailure ? 'transport retry after reused-socket reset' : undefined);
+        assert.ok(attempt.totalMs >= 0);
+      }
+      assert.equal(attempts.at(-1).phase, 'reconnect');
+      if (fault === 'drop-once' && syncs === 4) {
+        assert.equal(attempts.at(-1).http, 'ok');
+        assert.equal(attempts.at(-1).outcome, 'validated', 'even a recovered failure must invalidate the proof');
+      }
+      t.diagnostic(JSON.stringify({ fault, observed: syncs, attempts }));
+    }
     if (fault === 'more-then-drop') {
-      assert.equal(attempts.at(-2).more, true);
+      assert.equal(attempts[2].more, true);
       assert.equal(attempts.at(-1).http, 'unavailable');
       assert.equal(attempts.at(-1).outcome, 'failed');
-    } else if (fault !== 'behind-server') assert.equal(attempts.at(-1).outcome, 'failed');
+    } else if (!['behind-server', 'drop-once'].includes(fault)) assert.equal(attempts.at(-1).outcome, 'failed');
     assert.match(reply.stderr, /E_WITNESS_BACKEND|E_WITNESS_RECEIPT/);
     assert.deepEqual(JSON.parse(await readFile(join(artifacts, 'acquire.json'), 'utf8')), receipt);
   });

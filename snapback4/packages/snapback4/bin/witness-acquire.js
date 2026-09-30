@@ -47,7 +47,7 @@ function publicRun(value, options) {
     const output = { phase: sample.phase, path: sample.path,
       http: sample.status === null ? 'unavailable' : sample.status === 200 ? 'ok' : 'refused',
       headerMs: sample.headerMs, totalMs: sample.totalMs, outcome: sample.outcome };
-    for (const key of ['snapshot', 'more', 'applied', 'installed', 'putRows', 'events', 'error']) {
+    for (const key of ['snapshot', 'more', 'applied', 'installed', 'putRows', 'events', 'error', 'cause']) {
       if (Object.hasOwn(sample, key)) output[key] = sample[key];
     }
     return output;
@@ -226,11 +226,24 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
       if (requestSignal.aborted) reject(requestSignal.reason);
       else requestSignal.addEventListener('abort', () => reject(requestSignal.reason), { once: true });
     });
-    const start = performance.now();
-    const sample = { phase, path: ['/dev/status', '/probe', '/schema', '/sync', '/native.wasm'].includes(path) ? path : '/other', status: null, headerMs: null, outcome: 'pending' };
+    const newSample = () => ({ phase, path: ['/dev/status', '/probe', '/schema', '/sync', '/native.wasm'].includes(path) ? path : '/other', status: null, headerMs: null, outcome: 'pending' });
+    let start = performance.now(), sample = newSample();
     requests.push(sample); // Include attempts that fail before headers or body decoding.
+    const recordFailure = () => {
+      sample.outcome = 'failed';
+      // Remote text (including transformed credentials) never becomes a diagnostic.
+      sample.error = sample.status === null ? 'transport failure before headers' : 'HTTP, body or protocol failure';
+      const code = sample.status === 401 || sample.status === 403 ? 'E_AUTH' : 'E_WITNESS_BACKEND';
+      transportFailure ??= problem(code, `${sample.error} during ${sample.phase}; check --url and credentials`);
+    };
     try {
-      const response = await defaultFetch(input, { ...init, signal: requestSignal, redirect: 'error' });
+      const response = await defaultFetch(input, { ...init, signal: requestSignal, redirect: 'error' }, {
+        onRetry() {
+          recordFailure(); sample.totalMs = ms(start);
+          start = performance.now(); sample = { ...newSample(), cause: 'transport retry after reused-socket reset' };
+          requests.push(sample);
+        },
+      });
       sample.status = response.status; sample.headerMs = ms(start);
       // Even numeric Server-Timing text can encode a credential. Do not retain it.
       if (response.status !== 200) fail('E_WITNESS_BACKEND', 'server refused the request');
@@ -245,11 +258,7 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
       sample.outcome = 'validated';
       return response;
     } catch {
-      sample.outcome = 'failed';
-      // Remote text (including transformed credentials) never becomes a diagnostic.
-      sample.error = sample.status === null ? 'transport failure before headers' : 'HTTP, body or protocol failure';
-      const code = sample.status === 401 || sample.status === 403 ? 'E_AUTH' : 'E_WITNESS_BACKEND';
-      transportFailure ??= problem(code, `${sample.error} during ${sample.phase}; check --url and credentials`);
+      recordFailure();
       throw transportFailure;
     } finally { sample.totalMs = ms(start); }
   };

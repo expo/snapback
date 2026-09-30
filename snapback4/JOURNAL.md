@@ -79816,3 +79816,41 @@ all failures and source/artifact identities:
 reports/20260930-bn-envelope-proof/round4/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 5: account for KA transport retries
+
+Starting at round 4's merged 53054502fa, fixed only the witness/Node-transport
+accounting interaction. The private transport accepts a per-call onRetry hook,
+invoked after KA's unchanged eligibility checks and before its one fresh send.
+The witness preserves the failed original with its own clock, records the retry
+separately with cause “transport retry after reused-socket reset”, and keeps the
+failure latched even if the retry succeeds. No remote prose enters the hook or
+receipt. Host fetch instrumentation runs for both sends, no global dispatcher
+is replaced, and other callers have no witness recorder. LLP 3000.030 §14 records
+the boundary; no engine, device, wire, public contract or guide claim changed.
+
+Before edits the two original tests repeat round 4's undercounts (4/5 and 3/4).
+Afterward more-then-drop records 5/5 and dropped-first 4/4; both refuse. A new
+single-drop control records 4/4 and still refuses after a validated/applied retry.
+The existing round-3 transport hook passes all three faults with 4/4, 3/3 and 3/3,
+with no invented retries. Real-reset tests cover successful/failed notifications,
+no notification on fresh failure, concurrent caller isolation, unchanged host
+instrumentation and dispatcher identity.
+
+Final checks: Node witness 80/80 including all 160 token-echo invocations; Node
+transport/all keepalive and retry files 127/127 including headless Chromium;
+Rust witness units 14/14, portable integration 13/13, whole guide 107/107.
+SDK build/typecheck and ref-check pass. No post-fix test failures, cancellations or
+skips in these runs. Final artifact inspection caught Cargo rebuilding the CLI
+during initial passing Node checks; those logs remain, and Node checks were
+repeated after builds ended to bind stable final bytes. The pre-fix expected
+failures and setup/artifact-accounting mistakes remain in the report ledger.
+Full suite omitted as explicitly requested, even with the small shared transport edit. Linux evidence does not qualify an iOS
+simulator or new heavy-account timing. Existing wasm measured, not rebuilt:
+1,978,828 B raw / 593,233 B gzip, unchanged, 486 B below the 593,719 B ratchet.
+
+Report, logs, attempt samples and identities:
+reports/20260930-bn-envelope-proof/round5/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
