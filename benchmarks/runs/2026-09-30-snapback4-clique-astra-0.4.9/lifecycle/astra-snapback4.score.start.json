@@ -1,0 +1,36 @@
+{
+  "lane": "astra-snapback4",
+  "phase": "score",
+  "pid": 20011,
+  "startedAt": "2026-09-30T06:26:16Z",
+  "startedEpoch": 1790749576,
+  "command": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "-s",
+    "read-only",
+    "--skip-git-repo-check",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=xhigh",
+    "-C",
+    "/Users/ccheever/clique-sb4-20260929-astra-cal27",
+    "-o",
+    "/Users/ccheever/clique-sb4-20260929-astra-cal27/scores/astra/FINAL.md",
+    "-"
+  ],
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "prompt": "/Users/ccheever/clique-sb4-20260929-astra-cal27/prompts/astra-snapback4.score.md",
+  "cwd": "/Users/ccheever/clique-sb4-20260929-astra-cal27",
+  "stdout": "/Users/ccheever/clique-sb4-20260929-astra-cal27/scores/astra/raw.out",
+  "stderr": "/Users/ccheever/clique-sb4-20260929-astra-cal27/scores/astra/raw.err",
+  "packages": {
+    "snapback4": "0.4.9",
+    "snapback4-expo": "0.4.9"
+  },
+  "detached": false
+}
