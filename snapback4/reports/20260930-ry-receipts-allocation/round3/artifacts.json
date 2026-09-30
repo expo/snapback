@@ -1,0 +1,12 @@
+{
+  "raw": 2011439,
+  "gzip": 604295,
+  "sha256": "d3cd964f028196ad4212044e75a965e0d584e21762c2744c810b595e3196b244",
+  "toolchain": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "wasm-bindgen": "wasm-bindgen 0.2.127",
+    "binaryen": "132.0.0"
+  }
+}

@@ -80990,3 +80990,49 @@ No new LL or social-fallback timing claim. Existing wasm matches round 5:
 Full suite omitted as requested for a scheduling-only fix. Report and audit:
 reports/20260930-pr-subscription-pressure/round6/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-01 — RY round 3: receipt storage custody and authoritative write keys
+
+Read all prior round prompts/reports and both complete round-2 reviews. Merged
+origin/main 096a1b78ef first in 093c98c0a8, preserving both journal histories
+and the RY/PR wasm reasons. Astra's counter and aggregate-overflow refusals and
+Grok's ordinal-target false successes/misses now use structural guards.
+
+One sticky observation in GuardedRows records receipt-family storage touches,
+including absent/cached/index reads, recorded captures and aggregate maintenance.
+The prediction boundary defers any later refusal, including output charging,
+with no predicted changes and the original outbox id. Delete/update/upsert keys
+containing clause-owned fields resolve only on the server, even on local hits;
+authored selections cannot carry guessed identities into stable-id writes.
+Generic sequence provenance remains precise. Ordinary sends, creates and joins
+still predict. LLP 3000.022 §14.3 and the compiled receipts guide record the
+conservative whole-row rule. The social starter remains 223 lines.
+
+Generated coverage: 382 scenarios in ten tests across memory/SQLite, spanning
+seven receipt fields/states and eight reader contexts, maintenance predicates,
+keys and contributions, and ordinal/other-owned targets with same-transaction
+and follow-up writes, horizons and confirmed-only state. All ten tests fail
+the merged round-2 runtime at intended admission assertions, then pass final
+code; each negative loop stops at its first witness. Final affected checks:
+language 315 pass / one existing ignore (receipts 125/125, whole guide 107/107),
+device 611 pass / one existing ignore, core 46/46. Reference check: 525 LLPs,
+10,057 refs, zero errors/unchecked. Every development failure and correction is
+retained and classified as ours; no unresolved affected failure remains.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 0 failure(s) in 1323 s`.
+All thirteen stages pass: Rust workspace 4,515 / 33 existing ignores, client
+pool 5,727 / ten existing skips, fixture wrappers 9, serial models 79; the docs
+budget also runs one passing Rust test. Full-suite failures: ours zero,
+baseline zero, environmental zero. All 1,851 captured inputs are unchanged
+throughout; no post-suite product-source edits. The inherited nominal 60-second
+budget is exceeded. No timeout, concurrency policy, test count or runtime
+ceiling was relaxed, and no worker was interrupted.
+
+Merge-only wasm: 2,009,398 B raw / 603,648 B gzip, preserving RY provisional
+receipt allocation and PR private query audience dependencies (+2,019 B gzip
+over RY round 2, +5,247 over main/PR). Final structural guards measure
+2,011,439 B raw / 604,295 B gzip: +2,041 raw / +647 gzip (~0.11%) over that merge.
+Set the ratchet exactly to 604,295 B, no slack, retaining both reasons. These
+are whole-artifact deltas. The full suite rebuilt the identical artifact.
+Report: reports/20260930-ry-receipts-allocation/round3/REPORT.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

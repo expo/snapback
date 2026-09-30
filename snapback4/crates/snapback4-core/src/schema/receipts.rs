@@ -134,6 +134,55 @@ impl ReceiptFamily {
     }
 }
 impl super::Schema {
+    /// Storage custody includes generated receipt state and recorded copies,
+    /// not just the four fields assigned on insertion.
+    pub(crate) fn receipt_owned_field(&self, table: &str, field: &str) -> bool {
+        let (table, field) = self.tables[table]
+            .recorded
+            .get(field)
+            .map_or((table, field), |path| {
+                (path.table.as_str(), path.column.as_str())
+            });
+        self.receipt_assigned(table, field)
+            || self.receipts.iter().any(|f| {
+                table == f.runs
+                    || (table == f.members && (field == f.delivered_field || field == f.seen_field))
+            })
+    }
+
+    // @ref LLP 3000.022#14.3 — whole-row/index access conservatively touches
+    // the family's state, including absent selections and stored derivations.
+    pub(crate) fn receipt_state_table(&self, table: &str) -> bool {
+        if self.receipts.is_empty() {
+            return false;
+        }
+        let owns = |name: &str| {
+            self.receipt_insert(name)
+                || self.receipts.iter().any(|f| name == f.runs)
+                || self.tables[name]
+                    .recorded
+                    .values()
+                    .any(|path| self.receipt_owned_field(&path.table, &path.column))
+        };
+        owns(table)
+            || self.maintain_for(table).is_some_and(|m| {
+                owns(&m.source) || m.row_key.as_ref().is_some_and(|key| owns(&key.table))
+            })
+    }
+
+    pub(crate) fn receipt_key(&self, table: &str, index: &str) -> bool {
+        if self.receipts.is_empty() { return false; }
+        self.tables
+            .get(table)
+            .and_then(|t| t.index(index))
+            .is_some_and(|index| {
+                self.tables[table]
+                    .columns
+                    .keys()
+                    .any(|field| index.uses_column(field) && self.receipt_owned_field(table, field))
+            })
+    }
+
     pub fn receipt_assigned(&self, table: &str, field: &str) -> bool {
         self.receipts
             .iter()

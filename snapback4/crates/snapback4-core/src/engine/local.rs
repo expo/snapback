@@ -118,8 +118,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
     runner.device_allowance = Some(Meter::new(ceilings, Cut::Abort));
+    runner.tx.observe_receipts(schema);
     let result = runner.run(program).and_then(|value| {
         runner.check_final_exists()?;
+        runner.charge_output(&value)?;
         Ok(value)
     });
     if matches!(result, Err(RuntimeError::AuthorizationBudget { .. })) {
@@ -129,8 +131,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     // Any refusal after consuming one may change with the server's assignment,
     // including constraints, postconditions and a selected branch's refusal.
     // The host rolls back all predicted rows and retains the intent.
-    if runner.provisional_sequence_read && result.is_err() {
-        return Err(RuntimeError::Prediction("a refusal depends on a provisional sequence; queue the write for the server (guide writes)".into()));
+    // @ref LLP 3000.022#14.3 — any refusal after touching clause-owned storage
+    // belongs to the server, even when a reader did not set a precise flag.
+    if (runner.tx.receipt_touched() || runner.provisional_sequence_read) && result.is_err() {
+        return Err(RuntimeError::Prediction("a refusal follows receipt state or a provisional sequence read; queue the write for the server (guide writes)".into()));
     }
     // Unknown input can select a branch the server will never execute. Its
     // exhaustion cannot refuse the write; a cut with known inputs still can.
@@ -146,8 +150,6 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         other => other,
     };
     let result = result.map_err(|error| counterfactual(error, runner.charged_untaken))?;
-    let charged = runner.charged_untaken;
-    runner.charge_output(&result).map_err(|error| counterfactual(error, charged))?;
     Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }
 

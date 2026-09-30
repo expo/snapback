@@ -57,7 +57,14 @@ impl Runner<'_> {
     // @ref LLP 3000.015#2 — index membership and order consume provisional
     // ordinals even when the requested suffix currently contains no rows.
     pub(super) fn observe_sequence_selection(&mut self, name: &str, index_name: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
-        if !self.device || self.device_allowance.is_none() || self.provisional_sequence_read { return Ok(()); }
+        if !self.device || self.device_allowance.is_none() { return Ok(()); }
+        // @ref LLP 3000.022#14.3 — an authored read can carry a guessed key's
+        // selected id into a later write. Defer even a hit; allocator suffix
+        // probes use storage directly and ordinary sends still predict.
+        if self.schema.receipt_key(name, index_name) {
+            return Err(RuntimeError::Prediction("a receipt-owned selection needs server resolution (guide receipts)".into()));
+        }
+        if self.provisional_sequence_read { return Ok(()); }
         // A stored scalar aggregate can be zero/absent because a provisional
         // source failed its filter, or can hold a provisional sum/group key.
         // Observe inputs even when there is no target row to read.
@@ -110,12 +117,13 @@ impl Runner<'_> {
         Ok(())
     }
 
-    // @ref LLP 3000.022#14.3 — every reader uses the same allocation-field set,
-    // including receipt counters, member floors and recipient snapshots.
+    // @ref LLP 3000.022#14.3 — receipts use storage-wide refusal custody.
+    // Keep precise provenance for ordinary sequence-by fields, whose tables
+    // need not carry receipt state and whose unrelated refusals stay terminal.
     pub(super) fn sequence_field_is_assigned(&self, table: &str, field: &str) -> bool {
         let (table, field) = self.schema.tables[table].recorded.get(field)
             .map_or((table, field), |path| (path.table.as_str(), path.column.as_str()));
-        self.schema.tables[table].sequences.contains_key(field) || self.schema.receipt_assigned(table, field)
+        self.schema.tables[table].sequences.contains_key(field)
     }
 
     pub(super) fn sequence_field_is_provisional(&self, row: &Value, field: &str) -> Result<bool, RuntimeError> {

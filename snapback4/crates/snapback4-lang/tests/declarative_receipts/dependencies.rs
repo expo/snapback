@@ -527,8 +527,7 @@ fn terminal<H: Host>(host: &mut H) {
     let source = source()
         + r#"
 mutation terminal(message: messages):
-  m = messages[message] ! else MISSING
-  require true or receipt(m) != null else UNREACHABLE
+  require true or receipt(messages[message] ! else MISSING) != null else UNREACHABLE
   require false else TERMINAL
 "#;
     let (mut e, b) = compile(&source);
@@ -641,3 +640,6 @@ both!(
     captured_public,
     true
 );
+
+#[path = "generated_dependencies.rs"]
+mod generated;

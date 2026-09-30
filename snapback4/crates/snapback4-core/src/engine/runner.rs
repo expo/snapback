@@ -923,10 +923,9 @@ impl<'a> Runner<'a> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
-                // @ref LLP 3000.022#14.3 — a pending receipt's null is provisional
-                // evidence even when its generated guard skips every field read.
+                // @ref LLP 3000.022#14.3 — storage custody covers the pending null
+                // even when this generated guard skips every field read.
                 let provisional = self.is_provisional(table, &args[0])?;
-                self.provisional_sequence_read |= provisional;
                 Ok(Value::Bool(!provisional))
             },
             Builtin::ProjectFields { table } => {

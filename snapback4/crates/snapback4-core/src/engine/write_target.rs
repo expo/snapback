@@ -158,11 +158,23 @@ impl Runner<'_> {
         Ok(())
     }
 
+    // @ref LLP 3000.022#14.3 — guessed accounting must never select a write's
+    // identity, even on a local hit. Stable-id writes and allocating inserts
+    // still predict. Resolve this key only in the server transaction.
+    fn require_stable_target(&self, target: &Read) -> Result<(), RuntimeError> {
+        if self.device && self.schema.receipt_key(&target.table, &target.index) {
+            return Err(RuntimeError::Prediction("a receipt-owned write key needs server resolution; queued without a predicted row (guide receipts)".into()));
+        }
+        Ok(())
+    }
+
     pub(in crate::engine) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
+        self.require_stable_target(target)?;
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
     pub(in crate::engine) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
+        self.require_stable_target(target)?;
         self.target_attempt(&target.table, |runner| {
             runner.refuse_engine_owned(&target.table, Effect::Delete)?;
             let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;

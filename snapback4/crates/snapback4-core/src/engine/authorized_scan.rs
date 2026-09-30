@@ -25,9 +25,19 @@ impl Authorization {
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
+pub(crate) struct GuardedRows<'a> { prediction_schema: Option<&'a crate::schema::Schema>, receipt_touched: Cell<bool>, raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { prediction_schema: None, receipt_touched: Cell::new(false), raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
+    // @ref LLP 3000.022#14.3 — one sticky storage observation for a prediction.
+    // Whole images, key-only probes, empty ranges and write-side index/aggregate
+    // maintenance all consume accounting. This does not demote successful rows.
+    pub(super) fn observe_receipts(&mut self, schema: &'a crate::schema::Schema) { self.prediction_schema = Some(schema); }
+    pub(super) fn receipt_touched(&self) -> bool { self.receipt_touched.get() }
+    fn touch(&self, table: &str) {
+        if !self.receipt_touched.get() && self.prediction_schema.is_some_and(|s| s.receipt_state_table(table)) {
+            self.receipt_touched.set(true);
+        }
+    }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
     pub(super) fn remaining(&self) -> usize { self.remaining.get() }
     fn limit(&self, table: &str, requested: usize) -> Result<usize, RuntimeError> {
@@ -39,6 +49,7 @@ impl<'a> GuardedRows<'a> {
         if self.authorizing.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
     }
     pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        self.touch(table);
         self.limit(table, 1)?;
         let row = self.raw.get(table, id)?;
         self.charge(usize::from(row.is_some()));
@@ -46,12 +57,14 @@ impl<'a> GuardedRows<'a> {
     }
     /// A key-only witness still consumes the shared physical authorization allowance.
     pub(crate) fn index_head(&self, _authorization: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.touch(table);
         self.limit(table, 1)?;
         let key = self.raw.index_head(table, index, prefix, bounds, dir)?;
         self.charge(usize::from(key.is_some()));
         Ok(key)
     }
     pub(crate) fn lookup(&self, _authorization: &Authorization, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        self.touch(table);
         // @ref LLP 3000.015#2 — repeated unchanged points share decoded storage,
         // while every logical read still prepays its complete rule.
         if let Some((cached_table, cached_index, cached_key, row)) = &*self.lookup_cache.borrow()
@@ -63,6 +76,7 @@ impl<'a> GuardedRows<'a> {
         Ok(row)
     }
     pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.touch(table);
         let permitted = self.limit(table, limit)?;
         let rows = self.raw.scan(table, name, prefix, bounds, dir, permitted)?;
         self.charge(rows.len());
@@ -71,12 +85,14 @@ impl<'a> GuardedRows<'a> {
     }
     #[cfg(feature = "server-search")]
     pub(crate) fn scan_selected(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.touch(table);
         self.limit(table, 1)?;
         let rows = self.raw.scan_selected(table, name, prefix, bounds, dir, fields)?;
         self.charge(rows.len());
         Ok(rows)
     }
     pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.touch(table);
         let permitted = self.limit(table, limit)?;
         let rows = InternalLedger::with_meter(meter, |meter, _| self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter))?;
         self.charge(rows.len());
@@ -84,33 +100,34 @@ impl<'a> GuardedRows<'a> {
         Ok(rows)
     }
     pub(crate) fn count_prefix(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
+        self.touch(table);
         // This scalar adapter is used only by non-expiring, non-private
         // caps. It fetches no candidate rows and keeps its declared cap bound.
         self.raw.count_prefix(table, name, prefix, limit)
     }
 
-    pub(crate) fn cap_count(&self, _authorization: &Authorization, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> { self.raw.cap_count(table, by, group) }
+    pub(crate) fn cap_count(&self, _authorization: &Authorization, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> { self.touch(table); self.raw.cap_count(table, by, group) }
 
-    pub(crate) fn sequence_value(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.sequence_value(parent, id) }
-    pub(crate) fn provisional_sequence_floor(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.provisional_sequence_floor(parent, id) }
-    pub(crate) fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> { self.raw.set_sequence(parent, id, value) }
-    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.put(name, table, row, old) }
-    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.delete(name, table, old) }
+    pub(crate) fn sequence_value(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.touch(parent); self.raw.sequence_value(parent, id) }
+    pub(crate) fn provisional_sequence_floor(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.touch(parent); self.raw.provisional_sequence_floor(parent, id) }
+    pub(crate) fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> { self.touch(parent); self.raw.set_sequence(parent, id, value) }
+    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.touch(name); self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.put(name, table, row, old) }
+    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.touch(name); self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.delete(name, table, old) }
     pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #[cfg(feature = "sqlite")] column: &str, now: i64) -> Result<(), RuntimeError> { #[cfg(feature = "sqlite")] { self.raw.release_asset(id, table, row_id, column, now) } #[cfg(not(feature = "sqlite"))] { self.raw.release_asset(id, now) } }
     pub(crate) fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> { self.raw.effect_once(effect, key) }
-    pub(crate) fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.raw.provisional_id_after(table, after) }
-    pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
-    pub(crate) fn search_retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.search_retained_row(table, row) }
-    pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
-    pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }
+    pub(crate) fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.touch(table); self.raw.provisional_id_after(table, after) }
+    pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.touch(table); self.raw.provisional_row(table, row) }
+    pub(crate) fn search_retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.touch(table); self.raw.search_retained_row(table, row) }
+    pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.touch(table); self.raw.retained_row(table, row) }
+    pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.touch(table); self.raw.retained_group(table, index, prefix) }
     /// Device acquisition facts carry no row payload, like retained_row.
-    pub(crate) fn current_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.current_row(table, row) }
-    pub(crate) fn current_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.current_group(table, index, prefix) }
-    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { InternalLedger::with_meter(meter, |meter, _| self.raw.recording_covered(table, row, viewer, now, scope, meter)) }
-    pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.raw.acquired_boundary(table, index, prefix) }
+    pub(crate) fn current_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.touch(table); self.raw.current_row(table, row) }
+    pub(crate) fn current_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.touch(table); self.raw.current_group(table, index, prefix) }
+    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { self.touch(table); InternalLedger::with_meter(meter, |meter, _| self.raw.recording_covered(table, row, viewer, now, scope, meter)) }
+    pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.touch(table); self.raw.acquired_boundary(table, index, prefix) }
     pub(crate) fn prefetch_enabled(&self) -> bool { self.raw.prefetch_enabled() }
     #[allow(dead_code)] // Used by the native prefetch planner; absent on web.
     pub(crate) fn prefetch(&self, requests: &[PrefetchRequest]) { self.raw.prefetch(requests) }
