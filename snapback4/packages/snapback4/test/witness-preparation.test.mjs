@@ -11,6 +11,32 @@ const siblingOutputs = ['PER_ARCH_MODULE_FILE_DIR', 'PRECOMP_DESTINATION_DIR', '
   'LM_AUX_CONST_METADATA_LIST_PATH_normal_arm64', 'PRELINK_DEPENDENCY_INFO_FILE',
   'TEMP_FILES_DIR', 'TEMP_FILE_DIR', 'PER_VARIANT_OBJECT_FILE_DIR', 'METAL_LIBRARY_OUTPUT_DIR'];
 
+test('native preparation refusals omit supplied paths, targets and unexpected exception text', async () => {
+  const { validateOutputs } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const { nativeReferences } = await import('../../../crates/snapback4/src/verbs/witness/native-inputs.mjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bn-preparation-refusals-'));
+  const marker = 'BN_PRIVATE_BUILD_ARGUMENT';
+  try {
+    const cache = path.join(root, 'private'); fs.mkdirSync(cache); fs.mkdirSync(path.join(root, 'ios'));
+    const file = path.join(root, marker); fs.writeFileSync(file, 'not bytecode');
+    const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, LD_MAP_FILE_PATH: file };
+    for (const work of [
+      () => validateOutputs([{ target: marker, buildSettings: settings }], cache),
+      () => nativeReferences(root, { objects: { input: { isa: 'PBXFileReference', sourceTree: '<absolute>', path: file } } }, marker),
+      () => hbc(file),
+    ]) assert.throws(work, error => {
+      assert.match(error.message, /E_WITNESS_.*--build/);
+      assert.equal(error.message.includes(marker), false, 'native refusal echoed an input');
+      return true;
+    });
+    const reply = spawnSync(process.execPath, [new URL('../../../crates/snapback4/src/verbs/witness/prepare.mjs', import.meta.url).pathname,
+      'build', path.join(root, marker, 'missing'), cache, marker, 'http://127.0.0.1:4400'], { encoding: 'utf8' });
+    assert.equal(reply.status, 1);
+    assert.match(reply.stderr, /E_WITNESS_BUILD:.*check --build, --artifacts/);
+    assert.equal(reply.stderr.includes(marker), false, 'unexpected exception echoed --build');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('sibling Xcode output settings refuse raw overrides and resolved outside destinations', async () => {
   const { nativeReferences } = await import('../../../crates/snapback4/src/verbs/witness/native-inputs.mjs');
   const { validateOutputs } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
@@ -45,7 +71,7 @@ test('dangling final and ancestor output links refuse before an outside file can
     assert.doesNotThrow(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, LD_MAP_FILE_PATH: path.join(cache, 'private-link') } }], cache));
     fs.symlinkSync('dangling', path.join(cache, 'chain'));
     for (const dest of [path.join(cache, 'dangling'), path.join(cache, 'dangling/file'), path.join(cache, 'chain')]) {
-      assert.throws(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, LD_MAP_FILE_PATH: dest } }], cache), /output LD_MAP_FILE_PATH escapes private workspace/);
+      assert.throws(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, LD_MAP_FILE_PATH: dest } }], cache), /output path escapes private workspace/);
       assert.equal(fs.existsSync(outside), false);
     }
     fs.symlinkSync('cycle', path.join(cache, 'cycle'));
@@ -83,7 +109,7 @@ test('output audits follow symlinks before parent traversal, including within li
         try { audit(extra); fs.writeFileSync(dest, 'compiler output'); } catch (error) { refusal = error; }
         assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner', JSON.stringify(extra));
         assert.equal(fs.existsSync(root + '/missing'), false, JSON.stringify(extra));
-        assert.match(String(refusal), /E_WITNESS_NATIVE_COMPAT: Pod: output .* escapes private workspace/);
+        assert.match(String(refusal), /E_WITNESS_NATIVE_COMPAT: output .* escapes private workspace/);
       }
     }
     assert.equal(canonical(escaped), sentinel);
@@ -250,8 +276,8 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
       });
       return { ...result, out };
     };
-    for (const [fault, expected] of [['output-escape', /Pod: output CONFIGURATION_BUILD_DIR escapes private workspace/],
-      ['missing-dependencies', /missing compiler dependency coverage/], ['external-dependency', /native input outside covered roots:.*SharedNative.h/]]) {
+    for (const [fault, expected] of [['output-escape', /output path escapes private workspace/],
+      ['missing-dependencies', /missing compiler dependency coverage/], ['external-dependency', /native input outside covered roots/]]) {
       const bad = run('build', fault, fault);
       assert.equal(bad.status, 1, bad.stderr); assert.match(bad.stderr, expected);
       assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
@@ -262,7 +288,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     for (const key of ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE', ...siblingOutputs, 'INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME']) {
       const bad = run('build', key, 'destination:' + key);
       assert.equal(bad.status, 1, bad.stderr);
-      assert.match(bad.stderr, new RegExp('Pod: output ' + key + ' escapes private workspace'));
+      assert.match(bad.stderr, /output path escapes private workspace/);
       assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
       assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
       assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
@@ -273,7 +299,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     const danglingBuild = run('build', 'dangling-output', 'dangling-output');
     assert.equal(fs.existsSync(missingOutside), false, 'a dangling output link must not create its outside target');
     assert.equal(danglingBuild.status, 1, danglingBuild.stderr);
-    assert.match(danglingBuild.stderr, /output LD_MAP_FILE_PATH escapes private workspace:.*dangling-output/);
+    assert.match(danglingBuild.stderr, /output path escapes private workspace/);
     assert.equal(fs.existsSync(path.join(danglingBuild.out, 'xcode-build.log')), false);
     assert.equal(fs.existsSync(path.join(danglingBuild.out, 'build.json')), false);
     fs.unlinkSync(dangling);
@@ -287,7 +313,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
         const fault = prefix + kind, bad = run('build', fault, fault);
         assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner', fault);
         assert.equal(bad.status, 1, bad.stderr);
-        assert.match(bad.stderr, /E_WITNESS_NATIVE_COMPAT: Pod: output .* escapes private workspace/);
+        assert.match(bad.stderr, /E_WITNESS_NATIVE_COMPAT: output .* escapes private workspace/);
         assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
         assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
       }
@@ -318,7 +344,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     write(path.join(project, 'javascript.txt'), 'B');
     const skipped = run('build', 'warm-skip-setting', 'skip-bundling');
     assert.equal(skipped.status, 1, skipped.stderr);
-    assert.match(skipped.stderr, /App: unsupported SKIP_BUNDLING: 1/);
+    assert.match(skipped.stderr, /unsupported SKIP_BUNDLING/);
     assert.equal(fs.existsSync(path.join(skipped.out, 'xcode-build.log')), false);
     assert.equal(fs.existsSync(path.join(skipped.out, 'build.json')), false);
     const product = path.join(project, '.snapback4-witness/DerivedData/Build/Products/fixture.app');
@@ -350,14 +376,14 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     assert.match(changedSnapshot.stderr, /E_WITNESS_PROOF: snapshot source changed during preparation/);
     assert.equal(fs.existsSync(path.join(changedSnapshot.out, 'build.json')), false);
     for (const [fault, expected] of [
-      ['swift-output', /Pod: output flag -emit-module-interface-path escapes private workspace/],
-      ['swift-index-output', /Pod: output flag -index-store-path escapes private workspace/],
-      ['clang-output', /Pod: output flag -serialize-diagnostics escapes private workspace/],
-      ['sourcemap', /Pod: unsupported SOURCEMAP_FILE/],
+      ['swift-output', /output flag destination escapes private workspace/],
+      ['swift-index-output', /output flag destination escapes private workspace/],
+      ['clang-output', /output flag destination escapes private workspace/],
+      ['sourcemap', /unsupported SOURCEMAP_FILE/],
     ]) {
       const bad = run('build', fault, fault);
       assert.equal(bad.status, 1, bad.stderr); assert.match(bad.stderr, expected);
-      assert.ok(bad.stderr.includes(sentinel));
+      assert.ok(!bad.stderr.includes(sentinel), 'refusal must omit the supplied path');
       assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
       assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
       assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
@@ -375,6 +401,24 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     fs.symlinkSync('../build/generated/ios/Foo.h', podLink);
     const generatedBase = run('build', 'generated-base');
     assert.equal(generatedBase.status, 0, generatedBase.stderr);
+    // A starter has no source ios/. Prebuild owns that tree; warm snapshotting
+    // must preserve both Pods intermediates and Xcode cache, yet rebuild JS.
+    fs.renameSync(path.join(project, 'ios'), path.join(root, 'generated-template'));
+    fs.rmSync(path.join(project, '.snapback4-witness/snapshot/ios'), { recursive: true });
+    const generated = run('build', 'generated-cold');
+    assert.equal(generated.status, 0, generated.stderr);
+    const kept = path.join(project, '.snapback4-witness/snapshot/ios/Pods/warm-intermediate');
+    write(kept, 'preserve this native preparation');
+    fs.symlinkSync('../../node_modules/generated-header.h', path.join(project, '.snapback4-witness/snapshot/ios/Pods/generated-header.h'));
+    write(path.join(project, 'javascript.txt'), 'D');
+    const repeat = run('build', 'generated-warm');
+    assert.equal(repeat.status, 0, repeat.stderr);
+    assert.equal(fs.readFileSync(kept, 'utf8'), 'preserve this native preparation');
+    assert.equal(fs.existsSync(path.join(project, 'ios')), false);
+    const fresh = JSON.parse(fs.readFileSync(path.join(repeat.out, 'build.json')));
+    assert.ok(fresh.phases.some(p => p.label === 'prebuild'));
+    assert.ok(fresh.phases.some(p => p.label === 'xcode-build'));
+    assert.equal(fs.readFileSync(product + '/main.jsbundle')[127], 'D'.charCodeAt(0));
     // A removed route cannot create a cache or artifact even via the JS entrypoint.
     for (const mode of ['repack', 'unknown', '']) {
       const rejected = run(mode, 'withdrawn-' + (mode || 'empty'));
@@ -402,7 +446,7 @@ test('compiler records cover spaced and macro includes, transitive dependencies 
       fs.writeFileSync(record, `output: ${source} ${root}/Shared.h\n`);
       for (const value of ['one', 'two']) {
         fs.writeFileSync(root + '/Shared.h', value);
-        assert.throws(() => compilerClosure(root, cache, [], [source]), /native input outside covered roots:.*Shared.h/);
+        assert.throws(() => compilerClosure(root, cache, [], [source]), /native input outside covered roots/);
       }
     }
     fs.unlinkSync(record);
@@ -430,7 +474,7 @@ test('all target outputs and symlink parents must stay private', async () => {
     for (const key of ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'CONFIGURATION_BUILD_DIR', 'OBJROOT', 'SYMROOT', 'DSTROOT', 'DERIVED_SOURCES_DIR', 'CLANG_MODULE_CACHE_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
       for (const value of [root + '/shared', cache + '/link/new']) assert.throws(() => validateOutputs([
         { target: 'App', buildSettings: s }, { target: 'Pod', buildSettings: { ...s, [key]: value } },
-      ], cache), /Pod: output .* escapes private workspace/);
+      ], cache), /output path escapes private workspace/);
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
@@ -453,14 +497,14 @@ test('Pods graph audit refuses external search paths, config includes, phase lis
         '-emit-package-module-interface-path', '-emit-objc-header-path', '-emit-dependencies-path',
         '-emit-reference-dependencies-path', '-serialize-diagnostics-path', '-serialize-diagnostics',
         '-index-store-path', '-module-cache-path', '-MF', '-MJ']) {
-        assert.throws(() => audit(graph, { [key]: `${flag} ${root}/shared/sentinel` }), /Pod: output flag .* escapes private workspace/);
+        assert.throws(() => audit(graph, { [key]: `${flag} ${root}/shared/sentinel` }), /output flag .* escapes private workspace/);
         assert.ok(audit(graph, { [key]: `${flag} ${cache}/private-output` }));
       }
       for (const wrapper of ['', '-Xfrontend ', '-Xcc ']) {
         assert.ok(audit(graph, { [key]: `${wrapper}-emit-module-interface-path ${wrapper}${cache}/good.swiftinterface` }));
         for (const destination of [root + '/shared/sentinel', cache + '/link/sentinel', 'relative.swiftinterface']) {
           for (const value of [`${wrapper}-emit-module-interface-path ${wrapper}${destination}`, `${wrapper}-emit-module-interface-path=${destination}`])
-            assert.throws(() => audit(graph, { [key]: value }), /Pod: output flag .* escapes private workspace/);
+            assert.throws(() => audit(graph, { [key]: value }), /output flag .* escapes private workspace/);
         }
       }
       for (const value of ['-Xcc', '-Xfrontend -Xcc', `-Xcc -I -Xfrontend ${dir}`, `-Xfrontend -emit-module-interface-path -Xcc ${cache}/out`])
@@ -486,9 +530,9 @@ test('Pods graph audit refuses external search paths, config includes, phase lis
     fs.writeFileSync(dir + '/inputs.xcfilelist', root + '/SharedNative/image.png\n');
     assert.throws(() => audit(g), /outside covered roots/);
     g.objects.phase = { isa: 'PBXShellScriptBuildPhase', shellPath: '/bin/sh', shellScript: 'cat /external/file', name: 'Generated-looking name' };
-    assert.throws(() => audit(g), /unsupported native script Pod/);
+    assert.throws(() => audit(g), /unsupported native script/);
     g.objects.phase = { isa: 'PBXCopyFilesBuildPhase', dstSubfolderSpec: 0, dstPath: '' };
-    assert.throws(() => audit(g), /unknown native phase PBXCopyFilesBuildPhase/);
+    assert.throws(() => audit(g), /unknown native phase/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -506,7 +550,7 @@ test('linker records require products and refuse external frameworks including m
     fs.writeFileSync(root + '/External.framework', 'native bytes');
     for (const tag of ['\x10', '\x11']) {
       fs.writeFileSync(file, Buffer.from(baseline + tag + root + '/External.framework\x00'));
-      assert.throws(() => compilerClosure(root, cache, [], [source], [product]), /outside covered roots:.*External.framework/);
+      assert.throws(() => compilerClosure(root, cache, [], [source], [product]), /outside covered roots/);
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

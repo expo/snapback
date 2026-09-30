@@ -1,0 +1,50 @@
+(node:1543175) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ reconnect proof rejects more-then-drop and records every attempted request (1404.604288ms)
+✖ reconnect proof rejects dropped-first and records every attempted request (1326.036773ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2852.603393
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:160:3
+✖ reconnect proof rejects more-then-drop and records every attempted request (1404.604288ms)
+  AssertionError [ERR_ASSERTION]: failed transports must not disappear
+
+  4 !== 5
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:200:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:160:3
+✖ reconnect proof rejects dropped-first and records every attempted request (1326.036773ms)
+  AssertionError [ERR_ASSERTION]: failed transports must not disappear
+
+  3 !== 4
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:200:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

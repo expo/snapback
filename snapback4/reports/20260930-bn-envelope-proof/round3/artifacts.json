@@ -1,0 +1,78 @@
+{
+  "llp/3000.030-native-proof-in-minutes.rfc.md": {
+    "bytes": 105227,
+    "sha256": "6c7b98091e222ed1a75f7d2a281cec534154304d4fd421dfeadb2da0bbf10abd"
+  },
+  "snapback4/crates/snapback4-lang/src/guide/bounds.rs": {
+    "bytes": 27947,
+    "sha256": "b2ed0b9a9696d83d2ea62b396abc58e30362901e0200393d57657ac3f1ff4143"
+  },
+  "snapback4/crates/snapback4-lang/src/guide/witness.md": {
+    "bytes": 24606,
+    "sha256": "14ded56c667bc616945a3f63e3fe3e205923d6e9511087eec16f82367807c03f"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness.rs": {
+    "bytes": 35330,
+    "sha256": "7fe30aaf7e29b5ed89f9887b7f8d81cff945118d864460294edb2dff0b8cc378"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs": {
+    "bytes": 23375,
+    "sha256": "79d98f1ae08659b2c1a0e6fcb388f11adcc6517bc123c210c94a1c58e378c46b"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/native-inputs.mjs": {
+    "bytes": 11211,
+    "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/payload.mjs": {
+    "bytes": 3859,
+    "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": {
+    "bytes": 18802,
+    "sha256": "ed9883688fe2d4cf8b0c4a8d5aeee578e07a48419bbc49c5faa127a50efc13dd"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/prepare.mjs": {
+    "bytes": 18574,
+    "sha256": "39e04c59514fcdebb5fd9a5b9859edd1ca861b1b38768b46bede1979bab12340"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/protocol.rs": {
+    "bytes": 11147,
+    "sha256": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/smoke.rs": {
+    "bytes": 19874,
+    "sha256": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33"
+  },
+  "snapback4/crates/snapback4/tests/witness.rs": {
+    "bytes": 45541,
+    "sha256": "06e5d62e89b643c964c631c3af0402d4834eb051e747d35dd4a9a31bfde821e9"
+  },
+  "snapback4/packages/snapback4/bin/witness-acquire.js": {
+    "bytes": 25370,
+    "sha256": "7747419678d75e57189be31180077246bf9a11ddd25615e5fef3737a9fc2af5f"
+  },
+  "snapback4/packages/snapback4/test/witness-acquire.test.mjs": {
+    "bytes": 32452,
+    "sha256": "55bac8ac5fa47232a3d742828426ad561531d191e14ece48ad5935fbf8c7dd4a"
+  },
+  "snapback4/packages/snapback4/test/witness-preparation.test.mjs": {
+    "bytes": 41090,
+    "sha256": "7ef21da2c9e600fe2d325e7ec67339577d5c9a8724c7ec73e01b29d8c4d934bb"
+  },
+  "snapback4/target/debug/snapback4": {
+    "bytes": 34312008,
+    "sha256": "c2430f653d3482a063362039572e33d894d71ba56af1853a312480b496181367"
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1978828,
+    "sha256": "e0652576d56704990bf9cc8d745626de5219aa1c69d864623738888a77a93a50"
+  },
+  "/tmp/bn-r3-round2-snapback4": {
+    "bytes": 71490584,
+    "sha256": "c7427f67720b673b50be24c2839aa4946f9a4bbd6090b17eb5e2126128f35c91"
+  },
+  "wasmGzip": 593233,
+  "wasmBudget": 593719,
+  "base": "9548d90434e3ce3c666d41841db58e9fc002a0cc",
+  "note": "Existing wasm was measured with the build script gzip command, not rebuilt; no wasm inputs changed."
+}

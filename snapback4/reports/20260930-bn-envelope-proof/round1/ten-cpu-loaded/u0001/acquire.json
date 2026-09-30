@@ -1,0 +1,876 @@
+{
+  "format": 1,
+  "kind": "acquire",
+  "device": "native-process",
+  "note": "Node process device: one JSON line per call to the snapback4 device subprocess, backed by SQLite. Expo links the crate in-process; these are not Expo/iOS timings; web wasm + IndexedDB figures differ. Bytes are SQLite pages, excluding WAL/SHM, not RSS.",
+  "sdkVersion": "0.4.9",
+  "principal": "user:01M3KYGC7KA7B1M11A251HF29W",
+  "url": "http://127.0.0.1:38105",
+  "startedAt": "2026-09-30T16:40:14.365Z",
+  "groupUnit": "table/group pairs; see groupsByTable for the application envelope",
+  "runs": [
+    {
+      "beforeHost": {
+        "hostname": "expose-builder-pixel",
+        "cpus": 10,
+        "load": [
+          14.1,
+          12.1,
+          12.48
+        ]
+      },
+      "requests": [
+        {
+          "phase": "acquire",
+          "path": "/probe",
+          "status": 200,
+          "headerMs": 29.346,
+          "serverTiming": "total;dur=3.462, wait;dur=0.744, engine;dur=0.309, cpu;dur=1.086",
+          "serverMs": {
+            "total": 3.462,
+            "wait": 0.744,
+            "engine": 0.309,
+            "cpu": 1.086
+          },
+          "outcome": "validated",
+          "totalMs": 34.1
+        },
+        {
+          "phase": "acquire",
+          "path": "/schema",
+          "status": 200,
+          "headerMs": 25.893,
+          "serverTiming": "total;dur=18.334, wait;dur=0.000, engine;dur=0.086, cpu;dur=9.086",
+          "serverMs": {
+            "total": 18.334,
+            "wait": 0,
+            "engine": 0.086,
+            "cpu": 9.086
+          },
+          "outcome": "validated",
+          "totalMs": 32.066
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 131.843,
+          "serverTiming": "total;dur=127.998, wait;dur=0.001, engine;dur=86.712, cpu;dur=126.229",
+          "serverMs": {
+            "total": 127.998,
+            "wait": 0.001,
+            "engine": 86.712,
+            "cpu": 126.229
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9993,
+          "events": 9993,
+          "totalMs": 175.42,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 131.008,
+          "serverTiming": "total;dur=128.146, wait;dur=0.585, engine;dur=81.561, cpu;dur=127.910",
+          "serverMs": {
+            "total": 128.146,
+            "wait": 0.585,
+            "engine": 81.561,
+            "cpu": 127.91
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9983,
+          "events": 9983,
+          "totalMs": 151.319,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 130.915,
+          "serverTiming": "total;dur=127.393, wait;dur=0.780, engine;dur=81.591, cpu;dur=127.102",
+          "serverMs": {
+            "total": 127.393,
+            "wait": 0.78,
+            "engine": 81.591,
+            "cpu": 127.102
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9988,
+          "events": 9988,
+          "totalMs": 153.511,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 152.053,
+          "serverTiming": "total;dur=146.891, wait;dur=0.953, engine;dur=96.740, cpu;dur=146.504",
+          "serverMs": {
+            "total": 146.891,
+            "wait": 0.953,
+            "engine": 96.74,
+            "cpu": 146.504
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9991,
+          "events": 9991,
+          "totalMs": 174.42,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 147.426,
+          "serverTiming": "total;dur=143.949, wait;dur=0.607, engine;dur=95.695, cpu;dur=143.758",
+          "serverMs": {
+            "total": 143.949,
+            "wait": 0.607,
+            "engine": 95.695,
+            "cpu": 143.758
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9993,
+          "events": 9993,
+          "totalMs": 194.347,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 153.429,
+          "serverTiming": "total;dur=149.615, wait;dur=0.667, engine;dur=99.337, cpu;dur=149.427",
+          "serverMs": {
+            "total": 149.615,
+            "wait": 0.667,
+            "engine": 99.337,
+            "cpu": 149.427
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9989,
+          "events": 9989,
+          "totalMs": 171.859,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 152.79,
+          "serverTiming": "total;dur=148.523, wait;dur=0.599, engine;dur=95.280, cpu;dur=147.625",
+          "serverMs": {
+            "total": 148.523,
+            "wait": 0.599,
+            "engine": 95.28,
+            "cpu": 147.625
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9989,
+          "events": 9989,
+          "totalMs": 175.308,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 145.552,
+          "serverTiming": "total;dur=142.386, wait;dur=0.592, engine;dur=95.429, cpu;dur=142.151",
+          "serverMs": {
+            "total": 142.386,
+            "wait": 0.592,
+            "engine": 95.429,
+            "cpu": 142.151
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9987,
+          "events": 9987,
+          "totalMs": 172.127,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 152.84,
+          "serverTiming": "total;dur=149.293, wait;dur=0.611, engine;dur=101.413, cpu;dur=144.163",
+          "serverMs": {
+            "total": 149.293,
+            "wait": 0.611,
+            "engine": 101.413,
+            "cpu": 144.163
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9990,
+          "events": 9990,
+          "totalMs": 174.848,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 128.777,
+          "serverTiming": "total;dur=124.593, wait;dur=0.758, engine;dur=88.152, cpu;dur=124.184",
+          "serverMs": {
+            "total": 124.593,
+            "wait": 0.758,
+            "engine": 88.152,
+            "cpu": 124.184
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": true,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 9137,
+          "events": 9137,
+          "totalMs": 165.312,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 1263.04,
+          "serverTiming": "total;dur=1261.239, wait;dur=0.594, engine;dur=1247.769, cpu;dur=1255.156",
+          "serverMs": {
+            "total": 1261.239,
+            "wait": 0.594,
+            "engine": 1247.769,
+            "cpu": 1255.156
+          },
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "watermark": 419402,
+          "imagesAt": null,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 5994,
+          "events": 5994,
+          "totalMs": 1269.403,
+          "applied": false
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 2.385,
+          "serverTiming": "total;dur=1.199, wait;dur=0.587, engine;dur=0.473, cpu;dur=1.116",
+          "serverMs": {
+            "total": 1.199,
+            "wait": 0.587,
+            "engine": 0.473,
+            "cpu": 1.116
+          },
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "watermark": 419402,
+          "imagesAt": 419402,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 0,
+          "events": 0,
+          "totalMs": 2.558,
+          "applied": true
+        },
+        {
+          "phase": "acquire",
+          "path": "/probe",
+          "status": 200,
+          "headerMs": 5.407,
+          "serverTiming": "total;dur=0.947, wait;dur=0.575, engine;dur=0.271, cpu;dur=0.889",
+          "serverMs": {
+            "total": 0.947,
+            "wait": 0.575,
+            "engine": 0.271,
+            "cpu": 0.889
+          },
+          "outcome": "validated",
+          "totalMs": 5.663
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "status": 200,
+          "headerMs": 1.79,
+          "serverTiming": "total;dur=0.586, wait;dur=0.001, engine;dur=0.458, cpu;dur=0.500",
+          "serverMs": {
+            "total": 0.586,
+            "wait": 0.001,
+            "engine": 0.458,
+            "cpu": 0.5
+          },
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "watermark": 419402,
+          "imagesAt": 419402,
+          "generation": 3,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "putRows": 0,
+          "events": 0,
+          "totalMs": 2.046,
+          "applied": true
+        }
+      ],
+      "passed": true,
+      "query": {
+        "name": "chat.inbox",
+        "args": {
+          "c": null
+        }
+      },
+      "acquiredMs": 41350.009,
+      "firstLocalMs": 41364.549,
+      "coverage": {
+        "acquired": true,
+        "storeId": "68097d3688446936b7d161ef985ee8b7",
+        "generation": 3,
+        "watermark": 419402,
+        "groups": 4014,
+        "groupsByTable": {
+          "conversations": 1000,
+          "followingEdges": 1,
+          "followingFeed": 1,
+          "followingPosts": 1,
+          "followingRemovedEvents": 1,
+          "followingWork": 1,
+          "likes": 1,
+          "members": 1000,
+          "messages": 1000,
+          "posts": 1,
+          "profiles": 1,
+          "reactions": 1,
+          "replyCounts": 1,
+          "repostCounts": 1,
+          "reposts": 1,
+          "runs": 2,
+          "unread": 1000
+        },
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "rows": 105034,
+        "residency": {
+          "tables": {
+            "conversations": {
+              "bytes": 393800,
+              "rows": 1000
+            },
+            "dailyLikes": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "dailyPosts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "dmKeys": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "followerCounts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "followingCounts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "followingEdges": {
+              "bytes": 1205,
+              "rows": 5
+            },
+            "followingFeed": {
+              "bytes": 189558,
+              "rows": 439
+            },
+            "followingPosts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "followingRemovedEvents": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "followingWork": {
+              "bytes": 18360,
+              "rows": 40
+            },
+            "follows": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "likes": {
+              "bytes": 234000,
+              "rows": 1000
+            },
+            "members": {
+              "bytes": 532388,
+              "rows": 2048
+            },
+            "messages": {
+              "bytes": 36763406,
+              "rows": 90500
+            },
+            "originalPosts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "posts": {
+              "bytes": 404000,
+              "rows": 1000
+            },
+            "profiles": {
+              "bytes": 487857,
+              "rows": 1008
+            },
+            "progress": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "reactionCounts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "reactions": {
+              "bytes": 558500,
+              "rows": 2000
+            },
+            "receivedLikes": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "receivedReplies": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "receivedReposts": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "replyCounts": {
+              "bytes": 254224,
+              "rows": 1956
+            },
+            "repostCounts": {
+              "bytes": 126464,
+              "rows": 988
+            },
+            "reposts": {
+              "bytes": 297000,
+              "rows": 1000
+            },
+            "runs": {
+              "bytes": 421,
+              "rows": 2
+            },
+            "typing": {
+              "bytes": 0,
+              "rows": 0
+            },
+            "unread": {
+              "bytes": 403358,
+              "rows": 2048
+            }
+          },
+          "totalBytes": 375209984,
+          "totalBytesKind": "sqlite-pages"
+        }
+      },
+      "restart": {
+        "firstLocalMs": 251.647,
+        "retained": true,
+        "offline": {
+          "acquired": true,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "generation": 3,
+          "watermark": 419402,
+          "groups": 4014,
+          "groupsByTable": {
+            "conversations": 1000,
+            "followingEdges": 1,
+            "followingFeed": 1,
+            "followingPosts": 1,
+            "followingRemovedEvents": 1,
+            "followingWork": 1,
+            "likes": 1,
+            "members": 1000,
+            "messages": 1000,
+            "posts": 1,
+            "profiles": 1,
+            "reactions": 1,
+            "replyCounts": 1,
+            "repostCounts": 1,
+            "reposts": 1,
+            "runs": 2,
+            "unread": 1000
+          },
+          "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+          "rows": 105034,
+          "residency": {
+            "tables": {
+              "conversations": {
+                "bytes": 393800,
+                "rows": 1000
+              },
+              "dailyLikes": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "dailyPosts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "dmKeys": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followerCounts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingCounts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingEdges": {
+                "bytes": 1205,
+                "rows": 5
+              },
+              "followingFeed": {
+                "bytes": 189558,
+                "rows": 439
+              },
+              "followingPosts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingRemovedEvents": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingWork": {
+                "bytes": 18360,
+                "rows": 40
+              },
+              "follows": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "likes": {
+                "bytes": 234000,
+                "rows": 1000
+              },
+              "members": {
+                "bytes": 532388,
+                "rows": 2048
+              },
+              "messages": {
+                "bytes": 36763406,
+                "rows": 90500
+              },
+              "originalPosts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "posts": {
+                "bytes": 404000,
+                "rows": 1000
+              },
+              "profiles": {
+                "bytes": 487857,
+                "rows": 1008
+              },
+              "progress": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "reactionCounts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "reactions": {
+                "bytes": 558500,
+                "rows": 2000
+              },
+              "receivedLikes": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "receivedReplies": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "receivedReposts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "replyCounts": {
+                "bytes": 254224,
+                "rows": 1956
+              },
+              "repostCounts": {
+                "bytes": 126464,
+                "rows": 988
+              },
+              "reposts": {
+                "bytes": 297000,
+                "rows": 1000
+              },
+              "runs": {
+                "bytes": 421,
+                "rows": 2
+              },
+              "typing": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "unread": {
+                "bytes": 403358,
+                "rows": 2048
+              }
+            },
+            "totalBytes": 375209984,
+            "totalBytesKind": "sqlite-pages"
+          }
+        },
+        "coverageVerifiedMs": 284.645,
+        "reconnected": {
+          "acquired": true,
+          "storeId": "68097d3688446936b7d161ef985ee8b7",
+          "generation": 3,
+          "watermark": 419402,
+          "groups": 4014,
+          "groupsByTable": {
+            "conversations": 1000,
+            "followingEdges": 1,
+            "followingFeed": 1,
+            "followingPosts": 1,
+            "followingRemovedEvents": 1,
+            "followingWork": 1,
+            "likes": 1,
+            "members": 1000,
+            "messages": 1000,
+            "posts": 1,
+            "profiles": 1,
+            "reactions": 1,
+            "replyCounts": 1,
+            "repostCounts": 1,
+            "reposts": 1,
+            "runs": 2,
+            "unread": 1000
+          },
+          "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+          "rows": 105034,
+          "residency": {
+            "tables": {
+              "conversations": {
+                "bytes": 393800,
+                "rows": 1000
+              },
+              "dailyLikes": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "dailyPosts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "dmKeys": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followerCounts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingCounts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingEdges": {
+                "bytes": 1205,
+                "rows": 5
+              },
+              "followingFeed": {
+                "bytes": 189558,
+                "rows": 439
+              },
+              "followingPosts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingRemovedEvents": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "followingWork": {
+                "bytes": 18360,
+                "rows": 40
+              },
+              "follows": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "likes": {
+                "bytes": 234000,
+                "rows": 1000
+              },
+              "members": {
+                "bytes": 532388,
+                "rows": 2048
+              },
+              "messages": {
+                "bytes": 36763406,
+                "rows": 90500
+              },
+              "originalPosts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "posts": {
+                "bytes": 404000,
+                "rows": 1000
+              },
+              "profiles": {
+                "bytes": 487857,
+                "rows": 1008
+              },
+              "progress": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "reactionCounts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "reactions": {
+                "bytes": 558500,
+                "rows": 2000
+              },
+              "receivedLikes": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "receivedReplies": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "receivedReposts": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "replyCounts": {
+                "bytes": 254224,
+                "rows": 1956
+              },
+              "repostCounts": {
+                "bytes": 126464,
+                "rows": 988
+              },
+              "reposts": {
+                "bytes": 297000,
+                "rows": 1000
+              },
+              "runs": {
+                "bytes": 421,
+                "rows": 2
+              },
+              "typing": {
+                "bytes": 0,
+                "rows": 0
+              },
+              "unread": {
+                "bytes": 403358,
+                "rows": 2048
+              }
+            },
+            "totalBytes": 375209984,
+            "totalBytesKind": "sqlite-pages"
+          }
+        },
+        "completed": true,
+        "serverPosition": 419402,
+        "downloadedRows": 0,
+        "syncResponses": 1,
+        "snapshotResponses": 0
+      },
+      "afterHost": {
+        "hostname": "expose-builder-pixel",
+        "cpus": 10,
+        "load": [
+          14.35,
+          12.47,
+          12.59
+        ]
+      },
+      "serverSyncMs": 2651.225
+    }
+  ],
+  "passed": true,
+  "finishedAt": "2026-09-30T16:40:57.451Z"
+}

@@ -1,0 +1,61 @@
+   Compiling generic-array v0.14.7
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling libm v0.2.16
+   Compiling serde_core v1.0.229
+   Compiling foldhash v0.2.0
+   Compiling bitflags v2.13.2
+   Compiling zmij v1.0.23
+   Compiling cfg-if v1.0.4
+   Compiling rand_core v0.6.4
+   Compiling cpufeatures v0.2.17
+   Compiling tinyvec_macros v0.1.1
+   Compiling base64ct v1.8.3
+   Compiling smallvec v1.16.1
+   Compiling spin v0.9.9
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling libc v0.2.189
+   Compiling wasmparser v0.228.0
+   Compiling wasmi_ir v2.0.0
+   Compiling getrandom v0.3.4
+   Compiling serde_json v1.0.151
+   Compiling wasmi v2.0.0
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.20
+   Compiling libsqlite3-sys v0.38.2
+   Compiling tinyvec v1.13.2
+   Compiling hashbrown v0.17.1
+   Compiling password-hash v0.5.0
+   Compiling unicode-normalization v0.1.25
+   Compiling hashlink v0.12.2
+   Compiling wasmi_core v2.0.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling argon2 v0.5.3
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-core)
+error[E0433]: cannot find `through` in `super`
+   --> crates/snapback4-core/src/engine/write_target.rs:113:41
+    |
+113 |             return Ok(verdict == super::through::ParentVerdict::Readable && !self.beyond_horizon);
+    |                                         ^^^^^^^ could not find `through` in `super`
+    |
+help: consider importing this enum
+    |
+  2 + use crate::engine::through::ParentVerdict;
+    |
+help: if you import `ParentVerdict`, refer to it directly
+    |
+113 -             return Ok(verdict == super::through::ParentVerdict::Readable && !self.beyond_horizon);
+113 +             return Ok(verdict == ParentVerdict::Readable && !self.beyond_horizon);
+    |
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `snapback4-core` (lib) due to 1 previous error

@@ -1,0 +1,26 @@
+{
+  "summary": "== 2 failure(s) in 1290 s",
+  "exit": 1,
+  "failedSteps": [
+    "cargo test (527 s)",
+    "client tests (413 s)"
+  ],
+  "rust": {
+    "passed": 4366,
+    "failed": 1,
+    "ignored": 33
+  },
+  "nodeSummaries": [
+    "\u2139 tests 9\n\u2139 suites 0\n\u2139 pass 9\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0",
+    "\u2139 tests 5322\n\u2139 suites 0\n\u2139 pass 5311\n\u2139 fail 1\n\u2139 cancelled 0\n\u2139 skipped 10\n\u2139 todo 0",
+    "\u2139 tests 79\n\u2139 suites 0\n\u2139 pass 79\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0"
+  ],
+  "wasm": [
+    "wasm 1978828 B raw, 593225 B gzip (budget 593719: ok)"
+  ],
+  "failureClassification": {
+    "ours": 1,
+    "baseline": 1,
+    "environmental": 0
+  }
+}

@@ -16,7 +16,7 @@ export function canonical(file) {
     if (component === '..') { resolved = path.dirname(resolved); continue; }
     const next = path.join(resolved, component);
     if (fs.lstatSync(next, { throwIfNoEntry: false })?.isSymbolicLink()) {
-      if (++links > 40) refuse(`unresolved native symlink: ${next}`);
+      if (++links > 40) refuse('unresolved native symlink');
       const target = fs.readlinkSync(next);
       if (path.isAbsolute(target)) resolved = path.parse(target).root;
       pending.unshift(...target.split(path.sep));
@@ -37,7 +37,7 @@ export function words(text) {
     else if (/\s/.test(ch)) { if (active) result.push(word); word = ''; active = false; }
     else { word += ch; active = true; }
   }
-  if (escaped || quote) refuse(`unresolved native token ${text}`);
+  if (escaped || quote) refuse('unresolved native token');
   if (active) result.push(word);
   return result;
 }
@@ -68,27 +68,27 @@ export function validateBundlingSettings(settings, target) {
     if (['SKIP_BUNDLING', 'SOURCEMAP_FILE', 'BUNDLE_NAME', 'BUNDLE_COMMAND', 'BUNDLE_CONFIG',
       'CLI_PATH', 'COMPOSE_SOURCEMAP_PATH', 'NODE_ARGS', 'NODE_OPTIONS', 'EXTRA_PACKAGER_ARGS',
       'CONFIG_JSON', 'CONFIG_CMD', 'PROJECT_ROOT', 'ENTRY_FILE'].includes(key) && String(value) !== '')
-      refuse(`${target}: unsupported ${key}: ${value}`);
+      refuse(`unsupported ${key}`);
   }
 }
 export function validateOutputs(rows, cache) {
   if (!Array.isArray(rows) || !rows.length) refuse('missing resolved target settings');
   const owned = canonical(cache);
   for (const { target, buildSettings: s } of rows) {
-    for (const required of ['TARGET_BUILD_DIR', 'TARGET_TEMP_DIR', 'OBJROOT', 'SYMROOT']) if (!s?.[required]) refuse(`${target}: missing ${required}`);
+    for (const required of ['TARGET_BUILD_DIR', 'TARGET_TEMP_DIR', 'OBJROOT', 'SYMROOT']) if (!s?.[required]) refuse(`missing ${required}`);
     validateBundlingSettings(s, target);
     for (const [key, value] of Object.entries(s)) if (outputKey(key) && value) {
       if (typeof value !== 'string' || !path.isAbsolute(value) || value.includes('$') || !inside(canonical(value), owned))
-        refuse(`${target}: output ${key} escapes private workspace: ${value}`);
+        refuse('output path escapes private workspace');
     }
     for (const [key, value] of Object.entries(s)) if (/(?:FOLDER_PATH|EXECUTABLE_PATH)$/.test(key) || ['INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME'].includes(key)) {
       if (!value) continue;
       if (!s.WRAPPER_NAME && ['PRIVATE_HEADERS_FOLDER_PATH', 'PUBLIC_HEADERS_FOLDER_PATH'].includes(key) && value === '/usr/local/include') continue;
       if (key === 'XPCSERVICES_FOLDER_PATH' && value === '/XPCServices' && !s.WRAPPER_NAME) continue;
       const base = key === 'DWARF_DSYM_FILE_NAME' ? s.DWARF_DSYM_FOLDER_PATH || s.TARGET_BUILD_DIR : s.TARGET_BUILD_DIR;
-      if (typeof value !== 'string' || value.includes('$') || !inside(canonical(absoluteFrom(value, base)), owned)) refuse(`${target}: output ${key} escapes private workspace: ${value}`);
+      if (typeof value !== 'string' || value.includes('$') || !inside(canonical(absoluteFrom(value, base)), owned)) refuse('output path escapes private workspace');
     }
-    if (s.FULL_PRODUCT_NAME && (s.FULL_PRODUCT_NAME !== path.basename(s.FULL_PRODUCT_NAME) || s.FULL_PRODUCT_NAME === '..')) refuse(`${target}: invalid FULL_PRODUCT_NAME`);
+    if (s.FULL_PRODUCT_NAME && (s.FULL_PRODUCT_NAME !== path.basename(s.FULL_PRODUCT_NAME) || s.FULL_PRODUCT_NAME === '..')) refuse('invalid FULL_PRODUCT_NAME');
   }
 }
 export function closureResolver(root, cache, systemRoots) {
@@ -96,22 +96,22 @@ export function closureResolver(root, cache, systemRoots) {
   const roots = [path.join(root, 'ios'), path.join(root, 'node_modules')];
   const systems = systemRoots.map(canonical), derived = path.join(cache, 'DerivedData');
   return (raw, base = path.join(root, 'ios')) => {
-    if (!raw || /[\0\n$]/.test(raw)) refuse(`unresolved native input: ${raw}`);
+    if (!raw || /[\0\n$]/.test(raw)) refuse('unresolved native input');
     const p = canonical(absoluteFrom(raw.replace(/\/\*\*$/, ''), base));
     if (systems.some(r => inside(p, r))) return { path: p, kind: 'toolchain' };
     if (inside(p, derived)) return { path: p, kind: 'generated' };
     if (roots.some(r => inside(p, r)) && !p.includes('/xcuserdata')
       && (!inside(p, path.join(root, 'ios/build')) || inside(p, path.join(root, 'ios/build/generated')))) return { path: p, kind: 'input' };
-    refuse(`native input outside covered roots: ${raw} -> ${p}`);
+    refuse('native input outside covered roots');
   };
 }
 function expand(value, settings) {
   let previous;
   for (let n = 0; n < 12 && previous !== value; n++) {
     previous = value;
-    value = value.replace(/\$\((\w+)\)|\$\{(\w+)\}|\$(\w+)/g, (_, a, b, c) => settings[a ?? b ?? c] ?? refuse(`unknown native variable ${a ?? b ?? c}`));
+    value = value.replace(/\$\((\w+)\)|\$\{(\w+)\}|\$(\w+)/g, (_, a, b, c) => settings[a ?? b ?? c] ?? refuse('unknown native variable'));
   }
-  if (value.includes('$')) refuse(`unresolved native setting ${value}`);
+  if (value.includes('$')) refuse('unresolved native setting');
   return value;
 }
 export function auditNativeProject(project, projectDir, rows, root, cache, systemRoots, appName) {
@@ -119,35 +119,35 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
   const resolve = closureResolver(root, cache, systemRoots), objects = project.objects;
   const parents = new Map(), sources = new Set(), products = new Set(), references = new Set(), phases = [];
   for (const [id, o] of Object.entries(objects)) for (const child of o.children ?? []) {
-    if (parents.has(child)) refuse(`ambiguous native group ${child}`); parents.set(child, id);
+    if (parents.has(child)) refuse('ambiguous native group'); parents.set(child, id);
   }
   const normalize = value => value.replaceAll(root, '${PROJECT}').replaceAll(appName, '${APP_NAME}');
   function check(raw, s, base = projectDir) {
     const item = resolve(expand(raw, s), base); references.add(item.path); return item.path;
   }
   function locate(id, s, seen = new Set()) {
-    if (seen.has(id) || !objects[id]) refuse(`unresolved native reference ${id}`); seen.add(id);
+    if (seen.has(id) || !objects[id]) refuse('unresolved native reference'); seen.add(id);
     const o = objects[id], tree = o.sourceTree ?? '<group>';
     let base;
     if (tree === '<group>') base = parents.has(id) ? locate(parents.get(id), s, seen) : projectDir;
     else if (tree === 'SOURCE_ROOT') base = projectDir;
     else if (tree === '<absolute>') base = '/';
     else if (s[tree]) base = s[tree];
-    else refuse(`unknown native sourceTree ${tree}`);
+    else refuse('unknown native sourceTree');
     return check(o.path ?? '.', s, base);
   }
   const checkedText = new Set();
   function textInputs(file, s, kind = '') {
     if (checkedText.has(file + s.TARGET_NAME + kind)) return;
     checkedText.add(file + s.TARGET_NAME + kind);
-    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) refuse(`missing native input ${file}`);
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) refuse('missing native input');
     const text = fs.readFileSync(file, 'utf8');
     if (kind === 'config') {
       // Strip comments before recognizing directives; no unparsed directive is ignored.
       const clean = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\\\r?\n/g, '');
       for (const line of clean.split('\n')) if (/^\s*#/.test(line)) {
         const match = line.match(/^\s*#\s*include\??\s+"([^"]+)"\s*(?:\/\/.*)?$/);
-        if (!match) refuse(`unknown xcconfig directive: ${file}: ${line}`);
+        if (!match) refuse('unknown xcconfig directive');
         textInputs(check(match[1], s, path.dirname(file)), s, 'config');
       }
     } else if (kind === 'list') {
@@ -163,7 +163,7 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
       const t = raw[i];
       if (t === '-Xcc' || t === '-Xfrontend') {
         const next = raw[++i];
-        if (!next || next === '-Xcc' || next === '-Xfrontend') refuse(`${s.TARGET_NAME}: malformed forwarded flag ${value}`);
+        if (!next || next === '-Xcc' || next === '-Xfrontend') refuse('malformed forwarded flag');
         streams[t].push(next);
       } else streams.direct.push(t);
     }
@@ -176,11 +176,11 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
         '-index-store-path', '-module-cache-path', '-MF', '-MJ'].includes(output)) {
         const dest = t.includes('=') ? t.slice(t.indexOf('=') + 1) : tokens[++i];
         if (!dest || !path.isAbsolute(dest) || !inside(canonical(dest), canonical(cache)))
-          refuse(`${s.TARGET_NAME}: output flag ${output} escapes private workspace: ${dest ?? '(missing destination)'}`);
+          refuse('output flag destination escapes private workspace');
         continue;
       }
-      if (t === '-x') { if (!['objective-c', 'objective-c++', 'c', 'c++'].includes(tokens[++i])) refuse(`unsupported source language ${value}`); continue; }
-      if (t === '-D') { if (!/^[A-Z_][A-Z_0-9]*$/.test(tokens[++i] ?? '')) refuse(`unsupported native flag ${value}`); continue; }
+      if (t === '-x') { if (!['objective-c', 'objective-c++', 'c', 'c++'].includes(tokens[++i])) refuse('unsupported source language'); continue; }
+      if (t === '-D') { if (!/^[A-Z_][A-Z_0-9]*$/.test(tokens[++i] ?? '')) refuse('unsupported native flag'); continue; }
       if (['-ivfsoverlay', '-include', '-imacros', '-I', '-F', '-L', '-isystem', '-iquote', '-iframework'].includes(t)) {
         const file = check(tokens[++i], s);
         if (t === '-ivfsoverlay') {
@@ -188,7 +188,7 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
           for (const line of text.split('\n').filter(x => x.trim())) {
             const m = line.match(/^\s*(?:- )?(name|type|external-contents): '([^'\\]*)'\s*$/);
             if (m) { if (m[1] === 'external-contents' || (m[1] === 'name' && path.isAbsolute(m[2]))) check(m[2], s, path.dirname(file)); }
-            else if (!/^\s*(?:version: 0|case-sensitive: false|roots:|contents:)\s*$/.test(line)) refuse(`unsupported VFS overlay ${file}: ${line}`);
+            else if (!/^\s*(?:version: 0|case-sensitive: false|roots:|contents:)\s*$/.test(line)) refuse('unsupported VFS overlay');
           }
         }
         continue;
@@ -197,26 +197,26 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
       if (/^-[IFL].+/.test(t)) { check(t.slice(2), s); continue; }
       if (t === '-load-plugin-executable') {
         const plugin = check(tokens[++i].split('#')[0], s);
-        if (plugin !== path.join(root, 'node_modules/@expo/expo-modules-macros-plugin/apple/ExpoModulesMacros-tool')) refuse(`unsupported compiler plugin ${plugin}`);
+        if (plugin !== path.join(root, 'node_modules/@expo/expo-modules-macros-plugin/apple/ExpoModulesMacros-tool')) refuse('unsupported compiler plugin');
         continue;
       }
-      if (['-framework', '-weak_framework'].includes(t)) { if (!/^[\w+.-]+$/.test(tokens[++i] ?? '')) refuse(`unsupported framework ${value}`); continue; }
+      if (['-framework', '-weak_framework'].includes(t)) { if (!/^[\w+.-]+$/.test(tokens[++i] ?? '')) refuse('unsupported framework'); continue; }
       if (/^-D[A-Z_][\w]*(?:=[^/\\]*)?$/.test(t) || /^-W[\w,=+-]+$/.test(t) || /^-l[\w+.-]+$/.test(t)
         || ['-std=c++20', '-ObjC', '-import-underlying-module', '-fcxx-modules', '-fmodules', '-fno-objc-arc', '-fobjc-arc', '-fno-common', '-fno-exceptions'].includes(t)) continue;
-      refuse(`unsupported native flag ${t}`);
+      refuse('unsupported native flag');
     }
   }
   for (const [id, object] of Object.entries(objects)) {
-    if (object.projectDirPath || object.projectRoot || object.isa?.includes('SwiftPackage') || ['PBXBuildRule', 'PBXReferenceProxy'].includes(object.isa) || object.isa?.startsWith('PBXFileSystemSynchronized')) refuse(`unsupported native graph object ${id}`);
+    if (object.projectDirPath || object.projectRoot || object.isa?.includes('SwiftPackage') || ['PBXBuildRule', 'PBXReferenceProxy'].includes(object.isa) || object.isa?.startsWith('PBXFileSystemSynchronized')) refuse('unsupported native graph object');
   }
   for (const row of rows) {
     const s = { ...row.buildSettings, inherited: '', TARGET_NAME: row.target };
     for (const [key, value] of Object.entries(s)) {
       if (key === 'HERMES_CLI_PATH' && value && canonical(value) !== canonical(path.join(root, 'node_modules/hermes-compiler/hermesc/osx-bin/hermesc')))
-        refuse(`${row.target}: unsupported HERMES_CLI_PATH: ${value}`);
+        refuse('unsupported HERMES_CLI_PATH');
       if (['CC', 'CXX', 'LD', 'LDPLUSPLUS', 'SWIFT_EXEC', 'SDKROOT'].includes(key) && value
         && !['clang', 'clang++', 'ld', 'swiftc'].includes(value)) {
-        if (resolve(value).kind !== 'toolchain') refuse(`unsupported native tool ${key}: ${value}`);
+        if (resolve(value).kind !== 'toolchain') refuse('unsupported native tool');
       }
       if (/(?:SEARCH_PATHS|INCLUDE_PATHS|BRIDGING_HEADER|PREFIX_HEADER|MODULEMAP_FILE|INFOPLIST_FILE|ENTITLEMENTS)$/.test(key) && value) {
         if (key === 'LD_RUNPATH_SEARCH_PATHS') continue; // Runtime lookup, never an input to this build.
@@ -229,7 +229,7 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
     }
     // Inspect every target's phases and inherited configuration files, including Pods.
     const targets = Object.values(objects).filter(o => ['PBXNativeTarget', 'PBXAggregateTarget'].includes(o.isa) && o.name === row.target);
-    if (targets.length !== 1) refuse(`missing native target graph ${row.target}`);
+    if (targets.length !== 1) refuse('missing native target graph');
     const target = targets[0];
     for (const owner of [target, objects[project.rootObject]]) {
       const list = objects[owner?.buildConfigurationList];
@@ -240,24 +240,24 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
     }
     let hasSources = false;
     for (const id of target.buildPhases ?? []) {
-      const phase = objects[id]; if (!phase) refuse(`missing phase ${id}`);
+      const phase = objects[id]; if (!phase) refuse('missing phase');
       if (phase.isa === 'PBXShellScriptBuildPhase') {
         const digest = hash(normalize(phase.shellScript));
-        if (!['/bin/sh', '/bin/bash'].includes(phase.shellPath) || !phaseHashes.has(digest)) refuse(`unsupported native script ${row.target}: ${phase.name ?? id}`);
+        if (!['/bin/sh', '/bin/bash'].includes(phase.shellPath) || !phaseHashes.has(digest)) refuse('unsupported native script');
         phases.push({ target: row.target, name: phase.name, sha256: digest });
       // Copy phases have a separate destination-base selector (including an
       // absolute destination with empty dstPath). None are qualified here.
-      } else if (!['PBXSourcesBuildPhase', 'PBXResourcesBuildPhase', 'PBXFrameworksBuildPhase', 'PBXHeadersBuildPhase'].includes(phase.isa)) refuse(`unknown native phase ${phase.isa}`);
+      } else if (!['PBXSourcesBuildPhase', 'PBXResourcesBuildPhase', 'PBXFrameworksBuildPhase', 'PBXHeadersBuildPhase'].includes(phase.isa)) refuse('unknown native phase');
       for (const ref of phase.inputPaths ?? []) check(ref, s);
       for (const ref of phase.inputFileListPaths ?? []) textInputs(check(ref, s), s, 'list');
       for (const ref of phase.outputPaths ?? []) {
-        const p = check(ref, s); if (!inside(p, canonical(cache))) refuse(`script output outside private workspace: ${p}`);
+        const p = check(ref, s); if (!inside(p, canonical(cache))) refuse('script output outside private workspace');
       }
       for (const ref of phase.outputFileListPaths ?? []) textInputs(check(ref, s), s, 'list');
       for (const id of phase.files ?? []) {
         const bf = objects[id], file = locate(bf.fileRef, s);
         if (phase.isa === 'PBXSourcesBuildPhase') {
-          if (!/\.(?:c|cc|cpp|cxx|m|mm|swift)$/.test(file)) refuse(`unsupported compilation input ${file}`);
+          if (!/\.(?:c|cc|cpp|cxx|m|mm|swift)$/.test(file)) refuse('unsupported compilation input');
           sources.add(file); hasSources = true;
         }
         if (phase.isa === 'PBXResourcesBuildPhase' && file.endsWith('.xcassets')) {
@@ -273,7 +273,7 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
       }
     }
     if (hasSources) {
-      if (!s.EXECUTABLE_PATH) refuse(`missing linked product ${row.target}`);
+      if (!s.EXECUTABLE_PATH) refuse('missing linked product');
       products.add(check(s.EXECUTABLE_PATH, s, s.TARGET_BUILD_DIR));
     }
   }
@@ -283,7 +283,7 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
     if (entry.isDirectory()) walk(file);
     else if (entry.name.endsWith('.sh')) {
       const digest = hash(normalize(fs.readFileSync(file, 'utf8')));
-      if (!supportHashes.has(digest)) refuse(`unsupported native script implementation ${file}`);
+      if (!supportHashes.has(digest)) refuse('unsupported native script implementation');
     }
   } };
   const support = path.join(root, 'ios/Pods/Target Support Files'); if (fs.existsSync(support)) walk(support);
@@ -319,7 +319,7 @@ export function compilerClosure(root, cache, systemRoots, sources, products = []
       const bytes = fs.readFileSync(file); records.push({ path: path.relative(cache, file), sha256: hash(bytes), kind: 'linker' });
       for (let offset = 0; offset < bytes.length;) {
         const tag = bytes[offset], end = bytes.indexOf(0, offset + 1);
-        if (end < 0 || ![0, 0x10, 0x11, 0x40].includes(tag)) refuse(`unknown linker dependency format ${file}`);
+        if (end < 0 || ![0, 0x10, 0x11, 0x40].includes(tag)) refuse('unknown linker dependency format');
         const name = bytes.subarray(offset + 1, end).toString('utf8'); offset = end + 1;
         if (tag === 0) continue;
         const item = resolve(name);
@@ -328,20 +328,20 @@ export function compilerClosure(root, cache, systemRoots, sources, products = []
           if (!inputs.has(item.path)) inputs.set(item.path, { ...item, missing: true });
         } else {
           if (!fs.existsSync(item.path) && item.kind === 'toolchain' && /^(?:\/System\/Library\/|\/usr\/lib\/)/.test(name)) { sdkNames.add(name); continue; }
-          if (!fs.existsSync(item.path) || !fs.statSync(item.path).isFile()) refuse(`missing linker input ${name}`);
+          if (!fs.existsSync(item.path) || !fs.statSync(item.path).isFile()) refuse('missing linker input');
           inputs.set(item.path, { ...item, sha256: hash(fs.readFileSync(item.path)) });
         }
       }
     }
     else if (entry.name.endsWith('.d')) {
       const text = fs.readFileSync(file, 'utf8'), deps = dependencies(text);
-      if (!deps.length) refuse(`empty compiler dependencies ${file}`);
+      if (!deps.length) refuse('empty compiler dependencies');
       records.push({ path: path.relative(cache, file), sha256: hash(text) });
       for (const dep of deps) {
-        if (!path.isAbsolute(dep)) refuse(`relative compiler dependency ${file}: ${dep}`);
+        if (!path.isAbsolute(dep)) refuse('relative compiler dependency');
         const item = resolve(dep); seen.add(item.path);
         if (!inputs.has(item.path)) {
-          if (!fs.existsSync(item.path) || !fs.statSync(item.path).isFile()) refuse(`missing compiler input ${dep}`);
+          if (!fs.existsSync(item.path) || !fs.statSync(item.path).isFile()) refuse('missing compiler input');
           inputs.set(item.path, { ...item, sha256: hash(fs.readFileSync(item.path)) });
         }
       }
@@ -353,11 +353,11 @@ export function compilerClosure(root, cache, systemRoots, sources, products = []
     for (const m of fs.readFileSync(input.path, 'utf8').matchAll(/^install-name:\s*'?([^'\r\n]+)'?\s*$/gm)) definitions.set(m[1].trim(), input.path);
   }
   const sdkInstallNames = [...sdkNames].sort().map(name => {
-    if (!definitions.has(name)) refuse(`missing SDK definition for linker install-name ${name}`);
+    if (!definitions.has(name)) refuse('missing SDK definition for linker install-name');
     return { name, definition: definitions.get(name) };
   });
-  for (const source of sources) if (!seen.has(canonical(source))) refuse(`missing compiler dependency coverage for ${source}`);
-  for (const product of products) if (!linked.has(canonical(product))) refuse(`missing linker dependency coverage for ${product}`);
+  for (const source of sources) if (!seen.has(canonical(source))) refuse('missing compiler dependency coverage');
+  for (const product of products) if (!linked.has(canonical(product))) refuse('missing linker dependency coverage');
   if (!records.length) refuse('missing compiler dependency records');
   return { format: 1, sources, products, sdkInstallNames, records: records.sort((a, b) => a.path.localeCompare(b.path)), inputs: [...inputs.values()].sort((a, b) => a.path.localeCompare(b.path)) };
 }

@@ -1,0 +1,112 @@
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-bn/snapback4/vendor/tiny_http)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4-lang)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.9 (/home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 9.96s
+     Running unittests src/main.rs (target/debug/deps/snapback4-0fe3ac5ead9516c5)
+
+running 1 test
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... FAILED
+
+failures:
+
+---- verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics stdout ----
+
+thread 'verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics' (1481858) panicked at crates/snapback4/src/verbs/witness.rs:550:9:
+timeout:
+running 1 test
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... FAILED
+
+failures:
+
+failures:
+    verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.05s
+
+
+thread 'verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics' (1481881) panicked at crates/snapback4/src/verbs/witness.rs:520:13:
+timeout: E_WITNESS_APP: --bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+interrupted:
+running 1 test
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... FAILED
+
+failures:
+
+failures:
+    verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.05s
+
+
+thread 'verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics' (1481897) panicked at crates/snapback4/src/verbs/witness.rs:520:13:
+interrupted: E_WITNESS_APP: --bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+unavailable:
+running 1 test
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... FAILED
+
+failures:
+
+failures:
+    verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.10s
+
+
+thread 'verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics' (1481911) panicked at crates/snapback4/src/verbs/witness.rs:520:13:
+unavailable: E_WITNESS_APP: --bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+missing:
+running 1 test
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... FAILED
+
+failures:
+
+failures:
+    verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.10s
+
+
+thread 'verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics' (1481921) panicked at crates/snapback4/src/verbs/witness.rs:520:13:
+missing: E_WITNESS_APP: --bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+spawn:
+running 1 test
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... FAILED
+
+failures:
+
+failures:
+    verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.00s
+
+
+thread 'verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics' (1481931) panicked at crates/snapback4/src/verbs/witness.rs:520:13:
+spawn: E_WITNESS_APP: --bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

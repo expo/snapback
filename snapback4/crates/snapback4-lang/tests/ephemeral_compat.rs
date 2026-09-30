@@ -25,23 +25,43 @@ fn durable_schema_and_types_keep_base_bytes() {
     // with the round-0 compiler at e1d84ebe7, before merging ephemeral tables.
     let p1: BTreeMap<String, (String, String)> = serde_json::from_str(include_str!("fixtures/ephemeral-compat-p1.json")).unwrap();
     for (name, bytes) in p1 { assert!(expected.insert(name, bytes).is_none()); }
-    // LLP 3000.007 §23 repairs human advice, not schema/runtime semantics.
-    // Pin the exact old and new strings; retain all other historical bytes.
+    // QX extends prediction to read-through upserts (LLP 3000.007 §20.5).
+    // Preserve every frozen byte except the removed blanket server site and
+    // its operation verdict; the byId insert limitation remains unchanged.
     let record = &mut expected.get_mut("read-through-device.q").unwrap().0;
-    let old_reason = "upsert on a read-through child queues without a row";
-    let new_reason = format!("{old_reason}; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits");
-    let old_rewrite = "use a plain insert with a new id when prediction is needed";
-    let new_rewrite = "";
-    for (old, new) in [(old_reason, new_reason.as_str()), (old_rewrite, new_rewrite)] {
-        let old = serde_json::to_string(old).unwrap();
-        assert_eq!(record.matches(&old).count(), 1);
-        *record = record.replace(&old, &serde_json::to_string(new).unwrap());
-    }
+    let mut schema: serde_json::Value = serde_json::from_str(record).unwrap();
+    let put = &mut schema["operations"]["put"];
+    assert_eq!(put["predicts"], "never");
+    let sites = put["sites"].as_array_mut().unwrap();
+    let at = sites.iter().position(|s| s["kind"] == "upsert" && s["class"] == "server").unwrap();
+    assert_eq!(sites[at]["reason"], "upsert on a read-through child queues without a row");
+    sites.remove(at);
+    put["predicts"] = serde_json::json!("eligible");
+    // Schema structs retain their established serialization order.
+    *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap();
+    let types = &mut expected.get_mut("read-through-device.q").unwrap().1;
+    for (old, new) in [
+        ("Result: Rows[\"comments\"] | null. predicts: never.", "Result: Rows[\"comments\"] | null. predicts: eligible."),
+        ("name: \"put\", predicts: \"never\"", "name: \"put\", predicts: \"eligible\"")
+    ] { assert_eq!(types.matches(old).count(), 1); *types = types.replace(old, new); }
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
-        assert_eq!(schema, expected[&name].0, "schema bytes: {name}");
+        assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");
         assert_eq!(strip_row_keys(&types), expected[&name].1, "TypeScript bytes: {name}");
     }
+}
+
+// QX round 1 appends per-constraint update explanations to existing upsert
+// insert sites. Only that appended prose is new; the CLI snapshots bind it.
+fn strip_update_explanations(text: &str) -> String {
+    let mut schema: snapback4_core::Schema = serde_json::from_str(text).unwrap();
+    for op in schema.operations.values_mut() {
+        for site in &mut op.sites {
+            if matches!(site.kind.as_str(), "upsert insert" | "upsert insert blocked")
+                && let Some(at) = site.reason.find("; held updates — ") { site.reason.truncate(at); }
+        }
+    }
+    serde_json::to_string(&schema).unwrap()
 }
 
 /// LLP 3000.028 §3.3 (lane OS) adds `rowKey` to generated query entries in `api`,

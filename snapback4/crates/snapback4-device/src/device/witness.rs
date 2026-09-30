@@ -2,7 +2,7 @@
 use super::*;
 
 impl<S: DeviceStore> Device<S> {
-    // @ref LLP 3000.030#13 — compare actual group counts and persisted coverage before reconnect.
+    // @ref LLP 3000.030#14 — compare actual group counts and persisted coverage before reconnect.
     pub(crate) fn witness_coverage(&mut self, viewer: &str) -> Result<serde_json::Value, RuntimeError> {
         let tx = self.store.read_transaction()?;
         let history = history::load(&tx, history::GROUPS)?;

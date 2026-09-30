@@ -1,0 +1,8 @@
+{
+  "round1Sha256": "db5f69fa8eb9b85477317ec31ceda6ff3f301b31ed7ec64370f52cf0733bd3f8",
+  "candidateSha256": "9c596b17442a4b7c447a3a7847a2001c686fbc33e72c85ecbe8c361afd82c23b",
+  "testBinary": "target/debug/deps/witness-36ce455ec1c0dbb8",
+  "testSha256": "7e789d5aeeaf4e706a488bdc9cc670b58f7fd7a64191408a4dcfdd31d4461737",
+  "exit": 101,
+  "restoredSha256": "9c596b17442a4b7c447a3a7847a2001c686fbc33e72c85ecbe8c361afd82c23b"
+}

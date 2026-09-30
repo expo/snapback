@@ -202,7 +202,7 @@ impl Binder<'_> {
 
     pub(super) fn name(&mut self, name: &str, site: &Site) -> Fallible<(Expr, Ty)> {
         match name {
-            "viewer" => Ok((Expr::Input(Input::Viewer), Ty::Principal)),
+            "viewer" | "$input:viewer" => Ok((Expr::Input(Input::Viewer), Ty::Principal)),
             "now" | "commit" => {
                 if self.kind == ProgramKind::Query && name == "commit" {
                     return Err(unknown(site, "commit is the mutation commit clock; queries read now", "now"));
@@ -482,9 +482,12 @@ impl Binder<'_> {
     }
 
     pub(super) fn call(&mut self, name: &str, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        if let Some(function) = self.catalog.functions.get(name).cloned() {
+        // Compiler-only references bypass the function catalog entirely.
+        let primitive = name.strip_prefix("$builtin:");
+        if primitive.is_none() && let Some(function) = self.catalog.functions.get(name).cloned() {
             return self.fn_call(&function, args, site, out);
         }
+        let name = primitive.unwrap_or(name);
         let arity = |n: usize, rewrite: &str| -> Fallible<()> {
             if args.len() != n {
                 return Err(type_error(site, format!("{name} takes {n} argument{}; received {}", if n == 1 { "" } else { "s" }, args.len()), rewrite));

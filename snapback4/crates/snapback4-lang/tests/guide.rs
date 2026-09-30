@@ -803,7 +803,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 9, "paved introduction, familiar forms, five preserved language blocks, field-authority and ephemeral declarations");
+    assert_eq!(quarry(LANGUAGE).len(), 10, "paved introduction, familiar forms, five preserved language blocks, field-authority, ephemeral declarations and membership paths");
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an

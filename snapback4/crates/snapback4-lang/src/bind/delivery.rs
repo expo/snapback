@@ -140,7 +140,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec
                 position: clause.position.clone(),
                 mutation: operation_name(&module, &decl.name),
                 args: decl.args.iter().map(|arg| arg.name.clone()).collect(),
-                fingerprint: String::new(),
+                fingerprint: String::new(), compact: None, semantics: None,
             };
             binding.fingerprint = binding.compute_fingerprint();
             schema.delivery.push(binding);

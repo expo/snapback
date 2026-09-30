@@ -1,0 +1,1 @@
+{"ok":false,"problems":[{"code":"E_QUARRY_SYNTAX","guide":"language","mechanical":false,"message":"expected \"]\", got \".\"","rewrite":"separate keys or list items with commas and close the brackets with ]","site":{"col":27,"file":"schema.q","line":366}}]}

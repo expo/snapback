@@ -1,0 +1,75 @@
+✔ socket reset: reused=false, reset again=false (24.902271ms)
+✔ socket reset: reused=false, reset again=true (3.764464ms)
+✖ socket reset: reused=true, reset again=false (29.842267ms)
+✖ socket reset: reused=true, reset again=true (25.383593ms)
+✔ no retry after response bytes: partial header (57.655832ms)
+✔ no retry after response bytes: body (56.523835ms)
+✔ no ambiguous replay for /auth/refresh (209.90464ms)
+✔ no ambiguous replay for /assets (105.321629ms)
+✔ no ambiguous replay for /assets/once (500.045123ms)
+✔ no ambiguous replay for /a/work (393.041513ms)
+✔ no ambiguous replay for /m/ephemeral (106.675298ms)
+✔ no ambiguous replay for /m/add (502.678671ms)
+✔ a delivered overload is returned without socket retries (391.781644ms)
+✖ a reset retry preserves one real durable mutation and its write ID (224.654221ms)
+✔ the private agent retires idle sockets within the one-second budget (1008.448775ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 12
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5260.971628
+
+✖ failing tests:
+
+test at packages/snapback4/test/keepalive-retry.test.mjs:32:3
+✖ socket reset: reused=true, reset again=false (29.842267ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/test/keepalive-retry.test.mjs:41:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keepalive-retry.test.mjs:32:3
+✖ socket reset: reused=true, reset again=true (25.383593ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/test/keepalive-retry.test.mjs:41:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keepalive-retry.test.mjs:81:1
+✖ a reset retry preserves one real durable mutation and its write ID (224.654221ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:16416:13
+      at async defaultFetch (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/dist/node-fetch.js:64:16)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/test/keepalive-retry.test.mjs:100:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    [cause]: Error: read ECONNRESET
+        at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+      errno: -104,
+      code: 'ECONNRESET',
+      syscall: 'read'
+    }
+  }

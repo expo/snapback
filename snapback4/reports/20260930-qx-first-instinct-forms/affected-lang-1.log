@@ -1,0 +1,152 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 2.93s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-b80b840c34c08330)
+
+running 9 tests
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test count_alias_orders_aggregate_rows_before_index_planning ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+test count_alias_predicates_and_keys_keep_real_group_column_precedence ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests/read_through.rs (target/debug/deps/read_through-2bf48f836a6f1589)
+
+running 10 tests
+test form_refusals ... ok
+test issue_tracker_sqlite_and_memory ... ok
+test capture_authority_expiry_and_delete ... ok
+test parent_missing_hidden_and_upsert_target_refusals_have_equal_meters ... ok
+test keyed_counts_and_private_inherited_path ... ok
+test recursive_expiry_sqlite_and_memory ... ok
+test clique_sqlite_and_memory ... ok
+test adoption_checks_old_correspondence_before_projection ... ok
+test four_level_chains_sqlite_and_memory ... ok
+test inherited_aggregate_cost_depends_on_backlog_not_live_population ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-c1a47ce18f0fddd4)
+
+running 35 tests
+test a_non_expiring_aggregate_needs_no_recount_cap ... ok
+test stored_total_page_authorization_is_refused ... ok
+test explicit_parent_key_aggregate_scans_are_refused ... ok
+test signed_sum_overflow_before_authorization_is_refused ... ok
+test expiring_aggregate_authorization_is_key_determined ... ok
+test ordinary_expiring_page_recounts ... ok
+test predicate_kept_row_expiry ... ok
+test unreturned_candidates_discard_expiry ... ok
+test aggregate_multi_batch ... ok
+test expiry_default ... ok
+test predicate_id_expiry ... ok
+test partial_page_keeps_emitted_expiry ... ok
+test predicate_private_authorization_expiry ... ok
+test streaming_count_expiry ... ok
+test predicate_index_expiry ... ok
+test authorized_expiring_sum_overflow ... ok
+test authorized_expired_backlog_stays_metered ... ok
+test aggregate_authorized_shortcut_cut ... ok
+test aggregate_page_cut_expiry ... ok
+test aggregate_live_recount_cut_expiry ... ok
+test aggregate_actual_row ... ok
+test predicate_cut_discards_expiry ... ok
+test delete_refusal ... ok
+test aggregate_existence ... ok
+test reuse_refusal ... ok
+test admitted_aggregate_emission_expiry ... ok
+test aggregate_inherited_only_dependencies ... ok
+test predicate_point_expiry ... ok
+test probe_meter_equivalence ... ok
+test aggregate_denial_dependencies ... ok
+test aggregate_sequential_reads ... ok
+test aggregate_tables_constant ... ok
+test uniform_prefix_emission_expiry ... ok
+test aggregate_denied_gate_expiry ... ok
+test aggregate_denial_work ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.06s
+
+     Running tests/read_through_sync.rs (target/debug/deps/read_through_sync-f0ca4e8d8f8f1b9f)
+
+running 5 tests
+test exact_audiences_and_service_strip ... ok
+test narrower_rules_remain_server_read_and_mismatched_declarations_refuse ... ok
+test delivered_history_reserves_its_marker_without_changing_ordinary_fields ... ok
+test capture_alias_inherits_exact_sync_without_aggregate_read_rule ... ok
+test grant_guard_stays_required_through_every_level ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/read_through_transactions.rs (target/debug/deps/read_through_transactions-654fc414c7af2526)
+
+running 14 tests
+test memory_seed_sweep_and_reuse_use_the_same_lifetime_rules ... ok
+test extra_rule_default_cycle_and_uncovered_aggregate_refusals ... ok
+test memory_activation_and_restore_share_the_capture_barrier ... ok
+test immutable_capture_payloads_and_import_parent_replacement_are_atomic ... ok
+test expired_unswept_child_delete_conflict_is_fail_closed ... ok
+test physical_children_block_reuse_until_child_first_sweep ... ok
+test three_level_deadline_crosses_middle_without_authored_expiry ... ok
+test adoption_disagreement_and_missing_parent_publish_nothing ... ok
+test restore_recomputes_stale_instant_and_refuses_different_captures ... ok
+test activation_recomputes_a_changed_leaf_expiry_without_recapturing ... ok
+test activation_retires_under_old_schema_and_reports_shortening ... ok
+test cursors_and_dependencies_contain_no_captured_audience ... ok
+test memory_refusal_meters_match_hidden_and_absent_worlds ... ok
+test refusal_worlds_and_reservation_ceilings_match_for_every_insert_arm ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+
+     Running tests/residency_notes.rs (target/debug/deps/residency_notes-e85e11289556b77b)
+
+running 41 tests
+test calibration_capped_members_page_needs_no_cursor_note ... ok
+test a_reused_loop_binding_locates_the_failing_loop ... ok
+test calibration_merge_of_capped_groups_still_needs_a_cursor ... ok
+test core_fanout_refusal_does_not_repeat_code_or_message ... ok
+test ephemeral_prediction_notes_never_teach_pending_writes ... ok
+test fanout_read_and_small_page_name_the_source_and_a_passing_rewrite ... ok
+test calibration_presence_refusal_names_source_read_without_internal_paths ... ok
+test horizon_change_notes_keep_distinct_indexes_and_deduplicate_sites ... ok
+test feed_removal_fanout_names_the_private_deciding_column_and_loop ... ok
+test insert_arm_clique_output_names_the_first_failed_proof_everywhere ... ok
+test insert_arm_nullable_unique_image_distinguishes_null_from_a_known_lookup ... ok
+test insert_arm_if_absent_is_reported_and_covered_control_stays_eligible ... ok
+test maintain_note_names_readers_before_they_lose_prediction ... ok
+test w10r1_no_horizon_card_matches_reader_suppression ... ok
+test horizon_calibration_advice_preserves_prediction_and_groups_sites ... ok
+test maintain_sync_explains_inheritance_and_both_valid_choices ... ok
+test horizon_guard_remains_eligible_and_effect_only_presence_can_assert ... ok
+test w10r1_no_horizon_advice_is_suppressed_by_an_eligible_whole_partition_reader ... ok
+test w6r1_ordinary_mutation_page_keeps_growing_table_advice ... ok
+test w16h_horizon_advice_does_not_depend_on_index_name_order ... ok
+test w6r1_final_exists_live_aggregate_also_keeps_source_coverage ... ok
+test w6r1_rule_live_aggregate_keeps_source_coverage_and_summary ... ok
+test w6r1_horizon_guard_distinguishes_row_invariants_from_write_retries ... ok
+test insert_arm_rule_and_cap_causes_have_applicable_guidance ... ok
+test w9r1b_after_insert_sites_keep_each_constraint_declaration ... ok
+test predicts_assertion_accepts_eligible_and_refuses_server_at_header ... ok
+test predicts_assertion_refuses_online_writes_and_explicit_server_but_keeps_horizons ... ok
+test w6r2_ascending_page_advice_preserves_prediction ... ok
+test w9r1b_insert_if_absent_rule_points_to_insert_declaration ... ok
+test w6r2_descending_page_keeps_horizon_rewrite ... ok
+test w6r2_different_index_page_advice_preserves_prediction ... ok
+test w7d_wide_membership_search_points_to_the_complete_walk ... ok
+test never_predict_change_notes_group_distinct_roots_once_per_mutation ... ok
+test w9b_residency_sites_name_sources_for_rules_writes_presence_and_native ... ok
+test horizon_calibration_summary_and_heading_persist ... ok
+test fanout_rewrite_lists_all_unpinned_rule_columns ... ok
+test accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite ... ok
+test wide_matching_merge_note_is_conditional_when_the_read_completes ... ok
+test pinning_a_private_reader_admits_the_page_without_granting_authority ... ok
+test no_cursor_advises_continuation_and_the_capped_control_is_silent ... ok
+test capped_page_cursor_note_respects_default_examined_ceiling ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.62s
+

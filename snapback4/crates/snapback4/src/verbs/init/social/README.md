@@ -21,6 +21,16 @@ is at least once: provider idempotency covers a crash after the call but before
 the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
 contains the complete provider example. There is no separate worker launcher.
 
+At every milestone, run `npm run export:ios` for the Hermes export;
+on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
+The smoke builds and installs the Release app, chooses its own simulator and free
+port, and writes `artifacts/native-smoke/<timestamp>`. It proves local store
+acquisition, cold offline reopen and reconnect. The starter uses normal guest
+sign-in during smoke if no account is restored. An empty partition proves only
+lifecycle; pending write replay and application assertions need the deeper
+scenario in `snapback4 guide witness`. Xcode/runtime installation is a prerequisite;
+the first build takes longer. Hermes export alone proves no native execution.
+
 Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
 uses the wasm replica; a development/production native build uses
 `snapback4-expo`. Expo Go uses the online tier and has no retained history

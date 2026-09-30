@@ -1,0 +1,16 @@
+(node:1555684) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1405.889246ms)
+ℹ {"fault":"more-then-drop","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":9.377,"totalMs":9.804,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":5.658,"totalMs":5.945,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":6.498,"totalMs":7.187,"outcome":"validated","snapshot":false,"more":true,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":4.638,"outcome":"failed","error":"transport failure before headers"}]}
+✔ reconnect proof rejects dropped-first and records every attempted request (1368.857492ms)
+ℹ {"fault":"dropped-first","observed":3,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":8.318,"totalMs":8.942,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":6.471,"totalMs":7.071,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.252,"outcome":"failed","error":"transport failure before headers"}]}
+✔ reconnect proof rejects drop-once and records every attempted request (1765.131815ms)
+ℹ {"fault":"drop-once","observed":3,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":9.479,"totalMs":10.323,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":4.642,"totalMs":5.247,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":4.554,"outcome":"failed","error":"transport failure before headers"}]}
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4661.092749

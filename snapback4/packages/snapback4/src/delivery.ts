@@ -30,7 +30,7 @@ interface Options {
   now?: () => number;
   jitter?: () => number;
 }
-interface Flight { key: string; incarnation: number; epoch: number; attempt: Attempt; controller: AbortController; done: Promise<void> }
+interface Flight { binding: import("./delivery-state.ts").DeliveryBinding; group: string; key: string; incarnation: number; epoch: number; attempt: Attempt; controller: AbortController; done: Promise<void> }
 
 // @ref LLP 3000.019#4 — delivery belongs to the SDK, independent of mounted screens.
 // @ref LLP 3000.022#4 — receipt success is coverage; uncertain retries retain their persisted id.
@@ -192,6 +192,19 @@ export class DeliveryQueue {
       } catch { /* uncertain */ }
       if (!this.current(f)) return;
       if (reply?.deferred) { deferred = true; return; }
+      let compacted = false;
+      if (reply?.accepted && Number.isSafeInteger(reply.json?.head) && Number(reply.json?.head) >= 0 && ((reply.json?.why ?? reply.json?.denied) as Refusal | undefined)?.code === "RUNS_FULL" && f.binding.compact) {
+        try {
+          const maintenance = await Promise.race([this.options.send(f.binding.compact, {
+            id: this.options.mint(), delivery: body.delivery,
+            args: { [f.binding.args[0]]: f.group },
+          }, f.controller.signal), timeout]);
+          if (!this.current(f)) return;
+          compacted = maintenance?.accepted === true && maintenance.json?.state === "sent"
+            && Number.isSafeInteger(maintenance.json?.head) && Number(maintenance.json?.head) >= 0
+            && maintenance.json?.result === true;
+        } catch { /* Partial maintenance is idempotent; the report stays owed. */ }
+      }
       const json = reply?.json;
       const why = (json?.why ?? json?.denied) as Refusal | undefined;
       const denied = json?.denied as Refusal | undefined;
@@ -229,7 +242,10 @@ export class DeliveryQueue {
         else if (why?.code === "E_DELIVERY_BINDING") { dropBinding(state, group.binding); }
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
-        } else if (why?.code === "RUNS_FULL") park("full");
+        } else if (why?.code === "RUNS_FULL") {
+          if (compacted) { delete group.attempt; group.wake = true; }
+          else park("full");
+        }
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {
           const recent = attempt.recent ?? group.recent;
           if (!this.options.local && recent.length) {

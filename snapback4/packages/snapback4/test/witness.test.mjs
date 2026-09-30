@@ -103,3 +103,44 @@ test('only empty launcher/update manifests permit prepared startup', async () =>
   for (const value of [null, undefined, '', '{}', {}]) assert.equal(manifestPresent(value), false);
   for (const value of ['broken-json', '{"bundleUrl":"http://localhost"}', { metadata: {} }, 'null', 'true']) assert.equal(manifestPresent(value), true);
 });
+
+test('starter scene plugin migrates the installed Expo template, keeps its providers and refuses custom lifecycle', async () => {
+  const { createRequire } = await import('node:module');
+  const { spawnSync } = await import('node:child_process');
+  const vm = await import('node:vm');
+  const req = createRequire(import.meta.url);
+  const template = spawnSync('tar', ['xOf', join(req.resolve('expo/package.json'), '..', 'template.tgz'), 'package/ios/HelloWorld/AppDelegate.swift'], { encoding: 'utf8' });
+  assert.equal(template.status, 0, template.stderr);
+  let appMod, infoMod;
+  const module = { exports: {} };
+  vm.runInNewContext(readFileSync(new URL('../../snapback4-expo/plugin.cjs', import.meta.url), 'utf8'), { module, require: () => ({
+    withAppDelegate: (c, fn) => { appMod = fn; return c; }, withInfoPlist: (c, fn) => { infoMod = fn; return c; },
+  }) });
+  module.exports({});
+  const config = { modResults: { language: 'swift', contents: template.stdout } };
+  appMod(config);
+  assert.ok(!config.modResults.contents.includes('window = UIWindow(frame: UIScreen.main.bounds)'));
+  for (const term of ['RCTAppDependencyProvider()', 'ExpoReactNativeFactory(delegate:', 'class SceneDelegate:', 'UIWindow(windowScene: scene)', 'connectionOptions.userActivities', 'connectionOptions.urlContexts', 'in: window']) assert.ok(config.modResults.contents.includes(term), term);
+  const once = config.modResults.contents;
+  appMod(config); assert.equal(config.modResults.contents, once);
+  const info = { modResults: {} }; infoMod(info); infoMod(info);
+  assert.equal(info.modResults.UIApplicationSceneManifest.UISceneConfigurations.UIWindowSceneSessionRoleApplication[0].UISceneDelegateClassName, '$(PRODUCT_MODULE_NAME).SceneDelegate');
+  assert.throws(() => appMod({ modResults: { language: 'swift', contents: 'custom app delegate' } }), /migrate custom/);
+  assert.throws(() => infoMod({ modResults: { UIApplicationSceneManifest: { custom: true } } }), /refuses a custom/);
+});
+
+test('starter unattended guest waits for restoration and runs once only during smoke prime', async () => {
+  const vm = await import('node:vm');
+  const source = readFileSync(new URL('../../../crates/snapback4/src/verbs/init/native-smoke.ts', import.meta.url), 'utf8')
+    .replace(/^import .*;\n/gm, '').replace('export function', 'function');
+  for (const segment of [null, 'prime', 'offline', 'restart']) {
+    let state = 'restoring', calls = 0;
+    const ref = { current: false };
+    const context = vm.createContext({ useAuth: () => ({ state, guest: async () => { calls++; } }), useEffect: fn => fn(), useRef: () => ref, smokeSegment: () => segment });
+    vm.runInContext(source, context);
+    vm.runInContext('useNativeSmokeGuest()', context); assert.equal(calls, 0);
+    state = 'signed-in'; vm.runInContext('useNativeSmokeGuest()', context); assert.equal(calls, 0);
+    state = 'signed-out'; vm.runInContext('useNativeSmokeGuest(); useNativeSmokeGuest()', context);
+    assert.equal(calls, segment === 'prime' ? 1 : 0);
+  }
+});

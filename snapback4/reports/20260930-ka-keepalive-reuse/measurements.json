@@ -1,0 +1,78 @@
+{
+  "baseline-load-8": {
+    "cohorts": 8,
+    "reads": 384,
+    "failed": 16,
+    "failure_percent": 4.166666666666666,
+    "cohort_failures": [
+      2,
+      3,
+      3,
+      0,
+      0,
+      3,
+      2,
+      3
+    ]
+  },
+  "baseline-before-selection-8": {
+    "cohorts": 8,
+    "reads": 384,
+    "failed": 0,
+    "failure_percent": 0.0,
+    "cohort_failures": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "fixed-load-8": {
+    "cohorts": 8,
+    "reads": 384,
+    "failed": 0,
+    "failure_percent": 0.0,
+    "cohort_failures": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "baseline-large-body": {
+    "cohorts": 4,
+    "reads": 64,
+    "failed": 48,
+    "failure_percent": 75.0,
+    "cohort_failures": [
+      16,
+      0,
+      16,
+      16
+    ]
+  },
+  "baseline-reset-boundary": {
+    "cohorts": 8,
+    "reads": 128,
+    "failed": 67,
+    "failure_percent": 52.34375,
+    "cohort_failures": [
+      16,
+      16,
+      4,
+      15,
+      0,
+      0,
+      0,
+      16
+    ]
+  }
+}

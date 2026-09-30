@@ -1,0 +1,9 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 0.98s
+     Running tests/readauth.rs (target/debug/deps/readauth-ae70f41d8ed41838)
+
+running 1 test
+test census::authoring_census ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.35s
+

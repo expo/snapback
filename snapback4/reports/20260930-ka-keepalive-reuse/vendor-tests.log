@@ -1,0 +1,155 @@
+    Updating crates.io index
+     Locking 61 packages to latest compatible versions
+      Adding fdlimit v0.1.4 (available: v0.3.0)
+      Adding rustls v0.20.9 (available: v0.23.45)
+      Adding rustls-pemfile v0.2.1 (available: v2.2.0)
+      Adding sha1 v0.6.1 (available: v0.11.0)
+ Downloading crates ...
+  Downloaded spin v0.5.2
+  Downloaded rustls-pemfile v0.2.1
+  Downloaded sct v0.7.1
+  Downloaded webpki v0.22.4
+  Downloaded rustls v0.20.9
+  Downloaded ring v0.16.20
+   Compiling find-msvc-tools v0.1.14
+   Compiling shlex v2.0.1
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.5
+   Compiling untrusted v0.9.0
+   Compiling untrusted v0.7.1
+   Compiling once_cell v1.21.4
+   Compiling spin v0.5.2
+   Compiling rustls v0.20.9
+   Compiling base64 v0.13.1
+   Compiling log v0.4.34
+   Compiling chunked_transfer v1.5.0
+   Compiling zeroize v1.9.0
+   Compiling ascii v1.1.0
+   Compiling sha1_smol v1.0.1
+   Compiling httpdate v1.0.3
+   Compiling rustc-serialize v0.3.25
+   Compiling sha1 v0.6.1
+   Compiling cc v1.5.1
+   Compiling rustls-pemfile v0.2.1
+   Compiling getrandom v0.2.17
+   Compiling fdlimit v0.1.4
+   Compiling ring v0.17.14
+   Compiling ring v0.16.20
+   Compiling webpki v0.22.4
+   Compiling sct v0.7.1
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-ka/snapback4/vendor/tiny_http)
+warning: trait `MustBeShareDummy` is never used
+   --> src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: `tiny_http` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized] target(s) in 14.99s
+     Running unittests src/lib.rs (vendor/tiny_http/target/debug/deps/tiny_http-7457529c8ba95a10)
+
+running 13 tests
+test client::test::test_parse_request_line ... ok
+test common::test::test_parse_header ... ok
+test common::test::test_strict_headers ... ok
+test request::tests::must_be_send ... ok
+test util::equal_reader::tests::a_partial_read_drains_the_remaining_bytes_in_small_buffers ... ok
+test util::equal_reader::tests::test_not_enough ... ok
+test common::test::formats_date_correctly ... ok
+test util::test::test_parse_header ... ok
+test util::equal_reader::tests::test_limit ... ok
+test common::test::test_parse_header_with_doublecolon ... ok
+test util::equal_reader::tests::a_declared_giant_remainder_drains_with_bounded_memory_at_eof_or_error ... ok
+test util::task_pool::tests::queued_connections_reserve_notified_workers ... ok
+test limits::tests::every_refusal_counts_even_failed_delivery_and_tls ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/input-tests.rs (vendor/tiny_http/target/debug/deps/input_tests-38a176e348f0bef4)
+
+running 6 tests
+test unsupported_expect_header ... ok
+test custom_content_type_response_header ... ok
+test invalid_header_name ... ok
+test basic_string_input ... ok
+test expect_100_continue ... ok
+test wrong_content_length ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/network.rs (vendor/tiny_http/target/debug/deps/network-fa59a9e01d01f3fa)
+
+running 9 tests
+test chunked_threshold ... ok
+test no_transfer_encoding_on_204 ... ok
+test server_crash_results_in_response ... ok
+test http_1_0_connection_close ... ok
+test pipelining_test ... ok
+test responses_reordered ... ok
+test poor_network_test ... ok
+test detect_connection_closed ... ok
+test connection_close_header ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+     Running tests/non-chunked-buffering.rs (vendor/tiny_http/target/debug/deps/non_chunked_buffering-d8bb00c0bd625e9b)
+
+running 2 tests
+test responding_to_non_consuming_client ... ok
+test responding_to_closed_client ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+
+     Running tests/promptness.rs (vendor/tiny_http/target/debug/deps/promptness-d1c825998455d76e)
+
+running 8 tests
+test prompt_responses::chunked ... ok
+test prompt_pipelining::content_length_short ... ok
+test prompt_responses::content_length_http11 ... ok
+test prompt_responses::expect_continue ... ok
+test prompt_responses::content_length_http10 ... ok
+test prompt_pipelining::empty ... ok
+test prompt_pipelining::content_length_long ... ok
+test prompt_pipelining::chunked ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/simple-test.rs (vendor/tiny_http/target/debug/deps/simple_test-e58882eac8a4ca3a)
+
+running 1 test
+test basic_handling ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/unblock-test.rs (vendor/tiny_http/target/debug/deps/unblock_test-9319b22bef7e5189)
+
+running 2 tests
+test unblock_threads ... ok
+test unblock_server ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/unix-test.rs (vendor/tiny_http/target/debug/deps/unix_test-de19c32422dfb945)
+
+running 1 test
+test unix_basic_handling ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tiny_http
+
+running 9 tests
+test src/lib.rs - (line 74) - compile ... ok
+test src/lib.rs - (line 23) - compile ... ok
+test src/lib.rs - (line 11) - compile ... ok
+test src/lib.rs - (line 82) - compile ... ok
+test src/request.rs - request::Request::as_reader (line 490) - compile ... ok
+test src/lib.rs - (line 41) - compile ... ok
+test src/common.rs - common::Header::from_bytes (line 162) ... ok
+test src/test.rs - test::TestRequest (line 11) ... ok
+test src/test.rs - test::TestRequest (line 21) ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s

@@ -1,0 +1,32 @@
+✔ integrated delivery binding, manifest, report and no-op replay: online (506.678976ms)
+✔ integrated delivery binding, manifest, report and no-op replay: local-fallback (941.210969ms)
+✔ integrated delivery binding, manifest, report and no-op replay: local-publication (1252.980106ms)
+✖ declarative full runs compact a long deleted hole through the real SDK (1017.11301ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3868.032964
+
+✖ failing tests:
+
+test at packages/snapback4/test/delivery-integrated.test.mjs:119:1
+✖ declarative full runs compact a long deleted hole through the real SDK (1017.11301ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2096 !== 2131
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rx/snapback4/packages/snapback4/test/delivery-integrated.test.mjs:190:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2096,
+    expected: 2131,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

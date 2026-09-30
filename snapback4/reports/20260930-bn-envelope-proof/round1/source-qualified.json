@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-30T16:20:28.071855+00:00",
+  "fullSuiteTail": [
+    "note: schema.q:78:1 \u2014 N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue",
+    "1 mutations never predict: markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon \u2014 snapback4 why <op>",
+    "check --verbose for explanations, rewrites and execution details; why <op> for one operation",
+    "-- ok: chat app check (0 s)"
+  ],
+  "source": {
+    "llp/3000.030-native-proof-in-minutes.rfc.md": "25a94f5ed08b3edea7a93b8068a00ff318dab9bb8ffba7961dcd0b5e87d8e4a1",
+    "snapback4/crates/snapback4-device/src/device/witness.rs": "d85df1cc06342f6d8f750856554456e864f9c4421ed4344a92c0f97ada152e3f",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "19e2f22df5f93602e131ab8078ed53d2e50b21094596cd6100161f04b07cac93",
+    "snapback4/crates/snapback4-lang/src/guide/witness.md": "61d1236ce7bb1332959bb2d9aa5abcd1cf116c0d47b09680be07d79e24a5a179",
+    "snapback4/crates/snapback4/src/verbs/witness.rs": "6c42881ffbc324bfb5e97c83debde10e12513743dad517fda0fa11c135bcf140",
+    "snapback4/packages/snapback4/bin/witness-acquire.js": "ae8901a35502b5ec5165c7fea8faa42bc1b9f9ffaa8fa42fa6cf58488019ad4c",
+    "snapback4/packages/snapback4/test/witness-acquire.test.mjs": "1d218b2f29acab3d05cf80e2ca51f52a62ce016cb567fc9c2ab1ede5df3cd777"
+  }
+}

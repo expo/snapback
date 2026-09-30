@@ -96,6 +96,8 @@ card/from-sql/2:remove | never
 card/from-sql/3:createRoom | never
 card/from-sql/3:setReminder | never
 card/indexes/2:checkin | never
+card/language/10:react | eligible
+card/language/10:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/1:addNote | eligible
 card/language/1:addNote | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/language/2:checkin | never
@@ -186,6 +188,17 @@ card/maintains/6:refresh | never
 card/maintains/7:send | eligible
 card/maintains/7:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/maintains/7:send | unread/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/manual-receipts/1:add | eligible
+card/manual-receipts/1:add | members/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/manual-receipts/1:delivered | eligible
+card/manual-receipts/1:delivered | members/update | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/manual-receipts/1:delivered | runs/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/manual-receipts/1:leave | eligible
+card/manual-receipts/1:seen | eligible
+card/manual-receipts/1:seen | members/update | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/manual-receipts/1:send | conversations/update | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/manual-receipts/1:send | eligible
+card/manual-receipts/1:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:checkin | never
 card/native/1:createRoom | eligible
 card/native/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
@@ -366,9 +379,8 @@ card/reads/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":
 card/reads/4:split | never
 card/receipts/1:add | eligible
 card/receipts/1:add | members/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
-card/receipts/1:delivered | eligible
-card/receipts/1:delivered | members/update | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
-card/receipts/1:delivered | runs/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/receipts/1:compactReceipts | never
+card/receipts/1:delivered | never
 card/receipts/1:leave | eligible
 card/receipts/1:seen | eligible
 card/receipts/1:seen | members/update | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule

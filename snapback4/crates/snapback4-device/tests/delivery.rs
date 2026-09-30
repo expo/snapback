@@ -50,7 +50,7 @@ fn backend() -> Backend {
     let (_,mut b) = compile(SOURCE);
     b.schema.delivery = ["messages","photos"].into_iter().map(|table| DeliveryBinding {
         fingerprint: format!("fixture:{table}"),
-        table:table.into(), group:"room".into(),position:"ordinal".into(),mutation:format!("delivered_{table}"),args:vec!["conversation".into(),"from".into(),"through".into()]
+        table:table.into(), group:"room".into(),position:"ordinal".into(),mutation:format!("delivered_{table}"), compact:None, semantics:None, args:vec!["conversation".into(),"from".into(),"through".into()]
     }).collect(); b
 }
 fn event(n:i64) -> Json { json!({"table":"messages","kind":"put","id":format!("m{n}"),"data":{"id":format!("m{n}"),"room":"r","ordinal":n,"text":"confirmed","expires":10000}}) }

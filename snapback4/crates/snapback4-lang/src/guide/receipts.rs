@@ -2,10 +2,7 @@
 // @ref LLP 3000.021#3.4 — retaining the parent keeps the pinned screen after leave.
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-The SDK reports received messages as ordinals and runs, while the screen
-reports views, to derive `sent`, `delivered` and `read` receipts. For expiring
-messages or engine-assigned ordinals, start with `guide sequences`, then use
-the run merge below.
+Declare receipts on messages to generate delivery reporting, read progress and receipt projections. The SDK reports received positions; the visible screen reports seen positions.
 
 ```quarry
 table conversations:
@@ -23,8 +20,6 @@ table members:
   conversation: conversations
   principal: principal
   joinedOrdinal: int
-  deliveredOrdinal: int default 0
-  seenOrdinal: int default 0
   unique conversation, principal
   cap 50 by conversation
   immutable conversation, principal, joinedOrdinal
@@ -34,20 +29,14 @@ table members:
   delete <- .principal = viewer
   sync to members[.conversation]
 
-table runs:
-  conversation: conversations
-  principal: principal
-  fromOrdinal: int
-  throughOrdinal: int
-  unique conversation, principal, fromOrdinal
-  cap 64 by conversation, principal
-  cap 3200 by conversation
-  read <- exists members[.conversation, viewer]
-  insert <- .principal = viewer and exists members[.conversation, viewer]
-  delete <- .principal = viewer
-  sync to members[.conversation]
-
 table messages:
+  receipts chat by .conversation, .ordinal from .sender to members:
+    counter .lastOrdinal
+    floor .joinedOrdinal
+    count .recipients
+    watermarks .deliveredOrdinal, .seenOrdinal
+    runs runs
+    operations receipt, delivered, seen, receiptMember, progress, compactReceipts
   conversation: conversations
   sender: principal
   ordinal: int
@@ -62,20 +51,6 @@ table messages:
   retain delivered-history
   sync to members[.conversation] last 500 by byConversationOrdinal
 
-fn receipt(m: messages):
-  state = 'read'
-  remaining = 0
-  for member in members where .conversation = m.conversation:
-    if member.principal != m.sender and member.joinedOrdinal < m.ordinal:
-      remaining = remaining + 1
-      if m.ordinal > member.deliveredOrdinal:
-        run = first(runs[conversation = m.conversation, principal = member.principal, fromOrdinal <= m.ordinal] last 1 by .fromOrdinal)
-        if run = null or run.throughOrdinal < m.ordinal:
-          return 'sent'
-      if member.seenOrdinal < m.ordinal:
-        state = 'delivered'
-  return state if remaining > 0 or m.recipients > 0 else 'sent'
-
 query conversationScreen(conversation: conversations):
   return conversations[conversation]
 
@@ -87,14 +62,6 @@ query history(conversation: conversations, c: cursor ?):
 
 query messageReceipts(conversation: conversations, c: cursor ?):
   return messages where .conversation = conversation last 20 by .ordinal after c { id, receipt: receipt(.) }
-
-query receiptMember(conversation: conversations):
-  return members[conversation, viewer]
-
-query progress(conversation: conversations, c: cursor ?):
-  me = members[conversation, viewer] ! else NOT_MEMBER
-  delivered = max(me.deliveredOrdinal, me.joinedOrdinal)
-  return { member: me, runs: runs where .conversation = conversation and .principal = viewer, ahead: messages where .conversation = conversation and .ordinal > delivered and .ordinal <= delivered + 100 last 100 by .ordinal after c }
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
@@ -116,40 +83,7 @@ mutation add(conversation: conversations, principal: principal):
 
 mutation leave(conversation: conversations):
   me = members[conversation, viewer] ! else NOT_MEMBER
-  for run in runs where .conversation = conversation and .principal = viewer:
-    delete runs[run]
   delete members[me]
-  return null
-
-mutation delivered(conversation: conversations, from: int, through: int)
-  reports delivery of messages by .conversation, .ordinal:
-  me = members[conversation, viewer] ! else NOT_MEMBER
-  chat = conversations[conversation] ! else NOT_FOUND
-  require 0 < from and from <= through else NOT_A_RUN
-  require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
-  prefix = max(me.deliveredOrdinal, me.joinedOrdinal)
-  held = first(runs where .conversation = conversation and .principal = viewer and .fromOrdinal <= from last 1 by .fromOrdinal)
-  if through <= prefix or (held != null and held.throughOrdinal >= through):
-    return null
-  low = from
-  high = through
-  for run in runs where .conversation = conversation and .principal = viewer and .fromOrdinal <= through + 1 and .throughOrdinal + 1 >= from:
-    low = min(low, run.fromOrdinal)
-    high = max(high, run.throughOrdinal)
-    delete runs[run]
-  if low <= prefix + 1:
-    update members[me] { deliveredOrdinal: high }
-  else:
-    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
-    insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
-  return null
-
-mutation seen(conversation: conversations, through: int):
-  me = members[conversation, viewer] ! else NOT_MEMBER
-  chat = conversations[conversation] ! else NOT_FOUND
-  require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
-  if through > me.seenOrdinal:
-    update members[me] { seenOrdinal: through }
   return null
 
 table profiles:
@@ -180,6 +114,43 @@ query messageReactions(message: messages):
 
 ```
 
+The named family generates the mapped projection, reporting operations, runs
+and member watermarks. Without overrides, names use the family prefix:
+`chatReceipt`, `chatDelivered`, `chatSeen`, `chatMember`, `chatProgress`,
+`chatCompact`, `chatRuns`, `chatDeliveredOrdinal` and `chatSeenOrdinal`.
+`member .conversation, .principal` maps membership coordinates; `counter`,
+`floor` and `count` name the scope counter, membership floor and message count.
+Allocation and membership accounting remain explicit. Multiple distinct families
+may coexist, with at most 50 members and 64 disjoint runs per member.
+Membership must be group-readable and synced in full; malformed declarations refuse `E_RECEIPTS_CLAUSE`. Unsupported mappings name the field and reason at that clause. Progress fields and
+runs refuse ordinary writes with `E_RECEIPTS_OWNED`. Deleting a member retires their runs atomically, even for an authorized
+service outside the runs audience. Generated primitives cannot be shadowed by
+application declarations; extra unique keys and caps are allowed.
+
+Delivery merges intervals and compacts covered runs before enforcing the
+64-run cap. It crosses only deleted or expired positions, with at most 1,024
+unique position probes per call. Longer holes save partial progress while
+recording the full input interval. At saturation the SDK calls the bound
+compaction operation in a separate transaction, then retries delivery with a
+fresh id when the prefix or runs advance. A live blocker stops that interval;
+later runs still merge. Long gaps persist partial endpoints across calls. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
+before the count. Replaying its write id returns that success.
+Maintenance success never acknowledges delivery. Each step
+uses the ordinary meter; a refusal rolls back its transaction.
+Seen may queue and predict under ordinary coverage; only settled delivery
+reports can establish committed receipt state. Reports assert the recipient's
+own observation; no protocol can prove that a person actually read a message.
+
+For custom semantics, use the complete expert recipe in `guide manual-receipts`.
+It retains `reports delivery of ... by ...` and the same SDK behavior.
+An existing starter store may replace that recipe with the clause in one
+schema adoption: keep names, columns, indexes, membership floors and counters;
+remove only declarations the clause generates and explicit run deletion from
+leave. Existing rows survive; no backfill invents delivery. Other manual
+layouts keep working and require an explicit data migration before opting in.
+Upgrade engines and devices together; v2 changes the capability and delivery
+fingerprint, retiring old SDK debt for recollection.
+
 The older `useReceipts` history-walking hook does not scale to a large group:
 automatic paging and receipt writes can stall sends and hit the examined-row
 ceiling. Migrate it to the SDK reporter and the visible-screen hook below.
@@ -207,7 +178,8 @@ intact. Use ordinary search for current and retained hits in either link state
 server before acquisition or past its horizon; a left group's retained page
 stays local.
 
-This card's contiguous message-only intervals assume no deletion or expiry.
+The manual recipe's contiguous intervals assume no deletion or expiry; the
+generated form includes bounded gap compaction.
 
 Every message takes the conversation's next ordinal, and a member records the
 last ordinal when they join. So commit order, not the clock, decides a
@@ -258,13 +230,13 @@ remains the raw watch publication or query return after its final fences.
 Collection persistence never delays the answer and rechecks its fences on
 every attempt. Ordinary device publication still persists debt with its rows.
 
-Every report sends its binding's fingerprint; the server checks it under the
-writer before executing the mutation. Unrelated generation changes preserve
+Every SDK report and compaction sends its binding's fingerprint; the server checks it under the
+writer. Compaction requires the fingerprint. Unrelated generation changes preserve
 unchanged bindings.
 
 `E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
 drops that binding's debt and collects under the current fingerprint; it
-does not retry the old report.
+does not retry the old report. Compaction also refuses omission.
 
 For explicit catch-up, `progress` answers with the member's row, their stored
 runs and the next 100 ordinals ahead of the prefix, counted from the join,

@@ -344,7 +344,28 @@ pub struct CapDecl {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReceiptsDecl {
+    pub name: String,
+    pub member_group: String,
+    pub principal: String,
+    pub counter: String,
+    pub floor: String,
+    pub count: String,
+    pub delivered_field: String,
+    pub seen_field: String,
+    pub runs: String,
+    // projection, delivered, seen, member, progress, compact
+    pub operations: Vec<String>,
+    pub group: String,
+    pub position: String,
+    pub sender: String,
+    pub members: String,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub receipts: Option<ReceiptsDecl>,
     pub ephemeral: Option<EphemeralDecl>,
     pub search: Vec<String>,
     pub name: String,

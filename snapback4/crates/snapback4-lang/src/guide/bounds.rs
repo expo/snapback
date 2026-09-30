@@ -122,40 +122,52 @@ Replace alice/heldNotes with that persona/query; SB4_URL is dev's URL, SB4_PROOF
 snapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json
 ```
 
-For serve or a real account, use `--as <principal> --token <bearer>`.
-`--args '{"c":null}'` supplies arguments; without `--query`, the first
-zero-argument device query is selected. `--runs 3` uses three fresh stores.
-Default URL: http://127.0.0.1:4400; `--timeout 120` bounds each run. acquire.json is written even
-on failure; --json prints it, otherwise one summary per run. Receipt excerpt (fixture-dependent):
+For serve or a real account, use `--as <principal> --token <bearer>` (or `--token=<bearer>`).
+Optional `--args '{"c":null}'` supplies query arguments; without `--query` the
+witness selects the first zero-argument device query. `--runs 3` uses three fresh
+stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run.
+The command writes acquire.json even on failure; --json prints it, otherwise
+one summary per run. Receipt excerpt (counts depend on your fixture):
 
 ```json
 {"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}
 ```
 
-It uses the native process device, Expo's SQLite module. `acquiredMs` ends at
-the SDK acquired boundary; `firstLocalMs` times the first complete local query
-after that boundary, both from startup including identity checks. Restart includes cold
-reopen with all HTTP blocked. Retained means identical store/generation/watermark,
+It runs Node with one JSON line per call to the `snapback4 device` subprocess
+backed by SQLite. Expo links the crate in-process; this is not Expo/iOS timing.
+Web wasm + IndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;
+`firstLocalMs` times the first complete local query after that boundary, both
+from fresh startup including identity checks. Restart firstLocalMs includes cold
+reopen with all HTTP blocked. `restart.coverageVerifiedMs` separately times the
+subsequent coverage scan and comparison. Retained means identical store/generation/watermark,
 per-group row counts and persisted coverage, and table row/byte counts before
-reconnect; reconnect must then send no row events (an empty snapshot is possible
-at watermark zero). Keep the fixture stable: writes or expiry invalidate this
-comparison. No OS-cache flush, UI, media-cache or physical-phone claim is made.
-Groups are table/group pairs with rows or coverage, plus implicit public/principal groups;
-groupsByTable.messages gives the conversation count. residency.totalBytes is SQLite pages
-excluding WAL/SHM, not RSS; tables give row payload bytes. requests preserve Server-Timing and parsed serverMs; serverSyncMs
-sums acquisition sync totals (null on serve); verification scans follow the timed answer. Background polling is suppressed; SDK sync is unchanged.
-eb1000 native medians (NA, 2026-09-30; three fresh stores per cell):
-
-| Memberships | Unconfined | 10 CPUs, 8 burners |
-|---|---:|---:|
-| 100 / 11,612 rows | 1.056 s | 1.042 s |
-| 1,000 / 105,034 rows | 12.895 s | 14.654 s |
-
-Heavy was 42.352 / 54.542 s; the 10 s target remains unmet. All native runs
-retained coverage offline and reconnected with zero row events. HV's web five-run
-medians (2026-09-29) were 18.609 s default / 19.522 s Worker for that heavy
-account; first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory.
-These warm-cache measurements are historical, not a promise.
+reconnect; reconnect must finish a validated stream round with `more: false` at
+the server position applied locally, with no row events or failed attempts. An
+empty snapshot at watermark zero still needs stream catch-up. Keep the fixture
+stable: new writes or expiry can invalidate this comparison. No OS-cache flush,
+app UI, media-cache or physical-phone performance is claimed.
+Groups are table/group pairs with rows or recorded coverage (plus implicit public
+and principal groups); groupsByTable and residency.tables use hashed table names:
+SHA-256 of UTF-8 JSON.stringify(["witness-table", name]), e.g. name = "messages".
+residency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row
+payload bytes. Receipt format 2 keeps local timings/counts and computed digests;
+server text, codes, numeric metadata and Server-Timing are dropped. Validated codes choose
+distinct argument-rejection, query-refusal or incomplete-coverage diagnostics; check --args types,
+--query requirements or held coverage respectively. Failed receipts keep caller query/args.
+Automatic queries use a generated label; explicit query/args/principal echo only caller input. State and
+position digests preserve equality evidence without reflecting wire identifiers.
+Verification scans follow the timed answer. Background polling is suppressed.
+HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000
+memberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;
+first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are
+historical workload measurements, not a promise or native-device numbers.
+NA round-0 native process medians (three fresh stores per cell, eb1000):
+100 memberships / 11,612 rows: 1.056 s unconfined / 1.042 s on 10 CPUs with
+8 burners; 1,000 memberships / 105,034 rows: 12.895 / 14.654 s, down from
+42.352 / 54.542 s. The 10 s target remains unmet. Sorting complete indexes
+inside atomic SQLite publication accounts for the improvement. The separate
+in-process C ABI replay took 9.693 s for all calls (8.968 s apply), without
+server sync or process transport. Expo uses that ABI; this is not phone timing.
 
 ### Measuring a growth curve
 

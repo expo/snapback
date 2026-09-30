@@ -110,7 +110,8 @@ pub fn init(options: &Options) -> i32 {
         }
         let gitignore = dir.join(".gitignore");
         let existing = match std::fs::read_to_string(&gitignore) { Ok(text) => text, Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(), Err(e) => return Err(e) };
-        let missing = GITIGNORE.lines().filter(|line| !existing.lines().any(|old| old == *line)).collect::<Vec<_>>().join("\n");
+        let ignores = format!("{GITIGNORE}{}", if expo { ".snapback4-witness/\nartifacts/native-smoke/\n" } else { "" });
+        let missing = ignores.lines().filter(|line| !existing.lines().any(|old| old == *line)).collect::<Vec<_>>().join("\n");
         if !missing.is_empty() { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
         Ok(())
     };
@@ -230,10 +231,15 @@ fn expo_files() -> Vec<(&'static str, String)> {
     // The reference lock resolves Expo 57's preset at this version; pin it
     // explicitly so an app cannot accidentally select an Expo 54 preset.
     package["devDependencies"]["babel-preset-expo"] = json!("57.0.11");
+    package["scripts"]["native:smoke"] = json!("snapback4 witness ios --build . --smoke");
+    package["scripts"]["export:ios"] = json!("expo export --platform ios");
+    package["devDependencies"]["@expo/fingerprint"] = json!("0.20.13");
     package["scripts"]["build:web"] = json!("expo export -p web && snapback4 web-shell dist");
     package["dependencies"]["react-dom"] = json!("19.2.3");
     package["dependencies"]["react-native-web"] = json!("~0.21.0");
     let app = include_str!("init/expo-app.tsx").to_owned();
+    let mut config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
+    config["expo"]["plugins"].as_array_mut().unwrap().push(json!("snapback4-expo/plugin"));
     let client = include_str!("init/expo-client.ts");
     let inbox = include_str!("../../../../apps/chat-expo/src/Inbox.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
     let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
@@ -241,19 +247,19 @@ fn expo_files() -> Vec<(&'static str, String)> {
     let schema = core_expo_schema(include_str!("../../../../apps/chat/snapback/schema.q"));
     vec![
         ("package.json", pretty(&package)),
-        ("app.json", include_str!("../../../../apps/chat-expo/app.json").to_owned()),
+        ("app.json", pretty(&config)),
         ("babel.config.js", include_str!("../../../../apps/chat-expo/babel.config.js").to_owned()),
         ("metro.config.js", include_str!("init/metro.config.js").to_owned()),
         ("metro-wasm-transformer.cjs", include_str!("init/metro-wasm-transformer.cjs").to_owned()),
         ("index.js", include_str!("../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
-        ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
+        ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/native-smoke.ts", include_str!("init/native-smoke.ts").to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
         ("src/intents.ts", include_str!("../../../../apps/chat-expo/src/intents.ts").to_owned()),
         ("src/intent-store.ts", include_str!("../../../../apps/chat-expo/src/intent-store.ts").to_owned()),
         ("src/intent-store.web.ts", include_str!("../../../../apps/chat-expo/src/intent-store.web.ts").to_owned()),
         ("src/intent-store.native.ts", include_str!("../../../../apps/chat-expo/src/intent-store.native.ts").to_owned()),
         ("snapback/schema.q", schema),
-        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n")),
+        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n\nAt every milestone, run `npm run export:ios` for the Hermes export;\non a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).\nIt builds and installs your Release app, chooses its own simulator and free port,\nand keeps receipts under `artifacts/native-smoke/<timestamp>`. Xcode and an iOS\nruntime must already be installed; the first build takes longer. The starter\nuses normal guest sign-in during smoke only if no account is restored.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`; Hermes export alone proves no native execution.\n")),
     ]
 }
 

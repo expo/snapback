@@ -1,0 +1,17 @@
+{
+  "['uname', '-a']": "Darwin MacMini-Apt101-M5-A 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:40 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6050 arm64",
+  "['sysctl', '-n', 'machdep.cpu.brand_string', 'hw.ncpu', 'hw.memsize']": "Apple M5 Pro\n18\n68719476736",
+  "['xcodebuild', '-version']": "Xcode 27.0\nBuild version 27A266a",
+  "['node', '--version']": "v24.18.0",
+  "['npm', '--version']": "11.16.0",
+  "['bun', '--version']": "1.3.12",
+  "['pod', '--version']": "1.17.0",
+  "['cargo', '--version']": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "files": {
+    "snapback4/target/debug/snapback4": "06058be36a520b296c53d7c1137171219fe764b969545ec81e48eaaac8e23098",
+    "../ns-r2-packages/snapback4-0.4.9.tgz": "660ab0024c5315eaf9babe37901465f51a71ad89d1051f33c1e3f84a152abd10",
+    "../ns-r2-packages/snapback4-expo-0.4.9.tgz": "9be285e150c2e4c427e56befaf59e356de04119a6fbb309d1a4b3a3e84d69fb5",
+    "../ns-r2-starter/package-lock.json": "1c669c1d35842fa94f4db7af0e813d5aeb75bf9cd8c1e13590caf2586f402983"
+  },
+  "dependencyInstall": "Initial npm install failed with registry tarball 404; generated package.json equals round 1. Copied round 1 package-lock.json, npm ci --offline passed; replaced snapback4 and snapback4-expo with locally packed candidate bytes."
+}

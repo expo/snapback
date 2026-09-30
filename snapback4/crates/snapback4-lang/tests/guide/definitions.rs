@@ -123,6 +123,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_RECEIPTS_CLAUSE", "malformed declarations refuse `E_RECEIPTS_CLAUSE`"),
+    ("E_RECEIPTS_OWNED", "Progress fields and runs refuse ordinary writes with `E_RECEIPTS_OWNED`"),
     ("EMPTY_READ", "EMPTY_READ is optional local evidence"),
     ("E_DELIVERY_BINDING", "a report's binding changed or was removed"),
     ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),
@@ -324,7 +326,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WITNESS_PORT", "E_WITNESS_PORT means the requested backend port is occupied."),
     ("E_WITNESS_PROCESS", "E_WITNESS_PROCESS means a child command could not start, exited early or could not be stopped."),
     ("E_WITNESS_RECEIPT", "E_WITNESS_RECEIPT means a receipt is not a complete valid JSON object with the expected witness envelope, changed after observation, or could not be written."),
-    ("E_WITNESS_SIMULATOR", "E_WITNESS_SIMULATOR means selection was ambiguous or simctl failed."),
+    ("E_WITNESS_SIMULATOR", "E_WITNESS_SIMULATOR means the explicit device is unavailable or simctl failed."),
     ("E_WITNESS_STEP", "E_WITNESS_STEP means an application assertion failed, milestones arrived out of order, or steps overlapped."),
     ("E_WITNESS_TIMEOUT", "E_WITNESS_TIMEOUT means a step, child command or signal did not arrive within its timeout, 120 seconds by default per driver step."),
     ("E_ADMISSION_STORE", "`E_ADMISSION_STORE` means the backend changed or revalidation failed."),

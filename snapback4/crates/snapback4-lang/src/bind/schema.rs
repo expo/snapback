@@ -258,7 +258,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         columns.insert(core::through::DEADLINE.into(), core::ColumnType::Time);
         indexes.insert("$expiry".into(), core::Index::of(&[core::through::DEADLINE, "id"], false));
     }
-    let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
+    let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. }) || matches!(&s.audience, SyncAudience::Target { prefix, .. } if info.through.is_some() && prefix.iter().any(|p| info.captures.contains_key(p)))), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
     let mut sequences = BTreeMap::new();
     for column in &decl.columns {
@@ -314,7 +314,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
                 return Err(sync_error(&sync.site, format!("sync to {table} names an unknown table"), name_rewrite(table, catalog.tables.keys().map(String::as_str), None)));
             };
             for column in prefix {
-                if !info.columns.contains_key(column) && column != "id" {
+                if !info.columns.contains_key(column) && !info.captures.contains_key(column) && column != "id" {
                     return Err(sync_error(&sync.site, format!("sync to {table}[.{column}] names an undeclared column of {}", info.decl.name), name_rewrite(column, info.columns.keys().map(String::as_str), None)));
                 }
             }
@@ -328,7 +328,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
                 }
                 None => match principals.as_slice() {
                     [one] => (*one).to_owned(),
-                    [] => return Err(sync_error(&sync.site, format!("sync to {table}[..] needs a principal column on {table} to read recipients from; it has none"), format!("add `principal: principal` to table {table}"))),
+                    [] => return Err(sync_error(&sync.site, format!("sync to {table}[..] needs a principal column on {table} to read recipients from; it has none"), super::through::sync_repair(catalog, info).unwrap_or_else(|| format!("add `principal: principal` to table {table}")))),
                     many => return Err(sync_error(&sync.site, format!("sync to {table}[..]: {table} has several principal columns ({}); name the recipient column", many.join(", ")), format!("sync to {table}[{}] by .{}", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), many[0]))),
                 },
             };
@@ -338,7 +338,8 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
     let principal = match &audience { Audience::Target { principal, .. } => Some(principal.as_str()), _ => None };
     let implied = infer_audience(catalog, sync, rule, principal)?;
     if audience != implied {
-        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()), "sync  -- infer the audience from the read rule"));
+        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()),
+            super::through::sync_repair(catalog, info).unwrap_or_else(|| "sync  -- infer the audience from the read rule".into())));
     }
     let horizon = match &sync.horizon {
         Some((last, SyncOrder::Index(by))) => {
@@ -699,6 +700,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         indexes.push(index);
     }
     Ok(TableDecl {
+        receipts: None,
         ephemeral: None,
         search: Vec::new(),
         name: maintain.name.clone(),

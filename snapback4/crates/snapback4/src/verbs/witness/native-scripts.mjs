@@ -58,6 +58,10 @@ export const phaseHashes = new Set([
   "ffc4efb54b0066df720d0726664c58aba4ce508d9ef8b5b6f3de6bebb0618942", // Copy generated compatibility header
 ]);
 export const supportHashes = new Set([
+  "30ee4878ce1bfd973a618de3d4026671c1dc4dce8a9b4a06f3a0f2903a073005", // Social starter module provider
+  "b7407d64bd6c940abbb582eec52e1643f19548c6dc9186456679d393ad4a85e5", // Expo starter frameworks (no ExpoVideo)
+  "c4b378b7ae8bab824b02839176581c1a9e56d06c8d52a5ef6d10a813bfea6ea7", // Expo starter module provider
+
   "278060e214e1d8d2c491eb05bb51e16c45756d0c820283d22cff7ea64091920c", // ios/Pods/Target Support Files/Pods-Clique/Pods-Clique-frameworks.sh
   "5031d23feaa6e2d04637573db121d7fed7b726dfa5f310b23b03bdf8e211babb", // ios/Pods/Target Support Files/ExpoModulesJSI/ExpoModulesJSI-xcframeworks.sh
   "6b58124b086b7114b52fec7d997c242901fe27bb11f08dc46ccb72a4dbdf1c03", // ios/Pods/Target Support Files/ExpoModulesWorklets/ExpoModulesWorklets-xcframeworks.sh

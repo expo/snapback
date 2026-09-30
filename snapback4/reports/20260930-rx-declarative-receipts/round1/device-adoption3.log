@@ -1,0 +1,11 @@
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 23.26s
+     Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-d889afe7ff648456)
+
+running 2 tests
+test device_round1::partial_acquisition_adoption_and_replay_memory ... ok
+test device_round1::partial_acquisition_adoption_and_replay_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.10s

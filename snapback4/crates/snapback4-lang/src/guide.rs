@@ -60,7 +60,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "manual-receipts", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -454,6 +454,9 @@ E_RATE_LIMIT before request admission; full request worker pools also refuse.
 The SDK retries explicit retryable admission refusals at most four times within
 10 seconds of backoff, with jitter after the Retry-After minimum. A lost
 upload or once-view reply is never automatically retried; its outcome is unknown.
+Node retires idle sockets after one second. A reused-socket close before any
+response bytes retries once for reads and writes protected by durable write IDs.
+Fresh-connection and interrupted-response failures still report E_OFFLINE.
 The public refusal is CORS-readable; a rejected preflight remains a transport
 failure. Malformed error envelopes report E_HTTP_RESPONSE with the HTTP status. Wait for pending writes to settle or
 reduce concurrent clients. Replaying with zero write wait and counting pending
@@ -573,6 +576,7 @@ in `guide client`, never this automatically fetched avatar pattern."##,
         "effects" => effects::CARD,
         "services" => services::CARD,
         "presence" => presence::CARD,
+        "manual-receipts" => include_str!("guide/manual_receipts.md"),
         "receipts" => receipts::CARD,        "bounds" => bounds::CARD,
         "refusals" => refusals::CARD,
         "personas" => personas::CARD,

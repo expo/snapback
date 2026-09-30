@@ -113,3 +113,95 @@ query coverage():
     assert.notEqual((stale.denied ?? stale.why).retryable, true);
   });
 }
+
+// @ref LLP 3000.022#14 — a real manifest must carry maintenance custody all
+// the way through the online reporter and the server fingerprint check.
+test('declarative full runs compact a long deleted hole through the real SDK', {timeout:20000}, async t=>{
+ const source=`use personas alice, bob
+table conversations:
+  creator: principal
+  lastOrdinal: int
+  read <- exists members[.id, viewer]
+  insert <- .creator = viewer
+  sync to members[.id]
+table members:
+  conversation: conversations
+  principal: principal
+  joinedOrdinal: int
+  unique conversation, principal
+  cap 50 by conversation
+  immutable conversation, principal, joinedOrdinal
+  read <- exists members[.conversation, viewer]
+  insert <- created conversations[.conversation]
+  update <- .principal = viewer
+  sync to members[.conversation]
+table messages:
+  receipts chat by .conversation, .ordinal from .sender to members:
+    counter .lastOrdinal
+    floor .joinedOrdinal
+    count .recipients
+  conversation: conversations
+  ordinal: int
+  sender: principal
+  recipients: int
+  unique conversation, ordinal
+  immutable conversation, ordinal, sender, recipients
+  read <- exists members[.conversation, viewer]
+  insert <- .sender = viewer and exists members[.conversation, viewer]
+  delete <- .sender = viewer
+  sync to members[.conversation]
+mutation seed():
+  chat = insert conversations { creator: viewer, lastOrdinal: 2131 }
+  insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
+  insert members { conversation: chat.id, principal: 'dev:bob', joinedOrdinal: 0 }
+  insert messages { conversation: chat.id, ordinal: 1, sender: viewer, recipients: 1 }
+  insert messages { conversation: chat.id, ordinal: 2000, sender: viewer, recipients: 1 }
+  for i in range(0,64):
+    insert messages { conversation: chat.id, ordinal: 2001 + i * 2, sender: viewer, recipients: 1 }
+    insert messages { conversation: chat.id, ordinal: 2002 + i * 2, sender: viewer, recipients: 1 }
+  insert messages { conversation: chat.id, ordinal: 2130, sender: viewer, recipients: 1 }
+  insert messages { conversation: chat.id, ordinal: 2131, sender: viewer, recipients: 1 }
+  return chat.id
+mutation erase(conversation: conversations):
+  delete messages[conversation, 1]
+  delete messages[conversation, 2000]
+  delete messages[conversation, 2001]
+mutation eraseGaps(conversation: conversations):
+  for i in range(1,64):
+    delete messages[conversation, 2001 + i * 2]
+  delete messages[conversation, 2130]
+query fetched(conversation: conversations):
+  return messages[conversation, 2131]
+`;
+ const {url}=await server(t,'',source);
+ const post=(persona,path,body)=>fetch(`${url}${path}`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':persona},body:JSON.stringify(body)}).then(r=>r.json());
+ const chat=(await post('alice','/m/seed',{id:'seed',args:{}})).result;assert.ok(chat);
+ for(let i=0;i<64;i++) {
+   const r=await post('bob','/m/chatDelivered',{id:`run${i}`,args:{conversation:chat,from:2002+i*2,through:2002+i*2}});assert.equal(r.state,'sent',JSON.stringify(r));
+ }
+ // Live blockers keep all 64 intervals distinct even with gap-aware compaction.
+ const saturated=await post('bob','/q/chatProgress',{args:{conversation:chat,c:null}});
+ assert.equal(saturated.data.runs.length,64);
+ assert.equal((await post('alice','/m/erase',{id:'erase',args:{conversation:chat}})).state,'sent');
+ const calls=[];
+ const client=createClient({url,persona:'bob',fetch:async(input,init)=>{
+   const path=new URL(input).pathname;const response=await fetch(input,init);
+   if(path.startsWith('/m/'))calls.push({path,body:JSON.parse(init.body),reply:await response.clone().json()});return response;
+ }});t.after(()=>client.close());
+ const answer=await client.query({kind:'query',name:'fetched'},{conversation:chat});assert.ok('data' in answer,JSON.stringify(answer));
+ await until(()=>calls.some(c=>c.path==='/m/chatCompact'),'bound compaction');
+ await until(()=>calls.some(c=>c.path==='/m/chatDelivered'&&c.reply.state==='sent'),'full coverage after compaction');
+ assert.equal(calls[0].reply.why.code,'RUNS_FULL');
+ const compact=calls.find(c=>c.path==='/m/chatCompact');assert.equal(compact.reply.result,true);
+ const successful=calls.find(c=>c.path==='/m/chatDelivered'&&c.reply.state==='sent');
+ assert.notEqual(successful.body.id,calls[0].body.id);
+ assert.equal(successful.body.delivery.fingerprint,compact.body.delivery.fingerprint);
+ const progress=await post('bob','/q/chatProgress',{args:{conversation:chat,c:null}});
+ assert.ok(progress.data.member.chatDeliveredOrdinal>=2131 || progress.data.runs.some(r=>r.fromOrdinal<=2131&&r.throughOrdinal>=2131),'success covers the whole input even when compaction remains chunked');
+ assert.equal((await post('alice','/m/eraseGaps',{id:'erase-gaps',args:{conversation:chat}})).state,'sent');
+ const finish=await post('bob','/m/chatCompact',{id:'finish-compaction',delivery:successful.body.delivery,args:{conversation:chat}});assert.equal(finish.state,'sent');
+ const final=await post('bob','/q/chatProgress',{args:{conversation:chat,c:null}});
+ assert.equal(final.data.member.chatDeliveredOrdinal,2131);assert.deepEqual(final.data.runs,[]);
+ const stale=await post('bob','/m/chatCompact',{id:'stale',delivery:{fingerprint:'old'},args:{conversation:chat}});
+ assert.equal((stale.why??stale.denied).code,'E_DELIVERY_BINDING');
+});
