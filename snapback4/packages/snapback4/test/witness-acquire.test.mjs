@@ -298,12 +298,14 @@ test('restart times coverage separately from first answer', async t => {
   assert.ok(measured.restart.coverageVerifiedMs >= 100, 'coverage timer includes its scan');
 });
 
-test('bounds names the known process-device apply defect independently from retention', async () => {
+test('bounds separates merged process acquisition, C ABI apply and retention timings', async () => {
   const guide = await readFile(join(root, 'crates/snapback4-lang/src/guide/bounds.rs'), 'utf8');
-  assert.match(guide, /known performance defect/);
-  assert.match(guide, /process-device apply/);
-  assert.match(guide, /37\.9 s.*41\.7 s/s);
-  assert.match(guide, /35\.5 s/);
+  assert.match(guide, /NA merged process medians/);
+  assert.match(guide, /12\.989 \/ 14\.691 s/);
+  assert.match(guide, /10 s target remains unmet/);
+  assert.match(guide, /C ABI replay: 9\.552 s all calls \/ 8\.833 s apply/);
+  assert.match(guide, /excluding server sync\/IPC/);
+  assert.match(guide, /Expo uses that ABI/);
   assert.match(guide, /coverageVerifiedMs/);
 });
 

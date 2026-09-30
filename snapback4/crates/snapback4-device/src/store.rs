@@ -62,14 +62,15 @@ pub trait DeviceTx: Rows {
     fn clear_rows(&self) -> Result<(), RuntimeError>;
     /// Replace the partition in this transaction. The loader only puts rows
     /// and edits metadata: no index reads, deletes or savepoints until return.
-    /// Memory can keep one index undo image; SQLite keeps ordinary puts.
+    /// Memory keeps one index undo image; SQLite sorts temporary index keys
+    /// into its B-tree before returning. Both finish indexes before any read.
     fn replace_rows(&self, load: impl FnOnce() -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
         self.clear_rows()?;
         load()
     }
 
     /// Install this exact decoded staged row. Memory may share its encoded
-    /// image; native stores keep the ordinary transactional row/index write.
+    /// image; SQLite appends validated keys to the replacement's temp heap.
     fn put_staged(&self, _key: &str, name: &str, table: &snapback4_core::schema::Table, row: &snapback4_core::value::Value) -> Result<u64, RuntimeError> {
         self.put(name, table, row, None)
     }

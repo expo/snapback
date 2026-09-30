@@ -1,0 +1,874 @@
+{
+  "process": [
+    {
+      "pid": "3683249",
+      "commands": 75,
+      "applyPages": [
+        {
+          "seq": 25,
+          "snapshot": true,
+          "rows": 9993,
+          "more": true,
+          "ipcMs": 128.15563099999997,
+          "bytes": 3627374,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 2,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 4,
+              "sqlite-meta": 162,
+              "sqlite-meta_prefix": 2,
+              "sqlite-set_meta": 78,
+              "sqlite-staged_after": 1,
+              "sqlite-staged_clear": 1,
+              "sqlite-staged_put": 9993,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 1421250,
+              "boundary-save": 25381,
+              "commit": 21540295,
+              "decode-dispatch": 28596604,
+              "history-coverage": 11307873,
+              "other": 1864,
+              "sqlite-delete_meta": 42274,
+              "sqlite-meta": 282928,
+              "sqlite-meta_prefix": 17567,
+              "sqlite-set_meta": 672910,
+              "sqlite-staged_after": 20061,
+              "sqlite-staged_clear": 22564,
+              "sqlite-staged_put": 26644395,
+              "stage": 23918234
+            }
+          }
+        },
+        {
+          "seq": 28,
+          "snapshot": true,
+          "rows": 9983,
+          "more": true,
+          "ipcMs": 140.82697999999993,
+          "bytes": 3917621,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 262,
+              "sqlite-set_meta": 122,
+              "sqlite-staged_put": 9983,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 119818,
+              "boundary-save": 33138,
+              "commit": 22159103,
+              "decode-dispatch": 37614715,
+              "history-coverage": 16961271,
+              "other": 1903,
+              "sqlite-delete_meta": 14673,
+              "sqlite-meta": 619343,
+              "sqlite-set_meta": 645810,
+              "sqlite-staged_put": 27689417,
+              "stage": 26250379
+            }
+          }
+        },
+        {
+          "seq": 31,
+          "snapshot": true,
+          "rows": 9988,
+          "more": true,
+          "ipcMs": 154.07036600000015,
+          "bytes": 3916393,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 260,
+              "sqlite-set_meta": 121,
+              "sqlite-staged_put": 9988,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 117047,
+              "boundary-save": 31652,
+              "commit": 26674663,
+              "decode-dispatch": 25921964,
+              "history-coverage": 16441349,
+              "other": 1603,
+              "sqlite-delete_meta": 15734,
+              "sqlite-meta": 1001318,
+              "sqlite-set_meta": 568371,
+              "sqlite-staged_put": 50465717,
+              "stage": 27268117
+            }
+          }
+        },
+        {
+          "seq": 34,
+          "snapshot": true,
+          "rows": 9991,
+          "more": true,
+          "ipcMs": 177.4367689999999,
+          "bytes": 3916884,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 254,
+              "sqlite-set_meta": 118,
+              "sqlite-staged_put": 9991,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 115921,
+              "boundary-save": 32436,
+              "commit": 30938136,
+              "decode-dispatch": 25586552,
+              "history-coverage": 15791326,
+              "other": 1562,
+              "sqlite-delete_meta": 15553,
+              "sqlite-meta": 988270,
+              "sqlite-set_meta": 532736,
+              "sqlite-staged_put": 71107281,
+              "stage": 26795812
+            }
+          }
+        },
+        {
+          "seq": 37,
+          "snapshot": true,
+          "rows": 9993,
+          "more": true,
+          "ipcMs": 189.50470099999984,
+          "bytes": 3917246,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 250,
+              "sqlite-set_meta": 116,
+              "sqlite-staged_put": 9993,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 137191,
+              "boundary-save": 32242,
+              "commit": 32893486,
+              "decode-dispatch": 25352961,
+              "history-coverage": 16081160,
+              "other": 1231,
+              "sqlite-delete_meta": 15933,
+              "sqlite-meta": 964974,
+              "sqlite-set_meta": 476540,
+              "sqlite-staged_put": 82128984,
+              "stage": 27462235
+            }
+          }
+        },
+        {
+          "seq": 40,
+          "snapshot": true,
+          "rows": 9989,
+          "more": true,
+          "ipcMs": 217.754727,
+          "bytes": 3916550,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 258,
+              "sqlite-set_meta": 120,
+              "sqlite-staged_put": 9989,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 118372,
+              "boundary-save": 35320,
+              "commit": 36928947,
+              "decode-dispatch": 39731749,
+              "history-coverage": 16476983,
+              "other": 2264,
+              "sqlite-delete_meta": 15423,
+              "sqlite-meta": 985371,
+              "sqlite-set_meta": 523560,
+              "sqlite-staged_put": 90129501,
+              "stage": 28357605
+            }
+          }
+        },
+        {
+          "seq": 43,
+          "snapshot": true,
+          "rows": 9989,
+          "more": true,
+          "ipcMs": 226.18388400000003,
+          "bytes": 3916249,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 256,
+              "sqlite-set_meta": 119,
+              "sqlite-staged_put": 9989,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 115905,
+              "boundary-save": 35396,
+              "commit": 42302113,
+              "decode-dispatch": 37316658,
+              "history-coverage": 16230114,
+              "other": 1913,
+              "sqlite-delete_meta": 16074,
+              "sqlite-meta": 990696,
+              "sqlite-set_meta": 496888,
+              "sqlite-staged_put": 95885411,
+              "stage": 27857096
+            }
+          }
+        },
+        {
+          "seq": 46,
+          "snapshot": true,
+          "rows": 9987,
+          "more": true,
+          "ipcMs": 233.2133530000001,
+          "bytes": 3916205,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 262,
+              "sqlite-set_meta": 122,
+              "sqlite-staged_put": 9987,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 120666,
+              "boundary-save": 40278,
+              "commit": 47089410,
+              "decode-dispatch": 28628482,
+              "history-coverage": 16851865,
+              "other": 2044,
+              "sqlite-delete_meta": 17967,
+              "sqlite-meta": 1240574,
+              "sqlite-set_meta": 520277,
+              "sqlite-staged_put": 105217778,
+              "stage": 29070996
+            }
+          }
+        },
+        {
+          "seq": 49,
+          "snapshot": true,
+          "rows": 9990,
+          "more": true,
+          "ipcMs": 230.55545800000073,
+          "bytes": 3916690,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 256,
+              "sqlite-set_meta": 119,
+              "sqlite-staged_put": 9990,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 113416,
+              "boundary-save": 37066,
+              "commit": 47648880,
+              "decode-dispatch": 28440630,
+              "history-coverage": 16488512,
+              "other": 1693,
+              "sqlite-delete_meta": 16495,
+              "sqlite-meta": 958478,
+              "sqlite-set_meta": 500729,
+              "sqlite-staged_put": 103760969,
+              "stage": 28035644
+            }
+          }
+        },
+        {
+          "seq": 52,
+          "snapshot": true,
+          "rows": 9137,
+          "more": true,
+          "ipcMs": 177.59459400000014,
+          "bytes": 3448152,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 148,
+              "sqlite-set_meta": 65,
+              "sqlite-staged_put": 9137,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 105409,
+              "boundary-save": 18289,
+              "commit": 49618302,
+              "decode-dispatch": 23223219,
+              "history-coverage": 8624450,
+              "other": 1782,
+              "sqlite-delete_meta": 16835,
+              "sqlite-meta": 798994,
+              "sqlite-set_meta": 332127,
+              "sqlite-staged_put": 66611283,
+              "stage": 21481566
+            }
+          }
+        },
+        {
+          "seq": 55,
+          "snapshot": true,
+          "rows": 5994,
+          "more": false,
+          "ipcMs": 57.48902199999975,
+          "bytes": 1353189,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 1,
+              "sqlite-meta": 35,
+              "sqlite-set_meta": 8,
+              "sqlite-staged_put": 5994,
+              "stage": 1
+            },
+            "ns": {
+              "apply-other": 127497,
+              "boundary-save": 2013,
+              "commit": 5984663,
+              "decode-dispatch": 11678619,
+              "history-coverage": 411586,
+              "other": 1082,
+              "sqlite-delete_meta": 46530,
+              "sqlite-meta": 127868,
+              "sqlite-set_meta": 146958,
+              "sqlite-staged_put": 27252191,
+              "stage": 9786912
+            }
+          }
+        },
+        {
+          "seq": 59,
+          "snapshot": false,
+          "rows": 0,
+          "more": false,
+          "ipcMs": 9066.537023,
+          "bytes": 509,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 2,
+              "bulk-sort-install": 1,
+              "cap-counts": 105034,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "delivery": 2,
+              "history-coverage": 1,
+              "index-sql": 1151258,
+              "ordinary-keys": 969250,
+              "publish-rows": 1,
+              "put-other": 105034,
+              "row-sql": 105034,
+              "sqlite-clear_rows": 1,
+              "sqlite-delete_meta": 5,
+              "sqlite-meta": 92664,
+              "sqlite-meta_prefix": 2,
+              "sqlite-set_meta": 2930,
+              "sqlite-staged_after": 211,
+              "sqlite-staged_clear": 1,
+              "stage": 1,
+              "word-keys": 182008
+            },
+            "ns": {
+              "apply-other": 101063955,
+              "boundary-save": 228946,
+              "bulk-sort-install": 2858317889,
+              "cap-counts": 11141746,
+              "commit": 980832096,
+              "decode-dispatch": 45589,
+              "delivery": 620006146,
+              "history-coverage": 250,
+              "index-sql": 1448089005,
+              "ordinary-keys": 316704573,
+              "other": 781,
+              "publish-rows": 244296688,
+              "put-other": 315432061,
+              "row-sql": 1383516287,
+              "sqlite-clear_rows": 46820,
+              "sqlite-delete_meta": 771695,
+              "sqlite-meta": 60477598,
+              "sqlite-meta_prefix": 875402,
+              "sqlite-set_meta": 18209554,
+              "sqlite-staged_after": 299954341,
+              "sqlite-staged_clear": 26973220,
+              "stage": 1823,
+              "word-keys": 378689206
+            }
+          }
+        }
+      ],
+      "applyPhaseMs": {
+        "apply-other": 103.676447,
+        "boundary-save": 0.552157,
+        "commit": 1344.610094,
+        "decode-dispatch": 312.137742,
+        "history-coverage": 151.666739,
+        "other": 0.019722,
+        "sqlite-delete_meta": 1.005186,
+        "sqlite-meta": 69.436412,
+        "sqlite-meta_prefix": 0.892969,
+        "sqlite-set_meta": 23.62646,
+        "sqlite-staged_after": 299.974402,
+        "sqlite-staged_clear": 26.995784,
+        "sqlite-staged_put": 746.892927,
+        "stage": 276.286419,
+        "bulk-sort-install": 2858.317889,
+        "cap-counts": 11.141746,
+        "delivery": 620.006146,
+        "index-sql": 1448.089005,
+        "ordinary-keys": 316.704573,
+        "publish-rows": 244.296688,
+        "put-other": 315.432061,
+        "row-sql": 1383.516287,
+        "sqlite-clear_rows": 0.04682,
+        "word-keys": 378.689206
+      },
+      "applyCalls": {
+        "apply-other": 12,
+        "boundary-save": 14,
+        "commit": 12,
+        "decode-dispatch": 12,
+        "history-coverage": 12,
+        "sqlite-delete_meta": 19,
+        "sqlite-meta": 95067,
+        "sqlite-meta_prefix": 4,
+        "sqlite-set_meta": 4038,
+        "sqlite-staged_after": 212,
+        "sqlite-staged_clear": 2,
+        "sqlite-staged_put": 105034,
+        "stage": 12,
+        "bulk-sort-install": 1,
+        "cap-counts": 105034,
+        "delivery": 2,
+        "index-sql": 1151258,
+        "ordinary-keys": 969250,
+        "publish-rows": 1,
+        "put-other": 105034,
+        "row-sql": 105034,
+        "sqlite-clear_rows": 1,
+        "word-keys": 182008
+      },
+      "allIpcMs": 11757.591149999998,
+      "applyIpcMs": 10999.322508000001,
+      "requestBytes": 80523991,
+      "replyBytes": 1753631
+    },
+    {
+      "pid": "3695826",
+      "commands": 45,
+      "applyPages": [
+        {
+          "seq": 35,
+          "snapshot": false,
+          "rows": 0,
+          "more": false,
+          "ipcMs": 7.411422000001039,
+          "bytes": 509,
+          "profile": {
+            "calls": {
+              "apply-other": 1,
+              "boundary-save": 1,
+              "commit": 1,
+              "decode-dispatch": 1,
+              "delivery": 2,
+              "history-coverage": 1,
+              "sqlite-delete_meta": 4,
+              "sqlite-meta": 46,
+              "sqlite-meta_prefix": 2,
+              "sqlite-set_meta": 6
+            },
+            "ns": {
+              "apply-other": 79232,
+              "boundary-save": 430,
+              "commit": 98628,
+              "decode-dispatch": 6169,
+              "delivery": 6052582,
+              "history-coverage": 190,
+              "other": 221,
+              "sqlite-delete_meta": 28613,
+              "sqlite-meta": 698317,
+              "sqlite-meta_prefix": 3334,
+              "sqlite-set_meta": 182124
+            }
+          }
+        }
+      ],
+      "applyPhaseMs": {
+        "apply-other": 0.079232,
+        "boundary-save": 0.00043,
+        "commit": 0.098628,
+        "decode-dispatch": 0.006169,
+        "delivery": 6.052582,
+        "history-coverage": 0.00019,
+        "other": 0.000221,
+        "sqlite-delete_meta": 0.028613,
+        "sqlite-meta": 0.698317,
+        "sqlite-meta_prefix": 0.003334,
+        "sqlite-set_meta": 0.182124
+      },
+      "applyCalls": {
+        "apply-other": 1,
+        "boundary-save": 1,
+        "commit": 1,
+        "decode-dispatch": 1,
+        "delivery": 2,
+        "history-coverage": 1,
+        "sqlite-delete_meta": 4,
+        "sqlite-meta": 46,
+        "sqlite-meta_prefix": 2,
+        "sqlite-set_meta": 6
+      },
+      "allIpcMs": 628.8071130000044,
+      "applyIpcMs": 7.411422000001039,
+      "requestBytes": 998812,
+      "replyBytes": 3625852
+    }
+  ],
+  "js": [
+    {
+      "parse": {
+        "count": 4,
+        "ms": 0.022633999999989385
+      },
+      "stringify": {
+        "count": 5,
+        "ms": 0.0761749999993313
+      },
+      "http": []
+    },
+    {
+      "parse": {
+        "count": 263,
+        "ms": 275.53920999999525
+      },
+      "stringify": {
+        "count": 1189,
+        "ms": 237.67748800004705
+      },
+      "http": [
+        {
+          "headersMs": 158.005985,
+          "serverTiming": "total;dur=154.891, wait;dur=0.001, engine;dur=98.733, cpu;dur=154.766",
+          "bodies": [
+            {
+              "readMs": 17.753336999999988,
+              "decodeMs": 15.881039999999985,
+              "bytes": 3627073
+            },
+            {
+              "readMs": 4.034959000000015,
+              "decodeMs": 9.773053000000004,
+              "bytes": 3627073
+            }
+          ]
+        },
+        {
+          "headersMs": 135.15646800000002,
+          "serverTiming": "total;dur=132.666, wait;dur=0.616, engine;dur=83.998, cpu;dur=132.563",
+          "bodies": [
+            {
+              "readMs": 8.364870999999994,
+              "decodeMs": 11.953190999999947,
+              "bytes": 3917309
+            },
+            {
+              "readMs": 4.258243999999991,
+              "decodeMs": 12.487052000000062,
+              "bytes": 3917309
+            }
+          ]
+        },
+        {
+          "headersMs": 126.88632900000016,
+          "serverTiming": "total;dur=123.706, wait;dur=0.619, engine;dur=81.768, cpu;dur=123.577",
+          "bodies": [
+            {
+              "readMs": 6.700516000000107,
+              "decodeMs": 19.610081000000037,
+              "bytes": 3916081
+            },
+            {
+              "readMs": 4.1750489999999445,
+              "decodeMs": 17.431575000000066,
+              "bytes": 3916081
+            }
+          ]
+        },
+        {
+          "headersMs": 147.71024899999998,
+          "serverTiming": "total;dur=143.755, wait;dur=0.623, engine;dur=96.166, cpu;dur=143.650",
+          "bodies": [
+            {
+              "readMs": 18.542220000000043,
+              "decodeMs": 23.941665000000057,
+              "bytes": 3916572
+            },
+            {
+              "readMs": 7.476259000000027,
+              "decodeMs": 11.945789999999988,
+              "bytes": 3916572
+            }
+          ]
+        },
+        {
+          "headersMs": 144.90937099999996,
+          "serverTiming": "total;dur=141.432, wait;dur=0.607, engine;dur=95.158, cpu;dur=141.301",
+          "bodies": [
+            {
+              "readMs": 13.556485000000066,
+              "decodeMs": 23.980683000000226,
+              "bytes": 3916934
+            },
+            {
+              "readMs": 7.5487169999996695,
+              "decodeMs": 19.75666100000035,
+              "bytes": 3916934
+            }
+          ]
+        },
+        {
+          "headersMs": 141.04269299999987,
+          "serverTiming": "total;dur=138.103, wait;dur=0.969, engine;dur=92.593, cpu;dur=137.986",
+          "bodies": [
+            {
+              "readMs": 12.179720999999972,
+              "decodeMs": 15.011355999999978,
+              "bytes": 3916238
+            },
+            {
+              "readMs": 5.339564999999766,
+              "decodeMs": 13.130507000000307,
+              "bytes": 3916238
+            }
+          ]
+        },
+        {
+          "headersMs": 150.1802130000001,
+          "serverTiming": "total;dur=146.438, wait;dur=0.816, engine;dur=100.294, cpu;dur=146.253",
+          "bodies": [
+            {
+              "readMs": 7.287645999999768,
+              "decodeMs": 26.561223000000155,
+              "bytes": 3915937
+            },
+            {
+              "readMs": 0.9776849999998376,
+              "decodeMs": 20.200757000000067,
+              "bytes": 3915937
+            }
+          ]
+        },
+        {
+          "headersMs": 154.41221799999994,
+          "serverTiming": "total;dur=150.709, wait;dur=0.638, engine;dur=97.544, cpu;dur=150.283",
+          "bodies": [
+            {
+              "readMs": 4.955630000000383,
+              "decodeMs": 11.683856999999989,
+              "bytes": 3915893
+            },
+            {
+              "readMs": 0.7253869999999552,
+              "decodeMs": 14.8014119999998,
+              "bytes": 3915893
+            }
+          ]
+        },
+        {
+          "headersMs": 150.03825899999993,
+          "serverTiming": "total;dur=146.827, wait;dur=0.631, engine;dur=98.415, cpu;dur=146.557",
+          "bodies": [
+            {
+              "readMs": 8.47882299999992,
+              "decodeMs": 25.51299100000051,
+              "bytes": 3916378
+            },
+            {
+              "readMs": 2.0040650000000824,
+              "decodeMs": 21.911200000000463,
+              "bytes": 3916378
+            }
+          ]
+        },
+        {
+          "headersMs": 132.0586430000003,
+          "serverTiming": "total;dur=127.877, wait;dur=0.746, engine;dur=89.341, cpu;dur=127.509",
+          "bodies": [
+            {
+              "readMs": 3.7064170000003287,
+              "decodeMs": 8.4208950000002,
+              "bytes": 3447840
+            },
+            {
+              "readMs": 0.8317870000000767,
+              "decodeMs": 8.434536000000662,
+              "bytes": 3447840
+            }
+          ]
+        },
+        {
+          "headersMs": 1269.2062400000004,
+          "serverTiming": "total;dur=1267.067, wait;dur=0.599, engine;dur=1253.350, cpu;dur=1266.913",
+          "bodies": [
+            {
+              "readMs": 2.4273290000000998,
+              "decodeMs": 8.395336999999927,
+              "bytes": 1352877
+            },
+            {
+              "readMs": 0.4064589999998134,
+              "decodeMs": 8.31371500000023,
+              "bytes": 1352877
+            }
+          ]
+        },
+        {
+          "headersMs": 4.262189999999464,
+          "serverTiming": "total;dur=2.406, wait;dur=0.961, engine;dur=1.137, cpu;dur=2.221",
+          "bodies": [
+            {
+              "readMs": 0.1979270000001634,
+              "decodeMs": 0.02334400000017922,
+              "bytes": 192
+            },
+            {
+              "readMs": 0.16013999999995576,
+              "decodeMs": 0.007340999999541964,
+              "bytes": 192
+            }
+          ]
+        },
+        {
+          "headersMs": 2.259378000000652,
+          "serverTiming": "total;dur=0.668, wait;dur=0.001, engine;dur=0.503, cpu;dur=0.550",
+          "bodies": [
+            {
+              "readMs": 0.1540210000002844,
+              "decodeMs": 0.012257999998837477,
+              "bytes": 192
+            },
+            {
+              "readMs": 0.15098700000089593,
+              "decodeMs": 0.003554999999323627,
+              "bytes": 192
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "direct": {
+    "summary": {
+      "applyMs": 10248.876422999998,
+      "wallMs": 11226.964104
+    },
+    "decodeMs": 100.068983,
+    "applyPhaseMs": {
+      "apply-other": 101.975115,
+      "boundary-save": 0.526206,
+      "commit": 1318.762257,
+      "history-coverage": 147.345782,
+      "other": 0.026935,
+      "sqlite-delete_meta": 1.02619,
+      "sqlite-meta": 69.403079,
+      "sqlite-meta_prefix": 0.783555,
+      "sqlite-set_meta": 23.411113,
+      "sqlite-staged_after": 269.852066,
+      "sqlite-staged_clear": 29.878035,
+      "sqlite-staged_put": 739.211204,
+      "stage": 268.556175,
+      "bulk-sort-install": 2886.333405,
+      "cap-counts": 10.691074,
+      "delivery": 640.957008,
+      "index-sql": 1380.740514,
+      "ordinary-keys": 310.852139,
+      "publish-rows": 237.767856,
+      "put-other": 305.877316,
+      "row-sql": 1131.178703,
+      "sqlite-clear_rows": 0.028353,
+      "word-keys": 373.712241
+    },
+    "applyCalls": {
+      "apply-other": 12,
+      "boundary-save": 14,
+      "commit": 12,
+      "history-coverage": 12,
+      "sqlite-delete_meta": 19,
+      "sqlite-meta": 95067,
+      "sqlite-meta_prefix": 4,
+      "sqlite-set_meta": 4038,
+      "sqlite-staged_after": 212,
+      "sqlite-staged_clear": 2,
+      "sqlite-staged_put": 105034,
+      "stage": 12,
+      "bulk-sort-install": 1,
+      "cap-counts": 105034,
+      "delivery": 2,
+      "index-sql": 1151258,
+      "ordinary-keys": 969250,
+      "publish-rows": 1,
+      "put-other": 105034,
+      "row-sql": 105034,
+      "sqlite-clear_rows": 1,
+      "word-keys": 182008
+    }
+  }
+}

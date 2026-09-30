@@ -1,0 +1,1837 @@
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 56.46s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/snapback4_device-d6febd1edff9281e)
+
+running 58 tests
+
+thread 'device::deferred::recording::recording_refuses_unsupported_nested_savepoints' (1940499) panicked at crates/snapback4-device/src/device/deferred/recording.rs:71:64:
+internal error: entered unreachable code: stream applicator cannot nest recording savepoints
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test device::deferred::recording::recording_refuses_unsupported_nested_savepoints - should panic ... ok
+test device::opening_tests::first_install_checks_absence_memory ... ok
+test device::opening_tests::explicit_open_checks_its_backend_memory ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_memory ... ok
+test device::opening_tests::first_install_envelope_is_not_a_legacy_backend ... ok
+test device::opening_tests::kept_open_checks_its_backend_memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_memory_changes_restore_reopen_and_reset ... ok
+test device::delivery::interval_union_matches_round_zero_for_order_gaps_bounds_and_extremes ... ok
+test device::deferred::recording::tests::prefix_deletion_is_an_ordered_fold_operation ... ok
+test device::deferred::recording::failed_metadata_operation_is_not_recorded ... ok
+test device::expired_births_tests::retired_birth_keeps_memory_device_caps_exact ... ok
+test device::publication_round5::live_cursor_precedes_terminal_snapshot_cut ... ok
+test device::publication_round5::absent_capture_and_echo_preserve_published_exclusion ... ok
+test device::opening_tests::first_install_checks_absence_sqlite ... ok
+test device::opening_tests::explicit_open_checks_its_backend_sqlite ... ok
+test device::opening_tests::kept_open_checks_its_backend_sqlite ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_sqlite_changes_restore_and_reset ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_sqlite ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::memory ... ok
+test device::publication_round5::stored_capture_must_be_a_bounded_prefix ... ok
+test device::publication_round5::terminal_gap_is_a_protocol_refusal ... ok
+test device::publication_tests::leased_nonterminal_continuation_memory ... ok
+test device::publication_round7::capture_revision_checkpoint_and_optional_echo ... ok
+test device::publication_tests::leased_terminal_continuation_memory ... ok
+test device::publication_round7::only_unbound_receipts_bind_to_first_private_identity ... ok
+test device::publication_round6::clear_rows_consumes_all_private_progress_and_keeps_incarnation ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::sqlite ... ok
+test device::publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error ... ok
+test device::search::tests::delivery_state_preserves_a_scans_exhausted_read_counter ... ok
+test device::search::tests::pagination_epoch_excludes_progress_but_delivery_fence_keeps_it ... ok
+test device::search::tests::pagination_epoch_tracks_only_this_tables_membership_and_retention ... ok
+test device::publication_tests::checkpoint_capture_remains_readable_without_widening ... ok
+test device::search::tests::retained_search_excludes_current_and_rejoined_images ... ok
+test device::publication_round7::recovery_discards_corrupt_capture_without_discarding_private_pages ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::sqlite ... ok
+test device::publication_tests::apply_returns_publication_without_a_second_store_read ... ok
+
+thread 'ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal' (1940542) panicked at crates/snapback4-device/src/ffi.rs:153:46:
+boundary probe
+test ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal ... ok
+test device::expired_births_tests::retired_birth_keeps_sqlite_device_caps_exact ... ok
+test device::publication_tests::empty_cursor_and_reset_remove_all_publication_keys ... ok
+test memory::compact_index::tests::bulk_pages_accept_smaller_keys_and_remove_to_empty ... ok
+test memory::compact_index::tests::pages_match_a_tree_through_splits_updates_deletes_and_ranges ... ok
+test memory::compact_key::tests::split_keys_order_exactly_like_complete_bytes ... ok
+test memory::tests::noncanonical_staged_rows_keep_canonical_metered_prices ... ok
+test memory::tests::replacement_indexes_match_scalar_puts_and_rollback_with_counts_and_savepoints ... ok
+test memory::tests::staged_sharing_accepts_only_the_exact_row_value ... ok
+test sqlite_residency::tests::interrupted_installation_is_one_transaction_and_excludes_a_competing_installer ... ok
+test device::publication_tests::pending_publication_reads_the_slot_not_request_progress ... ok
+test device::recorded::tests::membership_transitions_do_not_depend_on_recording_targets_on_both_stores ... ok
+test device::publication_tests::leased_nonterminal_continuation_sqlite ... ok
+test ffi::tests::open_reason_reports_the_attempt_without_trying_again ... ok
+test device::publication_tests::leased_terminal_continuation_sqlite ... ok
+test ffi::tests::first_install_envelope_preserves_a_backend_installed_by_another_owner ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_memory ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_sqlite ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_memory ... ok
+test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_both_stores ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
+
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+
+     Running tests/acquisition_crash.rs (snapback4/target/debug/deps/acquisition_crash-bd71192e0cda91b9)
+
+running 2 tests
+test acquisition_crash_worker ... ok
+sqlite, refresh=false: 12 process kills, 1503 persistence cuts
+sqlite, refresh=true: 12 process kills, 1610 persistence cuts
+memory, refresh=false: 12 process kills, 1228 persistence cuts
+memory, refresh=true: 12 process kills, 1776 persistence cuts
+test random_process_kills_preserve_atomic_acquisition_on_both_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.18s
+
+     Running tests/adoption.rs (snapback4/target/debug/deps/adoption-c0ea8ac78a1c01ef)
+
+running 6 tests
+memory: adopted signed sum 1 -> 0 -> -1; 1 surviving candidate; snapshot after expiry=-1
+test defaulted_sum_keeps_zero_candidate_through_expiry_memory ... ok
+memory: default audience admits alice=1, bob=0; held=1/0; snapshot=1/0; stream=2; leave retains=2, server=0
+test defaulted_membership_group_agrees_with_rules_snapshot_and_stream_memory ... ok
+sqlite: 3 held rows, 3 default-index matches, reopen_with_backend=false
+sqlite: adopted signed sum 1 -> 0 -> -1; 1 surviving candidate; snapshot after expiry=-1
+test defaulted_sum_keeps_zero_candidate_through_expiry_sqlite ... ok
+test a_pending_old_image_keeps_its_mark_and_gains_default_index_entries_on_both_stores ... ok
+memory: 3 held rows, 3 default-index matches, reopen_with_backend=false
+sqlite: default audience admits alice=1, bob=0; held=1/0; snapshot=1/0; stream=2; leave retains=2, server=0
+test defaulted_membership_group_agrees_with_rules_snapshot_and_stream_sqlite ... ok
+sqlite: 3 held rows, 3 default-index matches, reopen_with_backend=true
+memory: 3 held rows, 3 default-index matches, reopen_with_backend=true
+test literal_default_images_on_both_device_stores ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/background_durability.rs (snapback4/target/debug/deps/background_durability-b8945f3a57d733b2)
+
+running 2 tests
+test normal_replay_repairs_copies_but_cannot_repair_an_observed_watermark ... ok
+test delivery_wal_cuts_recover_copies_cursor_and_log_together ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/device.rs (snapback4/target/debug/deps/device-d4d8eb0e9e15b5fe)
+
+running 437 tests
+test device_scenarios::actions_never_predict_query_or_enter_either_device_outbox ... ok
+test device_scenarios::extra_probe_equalities_run_on_both_device_stores ... ok
+test a_zero_sum_can_become_nonzero_on_the_device_clock ... ok
+test delivered_history_survives_membership_expiry_during_a_paged_snapshot ... ok
+test device_scenarios::media_home_follows_stream_clear_delete_expiry_and_scope_on_both_stores ... ok
+test device_scenarios::a_scope_retires_media_past_a_page_while_preserving_delivered_history ... ok
+test device_scenarios::durable_rejection_rebase_preserves_confirmed_images ... ok
+test device_scenarios::a_scope_tombstone_applies_the_leave_policy ... ok
+test acquisition::w5c_sync_state_reports_durable_acquisition_after_snapshot_and_catchup ... ok
+test a_rejoin_after_an_expired_gap_revokes_stale_device_rows_before_reacquiring_live_rows ... ok
+test device_scenarios::the_memory_host_keeps_only_what_a_reopen_needs ... ok
+sqlite concat query cut: heap=16806240 B
+test device_scenarios::a_wide_merge_matches_the_server_until_the_device_horizon ... ok
+test device_scenarios::online_only_final_insert_target_is_unknown_to_the_predictor ... ok
+test device_scenarios::outbox_status_survives_reopen_without_changing_intent_or_order ... ok
+test device_scenarios::upload_receipts_predict_id_only_image_and_video_on_both_stores ... ok
+test device_scenarios::pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_hosts ... ok
+test expiring_maintain_sources_recompute_held_rows_without_inventing_online_counts ... ok
+test device_scenarios::the_call_answers_the_card_on_every_host ... ok
+W7a host=memory op=saveProfile predicted_rows=2
+W7a host=memory op=createPost predicted_rows=3
+W7a host=memory op=follow predicted_rows=0
+test following::app::w10b_wired_repost_predicts_on_both_stores ... ok
+W7a host=memory offline_fanout_predicted_rows=4
+W7R1b audience store=memory viewer=alice cold_pulls=1 foreign_pulls=0 after_stream_and_reopen=true
+W7R1b audience store=memory viewer=bob cold_pulls=1 foreign_pulls=0 after_stream_and_reopen=true
+W7R1b audience store=memory viewer=unrelated cold_pulls=0 foreign_pulls=0 after_stream_and_reopen=true
+test following::privacy::w7r1b_pull_audience_memory ... ok
+test device_scenarios::the_device_follows_the_server_and_answers_locally ... ok
+W6R1 host=sqlite mode=public celebrity=false viewer=reader: entries=2 complete=true examined=8
+test expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up ... ok
+MERGE_PATH shape=discovered lazy=false
+MERGE_PATH shape=helper lazy=false
+MERGE_PATH shape=lexical lazy=true
+MERGE_PATH shape=unfiltered lazy=true
+MERGE_BINDING host=memory shape=discovered pages=3 rows=48 eager_equal=true
+MERGE_BINDING host=memory shape=helper pages=3 rows=48 eager_equal=true
+MERGE_BINDING host=memory shape=lexical pages=3 rows=48 eager_equal=true
+MERGE_BINDING host=memory shape=unfiltered pages=5 rows=96 eager_equal=true
+test following::removal::following_merge_predicate_memory ... ok
+MERGE_PATH shape=discovered lazy=false
+MERGE_PATH shape=helper lazy=false
+MERGE_PATH shape=lexical lazy=true
+MERGE_PATH shape=unfiltered lazy=true
+W6R1 host=sqlite mode=public celebrity=false viewer=author: entries=2 complete=true examined=8
+sqlite push query cut: heap=16778880 B
+W7a host=sqlite op=saveProfile predicted_rows=2
+W7a host=sqlite op=createPost predicted_rows=3
+W7a host=sqlite op=follow predicted_rows=0
+W7R1b audience store=sqlite viewer=alice cold_pulls=1 foreign_pulls=0 after_stream_and_reopen=true
+test following::following_streams_backfill_purge_own_posts_and_reposts ... ok
+MERGE_PATH host=memory followers=5 shape=following_inbox_broadcast lazy=false
+REMOVAL_CUT host=memory followers=5 ceiling=25 examined=26 removed=0 complete=false next=false rows=0
+REMOVAL_SWEEP host=memory followers=5 ceilings=1..=82 leaked_ceilings=0 unsafe_cursors=0 uncut_rows=20 uncut_probes=41 uncut_next=true
+REMOVAL_HEAP host=memory ceiling=20 charged=29422 examined=0 probes=0 data=Null next=false complete=false
+W7a host=sqlite offline_fanout_predicted_rows=4
+test following::app::w7a_wired_mutations_predict_or_queue_offline_on_both_stores ... ok
+W7R1b audience store=sqlite viewer=bob cold_pulls=1 foreign_pulls=0 after_stream_and_reopen=true
+MERGE_BINDING host=sqlite shape=discovered pages=3 rows=48 eager_equal=true
+MERGE_BINDING host=sqlite shape=helper pages=3 rows=48 eager_equal=true
+MERGE_BINDING host=sqlite shape=lexical pages=3 rows=48 eager_equal=true
+MERGE_BINDING host=sqlite shape=unfiltered pages=5 rows=96 eager_equal=true
+test following::removal::following_merge_predicate_sqlite ... ok
+memory concat query cut: heap=16806240 B
+MERGE_PATH host=sqlite followers=5 shape=following_inbox_broadcast lazy=false
+REMOVAL_CUT host=sqlite followers=5 ceiling=25 examined=26 removed=0 complete=false next=false rows=0
+REMOVAL_SWEEP host=sqlite followers=5 ceilings=1..=82 leaked_ceilings=0 unsafe_cursors=0 uncut_rows=20 uncut_probes=41 uncut_next=true
+REMOVAL_HEAP host=sqlite ceiling=20 charged=29422 examined=0 probes=0 data=Null next=false complete=false
+REMOVAL_AUTHORITY host=memory hidden=true state="failed" victim_unchanged=true local_refusal=E_RULE
+W7R1b audience store=sqlite viewer=unrelated cold_pulls=0 foreign_pulls=0 after_stream_and_reopen=true
+W6R1 host=sqlite mode=public celebrity=true viewer=reader: entries=2 complete=true examined=9
+test following::privacy::w7r1b_pull_audience_sqlite ... ok
+REMOVAL_AUTHORITY host=memory hidden=false state="failed" victim_unchanged=true local_refusal=E_RULE
+test following::removal::following_removal_foreign_tombstone_memory ... ok
+W6R1 host=sqlite mode=public celebrity=true viewer=author: entries=2 complete=true examined=9
+memory push query cut: heap=16778880 B
+test device_scenarios::heap_cuts_and_successful_accumulators_on_both_stores ... ok
+REMOVAL_AUTHORITY host=sqlite hidden=true state="failed" victim_unchanged=true local_refusal=E_RULE
+REMOVAL host=memory followers=5 readers=6 immediate=all purge=all rerepost=all
+N1 host=memory ceilings=1..=82 probe_limits=2 partition_forms=4 partition_pairs=656 adversarial_point_pairs=164 positive_controls=4
+test following::removal::following_removal_n1_memory ... ok
+test following::removal::following_removal_fills_live_pages_on_both_stores ... ok
+W6R1 host=sqlite mode=private celebrity=false viewer=reader: entries=2 complete=true examined=8
+W6R1 host=sqlite mode=private celebrity=false viewer=author: entries=2 complete=true examined=8
+N1 host=sqlite ceilings=1..=82 probe_limits=2 partition_forms=4 partition_pairs=656 adversarial_point_pairs=164 positive_controls=4
+test following::removal::following_removal_n1_sqlite ... ok
+W6a host=memory follows=5 rows=20 complete=true examined=82 probes=21 index=0 p95_ms=0.471
+W11a promoted: examined=214 index=482 written=160 followers=51 routes=52
+W6a host=memory follows=5 cold_rows=2600 cold_bytes=250482
+REMOVAL_AUTHORITY host=sqlite hidden=false state="failed" victim_unchanged=true local_refusal=E_RULE
+W11a store=memory reader=reader00 slots=31 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11a_promotion_free_slot_memory ... ok
+test following::removal::following_removal_foreign_tombstone_sqlite ... ok
+W6a host=memory follows=500 rows=20 complete=true examined=82 probes=21 index=0 p95_ms=0.482
+W6a host=memory follows=500 cold_rows=3095 cold_bytes=335403
+W6a host=memory following500/following5=1.024
+W6a host=memory: removal and unfollow streamed to both readers before purge
+test following::app::w6a_wired_following_memory ... ok
+MERGE_PATH host=memory followers=51 shape=following_inbox_broadcast lazy=false
+REMOVAL_CUT host=memory followers=51 ceiling=25 examined=26 removed=0 complete=false next=false rows=0
+REMOVAL_SWEEP host=memory followers=51 ceilings=1..=85 leaked_ceilings=0 unsafe_cursors=0 uncut_rows=20 uncut_probes=42 uncut_next=true
+test following::removal::following_removal_cut_memory ... ok
+W6R1 host=sqlite mode=private celebrity=true viewer=reader: entries=2 complete=true examined=9
+W6a host=sqlite follows=5 rows=20 complete=true examined=82 probes=21 index=0 p95_ms=0.682
+W6a host=sqlite follows=5 cold_rows=2600 cold_bytes=250482
+W11a refused: examined=210 index=469 written=156 committed_events=0 code=FEED_PROMOTION_PULL_CAP message=the program refused with FEED_PROMOTION_PULL_CAP
+W11a refused: examined=112 index=28 written=9 committed_events=0 code=FEED_PROMOTION_PULL_CAP message=the program refused with FEED_PROMOTION_PULL_CAP
+W6R1 host=sqlite mode=private celebrity=true viewer=author: entries=2 complete=true examined=9
+W11a promoted: examined=215 index=491 written=161 followers=51 routes=52
+W11a store=memory reader=reader49 slots=32 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11a_promotion_partial_routes_memory ... ok
+W11a promoted: examined=215 index=491 written=161 followers=51 routes=52
+W11a store=memory reader=reader00 slots=32 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11a_promotion_refusal_memory ... ok
+MERGE_PATH host=sqlite followers=51 shape=following_inbox_broadcast lazy=false
+REMOVAL_CUT host=sqlite followers=51 ceiling=25 examined=26 removed=0 complete=false next=false rows=0
+REMOVAL_SWEEP host=sqlite followers=51 ceilings=1..=85 leaked_ceilings=0 unsafe_cursors=0 uncut_rows=20 uncut_probes=42 uncut_next=true
+test following::removal::following_removal_cut_sqlite ... ok
+W6a host=sqlite follows=500 rows=20 complete=true examined=82 probes=21 index=0 p95_ms=0.701
+W6a host=sqlite follows=500 cold_rows=3095 cold_bytes=335403
+W6a host=sqlite following500/following5=1.027
+W6a host=sqlite: removal and unfollow streamed to both readers before purge
+test following::app::w6a_wired_following_sqlite ... ok
+W6R1 host=sqlite mode=horizon celebrity=false viewer=reader: entries=2 complete=false examined=8
+W11a refused: examined=56 index=10 written=2 committed_events=0 code=FEED_PULL_CAP message=the program refused with FEED_PULL_CAP
+REMOVAL host=sqlite followers=5 readers=6 immediate=all purge=all rerepost=all
+W11a promoted: examined=215 index=491 written=161 followers=51 routes=52
+W11a store=memory reader=reader50 slots=32 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11r1c_saturated_trigger_memory ... ok
+W6R1 host=sqlite mode=horizon celebrity=false viewer=author: entries=2 complete=false examined=8
+W10R1 directory sqlite: acquired_rows=25 empty_needles=3 empty_matches=0 browse_pages=20+5 search_pages=20+5 dav_matches=1
+W11a promoted: examined=214 index=482 written=160 followers=51 routes=52
+W6R1 host=sqlite mode=horizon celebrity=true viewer=reader: entries=2 complete=false examined=9
+W10R1 directory memory: acquired_rows=25 empty_needles=3 empty_matches=0 browse_pages=20+5 search_pages=20+5 dav_matches=1
+test guide_examples::w10r1_directory_card_pages_and_searches_on_both_stores ... ok
+W11a refused: examined=210 index=469 written=156 committed_events=0 code=FEED_PROMOTION_PULL_CAP message=the program refused with FEED_PROMOTION_PULL_CAP
+W11a store=sqlite reader=reader00 slots=31 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11a_promotion_free_slot_sqlite ... ok
+W11a promoted: examined=215 index=491 written=161 followers=51 routes=52
+W11a refused: examined=112 index=28 written=9 committed_events=0 code=FEED_PROMOTION_PULL_CAP message=the program refused with FEED_PROMOTION_PULL_CAP
+W6R1 host=sqlite mode=horizon celebrity=true viewer=author: entries=2 complete=false examined=9
+W11a promoted: examined=215 index=491 written=161 followers=51 routes=52
+W11a store=sqlite reader=reader49 slots=32 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11a_promotion_partial_routes_sqlite ... ok
+W11a store=sqlite reader=reader00 slots=32 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11a_promotion_refusal_sqlite ... ok
+E1 typing sqlite: device unknown; initial_deadline=5000 renewed_deadline=8000; no durable sequence change
+W6R1 host=memory mode=public celebrity=false viewer=reader: entries=2 complete=true examined=8
+W6R1 host=memory mode=public celebrity=false viewer=author: entries=2 complete=true examined=8
+E1 typing memory: device unknown; initial_deadline=5000 renewed_deadline=8000; no durable sequence change
+test guide_examples::w10r1_typing_card_extends_and_expires_on_both_stores ... ok
+W6R1 host=memory mode=public celebrity=true viewer=reader: entries=2 complete=true examined=9
+W6R1 host=memory mode=public celebrity=true viewer=author: entries=2 complete=true examined=9
+W11a refused: examined=56 index=10 written=2 committed_events=0 code=FEED_PULL_CAP message=the program refused with FEED_PULL_CAP
+W11a promoted: examined=215 index=491 written=161 followers=51 routes=52
+W6R1 host=memory mode=private celebrity=false viewer=reader: entries=2 complete=true examined=8
+W6R1 host=memory mode=private celebrity=false viewer=author: entries=2 complete=true examined=8
+W11a store=sqlite reader=reader50 slots=32 existing_followers=50 preserved_deliveries=50 partial_routes=0 recovered_posts=3
+test following::saturation::w11r1c_saturated_trigger_sqlite ... ok
+test language::defaults_predict_on_both_stores_with_the_explicit_write_clock ... ok
+test language::sha256_uses_the_shared_interpreter_on_both_device_stores ... ok
+test lane_domains::w13c2_nonuniform_paired_worlds_match_on_both_stores ... ok
+W6R1 host=memory mode=private celebrity=true viewer=reader: entries=2 complete=true examined=9
+W6R1 host=memory mode=private celebrity=true viewer=author: entries=2 complete=true examined=9
+W6R1 host=memory mode=horizon celebrity=false viewer=reader: entries=2 complete=false examined=8
+W6R1 host=memory mode=horizon celebrity=false viewer=author: entries=2 complete=false examined=8
+test language::shapes_preserve_pending_through_spreads_and_projection_on_both_stores ... ok
+test maintains::columns::columns_are_server_values_on_both_device_stores ... ok
+test maintains::columns::projected_columns_keep_recorded_decoder_fence_and_capture_on_both_stores ... ok
+test maintains::columns::independent_source_model_matches_both_device_readers ... ok
+sqlite ranking: typed=35 range=35
+W6R1 host=memory mode=horizon celebrity=true viewer=reader: entries=2 complete=false examined=9
+W6R1 host=memory mode=horizon celebrity=true viewer=author: entries=2 complete=false examined=9
+test following::app::w6r1_wired_cards_respect_rules_and_horizons_on_both_stores ... ok
+test maintains::columns::provisional_parents_authorize_implicit_zero_at_read_time_on_both_stores ... ok
+test maintains::maintains_queue_unknown_bases_and_unheld_source_images_on_both_stores ... ok
+test maintains::retains_source_history_but_revokes_aggregate_and_replacement_snapshot_on_both_stores ... ok
+test maintains::review::review3_subset_memory ... ok
+test maintains::review::review1_history_memory ... ok
+test maintains::maintains_predict_new_groups_and_omit_online_side_effects_on_both_stores ... ok
+test maintains::review::review4_raw_adoption ... ok
+test maintains::review::review4_raw_creation ... ok
+test maintains::review::review3_subset_sqlite ... ok
+test maintains::review::review5_generation_memory ... ok
+test maintains::review::review1_history_sqlite ... ok
+test maintains::review::review5_prefix_memory ... ok
+test maintains::review::review5_old_cursor_after_value_change_memory ... ok
+test maintains::review::review5_generation_sqlite ... ok
+test maintains::review::review5_query_cursor_in_mutation_memory ... ok
+test maintains::review::review5_prefix_sqlite ... ok
+test maintains::review::review5_old_cursor_after_value_change_sqlite ... ok
+test maintains::review::review5_query_cursor_in_mutation_sqlite ... ok
+test maintains::review::review5_table_generation_memory ... ok
+test maintains::review::review5_table_prefix_memory ... ok
+FOLD store=memory attempts=28 commits=26 overflow_rollbacks=2 groups_ranked_from_sources=true
+test maintains::review::review6_fold_memory ... ok
+test maintains::review::review5_table_prefix_sqlite ... ok
+test maintains::review::review5_table_generation_sqlite ... ok
+v2: complete=true cut=null next=null rows=10 examined=20 index_entries=0
+v3: complete=true cut=null next=null rows=10 examined=30 index_entries=14
+v4: complete=true cut=null next=null rows=10 examined=40 index_entries=0
+test merge_continuation::memory::cases::a_predicate_cursor_does_not_take_page_ownership_and_shapes_stay_complete ... ok
+v1: complete=true cut=null next=null rows=4 examined=22 index_entries=14
+test merge_continuation::memory::cases::a_v1_matching_predicate_does_not_overflow ... ok
+v2: complete=true cut=null next=null rows=10 examined=20 index_entries=0
+test merge_continuation::memory::cases::a_v2_plain_predicate_does_not_overflow ... ok
+A inner cut: complete=false cut="meter" next=PRESENT rows=0 examined=8193 index_entries=0
+test merge_continuation::memory::cases::control_a_inner_meter_cut_is_still_incomplete ... ok
+test merge_continuation::memory::cases::control_c1_c2b_opening_cut_has_no_continuation_even_with_buffered_siblings ... ok
+C2 audit: nonempty opening-cut buffer: complete=false cut="meter" next=null rows=100 examined=8193 index_entries=0
+test merge_continuation::memory::cases::control_c1_opening_cut_with_a_short_nonempty_buffer_stays_terminal ... ok
+C2c later shape cut: complete=false cut="meter" next=PRESENT rows=0 examined=8193 index_entries=0
+FOLD store=sqlite attempts=28 commits=26 overflow_rollbacks=2 groups_ranked_from_sources=true
+test maintains::review::review6_fold_sqlite ... ok
+test merge_continuation::memory::cases::control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidate ... ok
+C2c later shape cut: complete=false cut="meter" next=PRESENT rows=0 examined=8193 index_entries=0
+test merge_continuation::memory::cases::control_c2c_later_meter_cut_does_not_strand_the_owner ... ok
+test merge_continuation::memory::cases::control_direct_unique_suffix_keeps_its_scoped_token ... ok
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=2 first: ["d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=2 last: ["b", "a", "c", "d"]
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=9 first: ["d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=9 last: ["b", "a", "c", "d"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=2 first: ["d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=2 last: ["b", "a", "c", "d"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=9 first: ["d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=9 last: ["b", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=2 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=2 last: ["b", "aa", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=9 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=9 last: ["b", "aa", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=2 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=2 last: ["b", "aa", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=9 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=9 last: ["b", "aa", "a", "c", "d"]
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=2 first: ["n1", "n2", "d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=2 last: ["b", "a", "c", "d", "n2", "n1"]
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=9 first: ["n1", "n2", "d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=9 last: ["b", "a", "c", "d", "n2", "n1"]
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=2 first: ["n1", "n2", "d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=2 last: ["b", "a", "c", "d", "n2", "n1"]
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=9 first: ["n1", "n2", "d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=9 last: ["b", "a", "c", "d", "n2", "n1"]
+test merge_continuation::memory::cases::d01_equal_suffix_unique_and_non_unique_every_admitting_path ... ok
+test merge_continuation::memory::cases::d01_old_descriptor_refused_and_paved_token_bytes_unchanged ... ok
+D0.2 after eager=false synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+W6R1 host=sqlite live rule horizon=false source_rows=1 predicted=true confirmed=1 expired_refused=1
+D0.2 after eager=false synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+test merge_continuation::memory::cases::control_c3_direct_filtered_cut_keeps_last_rule_visible_position ... ok
+D0.2 after eager=false synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 after eager=false synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 after eager=true synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 after eager=true synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D5.1 filter: complete=false cut="meter" next=PRESENT rows=70 examined=8193 index_entries=0
+D0.2 before eager=true synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 after eager=true synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 after eager=true synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+test merge_continuation::memory::cases::d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths ... ok
+drain walk: 120 rows, 2 pages
+test merge_continuation::memory::cases::d51_filter_drain_cut_continues ... ok
+D5.2/4 lookahead: complete=false cut="meter" next=PRESENT rows=32 examined=8193 index_entries=10
+D5.3 duplicate: complete=false cut="meter" next=PRESENT rows=4 examined=8193 index_entries=10
+drain walk: 90 rows, 3 pages
+test merge_continuation::memory::cases::d52_d54_further_term_lookahead_cut_continues ... ok
+ticket unique=false page 1: ["r1-100-b"] complete=true cut=null next=yes
+ticket unique=false page 2: ["r1-100-a"] complete=true cut=null next=yes
+ticket unique=false page 3: ["r1-090"] complete=true cut=null next=no
+test merge_continuation::memory::cases::ticket_merge_cursor_bypasses_cursor_index ... ok
+ticket unique=true page 1: ["r2-100"] complete=true cut=null next=yes
+ticket unique=true page 2: ["r1-100"] complete=true cut=null next=yes
+ticket unique=true page 3: ["r1-090"] complete=true cut=null next=yes
+ticket unique=true page 4: ["r2-080"] complete=true cut=null next=no
+test merge_continuation::memory::cases::ticket_merge_equal_suffix_skip ... ok
+ticket mergeAlone hidden=0: complete=true cut=null next=PRESENT rows=2 examined=10 index_entries=0
+ticket mergeThenNonUniform hidden=0: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+ticket nonUniformThenMerge hidden=0: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+drain walk: 10 rows, 3 pages
+test merge_continuation::memory::cases::d53_duplicate_pop_stops_before_an_unknown_head ... ok
+ticket mergeAlone hidden=9000: complete=true cut=null next=PRESENT rows=2 examined=10 index_entries=0
+test merge_continuation::memory::shape_pages::w13h_auxiliary_shape_does_not_rewind_the_returned_raw_page ... ok
+ticket mergeThenNonUniform hidden=9000: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+ticket nonUniformThenMerge hidden=9000: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+test merge_continuation::memory::cases::ticket_merge_next_after_non_uniform ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_collector_shape_embedding_raw_page_keeps_main_position ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W6R1 host=sqlite live rule horizon=true source_rows=1 predicted=false confirmed=1 expired_refused=1
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_collector_wrapping_conditional_page_keeps_main_position ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_collector_wrapping_raw_page_keeps_main_position ... ok
+test merge_continuation::memory::shape_pages::w13h_canonical_bound_read_retries_direct_eager_and_lazy_pages ... ok
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+test merge_continuation::memory::shape_pages::w13h_conditional_cursor_field_does_not_hide_the_page_owner ... ok
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+test merge_continuation::memory::shape_pages::w13h_conditional_same_shape_keeps_partial_rows_without_rewind ... ok
+W6R1 host=memory live rule horizon=false source_rows=1 predicted=true confirmed=1 expired_refused=1
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+test merge_continuation::memory::shape_pages::w13h_conditional_return_keeps_the_raw_position_for_both_arms ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_conditional_value_raw_keeps_its_owner ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_conditional_value_record_raw_keeps_its_position ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_conditional_value_record_field_keeps_its_page ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_conditional_value_record_shaped_keeps_its_rows ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_conditional_value_shaped_keeps_its_rows ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_without_exhaustion_keeps_next ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8195 -> 7
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=8 -> 7
+W6R1 host=memory live rule horizon=true source_rows=1 predicted=false confirmed=1 expired_refused=1
+test maintains::w6r1_rule_live_aggregate_prediction_on_both_stores ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8195 -> 7
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=8 -> 7
+test merge_continuation::memory::shape_pages::w13h_conditional_value_successive_shape_keeps_its_rows ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_cursorless_return_also_drops_an_unfinished_shape ... ok
+W13h termination: entering compile and plan device=true
+test merge_continuation::memory::shape_pages::w13h_finite_helper_composition_terminates ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h drain device=true: rows=69 last=Some("m03-0600") examined=8194 next=true
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_container_transport_never_erases_a_possible_raw_page ... ok
+W13h drain device=true: rows=0 last=None examined=8194 next=false
+test merge_continuation::memory::shape_pages::w13h_drain_cut_keeps_only_fully_shaped_emissions ... ok
+test merge_continuation::memory::shape_pages::w13h_incompatible_record_alternatives_are_refused_at_the_join ... ok
+test merge_continuation::memory::shape_pages::w13h_helper_returned_shape_keeps_partial_rows_and_main_ownership ... ok
+W13h grouped device=true request 1: groups=0 complete=false cut="meter" next=yes examined=8193 idx=8191 previews=[]
+W13h grouped device=true request 2: groups=3 complete=true cut=null next=no examined=4924 idx=4909 previews=[["r04100",["r04100-m4","r04100-m3","r04100-m2"]],["r08500",["r08500-m4","r08500-m3","r08500-m2"]],["r08950",["r08950-m4","r08950-m3","r08950-m2"]]]
+test merge_continuation::memory::shape_pages::w13h_inherited_cap_cuts_list_merge_shapes ... ok
+test merge_continuation::memory::shape_pages::w13h_grouped_9000_walk_never_emits_an_empty_preview ... ok
+test merge_continuation::memory::shape_pages::w13h_inherited_cap_cuts_range_merge_shapes ... ok
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+test merge_continuation::memory::shape_pages::w13h_inline_returned_read_retries_the_starved_preview ... ok
+W13h return device=true raw=false cut=false: ["a"] -> ["b"]
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+test merge_continuation::memory::shape_pages::w13h_loop_carried_page_keeps_partial_rows_without_an_owner ... ok
+W13h return device=true raw=false cut=false: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h return device=true raw=false cut=false: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_loop_carried_record_keeps_owner_position_and_rows ... ok
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+W13h return device=true raw=true cut=false: ["a"] -> ["b"]
+test merge_continuation::memory::shape_pages::w13h_item_and_alias_collectors_keep_partial_rows_without_rewind ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+test merge_continuation::memory::shape_pages::w13h_loop_same_shape_keeps_partial_rows_without_an_owner ... ok
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_multiple_backedges_keep_the_sibling_raw_position ... ok
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_loop_unknown_record_keeps_the_sibling_owner ... ok
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_nested_shape_cut_control_preserves_its_outer_row ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_loop_exits_keep_main_ownership_without_trimming ... ok
+W13h optional device=true record=true raw=true cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=true cut=true request=1: next=false examined=3
+W13h optional device=true record=true raw=true cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=true cut=false request=1: next=false examined=3
+W13h optional device=true record=true raw=true cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=true cut=true request=1: next=false examined=3
+W13h optional device=true record=true raw=true cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=true cut=false request=1: next=false examined=3
+test merge_continuation::memory::shape_pages::w13h_predicate_cut_control_keeps_the_last_rule_visible_position ... ok
+test merge_continuation::memory::shape_pages::w13h_page_or_empty_in_either_order_keeps_rows_without_an_owner ... ok
+W13h optional device=true record=true raw=true cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=true cut=true request=1: next=false examined=3
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+W13h optional device=true record=true raw=true cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=true cut=false request=1: next=false examined=3
+test merge_continuation::memory::shape_pages::w13h_raw_page_returned_beside_its_shape_keeps_its_own_position ... ok
+W13h record join device=true other=null reverse=false assigned=false raw=true cut=true request=0: next=false examined=8193
+W13h optional device=true record=true raw=false cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=false cut=true request=1: next=false examined=3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8194 -> 4
+W13h optional device=true record=true raw=false cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=false cut=false request=1: next=false examined=3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=6 -> 4
+test merge_continuation::memory::shape_pages::w13h_rescan_collector_keeps_partial_shapes_and_main_position ... ok
+W13h record join device=true other=null reverse=false assigned=false raw=false cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=false assigned=false raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=false assigned=false raw=false cut=false request=0: next=false examined=4
+W13h optional device=true record=true raw=false cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=false cut=true request=1: next=false examined=3
+W13h shape first device=true: ids=["a"] examined=8193 next=true
+W13h optional device=true record=true raw=false cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=false cut=false request=1: next=false examined=3
+W13h record join device=true other=null reverse=false assigned=true raw=true cut=true request=0: next=false examined=8193
+W13h optional device=true record=true raw=false cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=false cut=true request=1: next=false examined=3
+W13h optional device=true record=true raw=false cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=false cut=false request=1: next=false examined=3
+test merge_continuation::memory::shape_pages::w13h_page_or_null_record_keeps_owner_and_rows ... ok
+W13h shape last device=true: ids=["a"] examined=8193 next=true
+test merge_continuation::memory::shape_pages::w13h_shape_cut_retries_the_first_unfinished_row_in_both_directions ... ok
+W13h record join device=true other=null reverse=false assigned=true raw=false cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=false assigned=true raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=false assigned=true raw=false cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=true assigned=false raw=true cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=true assigned=false raw=false cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=true assigned=false raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=true assigned=false raw=false cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=true assigned=true raw=true cut=true request=0: next=false examined=8193
+test merge_continuation::memory::shape_pages::w13h_two_page_loop_keeps_unique_sibling_owner_but_not_two_sites ... ok
+W13h record join device=true other=null reverse=true assigned=true raw=false cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=true assigned=true raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=true assigned=true raw=false cut=false request=0: next=false examined=4
+test merge_continuation::memory::shape_pages::w13h_record_or_null_keeps_its_value_without_an_owner ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+sqlite 5000 lanes: examined=9096 heap_bytes=6963950 steps=19112
+test merge_continuation::memory::shape_pages::w13h_used_auxiliary_summary_does_not_rewind_the_returned_raw_page ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::memory::shape_pages::w13h_unknown_sibling_and_field_alias_keep_the_unique_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_successive_shapes_keep_partial_rows_on_direct_eager_and_lazy_pages ... ok
+W13j device=true: first examined=8193 index_entries=0 capped_at=Some((Examined, "programs.feed.1"))
+test merge_continuation::memory::shape_pages::w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow ... ok
+test merge_continuation::memory::shape_pages::w13j_exclusive_or_advancing_inclusive_follows_and_finished_shapes_still_answer ... ok
+v2: complete=true cut=null next=null rows=10 examined=20 index_entries=0
+v3: complete=true cut=null next=null rows=10 examined=30 index_entries=14
+v4: complete=true cut=null next=null rows=10 examined=40 index_entries=0
+test merge_continuation::sqlite::cases::a_predicate_cursor_does_not_take_page_ownership_and_shapes_stay_complete ... ok
+test merge_continuation::memory::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read ... ok
+test merge_continuation::memory::shape_pages::w13j_unfinishable_merge_shapes_refuse_in_both_directions ... ok
+v1: complete=true cut=null next=null rows=4 examined=22 index_entries=14
+test merge_continuation::sqlite::cases::a_v1_matching_predicate_does_not_overflow ... ok
+v2: complete=true cut=null next=null rows=10 examined=20 index_entries=0
+test merge_continuation::sqlite::cases::a_v2_plain_predicate_does_not_overflow ... ok
+test maintains::columns::projected_metadata_refuses_every_forged_write_arm_on_both_stores ... ok
+memory ranking: typed=35 range=35
+test membership::self_witness_membership_keeps_online_coverage_unknown_on_both_stores ... ok
+test merge_continuation::sqlite::cases::control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidate ... ok
+A inner cut: complete=false cut="meter" next=PRESENT rows=0 examined=8193 index_entries=0
+test merge_continuation::sqlite::cases::control_a_inner_meter_cut_is_still_incomplete ... ok
+test merge_continuation::sqlite::cases::control_c1_c2b_opening_cut_has_no_continuation_even_with_buffered_siblings ... ok
+test merge_continuation::sqlite::cases::control_direct_unique_suffix_keeps_its_scoped_token ... ok
+C2 audit: nonempty opening-cut buffer: complete=false cut="meter" next=null rows=100 examined=8193 index_entries=0
+test merge_continuation::sqlite::cases::control_c1_opening_cut_with_a_short_nonempty_buffer_stays_terminal ... ok
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=2 first: ["d", "c", "a", "b"]
+D0.2 after eager=false synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=2 last: ["b", "a", "c", "d"]
+test merge_continuation::sqlite::cases::d01_old_descriptor_refused_and_paved_token_bytes_unchanged ... ok
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=9 first: ["d", "c", "a", "b"]
+C2c later shape cut: complete=false cut="meter" next=PRESENT rows=0 examined=8193 index_entries=0
+D0.1 index=unique byLane: lane, at nullable=false cross=false lanes=9 last: ["b", "a", "c", "d"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=2 first: ["d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=2 last: ["b", "a", "c", "d"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=9 first: ["d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=false cross=true lanes=9 last: ["b", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=2 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=2 last: ["b", "aa", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=9 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=false lanes=9 last: ["b", "aa", "a", "c", "d"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=2 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=2 last: ["b", "aa", "a", "c", "d"]
+C2c later shape cut: complete=false cut="meter" next=PRESENT rows=0 examined=8193 index_entries=0
+test merge_continuation::sqlite::cases::control_c2c_later_meter_cut_does_not_strand_the_owner ... ok
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=9 first: ["d", "c", "a", "aa", "b"]
+D0.1 index=by byLane: lane, at nullable=false cross=true lanes=9 last: ["b", "aa", "a", "c", "d"]
+D0.2 after eager=false synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D5.2/4 lookahead: complete=false cut="meter" next=PRESENT rows=32 examined=8193 index_entries=10
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=2 first: ["n1", "n2", "d", "c", "a", "b"]
+drain walk: 90 rows, 3 pages
+test merge_continuation::sqlite::cases::d52_d54_further_term_lookahead_cut_continues ... ok
+D5.1 filter: complete=false cut="meter" next=PRESENT rows=70 examined=8193 index_entries=0
+D0.2 after eager=false synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+drain walk: 120 rows, 2 pages
+test merge_continuation::sqlite::cases::d51_filter_drain_cut_continues ... ok
+memory 5000 lanes: examined=9096 heap_bytes=6963950 steps=19112
+test lane_domains::w13c2_range_list_and_meter_on_both_device_stores ... ok
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=2 last: ["b", "a", "c", "d", "n2", "n1"]
+D0.2 after eager=false synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=false synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+ticket unique=false page 1: ["r1-100-b"] complete=true cut=null next=yes
+ticket unique=false page 2: ["r1-100-a"] complete=true cut=null next=yes
+ticket unique=false page 3: ["r1-090"] complete=true cut=null next=no
+test merge_continuation::sqlite::cases::ticket_merge_cursor_bypasses_cursor_index ... ok
+D5.3 duplicate: complete=false cut="meter" next=PRESENT rows=4 examined=8193 index_entries=10
+drain walk: 10 rows, 3 pages
+test merge_continuation::sqlite::cases::d53_duplicate_pop_stops_before_an_unknown_head ... ok
+ticket unique=true page 1: ["r2-100"] complete=true cut=null next=yes
+ticket unique=true page 2: ["r1-100"] complete=true cut=null next=yes
+ticket unique=true page 3: ["r1-090"] complete=true cut=null next=yes
+ticket unique=true page 4: ["r2-080"] complete=true cut=null next=no
+test merge_continuation::sqlite::cases::ticket_merge_equal_suffix_skip ... ok
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=9 first: ["n1", "n2", "d", "c", "a", "b"]
+D0.2 after eager=true synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=false hidden=0: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+ticket mergeAlone hidden=0: complete=true cut=null next=PRESENT rows=2 examined=10 index_entries=0
+ticket mergeThenNonUniform hidden=0: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+ticket nonUniformThenMerge hidden=0: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+test merge_continuation::sqlite::cases::control_c3_direct_filtered_cut_keeps_last_rule_visible_position ... ok
+D0.1 index=unique byLane: lane, at nullable=true cross=false lanes=9 last: ["b", "a", "c", "d", "n2", "n1"]
+REMOVAL host=memory followers=900 readers=901 immediate=all purge=all rerepost=all
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=2 first: ["n1", "n2", "d", "c", "a", "b"]
+test following::removal::following_removal_reaches_every_reader_before_purge_memory ... ok
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=2 last: ["b", "a", "c", "d", "n2", "n1"]
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=9 first: ["n1", "n2", "d", "c", "a", "b"]
+D0.1 index=unique byLane: lane, at nullable=true cross=true lanes=9 last: ["b", "a", "c", "d", "n2", "n1"]
+test merge_continuation::sqlite::cases::d01_equal_suffix_unique_and_non_unique_every_admitting_path ... ok
+test merge_continuation::sqlite::shape_pages::w13h_auxiliary_shape_does_not_rewind_the_returned_raw_page ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+ticket mergeAlone hidden=9000: complete=true cut=null next=PRESENT rows=2 examined=10 index_entries=0
+ticket mergeThenNonUniform hidden=9000: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+ticket nonUniformThenMerge hidden=9000: complete=false cut=null next=null rows=0 examined=11 index_entries=0
+test merge_continuation::sqlite::cases::ticket_merge_next_after_non_uniform ... ok
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_collector_shape_embedding_raw_page_keeps_main_position ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+D0.2 after eager=true synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=false hidden=9000: complete=false cut=null next=null rows=0 examined=4 index_entries=0
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_collector_wrapping_raw_page_keeps_main_position ... ok
+D0.2 after eager=true synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=true hidden=0: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 after eager=true synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+D0.2 before eager=true synced=true hidden=9000: complete=true cut=null next=PRESENT rows=0 examined=4 index_entries=0
+test merge_continuation::sqlite::cases::d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths ... ok
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+test merge_continuation::sqlite::shape_pages::w13h_conditional_cursor_field_does_not_hide_the_page_owner ... ok
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+test merge_continuation::sqlite::shape_pages::w13h_conditional_same_shape_keeps_partial_rows_without_rewind ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_collector_wrapping_conditional_page_keeps_main_position ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_raw_keeps_its_owner ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_record_raw_keeps_its_position ... ok
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+test merge_continuation::sqlite::shape_pages::w13h_conditional_return_keeps_the_raw_position_for_both_arms ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_without_exhaustion_keeps_next ... ok
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_record_shaped_keeps_its_rows ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_shaped_keeps_its_rows ... ok
+W13h termination: entering compile and plan device=true
+test merge_continuation::sqlite::shape_pages::w13h_finite_helper_composition_terminates ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8195 -> 7
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=8 -> 7
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_record_field_keeps_its_page ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_cursorless_return_also_drops_an_unfinished_shape ... ok
+test merge_continuation::sqlite::shape_pages::w13h_incompatible_record_alternatives_are_refused_at_the_join ... ok
+W7R2 host=memory cap=true op=unfollow reader=departing routes=0 count_rows=31999 predicted_rows=0
+W7R2 host=memory cap=true op=follow reader=new-reader routes=1 count_rows=32000 predicted_rows=0
+W7R2 host=memory cap=true op=unfollow reader=new-reader routes=0 count_rows=31999 predicted_rows=0
+W7R2 host=memory cap=true op=follow reader=departing routes=1 count_rows=32000 predicted_rows=0
+W13h drain device=true: rows=69 last=Some("m03-0600") examined=8194 next=true
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8195 -> 7
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=8 -> 7
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_successive_shape_keeps_its_rows ... ok
+test merge_continuation::sqlite::shape_pages::w13h_helper_returned_shape_keeps_partial_rows_and_main_ownership ... ok
+W7R2 host=memory cap=false op=unfollow reader=departing routes=1 count_rows=2 predicted_rows=0
+W7R2 host=memory cap=false op=unfollow reader=departing routes=0 count_rows=1 predicted_rows=0
+W7R2 host=memory cap=false op=unfollow reader=departing routes=0 count_rows=1 predicted_rows=0
+W7R2 host=memory cap=false op=follow reader=departing routes=1 count_rows=2 predicted_rows=0
+test following::slots::following_w7r2_slots_memory ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W7R2 host=sqlite cap=true op=unfollow reader=departing routes=0 count_rows=31999 predicted_rows=0
+W7R2 host=sqlite cap=true op=follow reader=new-reader routes=1 count_rows=32000 predicted_rows=0
+test merge_continuation::sqlite::shape_pages::w13h_canonical_bound_read_retries_direct_eager_and_lazy_pages ... ok
+W7R2 host=sqlite cap=true op=unfollow reader=new-reader routes=0 count_rows=31999 predicted_rows=0
+test merge_continuation::sqlite::shape_pages::w13h_inline_returned_read_retries_the_starved_preview ... ok
+W7R2 host=sqlite cap=true op=follow reader=departing routes=1 count_rows=32000 predicted_rows=0
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+W13h return device=true raw=false cut=false: ["a"] -> ["b"]
+W13h drain device=true: rows=0 last=None examined=8194 next=false
+test merge_continuation::sqlite::shape_pages::w13h_drain_cut_keeps_only_fully_shaped_emissions ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_inherited_cap_cuts_list_merge_shapes ... ok
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W7R2 host=sqlite cap=false op=unfollow reader=departing routes=1 count_rows=2 predicted_rows=0
+W7R2 host=sqlite cap=false op=unfollow reader=departing routes=0 count_rows=1 predicted_rows=0
+W7R2 host=sqlite cap=false op=unfollow reader=departing routes=0 count_rows=1 predicted_rows=0
+W7R2 host=sqlite cap=false op=follow reader=departing routes=1 count_rows=2 predicted_rows=0
+test following::slots::following_w7r2_slots_sqlite ... ok
+W13h grouped device=true request 1: groups=0 complete=false cut="meter" next=yes examined=8193 idx=8191 previews=[]
+W13h grouped device=true request 2: groups=3 complete=true cut=null next=no examined=4924 idx=4909 previews=[["r04100",["r04100-m4","r04100-m3","r04100-m2"]],["r08500",["r08500-m4","r08500-m3","r08500-m2"]],["r08950",["r08950-m4","r08950-m3","r08950-m2"]]]
+test merge_continuation::sqlite::shape_pages::w13h_grouped_9000_walk_never_emits_an_empty_preview ... ok
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_inherited_cap_cuts_range_merge_shapes ... ok
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h return device=true raw=false cut=false: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_loop_same_shape_keeps_partial_rows_without_an_owner ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_container_transport_never_erases_a_possible_raw_page ... ok
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_nested_shape_cut_control_preserves_its_outer_row ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_loop_carried_page_keeps_partial_rows_without_an_owner ... ok
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_loop_carried_record_keeps_owner_position_and_rows ... ok
+W13h return device=true raw=false cut=true: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h return device=true raw=false cut=false: ["a"] -> ["b"]
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h optional device=true record=true raw=true cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=true cut=true request=1: next=false examined=3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h optional device=true record=true raw=true cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=true cut=false request=1: next=false examined=3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_loop_unknown_record_keeps_the_sibling_owner ... ok
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_multiple_backedges_keep_the_sibling_raw_position ... ok
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+test merge_continuation::sqlite::shape_pages::w13h_raw_page_returned_beside_its_shape_keeps_its_own_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_predicate_cut_control_keeps_the_last_rule_visible_position ... ok
+W13h record join device=true other=null reverse=false assigned=false raw=true cut=true request=0: next=false examined=8193
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+W13h return device=true raw=true cut=false: ["a"] -> ["b"]
+test merge_continuation::sqlite::shape_pages::w13h_item_and_alias_collectors_keep_partial_rows_without_rewind ... ok
+W13h optional device=true record=true raw=true cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=true cut=true request=1: next=false examined=3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8194 -> 4
+W13h optional device=true record=true raw=true cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=true cut=false request=1: next=false examined=3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=6 -> 4
+test merge_continuation::sqlite::shape_pages::w13h_rescan_collector_keeps_partial_shapes_and_main_position ... ok
+W13h shape first device=true: ids=["a"] examined=8193 next=true
+W13h record join device=true other=null reverse=false assigned=false raw=false cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=false assigned=false raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=false assigned=false raw=false cut=false request=0: next=false examined=4
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=true cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=true cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h return device=true raw=true cut=true: ["a"] -> ["b"]
+test merge_continuation::sqlite::shape_pages::w13h_used_auxiliary_summary_does_not_rewind_the_returned_raw_page ... ok
+W13h optional device=true record=true raw=true cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=true cut=true request=1: next=false examined=3
+W13h shape last device=true: ids=["a"] examined=8193 next=true
+test merge_continuation::sqlite::shape_pages::w13h_shape_cut_retries_the_first_unfinished_row_in_both_directions ... ok
+W13h optional device=true record=true raw=true cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=true cut=false request=1: next=false examined=3
+W13h record join device=true other=null reverse=false assigned=true raw=true cut=true request=0: next=false examined=8193
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_unknown_sibling_and_field_alias_keep_the_unique_owner ... ok
+W13j device=true: first examined=8193 index_entries=0 capped_at=Some((Examined, "programs.feed.1"))
+test merge_continuation::sqlite::shape_pages::w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow ... ok
+test merge_continuation::sqlite::shape_pages::w13h_page_or_empty_in_either_order_keeps_rows_without_an_owner ... ok
+W13h optional device=true record=true raw=false cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=false cut=true request=1: next=false examined=3
+test merge_continuation::sqlite::shape_pages::w13j_exclusive_or_advancing_inclusive_follows_and_finished_shapes_still_answer ... ok
+test merge_cursor::cross_table_hidden_cut_memory ... ok
+W13h optional device=true record=true raw=false cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=false cut=false request=1: next=false examined=3
+test following::calibration::w8b_wired_calibration_acquisition_on_server_and_both_stores has been running for over 60 seconds
+test following::following_scale_pages_match_on_both_device_stores has been running for over 60 seconds
+W13h record join device=true other=null reverse=false assigned=true raw=false cut=true request=0: next=false examined=8193
+W13h record join device=true other=null reverse=false assigned=true raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=false assigned=true raw=false cut=false request=0: next=false examined=4
+W13h conditional device=true raw=false cut=true: ["a"] -> ["b"]; examined=8193 -> 3
+W13h conditional device=true raw=false cut=false: ["a"] -> ["b"]; examined=4 -> 3
+test merge_continuation::sqlite::shape_pages::w13h_loop_exits_keep_main_ownership_without_trimming ... ok
+W13h optional device=true record=true raw=false cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=false cut=true request=1: next=false examined=3
+W13h optional device=true record=true raw=false cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=false cut=false request=1: next=false examined=3
+test merge_cursor::cross_table_hidden_cut_sqlite ... ok
+test following::removal::following_removal_reaches_every_reader_before_purge_sqlite has been running for over 60 seconds
+test merge_cursor::equal_keys_and_cross_generation_cursor_on_both_devices ... ok
+merge device wire pairs: 16
+test merge_cursor::hidden_absent_wire_pairs_memory ... ok
+test merge_cursor::single_table_hidden_cut_memory ... ok
+test merge_continuation::sqlite::shape_pages::w13h_two_page_loop_keeps_unique_sibling_owner_but_not_two_sites ... ok
+W13h record join device=true other=null reverse=true assigned=false raw=true cut=true request=0: next=false examined=8193
+merge cut: examined=8193 complete=false next=None
+merge cut: examined=8193 complete=false next=None
+test merge_cursor::uniform_eager_and_lazy_cuts_memory ... ok
+W13h optional device=true record=true raw=false cut=true request=0: next=true examined=8193
+W13h optional device=true record=true raw=false cut=true request=1: next=false examined=3
+W13h optional device=true record=true raw=false cut=false request=0: next=true examined=4
+W13h optional device=true record=true raw=false cut=false request=1: next=false examined=3
+test merge_continuation::sqlite::shape_pages::w13h_page_or_null_record_keeps_owner_and_rows ... ok
+test omitted_apply_first_continues_the_staged_snapshot ... ok
+sqlite refusal: HANDLE_TAKEN: That handle is taken.; create and update collisions agree; if absent returns null; all 3 distinct writes predict
+sqlite column: prediction succeeded, 2 authoritative emissions
+W13h record join device=true other=null reverse=true assigned=false raw=false cut=true request=0: next=false examined=8193
+sqlite refusal: HANDLE_TAKEN: the program refused with HANDLE_TAKEN; create and update collisions agree; if absent returns null; all 3 distinct writes predict
+sqlite scalar_column: prediction succeeded, 3 authoritative emissions
+test merge_cursor::single_table_hidden_cut_sqlite ... ok
+W13h record join device=true other=null reverse=true assigned=false raw=true cut=false request=0: next=false examined=4
+W13h record join device=true other=null reverse=true assigned=false raw=false cut=false request=0: next=false examined=4
+sqlite refusal: E_CONSTRAINT: profiles.byHandle already has a row where handle = 'alice'; create and update collisions agree; if absent returns null; all 3 distinct writes predict
+sqlite alias: prediction succeeded, 2 authoritative emissions
+sqlite create/alice: predictable=true, settled E_RULE without detail
+memory refusal: HANDLE_TAKEN: That handle is taken.; create and update collisions agree; if absent returns null; all 3 distinct writes predict
+merge cut: examined=8193 complete=false next=None
+memory refusal: HANDLE_TAKEN: the program refused with HANDLE_TAKEN; create and update collisions agree; if absent returns null; all 3 distinct writes predict
+sqlite filtered: prediction succeeded, 2 authoritative emissions
+sqlite create/available: predictable=true, settled sent
+test merge_continuation::sqlite::shape_pages::w13h_successive_shapes_keep_partial_rows_on_direct_eager_and_lazy_pages ... ok
+memory refusal: E_CONSTRAINT: profiles.byHandle already has a row where handle = 'alice'; create and update collisions agree; if absent returns null; all 3 distinct writes predict
+test papercuts::w9c_unique_hook_and_legacy_refusals_on_both_stores ... ok
+first witness eager=true words=1: examined=8192 complete=false next=none
+first witness eager=true words=2: examined=8192 complete=false next=none
+first witness eager=true words=9: examined=8192 complete=false next=none
+test prefix_reads::first_witness::memory::cases::matching_exists_eager_first_witness ... ok
+test prefix_reads::first_witness::memory::cases::first_witness_predicate_retry_without_shape_stops_when_it_cannot_progress ... ok
+grouped boundary eager=true words=1: rows=1 witness=8192 examined=8193 next=a
+first witness eager=false words=1: examined=8192 complete=true next=none
+grouped walk eager=true words=1: requests=3 ids=2 duplicates=0
+first witness eager=false words=2: examined=8192 complete=true next=none
+grouped boundary eager=true words=2: rows=1 witness=8192 examined=8193 next=a
+first witness eager=false words=9: examined=8192 complete=true next=none
+test prefix_reads::first_witness::memory::cases::matching_exists_lazy_first_witness ... ok
+grouped walk eager=true words=2: requests=3 ids=2 duplicates=0
+grouped boundary eager=false words=1: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=false words=1: requests=2 ids=2 duplicates=0
+grouped boundary eager=true words=9: rows=1 witness=8192 examined=8193 next=a
+grouped boundary eager=false words=2: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=true words=9: requests=3 ids=2 duplicates=0
+test prefix_reads::first_witness::memory::cases::matching_exists_eager_grouped_walk ... ok
+grouped walk eager=false words=2: requests=2 ids=2 duplicates=0
+sqlite shaped: prediction succeeded, 2 authoritative emissions
+grouped boundary eager=false words=9: rows=1 witness=8192 examined=8193 next=a
+sqlite rename/alice: predictable=false, settled E_RULE without detail
+grouped walk eager=false words=9: requests=2 ids=2 duplicates=0
+test prefix_reads::first_witness::memory::cases::matching_exists_lazy_grouped_walk ... ok
+sqlite helper: prediction succeeded, 2 authoritative emissions
+sqlite rename/available: predictable=false, settled sent
+first witness eager=true words=1: examined=8192 complete=false next=none
+memory column: prediction succeeded, 2 authoritative emissions
+memory scalar_column: prediction succeeded, 3 authoritative emissions
+sqlite tryCreate/alice: predictable=false, settled E_RULE without detail
+W13h record join device=true other=null reverse=true assigned=true raw=true cut=true request=0: next=false examined=8193
+memory alias: prediction succeeded, 2 authoritative emissions
+first witness eager=true words=2: examined=8192 complete=false next=none
+memory filtered: prediction succeeded, 2 authoritative emissions
+sqlite tryCreate/available: predictable=false, settled sent
+memory shaped: prediction succeeded, 2 authoritative emissions
+memory create/alice: predictable=true, settled E_RULE without detail
+memory helper: prediction succeeded, 2 authoritative emissions
+test papercuts::w9c_emit_only_lists_predict_and_replay_on_both_stores ... ok
+memory create/available: predictable=true, settled sent
+first witness eager=true words=9: examined=8192 complete=false next=none
+test prefix_reads::first_witness::sqlite::cases::matching_exists_eager_first_witness ... ok
+memory rename/alice: predictable=false, settled E_RULE without detail
+merge cut: examined=8193 complete=false next=None
+test merge_cursor::uniform_eager_and_lazy_cuts_sqlite ... ok
+memory rename/available: predictable=false, settled sent
+grouped boundary eager=true words=1: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=true words=1: requests=3 ids=2 duplicates=0
+memory tryCreate/alice: predictable=false, settled E_RULE without detail
+first witness eager=false words=1: examined=8192 complete=true next=none
+memory tryCreate/available: predictable=false, settled sent
+test papercuts::w9r1b_hidden_unique_collisions_queue_and_settle_on_both_stores ... ok
+grouped boundary eager=false words=1: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=false words=1: requests=2 ids=2 duplicates=0
+W13h record join device=true other=null reverse=true assigned=true raw=false cut=true request=0: next=false examined=8193
+grouped boundary eager=true words=2: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=true words=2: requests=3 ids=2 duplicates=0
+W13h record join device=true other=null reverse=true assigned=true raw=true cut=false request=0: next=false examined=4
+first witness eager=false words=2: examined=8192 complete=true next=none
+W13h record join device=true other=null reverse=true assigned=true raw=false cut=false request=0: next=false examined=4
+test merge_continuation::sqlite::shape_pages::w13h_record_or_null_keeps_its_value_without_an_owner ... ok
+grouped boundary eager=false words=2: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=false words=2: requests=2 ids=2 duplicates=0
+grouped boundary eager=true words=9: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=true words=9: requests=3 ids=2 duplicates=0
+test prefix_reads::first_witness::sqlite::cases::matching_exists_eager_grouped_walk ... ok
+first witness eager=false words=9: examined=8192 complete=true next=none
+test prefix_reads::first_witness::sqlite::cases::matching_exists_lazy_first_witness ... ok
+test prefix_reads::w13c_capped_roster_predicts_and_prefix_existence_has_precise_horizon_coverage ... ok
+grouped boundary eager=false words=9: rows=1 witness=8192 examined=8193 next=a
+grouped walk eager=false words=9: requests=2 ids=2 duplicates=0
+test prefix_reads::first_witness::sqlite::cases::matching_exists_lazy_grouped_walk ... ok
+test prefix_reads::w13c_hidden_worlds_have_identical_existence_answers_on_both_stores ... ok
+test prefix_reads::first_witness::sqlite::cases::first_witness_predicate_retry_without_shape_stops_when_it_cannot_progress ... ok
+effect-read-held-false-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 94, heap_bytes: 9219, output_bytes: 110, rows_written: 1 }
+test prefix_reads::w13c_lane_source_expressions_run_before_eager_and_lazy_discovery_on_both_stores ... ok
+test presence::a_meter_cut_after_an_untaken_presence_arm_queues_instead_of_refusing_on_both_stores ... ok
+test presence::effect_reads::effect_payload_reads_keep_server_authorization_and_meter_rollback ... ok
+effect-read-held-false-true: identical offline rows/result; server meter Metered { examined: 9, index_entries: 3, rule_probes: 4, steps: 116, heap_bytes: 12040, output_bytes: 110, rows_written: 1 }
+sqlite, connected=0: predicted rows=1, identical server rows=1, notify=2
+grace prediction: store=sqlite predicted_rows=1 identical_server_rows=1 deferred_effects=1
+grace prediction: store=memory predicted_rows=1 identical_server_rows=1 deferred_effects=1
+test presence::grace_push_prediction_remains_identical_on_both_stores ... ok
+effect-read-held-true-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 10335, output_bytes: 110, rows_written: 1 }
+sqlite, connected=1: predicted rows=1, identical server rows=1, notify=2
+DEVICE cold reader=0 rows=52665 snapshot_ms=515.036
+effect-read-held-true-true: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 11896, output_bytes: 110, rows_written: 1 }
+sqlite, connected=2: predicted rows=1, identical server rows=1, notify=2
+DEVICE cold reader=1 rows=52715 snapshot_ms=538.447
+memory, connected=0: predicted rows=1, identical server rows=1, notify=2
+effect-read-graced-false-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 94, heap_bytes: 9219, output_bytes: 110, rows_written: 1 }
+DEVICE cold reader=2 rows=52915 snapshot_ms=566.909
+memory, connected=1: predicted rows=1, identical server rows=1, notify=2
+test merge_continuation::sqlite::shape_pages::w13j_unfinishable_merge_shapes_refuse_in_both_directions ... ok
+test presence::r1p_counterfactual_refinement_queues_and_separate_data_guard_predicts ... ok
+memory, connected=2: predicted rows=1, identical server rows=1, notify=2
+test presence::presence_effects_send_predicts_identical_rows_on_both_stores ... ok
+effect-read-graced-false-true: identical offline rows/result; server meter Metered { examined: 9, index_entries: 3, rule_probes: 4, steps: 116, heap_bytes: 12040, output_bytes: 110, rows_written: 1 }
+sqlite connected=0: device result=["A","B"], server result=["A","B"], new_ids=["A","B"]
+sqlite division connected=0: device={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: site schema.q:13:28: connected[p] decides fallible division (read at schema.q:13:28); queued without a predicted row"}}, server=Failed { why: Refusal { code: "E_DIV_ZERO", family: "input", message: "E_DIV_ZERO: division by zero", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }
+DEVICE cold reader=3 rows=77665 snapshot_ms=899.231
+effect-read-graced-true-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 10335, output_bytes: 110, rows_written: 1 }
+sqlite ceiling=18: device success=false, server success=false, server steps=19
+sqlite division connected=1: device={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: site schema.q:13:28: connected[p] decides fallible division (read at schema.q:13:28); queued without a predicted row"}}, server=Sent { seq: 1, result: Null }
+sqlite connected=1: device result=["A","B"], server result=["A","B"], new_ids=["A","B"]
+DEVICE cold reader=4 rows=52866 snapshot_ms=534.954
+sqlite ceiling=19: device success=true, server success=true, server steps=19
+effect-read-graced-true-true: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 11896, output_bytes: 110, rows_written: 1 }
+sqlite division connected=2: device={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: site schema.q:13:28: connected[p] decides fallible division (read at schema.q:13:28); queued without a predicted row"}}, server=Sent { seq: 1, result: Null }
+sqlite connected=2: device result=["A","B"], server result=["A","B"], new_ids=["A","B"]
+memory division connected=0: device={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: site schema.q:13:28: connected[p] decides fallible division (read at schema.q:13:28); queued without a predicted row"}}, server=Failed { why: Refusal { code: "E_DIV_ZERO", family: "input", message: "E_DIV_ZERO: division by zero", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }
+memory connected=0: device result=["A","B"], server result=["A","B"], new_ids=["A","B"]
+DEVICE cold reader=1000 rows=52615 snapshot_ms=767.290
+test presence::effect_reads::total_text_payloads_skip_profile_reads_on_devices ... ok
+effect-read-absent-false-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 94, heap_bytes: 9219, output_bytes: 110, rows_written: 1 }
+memory ceiling=18: device success=false, server success=false, server steps=19
+test presence::effect_reads::unguarded_payload_reads_predict_without_online_only_data ... ok
+memory division connected=1: device={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: site schema.q:13:28: connected[p] decides fallible division (read at schema.q:13:28); queued without a predicted row"}}, server=Sent { seq: 1, result: Null }
+memory connected=1: device result=["A","B"], server result=["A","B"], new_ids=["A","B"]
+memory ceiling=19: device success=true, server success=true, server steps=19
+test presence::r1p_presence_guard_pays_server_cost_on_both_stores ... ok
+memory division connected=2: device={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: site schema.q:13:28: connected[p] decides fallible division (read at schema.q:13:28); queued without a predicted row"}}, server=Sent { seq: 1, result: Null }
+test presence::r1p_presence_division_never_predicts_rolled_back_rows_on_both_stores ... ok
+memory connected=2: device result=["A","B"], server result=["A","B"], new_ids=["A","B"]
+test presence::r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores ... ok
+sqlite payload new: prediction={"new_ids":["E0","A","E1","B","E2"],"predicted":["notes/A","notes/B"],"read":[],"result":["A","B"],"written":["notes"]}, server=Sent { seq: 1, result: Array([Id("A"), Id("B")]) }
+effect-read-absent-false-true: identical offline rows/result; server meter Metered { examined: 9, index_entries: 3, rule_probes: 4, steps: 116, heap_bytes: 12040, output_bytes: 110, rows_written: 1 }
+memory payload new: prediction={"new_ids":["E0","A","E1","B","E2"],"predicted":["notes/A","notes/B"],"read":[],"result":["A","B"],"written":["notes"]}, server=Sent { seq: 1, result: Array([Id("A"), Id("B")]) }
+test presence::r1p_unconditional_payload_new_and_effect_only_commits_have_separate_ids ... ok
+effect-read-absent-true-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 10335, output_bytes: 110, rows_written: 1 }
+w15a4 complementary sqlite: server=[("held", [0, 1, 0, 25, 2737, 9, 1]), ("graced", [0, 1, 0, 23, 2630, 9, 1])] prediction=[("examined", 0), ("index_entries", 1), ("rule_probes", 0), ("steps", 25), ("heap_bytes", 2737), ("output_bytes", 9), ("rows_written", 1)]
+w15a5 I1 complementary/sqlite: held=[0, 1, 0, 25, 2737, 9, 1] graced=[0, 1, 0, 23, 2630, 9, 1] prediction=[0, 1, 0, 25, 2737, 9, 1]
+w15a6 inherited excess sqlite/conjunction: held=[0, 0, 0, 18, 1967, 6, 0] graced=[0, 0, 0, 18, 1967, 6, 0] prediction=[0, 0, 0, 18, 1961, 6, 0]
+w15a4 sharedPayload sqlite: server=[("held", [0, 1, 0, 28, 3793, 9, 1]), ("graced", [0, 1, 0, 26, 3656, 9, 1])] prediction=[("examined", 0), ("index_entries", 1), ("rule_probes", 0), ("steps", 28), ("heap_bytes", 3857), ("output_bytes", 9), ("rows_written", 1)]
+w15a5 I1 sharedPayload/sqlite: held=[0, 1, 0, 28, 3793, 9, 1] graced=[0, 1, 0, 26, 3656, 9, 1] prediction=[0, 1, 0, 28, 3857, 9, 1]
+w15a fifty prediction sqlite: [("examined", 52), ("index_entries", 2), ("rule_probes", 4), ("steps", 1367), ("heap_bytes", 70161), ("output_bytes", 27), ("rows_written", 1)]
+w15a5 I1 conjunction/sqlite: held=[0, 0, 0, 18, 1967, 6, 0] graced=[0, 0, 0, 18, 1967, 6, 0] prediction=[0, 0, 0, 18, 1961, 6, 0]
+test merge_continuation::sqlite::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read ... ok
+effect-read-absent-true-true: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 11896, output_bytes: 110, rows_written: 1 }
+w15a6 inherited excess sqlite/composition: held=[0, 0, 0, 25, 2510, 6, 0] graced=[0, 0, 0, 23, 2403, 6, 0] prediction=[0, 0, 0, 25, 2504, 6, 0]
+w15a5 probe boundary sqlite/held ceiling=4: prediction=Ok(Prediction { new_ids: ["msg"], result: Row(ObjectFields({"id": Id("msg")}, false, None, false)), written: ["messages"], read: ["memberships"] }) server=Sent { seq: 2, result: Row(ObjectFields({"id": Id("msg")}, false, None, false)) }
+w15a4 complementary memory: server=[("held", [0, 1, 0, 25, 2737, 9, 1]), ("graced", [0, 1, 0, 23, 2630, 9, 1])] prediction=[("examined", 0), ("index_entries", 1), ("rule_probes", 0), ("steps", 25), ("heap_bytes", 2737), ("output_bytes", 9), ("rows_written", 1)]
+w15a5 I1 complementary/memory: held=[0, 1, 0, 25, 2737, 9, 1] graced=[0, 1, 0, 23, 2630, 9, 1] prediction=[0, 1, 0, 25, 2737, 9, 1]
+test presence::review::w15a4_complementary_guards_fit_prediction_on_both_stores ... ok
+effect-read-held-false-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 94, heap_bytes: 9219, output_bytes: 110, rows_written: 1 }
+w15a4 sharedPayload memory: server=[("held", [0, 1, 0, 28, 3793, 9, 1]), ("graced", [0, 1, 0, 26, 3656, 9, 1])] prediction=[("examined", 0), ("index_entries", 1), ("rule_probes", 0), ("steps", 28), ("heap_bytes", 3857), ("output_bytes", 9), ("rows_written", 1)]
+w15a5 I1 sharedPayload/memory: held=[0, 1, 0, 28, 3793, 9, 1] graced=[0, 1, 0, 26, 3656, 9, 1] prediction=[0, 1, 0, 28, 3857, 9, 1]
+test presence::review::w15a4_shared_payload_fits_prediction_on_both_stores ... ok
+w15a5 probe boundary sqlite/held ceiling=3: prediction=Err(Bound { kind: RuleProbes, actual: 4, ceiling: 3, site: "programs.send.1" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 3", detail: None, site: Some("programs.send.1"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+w15a5 I1 conjunction/memory: held=[0, 0, 0, 18, 1967, 6, 0] graced=[0, 0, 0, 18, 1967, 6, 0] prediction=[0, 0, 0, 18, 1961, 6, 0]
+test presence::review::w15a5_conjunction_fits_final_i1_on_both_stores ... ok
+test presence::w15a_necessary_absence_server_fits_prediction_reservation_on_both_stores ... ignored, pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md
+w15a fifty prediction sqlite: [("examined", 52), ("index_entries", 2), ("rule_probes", 4), ("steps", 1367), ("heap_bytes", 70161), ("output_bytes", 27), ("rows_written", 1)]
+w15a6 inherited excess memory/conjunction: held=[0, 0, 0, 18, 1967, 6, 0] graced=[0, 0, 0, 18, 1967, 6, 0] prediction=[0, 0, 0, 18, 1961, 6, 0]
+effect-read-held-false-true: identical offline rows/result; server meter Metered { examined: 9, index_entries: 3, rule_probes: 4, steps: 116, heap_bytes: 12040, output_bytes: 110, rows_written: 1 }
+w15a5 probe boundary sqlite/held ceiling=2: prediction=Err(Bound { kind: RuleProbes, actual: 3, ceiling: 2, site: "send:4" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 2", detail: None, site: Some("send:4"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+effect-read-held-true-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 10335, output_bytes: 110, rows_written: 1 }
+w15a sqlite device: [("examined", 0), ("index_entries", 0), ("rule_probes", 0), ("steps", 9), ("heap_bytes", 513), ("output_bytes", 6), ("rows_written", 0)]
+test presence::w13b_unknown_presence_crosses_both_device_wires ... ok
+w15a5 I1 fifty/sqlite: held=[52, 2, 4, 1356, 69718, 27, 1] graced=[52, 2, 4, 1356, 69718, 27, 1] prediction=[52, 2, 4, 1367, 70161, 27, 1]
+w15a6 inherited excess memory/composition: held=[0, 0, 0, 25, 2510, 6, 0] graced=[0, 0, 0, 23, 2403, 6, 0] prediction=[0, 0, 0, 25, 2504, 6, 0]
+test presence::review::w15a6_composition_inherits_only_conjunction_excess_on_both_stores ... ok
+effect-read-held-true-true: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 11896, output_bytes: 110, rows_written: 1 }
+w15a sqlite server held: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 9, heap_bytes: 513, output_bytes: 6, rows_written: 0 }; effects=1
+DEVICE acquired host=sqlite viewer=dev:u0000 ms=3143.629
+w15a5 probe boundary sqlite/graced ceiling=4: prediction=Ok(Prediction { new_ids: ["msg"], result: Row(ObjectFields({"id": Id("msg")}, false, None, false)), written: ["messages"], read: ["memberships"] }) server=Sent { seq: 2, result: Row(ObjectFields({"id": Id("msg")}, false, None, false)) }
+W8R1a merge host=memory words=33 word_only_examined=32 both_examined=32 precedence=meter
+w15a fifty prediction memory: [("examined", 52), ("index_entries", 2), ("rule_probes", 4), ("steps", 1367), ("heap_bytes", 70161), ("output_bytes", 27), ("rows_written", 1)]
+W8R1a merge host=memory words=33 word_only_examined=32 both_examined=32 precedence=meter
+W8R1a merge host=memory words=33 word_only_examined=32 both_examined=32 precedence=meter
+W8R1a disclosure host=memory hidden_words=32,33 identical_pairs=196 positive_controls=3
+test read_cut::full_partition_response_sweep_memory ... ok
+effect-read-graced-false-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 94, heap_bytes: 9219, output_bytes: 110, rows_written: 1 }
+w15a sqlite server absent: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 9, heap_bytes: 513, output_bytes: 6, rows_written: 0 }; effects=1
+w15a5 probe boundary sqlite/graced ceiling=3: prediction=Err(Bound { kind: RuleProbes, actual: 4, ceiling: 3, site: "programs.send.1" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 3", detail: None, site: Some("programs.send.1"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+effect-read-graced-false-true: identical offline rows/result; server meter Metered { examined: 9, index_entries: 3, rule_probes: 4, steps: 116, heap_bytes: 12040, output_bytes: 110, rows_written: 1 }
+w15a sqlite server graced: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 9, heap_bytes: 513, output_bytes: 6, rows_written: 0 }; effects=1
+w15a5 I1 minimal/sqlite: held=[0, 0, 0, 9, 513, 6, 0] graced=[0, 0, 0, 9, 513, 6, 0] prediction=[0, 0, 0, 9, 513, 6, 0]
+test query_reports_the_next_expiry_to_the_host ... ok
+w15a5 probe boundary sqlite/graced ceiling=2: prediction=Err(Bound { kind: RuleProbes, actual: 3, ceiling: 2, site: "send:4" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 2", detail: None, site: Some("send:4"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+w15a5 I1 fifty/sqlite: held=[52, 2, 4, 1356, 69718, 27, 1] graced=[52, 2, 4, 1356, 69718, 27, 1] prediction=[52, 2, 4, 1367, 70161, 27, 1]
+w15a5 I1 fifty/memory: held=[52, 2, 4, 1356, 69718, 27, 1] graced=[52, 2, 4, 1356, 69718, 27, 1] prediction=[52, 2, 4, 1367, 70161, 27, 1]
+test presence::unconfirmed::w15a_fifty_member_prediction_includes_read_authorization_on_both_stores ... ok
+w15a memory device: [("examined", 0), ("index_entries", 0), ("rule_probes", 0), ("steps", 9), ("heap_bytes", 513), ("output_bytes", 6), ("rows_written", 0)]
+effect-read-graced-true-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 10335, output_bytes: 110, rows_written: 1 }
+W8R1a merge host=sqlite words=33 word_only_examined=32 both_examined=32 precedence=meter
+W8R1a merge host=sqlite words=33 word_only_examined=32 both_examined=32 precedence=meter
+W8R1a merge host=sqlite words=33 word_only_examined=32 both_examined=32 precedence=meter
+W8R1a disclosure host=sqlite hidden_words=32,33 identical_pairs=196 positive_controls=3
+test read_cut::full_partition_response_sweep_sqlite ... ok
+w15a fifty prediction memory: [("examined", 52), ("index_entries", 2), ("rule_probes", 4), ("steps", 1367), ("heap_bytes", 70161), ("output_bytes", 27), ("rows_written", 1)]
+w15a memory server held: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 9, heap_bytes: 513, output_bytes: 6, rows_written: 0 }; effects=1
+W8R1a point host=memory prior_reads=4096 examined=4096 probes=8194 complete=false cut=Some(Meter)
+W8R1a point host=memory identical_pairs=135 positive_controls=1
+test read_cut::point_probe_cut_memory ... ok
+effect-read-graced-true-true: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 11896, output_bytes: 110, rows_written: 1 }
+w15a memory server absent: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 9, heap_bytes: 513, output_bytes: 6, rows_written: 0 }; effects=1
+effect-read-absent-false-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 94, heap_bytes: 9219, output_bytes: 110, rows_written: 1 }
+W8R1a point host=sqlite prior_reads=4096 examined=4096 probes=8194 complete=false cut=Some(Meter)
+W8R1a point host=sqlite identical_pairs=135 positive_controls=1
+test read_cut::point_probe_cut_sqlite ... ok
+w15a memory server graced: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 9, heap_bytes: 513, output_bytes: 6, rows_written: 0 }; effects=1
+w15a5 I1 minimal/memory: held=[0, 0, 0, 9, 513, 6, 0] graced=[0, 0, 0, 9, 513, 6, 0] prediction=[0, 0, 0, 9, 513, 6, 0]
+test presence::w15a_guarded_send_held_matches_grace_and_prediction_is_unchanged_on_both_stores ... ok
+w15a5 probe boundary memory/held ceiling=4: prediction=Ok(Prediction { new_ids: ["msg"], result: Row(ObjectFields({"id": Id("msg")}, false, None, false)), written: ["messages"], read: ["memberships"] }) server=Sent { seq: 2, result: Row(ObjectFields({"id": Id("msg")}, false, None, false)) }
+test read_cut::held_query_answers_on_both_devices ... ok
+effect-read-absent-false-true: identical offline rows/result; server meter Metered { examined: 9, index_entries: 3, rule_probes: 4, steps: 116, heap_bytes: 12040, output_bytes: 110, rows_written: 1 }
+w15a5 probe boundary memory/held ceiling=3: prediction=Err(Bound { kind: RuleProbes, actual: 4, ceiling: 3, site: "programs.send.1" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 3", detail: None, site: Some("programs.send.1"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+effect-read-absent-true-false: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 10335, output_bytes: 110, rows_written: 1 }
+test prefix_reads::w13c_meter_loop_cuts_on_both_device_stores ... ok
+w15a5 probe boundary memory/held ceiling=2: prediction=Err(Bound { kind: RuleProbes, actual: 3, ceiling: 2, site: "send:4" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 2", detail: None, site: Some("send:4"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+effect-read-absent-true-true: identical offline rows/result; server meter Metered { examined: 7, index_entries: 3, rule_probes: 4, steps: 90, heap_bytes: 11896, output_bytes: 110, rows_written: 1 }
+test presence::effect_reads::effect_payload_send_predicts_offline_and_agrees_at_every_presence_state ... ok
+test row_preserving_pages::memory::cases::w13i_cursor_notes_keep_their_existing_triggers ... ok
+test receipt_history::caller_id_replay_candidate_rolls_back_partial_predictions_on_both_stores ... ok
+test receipt_history::caller_id_admission_compares_before_prediction_on_both_stores ... ok
+W13i device=true group(page, 'roomId')/inline page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/inline page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/inline page=3: rows=5 groups=2 complete=true cut=null next=false
+w15a5 probe boundary memory/graced ceiling=4: prediction=Ok(Prediction { new_ids: ["msg"], result: Row(ObjectFields({"id": Id("msg")}, false, None, false)), written: ["messages"], read: ["memberships"] }) server=Sent { seq: 2, result: Row(ObjectFields({"id": Id("msg")}, false, None, false)) }
+W13i device=true group(page, 'roomId')/page page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/page page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/page page=3: rows=5 groups=2 complete=true cut=null next=false
+test renewing_a_live_membership_does_not_prematurely_revoke_held_rows ... ok
+w15a5 probe boundary memory/graced ceiling=3: prediction=Err(Bound { kind: RuleProbes, actual: 4, ceiling: 3, site: "programs.send.1" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 3", detail: None, site: Some("programs.send.1"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+W13i device=true group(page, 'roomId')/result page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/result page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/result page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::memory::cases::w13i_group_carries_the_membership_page ... ok
+DEVICE acquired host=sqlite viewer=dev:u0001 ms=3298.657
+w15a5 probe boundary memory/graced ceiling=2: prediction=Err(Bound { kind: RuleProbes, actual: 3, ceiling: 2, site: "send:4" }) server=Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "rule probes reached the ceiling 2", detail: None, site: Some("send:4"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+test receipt_history::receipt_history_adoption_fills_only_spare_capacity_on_both_stores ... ok
+w15a5 I1 fifty/memory: held=[52, 2, 4, 1356, 69718, 27, 1] graced=[52, 2, 4, 1356, 69718, 27, 1] prediction=[52, 2, 4, 1367, 70161, 27, 1]
+test presence::unconfirmed::w15a5_fifty_member_server_fits_prediction_rule_probe_boundary_on_both_stores ... ok
+W13i device=true group(sort(page, '-id'), 'roomId')/inline page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/inline page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/inline page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::memory::cases::w13i_group_does_not_extend_the_returned_shape_mark ... ok
+W13iR1 group(page, 'roomId')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(page, 'roomId')/page: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(page, 'roomId')/result: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_group_sites ... ok
+W13iR1 group(sort(page, '-id'), 'roomId')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(sort(page, '-id'), 'roomId')/page: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(sort(page, '-id'), 'roomId')/result: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_nested_sites ... ok
+W13iR1 group(other, 'roomId'): sites={}
+W13i device=true sort(page, '-id')/inline page=1: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/inline page=2: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/inline page=3: rows=5 groups=0 complete=true cut=null next=false
+W13iR1 min(page, page): sites={}
+W13iR1 max(page, page): sites={}
+W13iR1 { a: group(page, 'roomId'), b: sort(second, '-id') }: sites={}
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_nonowners_have_no_sites ... ok
+W13iR1 sort(page, '-id')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/page: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/result: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_sort_sites ... ok
+test row_preserving_pages::memory::cases::w13i_original_probe_walks_direct_and_merged_pages_to_completion ... ok
+test row_preserving_pages::sqlite::cases::w13i_cursor_notes_keep_their_existing_triggers ... ok
+W13i device=true group(sort(page, '-id'), 'roomId')/page page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/page page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/page page=3: rows=5 groups=2 complete=true cut=null next=false
+W13i device=true sort(page, '-id')/page page=1: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/page page=2: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/page page=3: rows=5 groups=0 complete=true cut=null next=false
+W13i device=true group(sort(page, '-id'), 'roomId')/result page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/result page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/result page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::memory::cases::w13i_nested_group_sort_carries_the_membership_page ... ok
+W13i device=true sort(page, '-id')/result page=1: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/result page=2: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/result page=3: rows=5 groups=0 complete=true cut=null next=false
+test row_preserving_pages::memory::cases::w13i_sort_carries_the_membership_page ... ok
+W13i device=true group(page, 'roomId')/inline page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/inline page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/inline page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::memory::cases::w13i_dropping_helpers_and_unrelated_values_have_no_owner ... ok
+W13i device=true group(page, 'roomId')/page page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/page page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/page page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::memory::cases::w13i_helpers_preserve_a_meter_cut_and_continue_its_filtered_source ... ok
+W13i device=true group(sort(page, '-id'), 'roomId')/inline page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/inline page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/inline page=3: rows=5 groups=2 complete=true cut=null next=false
+W13i device=true group(page, 'roomId')/result page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/result page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(page, 'roomId')/result page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::sqlite::cases::w13i_group_carries_the_membership_page ... ok
+test row_preserving_pages::sqlite::cases::w13i_group_does_not_extend_the_returned_shape_mark ... ok
+W13iR1 group(page, 'roomId')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(page, 'roomId')/page: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(page, 'roomId')/result: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_group_sites ... ok
+W13iR1 group(sort(page, '-id'), 'roomId')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(sort(page, '-id'), 'roomId')/page: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(sort(page, '-id'), 'roomId')/result: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_nested_sites ... ok
+W13iR1 group(other, 'roomId'): sites={}
+W13iR1 min(page, page): sites={}
+W13iR1 max(page, page): sites={}
+W13iR1 { a: group(page, 'roomId'), b: sort(second, '-id') }: sites={}
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_nonowners_have_no_sites ... ok
+W13iR1 sort(page, '-id')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/page: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/result: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_sort_sites ... ok
+test row_preserving_pages::sqlite::cases::w13i_original_probe_walks_direct_and_merged_pages_to_completion ... ok
+W13i device=true group(sort(page, '-id'), 'roomId')/page page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/page page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/page page=3: rows=5 groups=2 complete=true cut=null next=false
+W13i device=true sort(page, '-id')/inline page=1: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/inline page=2: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/inline page=3: rows=5 groups=0 complete=true cut=null next=false
+W9R1a coverage store=memory case=full op=searchHeld acquired=2 rows=2 complete=true examined=2 index_entries=33 probes=0 steps=19 heap_bytes=1885 output_bytes=211 rows_written=0 meter_cut=0 word_cut=0 next=0
+W9R1a coverage store=memory case=horizon op=searchHeld acquired=1 rows=1 complete=false examined=1 index_entries=33 probes=0 steps=18 heap_bytes=1065 output_bytes=111 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_clique_full_and_horizon_memory ... ok
+W9R1a coverage store=sqlite case=full op=searchHeld acquired=2 rows=2 complete=true examined=2 index_entries=33 probes=0 steps=19 heap_bytes=1885 output_bytes=211 rows_written=0 meter_cut=0 word_cut=0 next=0
+W13i device=true group(sort(page, '-id'), 'roomId')/result page=1: rows=20 groups=7 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/result page=2: rows=20 groups=8 complete=true cut=null next=true
+W13i device=true group(sort(page, '-id'), 'roomId')/result page=3: rows=5 groups=2 complete=true cut=null next=false
+test row_preserving_pages::sqlite::cases::w13i_nested_group_sort_carries_the_membership_page ... ok
+DEVICE acquired host=sqlite viewer=dev:u0002 ms=3214.175
+W9R1a coverage store=memory case=online op=searchHeld acquired=0 rows=0 complete=false examined=0 index_entries=33 probes=33 steps=14 heap_bytes=15 output_bytes=12 rows_written=0 meter_cut=0 word_cut=0 next=0
+W13i device=true sort(page, '-id')/page page=1: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/page page=2: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/page page=3: rows=5 groups=0 complete=true cut=null next=false
+W9R1a coverage store=sqlite case=horizon op=searchHeld acquired=1 rows=1 complete=false examined=1 index_entries=33 probes=0 steps=18 heap_bytes=1065 output_bytes=111 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_clique_full_and_horizon_sqlite ... ok
+W9R1a coverage store=memory case=full op=constantHeld acquired=2 rows=0 complete=true examined=0 index_entries=0 probes=0 steps=2 heap_bytes=0 output_bytes=9 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_online_source_and_zero_reads_memory ... ok
+test row_preserving_pages::sqlite::cases::w13i_helpers_preserve_a_meter_cut_and_continue_its_filtered_source ... ok
+W9R1a coverage store=memory case=temporary op=searchHeld acquired=2 rows=2 complete=false examined=2 index_entries=33 probes=45 steps=19 heap_bytes=1885 output_bytes=211 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_temporary_audience_search_memory ... ok
+W9R1a coverage store=sqlite case=online op=searchHeld acquired=0 rows=0 complete=false examined=0 index_entries=33 probes=33 steps=14 heap_bytes=15 output_bytes=12 rows_written=0 meter_cut=0 word_cut=0 next=0
+W9R1a coverage store=memory case=full op=firstHeld acquired=2 rows=1 complete=true examined=1 index_entries=0 probes=0 steps=2 heap_bytes=394 output_bytes=111 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_truncated_held_page_memory ... ok
+W13i device=true sort(page, '-id')/result page=1: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/result page=2: rows=20 groups=0 complete=true cut=null next=true
+W13i device=true sort(page, '-id')/result page=3: rows=5 groups=0 complete=true cut=null next=false
+test row_preserving_pages::sqlite::cases::w13i_sort_carries_the_membership_page ... ok
+W9R1a coverage store=sqlite case=temporary op=searchHeld acquired=2 rows=2 complete=false examined=2 index_entries=33 probes=45 steps=19 heap_bytes=1885 output_bytes=211 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_temporary_audience_search_sqlite ... ok
+W9R2 store=memory acquired_terms=1
+W9R2 case=full rows=1 complete=true examined=2 index_entries=2 probes=0 steps=20 heap_bytes=9222 output_bytes=65 rows_written=0
+W9R2 case=full sites=3
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization and limits
+    Held: scan terms by byId: held, no horizon; selected byId (); result: page; explicit by (site schema.q:10:53 (terms[]))
+    Held: scan messages by byWords: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+    Held: scan messages by byId: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+W9R1a coverage store=sqlite case=full op=constantHeld acquired=2 rows=0 complete=true examined=0 index_entries=0 probes=0 steps=2 heap_bytes=0 output_bytes=9 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r2_matching_full_memory ... ok
+test search_global::coverage::w9r1a_online_source_and_zero_reads_sqlite ... ok
+W9R1a coverage store=sqlite case=full op=firstHeld acquired=2 rows=1 complete=true examined=1 index_entries=0 probes=0 steps=2 heap_bytes=394 output_bytes=111 rows_written=0 meter_cut=0 word_cut=0 next=0
+test search_global::coverage::w9r1a_truncated_held_page_sqlite ... ok
+W9R2 store=memory acquired_terms=0
+W9R2 case=online rows=1 complete=false examined=1 index_entries=0 probes=0 steps=16 heap_bytes=594 output_bytes=65 rows_written=0
+W9R2 case=online sites=3
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Server: scan terms by byId: online only; selected byId (); result: page; explicit by (site schema.q:10:53 (terms[]))
+      rewrite: sync terms to its read-rule audience, or read a compact synced projection
+    Held: scan messages by byWords: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+    Held: scan messages by byId: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+test search_global::coverage::w9r2_matching_online_memory ... ok
+W9R2 store=memory acquired_terms=1
+W9R2 case=horizon rows=1 complete=false examined=2 index_entries=2 probes=0 steps=20 heap_bytes=9222 output_bytes=65 rows_written=0
+W9R2 case=horizon sites=3
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan terms by byId: sync public last 1 by byId; selected byId (); result: page; explicit by (site schema.q:10:53 (terms[])); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: scan messages by byWords: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+    Held: scan messages by byId: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+test search_global::coverage::w9r2_matching_horizon_memory ... ok
+W9R2 store=sqlite acquired_terms=1
+W9R2 case=full rows=1 complete=true examined=2 index_entries=2 probes=0 steps=20 heap_bytes=17697 output_bytes=65 rows_written=0
+W9R2 case=full sites=3
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization and limits
+    Held: scan terms by byId: held, no horizon; selected byId (); result: page; explicit by (site schema.q:10:53 (terms[]))
+    Held: scan messages by byWords: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+    Held: scan messages by byId: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+test search_global::coverage::w9r2_matching_full_sqlite ... ok
+W9R2 store=sqlite acquired_terms=1
+W9R2 case=horizon rows=1 complete=false examined=2 index_entries=2 probes=0 steps=20 heap_bytes=17697 output_bytes=65 rows_written=0
+W9R2 case=horizon sites=3
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan terms by byId: sync public last 1 by byId; selected byId (); result: page; explicit by (site schema.q:10:53 (terms[])); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: scan messages by byWords: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+    Held: scan messages by byId: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+test search_global::coverage::w9r2_matching_horizon_sqlite ... ok
+W9R2 store=sqlite acquired_terms=0
+W9R2 case=online rows=1 complete=false examined=1 index_entries=0 probes=0 steps=16 heap_bytes=594 output_bytes=65 rows_written=0
+W9R2 case=online sites=3
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Server: scan terms by byId: online only; selected byId (); result: page; explicit by (site schema.q:10:53 (terms[]))
+      rewrite: sync terms to its read-rule audience, or read a compact synced projection
+    Held: scan messages by byWords: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+    Held: scan messages by byId: held, no horizon; when slice('coffee', 0, count(terms[] first 1 by byId)) present: selected byWords (); result: page; explicit by; when slice('coffee', 0, count(terms[] first 1 by byId)) absent: selected byId (); result: page; explicit by (site schema.q:10:10 (messages matching slice('coffee', 0, count(terms first 1 by byId)) first 10 by byWords))
+test search_global::coverage::w9r2_matching_online_sqlite ... ok
+test row_preserving_pages::sqlite::cases::w13i_dropping_helpers_and_unrelated_values_have_no_owner ... ok
+W13e store=memory
+W13e horizon op=searchGrouped term=cof complete=false rows=20 next=true examined=120
+W13e horizon op=searchGrouped term=absent complete=false rows=0 next=false examined=100
+W13e horizon op=searchNewest term=cof complete=false rows=20 next=true examined=340
+W13e horizon op=searchNewest term=absent complete=false rows=0 next=false examined=100
+test search_global::forms::memory::cases::w13e_both_forms_report_unknown_history_at_a_device_horizon ... ok
+W13e store=memory
+W13e grouped memberships=100 groups=100 hits=300 requests=6 examined_first=140 examined_max=140 examined_total=700 complete=true
+W7d W13e-newest: memberships=100 hits=2400 chats=100 pages=120 examined_first=340 examined_max=340 examined_total=39600 complete=true
+test search_global::forms::memory::cases::w13e_dense_100 ... ok
+DEVICE acquired host=sqlite viewer=dev:u0003 ms=5024.956
+test read_cut::uniform_words_continue_and_nonuniform_cut_reasons_cross_both_device_wires ... ok
+W13e store=memory
+W13e grouped9000 request=1 groups=0 complete=false cut=Some(Meter) next=true examined=8193
+W13e grouped9000 request=2 groups=3 complete=true cut=None next=false examined=815
+W13e grouped9000 requests=2 groups=3 examined_total=9008
+test search_global::forms::memory::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page ... ok
+w7r1 sqlite: ceiling=2026 device=false absent=false grace=false heap_absent=2027 heap_grace=2027
+W13e store=memory
+W13e grouped9000 request=1 groups=0 complete=false cut=Some(Meter) next=true examined=8193
+W13e grouped9000 request=2 groups=3 complete=true cut=None next=false examined=906
+W13e grouped9000 requests=2 groups=3 examined_total=9099
+test search_global::forms::memory::cases::w13e_grouped_cut_continues_through_9000_memberships ... ok
+W13e store=sqlite
+W13e horizon op=searchGrouped term=cof complete=false rows=20 next=true examined=120
+W13e horizon op=searchGrouped term=absent complete=false rows=0 next=false examined=100
+W13e horizon op=searchNewest term=cof complete=false rows=20 next=true examined=340
+W13e horizon op=searchNewest term=absent complete=false rows=0 next=false examined=100
+test search_global::forms::sqlite::cases::w13e_both_forms_report_unknown_history_at_a_device_horizon ... ok
+w7r1 sqlite: ceiling=2027 device=true absent=true grace=true heap_absent=2027 heap_grace=2027
+w7r1 sqlite: ceiling=2026 device=false absent=false grace=false heap_absent=2027 heap_grace=2027
+DEVICE acquired host=sqlite viewer=dev:u0004 ms=3281.922
+W13e store=sqlite
+W13e grouped memberships=100 groups=100 hits=300 requests=6 examined_first=140 examined_max=140 examined_total=700 complete=true
+w7r1 sqlite: ceiling=2027 device=true absent=true grace=true heap_absent=2027 heap_grace=2027
+W7d W13e-newest: memberships=100 hits=2400 chats=100 pages=120 examined_first=340 examined_max=340 examined_total=39600 complete=true
+test search_global::forms::sqlite::cases::w13e_dense_100 ... ok
+W13e store=sqlite
+W13e grouped9000 request=1 groups=0 complete=false cut=Some(Meter) next=true examined=8193
+W13e grouped9000 request=2 groups=3 complete=true cut=None next=false examined=815
+W13e grouped9000 requests=2 groups=3 examined_total=9008
+test search_global::forms::sqlite::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page ... ok
+DEVICE acquired host=sqlite viewer=dev:u1000 ms=3193.974
+W13e store=memory
+W13e grouped memberships=500 groups=500 hits=1500 requests=26 examined_first=140 examined_max=140 examined_total=3500 complete=true
+DEVICE acquired host=memory viewer=dev:u0000 ms=910.513
+DEVICE acquired host=memory viewer=dev:u0001 ms=953.459
+W13e store=sqlite
+W13e grouped9000 request=1 groups=0 complete=false cut=Some(Meter) next=true examined=8193
+DEVICE acquired host=memory viewer=dev:u0002 ms=985.112
+W13e grouped9000 request=2 groups=3 complete=true cut=None next=false examined=906
+W13e grouped9000 requests=2 groups=3 examined_total=9099
+test search_global::forms::sqlite::cases::w13e_grouped_cut_continues_through_9000_memberships ... ok
+merge device wire pairs: 16
+test merge_cursor::hidden_absent_wire_pairs_sqlite ... ok
+DEVICE acquired host=memory viewer=dev:u0003 ms=1591.756
+W13f dense memberships=100 rows=20 examined=340 complete=true cut=None next=true
+W7d W13f-one-cursor: memberships=100 hits=2400 chats=100 pages=120 examined_first=340 examined_max=340 examined_total=39600 complete=true
+test search_global::lazy::memory::cases::w13f_dense_100 ... ok
+DEVICE acquired host=memory viewer=dev:u0004 ms=1010.548
+W13e store=sqlite
+W13e grouped memberships=500 groups=500 hits=1500 requests=26 examined_first=140 examined_max=140 examined_total=3500 complete=true
+DEVICE acquired host=memory viewer=dev:u1000 ms=1039.432
+test following::following_scale_pages_match_on_both_device_stores ... ok
+W13e store=memory
+W13e grouped memberships=1000 groups=1000 hits=3000 requests=51 examined_first=140 examined_max=140 examined_total=7000 complete=true
+W13e store=memory
+w7r1 memory: ceiling=2026 device=false absent=false grace=false heap_absent=2027 heap_grace=2027
+w7r1 memory: ceiling=2027 device=true absent=true grace=true heap_absent=2027 heap_grace=2027
+w7r1 memory: ceiling=2026 device=false absent=false grace=false heap_absent=2027 heap_grace=2027
+w7r1 memory: ceiling=2027 device=true absent=true grace=true heap_absent=2027 heap_grace=2027
+test presence::w7r1_grace_bookkeeping_reservation_matches_both_device_stores ... ok
+W13f drain rows=32 examined=8193 cut=Some(Meter) next=true
+test search_global::lazy::memory::cases::w13f_flattened_drain_cut_continues_after_32_emissions ... ok
+W13e store=sqlite
+W13e grouped memberships=1000 groups=1000 hits=3000 requests=51 examined_first=140 examined_max=140 examined_total=7000 complete=true
+W13f dense memberships=500 rows=20 examined=1540 complete=true cut=None next=true
+W13e store=sqlite
+test search_global::lazy::memory::cases::w13f_flattened_opening_cut_stays_terminal ... ok
+test search_global::lazy::memory::cases::w13f_further_terms_and_duplicate_words_preserve_one_ordered_walk ... ok
+W13f dense memberships=1000 rows=20 examined=3040 complete=true cut=None next=true
+W7d W13e-newest: memberships=500 hits=12000 chats=500 pages=600 examined_first=1540 examined_max=1540 examined_total=898000 complete=true
+test search_global::forms::memory::cases::w13e_dense_500 ... ok
+test search_global::lazy::memory::cases::w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped ... ok
+test search_global::lazy::memory::cases::w13f_hidden_worlds_have_identical_pages_and_dev_meters ... ok
+W13f dense memberships=100 rows=20 examined=340 complete=true cut=None next=true
+W7d W13f-one-cursor: memberships=100 hits=2400 chats=100 pages=120 examined_first=340 examined_max=340 examined_total=39600 complete=true
+test search_global::lazy::sqlite::cases::w13f_dense_100 ... ok
+test search_global::lazy::memory::cases::w13f_clique_every_row_hits_in_1000_lanes ... ok
+W7d W13f-one-cursor: memberships=500 hits=12000 chats=500 pages=600 examined_first=1540 examined_max=1540 examined_total=898000 complete=true
+test search_global::lazy::memory::cases::w13f_dense_500 ... ok
+W13f drain rows=32 examined=8193 cut=Some(Meter) next=true
+test search_global::lazy::sqlite::cases::w13f_flattened_drain_cut_continues_after_32_emissions ... ok
+W7d W13e-newest: memberships=500 hits=12000 chats=500 pages=600 examined_first=1540 examined_max=1540 examined_total=898000 complete=true
+test search_global::forms::sqlite::cases::w13e_dense_500 ... ok
+test search_global::lazy::sqlite::cases::w13f_further_terms_and_duplicate_words_preserve_one_ordered_walk ... ok
+W13f dense memberships=500 rows=20 examined=1540 complete=true cut=None next=true
+test search_global::lazy::sqlite::cases::w13f_hidden_worlds_have_identical_pages_and_dev_meters ... ok
+test search_global::lazy::sqlite::cases::w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped ... ok
+test search_global::lazy::sqlite::cases::w13f_flattened_opening_cut_stays_terminal ... ok
+W13f dense memberships=1000 rows=20 examined=3040 complete=true cut=None next=true
+W7d device-sqlite-full: memberships=100 hits=2400 chats=100 pages=120 examined_first=22 examined_max=22 examined_total=2638 complete=true
+W7d acquisition: store=sqlite memberships=100 horizon=false messages=3000
+W7d device-sqlite-horizon10: memberships=100 hits=400 chats=100 pages=20 examined_first=22 examined_max=22 examined_total=438 complete=false
+W7d acquisition: store=sqlite memberships=100 horizon=true messages=1000
+test search_global::w7d_global_word_scope_can_cut_when_each_chat_scope_fits ... ok
+W7R1b cursor host=memory op=searchHeld valid_positions=3 malformed_descriptors=8 exact_order=true
+W7R1b cursor host=memory op=searchLane valid_positions=3 malformed_descriptors=8 exact_order=true
+W7R1b cursor host=memory op=searchPair valid_positions=3 malformed_descriptors=8 exact_order=true
+W7R1b cursor host=memory op=searchNewest valid_positions=3 malformed_descriptors=8 exact_order=true
+test search_global::w7r1b_search_cursor_memory ... ok
+test search_global::lazy::sqlite::cases::w13f_clique_every_row_hits_in_1000_lanes ... ok
+W7R1b cursor host=sqlite op=searchHeld valid_positions=3 malformed_descriptors=8 exact_order=true
+W7R1b cursor host=sqlite op=searchLane valid_positions=3 malformed_descriptors=8 exact_order=true
+W7R1b cursor host=sqlite op=searchPair valid_positions=3 malformed_descriptors=8 exact_order=true
+W7R1b cursor host=sqlite op=searchNewest valid_positions=3 malformed_descriptors=8 exact_order=true
+test search_global::w7r1b_search_cursor_sqlite ... ok
+test search_merge::matching_merges_page_the_same_rows_on_both_device_stores ... ok
+test search_merge::r1a_empty_matching_horizon_is_unknown_held_and_retained_left ... ok
+test search_merge::r1a_left_read_cannot_mask_an_unknown_held_read_in_either_order ... ok
+test search_merge::r1a_nested_search_filter_does_not_filter_members_on_either_store ... ok
+test search_merge::r1a_repeated_site_still_rechecks_an_expired_audience_on_both_stores ... ok
+test search_merge::round2::r2_n2_self_witness_plain_and_matching_memory_both_cuts ... ok
+component differential device: both: whole outcome and meter equal
+component differential device: both: whole outcome and meter equal
+component differential device: both: whole outcome and meter equal
+component differential device: both: whole outcome and meter equal
+test search_merge::round2::r2_n2_self_witness_plain_and_matching_sqlite_both_cuts ... ok
+component differential device: both: whole outcome and meter equal
+component differential device: both: whole outcome and meter equal
+test search_merge::round2::program_only_adoption_resets_retained_components_on_both_stores ... ok
+component differential device: both: whole outcome and meter equal
+component differential device: pointMiss: whole outcome and meter equal
+component differential device: pointIndex: whole outcome and meter equal
+component differential device: pointId: whole outcome and meter equal
+component differential device: pointExists: whole outcome and meter equal
+component differential device: both: whole outcome and meter equal
+test search_merge::round2::r2_n3_mixed_returned_history_exposes_independent_components ... ok
+component differential device: pointMiss: whole outcome and meter equal
+component differential device: pointIndex: whole outcome and meter equal
+component differential device: pointId: whole outcome and meter equal
+component differential device: pointExists: whole outcome and meter equal
+test search_merge::round2::retained_point_hits_and_misses_on_both_stores ... ok
+R3 device: W0={"data":{"Array":[{"Row":{"authorId":{"Id":"alice"},"body":{"String":"coffee"},"id":{"Id":"shown"},"roomId":{"Id":"r2"}}}]},"complete":false,"cut":null,"seq":0,"metered":{"examined":3,"index_entries":66,"rule_probes":81,"steps":30,"heap_bytes":1090,"output_bytes":115,"rows_written":0},"tables":["members","messages"]} W1={"data":{"Array":[{"Row":{"authorId":{"Id":"alice"},"body":{"String":"coffee"},"id":{"Id":"shown"},"roomId":{"Id":"r2"}}}]},"complete":false,"cut":null,"seq":0,"metered":{"examined":3,"index_entries":66,"rule_probes":81,"steps":30,"heap_bytes":1090,"output_bytes":115,"rows_written":0},"tables":["members","messages"]}
+test search_merge::round3::r3_admitted_hidden_words_memory ... ok
+R3 device: W0={"data":{"Array":[{"Row":{"authorId":{"Id":"alice"},"body":{"String":"coffee"},"id":{"Id":"shown"},"roomId":{"Id":"r2"}}}]},"complete":false,"cut":null,"seq":0,"metered":{"examined":3,"index_entries":66,"rule_probes":81,"steps":30,"heap_bytes":1090,"output_bytes":115,"rows_written":0},"tables":["members","messages"]} W1={"data":{"Array":[{"Row":{"authorId":{"Id":"alice"},"body":{"String":"coffee"},"id":{"Id":"shown"},"roomId":{"Id":"r2"}}}]},"complete":false,"cut":null,"seq":0,"metered":{"examined":3,"index_entries":66,"rule_probes":81,"steps":30,"heap_bytes":1090,"output_bytes":115,"rows_written":0},"tables":["members","messages"]}
+test search_merge::round3::r3_admitted_hidden_words_sqlite ... ok
+memory reset: A=3, B=0, reply=0, apply={"denied":{"code":"E_GENERATION","family":"generation","message":"E_GENERATION: the backend store was replaced; reacquire its partition"}}, read={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this store's backend has not been adopted; reconnect to acquire it"},"retained":false,"unknown":true}
+test store_reset::replaced_backend_memory ... ok
+test store_reset::legacy_first_identification_discards_left_history_even_on_the_same_store ... ok
+sqlite reset: A=3, B=0, reply=0, apply={"denied":{"code":"E_GENERATION","family":"generation","message":"E_GENERATION: the backend store was replaced; reacquire its partition"}}, read={"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this store's backend has not been adopted; reconnect to acquire it"},"retained":false,"unknown":true}
+test store_reset::replaced_backend_sqlite ... ok
+test store_reset::replacement_backend_obligation_survives_restart_and_blocks_publication_on_both_stores ... ok
+test store_reset::replacement_during_paged_snapshot_and_catchup_rejects_delayed_a_pages_on_both_stores ... ok
+test store_reset::same_store_backend_adoption_and_backwards_clock_keep_identity_and_history ... ok
+test store_reset::same_store_restore_memory ... ok
+test store_reset::same_store_restore_sqlite ... ok
+W13e store=memory
+test store_reset::store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_both_stores ... ok
+test store_reset::store_replacement_discards_left_group_history_on_both_stores ... ok
+W7d device-sqlite-full: memberships=500 hits=12000 chats=500 pages=600 examined_first=22 examined_max=22 examined_total=13198 complete=true
+W7d acquisition: store=sqlite memberships=500 horizon=false messages=15000
+test time_indexes::w13c2_daily_unique_predicts_on_both_stores_under_the_clock ... ok
+test the_unified_device_shares_search_value_and_output_bound_semantics ... ok
+W14a memory: oracle equal; offline 1h edge removed; zeros in one merge examined=12; 4/4 predicted source set/clear leave rank unchanged
+W14a memory paging: 37 liked posts, each once across synced winner increment; first page examined=33
+test trending::lanes::w14a_hour_lanes_on_memory ... ok
+test time_indexes::w13c2_time_keys_page_update_and_adopt_on_both_stores ... ok
+W14a sqlite: oracle equal; offline 1h edge removed; zeros in one merge examined=12; 4/4 predicted source set/clear leave rank unchanged
+W14a sqlite paging: 37 liked posts, each once across synced winner increment; first page examined=33
+test trending::lanes::w14a_hour_lanes_on_sqlite ... ok
+W7d W13f-one-cursor: memberships=500 hits=12000 chats=500 pages=600 examined_first=1540 examined_max=1540 examined_total=898000 complete=true
+test search_global::lazy::sqlite::cases::w13f_dense_500 ... ok
+W15c memory: 48 ties, both cursor directions, 2/2 source predictions preserve rank until server mirrors arrive
+test trending::lanes::w15c_ties_on_memory ... ok
+W15c sqlite: 48 ties, both cursor directions, 2/2 source predictions preserve rank until server mirrors arrive
+test trending::lanes::w15c_ties_on_sqlite ... ok
+W12a sqlite coverage: candidates=4095; likes=1; returned=10; complete=true
+W13e store=sqlite
+W12a sqlite coverage: candidates=4096; likes=1; returned=10; complete=true
+W7d device-sqlite-horizon10: memberships=500 hits=2000 chats=500 pages=100 examined_first=22 examined_max=22 examined_total=2198 complete=false
+W7d acquisition: store=sqlite memberships=500 horizon=true messages=5000
+W12a sqlite coverage: candidates=8194; likes=1; returned=10; complete=true
+W12a memory coverage: candidates=4095; likes=1; returned=10; complete=true
+W12a memory coverage: candidates=4096; likes=1; returned=10; complete=true
+W12a memory coverage: candidates=8194; likes=1; returned=10; complete=true
+W14a memory population: in-window=10000; examined=34; complete=true; next=true; cold target rows=10000
+test trending::rolling::w12a_bounded_ranking_coverage_on_both_stores ... ok
+test trending::lanes::w14a_population_on_memory ... ok
+W12a sqlite: physical=[{"Row":{"id":{"Id":"[{\"Id\":\"new-winner\"}]"},"postId":{"Id":"new-winner"},"value":{"Int":2}}},{"Row":{"id":{"Id":"[{\"Id\":\"old-winner\"}]"},"postId":{"Id":"old-winner"},"value":{"Int":2}}}]; live=[{"postId":"new-winner","score":2}]; examined=6
+W12a sqlite: physical=[{"Row":{"id":{"Id":"[{\"Id\":\"new-winner\"}]"},"postId":{"Id":"new-winner"},"value":{"Int":2}}},{"Row":{"id":{"Id":"[{\"Id\":\"old-winner\"}]"},"postId":{"Id":"old-winner"},"value":{"Int":1}}}]; live=[{"postId":"new-winner","score":2}]; examined=5
+W12a sqlite: physical=[{"Row":{"id":{"Id":"[{\"Id\":\"new-winner\"}]"},"postId":{"Id":"new-winner"},"value":{"Int":2}}}]; live=[{"postId":"new-winner","score":2}]; examined=2
+W12a sqlite: 3 partial sweeps; 4 immediate set/clear reads; lag=0 ms; score-table writes=0
+W12a memory: physical=[{"Row":{"id":{"Id":"[{\"Id\":\"new-winner\"}]"},"postId":{"Id":"new-winner"},"value":{"Int":2}}},{"Row":{"id":{"Id":"[{\"Id\":\"old-winner\"}]"},"postId":{"Id":"old-winner"},"value":{"Int":2}}}]; live=[{"postId":"new-winner","score":2}]; examined=6
+W12a memory: physical=[{"Row":{"id":{"Id":"[{\"Id\":\"new-winner\"}]"},"postId":{"Id":"new-winner"},"value":{"Int":2}}},{"Row":{"id":{"Id":"[{\"Id\":\"old-winner\"}]"},"postId":{"Id":"old-winner"},"value":{"Int":1}}}]; live=[{"postId":"new-winner","score":2}]; examined=5
+W12a memory: physical=[{"Row":{"id":{"Id":"[{\"Id\":\"new-winner\"}]"},"postId":{"Id":"new-winner"},"value":{"Int":2}}}]; live=[{"postId":"new-winner","score":2}]; examined=2
+W12a memory: 3 partial sweeps; 4 immediate set/clear reads; lag=0 ms; score-table writes=0
+test trending::rolling::w12a_live_ranking_and_partial_sweeps_on_both_stores ... ok
+Trending memory ties: 11 candidates; 2 pages; 10/10 immediate matches; 11 unique posts; score=0; one timestamp
+test trending::trending_equal_score_equal_time_pages_match_immediate_on_memory ... ok
+Trending sqlite ties: 11 candidates; 2 pages; 10/10 immediate matches; 11 unique posts; score=0; one timestamp
+test trending::trending_equal_score_equal_time_pages_match_immediate_on_sqlite ... ok
+Trending memory: 4/4 like-state predictions; 1/1 create prediction; ranked overlay writes=0; scheduled score=1
+test trending::trending_recipe_predicts_on_memory ... ok
+W14a sqlite population: in-window=10000; examined=34; complete=true; next=true; cold target rows=10000
+test trending::lanes::w14a_population_on_sqlite ... ok
+test uniform_word_expansion::search_45_words_memory_walks_20_20_5 ... ok
+Trending sqlite: 4/4 like-state predictions; 1/1 create prediction; ranked overlay writes=0; scheduled score=1
+test trending::trending_recipe_predicts_on_sqlite ... ok
+test uniform_word_expansion::search_45_words_sqlite_walks_20_20_5 ... ok
+test uniform_word_expansion::search_admitted_nonuniform_pair_on_both_stores ... ok
+test uniform_word_expansion::search_expired_meter_boundary_memory ... ok
+test uniform_word_expansion::search_expired_meter_boundary_sqlite ... ok
+W12R1a sqlite: candidates=1; likes=8192; both rankings data=null; complete=false
+test uniform_word_expansion::search_expired_word_pairs_on_both_stores ... ok
+test uniform_word_expansion::search_reduced_ceilings_on_both_stores ... ok
+test uniform_word_expansion::search_nonuniform_legitimate_acquisition_envelopes_on_both_stores ... ok
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":0,"heap_bytes":7395,"index_entries":1,"output_bytes":12,"rows_written":0,"rule_probes":0,"steps":16},"next":false,"rows":0,"words":0},"variant":"head"}
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":1,"heap_bytes":16969,"index_entries":2,"output_bytes":109,"rows_written":0,"rule_probes":0,"steps":20},"next":false,"rows":1,"words":1},"variant":"head"}
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":31,"heap_bytes":273979,"index_entries":32,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":130},"next":true,"rows":20,"words":31},"variant":"head"}
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":32,"heap_bytes":278905,"index_entries":33,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":133},"next":true,"rows":20,"words":32},"variant":"head"}
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":33,"heap_bytes":309431,"index_entries":34,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":136},"next":true,"rows":20,"words":33},"variant":"head"}
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":45,"heap_bytes":368543,"index_entries":46,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":172},"next":true,"rows":20,"words":45},"variant":"head"}
+W14A {"host":"memory","kind":"walk","value":{"pages":3,"rows":45,"words":45},"variant":"head"}
+test search_global::forms::memory::cases::w13e_dense_1000 has been running for over 60 seconds
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":200,"heap_bytes":1287713,"index_entries":201,"output_bytes":2031,"rows_written":0,"rule_probes":0,"steps":637},"next":true,"rows":20,"words":200},"variant":"head"}
+W14A {"host":"memory","kind":"walk","value":{"pages":10,"rows":200,"words":200},"variant":"head"}
+W14A {"host":"memory","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":1000,"heap_bytes":5858913,"index_entries":1001,"output_bytes":2031,"rows_written":0,"rule_probes":0,"steps":3037},"next":true,"rows":20,"words":1000},"variant":"head"}
+W7d W13f-one-cursor: memberships=1000 hits=24000 chats=1000 pages=1200 examined_first=3040 examined_max=3040 examined_total=3546000 complete=true
+W12R1a memory: candidates=1; likes=8192; both rankings data=null; complete=false
+test trending::rolling::w12r1a_exhausted_live_count_is_unavailable_on_both_stores ... ok
+test search_global::lazy::memory::cases::w13f_dense_1000 ... ok
+W14A {"host":"memory","kind":"walk","value":{"pages":50,"rows":1000,"words":1000},"variant":"head"}
+test search_global::forms::memory::cases::w13e_newest_measures_complete_page_and_opening_envelope has been running for over 60 seconds
+test upsert::final_exists::held_insert_refusal_and_success_match_server ... ok
+test upsert::a_pinned_membership_read_needs_a_positive_witness_for_its_group ... ok
+sqlite put: E_PREDICT: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+test upsert::final_exists::held_upsert_refusal_and_success_match_server ... ok
+sqlite add: E_PREDICT: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+memory put: E_PREDICT: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+memory add: E_PREDICT: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+test upsert::final_exists::unknown_prediction_is_e_predict_on_both_stores ... ok
+test upsert::final_exists::unpinned_insert_memory ... ok
+W7d device-sqlite-full: memberships=1000 hits=24000 chats=1000 pages=1200 examined_first=22 examined_max=22 examined_total=26398 complete=true
+W7d acquisition: store=sqlite memberships=1000 horizon=false messages=30000
+test upsert::final_exists::unpinned_insert_sqlite ... ok
+test upsert::final_exists::unpinned_local_hits_still_predict ... ok
+test uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots ... ok
+test search_global::forms::sqlite::cases::w13e_dense_1000 has been running for over 60 seconds
+W14A {"host":"memory","kind":"worlds","value":{"bytes":8443,"equal":true,"hidden":9000,"replies":7},"variant":"head"}
+test upsert::final_exists::unpinned_upsert_memory ... ok
+test upsert::final_exists::unpinned_upsert_sqlite ... ok
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":0,"heap_bytes":7395,"index_entries":1,"output_bytes":12,"rows_written":0,"rule_probes":0,"steps":16},"next":false,"rows":0,"words":0},"variant":"head"}
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":1,"heap_bytes":16969,"index_entries":2,"output_bytes":109,"rows_written":0,"rule_probes":0,"steps":20},"next":false,"rows":1,"words":1},"variant":"head"}
+test upsert::hidden_admitted_upserts_preserve_the_complete_paired_observation ... ok
+test upsert::observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":31,"heap_bytes":273979,"index_entries":32,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":130},"next":true,"rows":20,"words":31},"variant":"head"}
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":32,"heap_bytes":278905,"index_entries":33,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":133},"next":true,"rows":20,"words":32},"variant":"head"}
+test upsert::proof::changed_audience_image_queues_on_both_stores ... ok
+test search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope has been running for over 60 seconds
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":33,"heap_bytes":309431,"index_entries":34,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":136},"next":true,"rows":20,"words":33},"variant":"head"}
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":45,"heap_bytes":368543,"index_entries":46,"output_bytes":1991,"rows_written":0,"rule_probes":0,"steps":172},"next":true,"rows":20,"words":45},"variant":"head"}
+W14A {"host":"sqlite","kind":"walk","value":{"pages":3,"rows":45,"words":45},"variant":"head"}
+test upsert::first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores ... ok
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... ok
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":200,"heap_bytes":1287713,"index_entries":201,"output_bytes":2031,"rows_written":0,"rule_probes":0,"steps":637},"next":true,"rows":20,"words":200},"variant":"head"}
+W14A {"host":"sqlite","kind":"walk","value":{"pages":10,"rows":200,"words":200},"variant":"head"}
+test upsert::insert_if_absent_matches_its_reported_absence_proof_on_both_stores ... ok
+W14A {"host":"sqlite","kind":"counters","value":{"capped_at":null,"complete":true,"cut":null,"meter":{"examined":1000,"heap_bytes":5858913,"index_entries":1001,"output_bytes":2031,"rows_written":0,"rule_probes":0,"steps":3037},"next":true,"rows":20,"words":1000},"variant":"head"}
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... ok
+test upsert::proof::defaulted_insert_rule_refusal_matches_server_on_both_stores ... ok
+W14A {"host":"sqlite","kind":"walk","value":{"pages":50,"rows":1000,"words":1000},"variant":"head"}
+test upsert::proof::covered_constraints_and_insert_defaults_predict_on_both_stores ... ok
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... ok
+sqlite guarded: predicted_messages=0 authoritative_messages=1 attempts=2
+test upsert::proof::left_self_witness_admission_memory ... ok
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::left_self_witness_replay_memory ... ok
+sqlite rewritten: predicted_messages=1 authoritative_messages=1 attempts=2
+test upsert::proof::left_self_witness_admission_sqlite ... ok
+memory guarded: predicted_messages=0 authoritative_messages=1 attempts=2
+test upsert::proof::left_self_witness_replay_sqlite ... ok
+memory rewritten: predicted_messages=1 authoritative_messages=1 attempts=2
+test upsert::proof::horizon_guard_rewrite_restores_the_pending_message_on_both_stores ... ok
+memory unbounded: acquired=25 predicted_copies=20 predictable=true
+memory unbounded: confirmed_copies=20
+test upsert::proof::pending_delete_then_upsert_replays_in_order_on_both_stores ... ok
+memory horizon: acquired=25 predicted_copies=0 predictable=false
+memory horizon: confirmed_copies=20
+sqlite unbounded: acquired=25 predicted_copies=20 predictable=true
+sqlite unbounded: confirmed_copies=20
+memory advice: acquired=25 predicted_copies=20 predictable=true
+memory advice: confirmed_copies=20
+test upsert::proof::w6r2_ascending_horizon_advice_memory ... ok
+sqlite parameter: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+sqlite horizon: acquired=25 predicted_copies=0 predictable=false
+sqlite horizon: confirmed_copies=20
+sqlite alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+test upsert::the_feeds_card_predicts_its_first_vote_on_both_stores ... ok
+sqlite advice: acquired=25 predicted_copies=20 predictable=true
+sqlite advice: confirmed_copies=20
+test upsert::proof::w6r2_ascending_horizon_advice_sqlite ... ok
+sqlite helper: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+test withdrawing_one_prediction_replays_the_remaining_outbox ... ok
+sqlite public-parameter: predicted rows=1, summary=None
+sqlite minted: predicted rows=1, summary=None
+sqlite minted-alias: predicted rows=1, summary=None
+W14A {"host":"sqlite","kind":"worlds","value":{"bytes":8443,"equal":true,"hidden":9000,"replies":7},"variant":"head"}
+test uniform_word_expansion::search_uniform_word_counts_and_worlds_on_both_stores ... ok
+sqlite minted-require: predicted rows=1, summary=None
+sqlite minted-read: predicted rows=1, summary=None
+sqlite minted-emit: predicted rows=1, summary=None
+sqlite minted-write: predicted rows=2, summary=None
+sqlite minted-branch: predicted rows=1, summary=None
+sqlite minted-loop: predicted rows=1, summary=None
+sqlite other-alias: predicted rows=1, summary=None
+sqlite copied-alias: predicted rows=1, summary=None
+sqlite reassigned-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+sqlite branch-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+sqlite else-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+sqlite loop-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+sqlite nested-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+sqlite implicit: predicted rows=1, summary=None
+memory parameter: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory helper: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory public-parameter: predicted rows=1, summary=None
+memory minted: predicted rows=1, summary=None
+memory minted-alias: predicted rows=1, summary=None
+memory minted-require: predicted rows=1, summary=None
+memory minted-read: predicted rows=1, summary=None
+memory minted-emit: predicted rows=1, summary=None
+memory minted-write: predicted rows=2, summary=None
+memory minted-branch: predicted rows=1, summary=None
+W7d device-sqlite-horizon10: memberships=1000 hits=4000 chats=1000 pages=200 examined_first=22 examined_max=22 examined_total=4398 complete=false
+W7d acquisition: store=sqlite memberships=1000 horizon=true messages=10000
+memory minted-loop: predicted rows=1, summary=None
+memory other-alias: predicted rows=1, summary=None
+memory copied-alias: predicted rows=1, summary=None
+memory reassigned-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory branch-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory else-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory loop-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory nested-alias: predicted rows=0, summary=Some("1 mutation has insert arms that never predict: vote (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>")
+memory implicit: predicted rows=1, summary=None
+test upsert::review_supplied_and_minted_ids_match_prediction_on_both_stores ... ok
+W7d device-memory-full: memberships=100 hits=2400 chats=100 pages=120 examined_first=22 examined_max=22 examined_total=2638 complete=true
+W7d acquisition: store=memory memberships=100 horizon=false messages=3000
+W7d device-memory-horizon10: memberships=100 hits=400 chats=100 pages=20 examined_first=22 examined_max=22 examined_total=438 complete=false
+W7d acquisition: store=memory memberships=100 horizon=true messages=1000
+W7d device-memory-full: memberships=500 hits=12000 chats=500 pages=600 examined_first=22 examined_max=22 examined_total=13198 complete=true
+W7d acquisition: store=memory memberships=500 horizon=false messages=15000
+W13e store=memory
+W7d device-memory-horizon10: memberships=500 hits=2000 chats=500 pages=100 examined_first=22 examined_max=22 examined_total=2198 complete=false
+W7d acquisition: store=memory memberships=500 horizon=true messages=5000
+W7d W13f-one-cursor: memberships=1000 hits=24000 chats=1000 pages=1200 examined_first=3040 examined_max=3040 examined_total=3546000 complete=true
+test search_global::lazy::sqlite::cases::w13f_dense_1000 ... ok
+W8b host=server cold_rows=139413 cold_bytes=17876585 snapshot_ms=1470.043
+W8b host=server following_rows=20 complete=true examined=82 probes=21
+W13e store=sqlite
+W8b host=memory cold_rows=139413 apply_ms=1325.737
+W8b host=memory following_rows=20 complete=true examined=82 probes=21
+W8b host=memory following_rows=20 complete=true examined=82 probes=21
+W7d device-memory-full: memberships=1000 hits=24000 chats=1000 pages=1200 examined_first=22 examined_max=22 examined_total=26398 complete=true
+W7d acquisition: store=memory memberships=1000 horizon=false messages=30000
+W7d W13e-newest: memberships=1000 hits=24000 chats=1000 pages=1200 examined_first=3040 examined_max=3040 examined_total=3546000 complete=true
+test search_global::forms::memory::cases::w13e_dense_1000 ... ok
+W8b host=sqlite cold_rows=139413 apply_ms=3572.680
+W8b host=sqlite following_rows=20 complete=true examined=82 probes=21
+W8b host=sqlite following_rows=20 complete=true examined=82 probes=21
+test following::calibration::w8b_wired_calibration_acquisition_on_server_and_both_stores ... ok
+W7d device-memory-horizon10: memberships=1000 hits=4000 chats=1000 pages=200 examined_first=22 examined_max=22 examined_total=4398 complete=false
+W7d acquisition: store=memory memberships=1000 horizon=true messages=10000
+test search_global::w7d_every_chat_word_search_measures_full_and_horizon_holdings_on_both_stores ... ok
+W13e store=memory
+W13e store=sqlite
+REMOVAL host=sqlite followers=900 readers=901 immediate=all purge=all rerepost=all
+W7d W13e-newest: memberships=1000 hits=24000 chats=1000 pages=1200 examined_first=3040 examined_max=3040 examined_total=3546000 complete=true
+test search_global::forms::sqlite::cases::w13e_dense_1000 ... ok
+test following::removal::following_removal_reaches_every_reader_before_purge_sqlite ... ok
+W13e store=memory
+W13e store=sqlite
+W13e store=memory
+test search_global::forms::memory::cases::w13e_newest_measures_complete_page_and_opening_envelope ... ok
+W13e store=sqlite
+test search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope ... ok
+
+test result: ok. 436 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 200.75s
+
+     Running tests/heavy_acquisition.rs (snapback4/target/debug/deps/heavy_acquisition-9cb6a9eca40bacf8)
+
+running 1 test
+generated {"apply_ms":211.691716,"bridge_max":302739,"old_retained":37727851,"peak":20551766,"retained":15029122,"rows":6000}
+test heavy_acquisition ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+
+     Running tests/index_key_bound.rs (snapback4/target/debug/deps/index_key_bound-7a149a763a132b6a)
+
+running 3 tests
+test browser_can_rewrite_a_kept_legacy_violation_then_delete_it ... ok
+test browser_device_refuses_the_same_key_as_server_without_partial_writes ... ok
+test time_key_bytes_and_order_match_on_every_store ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/prediction_write_set.rs (snapback4/target/debug/deps/prediction_write_set-65b037bb93964f7f)
+
+running 2 tests
+test replay_refreshes_predicted_memory ... ok
+test replay_refreshes_predicted_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/retained_history.rs (snapback4/target/debug/deps/retained_history-6b906ab05a1094ff)
+
+running 20 tests
+memory/R1-held-deletion/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory horizonless current join: public=false left=false rows=26
+memory/R1-held-deletion: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/removal-between-pages: rows=25, physical=25, complete=false, unknown=false, retained=true
+test removal_between_pages_memory ... ok
+test interrupted_collector_is_not_only_retained_history_memory ... ok
+memory/confirmed/resnapshot: rows=25, physical=25, complete=false, unknown=false, retained=true
+test empty_rejoin_memory ... ok
+test retained_history_media_scope_memory ... ok
+sqlite horizonless current join: public=false left=false rows=26
+memory horizonless current join: public=false left=true rows=0
+sqlite/R1-held-deletion/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/R2-unseen-removal/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/R2-unseen-removal: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/rejoin/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+test interrupted_collector_is_not_only_retained_history_sqlite ... ok
+sqlite/confirmed/resnapshot: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/rejoin/left: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/R1-held-deletion: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/removal-between-pages: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/confirmed/deletion: rows=24, physical=24, complete=false, unknown=false, retained=true
+memory/confirmed/deletion-resnapshot: rows=24, physical=24, complete=false, unknown=false, retained=true
+memory/rejoin/resnapshot: rows=25, physical=25, complete=false, unknown=true, retained=false
+test retained_history_rejoin_memory ... ok
+test removal_between_pages_sqlite ... ok
+test retained_history_confirmed_only_memory ... ok
+test empty_rejoin_sqlite ... ok
+memory horizonless current join: public=true left=false rows=26
+memory/R3-live-removal/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/R3-live-removal: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/live/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/live/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/live/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+test missed_log_memory ... ok
+memory/live/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+memory/live/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+memory/live/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+test retained_history_media_scope_sqlite ... ok
+sqlite horizonless current join: public=false left=true rows=0
+memory horizonless current join: public=true left=true rows=0
+sqlite/rejoin/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+test horizonless_join_and_closed_private_or_public_join_memory ... ok
+sqlite/rejoin/left: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/resnapshot/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/resnapshot/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/resnapshot/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/resnapshot/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+sqlite/live/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/resnapshot/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/live/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/live/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+sqlite/confirmed/deletion: rows=24, physical=24, complete=false, unknown=false, retained=true
+memory/resnapshot/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/live/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/R2-unseen-removal/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/rejoin/resnapshot: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/confirmed/deletion-resnapshot: rows=24, physical=24, complete=false, unknown=false, retained=true
+sqlite/live/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+test retained_history_rejoin_sqlite ... ok
+sqlite/R2-unseen-removal: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/live/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+test retained_history_confirmed_only_sqlite ... ok
+memory/catchup/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+memory/catchup/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/catchup/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+memory/catchup/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+memory/catchup/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/catchup/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite horizonless current join: public=true left=false rows=26
+memory/catchup-left/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+memory/catchup-left/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+memory/catchup-left/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+memory/catchup-left/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/catchup-left/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/catchup-left/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/resnapshot/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+sqlite/R3-live-removal/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/resnapshot/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/resnapshot/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/R3-live-removal: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/resnapshot/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/resnapshot/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/resnapshot/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+test missed_log_sqlite ... ok
+memory/expiry/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+memory/expiry/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+memory/expiry/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+test retained_history_without_horizon_memory ... ok
+memory/expiry/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+memory/expiry/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+memory/expiry/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+test retained_history_with_horizon_memory ... ok
+sqlite horizonless current join: public=true left=true rows=0
+test horizonless_join_and_closed_private_or_public_join_sqlite ... ok
+sqlite/catchup/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+sqlite/catchup/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/catchup/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/catchup/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/catchup/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/catchup/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/catchup-left/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/catchup-left/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+sqlite/catchup-left/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/catchup-left/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/catchup-left/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/catchup-left/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/expiry/before: rows=25, physical=25, complete=false, unknown=true, retained=false
+sqlite/expiry/after: rows=25, physical=25, complete=false, unknown=false, retained=true
+sqlite/expiry/before: rows=26, physical=26, complete=true, unknown=false, retained=false
+sqlite/expiry/after: rows=26, physical=26, complete=true, unknown=false, retained=true
+sqlite/expiry/reopen: rows=25, physical=25, complete=false, unknown=false, retained=true
+test retained_history_with_horizon_sqlite ... ok
+sqlite/expiry/reopen: rows=26, physical=26, complete=true, unknown=false, retained=true
+test retained_history_without_horizon_sqlite ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+
+     Running tests/sqlite_bulk.rs (snapback4/target/debug/deps/sqlite_bulk-5f6e60b599f654ae)
+
+running 1 test
+test sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

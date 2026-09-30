@@ -1,0 +1,24 @@
+Command terminated by signal 15
+	Command being timed: "strace -c -e trace=fsync,fdatasync -o snapback4/reports/20260930-na-native-acquisition/direct-before-fsync-3.txt snapback4/target/na-baseline/replay-profile target/na-capture-before/direct-backend.json target/na-capture-before/3521818.requests.jsonl target/na-capture-before/direct-3.sqlite"
+	User time (seconds): 12.48
+	System time (seconds): 37.29
+	Percent of CPU this job got: 97%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:50.85
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 49576
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 25095
+	Voluntary context switches: 5793595
+	Involuntary context switches: 33
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 587736
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

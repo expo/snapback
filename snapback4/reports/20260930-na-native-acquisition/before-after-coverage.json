@@ -1,0 +1,14 @@
+{
+  "u0001": {
+    "runs": 12,
+    "beforeAfterEqual": true,
+    "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+    "rows": 105034
+  },
+  "u0500": {
+    "runs": 12,
+    "beforeAfterEqual": true,
+    "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+    "rows": 11612
+  }
+}

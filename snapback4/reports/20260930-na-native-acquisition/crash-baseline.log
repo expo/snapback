@@ -1,0 +1,10 @@
+
+running 2 tests
+test acquisition_crash_worker ... ok
+sqlite, refresh=false: 12 process kills, 873 persistence cuts
+sqlite, refresh=true: 12 process kills, 979 persistence cuts
+memory, refresh=false: 12 process kills, 1228 persistence cuts
+memory, refresh=true: 12 process kills, 1775 persistence cuts
+test random_process_kills_preserve_atomic_acquisition_on_both_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.76s

@@ -1,0 +1,4 @@
+unconfined u0500 median 1.06 range 1.046 1.065 restart 0.048
+unconfined u0001 median 12.989 range 12.949 13.116 restart 0.262
+ten-cpu-loaded u0500 median 1.044 range 1.044 1.048 restart 0.048
+ten-cpu-loaded u0001 median 14.691 range 14.326 19.367 restart 0.365

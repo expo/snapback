@@ -1,0 +1,93 @@
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 43.87s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/snapback4_device-d6febd1edff9281e)
+
+running 58 tests
+
+thread 'device::deferred::recording::recording_refuses_unsupported_nested_savepoints' (3823287) panicked at crates/snapback4-device/src/device/deferred/recording.rs:71:64:
+internal error: entered unreachable code: stream applicator cannot nest recording savepoints
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal' (3823330) panicked at crates/snapback4-device/src/ffi.rs:153:46:
+boundary probe
+test device::deferred::recording::recording_refuses_unsupported_nested_savepoints - should panic ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_memory ... ok
+test device::opening_tests::explicit_open_checks_its_backend_memory ... ok
+test device::opening_tests::first_install_checks_absence_memory ... ok
+test device::opening_tests::first_install_envelope_is_not_a_legacy_backend ... ok
+test device::opening_tests::kept_open_checks_its_backend_memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_memory_changes_restore_reopen_and_reset ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::memory ... ok
+test device::publication_tests::leased_nonterminal_continuation_memory ... ok
+test device::publication_tests::leased_terminal_continuation_memory ... ok
+test ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::memory ... ok
+test device::search::tests::delivery_state_preserves_a_scans_exhausted_read_counter ... ok
+test device::search::tests::retained_search_excludes_current_and_rejoined_images ... ok
+test memory::compact_key::tests::split_keys_order_exactly_like_complete_bytes ... ok
+test device::search::tests::pagination_epoch_excludes_progress_but_delivery_fence_keeps_it ... ok
+test device::search::tests::pagination_epoch_tracks_only_this_tables_membership_and_retention ... ok
+test memory::tests::staged_sharing_accepts_only_the_exact_row_value ... ok
+test memory::tests::noncanonical_staged_rows_keep_canonical_metered_prices ... ok
+test memory::compact_index::tests::pages_match_a_tree_through_splits_updates_deletes_and_ranges ... ok
+test memory::tests::replacement_indexes_match_scalar_puts_and_rollback_with_counts_and_savepoints ... ok
+test memory::compact_index::tests::bulk_pages_accept_smaller_keys_and_remove_to_empty ... ok
+test device::delivery::interval_union_matches_round_zero_for_order_gaps_bounds_and_extremes ... ok
+test sqlite_residency::tests::interrupted_installation_is_one_transaction_and_excludes_a_competing_installer ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_memory ... ok
+test device::expired_births_tests::retired_birth_keeps_memory_device_caps_exact ... ok
+test device::publication_round7::capture_revision_checkpoint_and_optional_echo ... ok
+test device::opening_tests::explicit_open_checks_its_backend_sqlite ... ok
+test device::publication_tests::checkpoint_capture_remains_readable_without_widening ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::sqlite ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::sqlite ... ok
+test device::publication_round5::stored_capture_must_be_a_bounded_prefix ... ok
+test device::publication_round7::only_unbound_receipts_bind_to_first_private_identity ... ok
+test device::publication_tests::empty_cursor_and_reset_remove_all_publication_keys ... ok
+test device::deferred::recording::failed_metadata_operation_is_not_recorded ... ok
+test device::publication_round5::live_cursor_precedes_terminal_snapshot_cut ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_sqlite ... ok
+test device::opening_tests::first_install_checks_absence_sqlite ... ok
+test device::opening_tests::kept_open_checks_its_backend_sqlite ... ok
+test device::publication_round6::clear_rows_consumes_all_private_progress_and_keeps_incarnation ... ok
+test device::publication_round5::absent_capture_and_echo_preserve_published_exclusion ... ok
+test device::publication_round5::terminal_gap_is_a_protocol_refusal ... ok
+test device::publication_round7::recovery_discards_corrupt_capture_without_discarding_private_pages ... ok
+test device::deferred::recording::tests::prefix_deletion_is_an_ordered_fold_operation ... ok
+test device::publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error ... ok
+test ffi::tests::open_reason_reports_the_attempt_without_trying_again ... ok
+test device::publication_tests::apply_returns_publication_without_a_second_store_read ... ok
+test device::publication_tests::pending_publication_reads_the_slot_not_request_progress ... ok
+test device::recorded::tests::membership_transitions_do_not_depend_on_recording_targets_on_both_stores ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_sqlite_changes_restore_and_reset ... ok
+test ffi::tests::first_install_envelope_preserves_a_backend_installed_by_another_owner ... ok
+test device::publication_tests::leased_terminal_continuation_sqlite ... ok
+test device::publication_tests::leased_nonterminal_continuation_sqlite ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_memory ... ok
+test device::expired_births_tests::retired_birth_keeps_sqlite_device_caps_exact ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_sqlite ... ok
+test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_both_stores ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
+
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+     Running tests/acquisition_crash.rs (snapback4/target/debug/deps/acquisition_crash-bd71192e0cda91b9)
+
+running 2 tests
+test acquisition_crash_worker ... ok
+sqlite, refresh=false: 12 process kills, 1503 persistence cuts
+sqlite, refresh=true: 12 process kills, 1610 persistence cuts
+memory, refresh=false: 12 process kills, 1228 persistence cuts
+memory, refresh=true: 12 process kills, 1775 persistence cuts
+test random_process_kills_preserve_atomic_acquisition_on_both_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.42s
+
+     Running tests/sqlite_bulk.rs (snapback4/target/debug/deps/sqlite_bulk-5f6e60b599f654ae)
+
+running 1 test
+test sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s

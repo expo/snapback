@@ -1,0 +1,5 @@
+Node process device: one JSON line per call to the snapback4 device subprocess, backed by SQLite. Expo links the crate in-process; these are not Expo/iOS timings; web wasm + IndexedDB figures differ. Bytes are SQLite pages, excluding WAL/SHM, not RSS.
+Command's own receipt path: /home/ccheever/sb4-intent/lane-na/snapback4/reports/20260930-na-native-acquisition/round1/measurements/unconfined/u0500/acquire.json
+acquired 413 table/groups / 11,612 rows / 21.4 MB in 1.065 s; first local chat.inbox 1.082 s; cold restart first local answer 0.050 s; coverage verified (413 table/groups) in 0.023 s
+acquired 413 table/groups / 11,612 rows / 21.4 MB in 1.046 s; first local chat.inbox 1.053 s; cold restart first local answer 0.048 s; coverage verified (413 table/groups) in 0.022 s
+acquired 413 table/groups / 11,612 rows / 21.4 MB in 1.060 s; first local chat.inbox 1.067 s; cold restart first local answer 0.044 s; coverage verified (413 table/groups) in 0.023 s

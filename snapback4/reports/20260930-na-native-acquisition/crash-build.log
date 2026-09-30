@@ -1,0 +1,69 @@
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+error[E0425]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:41:81
+   |
+41 | trait Physical: DeviceStore { fn images(&self, names: &[String]) -> Vec<(String,Value)>; }
+   |                                                                                 ^^^^^ not found in this scope
+   |
+help: you might be missing a type parameter
+   |
+41 | trait Physical<Value>: DeviceStore { fn images(&self, names: &[String]) -> Vec<(String,Value)>; }
+   |               +++++++
+
+error[E0425]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:43:55
+   |
+43 |     fn images(&self, names: &[String]) -> Vec<(String,Value)> {
+   |                                                       ^^^^^ not found in this scope
+   |
+help: you might be missing a type parameter
+   |
+42 | impl<Value> Physical for snapback4_core::store::Store {
+   |     +++++++
+
+error[E0425]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:48:51
+   |
+48 |     fn images(&self, _: &[String]) -> Vec<(String,Value)> {
+   |                                                   ^^^^^ not found in this scope
+   |
+help: you might be missing a type parameter
+   |
+47 | impl<Value> Physical for MemoryStore {
+   |     +++++++
+
+error[E0433]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:19:82
+   |
+19 | ...   rows.push(("conversations".into(), object([("id", id(&group)), ("title", Value::String(group.clone())), ("creatorId", id("dev:...
+   |                                                                                ^^^^^ use of undeclared type `Value`
+
+error[E0433]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:20:156
+   |
+20 | ...p)), ("principal", id("dev:alice")), ("role", Value::String("admin".into())), ("joinedAt", Value::Int(0))])));
+   |                                                  ^^^^^ use of undeclared type `Value`
+
+error[E0433]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:20:201
+   |
+20 | ... Value::String("admin".into())), ("joinedAt", Value::Int(0))])));
+   |                                                  ^^^^^ use of undeclared type `Value`
+
+error[E0433]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:24:18
+   |
+24 |         ("body", Value::String(format!("durable acquired index coverage random crash message {g} {n}"))), ("at", Value::Int(n)),
+   |                  ^^^^^ use of undeclared type `Value`
+
+error[E0433]: cannot find type `Value` in this scope
+  --> crates/snapback4-device/tests/acquisition_crash.rs:24:114
+   |
+24 |         ("body", Value::String(format!("durable acquired index coverage random crash message {g} {n}"))), ("at", Value::Int(n)),
+   |                                                                                                                  ^^^^^ use of undeclared type `Value`
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `snapback4-device` (test "acquisition_crash") due to 8 previous errors
