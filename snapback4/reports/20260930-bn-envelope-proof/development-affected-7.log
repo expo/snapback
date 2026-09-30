@@ -1,0 +1,19 @@
+(node:1911810) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (949.842483ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2557.929732ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1051.141773ms)
+✔ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1388.502335ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1439.958284ms)
+✔ restart detects wipe before reconnect can repair it (251.797704ms)
+✔ restart detects delete-row before reconnect can repair it (1214.779154ms)
+✔ restart detects change-groups before reconnect can repair it (1210.863644ms)
+✔ restart detects change-boundaries before reconnect can repair it (1214.077793ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11382.557135

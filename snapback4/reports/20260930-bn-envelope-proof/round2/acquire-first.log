@@ -1,0 +1,48 @@
+(node:770113) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (965.063942ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2571.632846ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1010.27818ms)
+✔ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1392.461261ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1339.344007ms)
+✔ restart detects wipe before reconnect can repair it (242.890609ms)
+✔ restart detects delete-row before reconnect can repair it (1214.315506ms)
+✔ restart detects change-groups before reconnect can repair it (1215.438069ms)
+✔ restart detects change-boundaries before reconnect can repair it (1220.394789ms)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1368.021375ms)
+✔ reconnect proof rejects denied and records every attempted request (1356.502317ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1349.080582ms)
+✔ reconnect proof rejects null and records every attempted request (1351.799017ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1358.969236ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1346.735537ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1352.158696ms)
+✔ reconnect proof rejects dropped-first and records every attempted request (1321.122642ms)
+✔ reconnect proof rejects truncated-body and records every attempted request (1356.293354ms)
+✔ reconnect proof rejects bad-ack and records every attempted request (1346.654445ms)
+✔ reconnect proof rejects bad-acquisitions and records every attempted request (1345.752563ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (380.929191ms)
+✔ witness family usage advertises both commands and shares input diagnostics (95.576011ms)
+✔ receipt identifies the JSON-line subprocess host (1340.622923ms)
+✔ restart times coverage separately from first answer (2485.065978ms)
+✔ bounds names the known process-device apply defect independently from retention (0.843775ms)
+✔ binary native module installs and survives restart (1378.507102ms)
+✔ binary native module digest refusal fails proof (326.285909ms)
+✔ server allowlist drops raw from every acquisition output surface (5537.366313ms)
+✔ server allowlist drops hex from every acquisition output surface (5623.444706ms)
+✔ server allowlist drops HEX from every acquisition output surface (5617.642158ms)
+✔ server allowlist drops base64 from every acquisition output surface (5578.590858ms)
+✔ server allowlist drops base64url from every acquisition output surface (5461.30911ms)
+✔ server allowlist drops percent from every acquisition output surface (5629.567422ms)
+✔ server allowlist drops percentLower from every acquisition output surface (5595.909007ms)
+✔ server allowlist drops sha256 from every acquisition output surface (5593.661207ms)
+✔ caller query and args are echoed from the request, never selected schema metadata (1336.209958ms)
+✔ equals token spelling authenticates without exposing the bearer (1273.948506ms)
+✔ all acquire/iOS argument refusals omit values including equals bearers (1195.199439ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80587.309544

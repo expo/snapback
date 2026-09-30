@@ -79696,6 +79696,63 @@ Wasm remains 1,988,204 B raw / 596,444 B gzip, 803 B below the unchanged
 original 294; primary guide remains 321/350. Report, complete failure ledger,
 controls, exact logs and source/artifact hashes:
 reports/20260930-rx-declarative-receipts/round2/REPORT.md.
+## 2026-09-30 — QS round 0: one-shot reads settle
+
+On sb4-intent/qs-one-shot-settles from main snapshot 9d03e946232b, reproduced
+loading returns through online publication, both local devices and all three
+createApp facades. Plain online-only reads already returned server data online
+and permitted remembered local data offline; held unavailable views, withdrawn
+deadline latches and facade approval races exposed the permanent-loading trap.
+An additional baseline aggregate returned the pre-admission count while its
+source insert was pending.
+
+query now returns Promise<SettledRead<R>>, with no loading arm and an existence
+overload that excludes loading. Four publication rounds share one 30-second
+invocation deadline, including queues and facade authority. Retired/expired
+candidates reread; exhaustion is retryable E_QUERY_RETRY. Offline reads return
+permitted device/memory data or E_OFFLINE; terminal scope refusals still win.
+The shared evaluator, observation policy and existence classifier/pending
+predicate are unchanged. A conservative one-shot custody barrier refuses ahead
+of unobserved nonpredictable writes or remote answers ahead of any unobserved
+write; this can also delay apparently disjoint remote reads. Complete local
+predictions remain available. LLP 3000.023 §11 records the contract; LLP 3000.028
+§3.3 distinguishes discarded publication retries from forbidden page draining.
+Published awaited-loading prose and type/examples are corrected. Client card
+1,196/1,200 words, 113/130 lines; local.ts remains 1,500 lines.
+
+Causal/type/bound checks pass 123/123; new local model uses independent admitted
+values, 24 sessions and 432 seeded event choices. Whole guide 105/105. Final
+search and mixed-evidence models run their full 300 seeds/histories per host
+and pass with unchanged coverage. Following gate/browser/Worker cases 24/24,
+React reconnection 10/10, delivery/expiry follow-ups 7/7, typing browser 12/12,
+and strengthened search publication 4/4. The broader integration rerun passed
+283/285 before the two typing child/parent failures were corrected; its six
+held-device deadline cases each exercise the real 30-second refusal.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+
+    == 1 failure(s) in 1513 s
+       client tests
+
+All other 12 stages pass, including serial client models 79/79. Client stage:
+5,342 passed, 50 failed, ten existing skips, zero cancellations. Failure
+classification: ours 50, baseline 0, environmental 0. Every full-run failure
+has a passing final affected rerun. The frozen-timer Following fixture stranded
+query retry pauses beyond its 30-second test guard; only its worker was
+terminated at 615.70 seconds so the original suite could finish. The corrected
+fixture keeps real retry timers and the original write/apply gates. The full
+run remains failed evidence, not a green qualification. Production source was
+unchanged throughout it and the follow-ups; test expectations/fixtures and the
+await census were migrated during/after it. No counts or timeout limits were
+reduced. The inherited nominal 60-second suite budget remains exceeded.
+
+Wasm: 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged 593,719 B
+ratchet; no wasm/core change or budget increase. Full reproduction matrix,
+every failure and disposition, source hashes and logs:
+reports/20260930-qs-one-shot-settles/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
 
 ## 2026-09-30 — NS round 3: final native-smoke review fixes
 
@@ -79733,6 +79790,244 @@ native-smoke-fixtures-device-choice-log-name ticket was absent from main at the
 merged commit; all three named findings are resolved. Report and retained logs:
 reports/20260930-ns-native-smoke/round3/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-30 — BN round 0: prove the heaviest account and retained restart
+
+Added `witness acquire --as <persona|principal> --restart` over the published SDK
+and native process device, with fresh stores, JSON receipts, residency, acquired
+and complete-local-answer timings, and dev Server-Timing. Dev personas and bearer
+principals are checked against the server. Reopen is offline in a new native
+process; group counts, persisted coverage, table rows/bytes and store identity
+must match before reconnect, which must download zero row/scope events. The
+native inspection runs after timing and is excluded from wasm. The bounds guide
+urges proving the heaviest account, supplies a CI-executed command/receipt,
+search aliases and historical HV web measurements. LLP 3000.030 §13 records the
+contract, group units and timing limits. No public client contract changed.
+
+On eb1000, all 12 fixture runs pass: three each for HV's 100- and
+1,000-membership principals, on 96 CPUs and taskset 10 CPUs with eight burners.
+The heavy account retains 1,000 conversation groups / 105,034 rows. Unconfined
+median acquisition/restart is 42.081 s / 0.270 s; under deliberate load,
+49.048 s / 0.394 s. The 100-membership medians are 1.293 s / 0.045 s and
+3.805 s / 0.141 s. All reconnects download zero held rows. These observations
+use warm OS caches, not a physical phone; native acquisition is slower than
+HV's historical web result. The first query here is issued after acquisition.
+
+Affected witness tests pass 9/9, including wipe, held-row deletion and changed
+history/boundary controls. Whole guide passes 106/106. Ran scripts/test.sh
+exactly once; exact summary: `== 1 failure(s) in 1341 s`. Rust passes 4,364
+including 17 doctests, with 33 existing ignores; clients count 5,315 pass,
+2 fail and ten existing skips; models pass 79/79, fixture wrappers 9/9.
+The failures are ours: the probe's old exact JSON expectation and its enclosing
+parent test. Updated that assertion to check the added authenticated viewer;
+the complete HTTP file then passes 10/10. No implementation changed after the
+full run began. No baseline or environmental test failures; no assertion,
+workload or timeout was weakened. The inherited 60-second suite budget remains
+exceeded. This records a failed full run plus the passing affected correction.
+
+Wasm is 1,978,828 B raw / 593,233 B gzip, 486 B below the unchanged 593,719 B
+ratchet. No budget increase. Receipts, all failures, logs, source/artifact hashes
+and reproduction: reports/20260930-bn-envelope-proof/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 1: completed reconnect and separate retention clocks
+
+Read BN round 0's prompt/report and both reviews. Merged origin/main 28014164c6
+first in 81090e5a8a, keeping both acquisition and NS native smoke, both guide
+paths and journal histories. NS keeps LLP 3000.030 §13; BN moves to §14 with
+both code refs repaired. Nothing pushed or published.
+
+The acquisition proof records every actual HTTP attempt, including failures,
+and retains partial failed runs. It validates sync replies, requires a terminal
+stream page with no more at the server position applied locally, and observes
+successful native publication. A swallowed transport, HTTP, protocol or native
+validation/application failure cannot seal a passing receipt. Offline coverage
+still compares before reconnect, which must download no row/scope events.
+Remote refusal text and arbitrary timing-header text are not reflected; bearer
+values and common encodings are redacted before receipt/text/error output.
+Acquire input errors now use E_WITNESS_INPUT, and bare witness names both verbs.
+
+Receipts describe Node sending one JSON line per call to the snapback4 device
+subprocess backed by SQLite; Expo links the crate in-process. Restart's first
+local answer and subsequent coverage verification have separate clocks. The
+bounds card and report name the unresolved process-device apply defect, owned
+by NA: Astra profiled 37.862 s of 41.734 s in apply round trips, including a
+35.506 s call. Grok accounts for about 39.5 s after headers versus 2.55 s server
+time, about 16 s after headers on wasm, and worse per-row cost at 105k than 11k.
+This localizes JSON-lines/device application/IPC, not an internal SQLite cause;
+it is separate from retention. No performance optimization was attempted here.
+
+All four fresh receipts pass after tests/builds: 100/1,000 memberships on 96
+CPUs and ten CPUs with eight owned burners. Heavy receipts retain 105,034 rows
+and 4,014 table/group pairs; both reconnect at position 419402 with zero rows
+and confirmed native publication. Unconfined heavy acquisition is 43.208 s,
+restart first answer 0.239 s, subsequent coverage verification 0.289 s. Loaded:
+41.350 s / 0.252 s / 0.285 s. These are single requalification samples, not new
+medians or evidence that contention helps. Original twelve receipts are intact.
+
+Final affected tests pass 37/37 (27 witness, ten HTTP); whole guide 107/107.
+Seventeen controls detect actual round 0: seven reconnect variants expose false
+success, four already failed but lost partial evidence, and the others expose
+redaction, CLI, hosting-note, timing and defect-documentation issues. A further
+self-audit caught invalid native acknowledgements during the full run; guards
+were fixed before its client stage. Post-suite inspection caught parsing binary
+native downloads as JSON: the real-module positive control fails before that
+correction and passes afterward, as does module-digest refusal. Final affected
+checks cover both. Source snapshots retain the changes; no unchanged-source
+full qualification is claimed and the full suite was not rerun.
+
+Ran scripts/test.sh once. Exact summary: `== 1 failure(s) in 1265 s`, exit 1.
+Rust 4,368 pass / 33 existing ignores, clients 5,336 pass / one fail / ten
+existing skips, fixture wrappers 9/9, full-count models 79/79. No cancellations.
+The sole full-run failure is classified baseline: process pending cut preserves
+presentTransition, at the notification-starts-sync barrier. Its test/helpers/SDK
+are unchanged; the whole file passes 10/10 unchanged and the preserved pre-round-1
+binary passes that case 1/1. Root cause remains unresolved; the open filesystem
+ticket records this without claiming a reproduced cause. Full-run failures:
+ours 0, baseline 1, environmental 0. Development failures remain in the ledger.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Wasm is 1,978,828 B raw / 593,233 B gzip, identical to round 0 and 486 B below
+the unchanged 593,719 B cap. No budget increase. Report, failure ledger, raw logs,
+receipts, host load and source/artifact hashes:
+reports/20260930-bn-envelope-proof/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 2: allowlist acquisition output and refuse flags safely
+
+Read both prior prompts/reports and Astra's complete round 1 review. Replaced
+credential-pattern redaction with a receipt allowlist and command-authored
+errors. Server free text and codes are dropped entirely; no separate raw file
+is written. Caller query/args/principal come from the caller's own copy.
+Automatic queries use a generated label; table names, store identity and
+positions use locally computed digests. The original private coverage and
+completed zero-event reconnect comparisons remain. Receipt format 2 drops
+Server-Timing/serverMs/serverSyncMs and supplied numeric metadata under the
+round 2 rule: emitted numbers must be locally computed. Native SQLite counts,
+local transport clocks, acquisition and separate restart timers remain.
+
+Acquire accepts --token=VALUE and other valued equals flags, with canonical
+duplicate detection. Unsupported token-file spellings and all unknown flags
+refuse without values; iOS equals/positional refusals also omit values. Raw
+bearers reused in non-secret inputs refuse before artifacts. Runtime refusal
+stderr no longer prints a caller artifact path. LLP 3000.030 §14 and bounds
+record the changed receipt contract. SDK/engine/device code is unchanged.
+
+Eight real-token forms pass 160 proxy invocations spanning successful native
+acquisition/restart and schema, identity, sync, native and refusal paths in JSON
+and text modes. Every output boundary is checked. Actual round 1 fails the
+three primary controls on credential leakage: uppercase hex in stdout and
+acquire/iOS equals-token flags in stderr. A fourth control detects caller-path
+reflection in runtime refusal stderr. The controls print no real credentials.
+
+Final witness Node checks pass 76/76, including 40 acquisition cases; Rust
+witness units pass 11/11 and the whole guide 107/107. Ref-check passes 525 LLPs /
+9,997 refs with zero errors or unchecked references. One development test helper
+error (applying includes to a numeric exit status) was ours and is fixed; all
+failure logs and expected controls are retained. No baseline/environmental
+failures. Full suite not run under the round 2 instruction: only witness
+implementation plus its tests/docs changed. No fresh heavy timing claim; the
+process-device apply performance defect remains assigned to NA.
+
+Existing wasm was hashed/measured, not rebuilt: 1,978,828 B raw / 593,233 B gzip,
+identical to round 1 and 486 B below the unchanged 593,719 B ratchet. No wasm
+inputs changed. Report: reports/20260930-bn-envelope-proof/round2/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 3: runtime refusal values and query failure reasons
+
+Read rounds 0–2 prompts/reports and Astra's complete round 2 review. Unknown
+--udid and artifact-reservation refusals now name flags/reasons without values.
+Audited the remaining witness runtime/parse paths, including iOS app selection,
+simctl, leases, ports and preparation. Own native helper errors omit input
+values; unexpected setup errors do not print Node stacks. Child-tool prose stays
+in separate raw logs, never forwarded into refusal/manifest errors. Required
+output locators explicitly say the command's own log or receipt path.
+
+Acquisition distinguishes argument rejection, query refusal and incomplete
+coverage using validated engine/server codes and fixed command prose. Failed
+receipts keep the caller's own query/args even before selection or execution;
+no arbitrary server text or code is emitted. LLP 3000.030 §14, bounds and witness
+cards record the changes. SDK, engine, device and wire behavior are unchanged.
+
+Two Rust controls fail on round 2's UDID/artifact leaks; the Node wrong-type
+query control fails on its misleading coverage advice. Final Node witness checks
+pass 79/79, including all 160 existing real-token echo invocations. Rust witness
+units pass 13/13; the portable integration target passes 13/13 (overlapping
+protocol tests). Whole guide passes 107/107; ref-check has zero errors/unchecked.
+This is Linux protocol and mocked preparation evidence; no native simulator run.
+Development assertion/command mistakes and one exploratory lease-test failure
+are classified conservatively as ours in the ledger; final checks pass with
+normal eight-thread Rust settings. No existing test/timeout/workload was reduced.
+
+Full suite omitted per round 3: only witness implementation plus its tests/docs
+changed. Existing wasm was hashed/measured, not rebuilt: 1,978,828 B raw /
+593,233 B gzip, unchanged and 486 B below the 593,719 B ratchet. No performance
+requalification or budget increase. Report and all evidence:
+reports/20260930-bn-envelope-proof/round3/REPORT.md.
+
+## 2026-09-30 — QS round 1: terminal one-shot refusals survive deadlines
+
+Read the round 0 prompt/report and both complete READY WITH CHANGES reviews.
+Merged origin/main 42ba3ffb904f first (edd5d68fbd), preserving both journal
+histories and guide changes. Local one-shot settlement now exposes partition
+and change-stream refusals to its outer decision; facades synchronously read
+the raw terminal state even when their own deadline wins during authority I/O.
+Tests cover persisted same-store regression, partition/change refusal, online
+reset/restore, close, sign-out and viewer replacement, including wasm/process
+and app facades. Reset adoption behavior remains unchanged.
+
+An acquired held read requiring unsynced data, without a pending prediction,
+now refuses non-retryable E_QUERY_HELD after one device evaluation and no server
+request. Its message says to remove held for the online path or sync the data.
+Concurrent invalidation still rereads; offline misses still use E_OFFLINE and
+genuine exhaustion E_QUERY_RETRY. The existing evaluator only adds internal
+metadata; observation publication and the existence/pending classifier remain
+unchanged. Mock queries now share settlement and version fences. LLP 3000.023
+section 11 records these corrections. Search documents E_QUERY_RETRY with a
+fresh-first-page restart; the complete guide/README audit clarifies other
+loading prose. Offline-interactions restores server-needing decorations
+separately. The client card retains native smoke, clear-on-submit and runnable
+host guidance within 1,200 words / 113 lines. local.ts remains 1,500 lines.
+
+Round 0 replay: 24 runtime failures / 16 controls pass; both old-text regression
+checks also fail. Final affected checks: 452/452 plus four change-stream cases
+and two corrected Following cases. Whole guide 106/106, refs clean. Ran
+scripts/test.sh exactly once; exit 1, exact summary:
+
+    == 1 failure(s) in 1290 s
+       client tests
+
+All other 12 stages pass, including serial client models 79/79 and 5,000
+session sequences on each tier. Client pool: 5,457 pass, two fail, ten existing
+skips, zero cancellations. Both 300-seed search hosts and both 300-history
+mixed-evidence hosts pass at full counts. Every full-run failure is ours:
+wasm/native bounded Following expected retryable exhaustion for an executed
+online-only held branch. After the run, both now assert E_QUERY_HELD and
+retryable=false online, E_OFFLINE and retryable=true offline, preserving exact
+untaken answers/completeness and zero server calls; final rerun 2/2. Baseline
+failures 0, environmental 0. This remains a failed full run with passing affected
+follow-ups, not a green qualification. The inherited 60-second budget remains
+exceeded. Product semantics stayed fixed through the run; one return expression
+was folded during the initial wasm build solely to keep the line cap.
+
+Wasm unchanged: 1,978,828 B raw / 593,225 B gzip, 494 B under the unchanged
+593,719 B cap. Exact inputs, every failure/disposition and logs:
+reports/20260930-qs-one-shot-settles/round1/REPORT.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+Provenance correction before handoff: the main parent actually merged by
+edd5d68fbd is 28014164c6979995708e758c2090e53455101134. The 42ba3ffb904f value
+above was sampled later from the shared origin/main ref after it advanced;
+it was not merged. The report now uses the actual merge parent. Code and
+verification evidence are unchanged.
 ## 2026-09-30 — KA round 0: HTTP idle reuse and one bounded retry
 
 Starting main 9d03e94623 (0.4.9), branch sb4-intent/ka-keepalive-reuse. The real
@@ -79971,4 +80266,157 @@ measured 597,386 B, without added slack. This is a whole-artifact measurement;
 no runtime ceiling changed. Report, all failure classifications, logs, source
 and artifact hashes: reports/20260930-ry-receipts-allocation/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+## 2026-09-30 — TF round 0: expired-watch fixture owns only retry timers
+
+Starting main 0dad042375, including KA merge 42ba3ffb90. The expired-server-watch
+fixture now captures timer creation only during the real ReadWork.retry call
+for its watched async context. The existing exported class supplies the test
+boundary; no product hook or source change. All assertions, the exact eight-delay
+sequence, timer counts, forced invalidation, single flight, recovery and close
+coverage remain unchanged. Undici's one-second idle timers run normally.
+
+On eb1000, Node 24.13.1: 50/50 unconfined file runs (five workers) and 20/20
+sequential file runs on CPUs 0–9 with ten CPU-load processes pass: 840/840 cases,
+zero failures, skips or cancellations. Focused file 12/12; expiry/keep group
+306/306 and separate full-count keep app model 18/18; whole guide 106/106.
+Ref-check and diff check pass. No full suite. Source and artifact hashes stayed
+unchanged through validation; wasm was reused from KA with matching source and
+digest, and this lane built its current server and SDK.
+
+Pre-KA SDK 28014164c6 passes the repaired fixture 12/12. Scratch mutations to
+26 ms backoff and one extra retry timer each fail all nine measured cases at
+the intended assertions, then are restored. A loader that retires warm sockets
+before opening the watch reproduces nine original-fixture failures; the fixed
+fixture passes all 12 while tracing 105 real undici timers. The ordinary original
+fixture also passed once; that evidence is retained with the deliberate reds.
+
+Imported QS's missing transport-timer ticket and closed it with the resolution.
+Report, per-run logs, load evidence and controls:
+reports/20260930-tf-expired-watch-timers/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-30 — BN round 4: preserve app lookup failure causes
+
+Read rounds 0–3 prompts/reports and complete reviews, including Astra's round 3
+P2. Merged origin/main 0dad042375 first in e112fb6e11; the only conflict was
+append-only journal entries, and both histories are intact. Nothing pushed or
+published.
+
+App-container lookup now propagates simctl's safe category and message instead
+of replacing every error with “app is not installed”. Timeout keeps
+E_WITNESS_TIMEOUT and --timeout advice; interruption, spawn failure and simulator
+failure remain distinct. A nonzero lookup cannot distinguish an absent app from
+an unavailable simulator, so it retains E_WITNESS_SIMULATOR without inventing a
+cause. Argument values and tool prose remain excluded. Audited the other witness
+wrappers; no further timeout-discarding mapping was found. The only production
+change is this lookup, extracted so its real subprocess path runs in a portable
+regression test. No SDK/engine/device/wire edits beyond incoming main.
+
+The new six-case regression fails under round 3's unchanged mapping (all five
+refusals collapse to E_WITNESS_APP; success passes) and passes after the fix.
+Rust witness units pass 14/14, portable integration 13/13, whole guide 107/107.
+Node witness checks finish 77 passed / 2 failed / zero cancelled or skipped,
+including all 160 passing token-echo invocations. The two failures are an
+incoming-main interaction: KA's internal retry adds a proxy-observed sync attempt
+that the existing acquisition receipt does not count. Both proofs still refuse.
+Focused current-transport tests repeat both failures; substituting only round 3's
+transport passes 2/2 with the same final binary, helper and remaining SDK. No
+assertion was weakened. Classification: ours 0, inherited main/integration 2,
+environmental 0. The retry/accounting defect remains follow-up work outside the
+explicit “change nothing else” scope; no green Node qualification is claimed.
+
+Full suite omitted as requested. Evidence is Linux subprocess/protocol and
+mocked preparation, not real simulator execution; Darwin-only tests are not
+claimed run. Existing wasm measured, not rebuilt: 1,978,828 B raw / 593,233 B gzip,
+unchanged and 486 B below the 593,719 B cap. Report, audit, detecting patch,
+all failures and source/artifact identities:
+reports/20260930-bn-envelope-proof/round4/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 5: account for KA transport retries
+
+Starting at round 4's merged 53054502fa, fixed only the witness/Node-transport
+accounting interaction. The private transport accepts a per-call onRetry hook,
+invoked after KA's unchanged eligibility checks and before its one fresh send.
+The witness preserves the failed original with its own clock, records the retry
+separately with cause “transport retry after reused-socket reset”, and keeps the
+failure latched even if the retry succeeds. No remote prose enters the hook or
+receipt. Host fetch instrumentation runs for both sends, no global dispatcher
+is replaced, and other callers have no witness recorder. LLP 3000.030 §14 records
+the boundary; no engine, device, wire, public contract or guide claim changed.
+
+Before edits the two original tests repeat round 4's undercounts (4/5 and 3/4).
+Afterward more-then-drop records 5/5 and dropped-first 4/4; both refuse. A new
+single-drop control records 4/4 and still refuses after a validated/applied retry.
+The existing round-3 transport hook passes all three faults with 4/4, 3/3 and 3/3,
+with no invented retries. Real-reset tests cover successful/failed notifications,
+no notification on fresh failure, concurrent caller isolation, unchanged host
+instrumentation and dispatcher identity.
+
+Final checks: Node witness 80/80 including all 160 token-echo invocations; Node
+transport/all keepalive and retry files 127/127 including headless Chromium;
+Rust witness units 14/14, portable integration 13/13, whole guide 107/107.
+SDK build/typecheck and ref-check pass. No post-fix test failures, cancellations or
+skips in these runs. Final artifact inspection caught Cargo rebuilding the CLI
+during initial passing Node checks; those logs remain, and Node checks were
+repeated after builds ended to bind stable final bytes. The pre-fix expected
+failures and setup/artifact-accounting mistakes remain in the report ledger.
+Full suite omitted as explicitly requested, even with the small shared transport edit. Linux evidence does not qualify an iOS
+simulator or new heavy-account timing. Existing wasm measured, not rebuilt:
+1,978,828 B raw / 593,233 B gzip, unchanged, 486 B below the 593,719 B ratchet.
+
+Report, logs, attempt samples and identities:
+reports/20260930-bn-envelope-proof/round5/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-30 — QS round 2: complete terminal sources, prove held permanence
+
+Read rounds 0/1 prompts, reports and reviews, then merged origin/main
+0dad042375057d2dad8c429424713986581432e7 in 17ca8a3809, preserving both
+journal histories and delivery-await audit comments. One required-field
+terminal-source selector now serves online/local/mock queries and facades:
+public scope, store, close, session, change stream, partition and inherited
+raw state. Online E_SYNC now survives both transport and authority deadlines.
+
+Actual unsynced reads no longer prove permanent held unavailability. A narrow
+static proof recognizes only the compiler's unconditional literal-key
+online-only count lowering, without arguments, native body, inherited source
+or parent/own-key aggregate. It still refuses E_QUERY_HELD in one evaluation
+and zero server calls. Time, argument, data/coverage and membership-dependent
+forms conservatively retry; the real-clock cutoff case rereads to 7. No second
+evaluator, observation-policy change or existence/pending classifier change.
+The two Following conditional cases preserve complete untaken false/null and
+zero server dispatch while requiring retryable exhaustion for the online taken
+branch. Client/search/refusal guidance and LLP 3000.023 §11 agree. Client card
+remains 1,200 words / 113 lines; local.ts remains 1,500 lines.
+
+Round 1 negative controls: 20/20 targeted failures before edits, then 19/19
+runtime failures on the SDK rebuilt from exact a8744099b5. Final review checks
+60/60, additional opening/final authority cases 12/12, broad affected run
+463/463, whole guide 106/106, typecheck/build/docs budget/refs/diff check pass.
+Ran scripts/test.sh exactly once, exit 1; exact summary:
+
+    == 1 failure(s) in 1280 s
+       client tests
+
+All other 12 stages passed; serial client models 79/79 with 5,000 session
+sequences on each tier. Both 300-seed search hosts and both 300-history
+mixed-evidence hosts pass. Client pool: 5,506 pass / 8 fail / 10 existing
+skips / zero cancellations. Every failed case is baseline: expired-server
+reply recovery with keep=false/true, close-watch and close-client with each
+keep setting. Ours 0, environmental 0. Ordinary and stack-traced runs on the
+merged pre-fix SDK reproduce all eight in union: the fixture captures Undici
+1,000 ms socket timers as expiry backoff. Follow-up is
+issues/20260930-snapback4-expired-watch-captures-transport-timers.md. No unrelated
+assertion was weakened. This remains a failed full run; the inherited nominal
+60-second budget is exceeded. No source input changed during the full run,
+no worker intervention, no full rerun. Earlier guide-budget and scratch-build
+failures remain honestly recorded alongside their passing follow-ups.
+
+Wasm unchanged: 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged
+593,719 B cap. Source hashes, exact summaries, every failure and disposition:
+reports/20260930-qs-one-shot-settles/round2/REPORT.md and FAILURES.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.

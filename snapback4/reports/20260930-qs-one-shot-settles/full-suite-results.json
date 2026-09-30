@@ -1,0 +1,615 @@
+[
+  {
+    "test": "retry exhaustion",
+    "fullName": "online keep=undefined: profile route gate > retry exhaustion",
+    "line": 1803,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/answers-stay-react.test.mjs:79:108",
+    "resolution": "Wait for the existing reconnect probe before injecting observation retry faults.",
+    "passingEvidence": [
+      "react-offline-final.log"
+    ]
+  },
+  {
+    "test": "online keep=undefined: profile route gate",
+    "fullName": "online keep=undefined: profile route gate",
+    "line": 1805,
+    "category": "ours",
+    "kind": "failed parent",
+    "site": "answers-stay-react.test.mjs",
+    "resolution": "Wait for the existing reconnect probe before injecting observation retry faults.",
+    "passingEvidence": [
+      "react-offline-final.log"
+    ]
+  },
+  {
+    "test": "retry exhaustion",
+    "fullName": "online keep=true: profile route gate > retry exhaustion",
+    "line": 1816,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/answers-stay-react.test.mjs:79:108",
+    "resolution": "Wait for the existing reconnect probe before injecting observation retry faults.",
+    "passingEvidence": [
+      "react-offline-final.log"
+    ]
+  },
+  {
+    "test": "online keep=true: profile route gate",
+    "fullName": "online keep=true: profile route gate",
+    "line": 1818,
+    "category": "ours",
+    "kind": "failed parent",
+    "site": "answers-stay-react.test.mjs",
+    "resolution": "Wait for the existing reconnect probe before injecting observation retry faults.",
+    "passingEvidence": [
+      "react-offline-final.log"
+    ]
+  },
+  {
+    "test": "wasm: population growth cannot mint new IDs during prediction replay",
+    "fullName": "wasm: population growth cannot mint new IDs during prediction replay",
+    "line": 2915,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/client-lifecycle.test.mjs:1089:3",
+    "resolution": "An unobserved write whose prediction was withdrawn now refuses E_QUERY_RETRY.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "test": "native: population growth cannot mint new IDs during prediction replay",
+    "fullName": "native: population growth cannot mint new IDs during prediction replay",
+    "line": 2927,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/client-lifecycle.test.mjs:1089:3",
+    "resolution": "An unobserved write whose prediction was withdrawn now refuses E_QUERY_RETRY.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "test": "every delivery await is explicitly classified",
+    "fullName": "every delivery await is explicitly classified",
+    "line": 3187,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/delivery-fault-matrix.test.mjs:43:1",
+    "resolution": "Classify the new read-only awaits in the census; retain delivery fault recipes.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "test": "local fallback rejects its manifest when expiry changes before acceptance",
+    "fullName": "local fallback rejects its manifest when expiry changes before acceptance",
+    "line": 3521,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/delivery-publication.test.mjs:67:54",
+    "resolution": "Expired manifest is discarded; a fresh ready reread creates no delivery debt.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "test": "expired server replies: recover, keep=undefined",
+    "fullName": "expired server replies: recover, keep=undefined",
+    "line": 3762,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/expired-server-watch.test.mjs:15:5",
+    "resolution": "Renew the short-lived fixture row before testing deletion after longer query priming.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "test": "packages/snapback4/test/follow-window.test.mjs",
+    "fullName": "packages/snapback4/test/follow-window.test.mjs",
+    "line": 3796,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/follow-window.test.mjs:1:1",
+    "resolution": "Remove frozen positive timers from live fixtures; retain transport/application gates and observation checks. The original worker alone was terminated at 615.70 seconds.",
+    "passingEvidence": [
+      "follow-window-corrected.log"
+    ]
+  },
+  {
+    "test": "review replacement query server invalidates old search continuation process",
+    "fullName": "review replacement query server invalidates old search continuation process",
+    "line": 3997,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/identity-review.test.mjs:96:40",
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "review replacement query server invalidates old search continuation wasm",
+    "fullName": "review replacement query server invalidates old search continuation wasm",
+    "line": 3998,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/identity-review.test.mjs:96:40",
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "review changed generation invalidates old search continuation process",
+    "fullName": "review changed generation invalidates old search continuation process",
+    "line": 3999,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/identity-review.test.mjs:115:40",
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "review changed generation invalidates old search continuation wasm",
+    "fullName": "review changed generation invalidates old search continuation wasm",
+    "line": 4000,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/identity-review.test.mjs:115:40",
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "fullName": "wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "line": 4140,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "fullName": "process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "line": 4142,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "fullName": "wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "line": 4144,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "fullName": "wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "line": 4146,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "fullName": "process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "line": 4148,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "fullName": "process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "line": 4150,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "mixed evidence schedule process: 300 independent histories",
+    "fullName": "mixed evidence schedule process: 300 independent histories",
+    "line": 4474,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/mixed-evidence-oracle.test.mjs:42:41",
+    "resolution": "The scheduled failed adoption now expects E_OFFLINE from the one-shot; observation oracle is unchanged.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "test": "mixed evidence schedule wasm: 300 independent histories",
+    "fullName": "mixed evidence schedule wasm: 300 independent histories",
+    "line": 4476,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/mixed-evidence-oracle.test.mjs:42:41",
+    "resolution": "The scheduled failed adoption now expects E_OFFLINE from the one-shot; observation oracle is unchanged.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "test": "direct stale-sequence reads back off and stop after four requests",
+    "fullName": "direct stale-sequence reads back off and stop after four requests",
+    "line": 4821,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/online-store-order.test.mjs:97:38",
+    "resolution": "Four stale-sequence requests still back off, then refuse E_QUERY_RETRY.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "ordinary search generated oracle process: 300 seeds",
+    "fullName": "ordinary search generated oracle process: 300 seeds",
+    "line": 7649,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:355:5",
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "test": "ordinary search generated oracle wasm: 300 seeds",
+    "fullName": "ordinary search generated oracle wasm: 300 seeds",
+    "line": 10384,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:355:5",
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "test": "expired current replacement keeps retained history process",
+    "fullName": "expired current replacement keeps retained history process",
+    "line": 10389,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:398:5",
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "test": "expired current replacement keeps retained history wasm",
+    "fullName": "expired current replacement keeps retained history wasm",
+    "line": 10390,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:398:5",
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "test": "ordinary mixed search: departure during delivery withdraws response without a second invocation",
+    "fullName": "ordinary mixed search: departure during delivery withdraws response without a second invocation",
+    "line": 10410,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:232:1",
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it",
+    "fullName": "ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it",
+    "line": 10412,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:272:1",
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data",
+    "fullName": "ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data",
+    "line": 10413,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:286:1",
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "ordinary mixed search process: a real device reset withdraws delivery and restarts its cursor",
+    "fullName": "ordinary mixed search process: a real device reset withdraws delivery and restarts its cursor",
+    "line": 10417,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:381:39",
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "ordinary mixed search wasm: a real device reset withdraws delivery and restarts its cursor",
+    "fullName": "ordinary mixed search wasm: a real device reset withdraws delivery and restarts its cursor",
+    "line": 10418,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:381:39",
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "online: refusals remain HTTP, reads back off, same-ID writes recover",
+    "fullName": "online: refusals remain HTTP, reads back off, same-ID writes recover",
+    "line": 10439,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/overload.test.mjs:62:39",
+    "resolution": "Await the reconnect probe before the next injected HTTP refusal.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "native process devices withdraw an expired inbox during fallback, offline and on account switch",
+    "fullName": "native process devices withdraw an expired inbox during fallback, offline and on account switch",
+    "line": 10554,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/page-observation.test.mjs:39:1",
+    "resolution": "Pending direct total refuses E_QUERY_RETRY; observed/raw loading and withdrawal checks remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "web IndexedDB device withdraws expired inbox data in useQuery and usePage",
+    "fullName": "web IndexedDB device withdraws expired inbox data in useQuery and usePage",
+    "line": 10555,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/page-observation.test.mjs:50:1",
+    "resolution": "Pending direct total refuses E_QUERY_RETRY; observed/raw loading and withdrawal checks remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "wasm-memory: retained filters every watched read",
+    "fullName": "wasm-memory: retained filters every watched read",
+    "line": 11405,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/readauth.test.mjs:51:3",
+    "resolution": "Unavailable direct offline reads refuse E_OFFLINE; observed retention assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "native-sqlite: retained filters every watched read",
+    "fullName": "native-sqlite: retained filters every watched read",
+    "line": 11410,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/readauth.test.mjs:51:3",
+    "resolution": "Unavailable direct offline reads refuse E_OFFLINE; observed retention assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "profile screen waits for proven existence and uses each replacement",
+    "fullName": "profile screen waits for proven existence and uses each replacement",
+    "line": 11422,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/readme-examples.test.mjs:293:1",
+    "resolution": "The settled profile example and mock use partial/refused results, never one-shot loading.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "review: new unsynced membership invalidates continuation process",
+    "fullName": "review: new unsynced membership invalidates continuation process",
+    "line": 11975,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:113:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: new unsynced membership invalidates continuation wasm",
+    "fullName": "review: new unsynced membership invalidates continuation wasm",
+    "line": 11976,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:113:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: hidden sync during delivery withdraws the page process",
+    "fullName": "review: hidden sync during delivery withdraws the page process",
+    "line": 11979,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:142:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: hidden sync during delivery withdraws the page wasm",
+    "fullName": "review: hidden sync during delivery withdraws the page wasm",
+    "line": 11980,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:142:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: unsynced audience loss also withdraws the continuation process",
+    "fullName": "review: unsynced audience loss also withdraws the continuation process",
+    "line": 11983,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:173:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: unsynced audience loss also withdraws the continuation wasm",
+    "fullName": "review: unsynced audience loss also withdraws the continuation wasm",
+    "line": 11984,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:173:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: same-count audience swap withdraws the old continuation process",
+    "fullName": "review: same-count audience swap withdraws the old continuation process",
+    "line": 11985,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:185:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "review: same-count audience swap withdraws the old continuation wasm",
+    "fullName": "review: same-count audience swap withdraws the old continuation wasm",
+    "line": 11986,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/review-probes.test.mjs:185:39",
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "test": "renewal, idle without blur, Send, route visibility/key and unmount stop before expiry",
+    "fullName": "social recipes in React/browser: real online signals and media, controlled read interleavings > renewal, idle without blur, Send, route visibility/key and unmount stop before expiry",
+    "line": 12189,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/social-browser.test.mjs:182:11",
+    "resolution": "Wait for the reconnect probe after priming the query; typing lifecycle assertions are unchanged.",
+    "passingEvidence": [
+      "social-renewal-final.log"
+    ]
+  },
+  {
+    "test": "social recipes in React/browser: real online signals and media, controlled read interleavings",
+    "fullName": "social recipes in React/browser: real online signals and media, controlled read interleavings",
+    "line": 12197,
+    "category": "ours",
+    "kind": "failed parent",
+    "site": "social-browser.test.mjs",
+    "resolution": "Wait for the reconnect probe after priming the query; typing lifecycle assertions are unchanged.",
+    "passingEvidence": [
+      "social-renewal-final.log"
+    ]
+  },
+  {
+    "test": "social starter native: cold owner keys prove old likes and unqueried absence offline",
+    "fullName": "social starter native: cold owner keys prove old likes and unqueried absence offline",
+    "line": 12215,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/social-starter.test.mjs:41:3",
+    "resolution": "Cold unacquired offline one-shots refuse E_OFFLINE; the ready key/absence cases remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "test": "social starter web: cold owner keys prove old likes and unqueried absence offline",
+    "fullName": "social starter web: cold owner keys prove old likes and unqueried absence offline",
+    "line": 12216,
+    "category": "ours",
+    "kind": "leaf/file",
+    "site": "packages/snapback4/test/social-starter.test.mjs:41:3",
+    "resolution": "Cold unacquired offline one-shots refuse E_OFFLINE; the ready key/absence cases remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  }
+]

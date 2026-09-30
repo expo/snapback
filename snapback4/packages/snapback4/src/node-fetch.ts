@@ -66,7 +66,9 @@ function repeatable(url: URL, init?: RequestInit): boolean {
   } catch { return false; }
 }
 
-export const defaultFetch: typeof fetch = async (input, init) => {
+// @ref LLP 3000.030#14 — the witness must record even a transport-recovered failure; this private, per-call hook carries no remote text.
+export const defaultFetch = async (input: Parameters<typeof fetch>[0], init?: RequestInit,
+  { onRetry }: { onRetry?: () => void } = {}): Promise<Response> => {
   const url = typeof input === "string" || input instanceof URL ? new URL(input) : new URL(input.url);
   // Fetch snapshots mutable inputs at dispatch. A retry must keep that same
   // URL, write ID, body and authority even if the caller edits its options.
@@ -94,6 +96,7 @@ export const defaultFetch: typeof fetch = async (input, init) => {
     // destroying at fetch resolution would truncate a streaming /sync reply.
     const retry = new Agent({ pipelining: 0 });
     try {
+      onRetry?.();
       return await send(new Dispatcher1Wrapper(retry));
     } finally { void retry.close().catch(() => {}); }
   }

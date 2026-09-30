@@ -224,10 +224,10 @@ be fully synced, floored, or online only; the feed uses its private owned edges.
 An inbox page within its floor needs no posts. A shaped page is complete offline
 only when every card is held too. A recent repost of an old original, or a quiet
 author's old post, may need the server even on the first page. A horizon card miss, required online-only card, or inbox scan past its floor withholds the
-**whole query** as `{ loading: true }`, with no data or continuation. Offline,
+**whole observation** as `{ loading: true }`, with no data or continuation. Offline,
 while a predictable write remains unobserved, or for a `held` query, it stays
 withheld. Otherwise the client retries the original input cursor on the server;
-a transport failure stays loading. Remembered answers never replace this result.
+a transport failure stays loading. One-shot `query()` settles under `guide client`. Remembered answers never replace this result.
 
 An examined-meter cut above the floor remains partial data with its continuation.
 A full page ending at the floor is data; its next page is withheld. Pending

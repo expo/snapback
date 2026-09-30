@@ -83,6 +83,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 json!({ "rows": rows, "watermark": state.watermark, "generation": state.generation,
                     "storeId": state.store_id, "acquired": state.acquired, "backendRequired": state.backend_required })
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            "witness_coverage" => device.witness_coverage(text(&request, "viewer")?)?,
             "delivery" => device.delivery(&request)?,
             "state" => {
                 let (watermark, generation) = device.state()?;

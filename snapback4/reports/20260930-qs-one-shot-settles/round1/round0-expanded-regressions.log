@@ -1,0 +1,1100 @@
+TAP version 13
+# Subtest: wasm: a terminal change-stream refusal wins a blocked query deadline
+not ok 1 - wasm: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 659.811438
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:28:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'change stream refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      retryable: false
+      message: 'change stream refused'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:44:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: wasm: restore refusal wins a blocked query deadline
+not ok 2 - wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 214.922279
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_RESTORE',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_RESTORE'
+      family: 'store'
+      guide: 'sync'
+      message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: wasm: partition refusal wins a blocked query deadline
+not ok 3 - wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 207.77697
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'partition refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      message: 'partition refused'
+      retryable: false
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: wasm: impossible held count refuses in one evaluation and never contacts the server
+not ok 4 - wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 277.298693
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:75:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_QUERY_RETRY'
+    - 'E_QUERY_HELD'
+               ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_QUERY_HELD'
+  actual: 'E_QUERY_RETRY'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:86:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: wasm: a held query retries a concurrent prediction and can answer its other branch
+ok 5 - wasm: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 218.142175
+  type: 'test'
+  ...
+# Subtest: process: a terminal change-stream refusal wins a blocked query deadline
+not ok 6 - process: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 239.149413
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:28:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'change stream refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      retryable: false
+      message: 'change stream refused'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:44:20)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: process: restore refusal wins a blocked query deadline
+not ok 7 - process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 248.736002
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_RESTORE',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_RESTORE'
+      family: 'store'
+      guide: 'sync'
+      message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: process: partition refusal wins a blocked query deadline
+not ok 8 - process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 250.70256
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'partition refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      message: 'partition refused'
+      retryable: false
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: process: impossible held count refuses in one evaluation and never contacts the server
+not ok 9 - process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 339.891932
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:75:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_QUERY_RETRY'
+    - 'E_QUERY_HELD'
+               ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_QUERY_HELD'
+  actual: 'E_QUERY_RETRY'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:86:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: process: a held query retries a concurrent prediction and can answer its other branch
+ok 10 - process: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 252.39769
+  type: 'test'
+  ...
+# Subtest: app-wasm: a terminal change-stream refusal wins a blocked query deadline
+not ok 11 - app-wasm: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 210.880812
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:28:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'change stream refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      retryable: false
+      message: 'change stream refused'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:44:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-wasm: restore refusal wins a blocked query deadline
+not ok 12 - app-wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 213.236432
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_RESTORE',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_RESTORE'
+      family: 'store'
+      guide: 'sync'
+      message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-wasm: partition refusal wins a blocked query deadline
+not ok 13 - app-wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 221.499168
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'partition refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      message: 'partition refused'
+      retryable: false
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-wasm: impossible held count refuses in one evaluation and never contacts the server
+not ok 14 - app-wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 304.628627
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:75:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_QUERY_RETRY'
+    - 'E_QUERY_HELD'
+               ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_QUERY_HELD'
+  actual: 'E_QUERY_RETRY'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:86:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-wasm: a held query retries a concurrent prediction and can answer its other branch
+ok 15 - app-wasm: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 215.944772
+  type: 'test'
+  ...
+# Subtest: app-process: a terminal change-stream refusal wins a blocked query deadline
+not ok 16 - app-process: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 386.676186
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:28:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'change stream refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      retryable: false
+      message: 'change stream refused'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:44:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-process: restore refusal wins a blocked query deadline
+not ok 17 - app-process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 273.623475
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_RESTORE',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_RESTORE'
+      family: 'store'
+      guide: 'sync'
+      message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-process: partition refusal wins a blocked query deadline
+not ok 18 - app-process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 271.635885
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:46:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_SYNC',
+    -     family: 'sync',
+    -     message: 'partition refused',
+    -     retryable: false
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_SYNC'
+      family: 'sync'
+      message: 'partition refused'
+      retryable: false
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:72:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-process: impossible held count refuses in one evaluation and never contacts the server
+not ok 19 - app-process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 448.749495
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:75:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_QUERY_RETRY'
+    - 'E_QUERY_HELD'
+               ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_QUERY_HELD'
+  actual: 'E_QUERY_RETRY'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:86:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-process: a held query retries a concurrent prediction and can answer its other branch
+ok 20 - app-process: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 266.749071
+  type: 'test'
+  ...
+# Subtest: online: restore wins the transport deadline
+ok 21 - online: restore wins the transport deadline
+  ---
+  duration_ms: 6.147034
+  type: 'test'
+  ...
+# Subtest: online: reset wins the transport deadline
+ok 22 - online: reset wins the transport deadline
+  ---
+  duration_ms: 1.89495
+  type: 'test'
+  ...
+# Subtest: facade: restore wins the transport deadline
+not ok 23 - facade: restore wins the transport deadline
+  ---
+  duration_ms: 12.650842
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:111:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_RESTORE',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: 'the backend store sequence regressed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them',
+    -     rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent',
+    -     site: 'client'
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_RESTORE'
+      family: 'store'
+      site: 'client'
+      guide: 'sync'
+      message: 'the backend store sequence regressed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them'
+      rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:130:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: facade: restore wins the authority deadline
+not ok 24 - facade: restore wins the authority deadline
+  ---
+  duration_ms: 2.183332
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:111:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_RESTORE',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: 'the backend store sequence regressed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them',
+    -     rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent',
+    -     site: 'client'
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_RESTORE'
+      family: 'store'
+      site: 'client'
+      guide: 'sync'
+      message: 'the backend store sequence regressed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them'
+      rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:130:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: facade: reset wins the transport deadline
+not ok 25 - facade: reset wins the transport deadline
+  ---
+  duration_ms: 12.525985
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:111:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_REPLACED',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: 'the backend store identity changed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them',
+    -     rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent',
+    -     site: 'client'
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_REPLACED'
+      family: 'store'
+      site: 'client'
+      guide: 'sync'
+      message: 'the backend store identity changed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them'
+      rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:130:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: facade: reset wins the authority deadline
+not ok 26 - facade: reset wins the authority deadline
+  ---
+  duration_ms: 2.138015
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:111:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        denied: {
+    +     code: 'E_QUERY_RETRY',
+    +     family: 'client',
+    +     guide: 'client',
+    +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+    +     retryable: true,
+    +     site: 'client.query'
+    -     code: 'E_STORE_REPLACED',
+    -     family: 'store',
+    -     guide: 'sync',
+    -     message: 'the backend store identity changed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them',
+    -     rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent',
+    -     site: 'client'
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    denied:
+      code: 'E_STORE_REPLACED'
+      family: 'store'
+      site: 'client'
+      guide: 'sync'
+      message: 'the backend store identity changed; outstanding writes may have executed and their outcomes are unknown; this client will not retry them'
+      rewrite: 'close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent'
+  actual:
+    denied:
+      code: 'E_QUERY_RETRY'
+      family: 'client'
+      retryable: true
+      site: 'client.query'
+      guide: 'client'
+      message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:130:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-online: logout scope change wins a blocked authority deadline
+ok 27 - app-online: logout scope change wins a blocked authority deadline
+  ---
+  duration_ms: 156.170148
+  type: 'test'
+  ...
+# Subtest: app-online: viewer scope change wins a blocked authority deadline
+ok 28 - app-online: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 157.736295
+  type: 'test'
+  ...
+# {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791649775174}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+# Subtest: app-wasm: logout scope change wins a blocked authority deadline
+ok 29 - app-wasm: logout scope change wins a blocked authority deadline
+  ---
+  duration_ms: 200.113894
+  type: 'test'
+  ...
+# Subtest: app-wasm: viewer scope change wins a blocked authority deadline
+ok 30 - app-wasm: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 236.015285
+  type: 'test'
+  ...
+# {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791649775571}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+# Subtest: app-process: logout scope change wins a blocked authority deadline
+ok 31 - app-process: logout scope change wins a blocked authority deadline
+  ---
+  duration_ms: 245.290117
+  type: 'test'
+  ...
+# Subtest: app-process: viewer scope change wins a blocked authority deadline
+ok 32 - app-process: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 335.051277
+  type: 'test'
+  ...
+# {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791649776100}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+# Subtest: online: held queries retain the terminal server refusal
+ok 33 - online: held queries retain the terminal server refusal
+  ---
+  duration_ms: 160.807769
+  type: 'test'
+  ...
+# Subtest: app-online: held queries retain the terminal server refusal
+ok 34 - app-online: held queries retain the terminal server refusal
+  ---
+  duration_ms: 163.058844
+  type: 'test'
+  ...
+# Subtest: mock: a retired one-shot rereads instead of returning the old value
+not ok 35 - mock: a retired one-shot rereads instead of returning the old value
+  ---
+  duration_ms: 2.753137
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:162:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'old' !== 'new'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'new'
+  actual: 'old'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:169:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: mock: genuine publication exhaustion uses the shared retryable refusal
+not ok 36 - mock: genuine publication exhaustion uses the shared retryable refusal
+  ---
+  duration_ms: 0.878487
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:171:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'E_QUERY_RETRY'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_QUERY_RETRY'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:175:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: mock: closed and signed-out clients preserve terminal refusals
+not ok 37 - mock: closed and signed-out clients preserve terminal refusals
+  ---
+  duration_ms: 0.709654
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:177:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'E_CLOSED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLOSED'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:179:32)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: mock: a throwing evaluator settles with the shared client refusal
+not ok 38 - mock: a throwing evaluator settles with the shared client refusal
+  ---
+  duration_ms: 0.536935
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:183:1'
+  failureType: 'testCodeFailure'
+  error: 'broken mock handler'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    item (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:184:48)
+    evaluate (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/dist/mock.js:65:23)
+    Object.query (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/dist/mock.js:109:26)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:185:29)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1103:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+    Test.postRun (node:internal/test_runner/test:1232:19)
+    Test.run (node:internal/test_runner/test:1160:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+  ...
+# Subtest: guide: stale one-shot continuations refuse and retain the first-page recovery
+ok 39 - guide: stale one-shot continuations refuse and retain the first-page recovery
+  ---
+  duration_ms: 1.306598
+  type: 'test'
+  ...
+# Subtest: guide: server-needing decorations remain separate
+ok 40 - guide: server-needing decorations remain separate
+  ---
+  duration_ms: 0.449313
+  type: 'test'
+  ...
+1..40
+# tests 40
+# suites 0
+# pass 16
+# fail 24
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7620.623525

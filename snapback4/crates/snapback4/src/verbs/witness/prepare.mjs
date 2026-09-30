@@ -5,8 +5,10 @@ import { privateBuildFlags, validateOutputs, auditNativeProject, compilerClosure
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { hash, fail, readJSON, seal, inventory, hbc, nativeFiles, differences, shellQuote } from './payload.mjs';
+import { hash, fail, safeFailure, readJSON, seal, inventory, hbc, nativeFiles, differences, shellQuote } from './payload.mjs';
 
+// Unexpected setup errors can include paths; never print a Node stack or raw error.
+process.on('uncaughtException', error => { console.error(safeFailure(error)); process.exitCode = 1; });
 const [mode, projectArg, artifactsArg, udid, origin] = process.argv.slice(2);
 // Refuse before resolving projects, creating caches, or invoking any tool.
 if (mode !== 'build') fail('E_WITNESS_INPUT', 'repack is withdrawn; use witness ios --build <project> --smoke with fresh artifacts');
@@ -28,7 +30,7 @@ function command(label, executable, args, cwd = snapshot) {
   fs.writeSync(fd, (r.stdout ?? '') + (r.stderr ?? '')); fs.closeSync(fd);
   phases.push({ label, executable, args, cwd, startedAt: time, durationMs: Date.now() - time, status: r.status, signal: r.signal, log: path.basename(log), sha256: hash(fs.readFileSync(log)) });
   fs.writeFileSync(path.join(out, 'preparation-phases.json'), JSON.stringify(phases, null, 2));
-  if (r.error || r.status !== 0) fail('E_WITNESS_BUILD', `${label} failed (${r.error?.message ?? r.status}); see ${log}; use --build in a fresh artifacts directory`);
+  if (r.error || r.status !== 0) fail('E_WITNESS_BUILD', `${label} failed (${r.status ?? 'could not start'}); see the command's own raw log path: ${log}; use --build in a fresh --artifacts directory`);
   return r.stdout.trim();
 }
 const excluded = new Set(['.git', '.expo', '.snapback4', '.snapback4-witness', 'artifacts', 'evidence', 'dist', 'choreography', 'node_modules', 'ios']);
@@ -42,7 +44,7 @@ function nativeInput(root, generatedIOS = false) {
   if (ios) for (const name of fs.readdirSync(path.join(root, 'ios')).filter(n => n.endsWith('.xcodeproj'))) {
     const file = path.join(root, 'ios', name, 'project.pbxproj');
     const parsed = spawnSync('/usr/bin/plutil', ['-convert', 'json', '-o', '-', file], { encoding: 'utf8' });
-    if (parsed.status !== 0) fail('E_WITNESS_NATIVE_COMPAT', `cannot inspect native references in ${file}`);
+    if (parsed.status !== 0) fail('E_WITNESS_NATIVE_COMPAT', 'cannot inspect --build native references');
     references.push(nativeReferences(root, JSON.parse(parsed.stdout), name.slice(0, -10)));
   }
   // Root the Pods inventory at the project: generated header links point into
@@ -60,7 +62,7 @@ function nativeInput(root, generatedIOS = false) {
     if (!target.startsWith('node_modules/') && !target.startsWith('ios/Pods/')
       && !(podsGenerated && target.startsWith('ios/build/generated/'))
       && !(target.startsWith('ios/') && !nativeOmit(target.slice(4)))) {
-      fail('E_WITNESS_NATIVE_COMPAT', `Pods input outside covered roots: ${row.path} -> ${target}; use manual preparation`);
+      fail('E_WITNESS_NATIVE_COMPAT', 'Pods input outside covered roots; use manual preparation instead of --build');
     }
   }
   const config = readJSON(path.join(root, 'app.json'));
@@ -73,7 +75,7 @@ function sameInputs(a, b, code = 'E_WITNESS_NATIVE_COMPAT') {
   for (const key of ['config', 'manifest', 'lock', 'dependencies', 'ios', 'pods', 'podsGenerated', 'references']) if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) {
     changes.push({ field: key, ...(a[key]?.files && b[key]?.files ? { changes: differences(a[key].files, b[key].files) } : { expected: a[key], actual: b[key] }) });
   }
-  if (changes.length) { seal(path.join(out, 'input-differences.json'), changes); fail(code, `input differences in ${changes.map(x => x.field).join(', ')}; see input-differences.json; use witness ios --build ${project}`); }
+  if (changes.length) { seal(path.join(out, 'input-differences.json'), changes); fail(code, "input differences; see the command's own file input-differences.json in --artifacts; retry --build"); }
 }
 function plist(file) { return JSON.parse(command(`plist-${phases.length}`, '/usr/bin/plutil', ['-convert', 'json', '-o', '-', file])); }
 function appInfo(app) {
@@ -164,7 +166,7 @@ try {
     // Query settings without masking overrides, then pin bundling on the build.
     // A successful skipped phase must not seal a previous build's JavaScript.
     const bundle = path.join(app, 'main.jsbundle');
-    if (!canonical(bundle).startsWith(canonical(cache) + path.sep)) fail('E_WITNESS_BUILD', `bundle output escapes private workspace: ${bundle}`);
+    if (!canonical(bundle).startsWith(canonical(cache) + path.sep)) fail('E_WITNESS_BUILD', '--build bundle output escapes private workspace');
     fs.rmSync(bundle, { force: true });
     // A failed build may retain/recreate a valid product; only exit success advances.
     command('xcode-build', 'xcodebuild', [...args, 'SKIP_BUNDLING=', 'SOURCEMAP_FILE=', '-resultBundlePath', path.join(out, 'build.xcresult'), 'build']);
@@ -197,6 +199,6 @@ try {
     resolvedNative: hash(fs.readFileSync(path.join(out, 'resolved-native.json'))) };
   seal(path.join(out, 'build.json'), result);
 } catch (error) {
-  seal(path.join(out, 'preparation-failure.json'), { startedAt: started, durationMs: Date.now() - started, error: String(error), phases });
-  console.error(String(error)); process.exitCode = 1;
+  seal(path.join(out, 'preparation-failure.json'), { startedAt: started, durationMs: Date.now() - started, error: safeFailure(error), phases });
+  console.error(safeFailure(error)); process.exitCode = 1;
 }

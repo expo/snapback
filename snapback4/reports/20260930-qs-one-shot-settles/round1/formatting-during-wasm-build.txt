@@ -1,0 +1,1 @@
+After starting test.sh, folded the new local.ts return expression onto one line to retain the 1,500-line cap. Whitespace only; wasm build was running and TypeScript build had not started. No other product or test edits during the suite. Final local.ts SHA-256: 8de97858344c2b74626827a16109ca7ba44997889b8cde26490ec19be91e0644

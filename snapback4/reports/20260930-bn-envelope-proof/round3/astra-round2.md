@@ -1,0 +1,13 @@
+**NOT READY.** Round 1’s two reported leaks are fixed, but claim 2 remains too broad and failure diagnostics have regressed.
+
+1. **P2 — iOS runtime refusals still echo argument values.** The parser fixes hold, but an unknown `--udid` is printed verbatim by [device selection](/home/ccheever/sb4-intent/review-bn-r2-astra/snapback4/crates/snapback4/src/verbs/witness/protocol.rs:24). Artifact reservation errors likewise print the supplied path. I executed these unchanged production functions with credential markers; both markers appeared in the errors. [Reproduction](/tmp/bn-r2-astra-s38gi5vy/review-ios.rs), [output](/tmp/bn-r2-astra-s38gi5vy/ios-refusals.log). This was a direct protocol-function check on Linux, not a simulator run. Remove value interpolation from these runtime refusals too.
+
+2. **P2 — Dropping free text removed actionable query diagnostics.** For `byOwner(owner: principal)`, supplying `{"owner":7}` now says “choose a query within held coverage”—identical to an actual coverage failure. Round 1 correctly identified the argument-type problem. The failed receipt also omits the selected query and arguments. [Fault site](/home/ccheever/sb4-intent/review-bn-r2-astra/snapback4/packages/snapback4/bin/witness-acquire.js:261), [current reproduction](/tmp/bn-r2-astra-s38gi5vy/extra.log), [round-1 comparison](/tmp/bn-r2-astra-s38gi5vy/r1-diagnostics.log). Preserve command-authored distinctions between argument rejection, query refusal and incomplete coverage; arbitrary server prose need not return.
+
+| Claim | Independent result |
+|---|---|
+| **1. Acquisition output allowlist** | Held in reviewed paths. All 160 echo invocations passed. Additional real-token checks covered native child stderr and native refusal text without leakage into stdout, stderr or receipts. Server codes are dropped entirely. |
+| **2. No refusal echoes values** | Acquisition and iOS parser controls pass; iOS runtime counterexamples above refute the blanket claim. |
+| **3. Controls and test totals** | Confirmed: **76 Node, 11 Rust witness and 107 guide tests passed**. All **four controls failed for the expected leakage** against the preserved round-1 helper/binary. [Control log](/tmp/bn-r2-astra-s38gi5vy/controls.log). |
+
+Rust and guide checks used the preserved round-2 test binaries. I did not rerun the full suite. The checkout remains clean at `9548d90434`; all experimental files are in scratch, and nothing was pushed.

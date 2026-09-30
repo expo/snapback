@@ -1,4 +1,5 @@
 import { readyRead } from "./read-existence.ts";
+import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
@@ -940,17 +941,19 @@ export function createClient(options: ClientOptions): Client {
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
     },
-    async query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>> {
+    query: settledQuery(async <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => {
+      if (link === "offline") { void probe(); return () => ({ denied: offline() }); }
       const read = new ReadObservation<R>();
-      const result = await read.fetch<QueryResult<R>>(() => runQuery(op, args), () => {}, { accept: result => currentRead(result) });
-      // A concurrent response or write can retire the accepted result before
-      // this continuation runs. Do not start an additional retry round here.
-      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
-      if (!credentials) return { denied: auth() };
-      if (result.deadlineWithdrawn?.() || !currentRead(result)) return { loading: true };
-      acceptDelivery(result, result.read);
-      return result.read;
-    },
+      const result = await read.fetch<QueryResult<R>>(() => runQuery(op, args, false, signal), () => {}, { publishResult: false });
+      return () => {
+        if (result.deadlineWithdrawn?.() || !currentRead(result)) return;
+        if ("data" in result.read && pending.length) return;
+        acceptDelivery(result, result.read);
+        return result.read;
+      };
+    }, () => terminalQueryRefusal({ scope: null, store: storeRefusal, closed: closed ? ended() : null,
+      session: !credentials || link === "signed-out" ? auth() : null, changes: changesRefusal,
+      partition: null, inherited: null }), aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep;
       const key = observationKey(op, args, options);

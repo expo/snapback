@@ -1,0 +1,33 @@
+{
+  "snapback4/target/debug/snapback4": {
+    "bytes": 71490584,
+    "sha256": "c7427f67720b673b50be24c2839aa4946f9a4bbd6090b17eb5e2126128f35c91"
+  },
+  "snapback4/packages/snapback4/bin/witness-acquire.js": {
+    "bytes": 24526,
+    "sha256": "44f7f6d64aabbfd6517eb1aa0b3f8a16d0d417a1ad719d7726ef9d7e0066c128"
+  },
+  "snapback4/packages/snapback4/test/witness-acquire.test.mjs": {
+    "bytes": 29138,
+    "sha256": "806d581681fb8fbf87a013084036f3214a8b41a03a06369ae4aac4ef02302de8"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness.rs": {
+    "bytes": 34929,
+    "sha256": "c035cd80853cfbfc3bac692124c0063d93fbb910c8dba8430b661d2b53bbb3ff"
+  },
+  "snapback4/crates/snapback4-lang/src/guide/bounds.rs": {
+    "bytes": 27733,
+    "sha256": "0630b2f41f26c3abc9d2ce2a0b9c3f2f875ba27630f12adb77f20ad2fb3263f6"
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1978828,
+    "sha256": "e0652576d56704990bf9cc8d745626de5219aa1c69d864623738888a77a93a50"
+  },
+  "/tmp/bn-r2-round1-snapback4": {
+    "bytes": 34309056,
+    "sha256": "b7e7cac5443610e8288e3547c25df8d29ca97e048d18836323c5ffaceb84caac"
+  },
+  "wasmGzip": 593233,
+  "wasmBudget": 593719,
+  "note": "Existing wasm, not rebuilt: no wasm inputs changed in round 2. Hash equals round 1."
+}

@@ -1,0 +1,31 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (189.559822ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (461.153856ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (60.149173ms)
+  ✖ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (30021.279015ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (104.332722ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1417.838974ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (455.686679ms)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (250.997166ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (453.397737ms)
+  ✔ observations make retention explicit (4.52917ms)
+  ✔ account reset clears draft and stops the prior typing owner (195.347278ms)
+✖ social recipes in React/browser: real online signals and media, controlled read interleavings (35730.088772ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 10
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36153.671423
+
+✖ failing tests:
+
+test at packages/snapback4/test/social-browser.test.mjs:182:11
+✖ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (30021.279015ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/social-browser.test.mjs:187:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/social-browser.test.mjs:182:3) {
+    name: 'TimeoutError'
+  }

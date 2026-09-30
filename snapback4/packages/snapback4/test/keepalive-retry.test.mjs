@@ -35,10 +35,14 @@ for (const warm of [false, true]) for (const always of [false, true])
       else response.end(JSON.stringify({ data: 1, complete: true, tables: [], seq: 0 }));
     });
     if (warm) await f.warm();
-    const client = createClient({ url: f.url, persona: "alice" }); t.after(() => client.close());
+    let retries = 0;
+    const client = createClient({ url: f.url, persona: "alice",
+      fetch: (input, init) => defaultFetch(input, init, { onRetry: () => { retries++; } }),
+    }); t.after(() => client.close());
     const read = await client.query({ kind: "query", name: "ping" }, {});
     const sent = f.requests.filter(r => r.path === "/q/ping");
     assert.equal(sent.length, warm ? 2 : 1);
+    assert.equal(retries, warm ? 1 : 0, "notify each transport retry, including one that fails");
     assert.equal(offline(read), !warm || always, JSON.stringify(read));
     if (warm) {
       assert.equal(sent[0].socket, f.requests[0].socket, "the failed attempt really reused the warm socket");
@@ -46,6 +50,37 @@ for (const warm of [false, true]) for (const always of [false, true])
       if (!always) assert.equal(read.data, 1);
     }
   });
+
+test("retry observation stays with its caller and host fetch sees every attempt", async t => {
+  const respond = (request, response, _, n) => {
+    if (n === 1) request.socket.resetAndDestroy();
+    else response.end('{}');
+  };
+  const observed = await peer(t, respond), other = await peer(t, respond);
+  await observed.warm(); await other.warm();
+  const originalFetch = globalThis.fetch, calls = [];
+  t.mock.method(globalThis, "fetch", (input, init) => {
+    calls.push(String(input));
+    assert.equal(Object.hasOwn(init, "onRetry"), false, "private observer never enters host fetch options");
+    return originalFetch(input, init);
+  });
+  const globalDispatchers = () => Object.getOwnPropertySymbols(globalThis)
+    .filter(symbol => String(symbol).includes("undici.globalDispatcher"))
+    .map(symbol => [symbol, globalThis[symbol]]);
+  const before = globalDispatchers();
+  let retries = 0;
+  const replies = await Promise.all([
+    defaultFetch(observed.url + "/sync", post({}), { onRetry: () => { retries++; } }),
+    defaultFetch(other.url + "/sync", post({})),
+  ]);
+  await Promise.all(replies.map(reply => reply.text()));
+  assert.equal(retries, 1, "the concurrent unobserved caller must not be recorded");
+  for (const f of [observed, other]) {
+    assert.equal(f.requests.filter(r => r.path === "/sync").length, 2);
+    assert.equal(calls.filter(url => url === f.url + "/sync").length, 2);
+  }
+  assert.deepEqual(globalDispatchers(), before, "no process-wide dispatcher replacement");
+});
 
 for (const phase of ["partial header", "body"])
   test(`no retry after response bytes: ${phase}`, async t => {

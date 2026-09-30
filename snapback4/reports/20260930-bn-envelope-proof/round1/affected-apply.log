@@ -1,0 +1,35 @@
+(node:3821455) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (1004.392992ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2423.566133ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1069.089473ms)
+✔ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1382.993094ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1327.844586ms)
+✔ restart detects wipe before reconnect can repair it (212.057913ms)
+✔ restart detects delete-row before reconnect can repair it (1187.5891ms)
+✔ restart detects change-groups before reconnect can repair it (1194.870202ms)
+✔ restart detects change-boundaries before reconnect can repair it (1187.47342ms)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1344.880631ms)
+✔ reconnect proof rejects denied and records every attempted request (1325.54376ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1341.150967ms)
+✔ reconnect proof rejects null and records every attempted request (1350.665475ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1320.644287ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1320.946662ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1329.802543ms)
+✔ reconnect proof rejects dropped-first and records every attempted request (1300.391106ms)
+✔ reconnect proof rejects truncated-body and records every attempted request (1330.153593ms)
+✔ reconnect proof rejects bad-ack and records every attempted request (1315.04733ms)
+✔ reconnect proof rejects bad-acquisitions and records every attempted request (1316.823635ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (388.649764ms)
+✔ witness family usage advertises both commands and shares input diagnostics (111.345254ms)
+✔ receipt identifies the JSON-line subprocess host (1318.091316ms)
+✔ restart times coverage separately from first answer (2319.826275ms)
+✔ bounds names the known process-device apply defect independently from retention (0.56752ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29856.489464

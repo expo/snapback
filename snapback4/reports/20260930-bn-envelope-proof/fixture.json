@@ -1,0 +1,16 @@
+{
+  "source": "HV store-after via read-only SQLite backup",
+  "databaseBytes": 2757160960,
+  "accounts": [
+    {
+      "handle": "u0001",
+      "principal": "user:01M3KYGC7KA7B1M11A251HF29W",
+      "membershipRows": 1000
+    },
+    {
+      "handle": "u0500",
+      "principal": "user:01M3KZ78WJA4S7SWGW7YCJ8BYM",
+      "membershipRows": 100
+    }
+  ]
+}

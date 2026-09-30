@@ -1,0 +1,16 @@
+{
+  "llp/3000.023-answers-stay-on-screen.rfc.md": "48b8d90eba015e8af5618d650e271c255d74615e16baecbcc3c89f2ce0457a7d",
+  "snapback4/crates/snapback4-lang/src/guide/client.md": "8fa6ecd4dd11ceb0e3e3b8f156861582913006b9c82e12d2919a98a6930b177a",
+  "snapback4/crates/snapback4-lang/src/guide/search_all.md": "24db1bcb257997623a08b6e311648c1bda93bf215493b61ba6957fc6a22e73d9",
+  "snapback4/crates/snapback4-lang/src/guide/why/E_QUERY_HELD.md": "17b614876584e3466f71819bfbffedec3ad406bd73a1864bd35d6cbd63150014",
+  "snapback4/packages/snapback4/src/app-client.ts": "22b2658395b790ea123c2a6357e2f4e605d295055ee3a75d238e85b5b68c5893",
+  "snapback4/packages/snapback4/src/backend.ts": "815487ca9d043218673a00a4309348747f09b4ef826524b5b36da240957b7874",
+  "snapback4/packages/snapback4/src/client.ts": "5427f14a31513c21bf657f97ce4eaf2e6babfcc7ddf41c7449a46f0f7d445396",
+  "snapback4/packages/snapback4/src/local-query.ts": "89733e9911fefd6fba245f401c9bb41a591bf950d60baaf37d5f96b9e4ca8c27",
+  "snapback4/packages/snapback4/src/local.ts": "7382cef009b35533ca64d0dda38464a9a173cf88a65930d3f646eb4b5eb09019",
+  "snapback4/packages/snapback4/src/mock.ts": "c2cc24a8a6f645bee003bfc204550a7a72b822db7ec6440dffdc464eace358b7",
+  "snapback4/packages/snapback4/src/query-settlement.ts": "d2dc25522efd7a7ce6eef348a924a7195cb0f1f4fc278035301776368ff11848",
+  "snapback4/packages/snapback4/test/bounded-following.test.mjs": "0871bc9adffc161be49e549e4a80eaa48edac4ff9c1346d37fbf14366ddfe750",
+  "snapback4/packages/snapback4/test/helpers/one-shot.mjs": "901f9dcf50bf2ad75a3078ec10ebb5c8324b6d5dd0001580a3d3ed7aef0c49d3",
+  "snapback4/packages/snapback4/test/one-shot-review.test.mjs": "5d8621c9168fd900c071905c66fb12438068f13065ca1ef64ed487815c7c9c8f"
+}

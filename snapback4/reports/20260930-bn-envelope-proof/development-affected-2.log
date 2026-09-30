@@ -1,0 +1,49 @@
+(node:1803443) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (978.656798ms)
+✖ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2505.940397ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (670.783951ms)
+✔ restart detects wipe before reconnect can repair it (242.679172ms)
+✔ restart detects delete-row before reconnect can repair it (1211.715436ms)
+✖ restart detects change-groups before reconnect can repair it (1155.637416ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6875.431404
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:66:1
+✖ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2505.940397ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:75:48)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:97:64
+✖ restart detects change-groups before reconnect can repair it (1155.637416ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:99:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

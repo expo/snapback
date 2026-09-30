@@ -1,0 +1,71 @@
+✔ sibling Xcode output settings refuse raw overrides and resolved outside destinations (9.144077ms)
+✔ dangling final and ancestor output links refuse before an outside file can be created (1.571435ms)
+✔ Xcode shell environment keeps executable paths literal (3.230692ms)
+✔ output audits follow symlinks before parent traversal, including within link targets (5.43711ms)
+✔ installation accepts only the measured framework execute-bit normalization (0.470586ms)
+✔ payload inventory binds bytes, paths, modes and safe relative links (2.486537ms)
+✔ source, truncated and wrong magic bundles cannot masquerade as HBC (4.054788ms)
+✔ native Xcode sources, resources and build inputs outside covered roots refuse (6.472862ms)
+✖ preparation rejects wrong HBC versions and escaping outputs before issuing a build receipt (57.368471ms)
+✔ compiler records cover spaced and macro includes, transitive dependencies and missing coverage (9.230225ms)
+✖ all target outputs and symlink parents must stay private (0.985847ms)
+✔ Pods graph audit refuses external search paths, config includes, phase lists and scripts (18.949394ms)
+✔ linker records require products and refuse external frameworks including missing probes (1.911565ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 11
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.97412
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-preparation.test.mjs:211:1
+✖ preparation rejects wrong HBC versions and escaping outputs before issuing a build receipt (57.368471ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Pod: output CONFIGURATION_BUILD_DIR escapes private workspace/. Input:
+
+  'E_WITNESS_NATIVE_COMPAT: output path escapes private workspace; use witness ios --build (or manual installed-app mode for unsupported inputs)\n'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-preparation.test.mjs:256:55)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_WITNESS_NATIVE_COMPAT: output path escapes private workspace; use witness ios --build (or manual installed-app mode for unsupported inputs)\n',
+    expected: /Pod: output CONFIGURATION_BUILD_DIR escapes private workspace/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-preparation.test.mjs:433:1
+✖ all target outputs and symlink parents must stay private (0.985847ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /unsupported SKIP_BUNDLING/. Input:
+
+  'Error: E_WITNESS_NATIVE_COMPAT: unsupported; use witness ios --build (or manual installed-app mode for unsupported inputs)'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-preparation.test.mjs:444:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: E_WITNESS_NATIVE_COMPAT: unsupported; use witness ios --build (or manual installed-app mode for unsupported inputs)
+        at fail (file:///home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4/src/verbs/witness/payload.mjs:8:48)
+        at refuse (file:///home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs:7:25)
+        at validateBundlingSettings (file:///home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs:71:7)
+        at validateOutputs (file:///home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs:79:5)
+        at file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-preparation.test.mjs:444:86
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-preparation.test.mjs:444:73)
+        at async Test.run (node:internal/test_runner/test:1110:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:785:7),
+    expected: /unsupported SKIP_BUNDLING/,
+    operator: 'throws',
+    diff: 'simple'
+  }

@@ -6,6 +6,7 @@
 // stops the server.
 import { spawn } from "node:child_process";
 import { resolveBinary } from "../dist/resolve-binary.js";
+import { fileURLToPath } from "node:url";
 
 if (process.argv[2] === "web-shell") {
   try { await (await import("./web-shell.js")).runWebShell(process.argv.slice(3)); }
@@ -16,7 +17,9 @@ if (process.argv[2] === "web-shell") {
 let binary;
 try { binary = resolveBinary(); }
 catch (error) { console.error(error.message); process.exit(2); }
-const child = spawn(binary, process.argv.slice(2), { stdio: "inherit" });
+const child = spawn(binary, process.argv.slice(2), { stdio: "inherit", env: {
+  ...process.env, SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("./witness-acquire.js", import.meta.url)),
+} });
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { try { child.kill(signal); } catch { /* gone */ } });
 child.on("exit", (code, signal) => {
   if (signal) { process.kill(process.pid, signal); return; }

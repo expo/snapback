@@ -5,6 +5,17 @@ mod refusal_actions;
 
 fn normalize(text: &str) -> String { text.split_whitespace().collect::<Vec<_>>().join(" ") }
 
+#[test]
+fn heaviest_account_aliases_reach_the_executable_acquisition_recipe() {
+    for alias in ["envelope", "heaviest", "1000", "cold start", "cold restart", "acquire"] {
+        assert_eq!(card(alias), card("bounds"));
+    }
+    let text = card("bounds").unwrap();
+    for fact in ["Prove the envelope's heaviest account", "witness acquire", "18.609 s", "19.522 s", "groupsByTable", "SQLite pages"] {
+        assert!(text.contains(fact), "missing {fact}");
+    }
+}
+
 // Exclude the registered one-line explanation: the card excerpt must carry
 // the definition independently, including when printed by repeated diagnostics.
 fn excerpt(text: &str) -> String {
@@ -243,6 +254,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_TYPE", "E_QUARRY_TYPE means the expression's type does not fit its position."),
     ("E_QUARRY_UNKNOWN", "E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local, argument, table, column, index or helper may be misspelled or undeclared."),
     ("E_QUARRY_UNSUPPORTED", "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form."),
+    ("E_QUERY_RETRY", "exhaustion refuses retryable `E_QUERY_RETRY`"),
     ("E_QUERY_HELD", "If the server cannot answer the query, declare `query … held:` to answer from the device; the server refuses it with E_QUERY_HELD."),
     ("E_RATE_LIMIT", "Under `serve`, guest, login and signup share 30 attempts per socket peer per minute, while login and signup also share 10 per normalized email per minute (E_RATE_LIMIT)."),
     ("E_RECIPE_RETIRED", "E_RECIPE_RETIRED means the installer wrote nothing; use the new view for a new app."),

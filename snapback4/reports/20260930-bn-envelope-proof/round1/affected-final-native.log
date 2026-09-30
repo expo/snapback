@@ -1,0 +1,48 @@
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (30.410995ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (7.67174ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (31.136722ms)
+  ✔ seed and upload retain their separate larger request ceilings (42.90984ms)
+  ✔ one-view assets finalize only after a complete non-range response (98.150553ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (123.423905ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (454.447742ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (2537.792613ms)
+  ✔ a paused large response releases the engine before network progress (80.782188ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (3582.254444ms)
+(node:15444) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (948.213079ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2524.375291ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1030.006965ms)
+✔ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1333.136089ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1312.323072ms)
+✔ restart detects wipe before reconnect can repair it (208.120021ms)
+✔ restart detects delete-row before reconnect can repair it (1185.806771ms)
+✔ restart detects change-groups before reconnect can repair it (1190.12958ms)
+✔ restart detects change-boundaries before reconnect can repair it (1195.211448ms)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1357.044497ms)
+✔ reconnect proof rejects denied and records every attempted request (1328.595133ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1312.311556ms)
+✔ reconnect proof rejects null and records every attempted request (1327.032521ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1311.924565ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1321.022213ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1315.471692ms)
+✔ reconnect proof rejects dropped-first and records every attempted request (1299.4782ms)
+✔ reconnect proof rejects truncated-body and records every attempted request (1318.13134ms)
+✔ reconnect proof rejects bad-ack and records every attempted request (1322.879227ms)
+✔ reconnect proof rejects bad-acquisitions and records every attempted request (1310.401533ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (359.259391ms)
+✔ witness family usage advertises both commands and shares input diagnostics (89.246206ms)
+✔ receipt identifies the JSON-line subprocess host (1319.889666ms)
+✔ restart times coverage separately from first answer (2327.540422ms)
+✔ bounds names the known process-device apply defect independently from retention (1.008151ms)
+✔ binary native module installs and survives restart (1324.039837ms)
+✔ binary native module digest refusal fails proof (294.243125ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31283.501437

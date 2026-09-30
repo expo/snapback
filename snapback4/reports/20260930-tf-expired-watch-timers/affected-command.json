@@ -1,0 +1,20 @@
+[
+  "node",
+  "--test",
+  "--test-reporter=tap",
+  "--test-concurrency=6",
+  "packages/snapback4/test/ephemeral-keep.test.mjs",
+  "packages/snapback4/test/expired-server-watch.test.mjs",
+  "packages/snapback4/test/expiry-retry-watch.test.mjs",
+  "packages/snapback4/test/keep-adoption.test.mjs",
+  "packages/snapback4/test/keep-app-expiry.test.mjs",
+  "packages/snapback4/test/keep-authority-react.test.mjs",
+  "packages/snapback4/test/keep-authority.test.mjs",
+  "packages/snapback4/test/keep-clock.test.mjs",
+  "packages/snapback4/test/keep-device.test.mjs",
+  "packages/snapback4/test/keep-expiry.test.mjs",
+  "packages/snapback4/test/keep-incarnation.test.mjs",
+  "packages/snapback4/test/keep-observation.test.mjs",
+  "packages/snapback4/test/keep-reset.test.mjs",
+  "packages/snapback4/test/typing-expiry.test.mjs"
+]

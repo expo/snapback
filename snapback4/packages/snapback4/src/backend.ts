@@ -95,3 +95,36 @@ export function operationTables(program: ProgramJson, schema: SchemaJson): Set<s
   }
   return tables;
 }
+
+// @ref LLP 3000.023#11 — a current miss is not proof of permanent unavailability.
+// Recognize only the compiler's unconditional, literal-key count lowering.
+// Other branches, time/argument inputs, native code and coverage-dependent
+// sources stay retryable. This inspects shape; the Rust engine still evaluates.
+export function permanentlyUnavailableHeldCount(program: ProgramJson | undefined, schema: SchemaJson): boolean {
+  const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const matches = (value: unknown, expected: unknown): boolean => {
+    if (value === expected) return true;
+    if (!value || !expected || typeof value !== "object" || typeof expected !== "object") return false;
+    const a = Object.entries(value), b = Object.entries(expected);
+    return a.length === b.length && b.every(([key, child]) => Object.hasOwn(value, key) && matches((value as Record<string, unknown>)[key], child));
+  };
+  if (!program || program.native || Object.keys(program.args).length || program.body.length !== 3) return false;
+  const binding = object(object(program.body[0]).Let), get = object(object(binding.value).Get);
+  const table = typeof get.table === "string" ? schema.tables[get.table] : undefined;
+  if (!table || table.sync || !object(object(table).residency).online_only || object(table).through) return false;
+  const maintain = schema.maintains?.map(object).find(m => m.target === get.table);
+  const source = typeof maintain?.source === "string" ? schema.tables[maintain.source] : undefined;
+  // Inherited/parent-key aggregates may authorize a known answer before the
+  // unsynced-table check; membership or coverage can then change availability.
+  if (!source || object(source).through || maintain?.kind !== "Count" || maintain.parent_key || maintain.own_keys) return false;
+  if (!Array.isArray(get.key) || !get.key.length || !get.key.every(key => Object.keys(object(key)).length === 1 && Object.hasOwn(object(key), "Literal"))) return false;
+  if (typeof binding.name !== "string" || typeof get.site !== "string" || typeof get.index !== "string") return false;
+  const variable = { Variable: binding.name };
+  return matches(program.body, [
+    { Let: { name: binding.name, value: { Get: { table: get.table, index: get.index, key: get.key, site: get.site, provenance: "Shape" } } } },
+    { If: { condition: { Binary: { left: variable, op: "Eq", right: { Literal: "Null" } } },
+      then_body: [{ Assign: { name: binding.name, value: { Literal: { Int: 0 } } } }],
+      else_body: [{ Assign: { name: binding.name, value: { Field: { base: variable, name: "value" } } } }] } },
+    { Return: variable },
+  ]);
+}

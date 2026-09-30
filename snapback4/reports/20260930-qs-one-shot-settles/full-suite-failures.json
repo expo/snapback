@@ -1,0 +1,579 @@
+[
+  {
+    "site": "packages/snapback4/test/answers-stay-react.test.mjs:79:108",
+    "test": "retry exhaustion",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "online keep=undefined: profile route gate > retry exhaustion",
+    "logLine": 1803,
+    "resolution": "Wait for the existing reconnect probe before injecting observation retry faults.",
+    "passingEvidence": [
+      "react-offline-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/answers-stay-react.test.mjs:79:108",
+    "test": "retry exhaustion",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "online keep=true: profile route gate > retry exhaustion",
+    "logLine": 1816,
+    "resolution": "Wait for the existing reconnect probe before injecting observation retry faults.",
+    "passingEvidence": [
+      "react-offline-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/client-lifecycle.test.mjs:1089:3",
+    "test": "wasm: population growth cannot mint new IDs during prediction replay",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: an attempt needing another ID withdraws the prediction and uses authority",
+    "fullName": "wasm: population growth cannot mint new IDs during prediction replay",
+    "logLine": 2915,
+    "resolution": "An unobserved write whose prediction was withdrawn now refuses E_QUERY_RETRY.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/client-lifecycle.test.mjs:1089:3",
+    "test": "native: population growth cannot mint new IDs during prediction replay",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: an attempt needing another ID withdraws the prediction and uses authority",
+    "fullName": "native: population growth cannot mint new IDs during prediction replay",
+    "logLine": 2927,
+    "resolution": "An unobserved write whose prediction was withdrawn now refuses E_QUERY_RETRY.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/delivery-fault-matrix.test.mjs:43:1",
+    "test": "every delivery await is explicitly classified",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: new or changed await needs delivery reachability classification, including outside existing helper scopes",
+    "fullName": "every delivery await is explicitly classified",
+    "logLine": 3187,
+    "resolution": "Classify the new read-only awaits in the census; retain delivery fault recipes.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/delivery-publication.test.mjs:67:54",
+    "test": "local fallback rejects its manifest when expiry changes before acceptance",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+    "fullName": "local fallback rejects its manifest when expiry changes before acceptance",
+    "logLine": 3521,
+    "resolution": "Expired manifest is discarded; a fresh ready reread creates no delivery debt.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/expired-server-watch.test.mjs:15:5",
+    "test": "expired server replies: recover, keep=undefined",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "expired server replies: recover, keep=undefined",
+    "logLine": 3762,
+    "resolution": "Renew the short-lived fixture row before testing deletion after longer query priming.",
+    "passingEvidence": [
+      "full-followups-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/follow-window.test.mjs:1:1",
+    "test": "packages/snapback4/test/follow-window.test.mjs",
+    "category": "ours",
+    "detail": "'test failed'",
+    "fullName": "packages/snapback4/test/follow-window.test.mjs",
+    "logLine": 3796,
+    "resolution": "Remove frozen positive timers from live fixtures; retain transport/application gates and observation checks. The original worker alone was terminated at 615.70 seconds.",
+    "passingEvidence": [
+      "follow-window-corrected.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/identity-review.test.mjs:96:40",
+    "test": "review replacement query server invalidates old search continuation process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review replacement query server invalidates old search continuation process",
+    "logLine": 3997,
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/identity-review.test.mjs:96:40",
+    "test": "review replacement query server invalidates old search continuation wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review replacement query server invalidates old search continuation wasm",
+    "logLine": 3998,
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/identity-review.test.mjs:115:40",
+    "test": "review changed generation invalidates old search continuation process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review changed generation invalidates old search continuation process",
+    "logLine": 3999,
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/identity-review.test.mjs:115:40",
+    "test": "review changed generation invalidates old search continuation wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review changed generation invalidates old search continuation wasm",
+    "logLine": 4000,
+    "resolution": "Invalid old continuations refuse after four attempts; cursor/identity assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "test": "wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: the held body settles at the exact deadline",
+    "fullName": "wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "logLine": 4140,
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "test": "process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: the held body settles at the exact deadline",
+    "fullName": "process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "logLine": 4142,
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "test": "wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: the held body settles at the exact deadline",
+    "fullName": "wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "logLine": 4144,
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "test": "wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: the held body settles at the exact deadline",
+    "fullName": "wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "logLine": 4146,
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "test": "process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: the held body settles at the exact deadline",
+    "fullName": "process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline)",
+    "logLine": 4148,
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/keep-clock.test.mjs:99:3",
+    "test": "process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: the held body settles at the exact deadline",
+    "fullName": "process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "logLine": 4150,
+    "resolution": "Held recovery reaches the real 30-second refusal; expired memory stays withdrawn.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/mixed-evidence-oracle.test.mjs:42:41",
+    "test": "mixed evidence schedule process: 300 independent histories",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: [{\"host\":\"process\",\"seed\":1,\"failures\":[\"Error: unexpected generation refusal E_OFFLINE\"],\"trace\":[[\"fixture-commit\",1,1790780873551],[\"fixture-commit\",1,1790780873551],[\"fixture-commit\",1,1790780873551],[\"notification\",1,{\"data\":{\"at\":1,\"body\":\"image-1\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"complete-before\",2],[\"fixture-commit\",2,1790780873551],[\"notification\",2,{\"data\":{\"at\":1,\"body\":\"image-1\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\",\"revalidating\":true}],[\"notification\",2,{\"data\":{\"at\":1,\"body\":\"image-1\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\",\"revalidating\":true}],[\"notification\",2,{\"loading\":true}],[\"removal-withdrawn\",2,{\"loading\":true}],[\"recovery-refetch\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"settled\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"later\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"later\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"later\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"fixture-commit\",3,1790780873551],[\"recovery-refetch\",3,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"partial\",\"revalidating\":true}],[\"recovery-refetch\",3,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"partial\",\"revalidating\":true}],[\"recovery-refetch\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"settled\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"later\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"later\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"complete-before\",4],[\"fixture-commit\",4,1790780873551],[\"recovery-refetch\",4,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\",\"revalida",
+    "fullName": "mixed evidence schedule process: 300 independent histories",
+    "logLine": 4474,
+    "resolution": "The scheduled failed adoption now expects E_OFFLINE from the one-shot; observation oracle is unchanged.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/mixed-evidence-oracle.test.mjs:42:41",
+    "test": "mixed evidence schedule wasm: 300 independent histories",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: [{\"host\":\"wasm\",\"seed\":1,\"failures\":[\"Error: unexpected generation refusal E_OFFLINE\"],\"trace\":[[\"fixture-commit\",1,1790781111367],[\"fixture-commit\",1,1790781111367],[\"fixture-commit\",1,1790781111367],[\"notification\",1,{\"data\":{\"at\":1,\"body\":\"image-1\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"complete-before\",2],[\"fixture-commit\",2,1790781111367],[\"notification\",2,{\"data\":{\"at\":1,\"body\":\"image-1\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\",\"revalidating\":true}],[\"notification\",2,{\"data\":{\"at\":1,\"body\":\"image-1\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\",\"revalidating\":true}],[\"notification\",2,{\"loading\":true}],[\"removal-withdrawn\",2,{\"loading\":true}],[\"recovery-refetch\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"settled\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"later\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"later\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"later\",2,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"absent\"}],[\"fixture-commit\",3,1790781111367],[\"recovery-refetch\",3,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"partial\",\"revalidating\":true}],[\"recovery-refetch\",3,{\"data\":null,\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"partial\",\"revalidating\":true}],[\"recovery-refetch\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"settled\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"later\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"later\",3,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\"}],[\"complete-before\",4],[\"fixture-commit\",4,1790781111367],[\"recovery-refetch\",4,{\"data\":{\"at\":1,\"body\":\"image-3\",\"id\":\"item\",\"room\":\"room\"},\"complete\":true,\"cut\":null,\"fresh\":true,\"next\":null,\"existence\":\"present\",\"revalidatin",
+    "fullName": "mixed evidence schedule wasm: 300 independent histories",
+    "logLine": 4476,
+    "resolution": "The scheduled failed adoption now expects E_OFFLINE from the one-shot; observation oracle is unchanged.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/online-store-order.test.mjs:97:38",
+    "test": "direct stale-sequence reads back off and stop after four requests",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+    "fullName": "direct stale-sequence reads back off and stop after four requests",
+    "logLine": 4821,
+    "resolution": "Four stale-sequence requests still back off, then refuse E_QUERY_RETRY.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:355:5",
+    "test": "ordinary search generated oracle process: 300 seeds",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: missing large coverage 86/last",
+    "fullName": "ordinary search generated oracle process: 300 seeds",
+    "logLine": 7649,
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:355:5",
+    "test": "ordinary search generated oracle wasm: 300 seeds",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: missing large coverage 86/last",
+    "fullName": "ordinary search generated oracle wasm: 300 seeds",
+    "logLine": 10384,
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:398:5",
+    "test": "expired current replacement keeps retained history process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: exactly one invocation per online page",
+    "fullName": "expired current replacement keeps retained history process",
+    "logLine": 10389,
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search-oracle.test.mjs:398:5",
+    "test": "expired current replacement keeps retained history wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: exactly one invocation per online page",
+    "fullName": "expired current replacement keeps retained history wasm",
+    "logLine": 10390,
+    "resolution": "Allow four discarded publication attempts/refusal, preserving exact page, identity and coverage assertions.",
+    "passingEvidence": [
+      "models-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:232:1",
+    "test": "ordinary mixed search: departure during delivery withdraws response without a second invocation",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "ordinary mixed search: departure during delivery withdraws response without a second invocation",
+    "logLine": 10410,
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:272:1",
+    "test": "ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it",
+    "logLine": 10412,
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:286:1",
+    "test": "ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data",
+    "logLine": 10413,
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:381:39",
+    "test": "ordinary mixed search process: a real device reset withdraws delivery and restarts its cursor",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+    "fullName": "ordinary mixed search process: a real device reset withdraws delivery and restarts its cursor",
+    "logLine": 10417,
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/ordinary-search.test.mjs:381:39",
+    "test": "ordinary mixed search wasm: a real device reset withdraws delivery and restarts its cursor",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+    "fullName": "ordinary mixed search wasm: a real device reset withdraws delivery and restarts its cursor",
+    "logLine": 10418,
+    "resolution": "Reread retired pages or refuse invalid continuations; preserve/strengthen exact settled data and cursor assertions.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/overload.test.mjs:62:39",
+    "test": "online: refusals remain HTTP, reads back off, same-ID writes recover",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: {\"code\":\"E_HTTP_RESPONSE\",\"family\":\"link\",\"message\":\"the server answered HTTP 503 without a valid request response; the request outcome is unknown; inspect the server or proxy logs before retrying\",\"retryable\":true}",
+    "fullName": "online: refusals remain HTTP, reads back off, same-ID writes recover",
+    "logLine": 10439,
+    "resolution": "Await the reconnect probe before the next injected HTTP refusal.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/page-observation.test.mjs:39:1",
+    "test": "native process devices withdraw an expired inbox during fallback, offline and on account switch",
+    "category": "ours",
+    "detail": "Error: pending prediction withholds the unavailable total",
+    "fullName": "native process devices withdraw an expired inbox during fallback, offline and on account switch",
+    "logLine": 10554,
+    "resolution": "Pending direct total refuses E_QUERY_RETRY; observed/raw loading and withdrawal checks remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/page-observation.test.mjs:50:1",
+    "test": "web IndexedDB device withdraws expired inbox data in useQuery and usePage",
+    "category": "ours",
+    "detail": "page.evaluate: Error: pending prediction withholds the unavailable total",
+    "fullName": "web IndexedDB device withdraws expired inbox data in useQuery and usePage",
+    "logLine": 10555,
+    "resolution": "Pending direct total refuses E_QUERY_RETRY; observed/raw loading and withdrawal checks remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/readauth.test.mjs:51:3",
+    "test": "wasm-memory: retained filters every watched read",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: point",
+    "fullName": "wasm-memory: retained filters every watched read",
+    "logLine": 11405,
+    "resolution": "Unavailable direct offline reads refuse E_OFFLINE; observed retention assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/readauth.test.mjs:51:3",
+    "test": "native-sqlite: retained filters every watched read",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: point",
+    "fullName": "native-sqlite: retained filters every watched read",
+    "logLine": 11410,
+    "resolution": "Unavailable direct offline reads refuse E_OFFLINE; observed retention assertions remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/readme-examples.test.mjs:293:1",
+    "test": "profile screen waits for proven existence and uses each replacement",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "profile screen waits for proven existence and uses each replacement",
+    "logLine": 11422,
+    "resolution": "The settled profile example and mock use partial/refused results, never one-shot loading.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:113:39",
+    "test": "review: new unsynced membership invalidates continuation process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review: new unsynced membership invalidates continuation process",
+    "logLine": 11975,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:113:39",
+    "test": "review: new unsynced membership invalidates continuation wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review: new unsynced membership invalidates continuation wasm",
+    "logLine": 11976,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:142:39",
+    "test": "review: hidden sync during delivery withdraws the page process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+    "fullName": "review: hidden sync during delivery withdraws the page process",
+    "logLine": 11979,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:142:39",
+    "test": "review: hidden sync during delivery withdraws the page wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+    "fullName": "review: hidden sync during delivery withdraws the page wasm",
+    "logLine": 11980,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:173:39",
+    "test": "review: unsynced audience loss also withdraws the continuation process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review: unsynced audience loss also withdraws the continuation process",
+    "logLine": 11983,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:173:39",
+    "test": "review: unsynced audience loss also withdraws the continuation wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review: unsynced audience loss also withdraws the continuation wasm",
+    "logLine": 11984,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:185:39",
+    "test": "review: same-count audience swap withdraws the old continuation process",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review: same-count audience swap withdraws the old continuation process",
+    "logLine": 11985,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/review-probes.test.mjs:185:39",
+    "test": "review: same-count audience swap withdraws the old continuation wasm",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+    "fullName": "review: same-count audience swap withdraws the old continuation wasm",
+    "logLine": 11986,
+    "resolution": "Audience-invalid continuations refuse after four attempts; hidden-sync rereads preserve epochs and exact rows.",
+    "passingEvidence": [
+      "integration-final-1.log",
+      "search-publication-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/social-browser.test.mjs:182:11",
+    "test": "renewal, idle without blur, Send, route visibility/key and unmount stop before expiry",
+    "category": "ours",
+    "detail": "page.waitForFunction: Timeout 30000ms exceeded.",
+    "fullName": "social recipes in React/browser: real online signals and media, controlled read interleavings > renewal, idle without blur, Send, route visibility/key and unmount stop before expiry",
+    "logLine": 12189,
+    "resolution": "Wait for the reconnect probe after priming the query; typing lifecycle assertions are unchanged.",
+    "passingEvidence": [
+      "social-renewal-final.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/social-starter.test.mjs:41:3",
+    "test": "social starter native: cold owner keys prove old likes and unqueried absence offline",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: {\"denied\":{\"code\":\"E_OFFLINE\",\"family\":\"link\",\"message\":\"the request did not complete: disconnected; check the connection and server logs before retrying\",\"retryable\":true}}",
+    "fullName": "social starter native: cold owner keys prove old likes and unqueried absence offline",
+    "logLine": 12215,
+    "resolution": "Cold unacquired offline one-shots refuse E_OFFLINE; the ready key/absence cases remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  },
+  {
+    "site": "packages/snapback4/test/social-starter.test.mjs:41:3",
+    "test": "social starter web: cold owner keys prove old likes and unqueried absence offline",
+    "category": "ours",
+    "detail": "AssertionError [ERR_ASSERTION]: {\"denied\":{\"code\":\"E_OFFLINE\",\"family\":\"link\",\"message\":\"the request did not complete: disconnected; check the connection and server logs before retrying\",\"retryable\":true}}",
+    "fullName": "social starter web: cold owner keys prove old likes and unqueried absence offline",
+    "logLine": 12216,
+    "resolution": "Cold unacquired offline one-shots refuse E_OFFLINE; the ready key/absence cases remain.",
+    "passingEvidence": [
+      "integration-final-1.log"
+    ]
+  }
+]

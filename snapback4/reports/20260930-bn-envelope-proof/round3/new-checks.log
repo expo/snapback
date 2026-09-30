@@ -1,0 +1,13 @@
+(node:1183352) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ failed query receipts distinguish argument rejection, query refusal and incomplete coverage (1193.798325ms)
+✔ query diagnostics use validated codes and drop arbitrary refusal prose (1251.18933ms)
+✔ native preparation refusals omit supplied paths, targets and unexpected exception text (38.80064ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2564.773447

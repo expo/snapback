@@ -1,0 +1,50 @@
+[
+  {
+    "test": "expired server replies: recover, keep=false",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: recover, keep=true",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: close watch, keep=undefined",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: close watch, keep=false",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: close watch, keep=true",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: close client, keep=undefined",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: close client, keep=false",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  },
+  {
+    "test": "expired server replies: close client, keep=true",
+    "classification": "baseline",
+    "cause": "expired-server-watch fixture captures Undici socket timers as expiry backoff",
+    "ticket": "issues/20260930-snapback4-expired-watch-captures-transport-timers.md"
+  }
+]

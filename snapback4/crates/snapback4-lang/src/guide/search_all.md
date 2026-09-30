@@ -66,8 +66,8 @@ and generation, and continuations bind that validated identity. An unsynced
 replacement or generation change withdraws the attempt until ordinary sync
 establishes the new incarnation; its next observation starts with fresh source
 positions. An unsynced audience change withdraws the stale page and
-refreshes the first page of a live `usePage` observation. A one-shot query returns
-loading; request a fresh first page to restart. Each observation still makes one
+refreshes the first page of a live `usePage` observation. A one-shot query refuses
+`E_QUERY_RETRY`; request a fresh first page to restart. Each observation still makes one
 server call. An unrelated sync or an older-message edit preserves pagination.
 An online composition starts fresh from a plain offline/server cursor, which
 does not carry a validated store or audience identity. Resetting device rows
@@ -198,3 +198,7 @@ history, even for empty matches. Label offline results as searched on this devic
 The local clients never fall back to the server for a held query, even at a
 horizon, meter cut or word cut. Choose this scope only for an explicitly
 device-only feature; ordinary search above owns online/offline routing.
+
+A proven permanently unavailable held one-shot refuses non-retryable `E_QUERY_HELD`.
+Remove `held` for online fallback, or sync that data. Temporary misses follow
+`guide client`'s bound.

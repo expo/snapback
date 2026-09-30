@@ -1,0 +1,127 @@
+✔ ordinary and application witness launches never install the smoke runner (0.822202ms)
+✔ prime waits for acquisition and records device counts, identity and link, without rows (2.873597ms)
+✔ offline calls precisely all optional-argument queries on the own client and records counts only (0.595973ms)
+✔ explained refusals are results; loading and crashes are failures with receipts (0.969353ms)
+✔ lost persisted rows, changed backend identity and stale restart watermarks fail (1.331515ms)
+✔ uncaught errors before attachment and after completion persist before forwarding the original handler (0.427551ms)
+✔ restart rejects a tail past prime until the exact driver barrier is consumed (0.449835ms)
+✔ receipts sample the state after the render pause and recheck offline counts and identity (0.883424ms)
+✔ losing client acquisition during the render pause emits a failure despite acquired device state (0.762392ms)
+✔ a restart watermark regressing during the render pause emits a failure receipt (0.452358ms)
+✔ a replacement client supersedes an in-flight sample without a failure receipt (0.3739ms)
+✔ compiler server facts permit only expected offline unavailability and require online answers (1.698275ms)
+✔ missing or invalid facts never classify loading as an online-only result (0.48701ms)
+✔ all residency and held facts must match the kept generation before any query (1.84853ms)
+✔ conditional native queries refuse generic smoke instead of excusing a missing module (0.361532ms)
+(node:1495176) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (980.045112ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2562.3543ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1080.456665ms)
+✔ serve accepts a matching bearer, refuses a different principal, and omits server timings (1417.437864ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1351.996949ms)
+✔ restart detects wipe before reconnect can repair it (255.792435ms)
+✔ restart detects delete-row before reconnect can repair it (1214.78269ms)
+✔ restart detects change-groups before reconnect can repair it (1213.150165ms)
+✔ restart detects change-boundaries before reconnect can repair it (1215.141359ms)
+✖ reconnect proof rejects more-then-drop and records every attempted request (1364.715634ms)
+✔ reconnect proof rejects denied and records every attempted request (1358.128164ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1344.474604ms)
+✔ reconnect proof rejects null and records every attempted request (1362.562151ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1358.19062ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1347.89347ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1362.105269ms)
+✖ reconnect proof rejects dropped-first and records every attempted request (1326.110922ms)
+✔ reconnect proof rejects truncated-body and records every attempted request (1350.690796ms)
+✔ reconnect proof rejects bad-ack and records every attempted request (1354.918613ms)
+✔ reconnect proof rejects bad-acquisitions and records every attempted request (1347.457083ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (382.527046ms)
+✔ witness family usage advertises both commands and shares input diagnostics (100.317872ms)
+✔ receipt identifies the JSON-line subprocess host (1350.595427ms)
+✔ restart times coverage separately from first answer (2392.513848ms)
+✔ bounds names the known process-device apply defect independently from retention (1.25446ms)
+✔ binary native module installs and survives restart (1364.078976ms)
+✔ binary native module digest refusal fails proof (327.92967ms)
+✔ server allowlist drops raw from every acquisition output surface (5634.281808ms)
+✔ server allowlist drops hex from every acquisition output surface (5643.338991ms)
+✔ server allowlist drops HEX from every acquisition output surface (5679.050986ms)
+✔ server allowlist drops base64 from every acquisition output surface (5643.683524ms)
+✔ server allowlist drops base64url from every acquisition output surface (5646.840354ms)
+✔ server allowlist drops percent from every acquisition output surface (5618.135736ms)
+✔ server allowlist drops percentLower from every acquisition output surface (5602.566202ms)
+✔ server allowlist drops sha256 from every acquisition output surface (5633.023752ms)
+✔ caller query and args are echoed from the request, never selected schema metadata (1338.865488ms)
+✔ failed query receipts distinguish argument rejection, query refusal and incomplete coverage (1175.322688ms)
+✔ query diagnostics use validated codes and drop arbitrary refusal prose (1134.848625ms)
+✔ equals token spelling authenticates without exposing the bearer (1283.567663ms)
+✔ acquire argument refusals omit values including equals bearers (1074.056053ms)
+✔ iOS argument refusals omit values including equals bearers (130.356841ms)
+✔ runtime refusals do not echo caller argument values in stderr (256.312105ms)
+✔ native preparation refusals omit supplied paths, targets and unexpected exception text (38.517179ms)
+✔ sibling Xcode output settings refuse raw overrides and resolved outside destinations (8.782ms)
+✔ dangling final and ancestor output links refuse before an outside file can be created (2.189711ms)
+✔ Xcode shell environment keeps executable paths literal (2.373647ms)
+✔ output audits follow symlinks before parent traversal, including within link targets (4.563479ms)
+✔ installation accepts only the measured framework execute-bit normalization (0.477806ms)
+✔ payload inventory binds bytes, paths, modes and safe relative links (2.476431ms)
+✔ source, truncated and wrong magic bundles cannot masquerade as HBC (0.85437ms)
+✔ native Xcode sources, resources and build inputs outside covered roots refuse (6.836485ms)
+✔ preparation rejects wrong HBC versions and escaping outputs before issuing a build receipt (2697.77381ms)
+✔ compiler records cover spaced and macro includes, transitive dependencies and missing coverage (9.24274ms)
+✔ all target outputs and symlink parents must stay private (6.528022ms)
+✔ Pods graph audit refuses external search paths, config includes, phase lists and scripts (18.073854ms)
+✔ linker records require products and refuse external frameworks including missing probes (1.858075ms)
+✔ prepared launch requires a native observation and preserves its hashes in the strict envelope (38.026404ms)
+✔ witness is inert without a launch; a fake container preserves receipts and gates reconnect (100.892411ms)
+✔ witness refuses malformed receipts, failed and overlapping steps, and missing signals (101.448544ms)
+✔ Expo package exports the witness and its types (0.50704ms)
+✔ receipt serialization cannot replace the witness envelope (0.561612ms)
+✔ only empty launcher/update manifests permit prepared startup (0.215964ms)
+✔ starter scene plugin migrates the installed Expo template, keeps its providers and refuses custom lifecycle (11.783458ms)
+✔ starter unattended guest waits for restoration and runs once only during smoke prime (5.181294ms)
+ℹ tests 79
+ℹ suites 0
+ℹ pass 77
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 83709.135031
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:160:3
+✖ reconnect proof rejects more-then-drop and records every attempted request (1364.715634ms)
+  AssertionError [ERR_ASSERTION]: failed transports must not disappear
+
+  4 !== 5
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:200:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:160:3
+✖ reconnect proof rejects dropped-first and records every attempted request (1326.110922ms)
+  AssertionError [ERR_ASSERTION]: failed transports must not disappear
+
+  3 !== 4
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:200:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

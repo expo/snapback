@@ -1,0 +1,9 @@
+{
+  "llp/3000.030-native-proof-in-minutes.rfc.md": "ac2b5b04ff7b3b7d622b6ede25011f8ae996c12e50611e113c7ddf0fdb15bbd4",
+  "snapback4/crates/snapback4-device/src/device/witness.rs": "d85df1cc06342f6d8f750856554456e864f9c4421ed4344a92c0f97ada152e3f",
+  "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "19e2f22df5f93602e131ab8078ed53d2e50b21094596cd6100161f04b07cac93",
+  "snapback4/crates/snapback4-lang/src/guide/witness.md": "61d1236ce7bb1332959bb2d9aa5abcd1cf116c0d47b09680be07d79e24a5a179",
+  "snapback4/crates/snapback4/src/verbs/witness.rs": "6c42881ffbc324bfb5e97c83debde10e12513743dad517fda0fa11c135bcf140",
+  "snapback4/packages/snapback4/bin/witness-acquire.js": "9d5fc980e58b46fe555023ec0196f0f80dda5dbe742dab87cfdd6c099d0959e2",
+  "snapback4/packages/snapback4/test/witness-acquire.test.mjs": "54b0f0bfd98f12a91130e499c27245ecc2b0f28ab0c345c92b31cc5ef1eddcff"
+}

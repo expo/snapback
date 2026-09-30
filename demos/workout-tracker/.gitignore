@@ -1,0 +1,6 @@
+# snapback4
+.snapback4/
+snapback/generated/
+
+.env.local
+dist/

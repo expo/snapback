@@ -1,0 +1,12 @@
+commit e112fb6e11b8f7fe7425d74e5bcbdfa4eb6fc642
+Merge: 69a12dccea 0dad042375
+Author:     GPT-6 Astra <noreply@openai.com>
+AuthorDate: Wed Sep 30 19:56:28 2026 +0200
+Commit:     GPT-6 Astra <noreply@openai.com>
+CommitDate: Wed Sep 30 19:56:28 2026 +0200
+
+    Merge origin/main into BN, preserving both journal histories
+
+    Co-Authored-By: GPT-6 Astra <noreply@openai.com>
+
+Only JOURNAL.md conflicted. Removed conflict markers and kept both complete append blocks.

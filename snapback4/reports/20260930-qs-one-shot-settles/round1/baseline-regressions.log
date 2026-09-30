@@ -1,0 +1,487 @@
+✖ wasm: restore refusal wins a blocked query deadline (2622.485523ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✖ wasm: partition refusal wins a blocked query deadline (2193.761789ms)
+✖ wasm: impossible held count refuses in one evaluation and never contacts the server (261.616487ms)
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+✖ process: restore refusal wins a blocked query deadline (2220.512882ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✖ process: partition refusal wins a blocked query deadline (2194.970009ms)
+✖ process: impossible held count refuses in one evaluation and never contacts the server (305.318417ms)
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+✖ app-wasm: restore refusal wins a blocked query deadline (2215.69399ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✖ app-wasm: partition refusal wins a blocked query deadline (2187.853304ms)
+✖ app-wasm: impossible held count refuses in one evaluation and never contacts the server (279.998395ms)
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+✖ app-process: restore refusal wins a blocked query deadline (2217.132304ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✖ app-process: partition refusal wins a blocked query deadline (2214.358382ms)
+✖ app-process: impossible held count refuses in one evaluation and never contacts the server (305.705139ms)
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+ℹ {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+✖ mock: a retired one-shot rereads instead of returning the old value (1.260169ms)
+✖ mock: genuine publication exhaustion uses the shared retryable refusal (0.344036ms)
+✖ mock: closed and signed-out clients preserve terminal refusals (0.274822ms)
+✖ mock: a throwing evaluator settles with the shared client refusal (0.225097ms)
+✖ guide: stale one-shot continuations refuse and retain the first-page recovery (0.681802ms)
+✖ guide: server-needing decorations remain separate (1.248841ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 0
+ℹ fail 18
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19362.823714
+
+✖ failing tests:
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ wasm: restore refusal wins a blocked query deadline (2622.485523ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ wasm: partition refusal wins a blocked query deadline (2193.761789ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:55:3
+✖ wasm: impossible held count refuses in one evaluation and never contacts the server (261.616487ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_QUERY_RETRY'
+  - 'E_QUERY_HELD'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_QUERY_RETRY',
+    expected: 'E_QUERY_HELD',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ process: restore refusal wins a blocked query deadline (2220.512882ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ process: partition refusal wins a blocked query deadline (2194.970009ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:55:3
+✖ process: impossible held count refuses in one evaluation and never contacts the server (305.318417ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_QUERY_RETRY'
+  - 'E_QUERY_HELD'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:66:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_QUERY_RETRY',
+    expected: 'E_QUERY_HELD',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ app-wasm: restore refusal wins a blocked query deadline (2215.69399ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ app-wasm: partition refusal wins a blocked query deadline (2187.853304ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:55:3
+✖ app-wasm: impossible held count refuses in one evaluation and never contacts the server (279.998395ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_QUERY_RETRY'
+  - 'E_QUERY_HELD'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_QUERY_RETRY',
+    expected: 'E_QUERY_HELD',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ app-process: restore refusal wins a blocked query deadline (2217.132304ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:26:52
+✖ app-process: partition refusal wins a blocked query deadline (2214.358382ms)
+  AssertionError [ERR_ASSERTION]: independent query watchdog
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:110
+      at async bounded (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:21:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:51:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:55:3
+✖ app-process: impossible held count refuses in one evaluation and never contacts the server (305.705139ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_QUERY_RETRY'
+  - 'E_QUERY_HELD'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:66:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_QUERY_RETRY',
+    expected: 'E_QUERY_HELD',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:83:1
+✖ mock: a retired one-shot rereads instead of returning the old value (1.260169ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'old' !== 'new'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:90:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'old',
+    expected: 'new',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:92:1
+✖ mock: genuine publication exhaustion uses the shared retryable refusal (0.344036ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:96:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:98:1
+✖ mock: closed and signed-out clients preserve terminal refusals (0.274822ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_CLOSED'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:100:32)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_CLOSED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:104:1
+✖ mock: a throwing evaluator settles with the shared client refusal (0.225097ms)
+  Error: broken mock handler
+      at item (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:105:48)
+      at evaluate (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/dist/mock.js:65:23)
+      at Object.query (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/dist/mock.js:109:26)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:106:29)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/one-shot-review.test.mjs:110:1
+✖ guide: stale one-shot continuations refuse and retain the first-page recovery (0.681802ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /one-shot query[^.]*E_QUERY_RETRY[^.]*fresh first page/i. Input:
+  
+  "## Search every chat I'm in Use one ordinary **search** for a globally ordered page across current and retained conversations, as the social starter does. Use **grouped** to page current matching chats with previews when discovery cannot fit one read. Return bare hits and read chat details separately. Table rules protect server reads; retained device images confer no server authority. A single bare ordinary word page such as `return messages matching q where not .tombstone last 20 by .at after c` can now infer the current server audience from an exact non-expiring membership read rule and matching sync audience. `check --cost` names that inferred audience and its grouped rewrite. Its server result deliberately changes from an empty incomplete answer to the compact membership page when the work fits. Explicit membership predicates and query guards keep their meaning; other audiences, joins and native functions keep their existing evaluator. Empty needles still take the existing browse branch, whose coverage can remain incomplete. System reads keep their original evaluator and full system-authorized domain. Inference also requires readable membership discovery. If its additional scoped index cannot fit the portable key or label budget, compilation keeps the original indexes and evaluator; that search may remain incomplete. Current rows are authoritative by source ID, including after a scope update or ID deletion and reinsertion. In the page's one server call, the SDK sends only that page's retained candidate IDs; authorized point reads tell it which have current readable rows. Those retained images are suppressed even when the current image no longer matches or lies before the cursor. Scope columns need not be immutable. A page can be short, or empty with a progress cursor, when suppression consumes its bounded retained candidates; follow `next` as usual. For the proved bare time-ordered page on a local client, the SDK merges current server rows with this device's certified departed images. Both use the same `(at, id)` order and the limit applies after deduplication. A page makes one server call; it never drains a cut to fill the limit. `next` seeks both sources after the combined consumed `(at, id)` key; a fetched but unconsumed hit after that key stays eligible. Unconsumed hits are recomputed on the next requested page and charged again. The coordinator and device scan share the existing per-page device read allowance. There is no saved search session. If the device word or read meter cuts without a continuation, its candidates cannot establish the newest retained hit. The online page still publishes the server's proved current rows, with `complete: false` and the constituent `cut`. Its `next` continues only that current stream; the cut device source stays incomplete throughout this traversal. Start a fresh search with a longer prefix or search one chat to try retained history again. If that cut leaves no proved server hits either, the request refuses E_BOUND with that repair instead of returning an empty page that cannot advance. Server refusals still win. Freshness describes emitted rows: a current-only page is fresh even when the device holds other departed chats; a page emitting retained images is stale, with `since` when available. Fresh does not mean complete. With horizon-free acquisition, both sources can prove exhaustion and an empty answer can be complete after departure. For a windowed source, the current unscoped device word scan cannot certify exhaustion of all departed ranges, even when their stored rows happen to be exhausted. Its boundary proof needs a pinned group; a global `Left` list alone proves no acquisition range. That unknown coverage keeps the combined page incomplete, including an empty terminal page. The coordinator reports complete only if both sources prove the requested page. A complete page can still have `next`; use that cursor to decide whether more rows remain, including after a short page of suppressed replacements. It must not infer “No matches” from `next: null`. A membership, incarnation, generation or link change invalidates an incompatible continuation. Every combined cursor binds the server's authorized audience, even with no departed chats. Server replies are validated against the captured store and generation, and continuations bind that validated identity. An unsynced replacement or generation change withdraws the attempt until ordinary sync establishes the new incarnation; its next observation starts with fresh source positions. An unsynced audience change withdraws the stale page and refreshes the first page of a live `usePage` observation. A one-shot query returns loading; request a fresh first page to restart. Each observation still makes one server call. An unrelated sync or an older-message edit preserves pagination. An online composition starts fresh from a plain offline/server cursor, which does not carry a validated store or audience identity. Resetting device rows also invalidates its old combined cursors, even after reacquiring the same data. The broader delivery fence still withdraws changes that occur during a request. Retained edits stay at their delivered image and expiry still removes them. Rejoined scopes use the current server lane. The server’s bounded audience proof prevents a stale departed image from being merged after an unsynced rejoin; that observation waits for sync. Missing acquired history and constituent cuts remain incomplete. An incomplete empty answer means “Results may be incomplete,” never “No matches.” An online client without a device searches only its current authorized domain; offline the same ordinary body searches authorized device holdings. Other ordered shapes keep their existing evaluator and routing. Each continuation returns the next `(at, id)` rows visible at that request across current server scopes and this device's retained rows; the traversal is not a snapshot. Changing an order key or match, or inserting a match before the consumed position, can repeat or skip that row; rows whose order, match, scope and readability stay stable appear exactly once, and `usePage` keeps one newest observed image per source ID when the generated query proves row identity. For exactly-once pagination over message edits, declare `immutable at`; refresh from the first page to see new or newly matching rows before the cursor. ```quarry table members: roomId: id principal: principal unique roomId, principal cap 100 by roomId read <- exists members[.roomId, viewer] sync to members[.roomId] table messages: immutable roomId, at roomId: id body: text <=4000 at: time search body read <- exists members[.roomId, viewer] retain delivered-history sync to members[.roomId] last 200 by .at query searchHeld(q: text <=100, c: cursor ?) held: return messages matching q after c last 20 by .at -- everything, grouped by chat: any number of chats; a cut carries `next` query searchGrouped(q: text <=100, c: cursor ?): return members[principal = viewer] after c first 20 by .roomId where exists (messages[roomId = .roomId] by .at matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at } -- One ordinary newest-first stream in either link state, including after leave. query search(q: text <=100, c: cursor ?): return messages matching q last 20 by .at after c -- Optional current-membership-only scope; excludes departed images deliberately. query searchNewest(q: text <=100, c: cursor ?): return messages matching q where exists members[.roomId, viewer] last 20 by .at after c ``` `searchHeld` and `searchNewest` are optional, deliberately narrower domains: device-only and current-membership-only respectively. Do not switch between them based on connectivity. The starter uses ordinary `search` in both states. **Ordinary search.** Call `usePage(api.search, { q })` and render its `items`. The SDK accumulates by source row ID; do not append or deduplicate pages yourself. Show “Partial results” only for a ready combined read with `complete: false`. Stale retained hits and a non-null `next` alone do not mean incomplete. The compact server plan discovers compact membership keys, opens one authorized order key per chat and materializes only emitted hits. Inner word expansion keeps one best head, rescanning and paying again on refill. Pass `c: read.next`. Every page must rediscover every chat; this is a live cursor, not a snapshot or saved search-work session. Reset it when changing the text or memberships; refresh for new or edited messages. For that plan, a discovery/opening cut refuses **E_SEARCH_OPEN**, with the authorized membership count (a lower bound if discovery was unfinished), meter envelope and grouped rewrite. It never returns an unexplained empty dead end. Once all heads are established, an examined/index/probe drain cut can return `complete: false` with `next` after the last fully shaped hit. A compact page's heap exhaustion refuses E_SEARCH_OPEN even after buffering hits; steps/output can refuse. Following a cut does not clear `usePage`'s accumulated incompleteness. Trusted, non-expiring server heads and emitted rows admit their actual decoded size; wide declarations alone do not force a fallback. Private and expiring images retain declared admission. The device and other explicit merges keep their existing opening cuts, which can lack `next` and E_SEARCH_OPEN. **Measured server envelope.** On the Linux calibration host, default meters complete 20-hit first pages and continuations through 4,076 memberships in the dense one-word fixture (8,192 examined rows). At 4,077 a drain cut has `next`; The device still reaches its earlier heap boundary near 2,700 memberships. 10,000 cannot finish discovery and refuses E_SEARCH_OPEN. The calibration copy has 100 memberships and completes. An empty-chat extension reached heap first on continuations: bare pages fit 5,493 memberships; decorated pages fit 5,317. Those calibration limits predate actual-size "... 2878 more characters
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:112:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "## Search every chat I'm in Use one ordinary **search** for a globally ordered page across current and retained conversations, as the social starter does. Use **grouped** to page current matching chats with previews when discovery cannot fit one read. Return bare hits and read chat details separately. Table rules protect server reads; retained device images confer no server authority. A single bare ordinary word page such as `return messages matching q where not .tombstone last 20 by .at after c` can now infer the current server audience from an exact non-expiring membership read rule and matching sync audience. `check --cost` names that inferred audience and its grouped rewrite. Its server result deliberately changes from an empty incomplete answer to the compact membership page when the work fits. Explicit membership predicates and query guards keep their meaning; other audiences, joins and native functions keep their existing evaluator. Empty needles still take the existing browse branch, whose coverage can remain incomplete. System reads keep their original evaluator and full system-authorized domain. Inference also requires readable membership discovery. If its additional scoped index cannot fit the portable key or label budget, compilation keeps the original indexes and evaluator; that search may remain incomplete. Current rows are authoritative by source ID, including after a scope update or ID deletion and reinsertion. In the page's one server call, the SDK sends only that page's retained candidate IDs; authorized point reads tell it which have current readable rows. Those retained images are suppressed even when the current image no longer matches or lies before the cursor. Scope columns need not be immutable. A page can be short, or empty with a progress cursor, when suppression consumes its bounded retained candidates; follow `next` as usual. For the proved bare time-ordered page on a local client, the SDK merges current server rows with this device's certified departed images. Both use the same `(at, id)` order and the limit applies after deduplication. A page makes one server call; it never drains a cut to fill the limit. `next` seeks both sources after the combined consumed `(at, id)` key; a fetched but unconsumed hit after that key stays eligible. Unconsumed hits are recomputed on the next requested page and charged again. The coordinator and device scan share the existing per-page device read allowance. There is no saved search session. If the device word or read meter cuts without a continuation, its candidates cannot establish the newest retained hit. The online page still publishes the server's proved current rows, with `complete: false` and the constituent `cut`. Its `next` continues only that current stream; the cut device source stays incomplete throughout this traversal. Start a fresh search with a longer prefix or search one chat to try retained history again. If that cut leaves no proved server hits either, the request refuses E_BOUND with that repair instead of returning an empty page that cannot advance. Server refusals still win. Freshness describes emitted rows: a current-only page is fresh even when the device holds other departed chats; a page emitting retained images is stale, with `since` when available. Fresh does not mean complete. With horizon-free acquisition, both sources can prove exhaustion and an empty answer can be complete after departure. For a windowed source, the current unscoped device word scan cannot certify exhaustion of all departed ranges, even when their stored rows happen to be exhausted. Its boundary proof needs a pinned group; a global `Left` list alone proves no acquisition range. That unknown coverage keeps the combined page incomplete, including an empty terminal page. The coordinator reports complete only if both sources prove the requested page. A complete page can still have `next`; use that cursor to decide whether more rows remain, including after a short page of suppressed replacements. It must not infer “No matches” from `next: null`. A membership, incarnation, generation or link change invalidates an incompatible continuation. Every combined cursor binds the server's authorized audience, even with no departed chats. Server replies are validated against the captured store and generation, and continuations bind that validated identity. An unsynced replacement or generation change withdraws the attempt until ordinary sync establishes the new incarnation; its next observation starts with fresh source positions. An unsynced audience change withdraws the stale page and refreshes the first page of a live `usePage` observation. A one-shot query returns loading; request a fresh first page to restart. Each observation still makes one server call. An unrelated sync or an older-message edit preserves pagination. An online composition starts fresh from a plain offline/server cursor, which does not carry a validated store or audience identity. Resetting device rows also invalidates its old combined cursors, even after reacquiring the same data. The broader delivery fence still withdraws changes that occur during a request. Retained edits stay at their delivered image and expiry still removes them. Rejoined scopes use the current server lane. The server’s bounded audience proof prevents a stale departed image from being merged after an unsynced rejoin; that observation waits for sync. Missing acquired history and constituent cuts remain incomplete. An incomplete empty answer means “Results may be incomplete,” never “No matches.” An online client without a device searches only its current authorized domain; offline the same ordinary body searches authorized device holdings. Other ordered shapes keep their existing evaluator and routing. Each continuation returns the next `(at, id)` rows visible at that request across current server scopes and this device's retained rows; the traversal is not a snapshot. Changing an order key or match, or inserting a match before the consumed position, can repeat or skip that row; rows whose order, match, scope and readability stay stable appear exactly once, and `usePage` keeps one newest observed image per source ID when the generated query proves row identity. For exactly-once pagination over message edits, declare `immutable at`; refresh from the first page to see new or newly matching rows before the cursor. ```quarry table members: roomId: id principal: principal unique roomId, principal cap 100 by roomId read <- exists members[.roomId, viewer] sync to members[.roomId] table messages: immutable roomId, at roomId: id body: text <=4000 at: time search body read <- exists members[.roomId, viewer] retain delivered-history sync to members[.roomId] last 200 by .at query searchHeld(q: text <=100, c: cursor ?) held: return messages matching q after c last 20 by .at -- everything, grouped by chat: any number of chats; a cut carries `next` query searchGrouped(q: text <=100, c: cursor ?): return members[principal = viewer] after c first 20 by .roomId where exists (messages[roomId = .roomId] by .at matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at } -- One ordinary newest-first stream in either link state, including after leave. query search(q: text <=100, c: cursor ?): return messages matching q last 20 by .at after c -- Optional current-membership-only scope; excludes departed images deliberately. query searchNewest(q: text <=100, c: cursor ?): return messages matching q where exists members[.roomId, viewer] last 20 by .at after c ``` `searchHeld` and `searchNewest` are optional, deliberately narrower domains: device-only and current-membership-only respectively. Do not switch between them based on connectivity. The starter uses ordinary `search` in both states. **Ordinary search.** Call `usePage(api.search, { q })` and render its `items`. The SDK accumulates by source row ID; do not append or deduplicate pages yourself. Show “Partial results” only for a ready combined read with `complete: false`. Stale retained hits and a non-null `next` alone do not mean incomplete. The compact server plan discovers compact membership keys, opens one authorized order key per chat and materializes only emitted hits. Inner word expansion keeps one best head, rescanning and paying again on refill. Pass `c: read.next`. Every page must rediscover every chat; this is a live cursor, not a snapshot or saved search-work session. Reset it when changing the text or memberships; refresh for new or edited messages. For that plan, a discovery/opening cut refuses **E_SEARCH_OPEN**, with the authorized membership count (a lower bound if discovery was unfinished), meter envelope and grouped rewrite. It never returns an unexplained empty dead end. Once all heads are established, an examined/index/probe drain cut can return `complete: false` with `next` after the last fully shaped hit. A compact page's heap exhaustion refuses E_SEARCH_OPEN even after buffering hits; steps/output can refuse. Following a cut does not clear `usePage`'s accumulated incompleteness. Trusted, non-expiring server heads and emitted rows admit their actual decoded size; wide declarations alone do not force a fallback. Private and expiring images retain declared admission. The device and other explicit merges keep their existing opening cuts, which can lack `next` and E_SEARCH_OPEN. **Measured server envelope.** On the Linux calibration host, default meters complete 20-hit first pages and continuations through 4,076 memberships in the dense one-word fixture (8,192 examined rows). At 4,077 a drain cut has `next`; The device still reaches its earlier heap boundary near 2,700 memberships. 10,000 cannot finish discovery and refuses E_SEARCH_OPEN. The calibration copy has 100 memberships and completes. An empty-chat extension reached heap first on continuations: bare pages fit 5,493 memberships; decorated pages fit 5,317. Those calibration limits predate actual-size "... 2878 more characters,
+    expected: /one-shot query[^.]*E_QUERY_RETRY[^.]*fresh first page/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-review.test.mjs:115:1
+✖ guide: server-needing decorations remain separate (1.248841ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Keep server-needing decorations separate/. Input:
+  
+  '# Client: answers stay on screen\n' +
+    '\n' +
+    'Submit at custody.\n' +
+    '\n' +
+    '```tsx\n' +
+    'import { useState } from "react";\n' +
+    'import { useMutation, useQuery } from "snapback4/react";\n' +
+    'import { existence, isReady } from "snapback4/contract";\n' +
+    'import { api } from "../snapback/generated/api";\n' +
+    'export function Composer({ conversationId }: { conversationId: string }) {\n' +
+    '  const [draft, setDraft] = useState("");\n' +
+    '  const send = useMutation(api.send);\n' +
+    '  const member = useQuery(api.myMembership, { conversationId });\n' +
+    '  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);\n' +
+    '  const [submitted, setSubmitted] = useState("");\n' +
+    '  async function submit() {\n' +
+    '    if (blocked) return;\n' +
+    '    const text = draft; setSubmitted(text); setDraft("");\n' +
+    '    const write = await send.run({ conversationId, body: text }, { waitSeconds: 0 });\n' +
+    '    if (write.state === "failed") setDraft(current => current || text);\n' +
+    '  }\n' +
+    '  return <><input value={draft} onChange={e => setDraft(e.target.value)} />\n' +
+    '    <button disabled={send.inFlight || blocked} onClick={() => void submit()}>Send</button>\n' +
+    '    {send.last?.state === "failed" && submitted && <p role="alert">Not sent: {submitted} <button onClick={() => setDraft(current => current ? current + " " + submitted : submitted)}>Edit</button> <button onClick={() => setSubmitted("")}>Dismiss</button></p>}</>;\n' +
+    '}\n' +
+    '```\n' +
+    '\n' +
+    "Membership with no horizon, synced in the conversation's own group with the messages' audience, proves `present`/`absent` after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.\n" +
+    'Queueing needs no membership answer: only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable.\n' +
+    '\n' +
+    '`waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.\n' +
+    'Clear on submit; restore refused text only into an empty draft, otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).\n' +
+    'Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Keep saved text; Dismiss only after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.\n' +
+    '\n' +
+    '## Honest read boundaries\n' +
+    '\n' +
+    '`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale; `existence(await query(...))` excludes loading.\n' +
+    'Use `existence(read)`; after `isReady(read)`, `read.existence` narrows point data.\n' +
+    '\n' +
+    '| Meaning | UI decision |\n' +
+    '| --- | --- |\n' +
+    '| `loading` | No answer yet or withheld: keep composers, headers and routes mounted. |\n' +
+    '| `denied` | Refusal: show its message; disable the durable action. |\n' +
+    '| `present` | Nonempty top-level value: render it, even with incomplete coverage. |\n' +
+    '| `absent` | Proven empty answer: resolve the missing route/row. |\n' +
+    '| `partial` | Empty, uncertain answer: show “Partial results”; never infer absence or denial. |\n' +
+    '\n' +
+    'Only top-level `null`/`[]` is empty; scalars/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.\n' +
+    'Route on `present`/`absent`, never `loading`/`partial`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.\n' +
+    'Same-key plain refetch, reconnect, slow reads, transport failure and retry exhaustion retain `revalidating` answers without timeout. Completed replacements recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. Whole server answers can precede sync; older replicas cannot clear pending notifications. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets withdraw; generation changes withdraw before adoption, even without changed tables.\n' +
+    'Search with `usePage`: render `page.items`, classify `page.read`; loading items prove nothing. Show “Partial results” for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Unknown unread counts never hide conversations.\n' +
+    '\n' +
+    '## Queries in rows\n' +
+    '\n' +
+    'Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paging: 1,000 row hooks require 1,000 evaluations per write. Disjoint writes do zero; authorization inputs are dependencies.\n' +
+    'At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. `keep: false` withdraws before queueing. Queue wait precedes a new episode; retries never renew existing deadlines. Expiry/resets stay immediate. Unrelated writes preserve fallback memory; clock refresh preserves unexpired newer answers.\n' +
+    '\n' +
+    '```tsx\n' +
+    'import { useQuery, usePage } from "snapback4/react";\n' +
+    'import { api } from "../snapback/generated/api";\n' +
+    'function MemberCount({ conversationId }: { conversationId: string }) {\n' +
+    '  const members = useQuery(api.members, { conversationId });\n' +
+    '  return <span>{"data" in members ? members.data.length : "…"}</span>;\n' +
+    '}\n' +
+    'function ConversationList() {\n' +
+    '  const page = usePage(api.inboxCards, {});\n' +
+    '  return <>{page.items.map(row => <span key={row.id}>{row.title} ({row.memberCount})</span>)}\n' +
+    '    {page.hasMore && <button onClick={page.loadMore}>More</button>}</>;\n' +
+    '}\n' +
+    '```\n' +
+    '\n' +
+    'Keep decorations separate.\n' +
+    '\n' +
+    '## Expo and acquisition\n' +
+    '\n' +
+    'Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).\n' +
+    '\n' +
+    'Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide witness`: native proof; `guide reads`: live timings; `guide sync`: acquisition and offline reopening.\n' +
+    '\n' +
+    '## Receipts\n' +
+    '\n' +
+    '`guide receipts`: schema, mutations, `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.\n' +
+    '\n' +
+    '## One-view photos\n' +
+    '\n' +
+    'Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Explicit Open fetches once; recycling/refetch cannot consume or lose the handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.\n' +
+    '\n' +
+    '```tsx\n' +
+    'import { useEffect, useRef, useState } from "react";\n' +
+    'import { useClient, useNow, useQuery } from "snapback4/react";\n' +
+    'import { isReady, existence } from "snapback4/contract";\n' +
+    'import { api } from "../snapback/generated/api";\n' +
+    'export function OneView({ messageId, assetId }: { messageId: string; assetId: string }) {\n' +
+    '  const client = useClient(), row = useQuery(api.messagePhoto, { id: messageId });\n' +
+    '  const handle = useRef<{ revoke(): void } | null>(null), alive = useRef(false), deadline = useRef<number | null>(null);\n' +
+    '  const [started, setStarted] = useState(false), [url, setUrl] = useState<string | null>(null), [problem, setProblem] = useState("");\n' +
+    '  const opened = useRef(false);\n' +
+    '  if (isReady(row) && row.existence === "present") deadline.current = row.data.expiresAt;\n' +
+    '  const now = useNow(deadline.current);\n' +
+    '  const closed = existence(row) === "denied" || existence(row) === "absent" || (isReady(row) && row.existence === "present" && (row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);\n' +
+    '  const invalid = useRef(false); invalid.current ||= closed;\n' +
+    '  useEffect(() => { alive.current = true; return () => { alive.current = false; handle.current?.revoke(); }; }, []);\n' +
+    '  useEffect(() => { if (closed) { handle.current?.revoke(); handle.current = null; setUrl(null); } }, [closed]);\n' +
+    '  async function open() {\n' +
+    '    if (opened.current || invalid.current || (!isReady(row) || row.existence !== "present" || row.revalidating)) return;\n' +
+    '    opened.current = true; setStarted(true);\n' +
+    '    const result = await client.asset(assetId);\n' +
+    '    if ("denied" in result) { if (alive.current) setProblem(result.denied.message); return; }\n' +
+    '    if (!alive.current || invalid.current) { result.revoke(); return; }\n' +
+    '    handle.current = result; setUrl(result.url);\n' +
+    '  }\n' +
+    '  return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;\n' +
+    '}\n' +
+    '```\n' +
+    '\n' +
+    '`useAsset` revokes on unmount. Never refetch once media (`E_ASSET_VIEWED`).\n' +
+    'Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.\n' +
+    '\n' +
+    '# Offline interaction s'... 6313 more characters
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:117:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Client: answers stay on screen\n\nSubmit at custody.\n\n```tsx\nimport { useState } from "react";\nimport { useMutation, useQuery } from "snapback4/react";\nimport { existence, isReady } from "snapback4/contract";\nimport { api } from "../snapback/generated/api";\nexport function Composer({ conversationId }: { conversationId: string }) {\n  const [draft, setDraft] = useState("");\n  const send = useMutation(api.send);\n  const member = useQuery(api.myMembership, { conversationId });\n  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);\n  const [submitted, setSubmitted] = useState("");\n  async function submit() {\n    if (blocked) return;\n    const text = draft; setSubmitted(text); setDraft("");\n    const write = await send.run({ conversationId, body: text }, { waitSeconds: 0 });\n    if (write.state === "failed") setDraft(current => current || text);\n  }\n  return <><input value={draft} onChange={e => setDraft(e.target.value)} />\n    <button disabled={send.inFlight || blocked} onClick={() => void submit()}>Send</button>\n    {send.last?.state === "failed" && submitted && <p role="alert">Not sent: {submitted} <button onClick={() => setDraft(current => current ? current + " " + submitted : submitted)}>Edit</button> <button onClick={() => setSubmitted("")}>Dismiss</button></p>}</>;\n}\n```\n\nMembership with no horizon, synced in the conversation\'s own group with the messages\' audience, proves `present`/`absent` after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.\nQueueing needs no membership answer: only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable.\n\n`waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.\nClear on submit; restore refused text only into an empty draft, otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).\nSave `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Keep saved text; Dismiss only after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.\n\n## Honest read boundaries\n\n`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale; `existence(await query(...))` excludes loading.\nUse `existence(read)`; after `isReady(read)`, `read.existence` narrows point data.\n\n| Meaning | UI decision |\n| --- | --- |\n| `loading` | No answer yet or withheld: keep composers, headers and routes mounted. |\n| `denied` | Refusal: show its message; disable the durable action. |\n| `present` | Nonempty top-level value: render it, even with incomplete coverage. |\n| `absent` | Proven empty answer: resolve the missing route/row. |\n| `partial` | Empty, uncertain answer: show “Partial results”; never infer absence or denial. |\n\nOnly top-level `null`/`[]` is empty; scalars/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.\nRoute on `present`/`absent`, never `loading`/`partial`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.\nSame-key plain refetch, reconnect, slow reads, transport failure and retry exhaustion retain `revalidating` answers without timeout. Completed replacements recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. Whole server answers can precede sync; older replicas cannot clear pending notifications. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets withdraw; generation changes withdraw before adoption, even without changed tables.\nSearch with `usePage`: render `page.items`, classify `page.read`; loading items prove nothing. Show “Partial results” for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Unknown unread counts never hide conversations.\n\n## Queries in rows\n\nWire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paging: 1,000 row hooks require 1,000 evaluations per write. Disjoint writes do zero; authorization inputs are dependencies.\nAt most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. `keep: false` withdraws before queueing. Queue wait precedes a new episode; retries never renew existing deadlines. Expiry/resets stay immediate. Unrelated writes preserve fallback memory; clock refresh preserves unexpired newer answers.\n\n```tsx\nimport { useQuery, usePage } from "snapback4/react";\nimport { api } from "../snapback/generated/api";\nfunction MemberCount({ conversationId }: { conversationId: string }) {\n  const members = useQuery(api.members, { conversationId });\n  return <span>{"data" in members ? members.data.length : "…"}</span>;\n}\nfunction ConversationList() {\n  const page = usePage(api.inboxCards, {});\n  return <>{page.items.map(row => <span key={row.id}>{row.title} ({row.memberCount})</span>)}\n    {page.hasMore && <button onClick={page.loadMore}>More</button>}</>;\n}\n```\n\nKeep decorations separate.\n\n## Expo and acquisition\n\nEvery milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).\n\nSocial: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide witness`: native proof; `guide reads`: live timings; `guide sync`: acquisition and offline reopening.\n\n## Receipts\n\n`guide receipts`: schema, mutations, `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.\n\n## One-view photos\n\nMount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Explicit Open fetches once; recycling/refetch cannot consume or lose the handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.\n\n```tsx\nimport { useEffect, useRef, useState } from "react";\nimport { useClient, useNow, useQuery } from "snapback4/react";\nimport { isReady, existence } from "snapback4/contract";\nimport { api } from "../snapback/generated/api";\nexport function OneView({ messageId, assetId }: { messageId: string; assetId: string }) {\n  const client = useClient(), row = useQuery(api.messagePhoto, { id: messageId });\n  const handle = useRef<{ revoke(): void } | null>(null), alive = useRef(false), deadline = useRef<number | null>(null);\n  const [started, setStarted] = useState(false), [url, setUrl] = useState<string | null>(null), [problem, setProblem] = useState("");\n  const opened = useRef(false);\n  if (isReady(row) && row.existence === "present") deadline.current = row.data.expiresAt;\n  const now = useNow(deadline.current);\n  const closed = existence(row) === "denied" || existence(row) === "absent" || (isReady(row) && row.existence === "present" && (row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);\n  const invalid = useRef(false); invalid.current ||= closed;\n  useEffect(() => { alive.current = true; return () => { alive.current = false; handle.current?.revoke(); }; }, []);\n  useEffect(() => { if (closed) { handle.current?.revoke(); handle.current = null; setUrl(null); } }, [closed]);\n  async function open() {\n    if (opened.current || invalid.current || (!isReady(row) || row.existence !== "present" || row.revalidating)) return;\n    opened.current = true; setStarted(true);\n    const result = await client.asset(assetId);\n    if ("denied" in result) { if (alive.current) setProblem(result.denied.message); return; }\n    if (!alive.current || invalid.current) { result.revoke(); return; }\n    handle.current = result; setUrl(result.url);\n  }\n  return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;\n}\n```\n\n`useAsset` revokes on unmount. Never refetch once media (`E_ASSET_VIEWED`).\nStart with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.\n\n# Offline interaction s'... 6313 more characters,
+    expected: /Keep server-needing decorations separate/,
+    operator: 'match',
+    diff: 'simple'
+  }

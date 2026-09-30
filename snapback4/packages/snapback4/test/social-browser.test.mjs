@@ -145,6 +145,8 @@ test("social recipes in React/browser: real online signals and media, controlled
       await page.waitForFunction(async () => !(await window.savedSends()).some(w => w.op === "send"));
     }
     await page.evaluate(async () => { window.restore(); await Promise.all(window.onlineArms.map(arm => arm.query({ name: "typingIn", kind: "query" }, { conversation: window.historyRows[0].conversation }))); });
+    // Known-offline one-shots refuse before their reconnect probe completes.
+    await page.waitForFunction(() => window.onlineArms.filter(arm => arm.viewer()).every(arm => arm.link() === "online"));
   });
 
   await t.test("older bubbles share the history cursor and retain text when receipts withdraw", async () => {
