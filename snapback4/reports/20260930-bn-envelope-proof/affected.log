@@ -1,0 +1,185 @@
+(node:1896588) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (965.466299ms)
+✖ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (393.606043ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1115.387319ms)
+✖ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (447.699275ms)
+✖ bounds guide command and receipt excerpt execute against a small fixture (311.327387ms)
+✖ restart detects wipe before reconnect can repair it (250.854721ms)
+✖ restart detects delete-row before reconnect can repair it (222.397621ms)
+✖ restart detects change-groups before reconnect can repair it (209.967687ms)
+✖ restart detects change-boundaries before reconnect can repair it (211.611752ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 2
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4240.263874
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:74:1
+✖ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (393.606043ms)
+  AssertionError [ERR_ASSERTION]: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+  see snapback4 guide bounds
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:77:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:107:1
+✖ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (447.699275ms)
+  AssertionError [ERR_ASSERTION]: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+  see snapback4 guide bounds
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:112:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:121:1
+✖ bounds guide command and receipt excerpt execute against a small fixture (311.327387ms)
+  AssertionError [ERR_ASSERTION]: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+  see snapback4 guide bounds
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:128:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:137:85
+✖ restart detects wipe before reconnect can repair it (250.854721ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /never synced|E_OFFLINE/. Input:
+
+  'Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage'
+
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+        at fail (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:16:41)
+        at firstAnswer (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:161:48)
+        at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at async measure (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:182:26)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+        at async Test.run (node:internal/test_runner/test:1110:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:785:7),
+    expected: /never synced|E_OFFLINE/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:137:85
+✖ restart detects delete-row before reconnect can repair it (222.397621ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_RECEIPT.*coverage differs/. Input:
+
+  'Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage'
+
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+        at fail (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:16:41)
+        at firstAnswer (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:161:48)
+        at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at async measure (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:182:26)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+        at async Test.run (node:internal/test_runner/test:1110:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:785:7),
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:137:85
+✖ restart detects change-groups before reconnect can repair it (209.967687ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_RECEIPT.*coverage differs/. Input:
+
+  'Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage'
+
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+        at fail (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:16:41)
+        at firstAnswer (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:161:48)
+        at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at async measure (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:182:26)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+        at async Test.run (node:internal/test_runner/test:1110:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:785:7),
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:137:85
+✖ restart detects change-boundaries before reconnect can repair it (211.611752ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_RECEIPT.*coverage differs/. Input:
+
+  'Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage'
+
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: E_INPUT: query heldNotes cannot give a complete local answer: choose a query within held coverage
+        at fail (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:16:41)
+        at firstAnswer (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:161:48)
+        at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at async measure (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/bin/witness-acquire.js:182:26)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:139:3)
+        at async Test.run (node:internal/test_runner/test:1110:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:785:7),
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

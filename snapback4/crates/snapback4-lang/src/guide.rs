@@ -64,6 +64,8 @@ pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("envelope", "bounds"), ("heaviest", "bounds"), ("1000", "bounds"),
+    ("cold start", "bounds"), ("cold restart", "bounds"), ("acquire", "bounds"),
     ("latency", "bounds"), ("performance", "bounds"), ("p95", "bounds"),
     ("benchmark", "bounds"), ("load test", "bounds"),
     ("react", "client"), ("hooks", "client"), ("expo", "client"), ("ios", "client"), ("react native", "client"),

@@ -1,4 +1,5 @@
 //! The bounds card. Quarry examples are compiled by tests/guide.rs.
+// HV web figures: reports/20260929-hv-heavy-acquisition/REPORT.md, five-run table.
 pub(super) const CARD: &str = r##"# Bounds and the meter
 
 The meter limits the work each read, mutation and job transaction can do.
@@ -112,6 +113,49 @@ hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
 cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
 the client read `loading`, as other query heap cuts do. A mutation rolls
 back on either cut.
+
+### Prove the heaviest account
+
+Prove the envelope's heaviest account, not a typical one: 500 follows and
+1,000 conversations need that account's acquisition and cold restart evidence.
+Against your running backend, replace alice and heldNotes with your heaviest
+persona and a device query; SB4_URL is dev's printed URL, SB4_PROOF a new directory:
+
+```sh
+snapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json
+```
+
+For serve or a real account, use `--as <principal> --token <bearer>`.
+Optional `--args '{"c":null}'` supplies query arguments; without `--query` the
+witness selects the first zero-argument device query. `--runs 3` uses three fresh
+stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run.
+The command writes acquire.json even on failure; --json prints it, otherwise
+one summary per run. Receipt excerpt (counts depend on your fixture):
+
+```json
+{"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}
+```
+
+It uses the native process device, the same SQLite module as Expo. Web wasm +
+IndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;
+`firstLocalMs` times the first complete local query after that boundary, both
+from fresh startup including identity checks. Restart firstLocalMs includes cold
+reopen with all HTTP blocked. Retained means identical store/generation/watermark,
+per-group row counts and persisted coverage, and table row/byte counts before
+reconnect; reconnect must then send no row events (an empty snapshot is possible
+at watermark zero). Keep the fixture
+stable: new writes or expiry can invalidate this comparison. No OS-cache flush,
+app UI, media-cache or physical-phone performance is claimed.
+Groups are table/group pairs with rows or recorded coverage (plus implicit public
+and principal groups); inspect groupsByTable.messages for the conversation count.
+residency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row
+payload bytes. requests preserve Server-Timing and parsed serverMs; serverSyncMs
+sums acquisition sync total durations (null on serve). Verification scans follow
+the timed answer. Background polling is suppressed; SDK sync itself is unchanged.
+HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000
+memberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;
+first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are
+historical workload measurements, not a promise or native-device numbers.
 
 ### Measuring a growth curve
 

@@ -79333,3 +79333,44 @@ Report and complete failure dispositions:
 reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 0: prove the heaviest account and retained restart
+
+Added `witness acquire --as <persona|principal> --restart` over the published SDK
+and native process device, with fresh stores, JSON receipts, residency, acquired
+and complete-local-answer timings, and dev Server-Timing. Dev personas and bearer
+principals are checked against the server. Reopen is offline in a new native
+process; group counts, persisted coverage, table rows/bytes and store identity
+must match before reconnect, which must download zero row/scope events. The
+native inspection runs after timing and is excluded from wasm. The bounds guide
+urges proving the heaviest account, supplies a CI-executed command/receipt,
+search aliases and historical HV web measurements. LLP 3000.030 §13 records the
+contract, group units and timing limits. No public client contract changed.
+
+On eb1000, all 12 fixture runs pass: three each for HV's 100- and
+1,000-membership principals, on 96 CPUs and taskset 10 CPUs with eight burners.
+The heavy account retains 1,000 conversation groups / 105,034 rows. Unconfined
+median acquisition/restart is 42.081 s / 0.270 s; under deliberate load,
+49.048 s / 0.394 s. The 100-membership medians are 1.293 s / 0.045 s and
+3.805 s / 0.141 s. All reconnects download zero held rows. These observations
+use warm OS caches, not a physical phone; native acquisition is slower than
+HV's historical web result. The first query here is issued after acquisition.
+
+Affected witness tests pass 9/9, including wipe, held-row deletion and changed
+history/boundary controls. Whole guide passes 106/106. Ran scripts/test.sh
+exactly once; exact summary: `== 1 failure(s) in 1341 s`. Rust passes 4,364
+including 17 doctests, with 33 existing ignores; clients count 5,315 pass,
+2 fail and ten existing skips; models pass 79/79, fixture wrappers 9/9.
+The failures are ours: the probe's old exact JSON expectation and its enclosing
+parent test. Updated that assertion to check the added authenticated viewer;
+the complete HTTP file then passes 10/10. No implementation changed after the
+full run began. No baseline or environmental test failures; no assertion,
+workload or timeout was weakened. The inherited 60-second suite budget remains
+exceeded. This records a failed full run plus the passing affected correction.
+
+Wasm is 1,978,828 B raw / 593,233 B gzip, 486 B below the unchanged 593,719 B
+ratchet. No budget increase. Receipts, all failures, logs, source/artifact hashes
+and reproduction: reports/20260930-bn-envelope-proof/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

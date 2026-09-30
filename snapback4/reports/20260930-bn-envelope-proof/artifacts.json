@@ -1,0 +1,14 @@
+{
+  "snapback4/target/production/snapback4": {
+    "bytes": 18662808,
+    "sha256": "d23ffa1822f57902d25283c20cf29d02216d4968eee6c3f99c449a9028b345a6"
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1978828,
+    "sha256": "e0652576d56704990bf9cc8d745626de5219aa1c69d864623738888a77a93a50"
+  },
+  "snapback4/packages/snapback4/bin/witness-acquire.js": {
+    "bytes": 16398,
+    "sha256": "6f903526e429da4bcb3ea064460476780640df51e692dac161c9e802e559b6b1"
+  }
+}

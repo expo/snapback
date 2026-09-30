@@ -10,6 +10,9 @@ npx snapback4 witness ios --build . --smoke --udid "$UDID" --artifacts artifacts
 npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --artifacts artifacts/native-smoke
 ```
 
+For a heaviest-account acquisition and cold-store proof on any CLI host, use
+`witness acquire --as <persona> --restart`; `guide bounds` explains its receipt.
+
 Use the matching `snapback4` and `snapback4-expo` packages, with `createApp`
 and `AppProvider` using `nativeDevice`. The older `createLocalClient` path
 also works. Release embeds JavaScript; no Metro server is needed. Sign in

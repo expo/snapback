@@ -3,6 +3,7 @@
 mod protocol;
 mod preparation;
 mod smoke;
+mod acquire;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
@@ -427,6 +428,7 @@ fn prepare(mut options: Options) -> Result<Run> {
 }
 
 pub fn run(args: &[String]) -> i32 {
+    if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {
         let invoked = now();
         let mut options = Options::parse(args)?;
