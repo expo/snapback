@@ -69,7 +69,7 @@
     "id": "reads-11",
     "card": "reads",
     "home": "Details",
-    "text": "Held device observations republish at `nextExpiry`, including offline; render\nthose rows directly. The browser witness measures their published expiry\nwithin a frame. JavaScript timers still wait while a page is suspended.\nOnly server-answered reads need a render-deadline filter to hide a returned\nrow while its next network answer is pending. Return `expiresAt`, as above.\nIn React, `useNow(deadline)` owns the timer and responds to clock estimates:"
+    "text": "Held device observations republish at `nextExpiry`, including offline; render\nthose rows directly. Timers follow the row's deadline; a suspended page or a\nbusy host can delay the callback.\nOnly server-answered reads need a render-deadline filter to hide a returned\nrow while its next network answer is pending. Return `expiresAt`, as above.\nIn React, `useNow(deadline)` owns the timer and responds to clock estimates:"
   },
   {
     "id": "reads-12",

@@ -1,0 +1,1907 @@
+{
+  "at": "2026-09-29T22:50:59.053Z",
+  "pid": 2499434,
+  "resources": {
+    "result": {
+      "type": "object",
+      "value": {
+        "resources": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "ProcessWrap"
+        ],
+        "requests": [],
+        "handles": [
+          {
+            "type": "Socket",
+            "readable": false,
+            "writable": true,
+            "destroyed": false
+          },
+          {
+            "type": "Socket",
+            "readable": false,
+            "writable": true,
+            "destroyed": false
+          },
+          {
+            "type": "Socket",
+            "readable": false,
+            "writable": true,
+            "destroyed": false
+          },
+          {
+            "type": "Socket",
+            "readable": true,
+            "writable": true,
+            "destroyed": false
+          },
+          {
+            "type": "Socket",
+            "readable": true,
+            "writable": true,
+            "destroyed": false
+          },
+          {
+            "type": "ChildProcess",
+            "pid": 2499724
+          }
+        ]
+      }
+    }
+  },
+  "timers": [
+    {
+      "index": "0",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.12"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.13"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.14"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.15"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.16"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.17"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.18"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(1)",
+              "objectId": "-4981200618299613242.1.19"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": true
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 8,
+              "description": "8"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 25,
+              "description": "25"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.20"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.21"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.22"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.23"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.24"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.25"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "1",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.26"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.27"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.28"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.29"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.30"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.31"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.32"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.33"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 9,
+              "description": "9"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.34"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.35"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.36"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.37"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.38"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.39"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "2",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.40"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.41"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.42"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.43"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.44"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.45"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.46"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.47"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 9,
+              "description": "9"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.48"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.49"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.50"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.51"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.52"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.53"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "3",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.54"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.55"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.56"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.57"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.58"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.59"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.60"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.61"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 11,
+              "description": "11"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.62"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.63"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.64"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.65"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.66"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.67"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "4",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.68"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.69"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.70"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.71"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.72"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.73"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.74"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.75"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 9,
+              "description": "9"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.76"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.77"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.78"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.79"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.80"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.81"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "5",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.82"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.83"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.84"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 1,
+              "description": "1"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.85"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.86"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.87"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.88"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.89"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.90"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "6",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.91"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.92"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.93"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.94"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.95"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.96"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.97"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.98"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 11,
+              "description": "11"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.99"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.100"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.101"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.102"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.103"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.104"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": "7",
+      "properties": {
+        "result": [],
+        "internalProperties": [
+          {
+            "name": "[[Prototype]]",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.105"
+            }
+          },
+          {
+            "name": "[[PrivateMethods]]",
+            "value": {
+              "type": "object",
+              "subtype": "internal#privateMethodList",
+              "className": "Array",
+              "description": "PrivateMethods[20]",
+              "objectId": "-4981200618299613242.1.106"
+            }
+          }
+        ],
+        "privateProperties": [
+          {
+            "name": "#realSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.107"
+            }
+          },
+          {
+            "name": "#realClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.108"
+            }
+          },
+          {
+            "name": "#realSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.109"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersPromisifiedSchedulerWait",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.110"
+            }
+          },
+          {
+            "name": "#realTimersClearTimeout",
+            "value": {
+              "type": "object",
+              "className": "Object",
+              "description": "Object",
+              "objectId": "-4981200618299613242.1.111"
+            }
+          },
+          {
+            "name": "#realTimersSetInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearInterval",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realTimersClearImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#realPromisifiedSetImmediate",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#nativeDateDescriptor",
+            "value": {
+              "type": "undefined"
+            }
+          },
+          {
+            "name": "#timersInContext",
+            "value": {
+              "type": "object",
+              "subtype": "array",
+              "className": "Array",
+              "description": "Array(0)",
+              "objectId": "-4981200618299613242.1.112"
+            }
+          },
+          {
+            "name": "#isEnabled",
+            "value": {
+              "type": "boolean",
+              "value": false
+            }
+          },
+          {
+            "name": "#currentTimer",
+            "value": {
+              "type": "number",
+              "value": 11,
+              "description": "11"
+            }
+          },
+          {
+            "name": "#now",
+            "value": {
+              "type": "number",
+              "value": 0,
+              "description": "0"
+            }
+          },
+          {
+            "name": "#executionQueue",
+            "value": {
+              "type": "object",
+              "className": "PriorityQueue",
+              "description": "PriorityQueue",
+              "objectId": "-4981200618299613242.1.113"
+            }
+          },
+          {
+            "name": "#setTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.114"
+            }
+          },
+          {
+            "name": "#clearTimeout",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.115"
+            }
+          },
+          {
+            "name": "#setInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.116"
+            }
+          },
+          {
+            "name": "#clearInterval",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.117"
+            }
+          },
+          {
+            "name": "#clearImmediate",
+            "value": {
+              "type": "function",
+              "className": "Function",
+              "description": "function () { [native code] }",
+              "objectId": "-4981200618299613242.1.118"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

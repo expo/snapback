@@ -1,0 +1,92 @@
+{
+  "log": "qualified-heavy-7.log",
+  "sha256": "77238938a854e05617708c9650ec04582f03fd90d060e627763780b2ac0643c5",
+  "summary": [
+    "== 1 failure(s) in 3466 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (7 s)",
+    "-- ok: wasm build (2 s)",
+    "-- ok: docs budget (6 s)",
+    "-- ok: release guard (8 s)",
+    "-- ok: package typecheck (7 s)",
+    "-- ok: package build (8 s)",
+    "-- ok: chat app check (0 s)",
+    "-- FAIL: cargo test (1520 s)",
+    "-- ok: chat app typecheck (4 s)",
+    "-- ok: expo app typecheck (3 s)",
+    "-- ok: fixture wrapper tests (58 s)",
+    "-- ok: client tests (1235 s)",
+    "-- ok: client models (673 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4341,
+    "failed": 1,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 58216.825826",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5197",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 1233290.312563",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 673111.886936"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 1438,
+      "kind": "rust",
+      "details": [
+        "-- FAIL rust target: snapback4::check (16.6 s)",
+        "",
+        "running 82 tests",
+        "........ 8/82",
+        "changed_default_rechecks_unchanged_cap --- FAILED",
+        ".........................................................................",
+        "failures:",
+        "",
+        "---- changed_default_rechecks_unchanged_cap stdout ----",
+        "dev unique=false: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\"",
+        "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576",
+        "",
+        "",
+        "thread 'changed_default_rechecks_unchanged_cap' (1336675) panicked at crates/snapback4/tests/check.rs:687:93:",
+        "called `Result::unwrap()` on an `Err` value: Error(\"trailing characters\", line: 2, column: 1)",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "",
+        "",
+        "failures:",
+        "    changed_default_rechecks_unchanged_cap",
+        "",
+        "test result: FAILED. 81 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.57s"
+      ]
+    }
+  ]
+}

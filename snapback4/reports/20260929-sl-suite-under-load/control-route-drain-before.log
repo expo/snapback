@@ -1,0 +1,19 @@
+✖ identity incarnation refuses publicly without custody (Worker cleanup control) (3099.13166ms)
+ℹ cleanup entered with a held route callback
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3399.337883
+
+✖ failing tests:
+
+test at target/sl-load/controls/route-drain-before.test.mjs:77:42
+✖ identity incarnation refuses publicly without custody (Worker cleanup control) (3099.13166ms)
+  Error: "route.fetch: Target page, context or browser has been closed" while running route callback.
+  Consider awaiting `await page.unrouteAll({ behavior: 'ignoreErrors' })`
+  before the end of the test to ignore remaining routes in flight.
+      at /home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/route-drain-before.test.mjs:63:36

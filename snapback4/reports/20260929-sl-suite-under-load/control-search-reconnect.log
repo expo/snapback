@@ -1,0 +1,770 @@
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"process","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"7ade084ef421406199080fcff5d234244ad91f218ae55bf87b360e9ad530415e","delivery":"82ea4ad56ecf8032e467bdfdc896643e4a98881d757958bdc0a117a34676a9bd","left":[]},{"event":"search-state","initial":true,"epoch":"7ade084ef421406199080fcff5d234244ad91f218ae55bf87b360e9ad530415e","delivery":"82ea4ad56ecf8032e467bdfdc896643e4a98881d757958bdc0a117a34676a9bd","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","delivery":"b562dd83361ba9bca469f73870b4df6bf7414ff6c74f6d04eff06d596782e933","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","delivery":"b562dd83361ba9bca469f73870b4df6bf7414ff6c74f6d04eff06d596782e933"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"f4c41437a4cef8472ead7823d0cc7557:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","delivery":"b562dd83361ba9bca469f73870b4df6bf7414ff6c74f6d04eff06d596782e933","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","delivery":"b562dd83361ba9bca469f73870b4df6bf7414ff6c74f6d04eff06d596782e933"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"f4c41437a4cef8472ead7823d0cc7557:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"fb10c2f7cd2d878bf90e78303090a923a7a619aceefc4a00257b125e6fd0c0c3","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"f4c41437a4cef8472ead7823d0cc7557:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: process repetition 1 (843.509759ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"process","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"cdbce552afac535617256164930eaac3ad7702005623c853bc4896ab6779e70a","delivery":"022d2d052fbc3152997afd491eef3ff68902a1d7d6981f0e690076b714d2bad8","left":[]},{"event":"search-state","initial":true,"epoch":"cdbce552afac535617256164930eaac3ad7702005623c853bc4896ab6779e70a","delivery":"022d2d052fbc3152997afd491eef3ff68902a1d7d6981f0e690076b714d2bad8","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","delivery":"7c718019b8494e728cfbb4f9b14c9bb597dd2183a8230139ddb49d23f992f42e","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","delivery":"7c718019b8494e728cfbb4f9b14c9bb597dd2183a8230139ddb49d23f992f42e"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"763383463ef722f80b4cccacd960c37b:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","delivery":"7c718019b8494e728cfbb4f9b14c9bb597dd2183a8230139ddb49d23f992f42e","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","delivery":"7c718019b8494e728cfbb4f9b14c9bb597dd2183a8230139ddb49d23f992f42e"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"763383463ef722f80b4cccacd960c37b:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"91eb569d05ddd1875db893058aecd33cd283a77b68d609d1830f3918ffafd68b","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"763383463ef722f80b4cccacd960c37b:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: process repetition 2 (945.832315ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"process","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"cc4116b842dea80458f6ba7712a5043801d50e40aed387c42c3c7f5047ea1a32","delivery":"e2da861a92fff00e9229f23e37b6ec12374a0810de5fdaba993b3a2559c5ee08","left":[]},{"event":"search-state","initial":true,"epoch":"cc4116b842dea80458f6ba7712a5043801d50e40aed387c42c3c7f5047ea1a32","delivery":"e2da861a92fff00e9229f23e37b6ec12374a0810de5fdaba993b3a2559c5ee08","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","delivery":"e76d6ee07940c506f677635617de46444d35ec7ba0e1fe2d610b059c91f8ea33","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","delivery":"e76d6ee07940c506f677635617de46444d35ec7ba0e1fe2d610b059c91f8ea33"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"988034928da514591bff30f0b4c43b30:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","delivery":"e76d6ee07940c506f677635617de46444d35ec7ba0e1fe2d610b059c91f8ea33","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","delivery":"e76d6ee07940c506f677635617de46444d35ec7ba0e1fe2d610b059c91f8ea33"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"988034928da514591bff30f0b4c43b30:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"32601c11347c9c596b74004eaa588b4e7c677eb70323de1ad23f3af233287fee","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"988034928da514591bff30f0b4c43b30:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: process repetition 3 (557.62034ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"process","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"319f97ac2bf878abd31e6a93e28280f7e134bd7880526f182c0ae8c9750fdfbe","delivery":"36700b4e23d7d62c481a3252681c0a553fd5515292118eba7cc56f773dcef584","left":[]},{"event":"search-state","initial":true,"epoch":"319f97ac2bf878abd31e6a93e28280f7e134bd7880526f182c0ae8c9750fdfbe","delivery":"36700b4e23d7d62c481a3252681c0a553fd5515292118eba7cc56f773dcef584","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","delivery":"764d45f7d1b9430f14ce629e8ee91ba023e1956f07ccb68ec08a062a283623bc","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","delivery":"764d45f7d1b9430f14ce629e8ee91ba023e1956f07ccb68ec08a062a283623bc"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"6ccf6e7123149274684925ed813b8d6b:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","delivery":"764d45f7d1b9430f14ce629e8ee91ba023e1956f07ccb68ec08a062a283623bc","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","delivery":"764d45f7d1b9430f14ce629e8ee91ba023e1956f07ccb68ec08a062a283623bc"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"6ccf6e7123149274684925ed813b8d6b:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"efc3381c8d50f35bbfe060eb0c4062833634abdece2320ea5b7d9ca1788eae55","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"6ccf6e7123149274684925ed813b8d6b:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: process repetition 4 (502.213602ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"process","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"2df5647f6b71852656a579d39d6998679303c5c2c2b0f0378fff245e8dd4167d","delivery":"098bde62940fdeb7dbdc87b29762cc40d66106e772c9bc76d7cfb4aa047ed4bd","left":[]},{"event":"search-state","initial":true,"epoch":"2df5647f6b71852656a579d39d6998679303c5c2c2b0f0378fff245e8dd4167d","delivery":"098bde62940fdeb7dbdc87b29762cc40d66106e772c9bc76d7cfb4aa047ed4bd","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","delivery":"288b866ca27150a716349573641c9c70b9061e0731c7eab0f4cecae64176a9c9","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","delivery":"288b866ca27150a716349573641c9c70b9061e0731c7eab0f4cecae64176a9c9"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"8aef6f8bd7aa9f19b68a33af22f33484:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","delivery":"288b866ca27150a716349573641c9c70b9061e0731c7eab0f4cecae64176a9c9","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","delivery":"288b866ca27150a716349573641c9c70b9061e0731c7eab0f4cecae64176a9c9"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"8aef6f8bd7aa9f19b68a33af22f33484:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"21ee4bf3905f8610b7b871509495bc102c2cc0c6a4b589755e2a2dd7d1c0f172","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"8aef6f8bd7aa9f19b68a33af22f33484:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: process repetition 5 (918.960768ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"wasm","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"b0472c94e804fc936055c6012913d9e57ad94afa8cf4480023d658704ea75649","delivery":"1da65b6efcf2f2dd4e37d16224fe47f166e4ae548782592d32597857096eeb34","left":[]},{"event":"search-state","initial":true,"epoch":"b0472c94e804fc936055c6012913d9e57ad94afa8cf4480023d658704ea75649","delivery":"1da65b6efcf2f2dd4e37d16224fe47f166e4ae548782592d32597857096eeb34","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","delivery":"58c620a0f2eaf29fe87e1fe3655108eff8b161fe3fd1d4867937dbea702749f7","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","delivery":"58c620a0f2eaf29fe87e1fe3655108eff8b161fe3fd1d4867937dbea702749f7"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"e18b60acf3594eb880c6fdea5f6c9308:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","delivery":"58c620a0f2eaf29fe87e1fe3655108eff8b161fe3fd1d4867937dbea702749f7","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","delivery":"58c620a0f2eaf29fe87e1fe3655108eff8b161fe3fd1d4867937dbea702749f7"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"e18b60acf3594eb880c6fdea5f6c9308:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"296590c732e6a714709e14c031810289c8ca967b168766beffa422da0d4995ab","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"e18b60acf3594eb880c6fdea5f6c9308:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: wasm repetition 1 (1675.905905ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"wasm","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"a2538cba1976a9f8465ff94bd6858544fb7b3dc4e3fbbf4ccf6e8289719e66ac","delivery":"a9b5d5c1f5bfe9aca30cdc745335926a4587985345c5c565315e45b622719472","left":[]},{"event":"search-state","initial":true,"epoch":"a2538cba1976a9f8465ff94bd6858544fb7b3dc4e3fbbf4ccf6e8289719e66ac","delivery":"a9b5d5c1f5bfe9aca30cdc745335926a4587985345c5c565315e45b622719472","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","delivery":"9850084c31f498a4758fb9d8adb7e9db5996423766dbde39aad4ad1422baa217","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","delivery":"9850084c31f498a4758fb9d8adb7e9db5996423766dbde39aad4ad1422baa217"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"cfac30945bcca21d38955a26640eb508:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","delivery":"9850084c31f498a4758fb9d8adb7e9db5996423766dbde39aad4ad1422baa217","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","delivery":"9850084c31f498a4758fb9d8adb7e9db5996423766dbde39aad4ad1422baa217"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"cfac30945bcca21d38955a26640eb508:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"5e109717f68487f396fb28b2175fd70f9a983a6dc3fbd4c375709b370b08a0f0","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"cfac30945bcca21d38955a26640eb508:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: wasm repetition 2 (497.813996ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"wasm","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"5da9b0f52bfe5cfaea3392669236b4226914e7770a7fc2d8d6da6f0def92c5fb","delivery":"772b84c2d78ea6df1e160f7272549baf2cef1f1f3ee2d29957e34bfe36db801c","left":[]},{"event":"search-state","initial":true,"epoch":"5da9b0f52bfe5cfaea3392669236b4226914e7770a7fc2d8d6da6f0def92c5fb","delivery":"772b84c2d78ea6df1e160f7272549baf2cef1f1f3ee2d29957e34bfe36db801c","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","delivery":"63c3728681cf4c5208c3ec4a9cbe4d59607ef9a92b888dbeaf853116ef29554c","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","delivery":"63c3728681cf4c5208c3ec4a9cbe4d59607ef9a92b888dbeaf853116ef29554c"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"1855d6d151879a6c2c69029745305139:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","delivery":"63c3728681cf4c5208c3ec4a9cbe4d59607ef9a92b888dbeaf853116ef29554c","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","delivery":"63c3728681cf4c5208c3ec4a9cbe4d59607ef9a92b888dbeaf853116ef29554c"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"1855d6d151879a6c2c69029745305139:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"16e480dc9892e2d78cdfdad593a1d44195ed4976f2d1091fa3bd51418e648646","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"1855d6d151879a6c2c69029745305139:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: wasm repetition 3 (513.480814ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"wasm","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"5a2129158172af345bd31c217d3b57e8957e99204bc3384f3372ce2f23ed749a","delivery":"60cd62653978f9380d7eef9e0546e9f488e715063badf24e437853791f59c259","left":[]},{"event":"search-state","initial":true,"epoch":"5a2129158172af345bd31c217d3b57e8957e99204bc3384f3372ce2f23ed749a","delivery":"60cd62653978f9380d7eef9e0546e9f488e715063badf24e437853791f59c259","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","delivery":"b0f4d86fe39f07640de564bc2781aa2738b0ed567cae4ad67fe36fb9990219aa","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","delivery":"b0f4d86fe39f07640de564bc2781aa2738b0ed567cae4ad67fe36fb9990219aa"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"7833ba51e8fe617fa97af567b128a6f9:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","delivery":"b0f4d86fe39f07640de564bc2781aa2738b0ed567cae4ad67fe36fb9990219aa","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","delivery":"b0f4d86fe39f07640de564bc2781aa2738b0ed567cae4ad67fe36fb9990219aa"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"7833ba51e8fe617fa97af567b128a6f9:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"264a7523d9009ec9d28f2858be03140f184baa55de9b36257eb6f7cf09164e2f","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"7833ba51e8fe617fa97af567b128a6f9:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: wasm repetition 4 (496.319074ms)
+SEARCH_FAILURE_TRACE [{"seed":130,"host":"wasm","direction":"last","limit":5,"mutable":false,"cut":null,"currentOnly":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"fdbe7b72bf66918e9b0bd0348b63a4c5612197e7f12e6c352ffe10cdf18cf745","delivery":"5f7e3944070cfa3f2cc4dccc6b91e8208a4bc87a1d742ac7dc0591e2c40d8a3c","left":[]},{"event":"search-state","initial":true,"epoch":"fdbe7b72bf66918e9b0bd0348b63a4c5612197e7f12e6c352ffe10cdf18cf745","delivery":"5f7e3944070cfa3f2cc4dccc6b91e8208a4bc87a1d742ac7dc0591e2c40d8a3c","left":[]},{"event":"link","link":"offline"},{"event":"link","link":"online"},{"event":"controlled offline/reconnect before cursor"},{"event":"search-state","initial":true,"epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","delivery":"f21649edd9556574d4736933e0d9d023385e156cf2037e7cbe51014828cc429c","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","delivery":"f21649edd9556574d4736933e0d9d023385e156cf2037e7cbe51014828cc429c"},{"page":0,"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"a9a0feb40d40e9714110cf76d4eb08c2:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":false,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":false},{"event":"opened"},{"event":"client-open","link":"online"},{"event":"search-state","initial":true,"epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","delivery":"f21649edd9556574d4736933e0d9d023385e156cf2037e7cbe51014828cc429c","left":["[\"left\"]"]},{"event":"search-state","initial":false,"epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","delivery":"f21649edd9556574d4736933e0d9d023385e156cf2037e7cbe51014828cc429c"},{"page":1,"incoming":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,2,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"a9a0feb40d40e9714110cf76d4eb08c2:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"outgoing":{"binding":"[\"search\",{\"q\":\"cof\",\"c\":null},\"dev:bob\",1,0,{\"column\":\"at\",\"cursor\":\"c\",\"index\":\"$intent:byTombstoneWordsTextAt:16a6a990607440c7\",\"kind\":\"Time\",\"limit\":5,\"needle\":\"q\",\"order\":\"Desc\",\"table\":\"messages\",\"variant\":[3079422332,1150116576,4131052370,1856968116]}]","epoch":"735849e0e786f173556be9591d02cd955d06756d94aeca7a4b24868db2a8a176","audience":"bcbe86c7f1b121b085c156afe58323ddb0ef1bf29f227c15144b9f11a67796f3","identity":"a9a0feb40d40e9714110cf76d4eb08c2:1","after":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ","server":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTEwfSx7IklkIjoi8JCAgDAwMDIyIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXSwidmFyaWFudCI6WzMwNzk0MjIzMzIsMTE1MDExNjU3Niw0MTMxMDUyMzcwLDE4NTY5NjgxMTZdfV0","local":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZVdvcmRzVGV4dEF0OjE2YTZhOTkwNjA3NDQwYzciLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAwfSx7IklkIjoi7oCAMDAwMjEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdLCJ2YXJpYW50IjpbMzA3OTQyMjMzMiwxMTUwMTE2NTc2LDQxMzEwNTIzNzAsMTg1Njk2ODExNl19XQ"},"c":true,"ids":["m00025","m00024","𐀀00022","m00023","00021"],"cut":null,"complete":true,"next":true,"calls":1}]
+✖ reconnect before cursor then plain reopen: wasm repetition 5 (500.85162ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 0
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7754.314613
+
+✖ failing tests:
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: process repetition 1 (843.509759ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: process repetition 2 (945.832315ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: process repetition 3 (557.62034ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: process repetition 4 (502.213602ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: process repetition 5 (918.960768ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: wasm repetition 1 (1675.905905ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: wasm repetition 2 (497.813996ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: wasm repetition 3 (513.480814ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: wasm repetition 4 (496.319074ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at target/sl-load/controls/ordinary-search-reconnect.test.mjs:374:5
+✖ reconnect before cursor then plain reopen: wasm repetition 5 (500.85162ms)
+  AssertionError [ERR_ASSERTION]: page equals current combined keyset model
+  + actual - expected
+  
+    [
+      {
+  +     at: 120,
+  -     at: 100,
+        expires: null,
+  +     id: 'm00025',
+  +     room: 'left',
+  -     id: 'm00020',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 120,
+  -     at: 90,
+        expires: null,
+  +     id: 'm00024',
+  +     room: 'live',
+  -     id: 'm00019',
+  -     room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 90,
+        expires: null,
+  +     id: '𐀀00022',
+  -     id: 'm00018',
+        room: 'live',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 110,
+  -     at: 80,
+        expires: null,
+  +     id: 'm00023',
+  -     id: 'm00017',
+        room: 'left',
+        text: 'coffee',
+        tombstone: false
+      },
+      {
+  +     at: 100,
+  -     at: 80,
+        expires: null,
+  +     id: '00021',
+  +     room: 'left',
+  -     id: 'm00016',
+  -     room: 'live',
+        text: 'coffee',
+        tombstone: false
+      }
+    ]
+  
+      at scenario (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:204:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/ordinary-search-reconnect.test.mjs:375:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { at: 120, expires: null, id: 'm00025', room: 'left', text: 'coffee', tombstone: false }, { at: 120, expires: null, id: 'm00024', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: '𐀀00022', room: 'live', text: 'coffee', tombstone: false }, { at: 110, expires: null, id: 'm00023', room: 'left', text: 'coffee', tombstone: false }, { at: 100, expires: null, id: '00021', room: 'left', text: 'coffee', tombstone: false } ],
+    expected: [ { id: 'm00020', room: 'live', at: 100, text: 'coffee', tombstone: false, expires: null }, { id: 'm00019', room: 'left', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00018', room: 'live', at: 90, text: 'coffee', tombstone: false, expires: null }, { id: 'm00017', room: 'left', at: 80, text: 'coffee', tombstone: false, expires: null }, { id: 'm00016', room: 'live', at: 80, text: 'coffee', tombstone: false, expires: null } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

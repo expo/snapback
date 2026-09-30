@@ -1,0 +1,64 @@
+{
+  "log": "control-exit-record-before.log",
+  "sha256": "7802ffb3da8ace1280c78882a78c6385d6710d29f20e01d5c0e0e454710468ab",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 0,
+    "failed": 2,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 20,
+      "kind": "rust",
+      "details": [
+        "SL_EXIT_RECORD_CONTROL stderr=\"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576\\nSNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\\\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\\\"\\nsnapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\\n\"",
+        "",
+        "thread 'changed_default_rechecks_unchanged_cap' (1661351) panicked at crates/snapback4/tests/check.rs:690:93:",
+        "called `Result::unwrap()` on an `Err` value: Error(\"trailing characters\", line: 2, column: 1)",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "FAILED",
+        "test changed_default_rechecks_unchanged_unique_index ... dev unique=true: snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576",
+        "SNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\"",
+        "",
+        "SL_EXIT_RECORD_CONTROL stderr=\"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576\\nSNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\\\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\\\"\\nsnapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\\n\"",
+        "",
+        "thread 'changed_default_rechecks_unchanged_unique_index' (1661356) panicked at crates/snapback4/tests/check.rs:690:93:",
+        "called `Result::unwrap()` on an `Err` value: Error(\"trailing characters\", line: 2, column: 1)",
+        "FAILED",
+        "",
+        "failures:",
+        "",
+        "failures:",
+        "    changed_default_rechecks_unchanged_cap",
+        "    changed_default_rechecks_unchanged_unique_index",
+        "",
+        "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.21s"
+      ]
+    },
+    {
+      "line": 29,
+      "kind": "rust",
+      "details": [
+        "SL_EXIT_RECORD_CONTROL stderr=\"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576\\nSNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\\\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\\\"\\nsnapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\\n\"",
+        "",
+        "thread 'changed_default_rechecks_unchanged_unique_index' (1661356) panicked at crates/snapback4/tests/check.rs:690:93:",
+        "called `Result::unwrap()` on an `Err` value: Error(\"trailing characters\", line: 2, column: 1)",
+        "FAILED",
+        "",
+        "failures:",
+        "",
+        "failures:",
+        "    changed_default_rechecks_unchanged_cap",
+        "    changed_default_rechecks_unchanged_unique_index",
+        "",
+        "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.21s"
+      ]
+    }
+  ]
+}

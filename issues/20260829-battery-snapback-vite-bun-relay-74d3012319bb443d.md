@@ -13,12 +13,12 @@
 **Battery gate:** `snapback-vite-bun-relay`
 **Failure signature:** `sha256:74d3012319bb443d375c64852e178bc6b2cf3985233798ec9e91ebbe04548faa`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260930T043534Z.fc8deceab43c`
-**Last processed run:** `local.20260930T043534Z.fc8deceab43c`
+**Last observed run:** `local.20260930T133254Z.763535814fd9`
+**Last processed run:** `local.20260930T133254Z.763535814fd9`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `fc8deceab43cacacd6355534001045aa003bb806`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

@@ -1,0 +1,82 @@
+[
+  {
+    "host": "process",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "process",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "process",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "process",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "process",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "wasm",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "wasm",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "wasm",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "wasm",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  },
+  {
+    "host": "wasm",
+    "before_link_revision": 2,
+    "after_link_revision": 0,
+    "other_binding_fields_equal": true,
+    "unchanged_other_cursor_fields": true,
+    "same_rows": true
+  }
+]

@@ -22,7 +22,21 @@ impl Fixture {
 impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 struct Host { child: Child, address: String }
 impl Drop for Host { fn drop(&mut self) { let _ = self.child.kill(); let _ = self.child.wait(); } }
+// @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 impl Host {
+    // The HTTP body can arrive before Sample::drop records the completed turn.
+    // Wait for that event before freezing a before/after diagnostic snapshot.
+    fn latency_after(&self, path: &str, count: u64) -> Value {
+        let started = Instant::now();
+        loop {
+            let snapshot = self.request("GET", "/dev/latency", Value::Null);
+            let completed = snapshot["operations"][path]["n"].as_u64().expect("completed request count");
+            assert!(completed <= count, "unexpected extra latency sample for {path}: {snapshot}");
+            if completed == count { return snapshot; }
+            assert!(started.elapsed() < Duration::from_secs(60), "latency sample {path} did not reach {count}: {snapshot}");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
     fn request(&self, method: &str, path: &str, body: Value) -> Value {
         let body = body.to_string();
         let mut stream = TcpStream::connect(&self.address).unwrap();
@@ -71,6 +85,7 @@ fn doctor_idle_cpu_is_empty_before_traffic_and_after_reset() {
     for reset in [false, true] {
         if reset {
             host.request("POST", "/q/fast", json!({"args":{}}));
+            host.latency_after("/q/fast", 1);
             success(fixture.command(&["doctor", "--latency", "--reset"]));
         }
         let text = success(fixture.command(&["doctor", "--latency"]));
@@ -94,10 +109,7 @@ fn doctor_latency_json_default_summary_all_operations_and_reset() {
     let fixture = Fixture::new("small");
     let host = fixture.start();
     for _ in 0..5 { assert_eq!(host.request("POST", "/q/fast", json!({"args":{}}))["data"], 1); }
-    let started = Instant::now();
-    while host.request("GET", "/dev/latency", Value::Null)["operations"]["/q/fast"]["n"] != 5 {
-        assert!(started.elapsed() < Duration::from_secs(3));
-    }
+    host.latency_after("/q/fast", 5);
     let snapshot: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--json"]))).unwrap();
     assert_eq!(snapshot["operations"]["/q/fast"]["n"], 5);
     assert_eq!(snapshot["operations"]["/q/idle"]["n"], 0);
@@ -115,6 +127,7 @@ fn doctor_latency_json_default_summary_all_operations_and_reset() {
     let reset: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--reset", "--json"]))).unwrap();
     assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
     host.request("POST", "/q/fast", json!({"args":{}}));
+    host.latency_after("/q/fast", 1);
     let snapshot: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--json"]))).unwrap();
     assert_eq!(snapshot["operations"]["/q/fast"]["n"], 1);
     assert!(!fixture.command(&["doctor", "--reset"]).status.success());
@@ -166,6 +179,7 @@ fn doctor_inspects_fresh_and_memory_at_the_printed_url_without_records() {
         assert!(!data.join("serve.lock").exists());
         no_discovery_record(&fixture);
         host.request("POST", "/q/fast", json!({"args":{}}));
+        host.latency_after("/q/fast", 1);
         for args in [vec!["doctor", "--latency", "--json", "--url", &url], vec!["doctor", "--json", "--url", &url]] {
             let answer = answer(&fixture, &args);
             let snapshot = if args.contains(&"--latency") { &answer } else { assert_eq!(answer["ok"], true); &answer["latency"] };
@@ -201,6 +215,8 @@ fn doctor_discovers_persisted_host_and_url_selects_a_simultaneous_temporary_host
     assert!(address.contains(&persisted.address));
     fresh.request("POST", "/q/idle", json!({"args":{}}));
     persisted.request("POST", "/q/fast", json!({"args":{}}));
+    persisted.latency_after("/q/fast", 1);
+    fresh.latency_after("/q/idle", 1);
     let normal = answer(&fixture, &["doctor", "--json"]);
     assert_eq!(normal["latency"]["operations"]["/q/fast"]["n"], 1);
     assert_eq!(normal["latency"]["operations"]["/q/idle"]["n"], 0);
@@ -228,7 +244,7 @@ fn doctor_checks_the_servers_project_before_read_or_reset_for_both_address_sourc
     let status = server.request("GET", "/dev/status", Value::Null);
     assert_eq!(status["project"], json!(b.0.canonicalize().unwrap()));
     fs::write(a.0.join(".snapback4/serve.lock"), format!("{}\n{url}\n", server.address.rsplit(':').next().unwrap())).unwrap();
-    let before = server.request("GET", "/dev/latency", Value::Null);
+    let before = server.latency_after("/q/fast", 1);
     for explicit in [false, true] {
         for mut args in [vec!["doctor"], vec!["doctor", "--json"], vec!["doctor", "--latency", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
             if explicit { args.extend(["--url", &url]); }
@@ -246,7 +262,7 @@ fn doctor_rejects_a_stale_serve_lock_store_identity() {
     let fresh = fixture.start_with(&["--fresh"]);
     fresh.request("POST", "/q/fast", json!({"args":{}}));
     fs::write(fixture.0.join(".snapback4/serve.lock"), format!("{}\nhttp://{}\n", fresh.address.rsplit(':').next().unwrap(), fresh.address)).unwrap();
-    let before = fresh.request("GET", "/dev/latency", Value::Null);
+    let before = fresh.latency_after("/q/fast", 1);
     for args in [vec!["doctor", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
         assert!(refused(&fixture, &args).contains("different store"));
     }
@@ -289,6 +305,7 @@ fn symlinked_snapback_directory_starts_and_serves_in_every_dev_mode() {
         symlink(&external, fixture.0.join(".snapback4")).unwrap();
         let host = fixture.start_with(&args);
         assert_eq!(host.request("POST", "/q/fast", json!({"args":{}}))["data"], 1);
+        host.latency_after("/q/fast", 1);
         if let Some(id) = previous_id { assert_eq!(host.request("GET", "/dev/status", Value::Null)["storeId"], id); }
         assert!(fs::symlink_metadata(fixture.0.join(".snapback4")).unwrap().file_type().is_symlink());
         let url = format!("http://{}", host.address);
@@ -314,6 +331,7 @@ fn doctor_url_inspects_and_resets_ipv6_loopback() {
     let url = format!("http://{}", host.address);
     assert!(url.starts_with("http://[::1]:"));
     host.request("POST", "/q/fast", json!({"args":{}}));
+    host.latency_after("/q/fast", 1);
     let result = answer(&fixture, &["doctor", "--latency", "--json", "--url", &url]);
     assert_eq!(result["operations"]["/q/fast"]["n"], 1);
     let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);

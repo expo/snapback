@@ -1,0 +1,12 @@
+{
+  "run": "control-token-lock-after",
+  "exit": 0,
+  "trace_sha256": "b473f63a95d9f109ad08997208b6adfca1c42267286ad97caacc6e90d9703b74",
+  "required_delay_ms": 1500,
+  "child_exec_events": 11,
+  "resumed_child_execs": 11,
+  "ended_before_resume": 0,
+  "min_observed_delay_ms": 1500.074846,
+  "max_observed_delay_ms": 1501.05134,
+  "root_first_exec_delayed": false
+}

@@ -1,5 +1,5 @@
 use super::*;
-use std::{io::{BufRead, BufReader, Write}, os::unix::fs::{symlink, PermissionsExt}};
+use std::{io::{BufRead, BufReader}, os::unix::fs::{symlink, PermissionsExt}};
 
 fn server(p: &Project, name: &str) -> Running {
     let mut host = Running::start(p, name, &["dev", "--port", "0", "--no-watch"]);
@@ -275,10 +275,14 @@ fn device_cannot_clear_a_running_servers_rows() {
     let p = Project::new(); p.initialize();
     let _host = server(&p, "device-fence-host");
     let backend = backend_file(&p);
-    let mut child = Command::new(BIN).args(["device", p.store().to_str().unwrap(), backend.to_str().unwrap()])
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
-    child.stdin.take().unwrap().write_all(b"{\"op\":\"clear_rows\"}\n").unwrap();
-    let out = child.wait_with_output().unwrap();
+    // @ref LLP 3000#publication-suite-under-contention — queue input before a child can refuse startup.
+    // Ownership refusal may close stdin before this parent runs again. Make
+    // clear_rows available from launch, preserving the attempted destructive
+    // command while testing the refusal and unchanged store below.
+    let request = p.0.join("clear-rows.jsonl");
+    fs::write(&request, b"{\"op\":\"clear_rows\"}\n").unwrap();
+    let out = Command::new(BIN).args(["device", p.store().to_str().unwrap(), backend.to_str().unwrap()])
+        .stdin(fs::File::open(request).unwrap()).output().unwrap();
     assert!(!out.status.success(), "{out:?}");
     assert!(String::from_utf8_lossy(&out.stderr).contains("E_STORE_BUSY"), "{out:?}");
     assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);

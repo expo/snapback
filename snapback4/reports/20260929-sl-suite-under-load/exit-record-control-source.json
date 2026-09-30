@@ -1,0 +1,22 @@
+{
+  "base": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "source": "crates/snapback4/tests/check.rs",
+  "files": {
+    "original": {
+      "path": "target/sl-load/exit-record-original.rs",
+      "sha256": "f50c814b8fe4ad44201a18a1df64b9ef8343dbb839fec1fd048eec84bb14f995"
+    },
+    "before": {
+      "path": "target/sl-load/exit-record-before.rs",
+      "sha256": "75866b5a4d7ebaec37f3f59f04a44f83ecfc66117a393347f9bc0ab32c5dc5ce"
+    },
+    "after": {
+      "path": "target/sl-load/exit-record-after.rs",
+      "sha256": "65db957fb2ae0f3d44318f6dc655f9071b74d0ebd3aa4f5847d9adc6014b0ca6"
+    },
+    "candidate": {
+      "path": "target/sl-load/exit-record-candidate.rs",
+      "sha256": "0e96fbc26c5d53546dab638d35b92dcf6de9b26f045e2c699059e909ae2063ee"
+    }
+  }
+}

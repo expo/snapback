@@ -1,0 +1,10 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.54s
+     Running tests/guide.rs (target/debug/deps/guide-f36065952f1cbdff)
+
+running 1 test
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.06s
+

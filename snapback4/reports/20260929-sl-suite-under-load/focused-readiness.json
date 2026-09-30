@@ -1,0 +1,49 @@
+{
+  "name": "focused-readiness",
+  "workers": 0,
+  "mode": "load",
+  "affinity": [
+    "taskset",
+    "-c",
+    "80-95"
+  ],
+  "guard": [
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/confine"
+  ],
+  "wrapper": [],
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--bin",
+    "snapback4",
+    "serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness",
+    "--",
+    "--exact",
+    "--nocapture"
+  ],
+  "harness_sha256": {
+    "confine": "f75c042ca47551b8bb172d24702a3a2a830fc8eb000429752302b18aff229241",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-09-29T20:44:44.788215+00:00",
+  "head": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "diff_sha256": "6cfcf1c2f86515cf6ec53f3438880b8a7ae5229cd885947d5eda9d11679dc274",
+  "tested_diff_sha256": "912f4a643253b6611645afad63d093ca9cfc3a775d49a29622523385efafd4ba",
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1452086,
+  "exit": 0,
+  "elapsed_seconds": 2.7493373579345644,
+  "end": "2026-09-29T20:44:47.626580+00:00"
+}

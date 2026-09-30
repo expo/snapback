@@ -1,0 +1,4 @@
+3763663 execve(0x7fffa975a050, 0x7fffa975b5a8, 0x7fffa975b5c8) = 0
+3763664 execve(0x5aa9afa771d0, 0x5aa9afa77b40, 0x5aa9afa771f0) = 0 (DELAYED)
+3763663 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=3763664, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+3763663 execve(0x5aa9afa784c0, 0x5aa9afa77ae0, 0x5aa9afa771f0) = 0 (DELAYED)

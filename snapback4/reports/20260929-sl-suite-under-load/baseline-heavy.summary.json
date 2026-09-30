@@ -1,0 +1,375 @@
+{
+  "log": "baseline-heavy.log",
+  "sha256": "9650144b7c7d255e3c5e432e717692a5830f601581ddd76a8f8fcf05c45091cc",
+  "summary": [
+    "== 2 failure(s) in 3457 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (7 s)",
+    "-- ok: wasm build (1 s)",
+    "-- ok: docs budget (6 s)",
+    "-- ok: release guard (10 s)",
+    "-- ok: package typecheck (6 s)",
+    "-- ok: package build (7 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1581 s)",
+    "-- ok: chat app typecheck (3 s)",
+    "-- ok: expo app typecheck (4 s)",
+    "-- ok: fixture wrapper tests (56 s)",
+    "-- FAIL: client tests (1230 s)",
+    "-- FAIL: client models (609 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4341,
+    "failed": 0,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 56379.568076",
+    "ℹ tests 5208",
+    "ℹ suites 0",
+    "ℹ pass 5181",
+    "ℹ fail 16",
+    "ℹ cancelled 1",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 1228256.329039",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 78",
+    "ℹ fail 0",
+    "ℹ cancelled 1",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 608120.530865"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [
+    {
+      "line": 5680,
+      "text": "ℹ Error: Test \"wasm keep=undefined: a due completion preserves a newer answer and retries\" at packages/snapback4/test/per-row-retry.test.mjs:36:3 generated asynchronous activity after the test ended. This activity created the error \"TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined.\" and would have caused the test to fail, but instead triggered an uncaughtException event."
+    },
+    {
+      "line": 5681,
+      "text": "ℹ Error: Test \"wasm keep=false: a due completion preserves a newer answer and retries\" at packages/snapback4/test/per-row-retry.test.mjs:36:3 generated asynchronous activity after the test ended. This activity created the error \"TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined.\" and would have caused the test to fail, but instead triggered an uncaughtException event."
+    },
+    {
+      "line": 5682,
+      "text": "ℹ Error: Test \"wasm keep=true: a due completion preserves a newer answer and retries\" at packages/snapback4/test/per-row-retry.test.mjs:36:3 generated asynchronous activity after the test ended. This activity created the error \"TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined.\" and would have caused the test to fail, but instead triggered an uncaughtException event."
+    },
+    {
+      "line": 5683,
+      "text": "ℹ Error: Test \"process keep=undefined: a due completion preserves a newer answer and retries\" at packages/snapback4/test/per-row-retry.test.mjs:36:3 generated asynchronous activity after the test ended. This activity created the error \"TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined.\" and would have caused the test to fail, but instead triggered an uncaughtException event."
+    },
+    {
+      "line": 5684,
+      "text": "ℹ Error: Test \"process keep=false: a due completion preserves a newer answer and retries\" at packages/snapback4/test/per-row-retry.test.mjs:36:3 generated asynchronous activity after the test ended. This activity created the error \"TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined.\" and would have caused the test to fail, but instead triggered an uncaughtException event."
+    }
+  ],
+  "failures": [
+    {
+      "line": 8032,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/answer-withdrawal.test.mjs:192:111",
+        "✖ online: revoked data, keep=undefined, held (169.469491ms)",
+        "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "  + actual - expected",
+        "  ",
+        "  + undefined",
+        "  - 'private answer'",
+        "  ",
+        "      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:215:12)",
+        "      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {",
+        "    generatedMessage: true,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: undefined,",
+        "    expected: 'private answer',",
+        "    operator: 'strictEqual',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8052,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/answer-withdrawal.test.mjs:192:111",
+        "✖ online: revoked data, keep=undefined, throw (239.78734ms)",
+        "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "  + actual - expected",
+        "  ",
+        "  + undefined",
+        "  - 'private answer'",
+        "  ",
+        "      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:215:12)",
+        "      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {",
+        "    generatedMessage: true,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: undefined,",
+        "    expected: 'private answer',",
+        "    operator: 'strictEqual',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8072,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/per-row-liveness.test.mjs:54:3",
+        "✖ process keep=undefined: eight closed active reads cannot starve later observations or publish late (436.903987ms)",
+        "  AssertionError [ERR_ASSERTION]: controlled work made progress",
+        "      at pump (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:96:14)",
+        "      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:98:5)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {",
+        "    generatedMessage: false,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: false,",
+        "    expected: true,",
+        "    operator: '==',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8087,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/per-row-liveness.test.mjs:54:3",
+        "✖ process keep=false: eight closed active reads cannot starve later observations or publish late (355.697065ms)",
+        "  AssertionError [ERR_ASSERTION]: controlled work made progress",
+        "      at pump (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:96:14)",
+        "      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:98:5)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {",
+        "    generatedMessage: false,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: false,",
+        "    expected: true,",
+        "    operator: '==',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8102,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/per-row-publication.test.mjs:45:2",
+        "✖ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (356.529042ms)",
+        "  AssertionError [ERR_ASSERTION]: the reset retires the completed attempt and queues one replacement",
+        "  ",
+        "  1 !== 2",
+        "  ",
+        "      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/per-row-publication.test.mjs:83:10)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {",
+        "    generatedMessage: false,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: 1,",
+        "    expected: 2,",
+        "    operator: 'strictEqual',",
+        "    diff: 'simple'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8119,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/per-row-retry.test.mjs:1:1",
+        "✖ packages/snapback4/test/per-row-retry.test.mjs (8487.675362ms)",
+        "  'test failed'",
+        ""
+      ]
+    },
+    {
+      "line": 8123,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ replacement after validation refuses the original orphan binding at the server (ordinary transport) (12590.284317ms)",
+        "  page.waitForResponse: Timeout 5000ms exceeded while waiting for event \"response\"",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1116:29)",
+        "      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1098:39) {",
+        "    name: 'TimeoutError'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8131,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ replacement after validation refuses the original orphan binding at the server (exit transport) (12221.059882ms)",
+        "  page.waitForResponse: Timeout 5000ms exceeded while waiting for event \"response\"",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1116:29)",
+        "      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1098:39) {",
+        "    name: 'TimeoutError'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 8139,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5292.03799ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1200:18)",
+        "      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1150:78)",
+        ""
+      ]
+    },
+    {
+      "line": 8145,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a fresh orphan bound to A is retired before enqueue on B (exit transport) (2.38122ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1151:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1150:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8154,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (9.098118ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1151:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1150:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8163,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1.041612ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1151:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1150:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8172,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (5.925122ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1209:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1208:9)",
+        ""
+      ]
+    },
+    {
+      "line": 8181,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ same-epoch logout tombstone refuses live admission (1.473289ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1249:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1248:51)",
+        ""
+      ]
+    },
+    {
+      "line": 8190,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ same-epoch logout tombstone refuses live admission even with retained session fields (0.861111ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1249:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1248:51)",
+        ""
+      ]
+    },
+    {
+      "line": 8199,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a confirmed epoch mismatch fences existing observations while the change poll is held (4.759354ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/home/ccheever/sb4-intent/lane-sl/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:266:19)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1274:31)",
+        "      at check (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1273:9)",
+        ""
+      ]
+    },
+    {
+      "line": 8208,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:11:1",
+        "✖ web admission review: recovery and transport respect the session boundary (180195.292619ms)",
+        "  'test timed out after 180000ms'"
+      ]
+    },
+    {
+      "line": 8350,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/app-session-model.test.mjs:5:41",
+        "✖ local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (240001.128193ms)",
+        "  'test timed out after 240000ms'"
+      ]
+    }
+  ]
+}

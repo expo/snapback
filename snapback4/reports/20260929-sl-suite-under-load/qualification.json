@@ -1,0 +1,329 @@
+{
+  "matrix": "route-drain-final-matrix.json",
+  "source_receipt": "route-drain-source-change.json",
+  "tested_diff_sha256": "8a1ed4c2a7dd66718ef4fd72c1e2c135b3afa628d63eb1916b9deb53665838f5",
+  "heavy_passes": [
+    "qualified-heavy-9",
+    "qualified-heavy-11",
+    "qualified-heavy-12"
+  ],
+  "runs": [
+    {
+      "name": "qualified-heavy-9",
+      "summary": [
+        "== 0 failure(s) in 3513 s"
+      ],
+      "rust": {
+        "passed": 4342,
+        "failed": 0,
+        "ignored": 33
+      },
+      "node_summaries": [
+        "\u2139 tests 9",
+        "\u2139 suites 0",
+        "\u2139 pass 9",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 43792.458211",
+        "\u2139 tests 5207",
+        "\u2139 suites 0",
+        "\u2139 pass 5197",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 10",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 1232118.368801",
+        "\u2139 tests 79",
+        "\u2139 suites 0",
+        "\u2139 pass 79",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 678505.919266"
+      ],
+      "wasm": [
+        "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+      ],
+      "inventory": [
+        "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+        "-- available CPUs: 16; client file concurrency: 5",
+        "-- client test files: 239; concurrency: 5"
+      ],
+      "elapsed_seconds": 3512.9781602737494,
+      "log_sha256": "bc851e7c76bb5c30283a7b8fc2cd4de3b50ad3faddcbeaa1e8ae1d4864f4a9af",
+      "metadata_sha256": "c35677b1a42c8f3e1767e613f76d34b559134238061e6c0d544158b8050f9a6e"
+    },
+    {
+      "name": "qualified-heavy-11",
+      "summary": [
+        "== 0 failure(s) in 3738 s"
+      ],
+      "rust": {
+        "passed": 4342,
+        "failed": 0,
+        "ignored": 33
+      },
+      "node_summaries": [
+        "\u2139 tests 9",
+        "\u2139 suites 0",
+        "\u2139 pass 9",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 36772.333846",
+        "\u2139 tests 5207",
+        "\u2139 suites 0",
+        "\u2139 pass 5197",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 10",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 1280888.331664",
+        "\u2139 tests 79",
+        "\u2139 suites 0",
+        "\u2139 pass 79",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 673246.299074"
+      ],
+      "wasm": [
+        "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+      ],
+      "inventory": [
+        "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+        "-- available CPUs: 16; client file concurrency: 5",
+        "-- client test files: 239; concurrency: 5"
+      ],
+      "elapsed_seconds": 3738.2869123546407,
+      "log_sha256": "2dc5682ea3905a2d82cea894d365d17fe36b5596804ffb52fc5c6019476aa063",
+      "metadata_sha256": "74c5d536e20fd19cde39c29b785bcb49273b585baf2ec3d0bfd7e22f7281b655"
+    },
+    {
+      "name": "qualified-heavy-12",
+      "summary": [
+        "== 0 failure(s) in 3514 s"
+      ],
+      "rust": {
+        "passed": 4342,
+        "failed": 0,
+        "ignored": 33
+      },
+      "node_summaries": [
+        "\u2139 tests 9",
+        "\u2139 suites 0",
+        "\u2139 pass 9",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 40662.879876",
+        "\u2139 tests 5207",
+        "\u2139 suites 0",
+        "\u2139 pass 5197",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 10",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 1265970.453944",
+        "\u2139 tests 79",
+        "\u2139 suites 0",
+        "\u2139 pass 79",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 663664.047684"
+      ],
+      "wasm": [
+        "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+      ],
+      "inventory": [
+        "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+        "-- available CPUs: 16; client file concurrency: 5",
+        "-- client test files: 239; concurrency: 5"
+      ],
+      "elapsed_seconds": 3514.2277159118094,
+      "log_sha256": "e64376f08f7c13bcdf3502300daf193c22441b975f7d598c578f836c26739600",
+      "metadata_sha256": "31c8ff8bc7fde5861bcf755c46090b41d033805c277b5b09e0313d079d7d98b8"
+    },
+    {
+      "name": "qualified-slow-3",
+      "summary": [
+        "== 0 failure(s) in 2494 s"
+      ],
+      "rust": {
+        "passed": 4342,
+        "failed": 0,
+        "ignored": 33
+      },
+      "node_summaries": [
+        "\u2139 tests 9",
+        "\u2139 suites 0",
+        "\u2139 pass 9",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 12490.649403",
+        "\u2139 tests 5207",
+        "\u2139 suites 0",
+        "\u2139 pass 5197",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 10",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 1470111.410525",
+        "\u2139 tests 79",
+        "\u2139 suites 0",
+        "\u2139 pass 79",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 298377.051204"
+      ],
+      "wasm": [
+        "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+      ],
+      "inventory": [
+        "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+        "-- available CPUs: 16; client file concurrency: 5",
+        "-- client test files: 239; concurrency: 5"
+      ],
+      "elapsed_seconds": 2495.4536358709447,
+      "log_sha256": "31455e61cd64013d53ff63b2eeb6e8b25484101bcdb0d94ff97d2fdd7eca7d58",
+      "metadata_sha256": "44ea8a68ed58e3a86ee5552036d0dbc1ea43a35a98311880c9d536f8350f1aa1"
+    },
+    {
+      "name": "guide-full",
+      "summary": [],
+      "rust": {
+        "passed": 99,
+        "failed": 0,
+        "ignored": 0
+      },
+      "node_summaries": [],
+      "wasm": [],
+      "inventory": [],
+      "elapsed_seconds": 3.1630228040739894,
+      "log_sha256": "50ebc49bbd331cc0adf576aad8ae69057886d154fbb01893cd117b08d3fd1b0e",
+      "metadata_sha256": "9ccbf4d14ce29558d1c036e99dd19e4afde0e87d426df1b725f8f0a7dcd9273e"
+    },
+    {
+      "name": "final-unconfined",
+      "summary": [
+        "== 0 failure(s) in 1216 s"
+      ],
+      "rust": {
+        "passed": 4342,
+        "failed": 0,
+        "ignored": 33
+      },
+      "node_summaries": [
+        "\u2139 tests 9",
+        "\u2139 suites 0",
+        "\u2139 pass 9",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 11891.443979",
+        "\u2139 tests 5207",
+        "\u2139 suites 0",
+        "\u2139 pass 5197",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 10",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 410004.619736",
+        "\u2139 tests 79",
+        "\u2139 suites 0",
+        "\u2139 pass 79",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 297025.545007"
+      ],
+      "wasm": [
+        "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+      ],
+      "inventory": [
+        "-- rust inventory: 274 test binaries, 987 executions; at most 24 concurrent processes",
+        "-- available CPUs: 96; client file concurrency: 24",
+        "-- client test files: 239; concurrency: 24"
+      ],
+      "elapsed_seconds": 1216.6388849858195,
+      "log_sha256": "36efa3af49243d833e8228d4646801eb0598d102198a4efeb94d3e028c7174e6",
+      "metadata_sha256": "a9c8d6905f0b7b0fbf9e18a4cc64d1bf2cedbec1e46bbdf5ef97568a03d54483"
+    }
+  ],
+  "startup": {
+    "run": "qualified-slow-3",
+    "exit": 0,
+    "trace_sha256": "862b758ab6a5d66fb9375309ca19d550d985c40f838c40a54a8214f7181811cd",
+    "required_delay_ms": 300,
+    "child_exec_events": 14782,
+    "resumed_child_execs": 14776,
+    "ended_before_resume": 6,
+    "min_observed_delay_ms": 300.00001,
+    "max_observed_delay_ms": 305.082237,
+    "root_first_exec_delayed": false
+  },
+  "all_attempts": [
+    {
+      "name": "qualified-heavy-9",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3513 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-10",
+      "exit": 1,
+      "summary": [
+        "== 1 failure(s) in 3512 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-11",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3738 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-12",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3514 s"
+      ]
+    },
+    {
+      "name": "qualified-slow-3",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 2494 s"
+      ]
+    },
+    {
+      "name": "guide-full",
+      "exit": 0,
+      "summary": []
+    },
+    {
+      "name": "final-unconfined",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 1216 s"
+      ]
+    }
+  ],
+  "wasm_sha256": "76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95"
+}

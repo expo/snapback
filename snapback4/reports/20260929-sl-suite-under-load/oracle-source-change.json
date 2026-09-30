@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-29T23:47:00.586323+00:00",
+  "files": [
+    {
+      "path": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "candidate": "target/sl-load/mixed-evidence-oracle.candidate.mjs",
+      "before_sha256": "11beb9b46dc312cf438f38417417572109f51dae8993b4b1e8b038b150315b25",
+      "candidate_sha256": "30515d3c8c0efe9c1599cdc4acb5501133ccf5eb913ad7fcb6e27726c5c0e39e"
+    }
+  ],
+  "tested_diff_sha256": "8411a94e1483de908fdc370692cd42e9c064e45b4bec4aa75c0b0a2448dddfb9"
+}
