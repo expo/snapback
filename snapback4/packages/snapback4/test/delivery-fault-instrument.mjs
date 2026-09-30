@@ -101,6 +101,10 @@ export function instrument(destination) {
 // settles nor observes a write. Failure withholds the read. The causal Following
 // regression covers admission/settlement/apply, including zero-wait retirement;
 // mutation delivery continues through the unchanged classified sites above.
+// node-fetch's two new awaits are below the classified doFetch boundaries.
+// keepalive-retry exercises a committed mutation with a lost reply, identical
+// ID/body/authority snapshots, exhausted retry, fresh failures and partial-response failure.
+// No outbox admission, settlement, persistence or publication await is added.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

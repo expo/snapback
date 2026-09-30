@@ -246,6 +246,11 @@ where
         self.chunked_threshold.unwrap_or(32768)
     }
 
+    pub(crate) fn set_connection_headers(&mut self, headers: Vec<Header>) {
+        self.headers.retain(|h| !h.field.equiv("Connection") && !h.field.equiv("Keep-Alive"));
+        self.headers.extend(headers);
+    }
+
     /// Adds a header to the list.
     /// Does all the checks.
     pub fn add_header<H>(&mut self, header: H)

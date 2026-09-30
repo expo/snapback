@@ -20,7 +20,7 @@ export function onlineDelivery(env: {
       if (!env.ready() || signal.aborted) return { json: {}, accepted: false, deferred: true };
       const revision = env.revision(), floor = env.floor(), store = env.store();
       const response = await env.fetch(`${env.url}/m/${encodeURIComponent(mutation)}`, {
-        method: "POST", headers: env.headers(), body: JSON.stringify({ ...body, store_id: store }), signal,
+        method: "POST", headers: env.headers(), body: JSON.stringify({ ...body, store_id: store, retry_write: true }), signal,
       });
       const json = await response.json() as Record<string, unknown>;
       if (signal.aborted || !env.current()) throw new Error("obsolete delivery response");

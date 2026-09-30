@@ -15,7 +15,7 @@ export function waitForCaller<T>(work: Promise<T>, stopped: AbortSignal, known =
 export function postForCaller(doFetch: typeof fetch, base: string, path: string, headers: Record<string, string>, body: unknown, stopped: AbortSignal, received = (_json: Record<string, unknown>, _status: number) => {}, decode?: (response: Response) => Promise<Record<string, unknown>>) {
   let arrived = false;
   const work = (async () => {
-    const send = () => doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body), ...(path.startsWith("/q/") ? { signal: stopped } : {}) });
+    const send = () => doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(path.startsWith("/m/") ? { ...(body as object), retry_write: true } : body), ...(path.startsWith("/q/") ? { signal: stopped } : {}) });
     const { response, json } = path.startsWith("/q/")
       ? await readWithAdmissionRetry(send, () => !stopped.aborted, stopped, decode)
       : await send().then(async response => ({ response, json: await readResponse(response, decode) }));

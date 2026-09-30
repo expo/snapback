@@ -79716,5 +79716,63 @@ changed. Existing wasm was hashed/measured, not rebuilt: 1,978,828 B raw /
 593,233 B gzip, unchanged and 486 B below the 593,719 B ratchet. No performance
 requalification or budget increase. Report and all evidence:
 reports/20260930-bn-envelope-proof/round3/REPORT.md.
+
+## 2026-09-30 — KA round 0: HTTP idle reuse and one bounded retry
+
+Starting main 9d03e94623 (0.4.9), branch sb4-intent/ka-keepalive-reuse. The real
+SDK/dev idle-close experiment loses 16/384 reads across eight 48-client cohorts
+on baseline and 0/384 after the fix. A client pause after socket selection,
+before writing, exposes the race; ordinary pauses before selection already pass
+baseline because pinned undici checks stale sockets. Linux reports UND_ERR_SOCKET
+in this idle experiment. Separate real TCP-reset controls reproduce main's
+literal ECONNRESET and lose a real dev mutation's committed reply; fixed code
+recovers it once, with the original write ID and one committed row. These are
+conditioned experiments, not calibration #27's production failure rate or proof
+of that event's cause.
+
+Bounded tiny_http responses now advertise their five-second idle lease,
+including coalesced JSON and heartbeat frames. HTTP/1.0 needs explicit keep-alive;
+close/upgrade tokens and forced-close refusals get no lease hint. The private
+Node agent retires idle sockets after one second. Its single fresh-connection
+retry requires a previously completed response on the same socket, zero new
+response bytes, a reset/closed-socket error and a repeatable request. Materialized
+queries/sync and read/status routes qualify. Durable mutation envelopes carry
+retry_write with their existing write ID; the ephemeral handler refuses that
+field before executing, including after hot adoption, unless a prior durable
+receipt settles it. Auth, actions, asset views/uploads, unmarked writes, fresh
+connection failures, redirects and partial responses keep their existing errors.
+No engine, storage, contract, connection/admission cap or active-response deadline
+changed. Long holds, streaming, E_RATE_LIMIT and TLS termination checks pass.
+LLP 3000's HTTP overload section and the guide record the policy.
+
+Chromium's real SDK witness passes 72 renderer-pause reads on each server version.
+Expo's NSURLSession/OkHttp pools operate outside application JS; source review
+explains their native recovery and remaining failure boundary. No opaque-fetch
+retry was added. This Linux host has no native simulator and the fleet inventory
+was unavailable, so this is not native runtime qualification.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1437 s
+
+All 13 stages pass: Rust 4,363 passes with 33 existing ignores (the docs-budget
+stage separately repeats one guide case); clients 5,330 passes with ten existing
+skips; fixtures 9/9; serial models 79/79 including both full 5,000-sequence walks.
+Full-run failures: ours 0, baseline 0, environmental 0. No cancellations, lowered
+counts or relaxed timeouts. The inherited nominal 60-second suite bar is exceeded.
+Production source stayed fixed during that run. A separate regression found
+mutable caller options could change the retried URL/body/authority. The correction
+after the full run snapshots those inputs; final affected checks pass 87/87,
+including all 17 retry cases. Final SDK typecheck/build, await classification,
+standalone snapshot regression and forced post-selection idle retry pass. This
+is explicitly not an unchanged-final-source full-suite qualification.
+
+Other checks: whole guide 105/105; overload 109/109; vendored tiny_http with
+ssl-rustls 51 tests/doctests; Chromium, held polls and verified TLS pass. Wasm is
+1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged 593,719 B ratchet.
+No budget increase. Every failing baseline control, corrected implementation or
+fixture failure, and cold-tree build prerequisite is classified in the report.
+Evidence, source snapshots and rerunnable controls:
+reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.

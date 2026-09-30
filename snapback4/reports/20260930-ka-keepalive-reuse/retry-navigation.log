@@ -1,0 +1,57 @@
+✔ socket reset: reused=false, reset again=false (25.714787ms)
+✔ socket reset: reused=false, reset again=true (4.910643ms)
+✔ socket reset: reused=true, reset again=false (32.325738ms)
+✔ socket reset: reused=true, reset again=true (26.710059ms)
+✔ no retry after response bytes: partial header (54.155099ms)
+✔ no retry after response bytes: body (55.635098ms)
+✔ no ambiguous replay for /auth/refresh (314.619408ms)
+✔ no ambiguous replay for /assets (138.511052ms)
+✔ no ambiguous replay for /assets/once (361.282553ms)
+✔ no ambiguous replay for /a/work (500.37034ms)
+✔ no ambiguous replay for /m/ephemeral (137.434889ms)
+✔ no ambiguous replay for /m/add (362.538576ms)
+✔ a delivered overload is returned without socket retries (500.780514ms)
+✔ a reset retry preserves one real durable mutation and its write ID (275.328424ms)
+✔ the private agent retires idle sockets within the one-second budget (1008.16475ms)
+✔ a retryable durable envelope cannot execute an ephemeral operation (166.339387ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1044 ms
+✔ stalled exit body recovers in order (not applied) (1645.854957ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 1 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1022 ms
+✔ stalled exit body recovers in order (already applied acknowledgement) (1252.14395ms)
+stalled exit close: 969 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1123.53906ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.995562ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1224.023504ms)
+✔ pagehide dispatch and retryable hold invalidate the pending-write list (1121.843937ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1095.081389ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1219.79269ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=false) (1191.03562ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=true) (1190.468549ms)
+✔ a second exit before its status commit supersedes the first acknowledged exit and later hold (1191.332624ms)
+✔ first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available) (1187.092717ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available) (1185.983834ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws) (1183.036693ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1186.861899ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available) (1185.876451ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws) (1185.943821ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1186.435267ms)
+✔ pagehide dispatch subscriber signOut prevents keepalive and POST (1198.299606ms)
+✔ pagehide dispatch subscriber close prevents keepalive and POST (1186.236087ms)
+✔ IndexedDB save resolves on transaction completion, not request success (1.514982ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1103.552011ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1084.315379ms)
+keepalive: 64179 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (3.487149ms)
+✔ exit ordering survives reversed server processing (1.662142ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (2.216323ms)
+✔ exit overlaps only the same ordinary in-flight head (1141.981741ms)
+✔ ordinary flush waits for the exit request before replaying its head (1123.351498ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 44
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27540.667301
