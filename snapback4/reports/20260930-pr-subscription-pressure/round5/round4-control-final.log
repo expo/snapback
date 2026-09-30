@@ -1,0 +1,354 @@
+✔ notification: one authority revision retires detached and pending answers (1.385286ms)
+✖ quiet poll: one authority revision retires detached and pending answers (0.429534ms)
+✖ apply publication: one authority revision retires detached and pending answers (0.174292ms)
+✔ local commit: one authority revision retires detached and pending answers (0.214742ms)
+✖ scope cut: one authority revision retires detached and pending answers (0.308512ms)
+✖ partition refusal: one authority revision retires detached and pending answers (0.195353ms)
+✔ reset: one authority revision retires detached and pending answers (0.142393ms)
+✖ every terminal refusal advances authority, even when the same refusal repeats without owners (2.823361ms)
+✖ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.843014ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ wasm: terminal partition refusal retires in-flight first answer at response (579.10951ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"ae8d81baed9e01a31d95553c6539e25f","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ wasm: terminal partition refusal retires in-flight first answer at approval (241.752863ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"a75d8b97d3843de4eb1b7cbcb3ef1a3a","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ process: terminal partition refusal retires in-flight first answer at response (269.194801ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"3c1bcce4f2cc06afb611491b6fa78203","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ process: terminal partition refusal retires in-flight first answer at approval (267.437348ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"256aef0d0f9c81e0b1404f35953f0858","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✖ wasm: ownerless server memory is retired by publication (1917.262264ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797415648,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797415648},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ wasm: ownerless server memory is retired by commit-then-throw (1434.459371ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797417101,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797417101},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ wasm: ownerless server memory is retired by recovery-after-lost-ack (1439.90283ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797418536,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797418536},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm: ownerless server memory is retired by unknown-footprint (1437.595682ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✖ wasm: ownerless server memory is retired by empty-notification (1459.462966ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797421411,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797421411},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ process: ownerless server memory is retired by publication (1484.826831ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797422923,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797422923},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ process: ownerless server memory is retired by commit-then-throw (1489.391302ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797424407,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797424407},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ process: ownerless server memory is retired by recovery-after-lost-ack (1491.309277ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797425894,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797425894},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process: ownerless server memory is retired by unknown-footprint (1482.111472ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✖ process: ownerless server memory is retired by empty-notification (1509.73316ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797428867,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797428867},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+ℹ tests 23
+ℹ suites 0
+ℹ pass 5
+ℹ fail 18
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15297.708625
+
+✖ failing tests:
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:15:5
+✖ quiet poll: one authority revision retires detached and pending answers (0.429534ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:19:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:15:5
+✖ apply publication: one authority revision retires detached and pending answers (0.174292ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:19:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:15:5
+✖ scope cut: one authority revision retires detached and pending answers (0.308512ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:19:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:15:5
+✖ partition refusal: one authority revision retires detached and pending answers (0.195353ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:19:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:23:1
+✖ every terminal refusal advances authority, even when the same refusal repeats without owners (2.823361ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(reads.revision > authority)
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:28:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:31:1
+✖ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.843014ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   at: 0,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     data: 'saved',
+  +     fresh: true
+  +   },
+  +   tables: Set(1) {
+  +     'profiles'
+  +   }
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:36:33)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'saved', complete: true, fresh: true }, at: 0, tables: Set(1) { 'profiles' }, nextExpiry: null },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ wasm: terminal partition refusal retires in-flight first answer at response (579.10951ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ wasm: terminal partition refusal retires in-flight first answer at approval (241.752863ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ process: terminal partition refusal retires in-flight first answer at response (269.194801ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ process: terminal partition refusal retires in-flight first answer at approval (267.437348ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ wasm: ownerless server memory is retired by publication (1917.262264ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ wasm: ownerless server memory is retired by commit-then-throw (1434.459371ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ wasm: ownerless server memory is retired by recovery-after-lost-ack (1439.90283ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ wasm: ownerless server memory is retired by empty-notification (1459.462966ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ process: ownerless server memory is retired by publication (1484.826831ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ process: ownerless server memory is retired by commit-then-throw (1489.391302ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ process: ownerless server memory is retired by recovery-after-lost-ack (1491.309277ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ process: ownerless server memory is retired by empty-notification (1509.73316ms)
+  AssertionError [ERR_ASSERTION]: revoked content cannot recover after watermark evidence
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:86:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

@@ -32,7 +32,7 @@ export function mockSignals(options: MockOptions, tables: Tables, viewer: () => 
     sweep();
     const fn = options.ops.signals?.[name] ?? options.ops.mutations[name];
     if (!fn) return { code: "E_OP", family: "op", message: `unknown ephemeral mutation ${name}` };
-    const draft: Tables = {}, touched = new Map<string, Set<string>>();
+    const draft: Tables = Object.create(null), touched = new Map<string, Set<string>>();
     for (const [table, rows] of Object.entries(tables)) {
       const copy = new Map([...rows].map(([id, row]) => [id, structuredClone(row)]));
       draft[table] = new Proxy(copy, { get(target, key) {

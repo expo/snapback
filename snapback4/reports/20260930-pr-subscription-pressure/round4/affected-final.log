@@ -1,0 +1,62 @@
+✔ online disjoint ordinary revalidation progresses during continuous hot-table evidence (450.011443ms)
+ℹ {"hotStarts":168,"coldRereads":5,"cold":[{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}],"coldStarts":[1,10,19,28,37],"pending":0,"active":8}
+✔ wasm: no-owner revocation must retire remembered content (1975.241888ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"500daaf6e2f3a8b0d31cf82aed0f998f"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"500daaf6e2f3a8b0d31cf82aed0f998f","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: no-owner revocation must retire remembered content (1533.142364ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"78b2b68c5fe255266a93ce0591f9c241"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"78b2b68c5fe255266a93ce0591f9c241","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: notification fences an unremembered in-flight direct answer (206.576036ms)
+✔ process: notification fences an unremembered in-flight direct answer (255.114431ms)
+✔ wasm: notification fences a saved candidate at recovery (1091.285392ms)
+✔ wasm: notification fences a saved candidate at approval (1096.019227ms)
+✔ process: notification fences a saved candidate at recovery (1119.274801ms)
+✔ process: notification fences a saved candidate at approval (1127.056774ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: partition refusal retires no-owner memory (195.227929ms)
+✔ wasm: credentials retires no-owner memory (243.239434ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: partition refusal retires no-owner memory (224.468161ms)
+✔ process: credentials retires no-owner memory (260.275866ms)
+✔ wasm: resumed handle inherits unrelated notification (631.158068ms)
+✔ wasm: resumed handle inherits intersecting notification (1453.022327ms)
+✔ process: resumed handle inherits unrelated notification (254.686269ms)
+✔ process: resumed handle inherits intersecting notification (1504.11439ms)
+✔ notification cuts keep unknown dependencies conservative and forget applied tables (0.308382ms)
+✔ online authorized sibling re-read jumps ordinary queued work after evidence (207.576736ms)
+✔ evidence priority survives an active attempt retiring into the queue (21.733603ms)
+✔ unused inspection records no timings and allocates no withdrawal callbacks (32.927328ms)
+✔ compound scope matching skips disjoint groups and watches with no tables (1.616362ms)
+✔ a pending group removal fences an initial observation until actual publication (0.19294ms)
+✔ wasm: published removal only withdraws its room and resumes (572.40901ms)
+✔ wasm: staged removal only withdraws its room and resumes (416.457846ms)
+✔ wasm: offline removal only withdraws its room and resumes (306.603617ms)
+✔ wasm: offline-before removal only withdraws its room and resumes (316.405188ms)
+✔ process: published removal only withdraws its room and resumes (260.918499ms)
+✔ process: staged removal only withdraws its room and resumes (448.775882ms)
+✔ process: offline removal only withdraws its room and resumes (349.338475ms)
+✔ process: offline-before removal only withdraws its room and resumes (350.326505ms)
+✔ wasm: terminal change-feed refusal bypasses eight occupied slots (169.176405ms)
+✔ process: terminal change-feed refusal bypasses eight occupied slots (197.01025ms)
+✔ online scope-ambiguous change evidence expires while waiting for capacity (1172.367921ms)
+✔ online viewer replacement is inspected as viewer, not schema reset (64.391364ms)
+✔ queue selection scales linearly, priority=false (141.325985ms)
+ℹ {"n":1000,"inspections":1124,"ms":20.767044}
+ℹ {"n":10000,"inspections":11249,"ms":119.17635999999999}
+✔ queue selection scales linearly, priority=true (109.967598ms)
+ℹ {"n":1000,"inspections":1124,"ms":8.576753999999994}
+ℹ {"n":10000,"inspections":11249,"ms":101.171817}
+✔ wasm: cancelled resumed watermark releases running (575.276307ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ wasm: expired resumed watermark releases running (191.944197ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: cancelled resumed watermark releases running (236.696347ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: expired resumed watermark releases running (219.564412ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9459.986305

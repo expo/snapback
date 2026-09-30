@@ -1,0 +1,318 @@
+[
+  {
+    "run": "convergence-active-process",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 3011.28,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 435.145,
+          "remainingMs": null
+        },
+        "historyHoldMs": 998.998576
+      }
+    ]
+  },
+  {
+    "run": "convergence-active-process",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 2626.02,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 48.854,
+          "remainingMs": null
+        },
+        "historyHoldMs": 999.519037
+      }
+    ]
+  },
+  {
+    "run": "convergence-active-wasm",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 2271.4,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 835.4,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1006.4000000953674
+      }
+    ]
+  },
+  {
+    "run": "convergence-active-wasm",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 2416.6,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 136.8,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1002
+      }
+    ]
+  },
+  {
+    "run": "convergence-final-process",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 0,
+    "withdrawals": []
+  },
+  {
+    "run": "convergence-final-process",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 0,
+    "withdrawals": []
+  },
+  {
+    "run": "convergence-final-wasm",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 4,
+    "withdrawals": [
+      {
+        "at": 2009.5,
+        "historyEventIndex": 15,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 832.4,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1013.3000001907349
+      }
+    ]
+  },
+  {
+    "run": "convergence-final-wasm",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 0,
+    "withdrawals": []
+  },
+  {
+    "run": "convergence-qualified-active-process",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 3036.236,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 456.86,
+          "remainingMs": null
+        },
+        "historyHoldMs": 997.563212
+      }
+    ]
+  },
+  {
+    "run": "convergence-qualified-active-process",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 2642.21,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 63.451,
+          "remainingMs": null
+        },
+        "historyHoldMs": 999.3291579999996
+      }
+    ]
+  },
+  {
+    "run": "convergence-qualified-active-wasm",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 3034.7,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 863.4,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1004.4000000953674
+      }
+    ]
+  },
+  {
+    "run": "convergence-qualified-active-wasm",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 1,
+    "withdrawals": [
+      {
+        "at": 1805.5,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 143,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1005.2999997138977
+      }
+    ]
+  },
+  {
+    "run": "convergence-qualified-process",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 0,
+    "withdrawals": []
+  },
+  {
+    "run": "convergence-qualified-process",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 0,
+    "withdrawals": []
+  },
+  {
+    "run": "convergence-qualified-wasm",
+    "device": 0,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 4,
+    "withdrawals": [
+      {
+        "at": 2050.2,
+        "historyEventIndex": 15,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 881.1,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1007.4000000953674
+      }
+    ]
+  },
+  {
+    "run": "convergence-qualified-wasm",
+    "device": 1,
+    "observations": 124,
+    "finalMessages": 42,
+    "uniqueMessages": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "emptyHistorySnapshots": 0,
+    "withdrawals": []
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "ll-fixed-wasm-3.json": {
+    "uncompressedBytes": 12055527,
+    "sha256": "e7827710579792e0bfb4d4cc07ea286f69ff7d015aaee468f65f37b46a884d70",
+    "artifact": "ll-fixed-wasm-3.json.gz",
+    "compressedBytes": 490969
+  },
+  "ll-base-wasm-0.json": {
+    "uncompressedBytes": 12186292,
+    "sha256": "3f29855d2eb5eb2ccc18c70a0673814a5a406de683304471d85521be4e682362",
+    "artifact": "ll-base-wasm-0.json.gz",
+    "compressedBytes": 495122
+  },
+  "ll-base-process-3.json": {
+    "uncompressedBytes": 8365189,
+    "sha256": "68c3ad70b441da753d594d3e62d92defc8851de2fdc78fe14d6b479063c3e1ab",
+    "artifact": "ll-base-process-3.json.gz",
+    "compressedBytes": 337056
+  },
+  "ll-base-wasm-3.json": {
+    "uncompressedBytes": 11368395,
+    "sha256": "e8eab48242a46e870428d634372aedcffeadf55d1be6f806a3b255065024e620",
+    "artifact": "ll-base-wasm-3.json.gz",
+    "compressedBytes": 456625
+  },
+  "ll-fixed-process-3.json": {
+    "uncompressedBytes": 8999874,
+    "sha256": "6ec8e3c35df5f413c042c2629a030f25ca143bbf2cdb7986819b971e7e294f69",
+    "artifact": "ll-fixed-process-3.json.gz",
+    "compressedBytes": 369328
+  },
+  "ll-fixed-wasm-0.json": {
+    "uncompressedBytes": 11104317,
+    "sha256": "1954cab42047749dcca7a12e4e6370a5cb5ad7ceda8466df965969833ff9ab54",
+    "artifact": "ll-fixed-wasm-0.json.gz",
+    "compressedBytes": 461857
+  },
+  "ll-base-process-0.json": {
+    "uncompressedBytes": 7589069,
+    "sha256": "9d9549e618bacc1217c7a7daaeb47fc29d136bcd0d6e07aca44f86ea730b05af",
+    "artifact": "ll-base-process-0.json.gz",
+    "compressedBytes": 310220
+  },
+  "ll-fixed-process-0.json": {
+    "uncompressedBytes": 8274379,
+    "sha256": "56848e1aeb911ef7a97545beda36bd39e253ac3f6fdbeefa8330d9fa36b24b6f",
+    "artifact": "ll-fixed-process-0.json.gz",
+    "compressedBytes": 343218
+  },
+  "ll-qualified-process-3.json": {
+    "uncompressedBytes": 9076226,
+    "sha256": "05d900be53dea4da9669fde04f2b1da0e6e9c4547f43ba7694ccbcc1712502b0",
+    "artifact": "ll-qualified-process-3.json.gz",
+    "compressedBytes": 374273
+  },
+  "ll-qualified-process-0.json": {
+    "uncompressedBytes": 8276742,
+    "sha256": "c8c2a3009c1c577189e0ce0abdd54969f07229f5fd9f569e8e6007335f8b3127",
+    "artifact": "ll-qualified-process-0.json.gz",
+    "compressedBytes": 343209
+  },
+  "ll-qualified-wasm-3.json": {
+    "uncompressedBytes": 11690031,
+    "sha256": "d83fb71a4de967d62be9a6c6731c6908282f9ceec21b78e69555ac501e95aec9",
+    "artifact": "ll-qualified-wasm-3.json.gz",
+    "compressedBytes": 478137
+  },
+  "ll-qualified-wasm-0.json": {
+    "uncompressedBytes": 11096817,
+    "sha256": "820ef74c81011e8f197a7bb9600cdfd56d6e43c496f73d514e64527dc75d6614",
+    "artifact": "ll-qualified-wasm-0.json.gz",
+    "compressedBytes": 457739
+  }
+}

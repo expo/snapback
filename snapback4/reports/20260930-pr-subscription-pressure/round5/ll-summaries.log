@@ -1,0 +1,80 @@
+reports/20260930-pr-subscription-pressure/round5/ll-base-process-0.json {
+  profile: { n: 20, p50: 19.348, p95: 22.976, max: 29.89 },
+  'reaction-add': { n: 20, p50: 32.884, p95: 41.542, max: 41.946 },
+  'reaction-replace': { n: 20, p50: 34.337, p95: 38.438, max: 41.311 },
+  'reaction-remove': { n: 20, p50: 33.97, p95: 40.534, max: 40.646 },
+  reply: { n: 20, p50: 59.405, p95: 69.482, max: 70.566 },
+  photo: { n: 20, p50: 65.875, p95: 78.957, max: 83.308 },
+  'feed-image': { n: 20, p50: 35.611, p95: 42.064, max: 43.029 },
+  'once-photo': { n: 20, p50: 68.276, p95: 84.884, max: 85.367 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-base-process-3.json {
+  profile: { n: 20, p50: 35.845, p95: 46.943, max: 47.936 },
+  'reaction-add': { n: 20, p50: 66.765, p95: 87.098, max: 91.67 },
+  'reaction-replace': { n: 20, p50: 72.865, p95: 117.044, max: 119.423 },
+  'reaction-remove': { n: 20, p50: 74.994, p95: 108.808, max: 113.411 },
+  reply: { n: 20, p50: 143.683, p95: 170.204, max: 179.771 },
+  photo: { n: 20, p50: 146.065, p95: 168.468, max: 182.667 },
+  'feed-image': { n: 20, p50: 57.83, p95: 72.868, max: 80.098 },
+  'once-photo': { n: 20, p50: 140.026, p95: 172.674, max: 179.359 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-base-wasm-0.json {
+  profile: { n: 20, p50: 42.841, p95: 61.669, max: 81.193 },
+  'reaction-add': { n: 20, p50: 58.271, p95: 104.445, max: 113.41 },
+  'reaction-replace': { n: 20, p50: 55.743, p95: 98.38, max: 105.131 },
+  'reaction-remove': { n: 20, p50: 56.856, p95: 94.421, max: 98.627 },
+  reply: { n: 20, p50: 113.942, p95: 147.433, max: 158.754 },
+  photo: { n: 20, p50: 113.145, p95: 137.63, max: 143.879 },
+  'feed-image': { n: 20, p50: 57.228, p95: 87.529, max: 89.293 },
+  'once-photo': { n: 20, p50: 105.845, p95: 135.97, max: 139.281 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-base-wasm-3.json {
+  profile: { n: 20, p50: 33.191, p95: 45.957, max: 56.739 },
+  'reaction-add': { n: 20, p50: 41.849, p95: 49.117, max: 79.866 },
+  'reaction-replace': { n: 20, p50: 39.641, p95: 68.551, max: 71.538 },
+  'reaction-remove': { n: 20, p50: 42.132, p95: 58.764, max: 67.609 },
+  reply: { n: 20, p50: 78.229, p95: 97.769, max: 114.654 },
+  photo: { n: 20, p50: 78.53, p95: 107.387, max: 155.967 },
+  'feed-image': { n: 20, p50: 39.828, p95: 56.292, max: 74.333 },
+  'once-photo': { n: 20, p50: 77.386, p95: 105.93, max: 124.57 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-fixed-process-0.json {
+  profile: { n: 20, p50: 22.526, p95: 28.23, max: 35.904 },
+  'reaction-add': { n: 20, p50: 34.237, p95: 41.047, max: 41.582 },
+  'reaction-replace': { n: 20, p50: 35.388, p95: 46.897, max: 48.952 },
+  'reaction-remove': { n: 20, p50: 40.663, p95: 46.21, max: 56.468 },
+  reply: { n: 20, p50: 52.178, p95: 90.992, max: 92.228 },
+  photo: { n: 20, p50: 57.09, p95: 90.648, max: 99.412 },
+  'feed-image': { n: 20, p50: 34.773, p95: 44.121, max: 48.485 },
+  'once-photo': { n: 20, p50: 61.762, p95: 89.266, max: 98.849 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-fixed-process-3.json {
+  profile: { n: 20, p50: 41.643, p95: 47.366, max: 47.968 },
+  'reaction-add': { n: 20, p50: 79.244, p95: 124.712, max: 128.92 },
+  'reaction-replace': { n: 20, p50: 91.206, p95: 135.636, max: 139.149 },
+  'reaction-remove': { n: 20, p50: 99.737, p95: 129.251, max: 138.999 },
+  reply: { n: 20, p50: 146.973, p95: 191.289, max: 216.737 },
+  photo: { n: 20, p50: 139.016, p95: 224.782, max: 234.767 },
+  'feed-image': { n: 20, p50: 61.956, p95: 70.076, max: 84.521 },
+  'once-photo': { n: 20, p50: 142.434, p95: 201.107, max: 226.581 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-fixed-wasm-0.json {
+  profile: { n: 20, p50: 24.136, p95: 29.883, max: 31.862 },
+  'reaction-add': { n: 20, p50: 23.376, p95: 31.449, max: 57.319 },
+  'reaction-replace': { n: 20, p50: 24.945, p95: 31.754, max: 53.215 },
+  'reaction-remove': { n: 20, p50: 27.137, p95: 29.763, max: 32.386 },
+  reply: { n: 20, p50: 50.773, p95: 70.862, max: 80.165 },
+  photo: { n: 20, p50: 54.164, p95: 69.83, max: 72.908 },
+  'feed-image': { n: 20, p50: 25.08, p95: 31.648, max: 35.982 },
+  'once-photo': { n: 20, p50: 51.475, p95: 64.315, max: 91.328 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-fixed-wasm-3.json {
+  profile: { n: 20, p50: 43.12, p95: 51.873, max: 60.462 },
+  'reaction-add': { n: 20, p50: 40.903, p95: 47.424, max: 50.957 },
+  'reaction-replace': { n: 20, p50: 38.618, p95: 52.604, max: 66.163 },
+  'reaction-remove': { n: 20, p50: 42.421, p95: 47.867, max: 50.15 },
+  reply: { n: 20, p50: 81.348, p95: 102.311, max: 103.998 },
+  photo: { n: 20, p50: 86.111, p95: 96.632, max: 104.141 },
+  'feed-image': { n: 20, p50: 42.035, p95: 57.44, max: 59.438 },
+  'once-photo': { n: 20, p50: 85.487, p95: 99.639, max: 102.451 }
+}

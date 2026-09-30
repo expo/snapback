@@ -1,0 +1,165 @@
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ wasm: terminal partition refusal retires in-flight first answer at response (617.611733ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"1ac40402af158ff029e12ed254128fa8","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ wasm: terminal partition refusal retires in-flight first answer at approval (252.164212ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"ae63bb8337cb5c545d9340507b6d50e7","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ process: terminal partition refusal retires in-flight first answer at response (234.525365ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"927a92723571009deffcb634bddec1f3","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ process: terminal partition refusal retires in-flight first answer at approval (212.394095ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"f3a2b10605d306d7ad4916aa8ce663e3","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✖ wasm: ownerless server memory is retired by publication (1809.486328ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ process: ownerless server memory is retired by publication (1457.746623ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}},"remembered":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3426.238098
+
+✖ failing tests:
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ wasm: terminal partition refusal retires in-flight first answer at response (617.611733ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ wasm: terminal partition refusal retires in-flight first answer at approval (252.164212ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ process: terminal partition refusal retires in-flight first answer at response (234.525365ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ process: terminal partition refusal retires in-flight first answer at approval (212.394095ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ wasm: ownerless server memory is retired by publication (1809.486328ms)
+  AssertionError [ERR_ASSERTION]: invalidation does not require a live owner
+  + actual - expected
+  
+  + {
+  +   at: 1790798013207,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: {
+  +       present: true,
+  +       secret: {
+  +         id: 'bob',
+  +         name: 'Bob'
+  +       }
+  +     },
+  +     existence: 'present',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(1) {
+  +     'profiles'
+  +   }
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:90:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null, existence: 'present' }, at: 1790798013207, nextExpiry: null, tables: Set(1) { 'profiles' } },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:11:3
+✖ process: ownerless server memory is retired by publication (1457.746623ms)
+  AssertionError [ERR_ASSERTION]: invalidation does not require a live owner
+  + actual - expected
+  
+  + {
+  +   at: 1790798014661,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: {
+  +       present: true,
+  +       secret: {
+  +         id: 'bob',
+  +         name: 'Bob'
+  +       }
+  +     },
+  +     existence: 'present',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(1) {
+  +     'profiles'
+  +   }
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:90:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null, existence: 'present' }, at: 1790798014661, nextExpiry: null, tables: Set(1) { 'profiles' } },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

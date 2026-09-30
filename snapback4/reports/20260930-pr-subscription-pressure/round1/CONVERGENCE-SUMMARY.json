@@ -1,0 +1,138 @@
+[
+  {
+    "artifact": "convergence-active-process.json.gz",
+    "device": 1,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": [
+      {
+        "at": 3265.518,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 669.423,
+          "remainingMs": null
+        },
+        "historyHoldMs": 993.9416970000002
+      }
+    ]
+  },
+  {
+    "artifact": "convergence-active-process.json.gz",
+    "device": 2,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": [
+      {
+        "at": 2715.644,
+        "historyEventIndex": 18,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 120.158,
+          "remainingMs": null
+        },
+        "historyHoldMs": 998.5088620000006
+      }
+    ]
+  },
+  {
+    "artifact": "convergence-active-wasm.json.gz",
+    "device": 1,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": [
+      {
+        "at": 3233.5,
+        "historyEventIndex": 15,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 899.3,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1002.1999998092651
+      }
+    ]
+  },
+  {
+    "artifact": "convergence-active-wasm.json.gz",
+    "device": 2,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": [
+      {
+        "at": 1953.5,
+        "historyEventIndex": 15,
+        "query": "history",
+        "cause": "change-timeout",
+        "queued": false,
+        "inFlight": true,
+        "queueEntry": {
+          "at": 136.4,
+          "remainingMs": null
+        },
+        "historyHoldMs": 1001.7000002861023
+      }
+    ]
+  },
+  {
+    "artifact": "convergence-round1-process.json.gz",
+    "device": 1,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": []
+  },
+  {
+    "artifact": "convergence-round1-process.json.gz",
+    "device": 2,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": []
+  },
+  {
+    "artifact": "convergence-round1-wasm.json.gz",
+    "device": 1,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": []
+  },
+  {
+    "artifact": "convergence-round1-wasm.json.gz",
+    "device": 2,
+    "observations": 124,
+    "rows": 42,
+    "unique": 42,
+    "peakQueued": 116,
+    "peakInFlight": 8,
+    "withdrawals": []
+  }
+]

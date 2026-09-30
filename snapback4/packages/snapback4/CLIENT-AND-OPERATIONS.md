@@ -879,7 +879,7 @@ a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 By default, mounted same-key observations retain their answer through plain
 revalidation without a timeout, marked `revalidating: true`. All change
-evidence starts a one-second bound when its replacement attempt begins and withdraws on failure. Queue wait precedes a new episode; later queueing or plain refreshes never renew an existing deadline. Use
+evidence withdraws on failure or timeout. Local replacement attempts get one second excluding capacity queue wait; online change evidence starts its second immediately, including queue wait because it may revoke access. Applied local scope loss withdraws dependent audience groups immediately, even on staged pages; older replicas cannot restore them before publication. Retries never renew a budget. Use
 `keep: false` for immediate withdrawal. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
@@ -1250,6 +1250,16 @@ A whole server answer at or after the cut can replace the display while sync
 waits; older replica answers remain ineligible until it catches up. Plain offline
 ephemeral recovery keeps the answer through its original row expiry.
 
+Scope metadata survives server fallback, retained composition and recovery memory.
+Server narrowing uses literal/viewer/unshadowed argument audience prefixes over
+all query branches, never hidden row keys. By-ID points without audience keys,
+data-dependent selectors, recursive/native reads, unmapped derived dependencies,
+ordinary mixed word-search coordination and legacy replies remain conservative
+at the table boundary. Unpinned audience dimensions match every group.
+Online `/changes` still identifies tables only; an authorized sibling can reach
+its one-second bound if all slots are occupied. Evidence rereads jump ordinary
+queued work, within eight starts per turn/eight active, without preemption.
+
 A `/changes` program-generation mismatch withdraws immediately, even at the
 same sequence with no touched tables. Displayed answers, remembered answers
 and pending evaluations belong to the retired program. The old replica stays
@@ -1316,7 +1326,8 @@ authority. For all three policies, a closed facade keeps consulting its detached
 raw handle but never adopts a new identity. While its last identity is still the source's and its own row and episode
 deadlines hold, it returns the source's current copy of that identity, including
 its revalidating mark. It preserves the earliest episode it observed, whether
-before or after close, even if a later copy omits the deadline. After that it returns one stable `loading` snapshot, or its denial, even
+before or after close, even if a later copy omits the deadline. Its returned
+copy fixes that deadline, including during a live peer's later queue pause. After that it returns one stable `loading` snapshot, or its denial, even
 when the replacement has identical data. A closed facade has no listeners and
 never notifies. Loading captured at close is already latched, without another
 getter call. Once its loading snapshot latches, a later source denial does
@@ -1335,8 +1346,28 @@ installation, or client close withdraws the answer immediately. A successful
 server fallback keeps retaining while device composition finishes, subject to
 any existing online-change episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
 Closing the client cancels row deadlines before publishing its stable denial. A
-closed local observation still checks its saved deadlines; resubscribing rearms
-those same absolute row deadlines before its re-read. Observed server expiry also
+closed local observation records the client authority revision at detach. Any later
+change notification, commit, publication, scope loss, refusal or reset discards
+its saved answer before reuse, even for unrelated evidence. Getters never park
+detached owners. Resubscription checks the device watermark and evaluates before
+returning data; without later evidence it rearms the original row deadlines.
+Only notifications intersecting the query's tables hold that reevaluation for
+sync; unknown dependencies stay conservative. The metadata wait cancels with
+the observation or its 30-second attempt lifetime. Notifications invalidate
+intersecting remembered answers without needing a live owner. Empty advancing
+notifications and every sync publication clear all remembered server answers:
+replica footprints cannot certify unchanged online-only authorization, even when
+nonempty. This includes recovery, staged applies and no-op sync. Mounted server,
+composed and recovered answers revalidate through the existing bounded queue. Authorized
+online-only/out-of-horizon fallback can therefore become unavailable offline
+until a server query refills it; authorized replica rows remain available.
+Quiet empty polls with no advance preserve authority and completed memory;
+they carry no change evidence and must not exhaust bounded query retries. Disjoint local admissions,
+settlements and known notification tables do too. Pending evaluations, detached answers and facade approvals all check one
+monotonic authority revision. Every terminal refusal advances it; later successful
+sync cannot restore an older response's authority. Credential rotation and
+terminal refusals retire all remembered answers.
+Lingering handles remain live and keep precise audience matching. Observed server expiry also
 fences remembered answers, so clock rollback cannot recover the expired body,
 while preserving newer answers whose server deadlines have not arrived.
 
@@ -2648,3 +2679,32 @@ and 64 refused intervals. There are at most 4,096 local or 1,024 online active
 groups. Eviction drops owed positions, which stay `sent`, but retains refused
 intervals. A saturated refused set stops that group's collection and dispatch
 until a leave/rejoin or a new device store.
+
+### Inspect subscription pressure
+
+If a screen flashes empty, compare queue/in-flight counts with withdrawal causes.
+A `change-timeout` exhausts the answer's one-second budget outside capacity wait;
+expiry, denial and resets remain immediate. The last 256 completed attempts supply
+queue/attempt latency p50/p95/max, and the last 64 withdrawals retain causes.
+Samples contain query names and counts, never arguments or answer values.
+
+```tsx
+import type { Client } from "snapback4/contract";
+import { inspect } from "snapback4/inspection";
+import { useInspection } from "snapback4/react";
+
+export function logSubscriptions(client: Client) {
+  const pressure = inspect(client);
+  console.table(pressure.queries);
+  console.table(pressure.recentWithdrawals);
+}
+export function SubscriptionPressure({ development }: { development: boolean }) {
+  const pressure = useInspection(development);
+  return pressure ? <pre>{JSON.stringify(pressure.totals, null, 2)}</pre> : null;
+}
+```
+
+Mount the overlay inside the client provider and pass the host's development flag
+(`import.meta.env.DEV`, or `__DEV__` in Expo). Disabled installs no timer; enabled
+samples every 250 ms. Counts include lingering observations and delayed retries;
+direct reads and presence refreshes are outside this queue.

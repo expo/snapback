@@ -1,0 +1,24 @@
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at response (640.981033ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"667d32ac88517cb1fa24f19784b19084","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at approval (218.315174ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"3d6030b225a5bd39aa9e6c58ca6c9f99","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at response (255.409714ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"f646c8ed34dc5e0a674a0f77d30ff3d9","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at approval (257.551274ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"7c4d6b025731217a1418648bd488a748","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✔ wasm: sync-only revocation must retire remembered content (1981.326648ms)
+ℹ {"pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"020e1c6332096f1447babb26f9289b00"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"020e1c6332096f1447babb26f9289b00","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: sync-only revocation must retire remembered content (1531.416404ms)
+ℹ {"pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"0267e366a2f36acbb3927e29ba903176"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"0267e366a2f36acbb3927e29ba903176","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3658.385239

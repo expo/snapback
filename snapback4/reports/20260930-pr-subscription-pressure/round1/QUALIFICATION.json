@@ -1,0 +1,19 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "invocations": 1,
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1268 s",
+  "frozenInputFiles": 1644,
+  "changedInputs": [],
+  "clientPool": {
+    "tests": 5345,
+    "passed": 5335,
+    "failed": 0,
+    "skipped": 10
+  },
+  "serialClientModels": {
+    "tests": 79,
+    "passed": 79,
+    "failed": 0
+  }
+}

@@ -1,3 +1,4 @@
+import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
 import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
@@ -25,7 +26,7 @@ import { deferStart, trackRotation } from "./client-start.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
-import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
+import { duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
@@ -206,10 +207,10 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
-  const resetWatches = (publish = true) => {
+  const resetWatches = (publish = true, cause = "schema-reset") => {
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
-      for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+      for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null); }
     });
     if (publish) { deliver(); for (const watch of watches.values()) notify(watch); }
     return deliver;
@@ -349,7 +350,7 @@ export function createClient(options: ClientOptions): Client {
     if (viewer === next) return;
     viewer = next;
     void delivery?.reset(true);
-    resetWatches();
+    resetWatches(true, "viewer");
     if (credentials) for (const watch of watches.values()) void scheduleRead(watch);
     for (const listener of viewerListeners) listener(next);
   };
@@ -432,7 +433,7 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
-    const deliverReset = resetWatches(false);
+    const deliverReset = resetWatches(false, "credentials");
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
@@ -682,11 +683,13 @@ export function createClient(options: ClientOptions): Client {
     schedulePresence(watch, true, result.refresh);
   }
 
-  const readWork = new ReadWork<Watch>();
+  const readWork = new ObservationWork<Watch>(false);
   function scheduleRead(watch: Watch, changed = false) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    watch.reload(changed, { queued: true }); notify(watch);
+    // Online change evidence may be revocation: its budget includes capacity wait.
+    watch.reload(changed, { queued: !changed }); notify(watch);
     acquireRead(watch);
+    if (changed) readWork.prioritize(watch);
   }
   function acquireRead(watch: Watch) {
     if (watch.inFlight) { watch.dirty = true; return; }
@@ -821,7 +824,7 @@ export function createClient(options: ClientOptions): Client {
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
-          const deliver = resetWatches(false);
+          const deliver = resetWatches(false, "program-generation");
           queryEpoch++;
           deliver();
           for (const watch of watches.values()) notify(watch);
@@ -1133,6 +1136,7 @@ export function createClient(options: ClientOptions): Client {
     },
   };
   trackDispatch(client, dispatch);
+  readWork.bind(client, watches);
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
   const start = () => {
     if (closed) return;

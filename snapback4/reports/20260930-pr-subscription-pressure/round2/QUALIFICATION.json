@@ -1,0 +1,58 @@
+{
+  "summary": "== 1 failure(s) in 1260 s",
+  "exit": 1,
+  "invocations": 1,
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "failed_steps": [
+    "client tests"
+  ],
+  "failed_tests": [
+    "closed facade follows same identity's revalidation (close before=false), keep=undefined, bounded=true",
+    "closed facade follows same identity's revalidation (close before=true), keep=undefined, bounded=true",
+    "closed facade follows same identity's revalidation (close before=false), keep=true, bounded=true",
+    "closed facade follows same identity's revalidation (close before=true), keep=true, bounded=true",
+    "wasm: resubscribing a raw local handle starts a bounded episode",
+    "wasm: resubscribing a raw local handle rearms its original episode",
+    "process: resubscribing a raw local handle starts a bounded episode",
+    "process: resubscribing a raw local handle rearms its original episode"
+  ],
+  "client_pool": {
+    "tests": 5375,
+    "pass": 5357,
+    "fail": 8,
+    "skipped": 10
+  },
+  "serial_models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0
+  },
+  "final_affected": {
+    "tests": 138,
+    "pass": 138,
+    "fail": 0
+  },
+  "guide": {
+    "pass": 105,
+    "fail": 0
+  },
+  "source_inputs": 1652,
+  "before_client_changes": [
+    "packages/snapback4/src/app-client.ts",
+    "packages/snapback4/test/subscription-pressure-deadline.test.mjs"
+  ],
+  "after_client_test_only_changes": [
+    "packages/snapback4/test/approval-lifecycle.test.mjs",
+    "packages/snapback4/test/raw-read-deadlines.test.mjs"
+  ],
+  "final_source_drift": [],
+  "sdk_files": 224,
+  "client_sdk_drift": [],
+  "wasm": {
+    "raw": 1983105,
+    "gzip": 595440,
+    "cap": 595440,
+    "cap_raised": false
+  },
+  "limitations": "The one full run remains red: four cross-handle object alias expectations and four expectations of redisplaying revoked rows. All eight were corrected and pass in the final affected run; no second full invocation. The final facade metadata fix was compiled/typechecked before the full client phase, after native testing had begun; two later edits changed test assertions only."
+}

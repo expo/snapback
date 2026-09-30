@@ -1,0 +1,14 @@
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: partition refusal retires no-owner memory (674.147788ms)
+✔ wasm: credentials retires no-owner memory (258.791288ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: partition refusal retires no-owner memory (209.888678ms)
+✔ process: credentials retires no-owner memory (242.634223ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1531.355547

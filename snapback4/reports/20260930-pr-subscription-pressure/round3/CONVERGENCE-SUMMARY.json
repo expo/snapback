@@ -1,0 +1,114 @@
+{
+  "final-wasm": [
+    {
+      "publications": 19,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "publications": 19,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ],
+  "final-process": [
+    {
+      "publications": 19,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "publications": 19,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ],
+  "active-wasm": [
+    {
+      "publications": 20,
+      "withdrawals": [
+        {
+          "at": 2134.7,
+          "historyEventIndex": 15,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 841.7,
+            "remainingMs": null
+          },
+          "historyHoldMs": 1005.2000002861023
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "publications": 18,
+      "withdrawals": [
+        {
+          "at": 2424.8,
+          "historyEventIndex": 16,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 147.2,
+            "remainingMs": null
+          },
+          "historyHoldMs": 1003.1999998092651
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ],
+  "active-process": [
+    {
+      "publications": 21,
+      "withdrawals": [
+        {
+          "at": 3126.954,
+          "historyEventIndex": 19,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 547.004,
+            "remainingMs": null
+          },
+          "historyHoldMs": 999.1724549999999
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "publications": 22,
+      "withdrawals": [
+        {
+          "at": 2636.47,
+          "historyEventIndex": 20,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 57.019,
+            "remainingMs": null
+          },
+          "historyHoldMs": 998.533598
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+✔ wasm: two offline devices, 124 mounted observations each, exactly-once history (5438.708189ms)
+ℹ {"tier":"wasm","withdrawals":[[{"at":3034.7,"historyEventIndex":18,"query":"history","cause":"change-timeout","queued":false,"inFlight":true,"queueEntry":{"at":863.4,"remainingMs":null},"historyHoldMs":1004.4000000953674}],[{"at":1805.5,"historyEventIndex":18,"query":"history","cause":"change-timeout","queued":false,"inFlight":true,"queueEntry":{"at":143,"remainingMs":null},"historyHoldMs":1005.2999997138977}]],"gaps":[1,1],"peaks":[116,116]}
+✔ process: two offline devices, 124 mounted observations each, exactly-once history (4570.169144ms)
+ℹ {"tier":"process","withdrawals":[[{"at":3036.236,"historyEventIndex":18,"query":"history","cause":"change-timeout","queued":false,"inFlight":true,"queueEntry":{"at":456.86,"remainingMs":null},"historyHoldMs":997.563212}],[{"at":2642.21,"historyEventIndex":18,"query":"history","cause":"change-timeout","queued":false,"inFlight":true,"queueEntry":{"at":63.451,"remainingMs":null},"historyHoldMs":999.3291579999996}]],"gaps":[1,1],"peaks":[116,116]}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10147.274132

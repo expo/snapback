@@ -1,0 +1,12 @@
+✔ wasm: expired resumed watermark must not keep running latched (30612.435139ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":3}
+✔ process: expired resumed watermark must not keep running latched (30244.185466ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":3}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60977.123343

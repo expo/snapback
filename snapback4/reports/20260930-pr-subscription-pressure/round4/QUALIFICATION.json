@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-30T18:46:00.184119+00:00",
+  "fullInvocations": 1,
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1244 s",
+  "rust": {
+    "pass": 4368,
+    "fail": 0,
+    "ignored": 33
+  },
+  "client": {
+    "tests": 5450,
+    "pass": 5440,
+    "fail": 0,
+    "skipped": 10
+  },
+  "fixtures": {
+    "pass": 9,
+    "fail": 0
+  },
+  "models": {
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0
+  },
+  "failures": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "inputs": 1664,
+  "changedBeforeClient": [
+    "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "packages/snapback4/test/subscription-pressure-round1.test.mjs"
+  ],
+  "changedAfterClientBoundary": [],
+  "artifactDrift": []
+}

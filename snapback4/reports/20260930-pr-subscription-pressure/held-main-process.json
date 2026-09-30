@@ -1,0 +1,548 @@
+{
+  "events": [
+    {
+      "at": 9.150833000000148,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 10.35886500000015,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 34.63680599999998,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 36.95051599999988,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 1012.1145759999999,
+      "read": {
+        "loading": true
+      }
+    }
+  ],
+  "samples": [
+    {
+      "at": 49.30096800000001,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 99.55896200000007,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 149.91053599999987,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 200.1174030000002,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 250.26564199999984,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 300.42005100000006,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 350.57336799999985,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 400.70967900000005,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 450.92472799999996,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 501.273408,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 551.5237499999998,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 601.7802820000002,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 652.0543600000001,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 702.3061640000001,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 752.670568,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 802.9247359999999,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 853.2014479999998,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 903.4539730000001,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 953.684416,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 1003.8908729999998,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "data": [
+          {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          }
+        ],
+        "complete": true,
+        "cut": null,
+        "fresh": true,
+        "next": null,
+        "existence": "present",
+        "revalidating": true
+      }
+    },
+    {
+      "at": 1053.3435989999998,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "loading": true
+      }
+    },
+    {
+      "at": 1103.5602199999998,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "loading": true
+      }
+    },
+    {
+      "at": 1153.8048239999998,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "loading": true
+      }
+    },
+    {
+      "at": 1204.039793,
+      "queued": 73,
+      "inFlight": 8,
+      "read": {
+        "loading": true
+      }
+    }
+  ],
+  "withdrawals": [
+    {
+      "at": 1012.0957979999998,
+      "cause": "change-timeout",
+      "queued": true,
+      "inFlight": false
+    }
+  ]
+}

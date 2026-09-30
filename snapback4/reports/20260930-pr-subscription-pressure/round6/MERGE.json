@@ -1,0 +1,8 @@
+{
+  "head": "642ac9dc7188e8c1bf1930d92c3e340e8adca832",
+  "originMain": "267788df36b2ef6ccbcce53042180c5dd642b126",
+  "remoteMain": "790d63ede071c2a1aa4938504c997a9df4842c6b\trefs/heads/main",
+  "mergeCommand": "git merge --no-ff --no-commit origin/main",
+  "mergeResult": "Already up to date.",
+  "originMainIsAncestor": true
+}

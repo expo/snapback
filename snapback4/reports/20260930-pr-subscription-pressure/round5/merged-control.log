@@ -1,0 +1,115 @@
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ wasm: terminal partition refusal retires in-flight first answer at response (608.511306ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"e32762ee78cf68f5b32225ef35176bb6","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ wasm: terminal partition refusal retires in-flight first answer at approval (199.806293ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"bfdc08ca867a9176e1809e8ca3514a5f","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ process: terminal partition refusal retires in-flight first answer at response (243.947274ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"8a3f6784017de5c734e69b2f04eeb938","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✖ process: terminal partition refusal retires in-flight first answer at approval (230.984415ms)
+ℹ {"stale":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"fa4167574226cef7bd87b56b8bc929ca","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✖ wasm: sync-only revocation must retire remembered content (1964.024926ms)
+ℹ {"pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"c94b4e14b6a3f7a7eb97b9850f2411bf"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"c94b4e14b6a3f7a7eb97b9850f2411bf","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"remembered":{"read":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"scopes":{},"at":1790796708211,"nextExpiry":null,"tables":{}},"rememberedTables":["profiles"],"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790796708211,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790796708211}}
+✖ process: sync-only revocation must retire remembered content (1539.827061ms)
+ℹ {"pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"840e27ad43a5dc86cf1a280c12da8b1c"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"840e27ad43a5dc86cf1a280c12da8b1c","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"remembered":{"read":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"scopes":{},"at":1790796709755,"nextExpiry":null,"tables":{}},"rememberedTables":["profiles"],"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790796709755,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790796709755}}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3665.214888
+
+✖ failing tests:
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ wasm: terminal partition refusal retires in-flight first answer at response (608.511306ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ wasm: terminal partition refusal retires in-flight first answer at approval (199.806293ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ process: terminal partition refusal retires in-flight first answer at response (243.947274ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:6:84
+✖ process: terminal partition refusal retires in-flight first answer at approval (230.984415ms)
+  AssertionError [ERR_ASSERTION]: terminal refusal must permanently fence earlier responses even after the refusal is cleared
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs:27:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:8:39
+✖ wasm: sync-only revocation must retire remembered content (1964.024926ms)
+  AssertionError [ERR_ASSERTION]: observed revoked profile must not return from memory after sync publication
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:37:8)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:8:39
+✖ process: sync-only revocation must retire remembered content (1539.827061ms)
+  AssertionError [ERR_ASSERTION]: observed revoked profile must not return from memory after sync publication
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-sync-memory.test.mjs:37:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

@@ -248,7 +248,7 @@ impl<S: DeviceStore> Device<S> {
                 let index = table.indexes.iter().find(|(_,index)| index.components.len() == 2 && index.components[0].column() == Some(&binding.group) && index.components[1].column() == Some(&binding.position))
                     .ok_or_else(|| RuntimeError::Schema("delivery needs its unique group, position index".into()))?;
                 let after: Option<Vec<Value>> = state["cursors"][&key].get("after").map(|v| decoded(&v.to_string())).transpose()?;
-                let reading = history::Reading { tx: &tx, schema: &self.schema, groups, boundaries: boundary::Boundaries::load(&tx,false)?, retained: std::cell::Cell::new(false) };
+                let reading = history::Reading { scopes: None, tx: &tx, schema: &self.schema, groups, boundaries: boundary::Boundaries::load(&tx,false)?, retained: std::cell::Cell::new(false) };
                 let rows = reading.scan(&binding.table, index.0, &[], &Bounds { after, ..Bounds::default() }, Dir::Asc, 500)?;
                 let mut last = None;
                 for (row,key_bytes) in &rows {

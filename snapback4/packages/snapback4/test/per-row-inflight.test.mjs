@@ -119,7 +119,7 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
   });
 }
 
-for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, true]) test(`${tier} keep=${keep}: invalidating an acquisition leaves replacement queue wait outside the episode`, async t => {
+for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, true]) test(`${tier} keep=${keep}: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence`, async t => {
   const f = await fixture(t, tier, keep);
   f.acquire(); await until(() => f.reads === 1);
   assert.equal(episodeDeadline(f.watch.getSnapshot()), undefined);
@@ -130,13 +130,17 @@ for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined,
   else { f.change({ seq: result.seq, generation: 1, tables: ['notes'] }); await until(() => f.owner.dirty); }
   const wall = Date.now(); t.mock.method(Date, 'now', () => wall + 1001);
   const queued = f.watch.getSnapshot();
-  assert.equal(queued.data?.row?.value, 7, 'the replacement has not received a slot');
-  assert.equal(queued.revalidating, true);
-  assert.equal(episodeDeadline(queued), undefined, 'a retired attempt cannot start the new episode');
+  if (tier === 'online') assert.deepEqual(queued, { loading: true }, 'online evidence can revoke access and expires during queue wait');
+  else {
+    assert.equal(queued.data?.row?.value, 7, 'the replacement has not received a slot');
+    assert.equal(queued.revalidating, true);
+    assert.equal(episodeDeadline(queued), undefined, 'a retired attempt cannot start the new local episode');
+  }
   assert.equal(f.reads, 1);
   f.old.resolve(); if (tier !== 'online') await until(() => f.blocked === 8);
   blocks.forEach(w => w.close()); await until(() => f.reads > 1);
-  assert.equal(episodeDeadline(f.watch.getSnapshot()), wall + 2001);
+  if (tier === 'online') assert.deepEqual(f.watch.getSnapshot(), { loading: true }, 'expired online data cannot return when service starts');
+  else assert.equal(episodeDeadline(f.watch.getSnapshot()), wall + 2001);
   f.replacement.resolve();
   await until(() => f.watch.getSnapshot().data?.count === 1 && !f.watch.getSnapshot().revalidating);
 });

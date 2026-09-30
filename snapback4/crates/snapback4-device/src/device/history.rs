@@ -117,6 +117,7 @@ pub(super) fn coverage_state(schema: &Schema, groups: &Groups, name: &str, cover
 /// The core asks about the evaluated scan prefix, so arbitrary expressions,
 /// cursors and empty retained groups follow the same path as a literal key.
 pub(super) struct Reading<'a, T: DeviceTx> {
+    pub scopes: Option<&'a RefCell<serde_json::Value>>,
     pub tx: &'a T,
     pub schema: &'a Schema,
     pub groups: Groups,
@@ -151,15 +152,16 @@ impl<T: DeviceTx> Rows for Reading<'_, T> {
         if retained { self.retained.set(true); }
         Ok(retained)
     }
-    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.tx.get(table, id) }
-    fn lookup(&self, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.tx.lookup(table, name, index, key) }
-    fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan(table, index, prefix, bounds, dir, limit) }
-    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> { self.tx.index_head(table,index,prefix,bounds,dir) }
-    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter) }
+    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { let row = self.tx.get(table, id)?; if let Some(row) = &row { self.scope_row(table, row); } Ok(row) }
+    fn lookup(&self, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { let row = self.tx.lookup(table, name, index, key)?; if let Some(row) = &row { self.scope_row(table, row); } else { self.scope_range(table, name, key); } Ok(row) }
+    fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.scope_range(table, index, prefix); self.tx.scan(table, index, prefix, bounds, dir, limit) }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> { self.scope_range(table, index, prefix); self.tx.index_head(table,index,prefix,bounds,dir) }
+    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.scope_range(table, index, prefix); self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter) }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        self.scope_columns(table, by.iter().map(String::as_str).zip(group));
         self.tx.cap_count(table, by, group)
     }
-    fn count_prefix(&self, table: &str, index: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.tx.count_prefix(table, index, prefix, limit) }
+    fn count_prefix(&self, table: &str, index: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.scope_range(table, index, prefix); self.tx.count_prefix(table, index, prefix, limit) }
     fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.tx.put(name, table, row, old) }
     fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.tx.delete(name, table, old) }
 }

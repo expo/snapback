@@ -2,7 +2,7 @@ import { pendingRead, readyRead, readyExistence } from "./read-existence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
-import { beginEpisode, copyEpisode, episodeDeadline, ReadEpisode } from "./read-episode.ts";
+import { freezeEpisode, beginEpisode, copyEpisode, episodeDeadline, EpisodeQueue, ReadEpisode } from "./read-episode.ts";
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
@@ -16,6 +16,13 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
   if (owner) owners.set(to, owner);
   copyEpisode(from, to);
   return to;
+}
+
+/** Closed facades expose a fixed deadline without freezing their live peer. */
+export function closedAnswer<T>(read: Read<T>, deadline: number): Read<T> {
+  const copy = copyAnswer(read, { ...read });
+  freezeEpisode(copy, deadline);
+  return copy;
 }
 
 /** Reclassify a copy without renewing its answer identity or retention episode. */
@@ -39,10 +46,10 @@ export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: 
   const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
   const next = readyExistence(read, blocked);
   if (read.revalidating && read.existence === next && (next === "present" || pendingRead(read) === blocked)) {
-    beginEpisode(read, read, bounded); return read;
+    beginEpisode(read, read, bounded, answerObservation(read)?.episodeQueue); return read;
   }
   const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
-  beginEpisode(read, copy, bounded);
+  beginEpisode(read, copy, bounded, answerObservation(read)?.episodeQueue);
   return copy;
 }
 
@@ -66,10 +73,16 @@ export class ReadObservation<T> {
     this.deliver("answer")();
     return true;
   }
+  readonly episodeQueue = new EpisodeQueue();
+  queueEpisode(queued: boolean): void { this.episode.check(); this.episodeQueue.set(queued); }
+  /** Private diagnostic callback; records transitions from data, never row contents. */
+  withdrawal: ((cause: string, code?: string) => void) | undefined;
+  hasAnswered = false;
   onWithdrawal: () => void = () => {};
   private readonly episode = new ReadEpisode(() => {
     if (!("data" in this.snapshot)) return;
     // @ref LLP 3000.023#3.1 — deadline withdrawal must allow the in-flight answer to publish.
+    this.withdrawal?.("change-timeout");
     this.snapshot = { loading: true };
     owners.set(this.snapshot, this);
     this.kept = false;
@@ -105,7 +118,7 @@ export class ReadObservation<T> {
   async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
     { retain, revalidate = true, publishResult = true, accept = (_: R) => true }: { retain?: boolean; revalidate?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
     // A held-only expiry refresh preserves the raw answer; explicit expiry retries still withdraw.
-    if (retain === false) this.publish({ loading: true });
+    if (retain === false) this.replace({ loading: true }, "answer", false, "expiry-retry");
     else if (revalidate) this.reload();
     const revision = this.revision;
     notify();
@@ -148,7 +161,7 @@ export class ReadObservation<T> {
     this.changePending ||= bounded;
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
-      if (!("loading" in this.snapshot)) this.publish({ loading: true });
+      if (!("loading" in this.snapshot)) this.replace({ loading: true }, "answer", false, "retention-disabled");
       return;
     }
     this.snapshot = revalidatingAnswer(this.snapshot, !queued && this.changePending, this.pending?.());
@@ -163,7 +176,7 @@ export class ReadObservation<T> {
   failed(offline = false): void {
     this.read(null);
     if (!this.retain || !("data" in this.snapshot) || episodeDeadline(this.snapshot) !== undefined) {
-      this.publish({ loading: true });
+      this.replace({ loading: true }, "answer", false, "change-failed");
       return;
     }
     if (offline) {
@@ -180,7 +193,9 @@ export class ReadObservation<T> {
     return () => deliverReadNotifications(deliveries.filter((deliver): deliver is () => void => !!deliver));
   }
 
-  private replace(read: Read<T>, change: "answer" | "reset" | "expiry" = "answer", deferred = false): () => void {
+  private replace(read: Read<T>, change: "answer" | "reset" | "expiry" = "answer", deferred = false, cause: string = change): () => void {
+    if ("data" in this.snapshot && !("data" in read)) this.withdrawal?.("denied" in read ? "denied" : cause === "answer" ? "unavailable" : cause, "denied" in read ? read.denied.code : undefined);
+    if (this.withdrawal) this.hasAnswered ||= "data" in read;
     this.revision++;
     this.changePending = false;
     this.episode.clear();
@@ -200,7 +215,7 @@ export class ReadObservation<T> {
     return deliver;
   }
 
-  reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; this.expiredServerDeadline = undefined; return this.replace(read, "reset", deferred); }
+  reset(read: Read<T>, deferred = false, cause = "reset"): () => void { this.resetVersion++; this.expiredServerDeadline = undefined; return this.replace(read, "reset", deferred, cause); }
   // @ref LLP 3000.023#3.6 — source expiry withdraws its facade hold in the sweep's notification phase.
   expire(): () => void { this.resetVersion++; return this.replace({ loading: true }, "expiry", true); }
 }

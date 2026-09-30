@@ -1,0 +1,11 @@
+{
+  "summary": "== 0 failure(s) in 1244 s",
+  "inputs": 1664,
+  "changesDuringRun": [
+    "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "packages/snapback4/test/subscription-pressure-round1.test.mjs"
+  ],
+  "finalChanges": [],
+  "productionSourceChanges": [],
+  "note": "The two test edits completed before the client pool started; see CLIENT-PHASE-BOUNDARY.json."
+}
