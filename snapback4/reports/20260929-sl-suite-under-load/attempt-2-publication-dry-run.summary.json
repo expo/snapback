@@ -1,0 +1,1284 @@
+{
+  "log": "attempt-2-publication-dry-run.log",
+  "sha256": "03e983ff00d6305779b5c184ec903059a9c85c6af16000026aa83d806c9bf1b8",
+  "summary": [
+    "== 3 failure(s) in 11298 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (23 s)",
+    "-- ok: wasm build (2 s)",
+    "-- ok: docs budget (358 s)",
+    "-- ok: release guard (29 s)",
+    "-- ok: package typecheck (5 s)",
+    "-- ok: package build (6 s)",
+    "-- ok: chat app check (3 s)",
+    "-- FAIL: cargo test (8276 s)",
+    "-- ok: chat app typecheck (6 s)",
+    "-- ok: expo app typecheck (4 s)",
+    "-- ok: fixture wrapper tests (33 s)",
+    "-- FAIL: client tests (1973 s)",
+    "-- FAIL: client models (623 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 10 concurrent processes",
+    "-- available CPUs: 10; client file concurrency: 3",
+    "-- client test files: 221; concurrency: 3"
+  ],
+  "rust": {
+    "passed": 4346,
+    "failed": 1,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 32463.722",
+    "ℹ tests 4768",
+    "ℹ suites 0",
+    "ℹ pass 4682",
+    "ℹ fail 77",
+    "ℹ cancelled 4",
+    "ℹ skipped 5",
+    "ℹ todo 0",
+    "ℹ duration_ms 1971382.0245",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 78",
+    "ℹ fail 0",
+    "ℹ cancelled 1",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 622463.474125"
+  ],
+  "wasm": [
+    "wasm 2040793 B raw, 592941 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 1040,
+      "kind": "rust",
+      "details": [
+        "-- FAIL rust target: snapback4-lang::clique_03 (13.6 s)",
+        "",
+        "running 3 tests",
+        ".. 2/3",
+        "application_fixture --- FAILED",
+        "",
+        "failures:",
+        "",
+        "---- application_fixture stdout ----",
+        "CLIQUE_SEED {\"elapsed_s\":3.865930917,\"full\":false,\"replay\":{\"additional_equal_time_replies\":45,\"edges\":159,\"operations\":{\"follow\":159,\"like\":9,\"post\":349,\"register\":73,\"reply\":4,\"repost\":5},\"out_of_scope\":{\"dm-create\":901,\"group-create\":101,\"member-add\":49,\"profile-set\":73,\"react\":2000,\"send\":58092,\"send-media\":73},\"pack\":\"0.2.2-m8\",\"posts\":381,\"profiles\":73},\"stored\":{\"follows\":159,\"likes\":31,\"posts\":381,\"profiles\":73,\"replies\":49}}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0005\",\"rows\":30}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":316}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_COLD {\"elapsed_s\":0.537453208,\"generation\":1,\"rows\":1132,\"wire_bytes\":198566}",
+        "CLIQUE_ADOPTION {\"activation_row_events\":0,\"activation_s\":0.21295975,\"device_counts\":{\"implicit_zero_posts\":0,\"likes_checked\":31,\"posts_checked\":381,\"received_like_groups_checked\":8},\"device_queries\":{\"following\":{\"pages\":2,\"rows\":30,\"server_equal\":true},\"thread\":{\"pages\":3,\"rows\":46,\"server_equal\":true},\"trending\":{\"pages\":3,\"rows\":30,\"server_equal\":true}},\"generation\":2,\"old_generation\":1,\"reacquired_rows\":1132,\"reacquired_wire_bytes\":205171,\"reacquisition_s\":0.324167041,\"server_counts\":{\"implicit_zero_posts\":362,\"likes_checked\":31,\"posts_checked\":381,\"received_like_groups_checked\":8}}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0005\",\"rows\":30}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":316}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_CORRECT {\"authors_with_four_counts_checked\":73,\"count_values_checked\":2336,\"days\":[20449,20450,20451,20452,20453,20454,20455,20456],\"equal_timestamp_cursor\":true,\"thread_pages\":3,\"thread_rows\":46,\"trending_pages\":3,\"trending_rows\":30}",
+        "CLIQUE_READ {\"metered\":{\"examined\":117,\"heap_bytes\":204950,\"index_entries\":0,\"output_bytes\":10975,\"rows_written\":0,\"rule_probes\":36,\"steps\":1392},\"p95_ms\":19.458917,\"reader\":\"u0005\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "CLIQUE_READ {\"metered\":{\"examined\":121,\"heap_bytes\":211290,\"index_entries\":0,\"output_bytes\":10981,\"rows_written\":0,\"rule_probes\":40,\"steps\":1452},\"p95_ms\":14.680083,\"reader\":\"u0500\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "CLIQUE_READ {\"metered\":{\"examined\":118,\"heap_bytes\":206520,\"index_entries\":0,\"output_bytes\":10975,\"rows_written\":0,\"rule_probes\":37,\"steps\":1407},\"p95_ms\":46.080291,\"reader\":\"u0901\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "CLIQUE_RATIOS {\"celebrity_sparse\":2.3680809677126433,\"dense_sparse\":0.7544141845098573,\"limit\":3.0}",
+        "CLIQUE_STORE {\"includes\":\"rows, indexes, partition log, commits, recorded attribution\",\"physical_rows\":2967,\"sqlite_bytes\":5816320}",
+        "CLIQUE_RESTART {\"device_queries\":{\"following\":{\"pages\":4,\"rows\":62,\"server_equal\":true},\"thread\":{\"pages\":3,\"rows\":47,\"server_equal\":true},\"trending\":{\"pages\":4,\"rows\":31,\"server_equal\":true}},\"follow_unfollow_queue\":true,\"intents_survived_process_exit\":true,\"outbox_empty\":true,\"posting_predicts\":true,\"queued\":5,\"settled_post_like_count\":3,\"settled_reply_position\":47,\"store_checks\":{\"implicit_zero_posts\":0,\"likes_checked\":32,\"posts_checked\":382,\"received_like_groups_checked\":8}}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":4,\"reader\":\"u0005\",\"rows\":62}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":318}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":4,\"reader\":\"u0005\",\"rows\":61}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":317}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":4,\"reader\":\"u0005\",\"rows\":61}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":317}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_TRANSITIONS {\"duplicate_repost_idempotent\":true,\"following_after_unrepost\":true,\"original_removal_preserves_repost\":true,\"purge_chunks\":3,\"recorded_tombstones_gone\":true,\"removed_like_refusal\":\"FEED_POST_REMOVED\",\"removed_not_trending\":true,\"removed_repost_refusal\":\"FEED_POST_REMOVED\",\"tasks_before\":390,\"tombstone_ids\":[\"308bcca67216f03541c58e8c45c5bd92a67ca45686b2043412673297c0833c3b\",\"3deba77150e460cc1520c13d993c84f32fbae7015604372339f5b06e059a1aa3\"],\"tombstone_table\":\"feedRemovedEvents\",\"tombstoned_events\":[\"lifecycle-repost-event\",\"rank-003\"],\"tombstones_present_before\":true,\"unlike_zero\":true}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":4,\"reader\":\"u0005\",\"rows\":61}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":317}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_CORRECT {\"authors_with_four_counts_checked\":73,\"count_values_checked\":2336,\"days\":[20449,20450,20451,20452,20453,20454,20455,20456],\"equal_timestamp_cursor\":true,\"thread_pages\":3,\"thread_rows\":47,\"trending_pages\":3,\"trending_rows\":30}",
+        "CLIQUE_ARRIVAL_DAYS {\"arrival_after\":[22,47],\"arrival_before\":[21,46],\"arrival_day\":20455,\"arrival_gained_both\":true,\"author\":\"alice\",\"like_at\":1767392846010,\"post\":\"rank-001\",\"post_after\":[2,1],\"post_before\":[2,1],\"post_day\":20454,\"post_unchanged\":true,\"reply_at\":1767392846010}",
+        "CLIQUE_FOLLOWERS {\"celebrity_followers\":62,\"edges_equal\":true,\"model_edges\":159,\"ordinary\":\"alice\",\"ordinary_followers\":5,\"stored_edges\":159}",
+        "CLIQUE_WRITE {\"ack_p95_ms\":0.9151670000000001,\"author\":\"alice\",\"followers\":5,\"samples\":20,\"warmups\":3}",
+        "CLIQUE_WRITE {\"ack_p95_ms\":21.154834,\"author\":\"u0900\",\"followers\":62,\"samples\":20,\"warmups\":3}",
+        "",
+        "thread 'application_fixture' (233831374) panicked at crates/snapback4-lang/tests/clique_03/measure.rs:204:5:",
+        "celebrity write ratio 23.115818205857508 exceeds 3",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "",
+        "",
+        "failures:",
+        "    application_fixture",
+        "",
+        "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.11s"
+      ]
+    },
+    {
+      "line": 7588,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/typing-expiry.test.mjs:25:30",
+        "✖ useQuery expires 4.5 s typing rows aged 3000 ms before mount on both clients (30004.803083ms)",
+        "  'test timed out after 30000ms'",
+        ""
+      ]
+    },
+    {
+      "line": 7592,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ hiding during strict admission releases the session lock before transport and peer logout (176463.489416ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:318:18)",
+        "      at async TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:300:3)",
+        ""
+      ]
+    },
+    {
+      "line": 7598,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ exit notification waits for a session turn queued after strict admission (8.153708ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:323:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:322:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7607,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ navigation recovers its original outbox id before held-sync startup completes (2.795417ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:349:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:348:54)",
+        ""
+      ]
+    },
+    {
+      "line": 7616,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ navigation recovers its original outbox id before offline startup completes (3.214208ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:349:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:348:54)",
+        ""
+      ]
+    },
+    {
+      "line": 7625,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ backend-required custody cannot exit offline and enables exit after validated adoption (5.659375ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:376:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:375:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7634,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a hide during the startup probe waits for its accepted decision (3.15425ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:409:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:103)",
+        ""
+      ]
+    },
+    {
+      "line": 7643,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a hide during the startup probe waits for its refused decision (1.585583ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:409:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:103)",
+        ""
+      ]
+    },
+    {
+      "line": 7652,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a hide during the startup probe waits for its restore decision (6.647167ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:409:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:103)",
+        ""
+      ]
+    },
+    {
+      "line": 7661,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a hide during the startup probe waits for its replacement decision (1.808292ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:409:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:103)",
+        ""
+      ]
+    },
+    {
+      "line": 7670,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a hide during the startup probe waits for its observed-replacement decision (5.938375ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:409:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:103)",
+        ""
+      ]
+    },
+    {
+      "line": 7679,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (6.604958ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7688,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (1.964458ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7697,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (3.025666ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7706,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (2.726916ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7715,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (4.57325ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7724,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1.618ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7733,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (14.793166ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7742,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (5.128833ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7751,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (4.07375ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7760,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1.20075ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7769,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (1.309458ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:505:44)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:230)",
+        ""
+      ]
+    },
+    {
+      "line": 7778,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ an accepted probe enables exit before ordinary replay resolves (2.110042ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:530:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:529:48)",
+        ""
+      ]
+    },
+    {
+      "line": 7787,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a successful reconnect enables exit after startup 503s (3.002125ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:530:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:529:48)",
+        ""
+      ]
+    },
+    {
+      "line": 7796,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ an empty-outbox open gates new clicks on its accepted probe (2.967166ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)",
+        ""
+      ]
+    },
+    {
+      "line": 7805,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ an empty-outbox open gates new clicks on its refused probe (1.459208ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)",
+        ""
+      ]
+    },
+    {
+      "line": 7814,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ an empty-outbox open gates new clicks on its restore probe (1.614416ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)",
+        ""
+      ]
+    },
+    {
+      "line": 7823,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ an empty-outbox open gates new clicks on its replacement probe (0.975375ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)",
+        ""
+      ]
+    },
+    {
+      "line": 7832,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1.317292ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:612:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:611:110)",
+        ""
+      ]
+    },
+    {
+      "line": 7841,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (1.070125ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:612:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:611:110)",
+        ""
+      ]
+    },
+    {
+      "line": 7850,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (2.084667ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:612:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:611:110)",
+        ""
+      ]
+    },
+    {
+      "line": 7859,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1.286166ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:665:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:664:56)",
+        ""
+      ]
+    },
+    {
+      "line": 7868,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (3.894292ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:665:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:664:56)",
+        ""
+      ]
+    },
+    {
+      "line": 7877,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ receipt abort then retry persists sent before any replacement sync or POST (1.51275ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:704:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:703:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7886,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1.353292ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:737:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:736:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7895,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (1.318208ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:780:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:779:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7904,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (2.087542ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:810:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:809:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7913,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a legacy refused observation with no history remains pending until same-id replay (1.1645ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:846:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:845:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7922,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (1.358417ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:887:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:886:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7931,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (2.091417ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:924:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:923:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7940,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a pending changes rewind waits for an aborted successful receipt to become durable (1.1575ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:962:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:961:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7949,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (1.68925ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:994:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:993:60)",
+        ""
+      ]
+    },
+    {
+      "line": 7958,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (0.965458ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:994:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:993:60)",
+        ""
+      ]
+    },
+    {
+      "line": 7967,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (1.115667ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1018:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1017:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7976,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (1.44925ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1044:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1043:9)",
+        ""
+      ]
+    },
+    {
+      "line": 7985,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ replacement after validation refuses the original orphan binding at the server (ordinary transport) (1.413167ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1097:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1096:45)",
+        ""
+      ]
+    },
+    {
+      "line": 7994,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ replacement after validation refuses the original orphan binding at the server (exit transport) (0.98975ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1097:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1096:45)",
+        ""
+      ]
+    },
+    {
+      "line": 8003,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (1.302084ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8012,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a fresh orphan bound to A is retired before enqueue on B (exit transport) (4.481292ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8021,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1.360958ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8030,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1.552541ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)",
+        ""
+      ]
+    },
+    {
+      "line": 8039,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (1.262ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1207:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1206:9)",
+        ""
+      ]
+    },
+    {
+      "line": 8048,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ same-epoch logout tombstone refuses live admission (1.037667ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1247:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1246:51)",
+        ""
+      ]
+    },
+    {
+      "line": 8057,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ same-epoch logout tombstone refuses live admission even with retained session fields (0.873292ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1247:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1246:51)",
+        ""
+      ]
+    },
+    {
+      "line": 8066,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:44:79",
+        "✖ a confirmed epoch mismatch fences existing observations while the change poll is held (2.537875ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1272:31)",
+        "      at check (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1271:9)",
+        ""
+      ]
+    },
+    {
+      "line": 8075,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-admission-review.test.mjs:11:1",
+        "✖ web admission review: recovery and transport respect the session boundary (193921.311667ms)",
+        "  'test timed out after 180000ms'",
+        ""
+      ]
+    },
+    {
+      "line": 8079,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:139:11",
+        "✖ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (116321.104291ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:181:18)",
+        "      at async TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:139:3)",
+        ""
+      ]
+    },
+    {
+      "line": 8085,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:186:51",
+        "✖ a failed logout cannot commit after abort (8.654083ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:187:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:186:51)",
+        ""
+      ]
+    },
+    {
+      "line": 8093,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:186:51",
+        "✖ a failed logout cannot commit after quota (5.275625ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:187:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:186:51)",
+        ""
+      ]
+    },
+    {
+      "line": 8101,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:219:11",
+        "✖ a visible same-epoch tombstone refuses synchronously (3.831875ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:220:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:219:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8109,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:230:11",
+        "✖ principal replacement and login commit the epoch before unlocking and survive reopen (6.781167ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:231:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:230:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8117,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:257:11",
+        "✖ custom mirror namespaces isolate accounts and a missing namespace fails closed (7.540667ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:258:31)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:257:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8123,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:272:11",
+        "✖ a legacy mirror without IDB authority requires sign-in (5.422333ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:273:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:272:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8131,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:283:110",
+        "✖ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (6.200791ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:284:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:283:110)",
+        ""
+      ]
+    },
+    {
+      "line": 8139,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:283:110",
+        "✖ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (14.822917ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:284:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:283:110)",
+        ""
+      ]
+    },
+    {
+      "line": 8147,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:283:110",
+        "✖ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (6.590625ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:284:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:283:110)",
+        ""
+      ]
+    },
+    {
+      "line": 8155,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:317:11",
+        "✖ a committed session reopens with actually full localStorage and no separate epoch key (5.416417ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:318:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:317:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8163,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:356:11",
+        "✖ reopen repairs speculative session B from committed session A before capturing a mutation (5.537958ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:357:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:356:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8171,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:376:11",
+        "✖ an aborted epoch migration preserves the legacy fence for the next open (2.414ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:377:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:376:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8179,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:408:55",
+        "✖ a pre-IDB stamp cannot be promoted by a matching new login epoch (1.266125ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:409:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:408:55)",
+        ""
+      ]
+    },
+    {
+      "line": 8187,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:408:55",
+        "✖ a device adapter dropping ownership refuses before journal recovery (1.379833ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at fresh (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:127:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:409:27)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-session-authority.test.mjs:408:55)",
+        ""
+      ]
+    },
+    {
+      "line": 8195,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-session-authority.test.mjs:10:1",
+        "✖ browser session authority commits through IndexedDB before releasing the session lock (150213.537458ms)",
+        "  'test timed out after 120000ms'",
+        ""
+      ]
+    },
+    {
+      "line": 8199,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:245:78",
+        "✖ session-locked journal refuses stale authority: logout (107461.5545ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:302:18)",
+        "      at async TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:245:70)",
+        ""
+      ]
+    },
+    {
+      "line": 8205,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:245:78",
+        "✖ session-locked journal refuses stale authority: principal (25.170334ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:248:19)",
+        "      at async TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:245:70)",
+        ""
+      ]
+    },
+    {
+      "line": 8212,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:245:78",
+        "✖ session-locked journal refuses stale authority: epoch (13.496583ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:248:19)",
+        "      at async TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:245:70)",
+        ""
+      ]
+    },
+    {
+      "line": 8219,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:245:78",
+        "✖ session-locked journal refuses stale authority: recovery (14.429625ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:248:19)",
+        "      at async TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:245:70)",
+        ""
+      ]
+    },
+    {
+      "line": 8226,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:306:11",
+        "✖ a transient unlocked epoch observation refuses only that call (2.80075ms)",
+        "  page.reload: Target page, context or browser has been closed",
+        "      at Object.reload (/Users/ccheever/projects/snapback-pub-049/snapback4/witness/lib.mjs:144:33)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:307:19)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:306:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8233,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:322:11",
+        "✖ the bare online browser transport refuses without custody (1.847375ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:323:32)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:322:11)",
+        ""
+      ]
+    },
+    {
+      "line": 8239,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:332:47",
+        "✖ IndexedDB packed rows retain atomic abort and reopen (4.3035ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:333:31)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:332:47)",
+        ""
+      ]
+    },
+    {
+      "line": 8245,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:332:47",
+        "✖ IndexedDB legacy rows retain atomic abort and reopen (20.351625ms)",
+        "  page.evaluate: Target page, context or browser has been closed",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:333:31)",
+        "      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/test/web-start.test.mjs:332:47)",
+        ""
+      ]
+    },
+    {
+      "line": 8251,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/web-start.test.mjs:42:1",
+        "✖ web startup: immediate admin navigation, synchronous refusals and acquisition hook (125042.6295ms)",
+        "  'test timed out after 120000ms'"
+      ]
+    },
+    {
+      "line": 8378,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/app-session-model.test.mjs:5:41",
+        "✖ local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (240001.214375ms)",
+        "  'test timed out after 240000ms'"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "log": "focused-check-slow.log",
+  "sha256": "638fb0a31fdadb1676ded11af587153b4df93d00ad5fae7192fd7ce32f6ad3fb",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

@@ -1,0 +1,35 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 8.36s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 2 tests
+test changed_default_rechecks_unchanged_cap ... dev unique=false: snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool"
+
+SL_EXIT_RECORD_CONTROL stderr="snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576\nSNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\"\nsnapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\n"
+changed default unique=false: check exit=1, dev refusal=snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool"
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576
+
+ok
+test changed_default_rechecks_unchanged_unique_index ... dev unique=true: snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool"
+
+SL_EXIT_RECORD_CONTROL stderr="snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576\nSNAPBACK4_EXIT verb=dev generation=0 status=1 reason=\"E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool\"\nsnapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\n"
+changed default unique=true: check exit=1, dev refusal=snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool"
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576
+
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.22s
+

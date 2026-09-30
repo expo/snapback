@@ -205,10 +205,12 @@ fn rate_and_input_refusals_are_http_200_failed_under_dev_and_serve() {
         let principal = session["session"]["principal"].as_str().unwrap();
         seed(&h, principal, "peer");
         let headers = format!("Authorization: Bearer {token}\r\n");
-        // Drain a deterministic bucket at one instant; the HTTP request checks
-        // that same session and preserves the failed wire status under both hosts.
+        // @ref LLP 3000#publication-suite-under-contention — HTTP dispatch cannot consume semantic time.
+        // Freeze the host's limiter clock as well as the direct drain. Otherwise
+        // 50 ms of scheduling before admission legitimately refills one token.
         let key = snapback4_core::value::digest(&token);
         let now = Instant::now();
+        h.shared.ephemeral_rate.set_now(now);
         for _ in 0..40 {
             assert!(h.shared.ephemeral_rate.admit(key.clone(), now));
         }
@@ -226,14 +228,18 @@ fn rate_and_input_refusals_are_http_200_failed_under_dev_and_serve() {
         assert_eq!(reply["why"]["retryable"], true);
         assert!(reply.get("seq").is_none());
         for spaces in 2..=7 {
-            // Re-drain at this instant: on a slow host the bucket can refill between requests.
-            let now = Instant::now();
-            while h.shared.ephemeral_rate.admit(key.clone(), now) {}
+            assert!(!h.shared.ephemeral_rate.admit(key.clone(), now));
             let headers = format!("Authorization: Bearer{}{token}  \r\n", " ".repeat(spaces));
             let reply = body(&h.request("POST", "/m/setTyping", &headers,
                 r#"{"args":{"roomId":"r","payload":""}}"#));
             assert_eq!(reply["why"]["code"], "E_RATE_LIMIT", "spacing {spaces}: {reply}");
         }
+        // The same real HTTP route admits again when exactly one token refills.
+        h.shared.ephemeral_rate.set_now(now + Duration::from_millis(50));
+        let reply = h.request("POST", "/m/setTyping", &headers,
+            r#"{"id":"refilled","args":{"roomId":"r","payload":""}}"#);
+        assert_eq!(status(&reply), 200, "{reply}");
+        assert_eq!(body(&reply)["state"], "sent", "{reply}");
     }
 }
 #[test]

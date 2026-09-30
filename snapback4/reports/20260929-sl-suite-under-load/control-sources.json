@@ -1,0 +1,23 @@
+[
+  {
+    "base": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+    "original": "snapback4/packages/snapback4/test/answer-withdrawal.test.mjs",
+    "original_sha256": "370a6cf8396c7ae8c9808454904c4c716f74deb7a49e3cd320ccc29b6841d15a",
+    "control": "target/sl-load/controls/answer-withdrawal.test.mjs",
+    "control_sha256": "74916fc250b4e0c8b766b6e467442309fdcbee82bb2d642fef7eb5691e1870fd"
+  },
+  {
+    "base": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+    "original": "snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+    "original_sha256": "06e31d95d89dc89093fe458ac318f03d6d00861fcaabd360325a4f9baaf8fc47",
+    "control": "target/sl-load/controls/client-lifecycle.test.mjs",
+    "control_sha256": "0dabe578d636d2aabe16caed609f13c3ee792386b1cacf44c4f1536fab4b84a5"
+  },
+  {
+    "base": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+    "original": "snapback4/packages/snapback4/test/web-admission-review.test.mjs",
+    "original_sha256": "283f7bb1345d5c8178752a21cd7a0cb21eb812a9c8a720fc00aeb95cec424f53",
+    "control": "target/sl-load/controls/web-admission-review.test.mjs",
+    "control_sha256": "2173cbd9988a5628374d06bebb9ae016960aa252fcda3e790cbe0d60e5694077"
+  }
+]

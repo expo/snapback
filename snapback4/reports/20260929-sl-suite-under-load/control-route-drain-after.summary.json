@@ -1,0 +1,21 @@
+{
+  "log": "control-route-drain-after.log",
+  "sha256": "96e143cc2ffe4441af88975c31d3aab785ccbae1d904db0d5ae8ef89bffde8f6",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 1",
+    "ℹ suites 0",
+    "ℹ pass 1",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 3578.508382"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

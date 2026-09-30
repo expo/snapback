@@ -1,0 +1,22 @@
+[
+  {
+    "mode": "before",
+    "source": "target/sl-load/per-row-retry.test.mjs.candidate",
+    "source_sha256": "57327844589313a569aee40a128f12c675636811594cb745a49a6131c3ab327e",
+    "control": "target/sl-load/controls/retry-installation-before.test.mjs",
+    "control_sha256": "63d683e49a3c8297c12e7da01941c95d1a00b0d3838e35e29b93c7d605e69c9a",
+    "delay_ms": 750,
+    "diagnostic_guard_ms": 5000,
+    "cleanup": "close then release frozen background sleep; restore real timers"
+  },
+  {
+    "mode": "after",
+    "source": "target/sl-load/per-row-retry.test.mjs.candidate",
+    "source_sha256": "57327844589313a569aee40a128f12c675636811594cb745a49a6131c3ab327e",
+    "control": "target/sl-load/controls/retry-installation-after.test.mjs",
+    "control_sha256": "8dfff6c3bde39dbb0a3b49a98b8b05b11cc484d54ca630ba1cb2d5c23c4fe703",
+    "delay_ms": 750,
+    "diagnostic_guard_ms": 5000,
+    "cleanup": "close then release frozen background sleep; restore real timers"
+  }
+]

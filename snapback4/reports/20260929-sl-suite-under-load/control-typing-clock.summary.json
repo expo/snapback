@@ -1,0 +1,31 @@
+{
+  "log": "control-typing-clock.log",
+  "sha256": "2b50e5a516c4d7f534dd201e08124be3ee20bba0a924b65667aa00fca628d238",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 1",
+    "ℹ suites 0",
+    "ℹ pass 0",
+    "ℹ fail 0",
+    "ℹ cancelled 1",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 70156.914979"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 29,
+      "kind": "client",
+      "details": [
+        "test at target/sl-load/controls/typing-clock.test.mjs:28:30",
+        "✖ useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients (70002.284084ms)",
+        "  'test timed out after 70000ms'"
+      ]
+    }
+  ]
+}

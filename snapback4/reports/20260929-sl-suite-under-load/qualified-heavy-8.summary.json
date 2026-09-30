@@ -1,0 +1,76 @@
+{
+  "log": "qualified-heavy-8.log",
+  "sha256": "61343bcd0aa2a6b442f697a79c9c66aadc71744dea212fa46830f6e980e17e74",
+  "summary": [
+    "== 1 failure(s) in 3950 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (6 s)",
+    "-- ok: wasm build (2 s)",
+    "-- ok: docs budget (6 s)",
+    "-- ok: release guard (15 s)",
+    "-- ok: package typecheck (6 s)",
+    "-- ok: package build (7 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1910 s)",
+    "-- ok: chat app typecheck (4 s)",
+    "-- ok: expo app typecheck (7 s)",
+    "-- ok: fixture wrapper tests (46 s)",
+    "-- FAIL: client tests (1240 s)",
+    "-- ok: client models (758 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4342,
+    "failed": 0,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 45672.324787",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5196",
+    "ℹ fail 1",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 1239126.635403",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 757395.900469"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 8031,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/admit-before-identity.test.mjs:109:76",
+        "✖ identity incarnation refuses publicly without custody (Worker) (2094.680633ms)",
+        "  Error: \"route.fetch: Target page, context or browser has been closed\" while running route callback.",
+        "  Consider awaiting `await page.unrouteAll({ behavior: 'ignoreErrors' })`",
+        "  before the end of the test to ignore remaining routes in flight.",
+        "      at /home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:120:38"
+      ]
+    }
+  ]
+}

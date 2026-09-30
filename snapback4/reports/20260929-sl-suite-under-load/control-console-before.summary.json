@@ -1,0 +1,38 @@
+{
+  "log": "control-console-before.log",
+  "sha256": "7b5c0fa15debb699250989ee2becb3d3dd53aa2d57375e270eebbf49d60f5eda",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 0,
+    "failed": 1,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 16,
+      "kind": "rust",
+      "details": [
+        "running 1 test",
+        "",
+        "thread 'serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line' (598801) panicked at crates/snapback4/src/dev_refusal_console.rs:81:9:",
+        "dev refusal: SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread=\"worker\" reason=\"shutdown\"",
+        "add: rows — insert rule at schema.q:5:3; execution site \"add:3\"; phase \"insert rule\"; generation 1; store \"store\"; instance \"instance\"; code \"E_RULE\"; count 8; window 1s; first request 2; first job null; first time null; first response null; `snapback4 why recent --instance instance`",
+        "",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "test serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line ... FAILED",
+        "",
+        "failures:",
+        "",
+        "failures:",
+        "    serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line",
+        "",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 215 filtered out; finished in 0.00s"
+      ]
+    }
+  ]
+}

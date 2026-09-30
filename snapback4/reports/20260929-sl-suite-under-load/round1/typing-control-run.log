@@ -1,0 +1,1 @@
+{"name": "typing-polling-negative", "command": ["node", "--test", "--test-reporter=tap", "/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/.sl-polling-control.mjs"], "exit": 1, "elapsed_seconds": 3.586030136793852}

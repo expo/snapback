@@ -1,0 +1,12 @@
+{
+  "run": "focused-check-slow",
+  "exit": 0,
+  "trace_sha256": "1e1c57dfd669214db639988a789e0bfa9c6cfeedb940a1599b13e3d5356091ac",
+  "required_delay_ms": 300,
+  "child_exec_events": 6,
+  "resumed_child_execs": 6,
+  "ended_before_resume": 0,
+  "min_observed_delay_ms": 300.0003,
+  "max_observed_delay_ms": 300.825416,
+  "root_first_exec_delayed": false
+}

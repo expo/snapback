@@ -1,0 +1,29 @@
+{
+  "source": "db2b0c384593d0253670408199a1f22244019f5911456ce8c9b27fa195b99f1f",
+  "heavy_passes": [
+    "qualified-heavy-5"
+  ],
+  "attempts": [
+    {
+      "name": "qualified-heavy-5",
+      "exit": 0,
+      "summary": [
+        "== 0 failure(s) in 3503 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-6",
+      "exit": 1,
+      "summary": [
+        "== 1 failure(s) in 3515 s"
+      ]
+    },
+    {
+      "name": "qualified-heavy-7",
+      "exit": 1,
+      "summary": [
+        "== 1 failure(s) in 3466 s"
+      ]
+    }
+  ]
+}

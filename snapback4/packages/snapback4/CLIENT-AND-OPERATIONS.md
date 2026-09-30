@@ -846,8 +846,8 @@ from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
 
 Held device observations republish at `nextExpiry`, including offline, so render their
-ready rows directly. The browser witness measured publication within a frame; suspended
-pages still depend on host timer scheduling. For durable expiring tables, only server-answered reads need a render-deadline
+ready rows directly. Timers follow the row's deadline; a suspended page or a busy host
+can delay the callback. For durable expiring tables, only server-answered reads need a render-deadline
 filter while the next network answer is pending. Return `expiresAt` with each row
 (`guide reads` has the durable expiring-row recipe). Ephemeral typing uses the
 section above; its hidden deadline is handled by the client.

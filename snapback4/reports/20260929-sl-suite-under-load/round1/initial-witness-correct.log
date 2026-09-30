@@ -1,0 +1,2 @@
+E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out
+

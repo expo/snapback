@@ -1,0 +1,63 @@
+{
+  "log": "qualified-heavy-12.log",
+  "sha256": "e64376f08f7c13bcdf3502300daf193c22441b975f7d598c578f836c26739600",
+  "summary": [
+    "== 0 failure(s) in 3514 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (7 s)",
+    "-- ok: wasm build (2 s)",
+    "-- ok: docs budget (5 s)",
+    "-- ok: release guard (17 s)",
+    "-- ok: package typecheck (7 s)",
+    "-- ok: package build (7 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1538 s)",
+    "-- ok: chat app typecheck (4 s)",
+    "-- ok: expo app typecheck (3 s)",
+    "-- ok: fixture wrapper tests (41 s)",
+    "-- ok: client tests (1268 s)",
+    "-- ok: client models (663 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4342,
+    "failed": 0,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 40662.879876",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5197",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 1265970.453944",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 663664.047684"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": []
+}

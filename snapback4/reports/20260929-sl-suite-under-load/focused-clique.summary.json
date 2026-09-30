@@ -1,0 +1,16 @@
+{
+  "log": "focused-clique.log",
+  "sha256": "b60bfadbff450de5591866fd7299237a0ee1c440d6c4d945510aeaa0a55052cf",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

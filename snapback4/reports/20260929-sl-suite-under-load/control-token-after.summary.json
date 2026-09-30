@@ -1,0 +1,16 @@
+{
+  "log": "control-token-after.log",
+  "sha256": "a2b02b55d7a5d856e7a1177231c242379ba37fb19a66bbea8f7c1b12b7ec874a",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

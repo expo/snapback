@@ -51,7 +51,11 @@ async function browser(t, worker) {
       createRoot(mount).render(createElement(SnapbackProvider, { client }, createElement(Pending)));
     };
   ` });
-  t.after(() => f.close());
+  t.after(async () => {
+    // @ref LLP 3000#publication-suite-under-contention — route callbacks own live browser I/O until drained.
+    try { await f.page.unrouteAll({ behavior: 'wait' }); }
+    finally { await f.close(); }
+  });
   await f.page.evaluate(url => openFresh(url), f.api);
   return f;
 }

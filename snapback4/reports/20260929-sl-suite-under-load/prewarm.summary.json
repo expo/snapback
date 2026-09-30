@@ -1,0 +1,12 @@
+{
+  "log": "prewarm.log",
+  "sha256": "4081579d3b3365ba1ef5c6abcc92885d6b41f8176e5ffd3015c804aefc140d53",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

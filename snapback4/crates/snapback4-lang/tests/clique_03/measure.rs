@@ -1,48 +1,57 @@
+// @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 const WARMUPS: usize = 3;
 const SAMPLES: usize = 20;
 const RATIO_LIMIT: f64 = 3.0;
 use super::*;
+
+// The fixture uses an in-memory engine on this thread. Charge engine CPU,
+// excluding descheduling by unrelated builds; still record wall latency. Paired
+// controls rotate order so frequency/cache changes affect both populations.
+fn cpu_time() -> std::time::Duration {
+    let mut value = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    assert_eq!(unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut value) }, 0);
+    std::time::Duration::new(value.tv_sec as u64, value.tv_nsec as u32)
+}
 pub fn reads(e: &mut Engine, m: &Model) {
-    let mut p95s = BTreeMap::new();
-    for who in ["u0005", "u0500", "u0901"] {
-        let mut times = Vec::new();
-        let mut warmups = 0;
-        let mut last = None;
-        for n in 0..WARMUPS + SAMPLES {
+    let readers = ["u0005", "u0500", "u0901"];
+    let mut cpu = BTreeMap::<_, Vec<f64>>::new();
+    let mut wall = BTreeMap::<_, Vec<f64>>::new();
+    let mut last = BTreeMap::new();
+    let mut warmups = BTreeMap::<_, usize>::new();
+    for n in 0..WARMUPS + SAMPLES {
+        for offset in 0..readers.len() {
+            let who = readers[(n + offset) % readers.len()];
             let start = Instant::now();
+            let charged = cpu_time();
             let out = e.query("following", ctx(who, &[], m.now)).unwrap();
+            let used = (cpu_time() - charged).as_secs_f64() * 1000.0;
+            let elapsed = start.elapsed().as_secs_f64() * 1000.0;
             if n >= WARMUPS {
-                times.push(start.elapsed().as_secs_f64() * 1000.0);
+                cpu.entry(who).or_default().push(used);
+                wall.entry(who).or_default().push(elapsed);
             } else {
-                warmups += 1;
+                *warmups.entry(who).or_default() += 1;
             }
             assert!(out.complete);
-            last = Some(out);
+            last.insert(who, out);
         }
-        assert_eq!(warmups, WARMUPS);
-        times.sort_by(f64::total_cmp);
-        p95s.insert(who, p95(&mut times));
-        let out = last.unwrap();
+    }
+    let mut p95s = BTreeMap::new();
+    for who in readers {
+        assert_eq!(warmups[who], WARMUPS);
+        let charged = p95(cpu.get_mut(who).unwrap());
+        let elapsed = p95(wall.get_mut(who).unwrap());
+        p95s.insert(who, charged);
+        let out = &last[who];
         let recipe_examined = if who == "u0901" { 85 } else { 42 };
-        assert!(
-            out.metered.examined <= 3 * recipe_examined,
-            "Following examinations exceed recipe envelope"
-        );
-        println!(
-            "CLIQUE_READ {}",
-            json!({"reader":who,"p95_ms":p95(&mut times),"samples":times.len(),"warmups":warmups,"metered":out.metered,"returned":out.data.as_array().unwrap().len()})
-        );
+        assert!(out.metered.examined <= 3 * recipe_examined, "Following examinations exceed recipe envelope");
+        println!("CLIQUE_READ {}", json!({"reader":who,"p95_ms":elapsed,"cpu_p95_ms":charged,
+            "samples":cpu[who].len(),"warmups":warmups[who],"metered":out.metered,"returned":out.data.as_array().unwrap().len()}));
     }
     let dense = p95s["u0500"] / p95s["u0005"];
     let celebrity = p95s["u0901"] / p95s["u0005"];
-    assert!(
-        dense <= RATIO_LIMIT && celebrity <= RATIO_LIMIT,
-        "reader ratios: {dense}, {celebrity}"
-    );
-    println!(
-        "CLIQUE_RATIOS {}",
-        json!({"dense_sparse":dense,"celebrity_sparse":celebrity,"limit":RATIO_LIMIT})
-    );
+    assert!(dense <= RATIO_LIMIT && celebrity <= RATIO_LIMIT, "reader CPU ratios: {dense}, {celebrity}");
+    println!("CLIQUE_RATIOS {}", json!({"clock":"thread-cpu", "dense_sparse":dense,"celebrity_sparse":celebrity,"limit":RATIO_LIMIT}));
     let pages: i64 = e
         .store()
         .conn()
@@ -165,49 +174,48 @@ pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
         json!({"stored_edges":edges.len(),"model_edges":m.edges.len(),"edges_equal":edges==m.edges,
         "celebrity_followers":celebrity_followers,"ordinary":ordinary,"ordinary_followers":ordinary_followers})
     );
-    let mut values = BTreeMap::new();
-    for who in [&ordinary, &"u0900".to_owned()] {
-        let mut samples = Vec::new();
-        let mut warmups = 0;
-        for n in 0..WARMUPS + SAMPLES {
+    let authors = [ordinary.as_str(), "u0900"];
+    let mut cpu = BTreeMap::<_, Vec<f64>>::new();
+    let mut wall = BTreeMap::<_, Vec<f64>>::new();
+    let mut warmups = BTreeMap::<_, usize>::new();
+    for n in 0..WARMUPS + SAMPLES {
+        for offset in 0..authors.len() {
+            let who = authors[(n + offset) % authors.len()];
             m.now += 1;
             let key = format!("write-sample-{who}-{n:02}");
             let body = "post acknowledgement sample";
             let start = Instant::now();
+            let charged = cpu_time();
             sent(e, "post", who, &[("body", text(body))], m.now, &key);
+            let used = (cpu_time() - charged).as_secs_f64() * 1000.0;
             let elapsed = start.elapsed().as_secs_f64() * 1000.0;
             if n >= WARMUPS {
-                samples.push(elapsed);
+                cpu.entry(who).or_default().push(used);
+                wall.entry(who).or_default().push(elapsed);
             } else {
-                warmups += 1;
+                *warmups.entry(who).or_default() += 1;
             }
-            m.posts.insert(
-                key.clone(),
-                model::Post {
-                    author: who.clone(),
-                    at: m.now,
-                    body: body.into(),
-                },
-            );
+            m.posts.insert(key.clone(), model::Post { author: who.to_owned(), at: m.now, body: body.into() });
             m.event(&key, &key, who, m.now, false);
         }
-        assert_eq!(warmups, WARMUPS);
-        let latency = p95(&mut samples);
-        values.insert(who.clone(), latency);
-        println!(
-            "CLIQUE_WRITE {}",
-            json!({"author":who,"followers":followers(who),
-            "samples":samples.len(),"warmups":warmups,"ack_p95_ms":latency})
-        );
+    }
+    let mut values = BTreeMap::new();
+    for who in authors {
+        assert_eq!(warmups[who], WARMUPS);
+        let charged = p95(cpu.get_mut(who).unwrap());
+        let elapsed = p95(wall.get_mut(who).unwrap());
+        values.insert(who.to_owned(), charged);
+        println!("CLIQUE_WRITE {}", json!({"author":who,"followers":followers(who),
+            "samples":cpu[who].len(),"warmups":warmups[who],"ack_p95_ms":elapsed,"cpu_p95_ms":charged}));
     }
     let ratio = values["u0900"] / values[&ordinary];
     assert!(
         ratio <= RATIO_LIMIT,
-        "celebrity write ratio {ratio} exceeds {RATIO_LIMIT}"
+        "celebrity write CPU ratio {ratio} exceeds {RATIO_LIMIT}"
     );
     println!(
         "CLIQUE_WRITE_RATIO {}",
-        json!({"celebrity_ordinary":ratio,"limit":RATIO_LIMIT,
+        json!({"clock":"thread-cpu","celebrity_ordinary":ratio,"limit":RATIO_LIMIT,
         "celebrity_followers":celebrity_followers,"ordinary_followers":ordinary_followers})
     );
 }

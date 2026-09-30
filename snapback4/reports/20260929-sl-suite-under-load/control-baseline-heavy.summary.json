@@ -1,0 +1,49 @@
+{
+  "log": "control-baseline-heavy.log",
+  "sha256": "8d0f1ce30825993933db10001695a666728231019512aad6c783827749d45fd2",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 13",
+    "ℹ suites 0",
+    "ℹ pass 10",
+    "ℹ fail 3",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 152470.101025"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 42,
+      "kind": "client",
+      "details": [
+        "test at target/sl-load/controls/web-admission-review.test.mjs:44:79",
+        "✖ replacement after validation refuses the original orphan binding at the server (ordinary transport) (71670.141169ms)",
+        "  page.waitForResponse: Timeout 5000ms exceeded while waiting for event \"response\"",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/web-admission-review.test.mjs:1122:29)",
+        "      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/web-admission-review.test.mjs:1098:39) {",
+        "    name: 'TimeoutError'",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "line": 50,
+      "kind": "client",
+      "details": [
+        "test at target/sl-load/controls/web-admission-review.test.mjs:44:79",
+        "✖ replacement after validation refuses the original orphan binding at the server (exit transport) (72924.903737ms)",
+        "  page.waitForResponse: Timeout 5000ms exceeded while waiting for event \"response\"",
+        "      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/web-admission-review.test.mjs:1122:29)",
+        "      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/web-admission-review.test.mjs:1098:39) {",
+        "    name: 'TimeoutError'",
+        "  }"
+      ]
+    }
+  ]
+}

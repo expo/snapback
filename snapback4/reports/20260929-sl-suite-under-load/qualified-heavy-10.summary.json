@@ -1,0 +1,87 @@
+{
+  "log": "qualified-heavy-10.log",
+  "sha256": "eaee78e04ee5401d3f6e41c4517df7b69daa9f8bdc47bf8232dd3a7d3920cdcf",
+  "summary": [
+    "== 1 failure(s) in 3512 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (9 s)",
+    "-- ok: wasm build (2 s)",
+    "-- ok: docs budget (5 s)",
+    "-- ok: release guard (10 s)",
+    "-- ok: package typecheck (6 s)",
+    "-- ok: package build (8 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1524 s)",
+    "-- ok: chat app typecheck (5 s)",
+    "-- ok: expo app typecheck (6 s)",
+    "-- ok: fixture wrapper tests (54 s)",
+    "-- FAIL: client tests (1245 s)",
+    "-- ok: client models (703 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4342,
+    "failed": 0,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 54184.402114",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5196",
+    "ℹ fail 1",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 1243340.533569",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 702890.502677"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 8030,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/retained-history.test.mjs:119:749",
+        "✖ R5 history process: retained history and independent held coverage (548.741058ms)",
+        "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+        "  ",
+        "    assert.ok(!deliveries.includes(0))",
+        "  ",
+        "      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/retained-history.test.mjs:838:46)",
+        "      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {",
+        "    generatedMessage: true,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: false,",
+        "    expected: true,",
+        "    operator: '==',",
+        "    diff: 'simple'",
+        "  }"
+      ]
+    }
+  ]
+}

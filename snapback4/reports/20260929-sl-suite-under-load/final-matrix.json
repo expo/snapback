@@ -1,0 +1,13 @@
+{
+  "source": "5896f4daa5c4269df80b931a5629337992865d691ec4711f5e6561521b48ee58",
+  "heavy_passes": [],
+  "attempts": [
+    {
+      "name": "qualified-heavy-4",
+      "exit": 1,
+      "summary": [
+        "== 1 failure(s) in 3649 s"
+      ]
+    }
+  ]
+}

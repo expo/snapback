@@ -19,7 +19,9 @@ with (root / 'simctl-calls.jsonl').open('a') as f:
     f.write(json.dumps(a) + '\n')
 if a[0] == 'list':
     if mode == 'timeout-prepare':
-        time.sleep(6)
+        # Withhold readiness until the driver times out and reaps us.
+        while True:
+            signal.pause()
     if mode == 'no-xcode':
         print('tool noise that must not reach the user', file=sys.stderr)
         sys.exit(1)

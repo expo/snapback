@@ -1,0 +1,1580 @@
+TAP version 13
+# Subtest: useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients
+not ok 1 - useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients
+  ---
+  duration_ms: 1901.944774
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/.sl-polling-control.mjs:28:30'
+  failureType: 'testCodeFailure'
+  error: |-
+    expiry timers must not wake to poll before the row deadline
+    + actual - expected
+    
+    + [
+    +   {
+    +     at: 1790779600963,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779600963,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601063,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601063,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601163,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601163,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601263,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601263,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601363,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601363,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601463,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601463,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601563,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601563,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601663,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601663,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601763,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601763,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601863,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601863,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779601963,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779601963,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602063,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602063,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602163,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602163,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602263,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602263,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602363,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602363,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602463,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602463,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602563,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602563,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602663,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602663,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602763,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602763,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602863,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602863,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779602963,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779602963,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603063,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603063,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603163,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603163,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603263,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603263,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603363,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603363,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603463,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603463,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603563,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603563,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603663,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603663,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603763,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603763,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603863,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603863,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779603963,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779603963,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604063,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604063,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604163,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604163,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604263,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604263,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604363,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604363,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604463,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604463,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604563,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604563,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604663,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604663,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604763,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604763,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604863,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604863,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779604963,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779604963,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779605063,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779605063,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779605163,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779605163,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779605263,
+    +     deadlines: {
+    +       device: 1790779605363,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779605263,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779605363
+    +     },
+    +     tier: 'online'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      tier: 'local'
+      at: 1790779600963
+      deadlines:
+        device: 1790779605363
+        server: ~
+        localWakeup: false
+    1:
+      tier: 'online'
+      at: 1790779600963
+      deadlines:
+        device: ~
+        server: 1790779605363
+        localWakeup: false
+    2:
+      tier: 'local'
+      at: 1790779601063
+      deadlines: <Circular>
+    3:
+      tier: 'online'
+      at: 1790779601063
+      deadlines: <Circular>
+    4:
+      tier: 'local'
+      at: 1790779601163
+      deadlines: <Circular>
+    5:
+      tier: 'online'
+      at: 1790779601163
+      deadlines: <Circular>
+    6:
+      tier: 'local'
+      at: 1790779601263
+      deadlines: <Circular>
+    7:
+      tier: 'online'
+      at: 1790779601263
+      deadlines: <Circular>
+    8:
+      tier: 'local'
+      at: 1790779601363
+      deadlines: <Circular>
+    9:
+      tier: 'online'
+      at: 1790779601363
+      deadlines: <Circular>
+    10:
+      tier: 'local'
+      at: 1790779601463
+      deadlines: <Circular>
+    11:
+      tier: 'online'
+      at: 1790779601463
+      deadlines: <Circular>
+    12:
+      tier: 'local'
+      at: 1790779601563
+      deadlines: <Circular>
+    13:
+      tier: 'online'
+      at: 1790779601563
+      deadlines: <Circular>
+    14:
+      tier: 'local'
+      at: 1790779601663
+      deadlines: <Circular>
+    15:
+      tier: 'online'
+      at: 1790779601663
+      deadlines: <Circular>
+    16:
+      tier: 'local'
+      at: 1790779601763
+      deadlines: <Circular>
+    17:
+      tier: 'online'
+      at: 1790779601763
+      deadlines: <Circular>
+    18:
+      tier: 'local'
+      at: 1790779601863
+      deadlines: <Circular>
+    19:
+      tier: 'online'
+      at: 1790779601863
+      deadlines: <Circular>
+    20:
+      tier: 'local'
+      at: 1790779601963
+      deadlines: <Circular>
+    21:
+      tier: 'online'
+      at: 1790779601963
+      deadlines: <Circular>
+    22:
+      tier: 'local'
+      at: 1790779602063
+      deadlines: <Circular>
+    23:
+      tier: 'online'
+      at: 1790779602063
+      deadlines: <Circular>
+    24:
+      tier: 'local'
+      at: 1790779602163
+      deadlines: <Circular>
+    25:
+      tier: 'online'
+      at: 1790779602163
+      deadlines: <Circular>
+    26:
+      tier: 'local'
+      at: 1790779602263
+      deadlines: <Circular>
+    27:
+      tier: 'online'
+      at: 1790779602263
+      deadlines: <Circular>
+    28:
+      tier: 'local'
+      at: 1790779602363
+      deadlines: <Circular>
+    29:
+      tier: 'online'
+      at: 1790779602363
+      deadlines: <Circular>
+    30:
+      tier: 'local'
+      at: 1790779602463
+      deadlines: <Circular>
+    31:
+      tier: 'online'
+      at: 1790779602463
+      deadlines: <Circular>
+    32:
+      tier: 'local'
+      at: 1790779602563
+      deadlines: <Circular>
+    33:
+      tier: 'online'
+      at: 1790779602563
+      deadlines: <Circular>
+    34:
+      tier: 'local'
+      at: 1790779602663
+      deadlines: <Circular>
+    35:
+      tier: 'online'
+      at: 1790779602663
+      deadlines: <Circular>
+    36:
+      tier: 'local'
+      at: 1790779602763
+      deadlines: <Circular>
+    37:
+      tier: 'online'
+      at: 1790779602763
+      deadlines: <Circular>
+    38:
+      tier: 'local'
+      at: 1790779602863
+      deadlines: <Circular>
+    39:
+      tier: 'online'
+      at: 1790779602863
+      deadlines: <Circular>
+    40:
+      tier: 'local'
+      at: 1790779602963
+      deadlines: <Circular>
+    41:
+      tier: 'online'
+      at: 1790779602963
+      deadlines: <Circular>
+    42:
+      tier: 'local'
+      at: 1790779603063
+      deadlines: <Circular>
+    43:
+      tier: 'online'
+      at: 1790779603063
+      deadlines: <Circular>
+    44:
+      tier: 'local'
+      at: 1790779603163
+      deadlines: <Circular>
+    45:
+      tier: 'online'
+      at: 1790779603163
+      deadlines: <Circular>
+    46:
+      tier: 'local'
+      at: 1790779603263
+      deadlines: <Circular>
+    47:
+      tier: 'online'
+      at: 1790779603263
+      deadlines: <Circular>
+    48:
+      tier: 'local'
+      at: 1790779603363
+      deadlines: <Circular>
+    49:
+      tier: 'online'
+      at: 1790779603363
+      deadlines: <Circular>
+    50:
+      tier: 'local'
+      at: 1790779603463
+      deadlines: <Circular>
+    51:
+      tier: 'online'
+      at: 1790779603463
+      deadlines: <Circular>
+    52:
+      tier: 'local'
+      at: 1790779603563
+      deadlines: <Circular>
+    53:
+      tier: 'online'
+      at: 1790779603563
+      deadlines: <Circular>
+    54:
+      tier: 'local'
+      at: 1790779603663
+      deadlines: <Circular>
+    55:
+      tier: 'online'
+      at: 1790779603663
+      deadlines: <Circular>
+    56:
+      tier: 'local'
+      at: 1790779603763
+      deadlines: <Circular>
+    57:
+      tier: 'online'
+      at: 1790779603763
+      deadlines: <Circular>
+    58:
+      tier: 'local'
+      at: 1790779603863
+      deadlines: <Circular>
+    59:
+      tier: 'online'
+      at: 1790779603863
+      deadlines: <Circular>
+    60:
+      tier: 'local'
+      at: 1790779603963
+      deadlines: <Circular>
+    61:
+      tier: 'online'
+      at: 1790779603963
+      deadlines: <Circular>
+    62:
+      tier: 'local'
+      at: 1790779604063
+      deadlines: <Circular>
+    63:
+      tier: 'online'
+      at: 1790779604063
+      deadlines: <Circular>
+    64:
+      tier: 'local'
+      at: 1790779604163
+      deadlines: <Circular>
+    65:
+      tier: 'online'
+      at: 1790779604163
+      deadlines: <Circular>
+    66:
+      tier: 'local'
+      at: 1790779604263
+      deadlines: <Circular>
+    67:
+      tier: 'online'
+      at: 1790779604263
+      deadlines: <Circular>
+    68:
+      tier: 'local'
+      at: 1790779604363
+      deadlines: <Circular>
+    69:
+      tier: 'online'
+      at: 1790779604363
+      deadlines: <Circular>
+    70:
+      tier: 'local'
+      at: 1790779604463
+      deadlines: <Circular>
+    71:
+      tier: 'online'
+      at: 1790779604463
+      deadlines: <Circular>
+    72:
+      tier: 'local'
+      at: 1790779604563
+      deadlines: <Circular>
+    73:
+      tier: 'online'
+      at: 1790779604563
+      deadlines: <Circular>
+    74:
+      tier: 'local'
+      at: 1790779604663
+      deadlines: <Circular>
+    75:
+      tier: 'online'
+      at: 1790779604663
+      deadlines: <Circular>
+    76:
+      tier: 'local'
+      at: 1790779604763
+      deadlines: <Circular>
+    77:
+      tier: 'online'
+      at: 1790779604763
+      deadlines: <Circular>
+    78:
+      tier: 'local'
+      at: 1790779604863
+      deadlines: <Circular>
+    79:
+      tier: 'online'
+      at: 1790779604863
+      deadlines: <Circular>
+    80:
+      tier: 'local'
+      at: 1790779604963
+      deadlines: <Circular>
+    81:
+      tier: 'online'
+      at: 1790779604963
+      deadlines: <Circular>
+    82:
+      tier: 'local'
+      at: 1790779605063
+      deadlines: <Circular>
+    83:
+      tier: 'online'
+      at: 1790779605063
+      deadlines: <Circular>
+    84:
+      tier: 'local'
+      at: 1790779605163
+      deadlines: <Circular>
+    85:
+      tier: 'online'
+      at: 1790779605163
+      deadlines: <Circular>
+    86:
+      tier: 'local'
+      at: 1790779605263
+      deadlines: <Circular>
+    87:
+      tier: 'online'
+      at: 1790779605263
+      deadlines: <Circular>
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/.sl-polling-control.mjs:122:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: useQuery expires 4.5 s typing rows aged 3000 ms before mount on both clients
+not ok 2 - useQuery expires 4.5 s typing rows aged 3000 ms before mount on both clients
+  ---
+  duration_ms: 1511.659262
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/.sl-polling-control.mjs:28:30'
+  failureType: 'testCodeFailure'
+  error: |-
+    expiry timers must not wake to poll before the row deadline
+    + actual - expected
+    
+    + [
+    +   {
+    +     at: 1790779605703,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779605703,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779605803,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779605803,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779605903,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779605903,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606003,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606003,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606103,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606103,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606203,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606203,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606303,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606303,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606403,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606403,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606503,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606503,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606603,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606603,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606703,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606703,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606803,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606803,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779606903,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779606903,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   },
+    +   {
+    +     at: 1790779607003,
+    +     deadlines: {
+    +       device: 1790779607103,
+    +       localWakeup: false,
+    +       server: null
+    +     },
+    +     tier: 'local'
+    +   },
+    +   {
+    +     at: 1790779607003,
+    +     deadlines: {
+    +       device: null,
+    +       localWakeup: false,
+    +       server: 1790779607103
+    +     },
+    +     tier: 'online'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      tier: 'local'
+      at: 1790779605703
+      deadlines:
+        device: 1790779607103
+        server: ~
+        localWakeup: false
+    1:
+      tier: 'online'
+      at: 1790779605703
+      deadlines:
+        device: ~
+        server: 1790779607103
+        localWakeup: false
+    2:
+      tier: 'local'
+      at: 1790779605803
+      deadlines: <Circular>
+    3:
+      tier: 'online'
+      at: 1790779605803
+      deadlines: <Circular>
+    4:
+      tier: 'local'
+      at: 1790779605903
+      deadlines: <Circular>
+    5:
+      tier: 'online'
+      at: 1790779605903
+      deadlines: <Circular>
+    6:
+      tier: 'local'
+      at: 1790779606003
+      deadlines: <Circular>
+    7:
+      tier: 'online'
+      at: 1790779606003
+      deadlines: <Circular>
+    8:
+      tier: 'local'
+      at: 1790779606103
+      deadlines: <Circular>
+    9:
+      tier: 'online'
+      at: 1790779606103
+      deadlines: <Circular>
+    10:
+      tier: 'local'
+      at: 1790779606203
+      deadlines: <Circular>
+    11:
+      tier: 'online'
+      at: 1790779606203
+      deadlines: <Circular>
+    12:
+      tier: 'local'
+      at: 1790779606303
+      deadlines: <Circular>
+    13:
+      tier: 'online'
+      at: 1790779606303
+      deadlines: <Circular>
+    14:
+      tier: 'local'
+      at: 1790779606403
+      deadlines: <Circular>
+    15:
+      tier: 'online'
+      at: 1790779606403
+      deadlines: <Circular>
+    16:
+      tier: 'local'
+      at: 1790779606503
+      deadlines: <Circular>
+    17:
+      tier: 'online'
+      at: 1790779606503
+      deadlines: <Circular>
+    18:
+      tier: 'local'
+      at: 1790779606603
+      deadlines: <Circular>
+    19:
+      tier: 'online'
+      at: 1790779606603
+      deadlines: <Circular>
+    20:
+      tier: 'local'
+      at: 1790779606703
+      deadlines: <Circular>
+    21:
+      tier: 'online'
+      at: 1790779606703
+      deadlines: <Circular>
+    22:
+      tier: 'local'
+      at: 1790779606803
+      deadlines: <Circular>
+    23:
+      tier: 'online'
+      at: 1790779606803
+      deadlines: <Circular>
+    24:
+      tier: 'local'
+      at: 1790779606903
+      deadlines: <Circular>
+    25:
+      tier: 'online'
+      at: 1790779606903
+      deadlines: <Circular>
+    26:
+      tier: 'local'
+      at: 1790779607003
+      deadlines: <Circular>
+    27:
+      tier: 'online'
+      at: 1790779607003
+      deadlines: <Circular>
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/packages/snapback4/test/.sl-polling-control.mjs:122:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3510.484415

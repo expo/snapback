@@ -47,6 +47,12 @@ fn witness_card_is_published_under_builder_words() {
 #[path = "../src/verbs/witness/protocol.rs"]
 mod protocol;
 
+// @ref LLP 3000#publication-suite-under-contention — a separate guard outlives the timeout under test and owns cleanup.
+#[cfg(unix)]
+#[allow(dead_code)] // Driver scenarios are Darwin-only; portable controls share this guard.
+#[path = "fixtures/witness-watchdog.rs"]
+mod watchdog;
+
 #[test]
 fn simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control() {
     use serde_json::json;
@@ -105,7 +111,7 @@ mod driver {
     use super::*;
     use std::{fs, path::PathBuf, os::unix::fs::PermissionsExt, sync::atomic::{AtomicUsize, Ordering}};
     use serde_json::Value;
-    struct Fixture(PathBuf);
+    struct Fixture(PathBuf, std::cell::RefCell<Vec<watchdog::Guarded>>);
     impl Fixture {
         fn new() -> Self {
             static SERIAL: AtomicUsize = AtomicUsize::new(0);
@@ -123,7 +129,7 @@ mod driver {
             for (id, runtime) in [(dir.file_name().unwrap().to_str().unwrap(), "26-5"), ("owned-old", "9-3"), ("owned-18", "18-0"), ("deleted-device", "99")] {
                 fs::write(state.join(format!("{id}.json")), serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"}).to_string()).unwrap();
             }
-            Self(dir)
+            Self(dir, Default::default())
         }
         fn command(&self, mode: &str, port: u16, artifacts: &std::path::Path) -> Command {
             if mode.starts_with("auto-create") {
@@ -132,7 +138,10 @@ mod driver {
                 fs::remove_file(self.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", self.0.file_name().unwrap().to_str().unwrap()))).unwrap();
             }
             let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
-            command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "5"])
+            // Use the published per-step budget, including first-exec scanning
+            // of the fake Python simctl. Intentional timeout cases below still
+            // withhold progress and assert the exact failing phase and cleanup.
+            command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "120"])
                 .args(if mode.starts_with("smoke") { vec!["--smoke"] } else { vec!["--segment", "offline", "--prime"] })
                 .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
@@ -142,7 +151,13 @@ mod driver {
             command
         }
         fn run(&self, mode: &str, port: u16) -> std::process::Output {
-            self.command(mode, port, std::path::Path::new("artifacts")).output().unwrap()
+            let budget = if mode == "timeout-prepare" { watchdog::PREPARATION_GUARD } else { watchdog::SCENARIO_GUARD };
+            self.run_command(&mut self.command(mode, port, std::path::Path::new("artifacts")), budget)
+        }
+        fn run_command(&self, command: &mut Command, budget: std::time::Duration) -> std::process::Output {
+            let mut drivers = self.1.borrow_mut();
+            drivers.push(watchdog::Guarded::spawn(command, &self.0, budget));
+            drivers.last_mut().unwrap().finish()
         }
         fn port() -> u16 {
             // Avoid macOS's outbound ephemeral range: another test's HTTP
@@ -155,7 +170,11 @@ mod driver {
             }
         }
     }
-    impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); let _ = fs::remove_dir_all(self.0.with_extension("state")); } }
+    impl Drop for Fixture { fn drop(&mut self) {
+        self.1.get_mut().clear();
+        let _ = fs::remove_dir_all(&self.0);
+        let _ = fs::remove_dir_all(self.0.with_extension("state"));
+    } }
     fn unsafe_simulator_record(mode: &str) {
             let fixture = Fixture::new();
             let state = fixture.0.with_extension("state").join("snapback4/witness/simulators");
@@ -179,8 +198,8 @@ mod driver {
                 "directory-write" => fs::set_permissions(&state, fs::Permissions::from_mode(0o777)).unwrap(),
                 _ => unreachable!(),
             }
-            let output = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts"))
-                .env("WITNESS_TEST_PRIOR_UDID", "foreign").output().unwrap();
+            let output = fixture.run_command(fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts"))
+                .env("WITNESS_TEST_PRIOR_UDID", "foreign"), watchdog::SCENARIO_GUARD);
             let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_ne!(receipt["simulator"]["selection"], "reused", "{mode}: {receipt}");
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -212,7 +231,7 @@ mod driver {
     // outlive dev during startup interruption, so assert port release BEFORE
     // cleaning up that exact recorded PID. No simulator or unrelated PID used.
     fn failed_startup_releases_listener(interrupt: bool) {
-        use std::{process::Stdio, time::{Duration, Instant}, thread::sleep};
+        use std::{time::{Duration, Instant}, thread::sleep};
         let fixture = Fixture::new();
         fs::write(fixture.0.join("snapback/server.ts"), "export default {};\n").unwrap();
         let node = Command::new("node").args(["-p", "process.execPath"]).output().unwrap();
@@ -222,16 +241,16 @@ mod driver {
         fs::write(fixture.0.join("checker"), format!("#!/bin/sh\nexec '{}' '{}'\n", node.trim(), fixture.0.join("stalled.mjs").display())).unwrap();
         fs::set_permissions(fixture.0.join("checker"), fs::Permissions::from_mode(0o755)).unwrap();
         let port = Fixture::port();
-        let mut child = fixture.command("normal", port, std::path::Path::new("artifacts"))
-            .env("SNAPBACK_NODE", fixture.0.join("checker")).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
-        let deadline = Instant::now() + Duration::from_secs(15);
-        while !fixture.0.join("checker-pid").exists() && Instant::now() < deadline && child.try_wait().unwrap().is_none() { sleep(Duration::from_millis(20)); }
+        let mut child = watchdog::Guarded::spawn(fixture.command("normal", port, std::path::Path::new("artifacts"))
+            .env("SNAPBACK_NODE", fixture.0.join("checker")), &fixture.0, watchdog::SCENARIO_GUARD);
+        let deadline = Instant::now() + Duration::from_secs(120);
+        while !fixture.0.join("checker-pid").exists() && Instant::now() < deadline && child.is_running() { sleep(Duration::from_millis(20)); }
         let pid = fs::read_to_string(fixture.0.join("checker-pid")).unwrap().parse::<i32>().unwrap();
         struct Checker(i32);
         impl Drop for Checker { fn drop(&mut self) { unsafe { libc::kill(self.0, libc::SIGKILL); } } }
         let _checker = Checker(pid);
         if interrupt { assert_eq!(unsafe { libc::kill(child.id() as i32, libc::SIGINT) }, 0); }
-        let output = child.wait_with_output().unwrap();
+        let output = child.finish();
         assert_eq!(output.status.code(), Some(1));
         let code = if interrupt { "E_WITNESS_INTERRUPTED" } else { "E_WITNESS_BACKEND: dev did not become ready before the step timeout" };
         assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{}", String::from_utf8_lossy(&output.stderr));
@@ -247,8 +266,8 @@ mod driver {
     fn automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime() {
         for (mode, prefix) in [("normal", "snapback4-smoke-"), ("auto-create", "snapback4-smoke-"), ("auto-create-lane", "sb4-ns-")] {
             let fixture = Fixture::new();
-            let output = fixture.command(mode, Fixture::port(), std::path::Path::new("artifacts"))
-                .env("SNAPBACK4_SMOKE_DEVICE_PREFIX", prefix).output().unwrap();
+            let output = fixture.run_command(fixture.command(mode, Fixture::port(), std::path::Path::new("artifacts"))
+                .env("SNAPBACK4_SMOKE_DEVICE_PREFIX", prefix), watchdog::SCENARIO_GUARD);
             assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
             let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert!(manifest["simulator"]["name"].as_str().unwrap().starts_with(prefix));
@@ -321,7 +340,7 @@ mod driver {
     fn missing_schema_uses_one_message_and_witness_exit_one() {
         let fixture = Fixture::new();
         fs::remove_file(fixture.0.join("snapback/schema.q")).unwrap();
-        let output = build_command(&fixture).output().unwrap();
+        let output = fixture.run_command(&mut build_command(&fixture), watchdog::SCENARIO_GUARD);
         assert_eq!(output.status.code(), Some(1));
         let err = String::from_utf8_lossy(&output.stderr);
         assert_eq!(err.lines().count(), 1, "{err}");
@@ -334,7 +353,7 @@ mod driver {
         fs::create_dir_all(fixture.0.join(".snapback4-witness")).unwrap();
         let lock = fs::File::create(fixture.0.join(".snapback4-witness/owner.lock")).unwrap();
         lock.try_lock().unwrap();
-        let output = build_command(&fixture).output().unwrap();
+        let output = fixture.run_command(&mut build_command(&fixture), watchdog::SCENARIO_GUARD);
         assert_eq!(output.status.code(), Some(1));
         assert!(String::from_utf8_lossy(&output.stderr).contains("owner already holds"));
         assert!(!fixture.0.join("snapback/generated").exists(), "a second owner entered codegen before taking the lease");
@@ -343,10 +362,10 @@ mod driver {
     fn missing_xcode_or_runtime_fails_once_before_build_or_backend() {
         for mode in ["no-xcode", "no-runtime"] {
             let fixture = Fixture::new();
-            let output = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+            let output = fixture.run_command(Command::new(env!("CARGO_BIN_EXE_snapback4"))
                 .args(["witness", "ios", "--build", ".", "--smoke"])
                 .current_dir(&fixture.0).env("PATH", format!("{}:{}", fixture.0.display(), std::env::var("PATH").unwrap()))
-                .env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", mode).output().unwrap();
+                .env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
             let err = String::from_utf8_lossy(&output.stderr);
             assert!(!output.status.success()); assert_eq!(err.lines().count(), 1, "{err}");
             assert!(err.contains("E_WITNESS_PLATFORM") && err.contains("Settings > Components"), "{err}");
@@ -497,7 +516,7 @@ mod driver {
             assert!(protocol::refused(port).unwrap());
             let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap_or_else(|e| panic!("{mode}: missing failure manifest: {e}; stderr: {error}"))).unwrap();
             if mode == "timeout" {
-                assert!(error.contains("app did not reach offline-done within 5 seconds"), "the receipt-step premise did not hold: {error}");
+                assert!(error.contains("app did not reach offline-done within 120 seconds"), "the receipt-step premise did not hold: {error}");
                 assert!(manifest["events"].as_array().unwrap().iter().any(|event| event["step"] == "waiting-offline-done"));
             }
             eprintln!("{mode}: {error}");
@@ -586,9 +605,9 @@ mod driver {
         let mut one = first.command("normal", Fixture::port(), &artifacts);
         let mut two = second.command("normal", Fixture::port(), &artifacts);
         two.env("WITNESS_TEST_UDID", "another-simulator");
-        let one = one.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
-        let two = two.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
-        let outputs = [one.wait_with_output().unwrap(), two.wait_with_output().unwrap()];
+        let mut one = watchdog::Guarded::spawn(&mut one, &first.0, watchdog::SCENARIO_GUARD);
+        let mut two = watchdog::Guarded::spawn(&mut two, &second.0, watchdog::SCENARIO_GUARD);
+        let outputs = [one.finish(), two.finish()];
         assert_eq!(outputs.iter().filter(|o| o.status.success()).count(), 1, "{:?}", outputs);
         let loser = outputs.iter().find(|o| !o.status.success()).unwrap();
         assert!(String::from_utf8_lossy(&loser.stderr).contains("E_WITNESS_ARTIFACT"));
@@ -626,7 +645,7 @@ mod witness_socket;
 
 #[test]
 fn dev_accepts_the_still_owned_listener_without_a_rebind_gap() {
-    use std::{fs, time::{Duration, Instant}, thread::sleep, process::Stdio};
+    use std::{fs, time::{Duration, Instant}, thread::sleep};
     let dir = std::env::temp_dir().join(format!("ns-listener-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();
     fs::write(dir.join("snapback/schema.q"), "table rows:\n  body: text\n  public 'all'\n").unwrap();
@@ -634,20 +653,19 @@ fn dev_accepts_the_still_owned_listener_without_a_rebind_gap() {
     let port = listener.local_addr().unwrap().port();
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
     command.args(["dev", "--port", &port.to_string(), "--no-watch"]).env("SNAPBACK4_WITNESS_DRIVER", "1")
-        .current_dir(&dir).stdout(fs::File::create(dir.join("stdout")).unwrap()).stderr(Stdio::null());
+        .current_dir(&dir);
     witness_socket::inherit(&mut command, &listener);
-    let mut child = command.spawn().unwrap();
-    let deadline = Instant::now() + Duration::from_secs(20);
+    let child = watchdog::Guarded::spawn(&mut command, &dir, watchdog::SCENARIO_GUARD);
+    let deadline = Instant::now() + Duration::from_secs(120);
     let ready = loop {
-        let text = fs::read_to_string(dir.join("stdout")).unwrap();
+        let text = fs::read_to_string(dir.join("driver-stdout.log")).unwrap();
         if text.lines().any(|s| s == format!("http://127.0.0.1:{port}")) { break true; }
-        if child.try_wait().unwrap().is_some() || Instant::now() >= deadline { break false; }
+        if !child.is_running() || Instant::now() >= deadline { break false; }
         // A competing binder must fail throughout startup, including before ready.
         assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_err());
         sleep(Duration::from_millis(10));
     };
-    if child.try_wait().unwrap().is_none() { child.kill().unwrap(); }
-    child.wait().unwrap();
+    drop(child);
     drop(listener);
     fs::remove_dir_all(dir).unwrap();
     assert!(ready, "dev must serve the inherited listener while the parent still owns it");

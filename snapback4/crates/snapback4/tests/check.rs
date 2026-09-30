@@ -684,7 +684,12 @@ fn changed_default_refuses(unique: bool) {
     assert_eq!(d["message"], "column messages.flag changes its default; existing rows must fit the new definition");
     assert!(!dev.status.success());
     let text = String::from_utf8(dev.stderr).unwrap();
-    let reason: String = serde_json::from_str(text.split_once("reason=").unwrap().1.trim()).unwrap();
+    // @ref LLP 3000#publication-suite-under-contention — diagnostic order is not an exit-record boundary.
+    // The bounded host writer can drain after the direct lifecycle write.
+    let exits: Vec<_> = text.lines().filter(|line| line.starts_with("SNAPBACK4_EXIT ")).collect();
+    assert_eq!(exits.len(), 1, "{text}");
+    let encoded = exits[0].strip_prefix("SNAPBACK4_EXIT verb=dev generation=0 status=1 reason=").unwrap();
+    let reason: String = serde_json::from_str(encoded).unwrap();
     assert_eq!(reason, format!("E_ADOPT: {}\n  rewrite: {}", d["message"].as_str().unwrap(), d["rewrite"].as_str().unwrap()));
     println!("changed default unique={unique}: check exit=1, dev refusal={text}");
 }

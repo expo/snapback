@@ -1,0 +1,67 @@
+== client tests
+-- client test files: 239; concurrency: 5
+✔ W5R1x: terminal history is bounded independently of unresolved writes (3.978984ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (5864.515995ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (3577.593189ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1545.714986ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (1471.080175ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (8086.041432ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x process: opener returns an offline unacquired client on network loss (4375.232551ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (2217.951188ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (2438.231523ms)
+✔ wasm: schema alone is not acquisition; unadmitted writes disappear on close (2443.672352ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6500.049703ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1477.941193ms)
+✔ process: schema alone is not acquisition; unadmitted writes disappear on close (3361.533112ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (8680.904597ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (2411.778022ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (3759.624752ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (5525.957833ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (5072.143652ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (7759.37616ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ receipt custody retains the first sent outcome across repeated save failures (1.699207ms)
+✔ receipt custody retains the first failed outcome across repeated save failures (0.269804ms)
+✔ acknowledgement drops an unsaved replacement refusal before any persistence retry (0.475002ms)
+✔ a legacy acknowledgement returns a known authored refusal without saving success (0.459388ms)
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (10058.81836ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (7471.294884ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (8325.472161ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5 confirmation N3: another owner's durable receipt still notifies this client once (10583.715425ms)
+ℹ first_completion_emissions=1
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1836.210306ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1648.862191ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+✔ sequence by wasm: two offline Write results remain pending until settled (1474.620963ms)
+✔ sequence by process: two offline Write results remain pending until settled (2067.974904ms)
+✔ sequence by wasm: provisional rule refusal queues for the server (4539.08773ms)
+✔ sequence by wasm: provisional require refusal queues for the server (4533.937656ms)
+✔ sequence by wasm: provisional constraint refusal queues for the server (4503.270213ms)
+✔ sequence by wasm: provisional named constraint refusal queues for the server (4535.735963ms)
+✔ sequence by wasm: provisional postcondition refusal queues for the server (4527.218652ms)
+✔ sequence by wasm: provisional sequence key refusal queues for the server (4536.189915ms)
+✔ sequence by wasm: provisional old refusal queues for the server (4546.031243ms)

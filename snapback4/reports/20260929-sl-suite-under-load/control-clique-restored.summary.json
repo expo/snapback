@@ -1,0 +1,16 @@
+{
+  "log": "control-clique-restored.log",
+  "sha256": "b1b8c448520570e06de9647aa200e32e8c6a6f94df993a933b3c1ca07eb2e2b6",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

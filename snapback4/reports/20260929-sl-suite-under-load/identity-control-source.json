@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-30T01:30:24.427383+00:00",
+  "files": [
+    {
+      "path": "crates/snapback4/tests/run_admission/identity.rs",
+      "before_sha256": "f4bee18408336d60884cdb2ad89b74096cf22987cb823010ce4828e4e0cfcb9c",
+      "control": "target/sl-load/identity-control.rs",
+      "control_sha256": "8c21e0f0987a7e3e93b2d26e2336fa097811672dc7f6666fde3528d19946696c",
+      "candidate": "target/sl-load/identity-candidate.rs",
+      "candidate_sha256": "4231b510242506d7b026ebb6eba0bd304e0b80205967f96a6af8e6c304f6d69d"
+    }
+  ],
+  "tested_diff_sha256": "d6361c6e1c828e573c76141f60f94aa99ee0b9398e596a71b8f425f0666c345d"
+}

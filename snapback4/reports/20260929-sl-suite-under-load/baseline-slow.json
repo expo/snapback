@@ -1,0 +1,47 @@
+{
+  "name": "baseline-slow",
+  "workers": 0,
+  "mode": "slow",
+  "affinity": [
+    "taskset",
+    "-c",
+    "80-95"
+  ],
+  "wrapper": [
+    "strace",
+    "-f",
+    "--seccomp-bpf",
+    "-qq",
+    "-e",
+    "trace=execve,execveat",
+    "-e",
+    "raw=execve,execveat",
+    "-e",
+    "inject=execve,execveat:delay_exit=300ms",
+    "-o",
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/baseline-slow-exec.log"
+  ],
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "start": "2026-09-29T19:57:58.080865+00:00",
+  "head": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "tested_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1010036,
+  "exit": -9,
+  "elapsed_seconds": 2036.2372277430259,
+  "end": "2026-09-29T20:31:54.378716+00:00"
+}
