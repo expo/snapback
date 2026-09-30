@@ -155,7 +155,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   }
   const require = createRequire(join(reference, "package.json"));
   assert.equal(actual.devDependencies["babel-preset-expo"], require("babel-preset-expo/package.json").version);
-  assert.deepEqual(json(join(dir, "app.json")), json(join(reference, "app.json")));
+  const starterConfig = json(join(reference, "app.json"));
+  starterConfig.expo.plugins.push("snapback4-expo/plugin");
+  assert.deepEqual(json(join(dir, "app.json")), starterConfig);
   assert.deepEqual(json(join(dir, "tsconfig.json")), json(join(reference, "tsconfig.json")));
   assert.equal(read(join(dir, "babel.config.js")), read(join(reference, "babel.config.js")));
   const babel = { module: { exports: {} } };
@@ -563,4 +565,11 @@ test("Expo starter selects web, native and online app devices with explicit sess
     if (tier === "web") assert.equal(options.sessionStore, webStore);
     else assert.equal(typeof options.sessionStore.get, "function");
   }
+});
+
+for (const pkg of ["snapback4", "snapback4-expo"]) test(`${pkg} README uses the qualified starter smoke measurements`, () => {
+  const readme = read(join(root, "packages", pkg, "README.md"));
+  for (const fact of ["NS round 0 cohort (2026-09-30)", "221.7 s cold", "83.5 s warm median (3 runs)", "186.2 s", "Apartment M5 Pro mini", "18 cores/64 GiB", "Xcode/iOS 27", "3.61–61.41", "3.21–7.22", "14.62–47.52", "Guidance, not a promise"])
+    assert.ok(readme.includes(fact), `${pkg}: missing ${fact}`);
+  assert.ok(!readme.includes("159.841") && !readme.includes("six minutes"));
 });

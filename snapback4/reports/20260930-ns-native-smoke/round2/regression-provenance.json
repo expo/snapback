@@ -1,0 +1,8 @@
+{
+  "round1Commit": "2f2154e7ba",
+  "round1Binary": "/Users/ccheever/sb4-np/ns-r1-binary",
+  "round1Sha256": "db5f69fa8eb9b85477317ec31ceda6ff3f301b31ed7ec64370f52cf0733bd3f8",
+  "round2Sha256": "06058be36a520b296c53d7c1137171219fe764b969545ec81e48eaaac8e23098",
+  "testBinary": "/Users/ccheever/sb4-np/lane-ns/snapback4/target/debug/deps/witness-36ce455ec1c0dbb8",
+  "testSha256": "19aa7b17825b10184b525bc1b1a41fdb5a78a8ad6dc2fe60225c977a8e56d07d"
+}

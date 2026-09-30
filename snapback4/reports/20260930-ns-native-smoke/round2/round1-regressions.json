@@ -1,0 +1,34 @@
+[
+  {
+    "test": "interrupted_startup_does_not_leak_listener_to_checker",
+    "round1Exit": 101
+  },
+  {
+    "test": "timed_out_startup_does_not_leak_listener_to_checker",
+    "round1Exit": 101
+  },
+  {
+    "test": "symlinked_simulator_record_is_ignored",
+    "round1Exit": 101
+  },
+  {
+    "test": "world_writable_simulator_record_is_ignored",
+    "round1Exit": 101
+  },
+  {
+    "test": "group_writable_simulator_record_is_ignored",
+    "round1Exit": 101
+  },
+  {
+    "test": "symlinked_simulator_directory_is_ignored",
+    "round1Exit": 101
+  },
+  {
+    "test": "writable_simulator_directory_is_ignored",
+    "round1Exit": 101
+  },
+  {
+    "test": "both package README cohort labels",
+    "round1Exit": 1
+  }
+]

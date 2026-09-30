@@ -228,8 +228,8 @@
     "sha256": "6c60b7d531a8ce6b3aabb0b181b920d9495b2609dacff318097024d7f69a2d92"
   },
   "node-fetch.ts": {
-    "count": 0,
-    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    "count": 2,
+    "sha256": "71d0a4b9faaca565a318a4089b47a811d185a82eb67872da9c2ec2c2ee723916"
   },
   "observation-work.ts": {
     "count": 0,
@@ -241,7 +241,7 @@
   },
   "online-delivery.ts": {
     "count": 4,
-    "sha256": "d6e16cf6d541aa66760a20d5b82d60c053d1ba616bcf74de260a3fc95e3122a9"
+    "sha256": "6c8304f2530c9c402efc35239278c27f952be03b80b77fbabc81400ee325f2e4"
   },
   "online-dispatch.ts": {
     "count": 1,

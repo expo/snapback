@@ -1,0 +1,10 @@
+{"round":0,"clients":1,"phase":"selected-socket","idleMs":200,"blockMs":5100,"pauses":1,"errors":[{"path":"/q/ping","code":"UND_ERR_SOCKET","message":"other side closed"}],"failedReads":[],"successes":1}
+✔ Node SDK query survives a client pause across the dev idle deadline (0) (5804.010596ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5886.198007

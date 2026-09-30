@@ -162,6 +162,10 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             }
             Err(why) => return failed(request, why),
             Ok(None) => {
+                // @ref LLP 3000#http-overload-diagnostics — an ID alone does not deduplicate ephemeral writes, including after schema adoption.
+                if payload.get("retry_write").and_then(Json::as_bool) == Some(true) {
+                    return failed(request, Refusal::new("E_INPUT", "input", "retry_write requires a durable mutation; refresh the operation signature"));
+                }
                 if let Err(error) = engine.schema().check_delivery(op, fingerprint.as_deref()) {
                     return failed(request, error.refusal());
                 }

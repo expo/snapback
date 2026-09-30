@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import socket
 import sqlite3
 import sys
 import time
@@ -14,20 +15,64 @@ udid = os.environ.get('WITNESS_TEST_UDID', 'dedicated')
 a = sys.argv[1:]
 assert a[0] == 'simctl'
 a = a[1:]
+with (root / 'simctl-calls.jsonl').open('a') as f:
+    f.write(json.dumps(a) + '\n')
 if a[0] == 'list':
     if mode == 'timeout-prepare':
-        # This mode withholds readiness until the driver times out and reaps
-        # us; its result must not depend on a finite sleep expiring under load.
+        # Withhold readiness until the driver times out and reaps us.
         while True:
             signal.pause()
-    devices = [{'udid': udid, 'state': 'Booted'}]
-    if mode == 'ambiguous':
-        devices.append({'udid': 'someone-else', 'state': 'Booted'})
-    print(json.dumps({'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-5': devices}}))
+    if mode == 'no-xcode':
+        print('tool noise that must not reach the user', file=sys.stderr)
+        sys.exit(1)
+    runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+    kind = {'identifier': 'com.apple.CoreSimulator.SimDeviceType.iPhone-17', 'productFamily': 'iPhone'}
+    kinds = [dict(kind, identifier='com.apple.CoreSimulator.SimDeviceType.iPhone-' + model)
+             for model in os.environ.get('WITNESS_TEST_DEVICE_TYPES', '17,11').split(',')]
+    if a[1] == 'runtimes':
+        runtimes = [{'identifier': runtime, 'version': '26.5', 'isAvailable': True, 'supportedDeviceTypes': kinds}]
+        if mode.startswith('auto-create') or mode == 'reuse-order':
+            runtimes += [{'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-9-3', 'version': '9.3', 'isAvailable': True},
+                         {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-99', 'version': '99', 'isAvailable': False}]
+        if mode == 'reuse-order':
+            runtimes.append({'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-18-0', 'version': '18.0', 'isAvailable': True})
+        print(json.dumps({'runtimes': [] if mode == 'no-runtime' else runtimes}))
+    elif a[1] == 'devicetypes':
+        # Keep the older-device-last control; invert only Air cases so their
+        # runtime order must win over this independent global list.
+        print(json.dumps({'devicetypes': list(reversed(kinds)) if any(t['identifier'].endswith('iPhone-Air') for t in kinds) else kinds}))
+    else:
+        devices = [{'udid': os.environ.get('WITNESS_TEST_PRIOR_UDID', udid), 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'prior', 'state': 'Booted', 'isAvailable': True}]
+        if mode.startswith('auto-create'):
+            devices[0]['state'] = 'Shutdown'
+            devices += [{'udid': 'unavailable', 'name': 'snapback4-smoke-unavailable', 'state': 'Booted', 'isAvailable': False}]
+        devices += [{'udid': 'someone-else', 'name': 'mini-verify-iphone', 'state': 'Booted', 'isAvailable': True},
+                    {'udid': 'near-prefix', 'name': 'other-snapback4-smoke-not-ours', 'state': 'Booted', 'isAvailable': True}]
+        groups = {runtime: devices}
+        if mode == 'reuse-order':
+            # Lexically 18 < 26 < 9, numerically 26 > 18 > 9.
+            groups['com.apple.CoreSimulator.SimRuntime.iOS-18-0'] = [dict(devices[0], udid='owned-18')]
+            groups['com.apple.CoreSimulator.SimRuntime.iOS-9-3'] = [dict(devices[0], udid='owned-old')]
+        print(json.dumps({'devices': groups}))
+elif a[0] == 'create':
+    assert a[1].startswith(os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-'))
+    assert a[3] == 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+    print(udid)
+elif a[0] in ['boot', 'bootstatus']:
+    assert a[1] == udid
+    if mode == 'auto-create-' + a[0] + '-fails':
+        sys.exit(1)
 elif a[0] == 'getenv':
     assert a == ['getenv', udid, 'HOME']
     print(root / 'data')
 elif a[0] == 'get_app_container':
+    if mode == 'port-custody' and not (root / '.snapback4/store.sqlite').exists():
+        try:
+            with socket.socket() as contender:
+                contender.bind(('127.0.0.1', int(os.environ['WITNESS_TEST_PORT'])))
+                (root / 'port-stolen').write_text('bound')
+        except OSError:
+            pass
     if mode == 'missing':
         print('No such app', file=sys.stderr)
         sys.exit(1)

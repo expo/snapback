@@ -77,6 +77,9 @@ Development overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react`
 
 Social uses `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide witness` for native proof, `guide reads` for timings, `guide sync` for Worker choices/acquisition.
 
+Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
+
+
 ## Receipts
 
 `guide receipts` covers `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows newest-message `seen` while foregrounded. Send-time members are recipients; removal claims no reading.

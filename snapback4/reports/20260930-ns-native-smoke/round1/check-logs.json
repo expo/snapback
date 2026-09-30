@@ -1,0 +1,134 @@
+{
+  "build-tests.log": {
+    "bytes": 532,
+    "sha256": "dde5ce070f06d741bb9b5918c1ab727e6fcf019718f5c39b85d15ec9ab6a9465"
+  },
+  "ref-check.log": {
+    "bytes": 80,
+    "sha256": "97a6e459d601380deeeadc42f8266f50fb49f96cac76b7f979ab350ad0b2ec50"
+  },
+  "helpers.log": {
+    "bytes": 2132,
+    "sha256": "5a5675266dab62dad437117a8b1a8887782224a3263858378ad06cc2e2f436e6"
+  },
+  "affected-witness-fixed2.log": {
+    "bytes": 4423,
+    "sha256": "fcf75de05b45d0ce858db08212c51b34dce10aca37192d53a02aafc2292beb63"
+  },
+  "round0-worktree.log": {
+    "bytes": 3647,
+    "sha256": "549805388470d56fe02ef6c28f46dca32e954c60b65f49947f2f897e64ec97a7"
+  },
+  "wasm.log": {
+    "bytes": 8006,
+    "sha256": "0aaec0304c1e700e368bf51fd6f4d7622a4cdbb9564e4f3d278bc8e72840b6cf"
+  },
+  "social.log": {
+    "bytes": 700,
+    "sha256": "27cd56b7530d1ab566e92300b61bce1c1d80c881956424dcc815bcbf87a25ac7"
+  },
+  "round0-doc-regressions.log": {
+    "bytes": 1939,
+    "sha256": "01eb28abdcd1ff6e69a0f2b22d9c56d3273baf365a3769366b3324a7a137ac92"
+  },
+  "affected-witness-final.log": {
+    "bytes": 3599,
+    "sha256": "80141451c297152c76b89f2268ae443e05f2ca618168514e276be67583cb995d"
+  },
+  "helpers-final.log": {
+    "bytes": 3640,
+    "sha256": "e21b51a6ac135e92d713f537d116565f7618c2eb836bf8d5f7947fa8fa798aec"
+  },
+  "witness-unit.log": {
+    "bytes": 1903,
+    "sha256": "4b69cda6680abe109a90f16282f563d4451a09931e189038b544579eb6916de6"
+  },
+  "expo-pack.log": {
+    "bytes": 1494,
+    "sha256": "3917cbc5eb4ef1a1571cf61a473e251b362ddea365ffd118421814e94ccf2695"
+  },
+  "starter-init.log": {
+    "bytes": 177,
+    "sha256": "6fc3b87d2533ae1533e6a3ea25d8dae7306390cab048851efaecf4ff762b2ec0"
+  },
+  "affected-rust.log": {
+    "bytes": 19751,
+    "sha256": "b38a01de889b56c6ed8e05e72352640f2e23df994d26cdd94292b9b8759ea926"
+  },
+  "cold.log": {
+    "bytes": 845,
+    "sha256": "5d22381875519f836fb3a4b9e9375f86509db663065f9474f3dd565aea112252"
+  },
+  "periphery.log": {
+    "bytes": 3736,
+    "sha256": "bb041e904c1733ad80c204908dd3b270ac5492d5d746e480c869f369ce04fd73"
+  },
+  "client-pack.log": {
+    "bytes": 9274,
+    "sha256": "e478a08576215513a8154c0e3176878ef2cc73bed2b9df7354e140ddf881f062"
+  },
+  "starter-install.log": {
+    "bytes": 244,
+    "sha256": "10d303ff6b3e3e14a277fc2b58b47356308eb9909e207f8c7a73adc189a299c3"
+  },
+  "client-build.log": {
+    "bytes": 201,
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+  },
+  "guide.log": {
+    "bytes": 7804,
+    "sha256": "8bb9a4150fc2449050d8575022f2c87776a06c421c24130e92d8924b30d02800"
+  },
+  "initial-compile.log": {
+    "bytes": 4916,
+    "sha256": "1ac84e0c4cd27c6648888d5e86ad397f6fc5e594edfd2ba567e9fc31a6079fa2"
+  },
+  "round0-regressions.log": {
+    "bytes": 4809,
+    "sha256": "28b498856bf7a9a493a46524a0861c3fb4c50ca1243fbb22609b02b3cffa1dc1"
+  },
+  "warm-3.log": {
+    "bytes": 699,
+    "sha256": "e54e2c5b247c1e376938f8e05976a95498091e4a51cb4b8dc4eb905c13e6549a"
+  },
+  "warm-2.log": {
+    "bytes": 699,
+    "sha256": "d3d0b3f52554efd4a084ea8d3ce1de858ff1f5605f7f06fa8b558ddc95896bcd"
+  },
+  "round0-build.log": {
+    "bytes": 908,
+    "sha256": "6b44249eb5c984db36e472bf5c09956e23734b7bb5f65295bc85fc5410ad2a84"
+  },
+  "social-install.log": {
+    "bytes": 1334,
+    "sha256": "88c0fdd91b34842bc3f7ae6ab3063d55f3b62c858e42b76d78b8041b61340601"
+  },
+  "warm-1.log": {
+    "bytes": 699,
+    "sha256": "e1f3f4e99d2fecfd5dae81d2ddd588a5b6c0bd7f2e3fce41df67c8e0a72f7905"
+  },
+  "affected-witness-fixed.log": {
+    "bytes": 17965,
+    "sha256": "3dba01e6315e52c8a5fe9838ff9089701de4998d500f5ae98e4f6c1a0956cf6d"
+  },
+  "round0-built-doc-regressions.log": {
+    "bytes": 1937,
+    "sha256": "1f20ca503da140e4e90689476930d715fb1db27190ba5313615f1dc7bfa5bc02"
+  },
+  "social-init.log": {
+    "bytes": 176,
+    "sha256": "ef22fd33630aaf02a2f8110f652466ebdd598881178fd34b5942fa765e0e09bd"
+  },
+  "round0-built-regressions.log": {
+    "bytes": 4809,
+    "sha256": "4ed48b0eb9a1c58f77300d012274b3bde9caa52d26154c0478cdfcbb0b6d4924"
+  },
+  "full-suite.log": {
+    "bytes": 811329,
+    "sha256": "c28cd3ef3c8f56a647933237a37dced8cc69388c99cfb49ba477f87315a4c7ff"
+  },
+  "ref-check-final.log": {
+    "bytes": 80,
+    "sha256": "e0864afc783769f753c99a0af02d8692c5d717185f9816dc9d0a96b68452a97f"
+  }
+}
