@@ -1133,7 +1133,7 @@ for (const tier of ["wasm", "native"]) {
     await syncing;
     const rebased = await client.query(query("copied"), {});
     assert.deepEqual(deviceRefusals, [], "withdrawing an expanded replay still commits the authoritative stream transaction");
-    assert.deepEqual(rebased.data, [], "an attempt needing another ID withdraws the prediction and uses authority");
+    assert.equal(rebased.denied?.code, "E_QUERY_RETRY", "withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of");
     sendRelease.resolve();
     await entered.promise;
     assert.deepEqual(postedIds, [originalId], "the in-flight request retains exactly the admitted IDs");

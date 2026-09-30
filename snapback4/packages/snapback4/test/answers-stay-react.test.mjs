@@ -78,6 +78,9 @@ for (const host of ['process', 'wasm', 'online']) for (const keep of [undefined,
     const ready = watch.getSnapshot();
     for (const scenario of ['slow refetch', 'offline transport', 'retry exhaustion', 'reconnect']) await t.test(scenario, async () => {
       failing = false; if (client.sync) await client.sync(); await client.query(q('profile'), {});
+      // A known-offline one-shot now refuses immediately; let its reconnect
+      // probe finish before isolating the observation's retry exhaustion.
+      await until(() => client.link() === 'online');
       await until(() => !owner.running && !owner.inFlight); owner.publish(ready); notify();
       const reads = [watch.getSnapshot()], stop = watch.subscribe(() => reads.push(watch.getSnapshot()));
       try {

@@ -75,7 +75,7 @@ for (const tier of ["native", "web"]) {
     assert.equal(client.acquired, false);
     for (const post of [oldPost, "absent-before-acquisition"]) {
       const read = await client.query(api.postState, { post });
-      assert.equal(read.loading, true, JSON.stringify(read));
+      assert.equal(read.denied?.code, 'E_OFFLINE', JSON.stringify(read));
       assert.equal(read.data, undefined, "an unacquired owner has unknown coverage, never false");
     }
     offline = false; allowAcquisition = true;

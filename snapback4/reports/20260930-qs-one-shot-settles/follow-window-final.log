@@ -1,0 +1,101 @@
+✔ wasm keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3880.855115ms)
+✔ wasm keep=undefined wait=0: own follow/unfollow stay honest across admission, settlement and apply (5144.150151ms)
+✔ wasm keep=false wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3192.941464ms)
+✔ wasm keep=false wait=0: own follow/unfollow stay honest across admission, settlement and apply (5288.768537ms)
+✔ process keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3421.690761ms)
+✔ process keep=undefined wait=0: own follow/unfollow stay honest across admission, settlement and apply (3403.088171ms)
+✔ process keep=false wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (4599.013354ms)
+✔ process keep=false wait=0: own follow/unfollow stay honest across admission, settlement and apply (3381.485983ms)
+✖ wasm: post, like and remove do not gate mounted Following (1418.865744ms)
+✔ wasm: an empty author's follow ends complete, fresh and empty (539.449159ms)
+✔ wasm: overlapping follow then unfollow before apply ends empty (568.459972ms)
+✔ wasm: an offline follow survives reconnect and publishes Alice (1421.521926ms)
+✔ wasm: sign-out store reuse does not gate another viewer (1215.254721ms)
+✖ process: post, like and remove do not gate mounted Following (1632.487744ms)
+✔ process: an empty author's follow ends complete, fresh and empty (665.892141ms)
+✔ process: overlapping follow then unfollow before apply ends empty (1743.985971ms)
+✔ process: an offline follow survives reconnect and publishes Alice (1646.503316ms)
+✔ process: sign-out store reuse does not gate another viewer (2444.511803ms)
+✔ process: a queued follow survives closing and restarting the device process (1806.531077ms)
+✔ wasm: restoring a committed edge after a lost save reply invalidates Following (592.068574ms)
+browser deadlock guard
+✖ Chromium worker=false: mounted Following tracks adopted follow custody (40440.244026ms)
+browser deadlock guard
+✖ Chromium worker=false: mounted Following tracks adopted unfollow custody (40425.704035ms)
+browser deadlock guard
+✖ Chromium worker=true: mounted Following tracks adopted follow custody (40312.502543ms)
+browser deadlock guard
+✖ Chromium worker=true: mounted Following tracks adopted unfollow custody (40311.791644ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 18
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 209671.637055
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:7:3
+✖ wasm: post, like and remove do not gate mounted Following (1418.865744ms)
+  AssertionError [ERR_ASSERTION]: like: non-edge direct read stays complete
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:22:16
+      at async causal (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs:69:16)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:9:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:7:3
+✖ process: post, like and remove do not gate mounted Following (1632.487744ms)
+  AssertionError [ERR_ASSERTION]: like: non-edge direct read stays complete
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:22:16
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async causal (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs:69:16)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:9:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=false: mounted Following tracks adopted follow custody (40440.244026ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:55:35)
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=false: mounted Following tracks adopted unfollow custody (40425.704035ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:55:35)
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=true: mounted Following tracks adopted follow custody (40312.502543ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:55:35)
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=true: mounted Following tracks adopted unfollow custody (40311.791644ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:55:35)

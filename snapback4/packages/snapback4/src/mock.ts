@@ -131,7 +131,8 @@ export function createMockClient(options: MockOptions): MockClient {
     },
     tables,
     async query(op, args) {
-      return evaluate(op, args);
+      const read = evaluate(op, args);
+      return "loading" in read ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       let seen = -1;

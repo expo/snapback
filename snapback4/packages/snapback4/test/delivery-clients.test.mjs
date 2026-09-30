@@ -72,7 +72,7 @@ test('online query below the publication floor accepts no manifest',async t=>{
   if(url.endsWith('/probe'))return Response.json({ok:true,viewer:'dev:bob',store_id:'S',seq:10});
   if(url.includes('/m/')){calls.push(JSON.parse(init.body));return Response.json({state:'sent',head:10,seq:10,store_id:'S'});}
   return Response.json({data:41,seq:3,head:10,store_id:'S',delivery:manifest([['c',41]])});
- }});t.after(()=>client.close());assert.deepEqual(await client.query({kind:'query',name:'inbox'},{}),{loading:true});await delay(300);assert.deepEqual(calls,[]);
+ }});t.after(()=>client.close());assert.equal((await client.query({kind:'query',name:'inbox'},{})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");await delay(300);assert.deepEqual(calls,[]);
 });
 test('online E_OFFLINE reaches the existing probe and reconnects the same attempt',async t=>{
  let change,probes=0;const calls=[];

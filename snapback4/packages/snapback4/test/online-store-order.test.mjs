@@ -113,7 +113,8 @@ for (const observe of [false, true]) test(`${observe ? 'observed' : 'direct'} st
   await until(() => times.length >= 4); await delay(250);
   assert.equal(times.length, 4, 'exhaustion must not rearm an expired timer or a dirty rerun');
   for (let n = 1; n < times.length; n++) assert.ok(times[n] - times[n - 1] >= 15 * 2 ** (n - 1), 'retries back off');
-  assert.deepEqual(observe ? watch.getSnapshot() : await Promise.race([result, delay(500).then(() => assert.fail('retry round did not settle'))]), { loading: true });
+  if (observe) assert.deepEqual(watch.getSnapshot(), { loading: true });
+  else assert.equal((await Promise.race([result, delay(500).then(() => assert.fail('retry round did not settle'))])).denied?.code, 'E_QUERY_RETRY');
   if (observe) {
     current = true; changed.resolve({ seq: 3, tables: ['secrets'] });
     await until(() => watch.getSnapshot().data);

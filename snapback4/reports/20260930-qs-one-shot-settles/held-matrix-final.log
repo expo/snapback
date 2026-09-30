@@ -1,0 +1,58 @@
+✖ online: held online-only view, both link states recorded (173.950621ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_HELD","family":"residency","guide":"search","message":"query heldInsights is held: it runs only on the device","rewrite":"call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\""}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: held online-only view, both link states recorded (614.422467ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ process: held online-only view, both link states recorded (301.601944ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✖ app-online: held online-only view, both link states recorded (156.42928ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_HELD","family":"residency","guide":"search","message":"query heldInsights is held: it runs only on the device","rewrite":"call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\""}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ app-wasm: held online-only view, both link states recorded (272.234031ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ app-process: held online-only view, both link states recorded (300.028895ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1970.721708
+
+✖ failing tests:
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ online: held online-only view, both link states recorded (173.950621ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:11:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ app-online: held online-only view, both link states recorded (156.42928ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:11:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

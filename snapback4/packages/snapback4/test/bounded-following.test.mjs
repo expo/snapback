@@ -146,18 +146,18 @@ query conditionalEventsHeld():
     const input = { eventId: "p3" };
     assert.equal((await bob.client.query(query("ownedEvent"), input)).data.id, "p3");
     bob.offline = true; await bob.client.sync();
-    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
-    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
+    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal((await bob.client.query(query("ownedEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "own-event", parentId: null, at: 30 });
     const queued = (await bob.core.call({ op: "queued" })).ok;
     assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("posts/"))));
     assert.ok(queued.every(q => q.predicted.every(row => !row.startsWith("feedPosts/"))), "partial events have no predicted owned row");
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
-    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
-    assert.deepEqual(await bob.client.query(query("conditionalEvents"), {}), { loading: true });
-    assert.deepEqual(await bob.client.query(query("conditionalEventsHeld"), {}), { loading: true }, "an unrelated held post cannot validate the speculative branch");
+    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal((await bob.client.query(query("ownedEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal((await bob.client.query(query("conditionalEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal((await bob.client.query(query("conditionalEventsHeld"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unrelated held post cannot validate the speculative branch");
     const branch = bob.observed.at(-1);
     assert.deepEqual(branch.data, []);
     assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.ok(branch.tables.includes("posts"));
@@ -166,7 +166,7 @@ query conditionalEventsHeld():
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");
     assert.ok((await bob.client.query(query("ownedEvents"), {})).data.some(row => row.postId === "own-event"));
     bob.failQueries = true;
-    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
   test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: 30000 }, async t => {
@@ -191,7 +191,7 @@ query filteredEvents():
     const queued = (await bob.core.call({ op: "queued" })).ok;
     assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("feedPosts/"))), "the scan intersects a pending owned-event prediction");
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(query("filteredEvents"), {}), { loading: true });
+    assert.equal((await bob.client.query(query("filteredEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     const scan = bob.observed.at(-1);
     assert.deepEqual(scan.data, []); assert.equal(scan.unknown, true); assert.equal(scan.speculative, true);
     assert.equal("held" in scan, false, "query-wide held provenance has been removed");
@@ -251,7 +251,7 @@ query speculativePage():
       bob.offline = offline; await bob.client.sync();
       for (const name of ["guarded", "conditionalEvents", "filteredEvents", "speculativePage"]) {
         const before = bob.queries.length;
-        assert.deepEqual(await bob.client.query(query(name), {}), { loading: true }, name);
+        assert.equal((await bob.client.query(query(name), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", name);
         const raw = bob.observed.at(-1);
         assert.equal(raw.unknown, true); assert.equal(raw.speculative, true);
         if (name === "guarded") assert.equal(raw.denied.code, "NOT_FOUND");
@@ -307,11 +307,11 @@ query conditionalHelper(c: cursor ?):
     assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
-      assert.deepEqual(await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" }), { loading: true }, "an unknown branch cannot publish a placeholder or replace a prediction");
+      assert.equal((await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unknown branch cannot publish a placeholder or replace a prediction");
       for (const name of ["conditionalFeed", "conditionalHelper"]) {
         const before = bob.queries.length;
         const read = await bob.client.query(query(name), input);
-        assert.deepEqual(read, { loading: true });
+        assert.equal(read.denied?.code, offline ? "E_OFFLINE" : "E_QUERY_RETRY");
         const raw = bob.observed.at(-1);
         assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
         assert.deepEqual(raw.tables, ["switches"]);
@@ -320,7 +320,7 @@ query conditionalHelper(c: cursor ?):
     }
     bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");
-    assert.deepEqual(await bob.client.query(query("conditionalHelper"), input), { loading: true });
+    assert.equal((await bob.client.query(query("conditionalHelper"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     bob.holdSync = false; f.releaseSync();
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
     assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own/conditional"));
@@ -342,7 +342,7 @@ query countedFeed(c: cursor ?):
     const bob = await f.open("bob"); bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "own-cut", parentId: null, at: 20 });
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(query("countedFeed"), { c: null }), { loading: true });
+    assert.equal((await bob.client.query(query("countedFeed"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     const raw = bob.observed.at(-1);
     assert.equal(raw.loading, true); assert.equal(raw.unknown, false); assert.equal(raw.complete, false);
     assert.deepEqual(raw.tables, ["events"], "the scalar cap skipped the following statements");
@@ -417,7 +417,7 @@ query remoteProfile():
     await bob.client.mutate(mutation("post"), { postId: "own-profile", parentId: null, at: 20 });
     const before = bob.queries.length;
     const answer = await bob.client.query(query("withProfile"), {});
-    assert.deepEqual(answer, { loading: true }, "an unrelated held page cannot validate a speculative profile");
+    assert.equal(answer.denied?.code, "E_QUERY_RETRY", "an unrelated held page cannot validate a speculative profile");
     const raw = bob.observed.at(-1); assert.equal(raw.unknown, true); assert.notEqual(raw.loading, true);
     assert.equal(raw.speculative, true);
     assert.equal(bob.queries.length, before, "a prediction fences speculative profile recovery");
@@ -425,11 +425,11 @@ query remoteProfile():
     assert.equal(partial.data.rows[0].post.id, "own-profile"); assert.equal(partial.data.rows[0].pending, true);
     assert.equal(partial.complete, false); assert.equal(Object.hasOwn(bob.observed.at(-1), "speculative"), false);
     const profile = await bob.client.query(query("remoteProfile"), {});
-    assert.equal(profile.data.name, "remote");
+    assert.equal(profile.denied?.code, "E_QUERY_RETRY", "one-shot custody conservatively waits for admitted writes before remote data");
     assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
     bob.offline = true; await bob.client.sync();
     const offline = await bob.client.query(query("withProfile"), {});
-    assert.deepEqual(offline, { loading: true });
+    assert.equal(offline.denied?.code, "E_OFFLINE");
     const offlinePartial = await bob.client.query(query("partialWithProfile"), {});
     assert.equal(offlinePartial.data.rows[0].post.id, "own-profile"); assert.equal(offlinePartial.complete, false);
   });
@@ -454,7 +454,7 @@ query oversized(postId: posts, payload: text <=600):
     const cases = [["cappedCard", { postId: "old" }], ["cappedRepost", { postId: "p0" }], ["oversized", { postId: "old", payload: "x".repeat(600) }]];
     bob.offline = true; await bob.client.sync();
     for (const [name, input] of cases) {
-      assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
+      assert.equal((await bob.client.query(query(name), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
       const raw = bob.observed.at(-1);
       assert.equal(raw.loading, true); assert.equal(raw.unknown, true);
       assert.equal("data" in raw, false); assert.equal("next" in raw, false);
@@ -488,7 +488,7 @@ query conditionalGet(want: bool, postId: posts) held:
         const before = bob.queries.length;
         const skipped = await bob.client.query(query(name), { want: false, postId: "p3" });
         assert.equal(skipped.data, data); assert.equal(skipped.complete, true);
-        assert.deepEqual(await bob.client.query(query(name), { want: true, postId: "p3" }), { loading: true });
+        assert.equal((await bob.client.query(query(name), { want: true, postId: "p3" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
         assert.equal(bob.queries.length, before, "held queries never dispatch, including their executed card reads");
       }
     }
@@ -503,12 +503,12 @@ query composed(c: cursor ?):
 `), bob = await f.open("bob");
     const op = query("composed"), input = { c: null };
     bob.offline = true; await bob.client.sync();
-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "own-composed", parentId: null, at: 20 });
     assert.ok((await bob.core.call({ op: "queued" })).ok.some(e => e.predictable));
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(bob.queries.length, before);
     bob.holdWrites = false;
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "composed prediction not observed");
@@ -516,7 +516,7 @@ query composed(c: cursor ?):
     assert.ok(answer.data.rows.some(row => row.post.id === "own-composed"));
     assert.ok(answer.data.rows.some(row => row.post.id === "old"));
     bob.failQueries = true;
-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
   test(`bounded Following ${tier}: exact offline pages, original-cursor fallback and quiet authors`, { timeout: 30000 }, async t => {
@@ -528,8 +528,8 @@ query composed(c: cursor ?):
     assert.ok(input.c);
     bob.offline = true; await bob.client.sync();
     assert.deepEqual((await bob.client.query(query("cards"), { c: null })).data.map(row => row.post.id), ["p3", "p2"]);
-    assert.deepEqual(await bob.client.query(query("cards"), input), { loading: true });
-    assert.deepEqual(await bob.client.query(query("required"), { postId: "old" }), { loading: true });
+    assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal((await bob.client.query(query("required"), { postId: "old" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     const local = bob.observed.find(read => read.request.name === "cards" && read.request.args.c === input.c);
     assert.equal(local.loading, true); assert.equal(local.unknown, true);
     assert.equal("data" in local, false); assert.equal("next" in local, false);
@@ -549,7 +549,7 @@ query composed(c: cursor ?):
     const reader = await f.open("reader");
     reader.offline = true; await reader.client.sync();
     assert.equal((await reader.client.query(query("home"), { c: null })).complete, true);
-    assert.deepEqual(await reader.client.query(query("cards"), { c: null }), { loading: true });
+    assert.equal((await reader.client.query(query("cards"), { c: null })).denied?.code, reader.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     reader.offline = false; await reader.client.sync();
     assert.equal((await reader.client.query(query("cards"), { c: null })).data[0].post.id, "old");
   });
@@ -564,13 +564,13 @@ query composed(c: cursor ?):
     const metadata = await bob.client.query(query("wideMetadata"), {});
     assert.equal(metadata.data[0].post, "own"); assert.equal(metadata.data[0].pending, true);
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(query("wide"), { c: null }), { loading: true });
+    assert.equal((await bob.client.query(query("wide"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(bob.queries.length, before, "no fallback can drop the predicted row");
     bob.holdSync = true; bob.holdWrites = false;
     // Let the outbox acknowledge, while retaining its actual sync response.
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(entry => entry.sent_seq != null && entry.observed_seq == null), "write was not acknowledged before observation");
     assert.equal(bob.client.link(), "online");
-    assert.deepEqual(await bob.client.query(query("wide"), { c: null }), { loading: true });
+    assert.equal((await bob.client.query(query("wide"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(bob.queries.length, before);
     bob.holdSync = false; f.releaseSync();
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "write was not observed");
@@ -586,7 +586,7 @@ query composed(c: cursor ?):
     assert.equal((await bob.client.query(query("cards"), { c: null })).data.length, 2);
     const global = await bob.client.query(query("globalRows"), {});
     bob.offline = true; await bob.client.sync();
-    assert.deepEqual(await bob.client.query(query("cards"), { c: null }), { loading: true });
+    assert.equal((await bob.client.query(query("cards"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal((await bob.client.query(query("home"), { c: null })).complete, true);
     const partial = await bob.client.query(query("globalRows"), {});
     assert.deepEqual(partial.data, global.data); assert.equal(partial.fresh, false);
@@ -609,13 +609,13 @@ query composed(c: cursor ?):
     const f = await fixture(t, tier, undefined, source => source + "\nquery heldCards(c: cursor ?) held:\n  return feed last 2 by .at after c { *, post: posts[.post] }\n"), bob = await f.open("bob");
     const first = await bob.client.query(query("cards"), { c: null }), input = { c: first.next };
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(query("heldCards"), input), { loading: true });
+    assert.equal((await bob.client.query(query("heldCards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(bob.queries.length, before, "held queries never dispatch");
     assert.equal((await bob.client.query(query("cards"), input)).data.length, 2);
     bob.failQueries = true;
-    assert.deepEqual(await bob.client.query(query("cards"), input), { loading: true }, "a remembered answer cannot mask transport failure");
+    assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "a remembered answer cannot mask transport failure");
     bob.offline = true; await bob.client.sync();
-    assert.deepEqual(await bob.client.query(query("cards"), input), { loading: true });
+    assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
   test(`bounded Following ${tier}: online-only repost cards use the prediction fence before server routing`, { timeout: 30000 }, async t => {
@@ -623,22 +623,22 @@ query composed(c: cursor ?):
     const op = query("repostCards"), input = { c: null };
     assert.ok("data" in await bob.client.query(op, input));
     bob.offline = true; await bob.client.sync();
-    assert.deepEqual(await bob.client.query(op, input), { loading: true }, "no remembered online-only cards");
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "no remembered online-only cards");
     bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
     assert.equal((await bob.client.mutate(mutation("post"), { postId: "own", parentId: null, at: 20 })).state, "pending");
     assert.equal((await bob.core.call({ op: "queued" })).ok[0].predictable, true);
     const before = bob.queries.length;
-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(bob.queries.length, before);
     bob.holdSync = true; bob.holdWrites = false;
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "prediction not acknowledged");
-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(bob.queries.length, before);
     bob.holdSync = false; f.releaseSync();
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "prediction not observed");
     assert.ok((await bob.client.query(op, input)).data.some(row => row.post === "own"));
     bob.failQueries = true;
-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
   test(`bounded Following ${tier}: a response racing prediction admission is invalidated`, { timeout: 30000 }, async t => {
@@ -649,7 +649,7 @@ query composed(c: cursor ?):
     bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "racing", parentId: null, at: 20 });
     bob.holdQueries = false; f.releaseSync();
-    assert.deepEqual(await result, { loading: true }, "the response predating admission cannot replace a prediction");
+    assert.equal((await result).denied?.code, "E_QUERY_RETRY", "the response predating admission cannot replace a prediction");
     assert.equal((await bob.client.query(query("wideMetadata"), {})).data[0].post, "racing");
   });
 
@@ -659,7 +659,7 @@ query composed(c: cursor ?):
     const input = { actor: "dev:bob", postId: "p3" };
     assert.equal((await bob.client.query(query("repostPoint"), input)).data, null);
     bob.offline = true; await bob.client.sync();
-    assert.deepEqual(await bob.client.query(query("repostPoint"), input), { loading: true });
+    assert.equal((await bob.client.query(query("repostPoint"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal((await bob.client.query(query("optional"), { postId: "missing" })).data, null);
   });
 
@@ -693,26 +693,26 @@ query cut(c: cursor ?):
     }
     const input = { c }, edge = await alice.client.query(query("inbox"), input);
     assert.equal(edge.complete, true); assert.equal(edge.data.length, 200); assert.ok(edge.next);
-    assert.deepEqual(await alice.client.query(query("inbox"), { c: edge.next }), { loading: true });
-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
+    assert.equal((await alice.client.query(query("inbox"), { c: edge.next })).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     alice.offline = false; await alice.client.sync();
     const before = alice.queries.length;
-    assert.deepEqual(await alice.client.query(query("heldCrossing"), input), { loading: true });
+    assert.equal((await alice.client.query(query("heldCrossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(alice.queries.length, before);
     const answered = await alice.client.query(query("crossing"), input);
     assert.deepEqual(answered.data, (await f.request("/q/crossing", "alice", input)).data);
     assert.equal(answered.data.length, 201);
     assert.ok(alice.queries.some(q => q.path === "/q/crossing" && q.args.c === c));
     alice.failQueries = true;
-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
+    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     alice.failQueries = false; await alice.client.sync(); alice.holdWrites = true;
     await alice.client.mutate(mutation("post"), { postId: "floor-pending", parentId: null, at: 3000 });
     const sent = alice.queries.length;
-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
+    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(alice.queries.length, sent);
     alice.holdSync = true; alice.holdWrites = false;
     await until(async () => (await alice.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "inbox prediction not acknowledged");
-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
+    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(alice.queries.length, sent);
     alice.holdSync = false; f.releaseSync();
     await until(async () => { await alice.client.sync(); return (await alice.core.call({ op: "queued" })).ok.length === 0; }, "inbox prediction not observed");
@@ -720,7 +720,7 @@ query cut(c: cursor ?):
     alice.holdWrites = true;
     await alice.client.mutate(mutation("follow"), { actor: "dev:quiet" });
     assert.ok((await alice.core.call({ op: "queued" })).ok.every(e => e.predictable === false));
-    assert.equal((await alice.client.query(query("crossing"), input)).data.length, 201, "unpredicted intent does not fence fallback");
+    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, "E_QUERY_RETRY", "a one-shot cannot acknowledge an unobserved nonpredictable intent");
   });
 }
 
@@ -742,11 +742,11 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
   assert.equal(raw.speculative, true, "native card misses carry engine provenance");
   assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
   bob.offline = true; await bob.client.sync();
-  assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   assert.equal((await bob.client.query(op, { postId: "p3", c: null })).data.original.id, "p3", "held native reads still answer offline");
   bob.offline = false; await bob.client.sync();
   const beforeHeld = bob.queries.length;
-  assert.deepEqual(await bob.client.query(query("native_held"), input), { loading: true });
+  assert.equal((await bob.client.query(query("native_held"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   assert.equal(bob.queries.length, beforeHeld);
   const remote = await bob.client.query(op, input);
   assert.equal(remote.data.original.id, "old");
@@ -755,17 +755,17 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
   assert.deepEqual(remote.data, (await f.request("/q/native_cards", "bob", input)).data);
   assert.deepEqual(bob.queries.at(-1), { path: "/q/native_cards", args: input });
   bob.failQueries = true;
-  assert.deepEqual(await bob.client.query(op, input), { loading: true }, "no remembered server answer on transport failure");
+  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "no remembered server answer on transport failure");
   bob.failQueries = false; await bob.client.sync(); bob.holdWrites = true;
   const pending = await bob.client.mutate(mutation("post"), { postId: "own-native", parentId: null, at: 20 });
   assert.equal(pending.state, "pending");
   assert.ok((await bob.core.call({ op: "queued" })).ok.some(e => e.predictable && e.observed_seq == null));
   const before = bob.queries.length;
-  assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   assert.equal(bob.queries.length, before, "server data cannot replace an unobserved native prediction");
   bob.holdSync = true; bob.holdWrites = false;
   await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "native prediction not acknowledged");
-  assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   assert.equal(bob.queries.length, before);
   bob.holdSync = false; f.releaseSync();
   await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "native prediction not observed");

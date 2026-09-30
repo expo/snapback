@@ -72,7 +72,7 @@ test('a loading server reply retires memory before a speculative transport failu
   // Change only the query response: no replica commit may clear the cache
   // for us, and no observer or background invalidation is needed.
   f.loadingServer();
-  assert.deepEqual(await f.client.query(query('serverPage'), {}), { loading: true });
+  assert.equal((await f.client.query(query('serverPage'), {})).denied?.code, f.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   f.failServer(true);
   const unavailable = await f.client.query(query('serverPage'), {});
   assert.equal(unavailable.denied.code, 'E_OFFLINE', 'unfenced speculative reads have no answer after loading retires memory');

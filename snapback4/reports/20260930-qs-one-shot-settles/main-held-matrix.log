@@ -1,0 +1,138 @@
+✖ online: held online-only view, both link states recorded (169.666718ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_HELD","family":"residency","guide":"search","message":"query heldInsights is held: it runs only on the device","rewrite":"call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\""}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✖ wasm: held online-only view, both link states recorded (555.028005ms)
+ℹ {"up":{"loading":true},"down":{"loading":true}}
+✖ process: held online-only view, both link states recorded (193.309717ms)
+ℹ {"up":{"loading":true},"down":{"loading":true}}
+✖ app-online: held online-only view, both link states recorded (234.415238ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_HELD","family":"residency","guide":"search","message":"query heldInsights is held: it runs only on the device","rewrite":"call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\""}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✖ app-wasm: held online-only view, both link states recorded (191.73799ms)
+ℹ {"up":{"loading":true},"down":{"loading":true}}
+✖ app-process: held online-only view, both link states recorded (208.096116ms)
+ℹ {"up":{"loading":true},"down":{"loading":true}}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1711.336623
+
+✖ failing tests:
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ online: held online-only view, both link states recorded (169.666718ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:11:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ wasm: held online-only view, both link states recorded (555.028005ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:12:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ process: held online-only view, both link states recorded (193.309717ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:12:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ app-online: held online-only view, both link states recorded (234.415238ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:11:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ app-wasm: held online-only view, both link states recorded (191.73799ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:12:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260930-qs-one-shot-settles/held-matrix.mjs:5:3
+✖ app-process: held online-only view, both link states recorded (208.096116ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260930-qs-one-shot-settles/held-matrix.mjs:12:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

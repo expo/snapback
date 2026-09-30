@@ -1,0 +1,32 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (119.081863ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (493.684784ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (50.775732ms)
+  ✖ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (30018.128564ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (119.766068ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1411.465105ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (497.841555ms)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (267.779004ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (506.746665ms)
+  ✔ observations make retention explicit (3.511204ms)
+  ✔ account reset clears draft and stops the prior typing owner (208.885332ms)
+✖ social recipes in React/browser: real online signals and media, controlled read interleavings (35792.052995ms)
+ℹ {"results":["sent"],"links":["offline"],"typing":[{"path":"/m/setTyping","body":"{\"id\":\"01M3SEQHYXK9MYNBVT51G62G7B\",\"args\":{\"conversation\":\"01M3SEQH1YCGCRN5FR2W81MZ4R\"},\"store_id\":\"9792a62930f4234261fff8ec85c60997\"}","account":"alice"}]}
+ℹ tests 12
+ℹ suites 0
+ℹ pass 10
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36193.508933
+
+✖ failing tests:
+
+test at packages/snapback4/test/social-browser.test.mjs:182:11
+✖ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (30018.128564ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/social-browser.test.mjs:188:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/social-browser.test.mjs:182:3) {
+    name: 'TimeoutError'
+  }

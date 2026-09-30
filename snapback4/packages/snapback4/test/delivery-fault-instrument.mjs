@@ -101,6 +101,12 @@ export function instrument(destination) {
 // settles nor observes a write. Failure withholds the read. The causal Following
 // regression covers admission/settlement/apply, including zero-wait retirement;
 // mutation delivery continues through the unchanged classified sites above.
+// QS (LLP 3000.023 §11): query-settlement awaits raw evaluation, facade
+// authority and retry pauses. Local query's new queued() wait reads existing
+// custody; it cannot admit, send or settle a write. Failure refuses the query.
+// Raw publication and delivery acceptance run synchronously after these waits;
+// one-shot/one-shot-bounds and delivery-publication cover stale/expired/closed
+// continuations and ignored abort. No delivery fault site or recipe changed.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

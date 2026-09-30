@@ -1,0 +1,20 @@
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3020.025024ms)
+  ✔ offline transport (39.775253ms)
+  ✔ retry exhaustion (195.754985ms)
+  ✔ reconnect (70.372005ms)
+✔ online keep=undefined: profile route gate (4202.40706ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3034.614324ms)
+  ✔ offline transport (39.571177ms)
+  ✔ retry exhaustion (193.046876ms)
+  ✔ reconnect (69.287629ms)
+✔ online keep=true: profile route gate (3871.493174ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8202.769102

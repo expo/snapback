@@ -29,7 +29,7 @@ test('mock renews unchanged rows, expires per table, rolls back refusals, and ne
   assert.equal(watch.getSnapshot().data.length, 0);
   assert.equal(client.tables.viewing.size, 1, 'longer table life remains');
   client.setLink('offline'); assert.equal((await client.mutate(set, {})).why.code, 'E_OFFLINE');
-  assert.deepEqual(await client.query(list, {}), { loading: true });
+  assert.equal((await client.query(list, {})).denied?.code, 'E_OFFLINE');
   assert.deepEqual(writes, []);
 });
 

@@ -1,0 +1,215 @@
+setup wasm { loading: true }
+ready wasm
+non-edge wasm post
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790781588005,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790781588005,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+write {
+  state: 'sent',
+  id: '01M3SED0H49NC3VN3AD634AMVA',
+  seq: 3,
+  result: {
+    at: 1790781588011,
+    authorId: 'dev:bob',
+    id: 'own',
+    parentId: null,
+    removed: false
+  }
+}
+non-edge wasm like
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790781588011,
+      card: [Object],
+      id: 'own',
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  denied: {
+    code: 'E_QUERY_RETRY',
+    family: 'client',
+    retryable: true,
+    site: 'client.query',
+    guide: 'client',
+    message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  }
+}
+write { state: 'pending', id: '01M3SED0HSDCW9XF5ZWPHR7RXV' }
+✖ wasm: post, like and remove do not gate mounted Following (1085.701914ms)
+setup process { loading: true }
+ready process
+non-edge process post
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790781588447,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790781588447,
+      card: [Object],
+      id: 'own',
+      pending: true,
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+write {
+  state: 'sent',
+  id: '01M3SED0YZ7K5BDQHNXR7QXC8W',
+  seq: 3,
+  result: {
+    at: 1790781588453,
+    authorId: 'dev:bob',
+    id: 'own',
+    parentId: null,
+    removed: false
+  }
+}
+non-edge process like
+requested {
+  data: [
+    {
+      actor: 'dev:bob',
+      at: 1790781588453,
+      card: [Object],
+      id: 'own',
+      post: 'own',
+      repost: false
+    }
+  ],
+  complete: true,
+  cut: null,
+  fresh: true,
+  next: null,
+  existence: 'present'
+}
+direct {
+  denied: {
+    code: 'E_QUERY_RETRY',
+    family: 'client',
+    retryable: true,
+    site: 'client.query',
+    guide: 'client',
+    message: 'the read did not settle within four rounds or 30 seconds; retry the query'
+  }
+}
+write { state: 'pending', id: '01M3SED0ZPFVFSJZBD7C4RRWGR' }
+✖ process: post, like and remove do not gate mounted Following (1442.040051ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2716.858676
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:7:3
+✖ wasm: post, like and remove do not gate mounted Following (1085.701914ms)
+  AssertionError [ERR_ASSERTION]: like: non-edge direct read stays complete
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:22:16
+      at async causal (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs:69:16)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:9:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:7:3
+✖ process: post, like and remove do not gate mounted Following (1442.040051ms)
+  AssertionError [ERR_ASSERTION]: like: non-edge direct read stays complete
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:22:16
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async causal (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs:69:16)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:9:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

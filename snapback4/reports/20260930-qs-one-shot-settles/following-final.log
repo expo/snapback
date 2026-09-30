@@ -1,0 +1,16 @@
+✔ bounded Following wasm: unknown conditions preserve static and helper dependencies (5453.474055ms)
+✔ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (4602.362623ms)
+✔ bounded Following wasm: a response racing prediction admission is invalidated (4300.74158ms)
+✔ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (13589.712848ms)
+✔ bounded Following native: unknown conditions preserve static and helper dependencies (5020.352144ms)
+✔ bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows (4619.637047ms)
+✔ bounded Following native: a response racing prediction admission is invalidated (4326.716767ms)
+✔ bounded Following native: inbox floors use all routing branches and preserve meter prefixes (13609.922594ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 55664.891249

@@ -118,8 +118,8 @@ for(const tier of ['process','wasm']) test(`review: new unsynced membership inva
   assert.equal((await fetch(`${f.url}/seed`,{method:'POST',body:JSON.stringify(rows)}).then(r=>r.json())).seeded,2);
   const before=f.requests.length;
   const second=await f.client.query(q,{q:'coffee',c:first.next});
-  assert.equal(f.requests.length-before,1);
-  assert.deepEqual(second,{loading:true},'changed membership withdraws the stale suffix');
+  assert.equal(f.requests.length-before,4);
+  assert.equal(second.denied?.code,'E_QUERY_RETRY','changed membership refuses the stale suffix');
   const fresh=await f.client.query(q,{q:'coffee'});
   assert.equal(ids(fresh)[0],'newmessage');
   assert.notEqual(decode(fresh.next).audience,decode(first.next).audience);
@@ -145,8 +145,10 @@ for(const tier of ['process','wasm']) test(`review: hidden sync during delivery 
   const pending=f.client.query(q,{q:'coffee',c:first.next});await g.arrived.promise;
   await fetch(`${f.url}/seed`,{method:'POST',body:JSON.stringify([{table:'messages',row:{id:'hidden',room:'never-readable',text:'coffee',at:2000,tombstone:false,expires:null}}])});
   await f.client.sync();g.release.resolve();
-  assert.deepEqual(await pending,{loading:true});assert.equal(f.requests.length-before,1);
+  const reread=await pending;assert.ok(Array.isArray(reread.data));assert.equal(f.requests.length-before,2);
+  assert.equal(decode(reread.next).epoch,epoch);assert.equal(ids(reread).some(id=>ids(first).includes(id)),false);
   const after=await f.client.query(q,{q:'coffee',c:first.next});
+  assert.deepEqual(reread.data,after.data,'hidden sync cannot change the visible suffix');
   assert.equal(decode(after.next).epoch,epoch);
   assert.equal(ids(after).some(id=>ids(first).includes(id)),false);
 });
@@ -176,7 +178,7 @@ for(const tier of ['process','wasm']) test(`review: unsynced audience loss also 
   const first=await f.client.query(q,{q:'coffee'});
   assert.equal((await f.owner.mutate(m('leave'),{room:'live'})).state,'sent');
   const before=f.requests.length,second=await f.client.query(q,{q:'coffee',c:first.next});
-  assert.equal(f.requests.length-before,1);assert.deepEqual(second,{loading:true});
+  assert.equal(f.requests.length-before,4);assert.equal(second.denied?.code,'E_QUERY_RETRY');
   const fresh=await f.client.query(q,{q:'coffee'});
   assert.ok(fresh.data.every(row=>row.room==='left'));
   assert.notEqual(decode(first.next).audience,decode(fresh.next).audience);
@@ -190,8 +192,8 @@ for(const tier of ['process','wasm']) test(`review: same-count audience swap wit
     {table:'messages',row:{id:'newmessage',room:'newroom',text:'coffee',at:3000,tombstone:false,expires:null}}];
   assert.equal((await fetch(`${f.url}/seed`,{method:'POST',body:JSON.stringify(rows)}).then(r=>r.json())).seeded,2);
   const before=f.requests.length,second=await f.client.query(q,{q:'coffee',c:first.next});
-  assert.equal(f.requests.length-before,1);
+  assert.equal(f.requests.length-before,4);
   assert.equal(f.requests.at(-1).json.searchScopes.length,beforeScopes.length);
   assert.notDeepEqual(f.requests.at(-1).json.searchScopes,beforeScopes);
-  assert.deepEqual(second,{loading:true});
+  assert.equal(second.denied?.code,'E_QUERY_RETRY');
 });

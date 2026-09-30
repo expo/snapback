@@ -79333,3 +79333,60 @@ Report and complete failure dispositions:
 reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — QS round 0: one-shot reads settle
+
+On sb4-intent/qs-one-shot-settles from main snapshot 9d03e946232b, reproduced
+loading returns through online publication, both local devices and all three
+createApp facades. Plain online-only reads already returned server data online
+and permitted remembered local data offline; held unavailable views, withdrawn
+deadline latches and facade approval races exposed the permanent-loading trap.
+An additional baseline aggregate returned the pre-admission count while its
+source insert was pending.
+
+query now returns Promise<SettledRead<R>>, with no loading arm and an existence
+overload that excludes loading. Four publication rounds share one 30-second
+invocation deadline, including queues and facade authority. Retired/expired
+candidates reread; exhaustion is retryable E_QUERY_RETRY. Offline reads return
+permitted device/memory data or E_OFFLINE; terminal scope refusals still win.
+The shared evaluator, observation policy and existence classifier/pending
+predicate are unchanged. A conservative one-shot custody barrier refuses ahead
+of unobserved nonpredictable writes or remote answers ahead of any unobserved
+write; this can also delay apparently disjoint remote reads. Complete local
+predictions remain available. LLP 3000.023 §11 records the contract; LLP 3000.028
+§3.3 distinguishes discarded publication retries from forbidden page draining.
+Published awaited-loading prose and type/examples are corrected. Client card
+1,196/1,200 words, 113/130 lines; local.ts remains 1,500 lines.
+
+Causal/type/bound checks pass 123/123; new local model uses independent admitted
+values, 24 sessions and 432 seeded event choices. Whole guide 105/105. Final
+search and mixed-evidence models run their full 300 seeds/histories per host
+and pass with unchanged coverage. Following gate/browser/Worker cases 24/24,
+React reconnection 10/10, delivery/expiry follow-ups 7/7, typing browser 12/12,
+and strengthened search publication 4/4. The broader integration rerun passed
+283/285 before the two typing child/parent failures were corrected; its six
+held-device deadline cases each exercise the real 30-second refusal.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+
+    == 1 failure(s) in 1513 s
+       client tests
+
+All other 12 stages pass, including serial client models 79/79. Client stage:
+5,342 passed, 50 failed, ten existing skips, zero cancellations. Failure
+classification: ours 50, baseline 0, environmental 0. Every full-run failure
+has a passing final affected rerun. The frozen-timer Following fixture stranded
+query retry pauses beyond its 30-second test guard; only its worker was
+terminated at 615.70 seconds so the original suite could finish. The corrected
+fixture keeps real retry timers and the original write/apply gates. The full
+run remains failed evidence, not a green qualification. Production source was
+unchanged throughout it and the follow-ups; test expectations/fixtures and the
+await census were migrated during/after it. No counts or timeout limits were
+reduced. The inherited nominal 60-second suite budget remains exceeded.
+
+Wasm: 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged 593,719 B
+ratchet; no wasm/core change or budget increase. Full reproduction matrix,
+every failure and disposition, source hashes and logs:
+reports/20260930-qs-one-shot-settles/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

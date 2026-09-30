@@ -176,6 +176,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_AUTH" => "services",
         "E_WORKER_REFRESH" => "effects",
         "E_SERVER_REQUIRED" => "actions",
+        "E_QUERY_RETRY" => "client",
         "E_OFFLINE" => "residency",
         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" => "refusals",
         "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",

@@ -51,7 +51,7 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       await client.sync();
       assert.equal((await writer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
       // Finish incarnation discovery before measuring only expiry retries.
-      assert.deepEqual(await client.query(api.typingIn, { room: 'r' }), { loading: true });
+      assert.equal((await client.query(api.typingIn, { room: 'r' })).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
       requests.length = 0; peak = 0; invalidate = true;
       const context = new AsyncLocalStorage();
       const timerContext = {};
@@ -85,7 +85,11 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       }
       assert.ok(values.every(read => !('data' in read)), 'expired replies never publish');
       if (ending === 'recover') {
-        assert.equal((await writer.mutate(api.stopTyping, { room: 'r' })).state, 'sent');
+        // The priming one-shot now completes its retry rounds. Renew the
+        // four-second fixture row so deletion tests recovery, not wall time.
+        assert.equal((await writer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
+        const stopped = await writer.mutate(api.stopTyping, { room: 'r' });
+        assert.equal(stopped.state, 'sent', JSON.stringify(stopped));
         replay = false; timers.at(-1).fire();
         await until(() => watch.getSnapshot().data?.length === 0, 'recovered authoritative empty answer');
         assert.equal(watch.getSnapshot().complete, true);

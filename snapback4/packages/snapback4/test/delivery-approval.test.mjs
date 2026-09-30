@@ -122,17 +122,20 @@ for (const tier of ['online', 'local']) {
     const query = h.client.query(op, {}).then(read => { returned = true; return read; });
     await until(() => h.pending.length); assert.equal(returned, false);
     await silent(h);
-    if (outcome === 'expired') await delay(220);
+    if (outcome === 'expired') {
+      await delay(220);
+      h.onAnswer(() => answer([42])); h.release();
+    }
     if (outcome === 'throw') h.pending[0].reject(Error('query authority failed'));
     else h.pending[0].resolve(outcome !== 'false');
     const read = await query;
-    if (outcome === 'approve') {
-      assert.equal(read.data[0].ordinal, 41);
+    if (outcome === 'approve' || outcome === 'expired') {
+      const position = outcome === 'approve' ? 41 : 42;
+      assert.equal(read.data[0].ordinal, position);
       await until(() => h.reports.length === 1);
-      assert.deepEqual(h.collections, [manifest([41])]);
+      assert.deepEqual(h.collections, [manifest([position])]);
     } else {
-      if (outcome === 'expired') assert.deepEqual(read, { loading: true });
-      else assert.equal(read.denied.code, outcome === 'throw' ? 'E_CLIENT' : 'E_AUTH');
+      assert.equal(read.denied.code, outcome === 'throw' ? 'E_CLIENT' : 'E_AUTH');
       h.release(); await silent(h);
     }
   });

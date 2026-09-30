@@ -19,10 +19,13 @@ for (const tier of ['wasm', 'process']) {
         if (process.env.FW_TRACE) console.error('requested', watch.getSnapshot());
         const direct = await bob.query(q, { c: null });
         if (process.env.FW_TRACE) console.error('direct', direct);
-        assert.equal(direct.complete, true, `${name}: non-edge direct read stays complete`);
+        if (name === 'like') assert.equal(direct.denied?.code, 'E_QUERY_RETRY', 'one-shot waits for the nonpredictable like');
+        else assert.equal(direct.complete, true, `${name}: complete predicted device read settles`);
         await answer(watch, r => complete(r, count));
         assert.equal(watch.getSnapshot().revalidating, undefined, `${name}: settled local read is unmarked while transport is held`);
-        assert.equal((await bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' })).complete, true);
+        const state = await bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' });
+        if (name === 'like') assert.equal(state.denied?.code, 'E_QUERY_RETRY');
+        else assert.equal(state.complete, true);
         wire.release(); assert.equal((await write).state, 'sent'); await bob.sync();
         await answer(watch, r => complete(r, count));
       }

@@ -97,6 +97,8 @@ export type Read<T> =
   | Ready<T>
   | { readonly loading: true }
   | { readonly denied: Refusal };
+/** A one-shot's final answer; ready can still be partial or stale. */
+export type SettledRead<T> = Exclude<Read<T>, { readonly loading: true }>;
 
 /** Engine work for this server answer under dev; never returned by serve. */
 export interface ReadMeter {
@@ -281,7 +283,8 @@ export interface Client {
   residency(): Promise<Residency | null>;
   /** Estimated server Unix milliseconds; never goes backward on this device. */
   now(): number;
-  query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
+  /** Ready or refused within four rounds / 30 seconds, including queue and authority waits. */
+  query<A, R>(op: Query<A, R>, args: A): Promise<SettledRead<R>>;
   observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R>;
   /** Retry-safe intents: pass { id } to reuse the original write. A client
    * never admits a known id twice; an evicted receipt requires reopening. */
@@ -338,6 +341,8 @@ export function isDenied<T>(read: Read<T>): read is { readonly denied: Refusal }
 }
 
 /** The five UI meanings; narrow on read.existence after isReady for typed data. */
+export function existence<T>(read: SettledRead<T>): "denied" | "present" | "absent" | "partial";
+export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial";
 export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
   return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
 }
