@@ -85,6 +85,7 @@ pub struct Request {
     // If Some, a message must be sent after responding
     notify_when_responded: Option<Sender<()>>,
     limits: Option<std::sync::Arc<crate::limits::ConnectionState>>,
+    closing: bool,
 }
 
 struct NotifyOnDrop<R> {
@@ -318,10 +319,42 @@ where
         must_send_continue: expects_continue,
         notify_when_responded: None,
         limits: None,
+        closing: false,
     })
 }
 
 impl Request {
+    pub(crate) fn connection_closes(&self) -> bool {
+        let has = |token: &str| self.headers.iter().filter(|h| h.field.equiv("Connection"))
+            .flat_map(|h| h.value.as_str().split(','))
+            .any(|value| value.trim().eq_ignore_ascii_case(token));
+        self.closing || has("close") || has("upgrade")
+            || (self.http_version == HTTPVersion(1, 0) && !has("keep-alive"))
+    }
+
+    /// Connection policy for hosts writing their own HTTP response frames.
+    // @ref LLP 3000#http-overload-diagnostics — advertise the actual idle lease, never a held-response deadline.
+    pub fn connection_headers(&self) -> Vec<Header> {
+        if self.connection_closes() {
+            return vec![Header::from_bytes("Connection", "close").unwrap()];
+        }
+        match &self.limits {
+            Some(state) => vec![
+                Header::from_bytes("Connection", "keep-alive").unwrap(),
+                Header::from_bytes("Keep-Alive", format!("timeout={}", state.limits.keep_alive_seconds())).unwrap(),
+            ],
+            None if self.http_version == HTTPVersion(1, 0) => vec![Header::from_bytes("Connection", "keep-alive").unwrap()],
+            None => Vec::new(),
+        }
+    }
+
+    /// Apply the same connection policy as `respond` before a host coalesces
+    /// a response using `raw_print` and `into_writer`.
+    pub fn prepare_response<R: Read>(&self, mut response: Response<R>) -> Response<R> {
+        response.set_connection_headers(self.connection_headers());
+        response
+    }
+
     /// When the parsed HTTP request was accepted, before body prebuffering.
     pub fn accepted_at(&self) -> std::time::Instant { self.accepted_at }
 
@@ -621,6 +654,7 @@ impl Request {
     where
         R: Read,
     {
+        let response = self.prepare_response(response);
         let mut writer = self.extract_writer_impl();
         let do_not_send_body = self.method == Method::Head;
         let result = response
@@ -650,6 +684,7 @@ impl Request {
     where
         R: Read,
     {
+        self.closing = true;
         let res = self.respond_impl(response);
         self.abort();
         res
@@ -657,6 +692,7 @@ impl Request {
 
     /// Checked completion notification before closing and discarding an unread body.
     pub fn respond_and_close_with_completion<R: Read>(mut self, response: Response<R>, completed: impl FnOnce(&Result<(), IoError>)) -> Result<(), IoError> {
+        self.closing = true;
         let result = self.respond_checked_impl(response, completed);
         self.abort();
         result
@@ -666,6 +702,7 @@ impl Request {
     where
         R: Read,
     {
+        let response = self.prepare_response(response);
         let mut writer = self.extract_writer_impl();
 
         let do_not_send_body = self.method == Method::Head;

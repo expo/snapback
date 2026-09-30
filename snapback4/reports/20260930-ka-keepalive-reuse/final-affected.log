@@ -1,0 +1,118 @@
+✔ dev: keep-alive headers agree with HTTP connection policy (165.498127ms)
+✔ serve: keep-alive headers agree with HTTP connection policy (48.461461ms)
+✔ serve through a trusted TLS terminator retains SDK keep-alive (456.948946ms)
+✔ held and heartbeat /changes responses exceed idle timeout and remain reusable (12142.245697ms)
+✔ socket reset: reused=false, reset again=false (26.021441ms)
+✔ socket reset: reused=false, reset again=true (4.937271ms)
+✔ socket reset: reused=true, reset again=false (32.394865ms)
+✔ socket reset: reused=true, reset again=true (26.637674ms)
+✔ no retry after response bytes: partial header (55.741755ms)
+✔ no retry after response bytes: body (57.278318ms)
+✔ no ambiguous replay for /auth/refresh (310.914137ms)
+✔ no ambiguous replay for /assets (210.05172ms)
+✔ no ambiguous replay for /assets/once (289.145443ms)
+✔ no ambiguous replay for /a/work (500.197772ms)
+✔ no ambiguous replay for /m/ephemeral (210.624858ms)
+✔ no ambiguous replay for /m/add (289.371401ms)
+✔ a delivered overload is returned without socket retries (500.732474ms)
+✔ a reset retry preserves one real durable mutation and its write ID (351.276186ms)
+✔ the private agent retires idle sockets within the one-second budget (1007.308478ms)
+✔ a retryable durable envelope cannot execute an ephemeral operation (150.119852ms)
+✔ a reused-socket retry retains the original URL, body, write ID and headers (350.606563ms)
+{"round":0,"clients":1,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":1}
+✔ Node SDK query survives a client pause across the dev idle deadline (0) (3668.216122ms)
+✔ Node default transport does not call unsupported socket QoS on ordinary requests (79.528626ms)
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (194.778793ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1823.776778ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1076.177864ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1147.214439ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1681.273433ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (943.445948ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (926.671902ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1161.360315ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1687.906488ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":10829.109277,"cutMs":11328.472628,"rejectionMs":14837.039601,"notificationMs":14837.829445,"detectionMs":3509.356817}
+{"store":"native","offsetMs":500,"requestStartMs":10859.937863,"cutMs":11359.489477,"rejectionMs":14861.413151,"notificationMs":14861.914483,"detectionMs":3502.4250060000013}
+{"store":"wasm","offsetMs":5000,"requestStartMs":10828.775737,"cutMs":15829.318097,"rejectionMs":18830.763769,"notificationMs":18831.472611,"detectionMs":3002.1545140000017}
+{"store":"native","offsetMs":5000,"requestStartMs":10862.60345,"cutMs":15863.267823,"rejectionMs":18863.501447,"notificationMs":18863.960926,"detectionMs":3000.6931029999996}
+{"store":"wasm","offsetMs":15000,"requestStartMs":10836.331945,"cutMs":25836.373237,"rejectionMs":28840.010173,"notificationMs":28840.76171,"detectionMs":3004.388472999999}
+{"store":"native","offsetMs":15000,"requestStartMs":10860.774287,"cutMs":25860.717473,"rejectionMs":28862.942683,"notificationMs":28863.406388,"detectionMs":3002.688914999999}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (20248.506726ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11152.249778ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1049.926748ms)
+✔ online mutation: rejected fetch after dispatch is pending; close=false (465.960365ms)
+✔ online mutation: rejected body after dispatch is pending; close=false (202.183003ms)
+✔ online mutation: rejected fetch after dispatch is pending; close=true (202.924735ms)
+✔ online mutation: rejected body after dispatch is pending; close=true (296.548671ms)
+✔ online action: rejected fetch after dispatch is pending; close=false (143.202733ms)
+✔ online action: rejected body after dispatch is pending; close=false (140.198028ms)
+✔ online action: rejected fetch after dispatch is pending; close=true (141.330786ms)
+✔ online action: rejected body after dispatch is pending; close=true (139.330638ms)
+✔ wasm mutation: rejected fetch after dispatch is pending; close=false (5490.99896ms)
+✔ wasm mutation: rejected body after dispatch is pending; close=false (5107.167588ms)
+✔ wasm mutation: rejected fetch after dispatch is pending; close=true (1085.763334ms)
+✔ wasm mutation: rejected body after dispatch is pending; close=true (1093.621715ms)
+✔ wasm action: rejected fetch after dispatch is pending; close=false (88.293966ms)
+✔ wasm action: rejected body after dispatch is pending; close=false (92.271319ms)
+✔ wasm action: rejected fetch after dispatch is pending; close=true (78.534425ms)
+✔ wasm action: rejected body after dispatch is pending; close=true (133.205265ms)
+✔ native mutation: rejected fetch after dispatch is pending; close=false (5234.411786ms)
+✔ native mutation: rejected body after dispatch is pending; close=false (5240.966622ms)
+✔ native mutation: rejected fetch after dispatch is pending; close=true (1670.654564ms)
+✔ native mutation: rejected body after dispatch is pending; close=true (1219.131352ms)
+✔ native action: rejected fetch after dispatch is pending; close=false (1126.573725ms)
+✔ native action: rejected body after dispatch is pending; close=false (1135.59612ms)
+✔ native action: rejected fetch after dispatch is pending; close=true (1124.72994ms)
+✔ native action: rejected body after dispatch is pending; close=true (1126.609368ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1039 ms
+✔ stalled exit body recovers in order (not applied) (1640.259317ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 1 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1020 ms
+✔ stalled exit body recovers in order (already applied acknowledgement) (1224.586781ms)
+stalled exit close: 974 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1106.363276ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.531617ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1226.955081ms)
+✔ pagehide dispatch and retryable hold invalidate the pending-write list (1115.945342ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1089.117923ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1101.275098ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=false) (1208.668457ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=true) (1179.46727ms)
+✔ a second exit before its status commit supersedes the first acknowledged exit and later hold (1182.797002ms)
+✔ first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available) (1179.005467ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available) (1183.851503ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws) (1177.781673ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1178.117426ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available) (1178.249705ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws) (1176.795304ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1175.790208ms)
+✔ pagehide dispatch subscriber signOut prevents keepalive and POST (1176.248685ms)
+✔ pagehide dispatch subscriber close prevents keepalive and POST (1180.967979ms)
+✔ IndexedDB save resolves on transaction completion, not request success (1.655052ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1083.507682ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1091.636377ms)
+keepalive: 64179 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (1.652908ms)
+✔ exit ordering survives reversed server processing (0.553991ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (0.832919ms)
+✔ exit overlaps only the same ordinary in-flight head (1118.081163ms)
+✔ ordinary flush waits for the exit request before replaying its head (1113.918342ms)
+ℹ tests 87
+ℹ suites 0
+ℹ pass 87
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47094.615198
