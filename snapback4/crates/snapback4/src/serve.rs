@@ -247,7 +247,7 @@ pub enum Mode {
     Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
-pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited: Option<std::net::TcpListener>) -> Result<(), String> {
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -273,7 +273,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         Some(crate::store_owner::host(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
-    let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
+    let server = crate::witness_socket::server(bind, port, inherited)?;
     let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
     if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
     if let Mode::Release { owner, .. } = &mut mode {

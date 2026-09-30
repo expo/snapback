@@ -13,3 +13,11 @@ export function witness(): Witness | null {
   }
   return instance;
 }
+
+/** The starter may use normal guest sign-in during prime; never on ordinary launches. */
+export function smokeSegment(): "prime" | "offline" | "restart" | null {
+  const container = requireOptionalNativeModule<WitnessContainer>("Snapback4");
+  if (!container?.witnessLaunch) return null;
+  const config = JSON.parse(container.witnessLaunch);
+  return config.smoke === true && ["prime", "offline", "restart"].includes(config.segment) ? config.segment : null;
+}

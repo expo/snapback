@@ -1,0 +1,28 @@
+{
+  "round0Commit": "3f59b23d2c2c4f91e96002c0b34fcddf0fd49eb4",
+  "round0WorktreeClean": true,
+  "round0BuildCommand": [
+    "cargo",
+    "build",
+    "--manifest-path",
+    "/Users/ccheever/sb4-np/ns-r1-round0-control/snapback4/Cargo.toml",
+    "--target-dir",
+    "/Users/ccheever/sb4-np/lane-ns/snapback4/target"
+  ],
+  "savedRound0Binary": {
+    "path": "/Users/ccheever/sb4-np/ns-r0-binary",
+    "sha256": "22cba48fcbc98bae38c7826c079eb9fb16da77660f5357f7da782d83519e3d70"
+  },
+  "builtRound0Binary": {
+    "path": "/Users/ccheever/sb4-np/ns-r0-built-binary",
+    "sha256": "a4d0654d86a9714bb1374b26a79a61fc29f57e0503e98e85f5232a6c973c1355"
+  },
+  "round1Binary": {
+    "path": "snapback4/target/debug/snapback4",
+    "sha256": "db5f69fa8eb9b85477317ec31ceda6ff3f301b31ed7ec64370f52cf0733bd3f8"
+  },
+  "regressionTestBinary": {
+    "path": "snapback4/target/debug/deps/witness-90194dd3bf3d9a0f",
+    "sha256": "a0a7193f5c161fef6f08680128ae3ead42016bb4cb8c468a8c9429debea227dd"
+  }
+}

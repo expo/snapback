@@ -125,13 +125,14 @@ export function nativeReferences(root, project, appName) {
     if (object.settings) settings(object.settings);
   }
   for (const [file, expected] of [
-    ['Podfile', '0031e1bfe6ff10405d0bf963e85275d4693635eafe5ef62ad3d2d87e0a25bd6f'],
-    ['.xcode.env', '3c02dca07775b31ce4e77dfb3bb660d7c6e577474d65a6216f1ea9bef54e1ca6'],
+    // Expo Router adds RNS_GAMMA_ENABLED; the plain Expo starter does not.
+    ['Podfile', ['0031e1bfe6ff10405d0bf963e85275d4693635eafe5ef62ad3d2d87e0a25bd6f', 'e0538db33b5b7fa974fcea4ec659dde3be66a6e296e1ce920b0d32f2761fa1b8']],
+    ['.xcode.env', ['3c02dca07775b31ce4e77dfb3bb660d7c6e577474d65a6216f1ea9bef54e1ca6']],
   ]) {
     const p = path.join(ios, file);
     if (fs.existsSync(p)) {
       const text = fs.readFileSync(p, 'utf8').replace(`target '${appName}' do`, "target '${APP_NAME}' do");
-      if (hash(text) !== expected) reject(`custom ${file}`);
+      if (!expected.includes(hash(text))) reject(`custom ${file}`);
     }
   }
   if (fs.existsSync(path.join(ios, '.xcode.env.updates'))) reject('.xcode.env.updates');

@@ -1,0 +1,24 @@
+[
+  {
+    "run": "warmup",
+    "buildServedAndObservedOrigin": "http://127.0.0.1:61783",
+    "helpersMatchCurrentSource": {
+      "prepare.mjs": "d870159307b491371da78836fe41f18252fc11542a04f79cdc53536680338765",
+      "payload.mjs": "f49d48ecb5252516fc6850c1609f06b6f35c683c26a62cf47c1a64e2e0152cb6",
+      "native-scripts.mjs": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+      "native-closure.mjs": "5713d41c07085db3f670afa3cc055701df7558ed509fe8274a3e468fb6f04c85",
+      "native-inputs.mjs": "239f80a9cd071693acfe96f6003903561eab781e235fb1588ce843b4f5f0dfdc"
+    }
+  },
+  {
+    "run": "warm",
+    "buildServedAndObservedOrigin": "http://127.0.0.1:62177",
+    "helpersMatchCurrentSource": {
+      "prepare.mjs": "d870159307b491371da78836fe41f18252fc11542a04f79cdc53536680338765",
+      "payload.mjs": "f49d48ecb5252516fc6850c1609f06b6f35c683c26a62cf47c1a64e2e0152cb6",
+      "native-scripts.mjs": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+      "native-closure.mjs": "5713d41c07085db3f670afa3cc055701df7558ed509fe8274a3e468fb6f04c85",
+      "native-inputs.mjs": "239f80a9cd071693acfe96f6003903561eab781e235fb1588ce843b4f5f0dfdc"
+    }
+  }
+]

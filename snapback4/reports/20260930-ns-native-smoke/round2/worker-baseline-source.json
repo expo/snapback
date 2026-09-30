@@ -1,0 +1,12 @@
+[
+  {
+    "path": "snapback4/packages/snapback4/test/supervised-workers.test.mjs",
+    "sha256": "d0556de6e60530bfb8ed29cae267f47ba505849dd5d30ad891dba26f3c25a0d7",
+    "unchangedFromRound1": true
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/dev_worker.rs",
+    "sha256": "dae3c7ced10df6c3aeef670c6a1eccbd54fa708b2a6c4eadaba8945d6fb793a1",
+    "unchangedFromRound1": true
+  }
+]

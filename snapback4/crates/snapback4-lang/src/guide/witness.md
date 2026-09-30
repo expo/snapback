@@ -4,25 +4,40 @@ The iOS witness records native offline execution on macOS. It can prepare a boun
 own Release build, or run an already installed app, then retain receipts and video.
 
 ```sh
-# UDID is your dedicated, booted simulator. Run from the backend project:
-npx snapback4 witness ios --build . --smoke --udid "$UDID" --artifacts artifacts/own-build
-# Or, for an already installed Release app:
-npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --artifacts artifacts/native-smoke
+npm run native:smoke
+# Equivalent, from the backend/Expo project:
+npx snapback4 witness ios --build . --smoke
+# Explicit device, or an already installed Release app:
+npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --port 4400
 ```
 
 For a heaviest-account acquisition and cold-store proof on any CLI host, use
 `witness acquire --as <persona> --restart`; `guide bounds` explains its receipt.
 
-Use the matching `snapback4` and `snapback4-expo` packages, with `createApp`
-and `AppProvider` using `nativeDevice`. The older `createLocalClient` path
-also works. Release embeds JavaScript; no Metro server is needed. Sign in
-through the app normally first if it requires user interaction; smoke waits
-for the app's own session and never invents a guest or bypasses authentication.
-The app must point at `http://127.0.0.1:4400` (or pass `--port N` for its
-configured port). Quit the app before starting. Installed-app mode builds nothing. The driver refuses a busy port and owns its
-`snapback4 dev` process. It never stops an existing listener or another simulator owner.
+At every milestone, run `npm run export:ios` for the Hermes export;
+on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
+Both Expo starters provide these scripts. Export alone proves no native execution.
 
-Read `artifacts/native-smoke/smoke-ios-run.json`: `exitStatus: 0` and all
+The build route chooses a free backend port and writes fresh artifacts under
+`artifacts/native-smoke/<timestamp>`. Reuse requires an available booted device, the smoke prefix, and a creation record
+in `$XDG_STATE_HOME/snapback4/witness/simulators` (default `~/.local/state/`). Records and their directory must be user-owned, not symlinks or writable by others.
+Otherwise it creates a current iPhone; unsafe records are ignored with one warning.
+Newest iOS runtime wins. Device identity is recorded before boot; names alone prove no ownership. `--udid` chooses an explicit booted
+device; `--port` and `--artifacts` override defaults. Shared-host lanes can set
+`SNAPBACK4_SMOKE_DEVICE_PREFIX=sb4-ns-` to isolate selection and creation.
+The socket stays owned through backend startup. Devices remain for warm runs; delete their recorded UDIDs when finished.
+Without Xcode or an iOS runtime, one setup message appears before any build.
+
+Use matching `snapback4` and `snapback4-expo` packages, with `createApp` and
+`AppProvider` using `nativeDevice`. The older `createLocalClient` path also works.
+Release embeds JavaScript; no Metro server is needed. The starters call normal
+`auth.guest()` during smoke prime only if no account was restored. Other apps
+must sign in normally first if authentication requires interaction. The driver
+supplies no credentials. Installed-app mode builds nothing and defaults to port
+4400; configure the app for that origin or pass its matching `--port`.
+The driver owns its backend and refuses existing listeners and simulator owners.
+
+Read `artifacts/native-smoke/<timestamp>/smoke-ios-run.json`: `exitStatus: 0` and all
 three `segments` marked `passed` mean:
 - `prime`: the own client is online and acquisition is complete. The receipt
   records the device's held counts per synced table, backend store identity,
@@ -58,7 +73,7 @@ reported as passed; exit is nonzero. Preserve failed artifacts and choose a
 fresh directory when retrying. Receipts contain counts, not query row contents;
 video and screenshots show the actual app and may contain its visible data.
 An empty partition proves opening and lifecycle only; seed/sign in with the
-history you want to qualify before running. Required-argument queries, writes,
+history you want to qualify before running. Pending write replay, required-argument queries, writes,
 media and application-specific correctness need the deeper runner below.
 Optional-argument native queries require an application witness: generic smoke
 refuses their conditional module availability rather than calling them server-only.
@@ -66,7 +81,7 @@ Ordinary launches do not load the smoke runner or install its error handler.
 
 ## Own Release preparation (bounded adapter)
 
-`--build <project>` requires `--smoke` and a fresh artifacts directory. It
+`--build <project>` requires `--smoke`; each invocation gets fresh artifacts. It
 prepares that project's own Release simulator application with a private stable
 snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl`
 and launches its bundle ID directly. It never opens Simulator.app, invokes
@@ -76,8 +91,8 @@ separate 900-second deadline; smoke keeps its 120-second step default.
 This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0,
 Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
 Hermes, an installed npm dependency tree with `package-lock.json`, and static
-`app.json`. Use your existing generated iOS project with its native customizations
-and UIScene lifecycle ready for iOS 27. Products, intermediates and module caches
+`app.json`. An existing iOS project keeps its native customizations; generated projects
+use the starter's UIScene lifecycle for iOS 27. Products, intermediates and module caches
 are pinned to the private workspace; every app/Pods target's resolved output
 paths are checked before compilation. Custom output-directory and linker side-output overrides refuse, including
 `LD_MAP_FILE_PATH`, `LD_DEPENDENCY_INFO_FILE`, LTO objects and SDK imports.
@@ -101,8 +116,8 @@ compatibility claim for them. It never migrates your native lifecycle for you.
 Set the app's client to `process.env.EXPO_PUBLIC_SNAPBACK_URL`; preparation
 bundles it as `http://127.0.0.1:<port>`. An app that ignores that variable must
 already use this origin. Smoke checks the actual client origin against the owned
-backend. Use the native witness observation helper from this source revision
-and rebuild the native module; published 0.4.7 alone lacks that observation.
+backend. Install matching current `snapback4` and `snapback4-expo` packages and rebuild
+the native app; an older installed app does not gain the helper from a JS reload.
 The helper observes React Native SourceCode.scriptURL and requires its resolved
 local file to equal the verified installed main.jsbundle before hashing that
 selected file and the native executable. Unknown, remote or alternate bundle
@@ -119,30 +134,20 @@ passing smoke receipt. `proof.json` binds installation and that receipt before
 launch; native startup, exact installed inventory and artifact hashes are
 rechecked during execution and collection. CoreSimulator 27's measured
 framework execute-bit normalization is explicitly recorded; bytes must match.
-The per-project cache and simulator leases preserve concurrent owners.
-Preparation retains the unreaped process-group leader through bounded cleanup;
-SIGTERM-resistant group members receive SIGKILL before its lease is released.
+Project/simulator leases preserve concurrent owners through bounded process cleanup.
 
-After a JS or asset edit, run the same `--build` command with a fresh artifacts
-directory. The stable private Xcode cache supplies warm intermediates, while
+After a JS or asset edit, run `npm run native:smoke` again. The stable private Xcode cache supplies warm intermediates, while
 Xcode builds the current application and each run gets a new `build.json`.
-The repack route is withdrawn: its native compatibility key was incomplete.
-No credentials, signing settings or native identity are changed.
+Repack is withdrawn; credentials, signing settings and native identity are unchanged.
 
-Five complete warm `--build` runs with smoke on the M5 Pro mini measured
-**159.841 s median / 197.562 s nearest-rank p95** (about 2.7 / 3.3 minutes).
-Every run passed, with installed dependencies/tools, a booted simulator and a
-warm private cache; shared-host load varied. Cold native build/install measured
-359 s in the earlier setup, with smoke and setup additional; its final GUI
-activation failed. That is about six minutes of native preparation, not a
-measured cold end-to-end smoke result. Xcode/runtime and dependency installation
-are separate costs. These pinned-app observations are not a general SDK guarantee.
-
-Qualification is limited to the recorded cal25 shape and pinned toolchain.
-A build receipt alone is not a passing smoke result. The unchanged
-published 0.4.7 client's offline ephemeral loading is recorded as expected
-server-only unavailability from compiler facts, with online answers required.
-This qualifies native smoke only, not M6/M8, physical devices or publication.
+Warm build-plus-smoke runs on the shared M5 Pro mini have measured about three
+minutes. Cold preparation is longer; Xcode/runtime and dependency installation
+are separate costs. The private cache reuses generated iOS/Pods and Xcode
+intermediates, but every run invokes Xcode and produces new embedded JavaScript.
+The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;
+custom native lifecycle projects should keep their own configuration.
+These pinned-toolchain observations are not a general SDK guarantee. A build
+receipt alone is not a passing smoke result; no physical-device or publication claim.
 
 ## Deeper application scenarios
 
@@ -202,8 +207,8 @@ export function WitnessRunner({ client, conversationId, onError }: {
 }
 ```
 
-`snapback4 witness ios` drives an installed Release app on macOS. It builds
-nothing. Add `snapback4-expo/witness` to the app and rebuild its native module.
+`snapback4 witness ios --bundle-id ...` drives an installed Release app on macOS
+and builds nothing. Add `snapback4-expo/witness` to the app and rebuild its native module.
 The helper is null on ordinary launches. Mount this runner beside the chat
 screen, using the same local client and a conversation already seeded online:
 
@@ -226,9 +231,7 @@ npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
 ```
 
 The driver owns `snapback4 dev --port 4400 --no-watch`; stop any manually
-started backend first. A bound port is refused, never reclaimed. `--udid` is
-required with more than one booted iOS simulator. Without it exactly one
-available booted iOS simulator must exist. `--timeout 120` is the default
+started backend first. A bound port is refused, never reclaimed. Omitting `--udid` selects only a recorded tool-created device, as described above. `--timeout 120` is the default
 number of seconds per driver step. The app's configured origin must be
 `http://127.0.0.1:<port>`; the kit does not change its client configuration.
 A Release build embeds its JavaScript and needs no Metro server.
@@ -264,10 +267,8 @@ npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
   --segment restart --artifacts artifacts/restart --port 4400 --prime --relaunch
 ```
 
-Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` artifact
-prefixes: preparation is unknown for a manually installed app.
-They cannot emit the reserved frozen native benchmark filenames. No smoke run
-proves M6/M8 application assertions or changes an external benchmark status.
+Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` artifact prefixes.
+Preparation is unknown; no smoke proves M6/M8 assertions or benchmark admission.
 
 Each ordinary scenario writes `<segment>-ios-screen.mp4` (uninterrupted native screen
 recording), `<segment>-ios-receipts.jsonl` (the app's assertions and completed
@@ -293,7 +294,6 @@ view-once exclusion or recipient `read` state unless your app asserts and
 renders those observations. The deterministic simulator remains the main
 engine harness; this witness covers native process, storage and UI boundaries.
 
-
 ## Refusals
 
 E_WITNESS_INPUT means a flag, launch configuration or signal label is
@@ -310,8 +310,8 @@ simulator runtime. Verify `xcrun simctl list devices available --json`
 before invoking the witness; the deterministic simulator remains available
 for engine scenarios without that native UI host.
 
-E_WITNESS_SIMULATOR means selection was ambiguous or simctl failed.
-For example, two booted iOS simulators cannot be chosen by omission.
+E_WITNESS_SIMULATOR means the explicit device is unavailable or simctl failed.
+For example, `--udid` cannot select a shutdown device.
 Use `xcrun simctl list devices available --json`, boot the intended dedicated
 device, and pass its exact `--udid`. If simctl itself fails, repair that
 simulator/runtime first; do not let the witness choose someone else's device.

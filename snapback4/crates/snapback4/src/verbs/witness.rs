@@ -4,6 +4,8 @@ mod protocol;
 mod preparation;
 mod smoke;
 mod acquire;
+mod simulator;
+mod ownership;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
@@ -22,7 +24,7 @@ struct Options {
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
-        if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness ios --smoke --bundle-id <id> --artifacts <dir> [--udid <id>] [--port 4400] [--prime] [--relaunch] [--timeout 120]")); }
+        if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness ios --build . --smoke [--udid <id>] [--port N] [--artifacts <dir>]; see snapback4 guide witness for installed-app scenarios")); }
         if args.iter().any(|a| matches!(a.as_str(), "--repack" | "--app-project") || a.starts_with("--repack=") || a.starts_with("--app-project=")) {
             return Err(error("E_WITNESS_INPUT", "repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory"));
         }
@@ -51,8 +53,8 @@ impl Options {
         }
         let segment = if smoke { "smoke".into() } else { required("segment")? };
         if !name(&segment) || segment == "prime" { return Err(error("E_WITNESS_INPUT", "--segment uses letters, digits, hyphens or underscores; prime is reserved")); }
-        let artifacts = PathBuf::from(required("artifacts")?);
-        let port = flags.get("port").map_or(Ok(4400), |s| s.parse::<u16>()).ok().filter(|p| *p > 0).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
+        let artifacts = flags.get("artifacts").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(format!("artifacts/native-smoke/{}-{}", now(), std::process::id())));
+        let port = flags.get("port").map_or(Ok(if flags.contains_key("build") { 0 } else { 4400 }), |s| s.parse::<u16>()).ok().filter(|p| *p > 0 || !flags.contains_key("port")).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
         Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from) })
     }
@@ -122,7 +124,7 @@ struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
     backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
     manifest: Value, events: Vec<Value>, observed: Vec<Value>,
-    _lease: File, proof: Option<Value>,
+    _lease: File, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
 }
 impl Run {
     fn event(&mut self, step: &str) { self.events.push(json!({ "step": step, "at": now() })); eprintln!("witness: {step}"); }
@@ -188,7 +190,7 @@ impl Run {
         self.events.push(json!({ "step": format!("{segment}-launched"), "pid": pid, "at": now() })); Ok(())
     }
     fn start_backend(&mut self) -> Result<()> {
-        let reservation = reserve(self.options.port)?;
+        let reservation = match self.reservation.take() { Some(listener) => listener, None => reserve(self.options.port)? };
         let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
         let stdout = self.path("backend-stdout.log");
         let offset = fs::metadata(&stdout).map_or(0, |m| m.len()) as usize;
@@ -196,8 +198,9 @@ impl Run {
         command.args(["dev", "--port", &self.options.port.to_string(), "--no-watch"])
             .env("SNAPBACK4_WITNESS_DRIVER", "1")
             .stdin(Stdio::null()).stdout(output(&stdout)?).stderr(output(&self.path("backend.log"))?);
-        drop(reservation);
+        crate::witness_socket::inherit(&mut command, &reservation);
         self.backend = Some(Owned::spawn(&mut command)?);
+        drop(reservation);
         let end = Instant::now() + self.options.timeout;
         loop {
             let child = self.backend.as_mut().unwrap();
@@ -382,16 +385,25 @@ impl Drop for Run {
 }
 
 // @ref LLP 3000.007#20.10 — explicit simulator, owned backend and bound artifacts
-fn prepare(mut options: Options) -> Result<Run> {
+fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     platform(std::env::consts::OS)?;
-    let list: Value = serde_json::from_str(&simctl(&["list", "devices", "booted", "--json"], options.timeout)?).map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
-    let (udid, runtime) = device(&list, options.udid.as_deref())?;
+    if options.build.is_some() && std::env::current_dir().ok().and_then(|p| crate::project::Project::locate(&p)).is_none() {
+        return Err(error("E_WITNESS_BUILD", "no snapback/schema.q here or above; run snapback4 init before native smoke"));
+    }
+    let simulator = simulator::select(&options, preparation)?;
+    let udid = simulator["udid"].as_str().unwrap().to_owned();
+    let runtime = simulator["runtime"].as_str().unwrap().to_owned();
+    preparation["simulator"] = simulator.clone();
+    preparation["udid"] = json!(udid);
+    preparation["runtime"] = json!(runtime);
+    eprintln!("witness: using simulator {} ({udid}), runtime {runtime}", simulator["name"].as_str().unwrap_or("unnamed"));
     // The simulator's data root is shared across callers with different TMPDIRs.
     let home = simctl(&["getenv", &udid, "HOME"], options.timeout)?;
     let lease = preparation::lease(&Path::new(&home).join(".snapback4-witness-owner.lock"))?;
     let _port = reserve(options.port)?;
+    options.port = _port.local_addr().map_err(|e| error("E_WITNESS_PORT", e))?.port();
+    let project_lease = preparation::check_project(&options)?;
     let proof = preparation::prepare_app(&mut options, &udid)?;
-    drop(_port);
     let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nUse witness ios --build <project> --smoke for the qualified adapter, or expo run:ios --configuration Release --device generic --no-bundler --output <private-output> then simctl install the exact product", options.bundle)))?;
     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
     let plist = Path::new(&app).join("Info.plist");
@@ -406,7 +418,6 @@ fn prepare(mut options: Options) -> Result<Run> {
         json!({ "executable": artifact(&Path::new(&app).join(build["CFBundleExecutable"].as_str().unwrap()))?,
             "javascript": artifact(&Path::new(&app).join("main.jsbundle"))? })
     } else { Value::Null };
-    let _reservation = reserve(options.port)?;
     if app_pid(&simctl(&["spawn", &udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
         return Err(error("E_WITNESS_APP", format!("{} is already running on {udid}; quit it before starting the witness", options.bundle)));
     }
@@ -416,7 +427,7 @@ fn prepare(mut options: Options) -> Result<Run> {
     let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let cwd = std::env::current_dir().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
-    let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+    let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "simulator": simulator, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
         "proofKind": proof.as_ref().map_or(json!("installed-application"), |p| p["proofKind"].clone()),
         "queryFacts": Value::Null, "queryGeneration": Value::Null,
         "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
@@ -424,7 +435,7 @@ fn prepare(mut options: Options) -> Result<Run> {
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
         "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", artifact_segment(&options))),
         "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&options)))).collect::<Vec<_>>() });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, proof })
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, _project_lease: project_lease, proof, reservation: Some(_port) })
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -443,7 +454,7 @@ pub fn run(args: &[String]) -> i32 {
             "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
             "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
             "events": [], "artifacts": {} });
-        let mut run = match prepare(options) {
+        let mut run = match prepare(options, &mut preparation) {
             Ok(run) => run,
             Err(problem) => {
                 preparation["error"] = json!(problem);
@@ -471,7 +482,7 @@ pub fn run(args: &[String]) -> i32 {
         println!("witness: {label} — {}", run.path("run.json").display());
         Ok(())
     };
-    match execute() { Ok(()) => 0, Err(problem) => { eprintln!("{problem}\nsee snapback4 guide witness"); 1 } }
+    match execute() { Ok(()) => 0, Err(problem) => { if problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("{problem}"); } else { eprintln!("{problem}; see snapback4 guide witness"); } 1 } }
 }
 
 #[cfg(test)]

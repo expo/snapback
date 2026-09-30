@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @ref LLP 3000.030#13 — SDK acquisition, offline coverage, then a no-image reconnect.
+// @ref LLP 3000.030#14 — SDK acquisition, offline coverage, then a no-image reconnect.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir, hostname, availableParallelism, loadavg } from 'node:os';
 import { join, resolve } from 'node:path';
