@@ -30,7 +30,13 @@ table members:
   sync to members[.conversation]
 
 table messages:
-  receipts by .conversation, .ordinal from .sender to members
+  receipts chat by .conversation, .ordinal from .sender to members:
+    counter .lastOrdinal
+    floor .joinedOrdinal
+    count .recipients
+    watermarks .deliveredOrdinal, .seenOrdinal
+    runs runs
+    operations receipt, delivered, seen, receiptMember, progress, compactReceipts
   conversation: conversations
   sender: principal
   ordinal: int

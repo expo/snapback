@@ -79289,3 +79289,60 @@ original starter and artifact hashes:
 reports/20260930-rx-declarative-receipts/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+### 2026-09-30 — RX round 1: named receipt families and convergent cleanup
+
+Merged origin/main at f1b1f0077eee40b6eeedac224ebd078c04cea173 first, preserving
+both sides without conflicts. Read both complete round-zero reviews. Authorized
+membership deletion now retires exactly that member's runs through metered
+storage custody, including services outside the runs audience; rollback remains
+atomic. Generated delivery compacts covered runs and deleted/expired gaps before
+the 64-run cap, with a shared 1,024-position probe budget. Separate bounded
+compaction commits progress during saturation; the SDK retries owed delivery
+with a fresh id after committed maintenance. Maintenance never acknowledges
+coverage. Self-only or incomplete membership audiences refuse E_RECEIPTS_CLAUSE.
+
+LLP 3000.022 §14 settles named families, accounting/identity/watermark mappings,
+public operation names and semantic versioning. The unpublished round-zero form
+becomes `receipts chat ...:` with a mapping block. Multiple families coexist;
+the starter explicitly preserves its public/storage names. Capability
+`declarative-receipts-v2` and template/descriptor-bound delivery fingerprints
+fence semantic changes, including maintenance. Manual schemas keep their old
+fingerprints. Automatic ordinal allocation, recipient counts and join-floor
+custody remain for the next round. The settled mappings accommodate them.
+
+Six new seeded schedules have 2,016 state comparison checkpoints across both
+device stores: 64 interval runs, out-of-order bridges, saturation, service
+removal with runs still present and rejoin. Compare stored watermarks/runs and
+projections. The original expiry/deletion schedules now compare represented
+live coverage and replicated storage; exact raw-state equivalence is scoped to
+contiguous live histories. Partial acquisition, adoption with pending writes,
+reopen and duplicate-id authoritative replay pass on both device stores. Controls
+against unchanged round-zero product source fail nine Rust and six SDK assertions
+as intended. Final affected tests: receipts 21/21, binding 5/5, whole guide
+105/105, device delivery 30/30, readauth 81/81, SDK queue 66/66 and real-client
+delivery 4/4. Existing receipt behavior assertions are unchanged.
+
+Ran scripts/test.sh exactly once, exit 0:
+
+    == 0 failure(s) in 1344 s
+
+No failing checks/tests: ours 0, baseline 0, environmental 0. Rust 4,383 passed,
+0 failed, 33 existing ignores; client pool 5,315 passed, 0 failed, 10 existing
+skips; serial models 79/79 with full 5,000-sequence walks; fixture tests 9/9.
+Build, wasm, release guard, docs budget and typechecks passed. The final reference
+audit passes: 525 LLP docs, 9,975 refs, zero errors or unchecked. No counts,
+timeouts or checks were reduced; the inherited 60-second suite bar is still
+exceeded. Product source was final before the full run; the additive await
+classification pin/comment was finalized during Rust, before client tests.
+
+Wasm: 1,988,204 B raw / 596,444 B gzip by the canonical build command, 803 B
+below the unchanged 597,247 B ratchet. An initial derived decoder exceeded the
+cap; a streaming decoder removed the excess. No runtime ceilings changed.
+Starter: 294 original → 225 round zero → 231 round one lines (63 fewer than
+manual); primary guide 321 lines, below 350. Report, corrected development
+failures, exact logs and artifact hashes:
+reports/20260930-rx-declarative-receipts/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

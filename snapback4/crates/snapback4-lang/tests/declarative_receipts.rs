@@ -227,10 +227,16 @@ fn schedule<H: Host>(host: &mut H, random_seed: u64, expiring: bool) {
             receipt(&mut decl, now),
             "seed {random_seed}, step {step}, expires {expiring}"
         );
+        if joined { schedules::assert_live_coverage(&mut manual, &mut decl, now, expiring); }
         // Exercise the real wire publication, shared interpreter and both persistence hosts.
         for (e, d) in [(&mut manual, &mut md), (&mut decl, &mut dd)] {
             for (i, page) in snapshot_pages(e, "alice", 1000).into_iter().enumerate() {
                 d.apply(&page, i == 0).unwrap();
+            }
+            for table in ["members", "runs"] {
+                let mut server=e.store().rows(table).unwrap();let mut device=d.store().raw_rows(table);
+                server.sort_by(Value::total_cmp);device.sort_by(Value::total_cmp);
+                assert_eq!(server,device,"published {table} seed {random_seed}, step {step}");
             }
         }
         let query = json!({"conversation":"c","c":null});
@@ -587,3 +593,10 @@ fn device_predictions_keep_owned_progress_and_include_removal_cleanup() {
         "implicit run deletion is included in prediction's write set: {leave:?}"
     );
 }
+
+#[path = "declarative_receipts/round1.rs"]
+mod round1;
+#[path = "declarative_receipts/schedules.rs"]
+mod schedules;
+#[path = "declarative_receipts/device_round1.rs"]
+mod device_round1;

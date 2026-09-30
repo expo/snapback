@@ -377,6 +377,7 @@ card/reads/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":
 card/reads/4:split | never
 card/receipts/1:add | eligible
 card/receipts/1:add | members/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/receipts/1:compactReceipts | never
 card/receipts/1:delivered | never
 card/receipts/1:leave | eligible
 card/receipts/1:seen | eligible

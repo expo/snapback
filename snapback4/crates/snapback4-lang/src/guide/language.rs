@@ -22,7 +22,7 @@ mutation addNote(body: text):
 `query` pages newest first; pass `next` as `c`.
 `mutation` inserts atomically, using the default time.
 
-`receipts by .conversation, .ordinal from .sender to members` generates reporting
+`receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting
 (`guide receipts`; expert recipe: `guide manual-receipts`).
 
 ## Limits

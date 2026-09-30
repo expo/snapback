@@ -30,7 +30,13 @@ table members:
   sync to members[.conversation]
 
 table messages:
-  receipts by .conversation, .ordinal from .sender to members
+  receipts chat by .conversation, .ordinal from .sender to members:
+    counter .lastOrdinal
+    floor .joinedOrdinal
+    count .recipients
+    watermarks .deliveredOrdinal, .seenOrdinal
+    runs runs
+    operations receipt, delivered, seen, receiptMember, progress, compactReceipts
   conversation: conversations
   sender: principal
   ordinal: int
@@ -108,22 +114,28 @@ query messageReactions(message: messages):
 
 ```
 
-The round-zero clause generates `receipt(.)`, `delivered`, `seen`,
-`receiptMember`, `progress`, `runs`, and the two member watermarks.
-Allocation (`lastOrdinal`, `ordinal`), join floors and recipient counts remain
-explicit in this prototype. One family per schema; at most 50 members and
-64 disjoint runs per member. Progress fields and runs refuse ordinary writes
-with `E_RECEIPTS_OWNED`; malformed declarations refuse `E_RECEIPTS_CLAUSE`.
-Deleting a member retires their runs atomically, including administrative
-removal permitted by the member table's delete rule.
+The named family generates the mapped projection, reporting operations, runs
+and member watermarks. Without overrides, names use the family prefix:
+`chatReceipt`, `chatDelivered`, `chatSeen`, `chatMember`, `chatProgress`,
+`chatCompact`, `chatRuns`, `chatDeliveredOrdinal` and `chatSeenOrdinal`.
+`member .conversation, .principal` maps membership coordinates; `counter`,
+`floor` and `count` name the scope counter, membership floor and message count.
+Allocation and membership accounting remain explicit. Multiple distinct families
+may coexist, with at most 50 members and 64 disjoint runs per member.
+Membership must be group-readable and synced in full; malformed declarations refuse `E_RECEIPTS_CLAUSE`. Progress fields and
+runs refuse ordinary writes with `E_RECEIPTS_OWNED`. Deleting a member retires their runs atomically, even for an authorized
+service outside the runs audience.
 
-The generated delivery mutation runs on the server. Before changing runs it
-seeks the first live message in the gap: deleted and logically expired rows
-cannot block the prefix, but a live undelivered message does. Unswept expiry
-work still costs the ordinary meter and can refuse atomically with `E_BOUND`.
-A saturated chain of stored runs separated by expired holes may still need
-explicit re-reporting of a held run to advance its prefix; automatic compaction
-of that shape remains outside this prototype.
+Delivery merges intervals and compacts covered runs before enforcing the
+64-run cap. It crosses only deleted or expired positions, with at most 1,024
+unique position probes per call. Longer holes save partial progress while
+recording the full input interval. At saturation the SDK calls the bound
+compaction operation in a separate transaction, then retries delivery with a
+fresh id when compaction advanced. A live blocker keeps the ordinary delayed
+retry. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
+before the count. Replaying its write id returns that success.
+Maintenance success never acknowledges delivery. Each step
+uses the ordinary meter; a refusal rolls back its transaction.
 Seen may queue and predict under ordinary coverage; only settled delivery
 reports can establish committed receipt state. Reports assert the recipient's
 own observation; no protocol can prove that a person actually read a message.
@@ -135,7 +147,8 @@ schema adoption: keep names, columns, indexes, membership floors and counters;
 remove only declarations the clause generates and explicit run deletion from
 leave. Existing rows survive; no backfill invents delivery. Other manual
 layouts keep working and require an explicit data migration before opting in.
-Upgrade engines and devices together; the declaration carries a capability fence.
+Upgrade engines and devices together; v2 changes the capability and delivery
+fingerprint, retiring old SDK debt for recollection.
 
 The older `useReceipts` history-walking hook does not scale to a large group:
 automatic paging and receipt writes can stall sends and hit the examined-row
@@ -165,7 +178,7 @@ server before acquisition or past its horizon; a left group's retained page
 stays local.
 
 The manual recipe's contiguous intervals assume no deletion or expiry; the
-generated form includes the live-blocker gap read.
+generated form includes bounded gap compaction.
 
 Every message takes the conversation's next ordinal, and a member records the
 last ordinal when they join. So commit order, not the clock, decides a
@@ -216,7 +229,7 @@ remains the raw watch publication or query return after its final fences.
 Collection persistence never delays the answer and rechecks its fences on
 every attempt. Ordinary device publication still persists debt with its rows.
 
-Every report sends its binding's fingerprint; the server checks it under the
+Every report and compaction sends its binding's fingerprint; the server checks it under the
 writer before executing the mutation. Unrelated generation changes preserve
 unchanged bindings.
 

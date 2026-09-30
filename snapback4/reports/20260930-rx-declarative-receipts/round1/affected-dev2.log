@@ -1,0 +1,9 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+error[E0599]: no variant, associated function, or constant named `Object` found for enum `snapback4_core::Value` in the current scope
+  --> crates/snapback4-lang/tests/declarative_receipts/round1.rs:63:19
+   |
+63 |     if let Value::Object(ref mut fields) = chat { fields.insert("lastOrdinal".into(),Value::Int(last)); }
+   |                   ^^^^^^ variant, associated function, or constant not found in `snapback4_core::Value`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `snapback4-lang` (test "declarative_receipts") due to 1 previous error

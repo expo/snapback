@@ -101,6 +101,11 @@ export function instrument(destination) {
 // settles nor observes a write. Failure withholds the read. The causal Following
 // regression covers admission/settlement/apply, including zero-wait retirement;
 // mutation delivery continues through the unchanged classified sites above.
+// RX v2: delivery.ts adds one maintenance transport await after RUNS_FULL.
+// It cannot acknowledge delivery: only the later report records coverage.
+// delivery.test.mjs injects lost/refused/unaccepted maintenance and a stale
+// incarnation reply; delivery-integrated exercises real fingerprint-bound
+// dispatch. The existing outbox delivery matrix sites stay unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

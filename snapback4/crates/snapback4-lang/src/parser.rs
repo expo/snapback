@@ -200,6 +200,7 @@ impl Parser {
                 if table.receipts.is_some() {
                     return Err(Diagnostic::new(&site, "E_RECEIPTS_CLAUSE", "duplicate receipts clause", "keep one receipts clause").guide("receipts"));
                 }
+                let name = self.word()?.value;
                 self.take("by")?; self.take(".")?;
                 let group = self.word()?.value;
                 self.take(",")?; self.take(".")?;
@@ -208,8 +209,34 @@ impl Parser {
                 let sender = self.word()?.value;
                 self.take("to")?;
                 let members = self.word()?.value;
-                self.newline()?;
-                table.receipts = Some(ReceiptsDecl { group, position, sender, members, site });
+                self.take(":")?; self.newline()?; self.take_kind(Kind::Indent)?;
+                let mut clause = ReceiptsDecl {
+                    member_group: group.clone(), principal: "principal".into(),
+                    counter: String::new(), floor: String::new(), count: String::new(),
+                    delivered_field: format!("{name}DeliveredOrdinal"), seen_field: format!("{name}SeenOrdinal"),
+                    runs: format!("{name}Runs"),
+                    operations: ["Receipt", "Delivered", "Seen", "Member", "Progress", "Compact"].iter().map(|suffix|format!("{name}{suffix}")).collect(),
+                    name, group, position, sender, members, site: site.clone(),
+                };
+                let mut keys = std::collections::BTreeSet::new();
+                while !self.at_kind(Kind::Dedent) {
+                    let key = self.word()?.value;
+                    if !keys.insert(key.clone()) { return Err(Diagnostic::new(&site,"E_RECEIPTS_CLAUSE","duplicate receipt mapping","keep each mapping once").guide("receipts")); }
+                    match key.as_str() {
+                        "member" => { self.take(".")?; clause.member_group = self.word()?.value; self.take(",")?; self.take(".")?; clause.principal = self.word()?.value; }
+                        "counter" | "floor" | "count" => {
+                            self.take(".")?; let value = self.word()?.value;
+                            match key.as_str() { "counter" => clause.counter = value, "floor" => clause.floor = value, _ => clause.count = value }
+                        }
+                        "watermarks" => { self.take(".")?; clause.delivered_field = self.word()?.value; self.take(",")?; self.take(".")?; clause.seen_field = self.word()?.value; }
+                        "runs" => clause.runs = self.word()?.value,
+                        "operations" => { clause.operations.clear(); for i in 0..6 { if i > 0 { self.take(",")?; } clause.operations.push(self.word()?.value); } }
+                        _ => return Err(Diagnostic::new(&site,"E_RECEIPTS_CLAUSE","unknown receipt mapping","use member, counter, floor, count, watermarks, runs or operations").guide("receipts")),
+                    }
+                    self.newline()?;
+                }
+                self.take_kind(Kind::Dedent)?;
+                table.receipts = Some(clause);
                 Ok(())
             }
             "public" => {
