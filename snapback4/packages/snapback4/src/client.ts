@@ -1,5 +1,5 @@
 import { readyRead } from "./read-existence.ts";
-import { settledQuery } from "./query-settlement.ts";
+import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
@@ -951,7 +951,9 @@ export function createClient(options: ClientOptions): Client {
         acceptDelivery(result, result.read);
         return result.read;
       };
-    }, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), aborter.signal),
+    }, () => terminalQueryRefusal({ scope: null, store: storeRefusal, closed: closed ? ended() : null,
+      session: !credentials || link === "signed-out" ? auth() : null, changes: changesRefusal,
+      partition: null, inherited: null }), aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep;
       const key = observationKey(op, args, options);

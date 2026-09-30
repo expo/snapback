@@ -79708,3 +79708,53 @@ Evidence, source snapshots and rerunnable controls:
 reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — QS round 2: complete terminal sources, prove held permanence
+
+Read rounds 0/1 prompts, reports and reviews, then merged origin/main
+0dad042375057d2dad8c429424713986581432e7 in 17ca8a3809, preserving both
+journal histories and delivery-await audit comments. One required-field
+terminal-source selector now serves online/local/mock queries and facades:
+public scope, store, close, session, change stream, partition and inherited
+raw state. Online E_SYNC now survives both transport and authority deadlines.
+
+Actual unsynced reads no longer prove permanent held unavailability. A narrow
+static proof recognizes only the compiler's unconditional literal-key
+online-only count lowering, without arguments, native body, inherited source
+or parent/own-key aggregate. It still refuses E_QUERY_HELD in one evaluation
+and zero server calls. Time, argument, data/coverage and membership-dependent
+forms conservatively retry; the real-clock cutoff case rereads to 7. No second
+evaluator, observation-policy change or existence/pending classifier change.
+The two Following conditional cases preserve complete untaken false/null and
+zero server dispatch while requiring retryable exhaustion for the online taken
+branch. Client/search/refusal guidance and LLP 3000.023 §11 agree. Client card
+remains 1,200 words / 113 lines; local.ts remains 1,500 lines.
+
+Round 1 negative controls: 20/20 targeted failures before edits, then 19/19
+runtime failures on the SDK rebuilt from exact a8744099b5. Final review checks
+60/60, additional opening/final authority cases 12/12, broad affected run
+463/463, whole guide 106/106, typecheck/build/docs budget/refs/diff check pass.
+Ran scripts/test.sh exactly once, exit 1; exact summary:
+
+    == 1 failure(s) in 1280 s
+       client tests
+
+All other 12 stages passed; serial client models 79/79 with 5,000 session
+sequences on each tier. Both 300-seed search hosts and both 300-history
+mixed-evidence hosts pass. Client pool: 5,506 pass / 8 fail / 10 existing
+skips / zero cancellations. Every failed case is baseline: expired-server
+reply recovery with keep=false/true, close-watch and close-client with each
+keep setting. Ours 0, environmental 0. Ordinary and stack-traced runs on the
+merged pre-fix SDK reproduce all eight in union: the fixture captures Undici
+1,000 ms socket timers as expiry backoff. Follow-up is
+issues/20260930-snapback4-expired-watch-captures-transport-timers.md. No unrelated
+assertion was weakened. This remains a failed full run; the inherited nominal
+60-second budget is exceeded. No source input changed during the full run,
+no worker intervention, no full rerun. Earlier guide-budget and scratch-build
+failures remain honestly recorded alongside their passing follow-ups.
+
+Wasm unchanged: 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged
+593,719 B cap. Source hashes, exact summaries, every failure and disposition:
+reports/20260930-qs-one-shot-settles/round2/REPORT.md and FAILURES.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

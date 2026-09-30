@@ -47,6 +47,18 @@ query heldChoice() held:
   if messages['item'].body = 'image-1':
     return total['room']
   return 7
+query heldTime(cutoff: time) held:
+  if now < cutoff:
+    return total['room']
+  return 7
+query heldArgument(want: bool) held:
+  if want:
+    return total['room']
+  return 7
+query heldMembership() held:
+  if exists members['room', viewer]:
+    return total['room']
+  return 7
 query heldItem() held:
   return messages['item']
 query keyed(tag: int):

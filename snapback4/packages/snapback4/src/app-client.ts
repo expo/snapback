@@ -11,7 +11,7 @@ import { episodeDeadline } from "./read-episode.ts";
 import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
 import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
-import { queryAttempt, queryRefusal, settledQuery } from "./query-settlement.ts";
+import { queryAttempt, queryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
@@ -80,7 +80,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         const read = publish();
         return read && approveDelivery(read) ? read : undefined;
       };
-    }, () => valid() ? queryRefusal(raw) : why(), queries.signal),
+    }, () => terminalQueryRefusal({ scope: valid() ? null : why(), store: null, closed: null,
+      session: null, changes: null, partition: null, inherited: queryRefusal(raw) }), queries.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       const loading: Read<R> = { loading: true };

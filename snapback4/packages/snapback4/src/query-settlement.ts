@@ -16,6 +16,22 @@ export function queryRefusal(client: Client): Refusal | null | undefined {
   return attempts.get(client.query)?.unavailable();
 }
 
+// @ref LLP 3000.023#11 — exhaustive terminal sources, shared by every tier
+// and facade. Required fields make each adapter account for absent sources too.
+type TerminalSources = {
+  scope: Refusal | null | undefined;
+  store: Refusal | null | undefined;
+  closed: Refusal | null | undefined;
+  session: Refusal | null | undefined;
+  changes: Refusal | null | undefined;
+  partition: Refusal | null | undefined;
+  inherited: Refusal | null | undefined;
+};
+export function terminalQueryRefusal(sources: TerminalSources): Refusal | undefined {
+  return sources.scope ?? sources.store ?? sources.closed ?? sources.session
+    ?? sources.changes ?? sources.partition ?? sources.inherited ?? undefined;
+}
+
 export function heldQueryRefusal(): Refusal {
   return { code: "E_QUERY_HELD", family: "client", retryable: false, site: "client.query", guide: "search",
     message: "this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data" };

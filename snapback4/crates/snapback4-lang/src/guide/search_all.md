@@ -199,6 +199,6 @@ The local clients never fall back to the server for a held query, even at a
 horizon, meter cut or word cut. Choose this scope only for an explicitly
 device-only feature; ordinary search above owns online/offline routing.
 
-A held one-shot requiring unsynced data refuses non-retryable `E_QUERY_HELD`.
+A proven permanently unavailable held one-shot refuses non-retryable `E_QUERY_HELD`.
 Remove `held` for online fallback, or sync that data. Temporary misses follow
 `guide client`'s bound.

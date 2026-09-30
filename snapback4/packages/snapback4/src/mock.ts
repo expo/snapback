@@ -1,5 +1,5 @@
 import { readyRead } from "./read-existence.ts";
-import { settledQuery } from "./query-settlement.ts";
+import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { mockSignals } from "./mock-ephemeral.ts";
 // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no
@@ -140,7 +140,8 @@ export function createMockClient(options: MockOptions): MockClient {
       const read = evaluate(op, args);
       return () => revision !== version ? undefined : "loading" in read && link === "offline"
         ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
-    }, unavailable),
+    }, () => terminalQueryRefusal({ scope: null, store: null, closed: closed ? unavailable() : null,
+      session: link === "signed-out" ? unavailable() : null, changes: null, partition: null, inherited: null })),
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       let seen = -1;
       let snapshot: Read<R> = { loading: true };

@@ -30,11 +30,11 @@ Queueing needs no membership answer: only `denied`, or fresh, non-revalidating `
 
 `waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
 Clear on submit; restore refused text into empty drafts; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
-Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Keep saved text; Dismiss only after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
+Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never auto-resend. Keep saved text; Dismiss only after lookup settles. New attempts, new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
 
 ## Honest read boundaries
 
-`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online unless `held`; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale.
+`query(op, args)` awaits device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds/30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline: permitted device data or immediate `E_OFFLINE`. Terminal session/store/close refusals win. Ready may be partial/stale.
 `existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
 
 | Meaning | UI decision |
@@ -110,4 +110,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
 ```
 
 `useAsset` revokes on unmount. Never refetch once media (`E_ASSET_VIEWED`).
-Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.
+`snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.

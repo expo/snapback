@@ -195,3 +195,94 @@ test('guide: server-needing decorations remain separate', () => {
   const cards = ['client', 'offline_interactions'].map(name => readFileSync(new URL(`../../../crates/snapback4-lang/src/guide/${name}.md`, import.meta.url), 'utf8')).join('\n');
   assert.match(cards, /Keep server-needing decorations separate/);
 });
+
+for (const tier of ['online', 'app-online']) for (const stage of ['transport', 'authority']) {
+ if (tier === 'online' && stage === 'authority') continue;
+ test(`${tier}: terminal changes refusal at ${stage} deadline`, async t => {
+  const gate = Promise.withResolvers(), change = Promise.withResolvers(); let block = false, started = false;
+  t.after(() => { gate.resolve(); change.resolve(); });
+  const f = await setup(t, tier, {
+   changes: async () => { await change.promise; return Response.json({ denied: {code:'E_SYNC', family:'sync', retryable:false, message:'change stream refused'} }, {status:400}); },
+   fetch: async (path, init, send) => { if (block && stage === 'transport' && path === '/q/profile') { started = true; await gate.promise; } return send(); }
+  });
+  const watch = f.client.observe(q('item'), {}); watch.subscribe(() => {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data);
+  if(stage === 'authority') f.controls.authority = () => { started=true; return gate.promise; };
+  const fire = deadline(t);
+  block = true; const pending = f.client.query(q('profile'), {}); await until(() => started);
+  change.resolve();
+  await until(() => watch.getSnapshot().denied?.code === 'E_SYNC');
+  // Authority hook is only a scheduler; let fresh calls through.
+  if(stage === 'authority') delete f.controls.authority;
+  const next = await f.client.query(q('item'), {}); assert.equal(next.denied?.code, 'E_SYNC');
+  fire(); const read = await bounded(pending);
+  t.diagnostic(JSON.stringify({next, pending:read}));
+  assert.deepEqual(read, next);
+ });
+}
+
+for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
+  test(`${tier}: a time-dependent held miss rereads across its cutoff`, async t => {
+    const f = await setup(t, tier); let rounds = 0;
+    const cutoff = Date.now() + 1000;
+    f.controls.boundary = async result => {
+      if (++rounds === 1) {
+        assert.equal(result.read.loading, true);
+        await delay(Math.max(0, cutoff - Date.now() + 30));
+      }
+    };
+    const current = await bounded(f.client.query(q('heldTime'), { cutoff }));
+    assert.equal((await f.client.query(q('heldTime'), { cutoff })).data, 7);
+    assert.equal(current.data, 7);
+    assert.equal(rounds, 3, 'two outstanding evaluations plus the identical fresh call');
+  });
+  for (const input of ['arguments', 'coverage', 'membership']) test(`${tier}: a held miss dependent on ${input} remains retryable`, async t => {
+    let requests = 0;
+    const f = await setup(t, tier, { fetch: (path, init, send) => { if (path.startsWith('/q/held')) requests++; return send(); } });
+    const name = { arguments: 'heldArgument', coverage: 'heldChoice', membership: 'heldMembership' }[input];
+    const read = await f.client.query(q(name), input === 'arguments' ? { want: true } : {});
+    assert.equal(read.denied?.code, 'E_QUERY_RETRY'); assert.equal(read.denied.retryable, true);
+    if (input === 'coverage') await f.client.mutate(m('edit'), { body: 'answerable' });
+    if (input === 'membership') { await f.client.mutate(m('remove'), {}); await f.client.sync(); }
+    assert.equal((await f.client.query(q(name), input === 'arguments' ? { want: false } : {})).data, 7);
+    assert.equal(requests, 0, 'held never asks the server');
+  });
+}
+test('guide: the client contract names only proven permanent held refusals', () => {
+  const card = readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md', import.meta.url), 'utf8');
+  const contract = card.split('\n').find(line => line.startsWith('`query(op, args)`'));
+  assert.match(contract, /E_QUERY_RETRY.*proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`/);
+});
+
+for (const tier of ['app-wasm', 'app-process']) for (const source of ['changes', 'partition', 'restore']) {
+  for (const phase of ['opening', 'final']) test(`${tier}: ${source} wins a blocked ${phase} authority deadline`, async t => {
+    const gate = Promise.withResolvers(), change = Promise.withResolvers();
+    let changed = false, raw, checks = 0, started = false;
+    t.after(() => { gate.resolve(); change.resolve(); });
+    const f = await setup(t, tier, {
+      changes: async signal => {
+        if (source !== 'changes') return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+        await change.promise;
+        return Response.json({ denied: { code: 'E_SYNC', family: 'sync', retryable: false, message: 'change stream refused' } });
+      },
+      fetch: async (path, init, send) => {
+        const response = await send();
+        if (!changed || path !== '/sync') return response;
+        if (source === 'partition') return Response.json({ denied: { code: 'E_SYNC', family: 'sync', retryable: false, message: 'partition refused' } });
+        const json = await response.json(); json.watermark = 0; json.images_at = 0; return Response.json(json);
+      },
+    });
+    f.controls.authority = client => {
+      raw = client;
+      if (++checks === (phase === 'opening' ? 1 : 2)) { started = true; return gate.promise; }
+    };
+    const fire = deadline(t), pending = f.client.query(q('item'), {});
+    await until(() => started);
+    if (source === 'changes') change.resolve();
+    else { changed = true; await raw.sync(); }
+    let fresh;
+    const expected = source === 'restore' ? 'E_STORE_RESTORE' : 'E_SYNC';
+    await until(async () => { fresh = await raw.query(q('item'), {}); return fresh.denied?.code === expected; });
+    fire(); assert.deepEqual(await bounded(pending), fresh); assert.notEqual(fresh.denied.retryable, true);
+  });
+}

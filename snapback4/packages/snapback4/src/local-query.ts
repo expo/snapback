@@ -22,7 +22,7 @@ import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 //    Future remembered wakeups carry that provenance to the watch timer.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
-import { operationTables, type BackendJson } from "./backend.ts";
+import { operationTables, permanentlyUnavailableHeldCount, type BackendJson } from "./backend.ts";
 import { queuedPredictions, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
@@ -357,11 +357,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         else env.serverAnswers.delete(key, result.seq);
       }
       if (followingPending && "data" in result.read) result.read = readyRead<R>({ ...result.read, complete: false }, pendingHere);
-      // @ref LLP 3000.023#11 — an acquired held read needing unsynced data
-      // cannot improve by retrying. Keep this fact internal; observations keep
-      // their loading state. Pending writes/acquisition are temporary misses.
+      // @ref LLP 3000.023#11 — only a static permanence proof permits a
+      // terminal held refusal. Actual read tables alone cannot rule out a
+      // changing time/argument/coverage/membership branch. Observations keep loading.
       if (held && origin === "local" && "loading" in result.read && env.partitionCurrent && env.caughtUp && !pendingResult)
-        result.heldUnavailable = ephemeral || !!latest?.outcome.tables?.some(table => !env.backend.schema.tables[table]?.sync);
+        result.heldUnavailable = permanentlyUnavailableHeldCount(program, env.backend.schema);
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
       return { ...result, read: readyRead<R>({ ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) }, pendingHere) };

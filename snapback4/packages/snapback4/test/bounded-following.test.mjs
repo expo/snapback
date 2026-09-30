@@ -489,8 +489,8 @@ query conditionalGet(want: bool, postId: posts) held:
         const skipped = await bob.client.query(query(name), { want: false, postId: "p3" });
         assert.equal(skipped.data, data); assert.equal(skipped.complete, true);
         const required = await bob.client.query(query(name), { want: true, postId: "p3" });
-        assert.equal(required.denied?.code, offline ? "E_OFFLINE" : "E_QUERY_HELD");
-        assert.equal(required.denied.retryable, offline, "only a link outage can be repaired without changing this held query");
+        assert.equal(required.denied?.code, offline ? "E_OFFLINE" : "E_QUERY_RETRY");
+        assert.equal(required.denied.retryable, true, "changing want makes this held query answerable without a program change");
         assert.equal(bob.queries.length, before, "held queries never dispatch, including their executed card reads");
       }
     }
