@@ -553,7 +553,7 @@ impl Runner<'_> {
     fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
         let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
         self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
-            let found = runner.live_lookup(allowance, table, name, index, key)?;
+            let found = runner.live_lookup(allowance, table, name, index, key, #[cfg(feature = "sqlite")] None)?;
             if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
                 runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
                 runner.visible_collision(table, row, effect, &format!("unique {}", index.columns().join(", ")))?;

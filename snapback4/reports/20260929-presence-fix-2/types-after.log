@@ -1,0 +1,83 @@
+✖ Astra consumer: a generic row reader accepts Read<T extends Row> (342.70825ms)
+✔ ready literals require the discriminant (199.895334ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (192.817709ms)
+✖ Read is covariant and every narrowed arm retains its result type (186.802375ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1100.061959
+
+✖ failing tests:
+
+test at packages/snapback4/test/read-types.test.mjs:19:1
+✖ Astra consumer: a generic row reader accepts Read<T extends Row> (342.70825ms)
+  AssertionError [ERR_ASSERTION]: [96mtest/fixtures/read-types/consumer.ts[0m:[93m4[0m:[93m80[0m - [91merror[0m[90m TS2345: [0mArgument of type 'Read<T>' is not assignable to parameter of type 'Read<Row>'.
+    Type 'ReadyMetadata & Absent<T & ([] | null)> & { readonly complete: true; readonly cut: null; }' is not assignable to type 'Read<Row>'.
+      Type 'ReadyMetadata & Absent<T & ([] | null)> & { readonly complete: true; readonly cut: null; }' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<Row & []> & { readonly complete: true; readonly cut: null; })'.
+        Type 'ReadyMetadata & Absent<T & ([] | null)> & { readonly complete: true; readonly cut: null; }' is not assignable to type 'ReadyMetadata & Absent<Row & []> & { readonly complete: true; readonly cut: null; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+          Types of property 'data' are incompatible.
+            Type 'T & ([] | null)' is not assignable to type 'Row & []'.
+              Type 'T & null' is missing the following properties from type 'Row & []': id, length, toString, toLocaleString, and 32 more.
+  
+  [7m4[0m export function renderTypedRow<T extends Row>(read: Read<T>): void { renderRow(read); }
+  [7m [0m [91m                                                                               ~~~~[0m
+  
+  + actual - expected
+  
+  + [
+  +   2345
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-types.test.mjs:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 2345 ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/read-types.test.mjs:32:1
+✖ Read is covariant and every narrowed arm retains its result type (186.802375ms)
+  AssertionError [ERR_ASSERTION]: [96m__read_types.ts[0m:[93m11[0m:[93m28[0m - [91merror[0m[90m TS2322: [0mType '(Row & []) | null' is not assignable to type 'null'.
+    Type 'Row & []' is not assignable to type 'null'.
+  
+  [7m11[0m     case 'absent': { const empty: null = read.data; const complete: true = read.complete; const cut: null = read.cut; break; }
+  [7m  [0m [91m                           ~~~~~[0m
+  [96m__read_types.ts[0m:[93m34[0m:[93m43[0m - [91merror[0m[90m TS2322: [0mType '(string | number | boolean | undefined) & ([] | null)' is not assignable to type 'never'.
+    Type 'string & []' is not assignable to type 'never'.
+  
+  [7m34[0m   if (read.presence === 'absent') { const impossible: never = read.data; }
+  [7m  [0m [91m                                          ~~~~~~~~~~[0m
+  
+  + actual - expected
+  
+  + [
+  +   2322,
+  +   2322
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-types.test.mjs:69:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 2322, 2322 ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

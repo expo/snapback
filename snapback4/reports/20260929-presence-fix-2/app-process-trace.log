@@ -1,0 +1,404 @@
+✔ app online: signup, restart, rotation, account-bound pending writes and logout (694.524375ms)
+✔ app local: signup, restart, rotation, account-bound pending writes and logout (5681.261959ms)
+✔ online app recovers two lost confirmations with original IDs and immutable arguments (238.719875ms)
+✔ logoutEverywhere revokes other sessions and session restore cancellation cannot resurrect identity (163.189583ms)
+✔ online logout completes while rotation is stalled and revokes the late successor (27.449958ms)
+✔ online custody refuses unstored admission and retains committed writes when receipt storage fails (210.520792ms)
+✔ failed session commit revokes only the provisional bearer before reporting signed-out (184.407125ms)
+✔ logout clears credentials after journal failure, and credential deletion is retryable (4.346709ms)
+✔ logoutEverywhere clears credentials after journal failure, and credential deletion is retryable (3.635ms)
+✔ signed-out completion waits for durable credential deletion (3.350625ms)
+✔ logout online deletes the bearer while network work is held (174.899917ms)
+✔ logout local deletes the bearer while network work is held (239.707042ms)
+✔ ordinary online app close retires an unread rotation and reopening refuses its consumed predecessor (268.748125ms)
+✔ ordinary local app close retires an unread rotation and reopening refuses its consumed predecessor (1240.121ms)
+✔ a stale online refresh preserves another owner's kept successor (1688.001583ms)
+✔ a stale local refresh preserves another owner's kept successor (1371.030042ms)
+✔ stale online restoration restarts when another app rotates before its first save (635.309ms)
+✔ stale local restoration restarts when another app rotates before its first save (1600.058875ms)
+✔ stale online restoration restarts when another app rotates before its final save (703.929584ms)
+✔ stale local restoration restarts when another app rotates before its backend acquisition (2086.825959ms)
+✔ online auth rejection after a failed login completes signed-out cleanup (301.243875ms)
+✔ local auth rejection after a failed login completes signed-out cleanup (451.470625ms)
+✔ shared logout fences a held online rotation while signed out (295.752083ms)
+✔ shared logout fences a held online rotation across Bob's login (352.451625ms)
+✔ shared logout fences a held local rotation while signed out (371.047958ms)
+✔ shared logout fences a held local rotation across Bob's login (408.153708ms)
+✔ a sign-in started before another app's logout cannot overwrite its later login (685.864584ms)
+✔ restoration cleanup of invalid JSON preserves a replacement written after its read (498.581291ms)
+✔ restoration cleanup of expired session preserves a replacement written after its read (504.531458ms)
+✔ expired stored-session cleanup deletes bytes without revoking the live bearer (180.817833ms)
+✔ refresh started after a shared logout refuses before dispatch even if remote logout failed (311.124375ms)
+✔ offline logout replaces credentials when its epoch write exceeds quota (178.908208ms)
+✔ offline logout replaces credentials when its epoch write keeps failing (179.484083ms)
+✔ near-expiry restoration defers automatic refresh until journal opening and comparison commit succeed (222.145542ms)
+✔ logout tombstone fences another app's held refresh when storage rejects the epoch key (320.211667ms)
+✔ logout tombstone fences another app's held login when storage rejects the epoch key (329.933459ms)
+✔ logout tombstone fences another app's held refresh when quota blocks the epoch key (843.299375ms)
+✔ logout tombstone fences another app's held login when quota blocks the epoch key (1297.093542ms)
+✔ logout does not delete or revoke before either durable fence can be stored (255.495709ms)
+✔ invalid local asset budget -1 leaves a restored bearer untouched (363.20625ms)
+✔ invalid local asset budget 1.5 leaves a restored bearer untouched (1270.281875ms)
+✔ failed fence revokes a discarded refresh before logout retry (564.100834ms)
+✔ failed fence revokes a discarded refresh after logout retry (243.058333ms)
+✔ failed fence revokes a discarded login before logout retry (253.01875ms)
+✔ failed fence revokes a discarded login after logout retry (607.885459ms)
+✔ logout retry revokes a discarded login after its token-comparison read throws (1065.565042ms)
+✔ logout retry drains deferred revocation after another account replaced the stored bearer (225.787334ms)
+✔ sign-in keeps the tombstone until its epoch promotion is durable (171.363667ms)
+✔ local restoration captures the asset budget before the caller mutates it (1305.385958ms)
+✔ the native instrumentation hook receives createApp's own restored client (400.096042ms)
+✔ native smoke observes only the published replacement of a near-expiry restored session (1600.599292ms)
+✔ committed refresh body survives sign-out and its unkept bearer is revoked (622.886125ms)
+✔ committed refresh body survives replacement and its unkept bearer is revoked (388.028875ms)
+CLOSE_TRACE 13 open begin
+CLOSE_TRACE 89 child kill
+CLOSE_TRACE 140 child exit
+CLOSE_TRACE 141 child close
+CLOSE_TRACE 141 open begin
+CLOSE_TRACE 196 open end
+CLOSE_TRACE 197 call begin sync_state 
+CLOSE_TRACE 199 call end sync_state 
+CLOSE_TRACE 199 call begin state 
+CLOSE_TRACE 201 call end state 
+CLOSE_TRACE 202 call begin meta server-clock
+CLOSE_TRACE 202 call end meta server-clock
+CLOSE_TRACE 202 call begin queued 
+CLOSE_TRACE 203 call end queued 
+CLOSE_TRACE 203 call begin meta server-clock-floor
+CLOSE_TRACE 203 call end meta server-clock-floor
+CLOSE_TRACE 203 call begin set_meta server-clock
+CLOSE_TRACE 204 call end set_meta server-clock
+CLOSE_TRACE 204 call begin meta media:manifest
+CLOSE_TRACE 205 call end meta media:manifest
+CLOSE_TRACE 205 call begin state 
+CLOSE_TRACE 206 call end state 
+CLOSE_TRACE 206 call begin next_submission 
+CLOSE_TRACE 207 call end next_submission 
+CLOSE_TRACE 207 call begin meta syncedAt:wall:1
+CLOSE_TRACE 208 call end meta syncedAt:wall:1
+CLOSE_TRACE 208 call begin sync_state 
+CLOSE_TRACE 210 call end sync_state 
+CLOSE_TRACE 210 call begin sync_state 
+CLOSE_TRACE 210 call end sync_state 
+CLOSE_TRACE 210 call begin queued 
+CLOSE_TRACE 211 call end queued 
+CLOSE_TRACE 211 call begin queued 
+CLOSE_TRACE 212 call end queued 
+CLOSE_TRACE 212 call begin meta write-history
+CLOSE_TRACE 212 call end meta write-history
+CLOSE_TRACE 212 call begin state 
+CLOSE_TRACE 213 call end state 
+CLOSE_TRACE 213 call begin meta delivery-active
+CLOSE_TRACE 213 call end meta delivery-active
+CLOSE_TRACE 214 call begin state 
+CLOSE_TRACE 214 call end state 
+CLOSE_TRACE 214 call begin sync_state 
+CLOSE_TRACE 214 call end sync_state 
+CLOSE_TRACE 217 call begin observe_store 
+CLOSE_TRACE 220 call end observe_store 
+CLOSE_TRACE 220 call begin apply 
+CLOSE_TRACE 221 call end apply 
+CLOSE_TRACE 222 call begin meta delivery-active
+CLOSE_TRACE 222 call begin sync_state 
+CLOSE_TRACE 222 call end meta delivery-active
+CLOSE_TRACE 223 call end sync_state 
+CLOSE_TRACE 227 call begin observe_store 
+CLOSE_TRACE 229 call end observe_store 
+CLOSE_TRACE 229 call begin apply 
+CLOSE_TRACE 234 call end apply 
+CLOSE_TRACE 234 call begin meta delivery-active
+CLOSE_TRACE 234 call begin sync_state 
+CLOSE_TRACE 235 call end meta delivery-active
+CLOSE_TRACE 236 call end sync_state 
+CLOSE_TRACE 236 call begin sync_state 
+CLOSE_TRACE 236 call end sync_state 
+CLOSE_TRACE 236 call begin set_meta syncedAt:wall:1
+CLOSE_TRACE 237 call end set_meta syncedAt:wall:1
+CLOSE_TRACE 237 call begin sync_state 
+CLOSE_TRACE 238 call begin queued 
+CLOSE_TRACE 239 call begin admit 
+CLOSE_TRACE 239 call end sync_state 
+CLOSE_TRACE 241 call end queued 
+CLOSE_TRACE 241 call begin queued 
+CLOSE_TRACE 245 call end admit 
+CLOSE_TRACE 246 call end queued 
+CLOSE_TRACE 246 call begin queued 
+CLOSE_TRACE 247 call end queued 
+CLOSE_TRACE 247 call begin queued 
+CLOSE_TRACE 248 call end queued 
+CLOSE_TRACE 248 call begin meta write-history
+CLOSE_TRACE 248 call end meta write-history
+CLOSE_TRACE 249 call begin begin_send 
+CLOSE_TRACE 250 call end begin_send 
+CLOSE_TRACE 257 call begin observe_store 
+CLOSE_TRACE 258 call end observe_store 
+CLOSE_TRACE 259 call begin sync_state 
+CLOSE_BEGIN mutation 34791.877042
+CLOSE_TRACE 260 call end sync_state 
+CLOSE_TRACE 260 core close begin
+CLOSE_TRACE 260 child kill
+CLOSE_TRACE 263 child exit
+CLOSE_TRACE 263 child close
+CLOSE_TRACE 263 core close end
+CLOSE_END mutation 34796.281709
+CLOSE_TRACE 264 open begin
+CLOSE_TRACE 281 open end
+CLOSE_TRACE 281 call begin sync_state 
+CLOSE_TRACE 282 call end sync_state 
+CLOSE_TRACE 282 call begin state 
+CLOSE_TRACE 283 call end state 
+CLOSE_TRACE 283 call begin backend 
+CLOSE_TRACE 285 call end backend 
+CLOSE_TRACE 285 call begin meta server-clock
+CLOSE_TRACE 285 call end meta server-clock
+CLOSE_TRACE 286 call begin queued 
+CLOSE_TRACE 286 call end queued 
+CLOSE_TRACE 286 call begin meta server-clock-floor
+CLOSE_TRACE 287 call end meta server-clock-floor
+CLOSE_TRACE 287 call begin set_meta server-clock
+CLOSE_TRACE 287 call end set_meta server-clock
+CLOSE_TRACE 287 call begin meta media:manifest
+CLOSE_TRACE 288 call end meta media:manifest
+CLOSE_TRACE 288 call begin state 
+CLOSE_TRACE 289 call end state 
+CLOSE_TRACE 289 call begin next_submission 
+CLOSE_TRACE 290 call end next_submission 
+CLOSE_TRACE 290 call begin meta syncedAt:wall:1
+CLOSE_TRACE 291 call end meta syncedAt:wall:1
+CLOSE_TRACE 291 call begin sync_state 
+CLOSE_TRACE 292 call end sync_state 
+CLOSE_TRACE 293 call begin sync_state 
+CLOSE_TRACE 293 call end sync_state 
+CLOSE_TRACE 293 call begin queued 
+CLOSE_TRACE 294 call end queued 
+CLOSE_TRACE 294 call begin queued 
+CLOSE_TRACE 295 call end queued 
+CLOSE_TRACE 295 call begin meta write-history
+CLOSE_TRACE 295 call end meta write-history
+CLOSE_TRACE 295 call begin state 
+CLOSE_TRACE 295 call end state 
+CLOSE_TRACE 295 call begin meta delivery-active
+CLOSE_TRACE 296 call end meta delivery-active
+CLOSE_TRACE 297 call begin queued 
+CLOSE_TRACE 297 call begin state 
+CLOSE_TRACE 297 call begin queued 
+CLOSE_TRACE 298 call end queued 
+CLOSE_TRACE 300 call end state 
+CLOSE_TRACE 300 call begin sync_state 
+CLOSE_TRACE 301 call end queued 
+CLOSE_TRACE 301 call begin meta write-history
+CLOSE_TRACE 301 call end sync_state 
+CLOSE_TRACE 302 call begin queued 
+CLOSE_TRACE 302 call end meta write-history
+CLOSE_TRACE 302 call end queued 
+CLOSE_TRACE 302 call begin meta write-history
+CLOSE_TRACE 303 call end meta write-history
+CLOSE_TRACE 303 call begin begin_send 
+CLOSE_TRACE 303 call end begin_send 
+CLOSE_TIMEOUT mutation 35293.762209
+CLOSE_TRACE 1303 core close begin
+CLOSE_TRACE 1303 child kill
+CLOSE_TRACE 1307 child exit
+CLOSE_TRACE 1307 child close
+CLOSE_TRACE 1307 core close end
+CLOSE_TRACE 1321 open begin
+CLOSE_TRACE 1334 open end
+CLOSE_TRACE 1334 call begin sync_state 
+CLOSE_TRACE 1334 call end sync_state 
+CLOSE_TRACE 1334 call begin state 
+CLOSE_TRACE 1335 call end state 
+CLOSE_TRACE 1335 call begin meta server-clock
+CLOSE_TRACE 1335 call end meta server-clock
+CLOSE_TRACE 1335 call begin queued 
+CLOSE_TRACE 1335 call end queued 
+CLOSE_TRACE 1335 call begin meta server-clock-floor
+CLOSE_TRACE 1335 call end meta server-clock-floor
+CLOSE_TRACE 1335 call begin set_meta server-clock
+CLOSE_TRACE 1336 call end set_meta server-clock
+CLOSE_TRACE 1336 call begin meta media:manifest
+CLOSE_TRACE 1336 call end meta media:manifest
+CLOSE_TRACE 1336 call begin state 
+CLOSE_TRACE 1336 call end state 
+CLOSE_TRACE 1336 call begin next_submission 
+CLOSE_TRACE 1337 call end next_submission 
+CLOSE_TRACE 1337 call begin meta syncedAt:wall:1
+CLOSE_TRACE 1337 call end meta syncedAt:wall:1
+CLOSE_TRACE 1337 call begin sync_state 
+CLOSE_TRACE 1337 call end sync_state 
+CLOSE_TRACE 1337 call begin sync_state 
+CLOSE_TRACE 1338 call end sync_state 
+CLOSE_TRACE 1338 call begin queued 
+CLOSE_TRACE 1338 call end queued 
+CLOSE_TRACE 1338 call begin queued 
+CLOSE_TRACE 1338 call end queued 
+CLOSE_TRACE 1338 call begin meta write-history
+CLOSE_TRACE 1339 call end meta write-history
+CLOSE_TRACE 1339 call begin state 
+CLOSE_TRACE 1339 call end state 
+CLOSE_TRACE 1339 call begin meta delivery-active
+CLOSE_TRACE 1339 call end meta delivery-active
+CLOSE_TRACE 1339 call begin state 
+CLOSE_TRACE 1339 call end state 
+CLOSE_TRACE 1340 call begin sync_state 
+CLOSE_TRACE 1340 call end sync_state 
+CLOSE_TRACE 1342 call begin set_meta server-clock
+CLOSE_TRACE 1343 call begin observe_store 
+CLOSE_TRACE 1343 call end set_meta server-clock
+CLOSE_TRACE 1343 call end observe_store 
+CLOSE_TRACE 1343 call begin apply 
+CLOSE_TRACE 1344 call end apply 
+CLOSE_TRACE 1344 call begin meta delivery-active
+CLOSE_TRACE 1344 call begin sync_state 
+CLOSE_TRACE 1345 call end meta delivery-active
+CLOSE_TRACE 1345 call end sync_state 
+CLOSE_TRACE 1348 call begin observe_store 
+CLOSE_TRACE 1348 call end observe_store 
+CLOSE_TRACE 1348 call begin apply 
+CLOSE_TRACE 1349 call end apply 
+CLOSE_TRACE 1349 call begin meta delivery-active
+CLOSE_TRACE 1349 call begin sync_state 
+CLOSE_TRACE 1350 call end meta delivery-active
+CLOSE_TRACE 1350 call end sync_state 
+CLOSE_TRACE 1350 call begin sync_state 
+CLOSE_TRACE 1350 call end sync_state 
+CLOSE_TRACE 1350 call begin set_meta syncedAt:wall:1
+CLOSE_TRACE 1351 call end set_meta syncedAt:wall:1
+CLOSE_TRACE 1351 call begin sync_state 
+CLOSE_TRACE 1351 call begin queued 
+CLOSE_TRACE 1351 call begin queued 
+CLOSE_TRACE 1352 call end sync_state 
+CLOSE_TRACE 1352 call end queued 
+CLOSE_TRACE 1352 call begin meta write-history
+CLOSE_TRACE 1352 call end queued 
+CLOSE_TRACE 1352 call begin meta write-history
+CLOSE_TRACE 1353 call end meta write-history
+CLOSE_TRACE 1353 call begin keep_write 
+CLOSE_TRACE 1353 call end meta write-history
+CLOSE_TRACE 1353 call begin query 
+CLOSE_TRACE 1353 call end keep_write 
+CLOSE_TRACE 1353 call begin settle 
+CLOSE_TRACE 1354 call end query 
+CLOSE_TRACE 1354 call end settle 
+CLOSE_TRACE 1354 call begin meta delivery-active
+CLOSE_TRACE 1354 call begin queued 
+CLOSE_TRACE 1354 call end meta delivery-active
+CLOSE_TRACE 1355 call end queued 
+CLOSE_TRACE 2463 core close begin
+CLOSE_TRACE 2463 child kill
+CLOSE_TRACE 2465 child exit
+CLOSE_TRACE 2465 child close
+CLOSE_TRACE 2465 core close end
+✔ local close cancels a mutation caller without aborting its committed response (2536.412375ms)
+CLOSE_TRACE 17 open begin
+CLOSE_TRACE 1782 child kill
+CLOSE_TRACE 1783 child exit
+CLOSE_TRACE 1783 child close
+CLOSE_TRACE 1783 open begin
+CLOSE_TRACE 1881 open end
+CLOSE_TRACE 1881 call begin sync_state 
+CLOSE_TRACE 1882 call end sync_state 
+CLOSE_TRACE 1882 call begin state 
+CLOSE_TRACE 1882 call end state 
+CLOSE_TRACE 1882 call begin meta server-clock
+CLOSE_TRACE 1882 call end meta server-clock
+CLOSE_TRACE 1882 call begin queued 
+CLOSE_TRACE 1883 call end queued 
+CLOSE_TRACE 1883 call begin meta server-clock-floor
+CLOSE_TRACE 1883 call end meta server-clock-floor
+CLOSE_TRACE 1884 call begin set_meta server-clock
+CLOSE_TRACE 1888 call end set_meta server-clock
+CLOSE_TRACE 1888 call begin meta media:manifest
+CLOSE_TRACE 1888 call end meta media:manifest
+CLOSE_TRACE 1888 call begin state 
+CLOSE_TRACE 1888 call end state 
+CLOSE_TRACE 1888 call begin next_submission 
+CLOSE_TRACE 1888 call end next_submission 
+CLOSE_TRACE 1888 call begin meta syncedAt:wall:1
+CLOSE_TRACE 1890 call end meta syncedAt:wall:1
+CLOSE_TRACE 1890 call begin sync_state 
+CLOSE_TRACE 1891 call end sync_state 
+CLOSE_TRACE 1891 call begin sync_state 
+CLOSE_TRACE 1891 call end sync_state 
+CLOSE_TRACE 1891 call begin queued 
+CLOSE_TRACE 1891 call end queued 
+CLOSE_TRACE 1891 call begin queued 
+CLOSE_TRACE 1892 call end queued 
+CLOSE_TRACE 1892 call begin meta write-history
+CLOSE_TRACE 1892 call end meta write-history
+CLOSE_TRACE 1892 call begin state 
+CLOSE_TRACE 1893 call end state 
+CLOSE_TRACE 1893 call begin meta delivery-active
+CLOSE_TRACE 1893 call end meta delivery-active
+CLOSE_TRACE 1893 call begin state 
+CLOSE_TRACE 1893 call end state 
+CLOSE_TRACE 1893 call begin sync_state 
+CLOSE_TRACE 1894 call end sync_state 
+CLOSE_TRACE 1896 call begin set_meta server-clock
+CLOSE_TRACE 1896 call begin observe_store 
+CLOSE_TRACE 1897 call end set_meta server-clock
+CLOSE_TRACE 1898 call end observe_store 
+CLOSE_TRACE 1898 call begin apply 
+CLOSE_TRACE 1900 call end apply 
+CLOSE_TRACE 1900 call begin meta delivery-active
+CLOSE_TRACE 1900 call begin sync_state 
+CLOSE_TRACE 1900 call end meta delivery-active
+CLOSE_TRACE 1901 call end sync_state 
+CLOSE_TRACE 1904 call begin observe_store 
+CLOSE_TRACE 1905 call end observe_store 
+CLOSE_TRACE 1905 call begin apply 
+CLOSE_TRACE 1906 call end apply 
+CLOSE_TRACE 1906 call begin meta delivery-active
+CLOSE_TRACE 1906 call begin sync_state 
+CLOSE_TRACE 1906 call end meta delivery-active
+CLOSE_TRACE 1906 call end sync_state 
+CLOSE_TRACE 1907 call begin sync_state 
+CLOSE_TRACE 1907 call end sync_state 
+CLOSE_TRACE 1907 call begin set_meta syncedAt:wall:1
+CLOSE_TRACE 1908 call end set_meta syncedAt:wall:1
+CLOSE_TRACE 1908 call begin sync_state 
+CLOSE_TRACE 1908 call begin queued 
+CLOSE_TRACE 1909 call end sync_state 
+CLOSE_TRACE 1909 call end queued 
+CLOSE_TRACE 1909 call begin queued 
+CLOSE_TRACE 1910 call end queued 
+CLOSE_BEGIN upload 39327.028542
+CLOSE_TRACE 1919 core close begin
+CLOSE_TRACE 1919 child kill
+CLOSE_TRACE 1921 child exit
+CLOSE_TRACE 1921 child close
+CLOSE_TRACE 1921 core close end
+CLOSE_END upload 39329.6535
+✔ local close cancels a upload caller without aborting its committed response (2458.114167ms)
+CLOSE_TIMEOUT upload 39828.521
+✔ online app keeps an unrotated bearer when refresh rejects before replacement reopens (494.839917ms)
+✔ online app keeps an unrotated bearer when refresh rejects after replacement reopens (483.313375ms)
+✔ sign-in after a failed fence advances the epoch in the same runtime (530.502458ms)
+✔ sign-in after a failed fence advances the epoch after restart (462.777542ms)
+✔ displaced-bearer revocation survives restart after offline instead of acknowledgement (495.390667ms)
+✔ displaced-bearer revocation survives restart after refusal instead of acknowledgement (499.457125ms)
+✔ failed journal write during sign-in preserves the displaced session bytes (168.553292ms)
+✔ failed epoch write during sign-in preserves the displaced session bytes (169.747042ms)
+✔ failed bearer write during sign-in preserves the displaced session bytes (171.32825ms)
+✔ a comparison read failure retains a discarded login for the next successful logout (489.743125ms)
+✔ a comparison read failure retains a discarded login for the next successful sign-in (1013.371917ms)
+✔ a foreign revocation journal never sends its bearer to this backend (203.607ms)
+✔ replacement preserves a guest when fourth save fails (207.243ms)
+✔ replacement preserves a guest when device opening fails (298.531792ms)
+✔ failed replacement cannot advance the epoch or make a peer revoke the stored bearer (390.327708ms)
+✔ acknowledged retirement removes journal and tombstone entries (1020.841708ms)
+✔ an observed replacement fences device reads, cached watches and native asset credentials (147.958834ms)
+✔ a provisional online login cannot replay pending writes before its session commits (330.759417ms)
+✔ failed local restoration cannot consume a near-expiry guest before device opening succeeds (167.170042ms)
+✔ foreign tombstone retirement credentials are preserved without dispatch (12.009708ms)
+✔ Client signOut and logoutAll use the app's atomic logout boundary (175.498375ms)
+✔ session custody preserves a class store's methods and receiver (2.254834ms)
+✔ a session comparison read failure returns client refusals without losing identity (296.824167ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 78
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47745.398125

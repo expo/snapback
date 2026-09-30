@@ -56,6 +56,8 @@ production offline-reopen journey; fixture residency remains
 
 ## 4. The client
 
+**Constructor compatibility:** ready `Read<T>` values now require `existence`. Readers keep `isReady`/`isLoading`/`isDenied`; custom clients and mocks must classify their published value as `present`, `absent` or `partial`. No wire field was added. See `guide client` for the rules and point-read narrowing.
+
 `createApp` is the ordinary entry point. Construct it once outside React render.
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
@@ -786,9 +788,9 @@ renewing a row must satisfy its insert rule as well as its update rule.
 Every word a screen reads is on the card (`snapback4/contract`):
 
 ```ts
-import type { Cursor, ReadMeter } from "snapback4/contract";
+import type { Cursor, ReadMeter, Ready } from "snapback4/contract";
 type Read<T> =
-  | { data: T; complete: boolean; cut: "meter" | "words" | null; fresh: boolean; since?: number; next?: Cursor | null; meter?: ReadMeter }
+  | Ready<T> // required existence: present | absent | partial, narrowed by result type
   | { loading: true }
   | { denied: Refusal };
 type Write<R> =
@@ -1165,7 +1167,7 @@ Start with `snapback4 guide client` for composers, stable routes, receipts and o
 
 ```tsx
 import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useAction, useLink, useViewer, useSession, useAsset } from "snapback4/react";
-import type { Client } from "snapback4/contract";
+import { existence, type Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 import { Image, Text, View } from "react-native";
 function Thread({ conversationId }: { conversationId: string }) {
@@ -1348,15 +1350,16 @@ Render loading, continuation, refusal and incomplete answers explicitly:
 ```tsx
 import { Button, Text, View } from "react-native";
 import { usePage } from "snapback4/react";
+import { existence } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
 export function InboxList() {
   const { items, hasMore, loadMore, read } = usePage(api.inbox, {});
   return <View>
-    {"loading" in read && <Text>Loading…</Text>}
+    {existence(read) === "loading" && <Text>Loading…</Text>}
     {"denied" in read && <Text>{read.denied.message}</Text>}
     {items.map(item => <Text key={item.conversationId}>{item.conversationId}</Text>)}
-    {"data" in read && !read.complete && <Text>Results may be incomplete</Text>}
+    {existence(read) === "partial" && <Text>Partial results</Text>}
     {"data" in read && !read.fresh && <Text>As of {read.since === undefined ? "the last available answer" : new Date(read.since).toISOString()}</Text>}
     {hasMore && <Button title="Load more" onPress={loadMore} />}
   </View>;
@@ -1368,7 +1371,7 @@ current answer. Only a local unavailable-read fallback may keep its previous ans
 while the server fetch is pending, marked `fresh: false` with `since`; settlement
 or a local state change clears that retention. Online reads retain no old answer.
 Every loading gap is shown as loading; refusals show their message.
-An empty or incomplete answer does not prove that no matching rows exist.
+A ready `absent` proves emptiness at the acquired watermark, including offline. `partial` and `loading` never prove absence. Nonempty answers are `present` even with incomplete coverage.
 
 ### Assets
 
@@ -1391,7 +1394,7 @@ removal before returning a session refusal. If storage refuses that cleanup,
 `close()` waits for the cleanup attempt to finish.
 
 ```ts
-import type { Client } from "snapback4/contract";
+import { existence, type Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 async function sendPhoto(client: Client, conversationId: string, file: Blob) {
   const uploaded = await client.upload(file); // also accepts ArrayBuffer | Uint8Array
@@ -1609,15 +1612,16 @@ Reuse the signed-in client on the profile screen:
 ```ts
 import { createClient } from "snapback4/client";
 import { guest, signup } from "snapback4/auth";
-import type { Client } from "snapback4/contract";
+import { existence, type Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 const url = "http://127.0.0.1:4400";
 
 async function profileScreen(client: Client) {
   const profile = await client.query(api.myProfile, {});
-  if ("loading" in profile) return "loading";
-  if ("denied" in profile) return "error";
-  return profile.data === null ? "profile" : "app";
+  const state = existence(profile);
+  if (state === "loading" || state === "partial") return "loading";
+  if (state === "denied") return "error";
+  return state === "absent" ? "profile" : "app";
 }
 
 async function register(email: string, password: string, handle: string) {
@@ -2232,9 +2236,12 @@ Query sites belong to their reader's generation; capture exhaustion points to
 `read through`, even before an insert rule runs.
 Visibility filtering in sync and reads is not recorded: inspect `snapback4 why TABLE`
 for read rules and sync residency, and `snapback4 guide rules`. Empty/null query
-answers without a known cause are silent and unrecorded by default, including
-empty fields in composed results. Opt in with `snapback4 dev --trace-empty` to
+answers are silent and unrecorded by default. Only top-level null or [] is
+empty; nested empty fields in composed results are present. Opt in with `snapback4 dev --trace-empty` to
 record local EMPTY_READ evidence in `why recent`, still without console notices.
+A proven storage-probe miss carries `cause: no-candidate` and its site; otherwise
+`cause: unrecorded` says no probe miss and no rule cause were recorded.
+Neither is proof about another viewer or a device. Rule-filtered answers are never recorded.
 `snapback4 why EMPTY_READ` (also `snapback4 guide EMPTY_READ`) gives exact commands
 to inspect the read rule, sync coverage and horizon; an empty answer does not
 prove denial. The stream identifies this opt-in with `traceEmpty: true`. Each record describes only its named request

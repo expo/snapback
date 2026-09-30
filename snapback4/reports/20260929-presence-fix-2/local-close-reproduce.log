@@ -1,0 +1,10 @@
+✔ local close cancels a mutation caller without aborting its committed response (4816.741792ms)
+✔ local close cancels a upload caller without aborting its committed response (2454.41475ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7688.593

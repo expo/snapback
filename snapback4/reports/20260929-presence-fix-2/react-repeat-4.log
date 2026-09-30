@@ -1,0 +1,15 @@
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (22.968292ms)
+  ✔ own send and settlement (18.978375ms)
+  ✔ edit (15.349334ms)
+  ✔ delete (15.466625ms)
+  ✔ membership removal (16.951875ms)
+✔ online keep=undefined: chat history and membership removal (1011.098334ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2025.954958

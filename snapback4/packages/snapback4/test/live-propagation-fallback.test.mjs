@@ -12,6 +12,16 @@ query transition(cutoff: time):
   if now >= cutoff:
     require exists profiles['bob'] else MISSING
   return messages['item']
+query emptyTransition(cutoff: time):
+  if now >= cutoff:
+    require exists profiles['bob'] else MISSING
+    return messages['missing']
+  return messages['item']
+query presentTransition(cutoff: time):
+  if now >= cutoff:
+    require exists profiles['bob'] else MISSING
+    return messages['item']
+  return messages['missing']
 query heldItem() held:
   return messages['item']
 `;
@@ -23,9 +33,10 @@ async function turns(t, predicate, label) {
   }
   assert.ok(predicate(), label);
 }
-for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'refusal', 'held-refusal']) {
+for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'emptyTransition', 'presentTransition', 'refusal', 'held-refusal']) {
   test(`${host}: pending cut preserves ${scenario} before sync publication`, async t => {
     const f = await fixture(t, program), device = opener(host, join(f.dir, host));
+    const transition = ['transition', 'emptyTransition', 'presentTransition'].includes(scenario);
     const cutoff = Date.now() + 1000;
     let frozen = false, afterCutoff = false, deliver, holdSync = false, syncEntered = false, serverRequests = 0, localQueries = 0;
     const sync = Promise.withResolvers();
@@ -36,7 +47,7 @@ for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'r
           localQueries++;
           // Advance only this query's device evaluation time across the branch.
           // The server is past the same cutoff by the time we deliver the change.
-          if (request.name === 'transition') request = { ...request, now: afterCutoff ? cutoff : cutoff - 1 };
+          if (transition && request.name === scenario) request = { ...request, now: afterCutoff ? cutoff : cutoff - 1 };
         }
         return core.call(request, committed);
       } };
@@ -61,16 +72,18 @@ for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'r
       await closing;
     });
     await client.sync();
-    const name = scenario === 'transition' ? 'transition' : scenario === 'held-refusal' ? 'heldItem' : 'item';
-    const args = scenario === 'transition' ? { cutoff } : {};
+    const name = transition ? scenario : scenario === 'held-refusal' ? 'heldItem' : 'item';
+    const args = transition ? { cutoff } : {};
     const watch = client.observe(q(name), args); watch.subscribe(() => {});
     t.after(() => watch.close());
-    await until(() => watch.getSnapshot().data?.body === 'image-1' && deliver);
+    await until(() => (scenario === 'presentTransition' ? watch.getSnapshot().existence === 'absent' : watch.getSnapshot().data?.body === 'image-1') && deliver);
+    assert.equal(watch.getSnapshot().existence, scenario === 'presentTransition' ? 'absent' : 'present');
+    const publications = []; watch.subscribe(() => publications.push(watch.getSnapshot()));
     const owner = answerObservation(watch.getSnapshot());
     assert.equal(owner.serverRead, false, 'initial answer is local');
     assert.equal(serverRequests, 0);
     const head = await fetch(f.url + '/changes?since=0&wait=0', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
-    if (scenario === 'transition') await new Promise(resolve => setTimeout(resolve, Math.max(0, cutoff - Date.now() + 1)));
+    if (transition) await new Promise(resolve => setTimeout(resolve, Math.max(0, cutoff - Date.now() + 1)));
     const committed = await f.post('/m/edit', { id: crypto.randomUUID(), args: { body: 'image-2' } });
     assert.equal(committed.state, 'sent');
     const change = await fetch(f.url + '/changes?since=' + head.seq + '&wait=0', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
@@ -81,9 +94,12 @@ for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'r
     t.mock.timers.enable({ apis: ['setTimeout'] }); frozen = true;
     deliver(Response.json(change));
     await turns(t, () => syncEntered, 'notification starts sync');
-    if (scenario === 'transition') {
-      await turns(t, () => watch.getSnapshot().data?.body === 'image-2' && !watch.getSnapshot().revalidating,
+    if (transition) {
+      await turns(t, () => (scenario === 'emptyTransition' ? watch.getSnapshot().data === null : watch.getSnapshot().data?.body === 'image-2') && !watch.getSnapshot().revalidating,
         'new branch obtains a current whole-server answer while sync remains held');
+      assert.equal(watch.getSnapshot().existence, scenario === 'emptyTransition' ? 'absent' : 'present',
+        'fallback classifies its own value rather than the previous local answer');
+      for (const read of publications) if ('data' in read) assert.equal(read.existence, read.data === null ? 'absent' : 'present');
       assert.ok(serverRequests > 0);
       assert.equal(owner.serverOnly, true);
       assert.equal(owner.changeCut, change.seq, 'server replacement does not erase the replica fence');
@@ -96,6 +112,7 @@ for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'r
       sync.resolve(Response.json({ denied }));
       await turns(t, () => watch.getSnapshot().denied?.code === 'E_STORE', 'mounted watch publishes terminal partition refusal');
       assert.deepEqual(watch.getSnapshot(), { denied });
+      assert.equal('existence' in watch.getSnapshot(), false, 'terminal live-cut refusal drops the old discriminant');
       assert.deepEqual(await client.query(q(name), args), { denied }, 'direct and mounted reads agree');
     }
   });

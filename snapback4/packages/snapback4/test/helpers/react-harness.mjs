@@ -23,7 +23,10 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.process = { env: {} };
 const query = { kind: "query", name: "read" };
 const mutation = { kind: "mutation", name: "write" };
-const ready = (data, next = null, flags = {}) => ({ data, complete: true, cut: null, fresh: true, since: 100, next, ...flags });
+const ready = (data, next = null, flags = {}) => {
+  const read = { data, complete: true, cut: null, fresh: true, since: 100, next, ...flags };
+  return { ...read, existence: data !== null && !(Array.isArray(data) && !data.length) ? "present" : read.complete && read.cut === null && read.next == null ? "absent" : "partial" };
+};
 const check = (condition, message) => { if (!condition) throw Error(message); };
 const equal = (actual, expected, message) => check(JSON.stringify(actual) === JSON.stringify(expected), message + ": " + JSON.stringify(actual));
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
@@ -42,7 +45,7 @@ function controlled(read = () => ready([])) {
     observe(op, args) {
       const listeners = new Set();
       const record = {
-        op, args, value: read(args), closes: 0,
+        op, args, value: op.name === "myMembership" ? ready({ id: "member" }) : read(args), closes: 0,
         getSnapshot() { return record.value; },
         subscribe(callback) { listeners.add(callback); return () => listeners.delete(callback); },
         close() { record.closes++; },
@@ -1247,6 +1250,20 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
     await unmount();
   };
 }
+cases["Expo composer uses membership presence without losing its draft"] = async () => {
+  localStorage.clear(); const client = controlled();
+  await mount(h(Thread, { backend: "http://starter-test", conversationId: "c", onBack: () => {} }), client);
+  await edit("kept draft"); const input = host.querySelector("input");
+  const member = client.records.find(record => record.op.name === "myMembership" && record.closes === 0);
+  for (const [read, disabled] of [[{ loading: true }, false], [ready(null, null, { complete: false }), false],
+    [ready(null), true], [{ denied: { message: "Membership refused" } }, true], [ready({ id: "member" }, null, { revalidating: true }), false]]) {
+    await act(async () => member.set(read));
+    equal([...host.querySelectorAll("button")].find(button => button.textContent === "Send").disabled, disabled, "membership control");
+    check(host.querySelector("input") === input && input.value === "kept draft", "membership status preserves the mounted draft");
+  }
+  await unmount(); allClosed(client);
+};
+
 cases["Expo observes every saved ID across reload, late refusal, unknown receipt and account switch"] = async () => {
   localStorage.clear(); const client = controlled();
   const props = { backend: "http://starter-test", conversationId: "c", onBack: () => {} };
@@ -1292,7 +1309,7 @@ cases["Expo read gaps preserve the composer while hiding protected rows; inbox d
   check(host.textContent.includes("Loading…") && !host.textContent.includes("No conversations"), "loading is not empty");
   const record = inbox.records.at(-1);
   await act(async () => record.set(ready([{ conversationId: "c", conversation: { title: "Private room" }, count: undefined }], null, { complete: false })));
-  check(host.textContent.includes("may be incomplete") && host.textContent.includes("–"), "incomplete and unavailable count are explicit");
+  check(!host.textContent.includes("may be incomplete") && host.textContent.includes("–"), "nonempty is present; unavailable count stays explicit");
   await act(async () => record.set({ loading: true }));
   check(host.textContent.includes("Updating…") && !host.textContent.includes("Private room"), "inbox gap keeps shell without old rows");
   await act(async () => record.set({ denied: { message: "No access" } }));

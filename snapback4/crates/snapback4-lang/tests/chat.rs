@@ -24,7 +24,7 @@ fn the_chat_schema_compiles_and_runs() {
     }
     assert!(bound.diagnostics.is_empty(), "the chat schema binds without diagnostics");
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "room", "markRead", "invite"]);
+    assert_eq!(names, ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "myMembership", "room", "markRead", "invite"]);
     let messages = &bound.schema.tables["messages"];
     assert!(messages.sync.is_some(), "messages sync to memberships");
     assert!(bound.schema.tables["messageCounts"].sync.is_some(), "the count inherits the audience");
@@ -65,6 +65,12 @@ fn the_chat_schema_compiles_and_runs() {
     let room = engine.query("room", Context::new(bob, args(&[("conversationId", id("c1"))]))).unwrap();
     assert_eq!(room.data.field("conversation").unwrap().field("id").unwrap(), &id("c1"));
     assert_eq!(room.data.field("membership").unwrap().field("id").unwrap(), &id("m2"));
+    let membership = engine.query("myMembership", Context::new(bob, args(&[("conversationId", id("c1"))]))).unwrap();
+    assert!(membership.complete);
+    assert_eq!(membership.data.field("id").unwrap(), &id("m2"));
+    let absent = engine.query("myMembership", Context::new("dev:mallory", args(&[("conversationId", id("c1"))]))).unwrap();
+    assert!(absent.complete);
+    assert_eq!(absent.data, Value::Null);
 
     // A stranger is refused by the require, with the author's code.
     let denied = engine.query("thread", Context::new("dev:mallory", args(&[("conversationId", id("c1")), ("c", Value::Null)]))).unwrap_err();

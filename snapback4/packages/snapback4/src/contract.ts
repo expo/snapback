@@ -45,7 +45,7 @@ export type ReadCut = "meter" | "words" | null;
  * the newest server state it does reflect, so a screen can say "as of three minutes ago".
  * Observations discard responses older than observed commits in the same store and
  * permanently refuse on store replacement or regression.
- * Presence is the exception. No commit announces that `connected[p]` changed, so an answer of a query that
+ * `connected[p]` is the exception. No commit announces that `connected[p]` changed, so an answer of a query that
  * may read it is a sample: it keeps the `fresh` it arrived with (true for a server's whole answer, false when
  * a local answer composes retained rows) until a newer answer replaces it. A background re-read about
  * 5 seconds after each reply settles does that while refreshes succeed; failed refreshes or a suspended
@@ -66,8 +66,35 @@ export type ReadCut = "meter" | "words" | null;
  * @ref LLP 3000.023#10 — all change evidence bounds retention.
  * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
+// @ref LLP 3000.031#1.1 — existence describes the disclosed value, never hidden rows.
+export interface ReadyMetadata {
+  readonly complete: boolean;
+  readonly cut: ReadCut;
+  readonly fresh: boolean;
+  readonly revalidating?: true;
+  readonly since?: number;
+  readonly next?: Cursor | null;
+  readonly meter?: ReadMeter;
+}
+// @ref LLP 3000.031#3 — named arms preserve generic covariance.
+// Every arm retains T; absent additionally proves null or an empty array.
+interface Present<out T> extends ReadyMetadata {
+  readonly existence: "present";
+  readonly data: T & ({} | undefined);
+}
+interface Partial<out T> extends ReadyMetadata {
+  readonly existence: "partial";
+  readonly data: T;
+}
+interface Absent<out T> extends ReadyMetadata {
+  readonly existence: "absent";
+  readonly data: T & (null | []);
+  readonly complete: true;
+  readonly cut: null;
+}
+export type Ready<T> = Present<T> | Partial<T> | Absent<T>;
 export type Read<T> =
-  | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; readonly revalidating?: true; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
+  | Ready<T>
   | { readonly loading: true }
   | { readonly denied: Refusal };
 
@@ -308,4 +335,9 @@ export function isLoading<T>(read: Read<T>): read is { readonly loading: true } 
 }
 export function isDenied<T>(read: Read<T>): read is { readonly denied: Refusal } {
   return "denied" in read;
+}
+
+/** The five UI meanings; narrow on read.existence after isReady for typed data. */
+export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
+  return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
 }

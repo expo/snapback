@@ -1,3 +1,5 @@
+import { existence } from "../dist/contract.js";
+import { readyRead } from "../dist/read-existence.js";
 import { sessionKey } from "../dist/auth.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,6 +25,7 @@ const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  myMembership: Query<{ conversationId: string }, { id: string } | null>;
   members: Query<{ conversationId: string }, { id: string }[]>;
   inboxCards: Query<{ c?: Cursor | null }, { id: string; title: string; memberCount: number }[]>;
   messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
@@ -79,7 +82,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -227,7 +230,8 @@ test("client card composer clears at submit and offers refused text without repl
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {} }, useMutation: () => send,
+      api: { send: {}, myMembership: {} }, useMutation: () => send,
+      existence, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -255,4 +259,47 @@ test("client card composer clears at submit and offers refused text without repl
       assert.equal(draft, before ? before + " hello" : "hello", "Edit appends without replacing current typing");
     }
   }
+});
+
+test("client card composer disables only denied or fresh non-revalidating absent membership", async () => {
+  const source = read(join(root, "../../crates/snapback4-lang/src/guide/client.md"))
+    .match(/export function Composer[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  for (const [member, blocked] of [
+    [{ loading: true }, false], [{ denied: { message: 'no' } }, true],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true }), true],
+    [readyRead({ data: null, complete: true, cut: null, fresh: false }), false],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true, revalidating: true }), false],
+    [readyRead({ data: null, complete: false, cut: null, fresh: true }), false],
+    [readyRead({ data: null, complete: true, cut: 'budget', fresh: true }), false],
+    [readyRead({ data: { id: 'me' }, complete: true, cut: null, fresh: false, revalidating: true }), false],
+  ]) {
+    let called = false;
+    const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
+      target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
+    })}\nComposer;`, {
+      api: { send: {}, myMembership: {} }, existence, isReady: read => "data" in read, useQuery: () => member,
+      useState: () => ['hello', () => {}],
+      useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
+      React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },
+    });
+    const button = Composer({ conversationId: 'room' }).children[1];
+    assert.equal(button.props.disabled, blocked, existence(member));
+    button.props.onClick();
+    assert.equal(called, !blocked, 'the handler guards a stale click too');
+  }
+});
+
+test("profile screen waits for proven existence and uses each replacement", async () => {
+  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/async function profileScreen[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  const screen = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nprofileScreen;`, { api: { myProfile: {} }, existence });
+  for (const [answer, expected] of [
+    [{ loading: true }, "loading"],
+    [readyRead({ data: null, complete: false, cut: null, fresh: false }), "loading"],
+    [{ denied: { message: "unavailable" } }, "error"],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true }), "profile"],
+    [readyRead({ data: { handle: "alice" }, complete: true, cut: null, fresh: true }), "app"],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true }), "profile"],
+  ]) assert.equal(await screen({ query: async () => answer }), expected);
 });

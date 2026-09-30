@@ -1,10 +1,11 @@
+import { readyRead } from "../../dist/read-existence.js";
 import { guardClient } from "../../dist/app-client.js";
 import { ReadObservation } from "../../dist/read-observation.js";
 import { armReadExpiry, correctReadExpiries } from "../../dist/read-expiry.js";
 import { bindWatchPeek, observeWatch, observationKey } from "../../dist/observe-watch.js";
 import { ServerClock } from "../../dist/clock.js";
 import { RememberedAnswers } from "../../dist/local-reads.js";
-const ready = data => ({ data, complete: true, fresh: true, next: null, cut: null });
+const ready = data => (readyRead({ data, complete: true, fresh: true, next: null, cut: null }));
 const why = { code: "E_AUTH", family: "auth", message: "session ended" };
 
 export function fixture(t, keep = true, lifecycle = {}) {

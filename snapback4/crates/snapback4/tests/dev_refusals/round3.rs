@@ -116,7 +116,7 @@ fn filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope() {
 }
 
 #[test]
-fn composed_missing_row_replaces_a_known_refusal_with_explicit_unknown_cause() {
+fn composed_missing_row_is_present_and_does_not_emit_empty_read() {
     let project = Project::new();
     fs::write(project.0.join("snapback/schema.q"), format!("{SOURCE}\nquery composed():\n  return {{outer: {{row: rows['absent']}}}}\n")).unwrap();
     let dev = Host::start_with(project, true, false, &["--trace-empty"]);
@@ -125,12 +125,8 @@ fn composed_missing_row_replaces_a_known_refusal_with_explicit_unknown_cause() {
     let before = dev.project.wait_record(store, "add");
     let reply = dev.post("/q/composed", json!({}));
     assert_eq!(reply["data"], json!({"outer":{"row":null}}));
-    let after = dev.project.wait_record(store, "composed");
-    let record = last(&after);
-    assert_eq!(record["code"], "EMPTY_READ");
-    assert_eq!(record["clause"], "cause not instrumented");
-    assert!(record["site"].is_null());
-    assert!(record["requestId"].as_u64() > last(&before)["requestId"].as_u64());
-    assert!(record["at"].as_i64() >= last(&before)["at"].as_i64());
-    assert_eq!(why(&dev.project), after);
+    // A real probe miss nested inside a present object is not an empty answer,
+    // even when empty-read logging is enabled (LLP 3000.031 §1.2).
+    assert_eq!(why(&dev.project), before);
+    assert!(!fs::read_to_string(&dev.stderr).unwrap().contains("dev refusal: composed:"));
 }

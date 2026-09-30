@@ -198,7 +198,7 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
   loop {
    let records=dev.project.wait_record(store,op);let record=records["records"].as_array().unwrap().last().unwrap();
    let id=record["requestId"].as_u64().unwrap();
-   if id>last_id {assert_eq!(record["code"],code);assert_eq!(record["clause"],"cause not instrumented");assert!(record["site"].is_null());last_id=id;break;}
+   if id>last_id {assert_eq!(record["code"],code);if code=="EMPTY_READ" { assert_eq!(record["cause"],"no-candidate"); assert_eq!(record["clause"],"no-candidate"); assert!(record["site"].as_str().is_some()); } else { assert_eq!(record["clause"],"cause not instrumented");assert!(record["site"].is_null()); } last_id=id;break;}
    assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(10));
   }
  }
@@ -261,4 +261,58 @@ fn why_rechecks_liveness_after_reading_the_snapshot() {
  let answer=why.wait_with_output().unwrap();
  assert!(!answer.status.success());
  assert!(String::from_utf8_lossy(&answer.stderr).contains("stopped while reading"),"{}",String::from_utf8_lossy(&answer.stderr));
+}
+
+#[test]
+fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
+ for trace_empty in [false, true] {
+  let project=Project::new();
+  let source=format!("{SOURCE}\nquery point(id: rows):\n  return rows[id]\nquery nested():\n  return {{ field: null }}\nquery literal():\n  return null\nquery filteredThenMissing():\n  ignored = rows['hidden']\n  return rows['missing']\ntable publicRows:\n  public\n  online only\nquery publicPoint():\n  return publicRows['missing']\ntable expired:\n  until: time\n  expire at .until\n  public\n  online only\nquery expiredPoint():\n  return expired['expired']\nquery refused():\n  require false else EMPTY_READ\n  return null\n");
+  fs::write(project.0.join("snapback/schema.q"),source).unwrap();
+  let dev=Host::start_with(project,true,false,if trace_empty { &["--trace-empty"] } else { &[] });
+  let identity=dev.request("add","dev:alice","x-snapback-persona: alice");
+  let store=identity["store_id"].as_str().unwrap();
+  let snapshot=|| { let out=dev.project.why(&[]); assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr)); serde_json::from_slice::<Value>(&out.stdout).unwrap() };
+  assert_eq!(snapshot()["traceEmpty"],trace_empty);
+  let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}},{"table":"expired","row":{"id":"expired","until":1}}]));
+  assert_eq!(seed["seeded"],2);
+  let mut missing=Value::Null;
+  for (op,args,cause) in [("point",json!({"id":"absent"}),"no-candidate"), ("publicPoint",json!({}),"no-candidate"), ("expiredPoint",json!({}),"unrecorded"), ("literal",json!({}),"unrecorded")] {
+   let before=snapshot();
+   let reply=dev.post(&format!("/q/{op}"),json!({"args":args}));
+   assert!(reply["data"].is_null()); assert!(reply.get("existence").is_none());
+   if op=="point" { missing=reply; }
+   if trace_empty {
+    let record=dev.project.wait_record(store,op);
+    let last=record["records"].as_array().unwrap().last().unwrap();
+    assert_eq!(last["code"],"EMPTY_READ"); assert_eq!(last["emptyRead"],true); assert_eq!(last["cause"],cause);
+    if cause=="no-candidate" {
+     assert_eq!(last["clause"],"no-candidate");
+     assert!(last["executionSite"].as_str().is_some_and(|s| !s.is_empty()));
+     assert!(last["site"].as_str().is_some_and(|s| s.contains("schema.q:")));
+    } else { assert_eq!(last["clause"],"no probe miss and no rule cause were recorded"); }
+   } else { assert_eq!(snapshot(),before,"default {op} advances no evidence"); }
+  }
+  let before=snapshot();
+  let hidden=dev.post("/q/point",json!({"args":{"id":"hidden"}}));
+  assert_eq!(serde_json::to_vec(&hidden).unwrap(),serde_json::to_vec(&missing).unwrap(),"hidden and absent wire answers at the same watermark");
+  assert_eq!(snapshot(),before,"a hidden point is never reported as a probe miss or filtered refusal");
+  let nested=dev.post("/q/nested",json!({})); assert_eq!(nested["data"],json!({"field":null}));
+  assert_eq!(snapshot(),before,"nested null is present");
+  let filtered=dev.post("/q/filteredThenMissing",json!({})); assert!(filtered["data"].is_null());
+  assert_eq!(snapshot(),before,"a later miss cannot overwrite the filtered clause");
+  // Wait for a real refusal's counted console window: all prior empties stayed silent.
+  assert_eq!(dev.post("/q/refused",json!({}))["denied"]["code"],"EMPTY_READ");
+  let envelope=dev.project.wait_record(store,"refused");
+  let last=envelope["records"].as_array().unwrap().last().unwrap();
+  assert_ne!(last["emptyRead"],true); assert!(last["cause"].is_null());
+  let deadline=Instant::now()+Duration::from_secs(5);
+  loop {
+   let log=fs::read_to_string(&dev.stderr).unwrap();
+   if log.contains("dev refusal: refused:") {
+    assert_eq!(log.lines().filter(|line| line.starts_with("dev refusal:")).count(),1,"{log}"); break;
+   }
+   assert!(Instant::now()<deadline,"{log}");std::thread::sleep(Duration::from_millis(10));
+  }
+ }
 }

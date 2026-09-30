@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { sdk, fixture, opener, q, parked, until } from './helpers/answers-stay.mjs';
 import { ephemeralServer, api } from './helpers/ephemeral-server.mjs';
+const { readyRead } = await import(new URL('read-existence.js', sdk));
 const { createLocalClient } = await import(new URL('local.js', sdk));
 const { answerIdentity, answerObservation, ReadObservation } = await import(new URL('read-observation.js', sdk));
 const { LocalReads } = await import(new URL('local-reads.js', sdk));
@@ -13,7 +14,8 @@ const gate = () => ({ arrived: Promise.withResolvers(), release: Promise.withRes
 
 test('pending change requires published sync or a whole server answer at its cut', () => {
   const answers = new LocalReads(), watch = Object.assign(new ReadObservation(), { op: q('item'), args: {} });
-  const data = { data: 'row', complete: true, fresh: true, cut: null };
+  const data = readyRead({ data: 'row', complete: true, fresh: true, cut: null });
+  assert.equal(data.existence, 'present');
   answers.changed(watch, 10);
   answers.changed(watch, 9);
   for (const candidate of [{}, { serverOnly: true }, { serverOnly: true, seq: 9 }, { served: true, seq: 10 }]) {

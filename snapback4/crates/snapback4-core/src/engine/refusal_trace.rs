@@ -10,6 +10,7 @@ pub struct RefusingClause {
     pub clause: String,
     pub phase: String,
     pub terminal: bool,
+    pub no_candidate: bool,
     pub site: String,
     pub generation: u64,
 }
@@ -21,6 +22,16 @@ impl RefusalTrace {
     pub fn take(&self) -> Option<RefusingClause> { self.0.lock().unwrap_or_else(|e| e.into_inner()).take() }
 }
 impl Runner<'_> {
+    // @ref LLP 3000.031#1.2 — only a real, uncapped storage miss; never replace a clause.
+    #[cfg(feature = "sqlite")]
+    pub(super) fn no_candidate(&self, table: &str, site: &str) {
+        if let Some(trace) = &self.context.refusal_trace {
+            trace.0.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(|| RefusingClause {
+                table: table.into(), clause: "no-candidate".into(), phase: "storage probe".into(),
+                terminal: false, no_candidate: true, site: site.into(), generation: self.context.generation,
+            });
+        }
+    }
     pub(super) fn refusing_clause(&self, table: &str, clause: &str) {
         self.refusing_phase(table, clause, clause);
     }
@@ -37,7 +48,7 @@ impl Runner<'_> {
         #[cfg(feature = "sqlite")]
         if let Some(trace) = &self.context.refusal_trace {
             *trace.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(RefusingClause {
-                table: table.into(), clause: clause.into(), phase: phase.into(), terminal, site: self.statement_site.clone(), generation: self.context.generation,
+                table: table.into(), clause: clause.into(), phase: phase.into(), terminal, no_candidate: false, site: self.statement_site.clone(), generation: self.context.generation,
             });
         }
         #[cfg(not(feature = "sqlite"))]

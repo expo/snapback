@@ -1,0 +1,128 @@
+✔ wasm: real hidden/missing reads match and an admitted insert demotes retained absence (362.773542ms)
+✔ native: real hidden/missing reads match and an admitted insert demotes retained absence (109.493458ms)
+✖ online: same-key row arrival and delete replace absent/present presence (49.072042ms)
+✖ process: same-key row arrival and delete replace absent/present presence (1102.975083ms)
+✖ wasm: same-key row arrival and delete replace absent/present presence (1097.623083ms)
+✔ publication decision table: top level × completeness/cut/next × freshness × pending footprint (19.48125ms)
+✔ whole-union helper and cold pending predicate use the same five words (0.268416ms)
+✔ empty publication cannot prove absence when pending storage fails or the incarnation changes (0.525584ms)
+✔ queued presence cache propagates failure and fences stale results before notifying (0.323834ms)
+✔ pending inserts recompute retained absence, including already revalidating and facade-held answers (1.127209ms)
+✔ facade-held answers keep their own dependency set before replacement approval (0.313625ms)
+✔ usePage publishes presence on the combined read; items alone prove nothing (1.200791ms)
+✔ completed empty page chains use pending facts, not a predecessor cursor partial (0.566542ms)
+✔ two-page presence combines coverage and the final cursor with actual pending predicates (6.61175ms)
+✔ published replacements recompute presence even when a caller spreads the predecessor (0.921417ms)
+✖ README TypeScript examples compile and call every public function (3085.046334ms)
+ℹ 33 README blocks; 48 public functions; 3076.04 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (29.390834ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (10.157458ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (10.416666ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (7.725708ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (30.784ms)
+✔ client card composer disables only refused or proven absent membership (9.307292ms)
+✔ profile screen waits for proven presence and uses each replacement (2.053583ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 19
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6384.878333
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/read-presence-integration.test.mjs:90:51
+✖ online: same-key row arrival and delete replace absent/present presence (49.072042ms)
+  TypeError: client.refetch is not a function
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-presence-integration.test.mjs:103:59)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+
+test at snapback4/packages/snapback4/test/read-presence-integration.test.mjs:90:51
+✖ process: same-key row arrival and delete replace absent/present presence (1102.975083ms)
+  AssertionError [ERR_ASSERTION]: a replacement never carries its predecessor presence
+  + actual - expected
+
+  + 'partial'
+  - 'absent'
+
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-presence-integration.test.mjs:114:40)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'partial',
+    expected: 'absent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/read-presence-integration.test.mjs:90:51
+✖ wasm: same-key row arrival and delete replace absent/present presence (1097.623083ms)
+  AssertionError [ERR_ASSERTION]: a replacement never carries its predecessor presence
+  + actual - expected
+
+  + 'partial'
+  - 'absent'
+
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-presence-integration.test.mjs:114:40)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'partial',
+    expected: 'absent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/readme-examples.test.mjs:71:1
+✖ README TypeScript examples compile and call every public function (3085.046334ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   "tsconfig: TS2688: Cannot find type definition file for 'node'.\n" +
+  +     '  The file is in the program because:\n' +
+  +     "    Entry point of type library 'node' specified in compilerOptions",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/identity-principal.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/identity.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/identity.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:child_process' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:fs/promises' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'code' implicitly has an 'any' type.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'signal' implicitly has an 'any' type.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'error' implicitly has an 'any' type.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'chunk' implicitly has an 'any' type.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:fs' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:module' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:process' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:url' or its corresponding type declarations.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-json.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2552: Cannot find name 'Buffer'. Did you mean 'buffered'?",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-steps.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations."
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/readme-examples.test.mjs:130:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "tsconfig: TS2688: Cannot find type definition file for 'node'.\n  The file is in the program because:\n    Entry point of type library 'node' specified in compilerOptions", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/identity-principal.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/identity.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/identity.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:child_process' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:fs/promises' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'code' implicitly has an 'any' type.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'signal' implicitly has an 'any' type.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'error' implicitly has an 'any' type.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'chunk' implicitly has an 'any' type.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:fs' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:module' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:process' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:url' or its corresponding type declarations.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-json.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2552: Cannot find name 'Buffer'. Did you mean 'buffered'?", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/src/server-steps.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations." ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

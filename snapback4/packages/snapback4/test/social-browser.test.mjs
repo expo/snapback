@@ -110,6 +110,10 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.evaluate(() => { window.setRead("receiptMember", { denied: { code: "NOT_MEMBER", message: "Removed" } }); });
     assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true);
     assert.equal(await composer.inputValue(), "my draft");
+    for (const uncertain of ["loading", "partial"]) {
+      await page.evaluate(state => window.setRead("receiptMember", state === "loading" ? { loading: true } : window.ready(null, { complete: false })), uncertain);
+      assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), false, uncertain);
+    }
     await page.evaluate(() => { window.setRead("receiptMember", window.ready(null)); });
     await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
     assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true);
@@ -475,7 +479,7 @@ test("social search in React/browser uses current server and retained device pag
         const hits = page.getByRole("button", { name: /^coffee / });
         await page.waitForFunction(() => [...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).length === 20);
         assert.deepEqual(await hits.allTextContents(), expected.slice(0, 20).map(row => row.text), "one page must include server-only current hits and acquired departed hits in order");
-        await page.getByText(/Partial results/).waitFor(); // Retained time-order coverage is incomplete.
+        assert.equal(await page.getByText(/Partial results/).count(), 0, "nonempty retained results are present despite incomplete coverage (LLP 3000.031)");
         if (scenario.startsWith("pagination")) {
           for (const count of [40, 45]) {
             await page.getByRole("button", { name: "More matches" }).click();
@@ -485,7 +489,7 @@ test("social search in React/browser uses current server and retained device pag
             assert.equal(new Set(shown).size, shown.length, "SDK accumulation never repeats an ID");
           }
           assert.equal(await page.getByRole("button", { name: "More matches" }).isDisabled(), true);
-          await page.getByText(/Partial results/).waitFor();
+          assert.equal(await page.getByText(/Partial results/).count(), 0, "the nonempty final accumulated page is present");
           await page.getByRole("textbox", { name: "Search messages" }).fill("unmatched");
           await page.waitForFunction(() => document.querySelectorAll("button").length === 1 && document.body.textContent.includes("Partial results"));
           assert.equal(await hits.count(), 0, "changing the needle clears prior accumulated rows");
@@ -666,6 +670,32 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send" && w.args.text === "queued after offline re-invite"));
     await page.evaluate(() => window.connectDM());
     await page.waitForFunction(async id => (await window.historyDM(id)).data?.some(row => row.text === "queued after offline re-invite"), canonical);
+  });
+
+  await t.test("stale absent membership queues offline and server refuses at sync without re-invitation", async () => {
+    await page.evaluate(id => window.navigateDM({ id }), canonical);
+    const leaving = await page.evaluate(id => window.leaveDM(id), canonical);
+    assert.notEqual(leaving.state, "failed", JSON.stringify(leaving));
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", leaving.id);
+    await page.evaluate(() => window.syncDM());
+    await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
+    await page.evaluate(() => window.dropDM());
+    await page.waitForFunction(id => {
+      const answer = window.membersDM[id];
+      return answer?.existence === "absent" && answer.fresh === false && !answer.revalidating;
+    }, canonical);
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
+    await page.getByTestId("composer").fill("queued despite stale absence");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const queued = await until(async () => (await page.evaluate(() => window.pendingDM())).find(w =>
+      w.op === "send" && w.args.text === "queued despite stale absence"), "stale absence reaches SDK custody");
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
+    const failed = page.getByTestId(`send-${queued.id}`);
+    await failed.getByRole("button", { name: "Edit unsent message" }).waitFor();
+    assert.match(await failed.innerText(), /Not sent.*queued despite stale absence/s);
+    assert.ok(!(await peer.query(api.history, { conversation: canonical })).data.some(row => row.text === "queued despite stale absence"));
+    await failed.getByRole("button", { name: "Dismiss", exact: true }).click();
   });
 
   await t.test("leaving before settlement recovers failed sends on a bare canonical route", async () => {

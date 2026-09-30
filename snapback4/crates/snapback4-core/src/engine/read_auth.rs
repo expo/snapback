@@ -95,7 +95,7 @@ impl Runner<'_> {
                 let target_def = &self.schema.tables[target];
                 self.read_tables.insert(target.clone());
                 // This is a raw audience membership, not the witness's ACL.
-                let found = self.live_lookup(allowance, target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group)?;
+                let found = self.live_lookup(allowance, target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group, #[cfg(feature = "sqlite")] None)?;
                 found.map(|row| self.witness_covered(target, &binding.group_index, &group, &row)).transpose().map(|known| known.unwrap_or(false))
             }
         }

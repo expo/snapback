@@ -1,0 +1,66 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.07s
+     Running unittests src/main.rs (target/debug/deps/snapback4-35a00ca64ff9cbff)
+
+running 1 test
+
+thread 'serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes' (78402374) panicked at crates/snapback4/src/dev_refusal_console.rs:74:9:
+assertion `left == right` failed: dev refusal: SNAPBACK4_THREAD_EXIT reason=shutdown
+addSNAPBACK4_THREAD_EXIT reason=shutdown
+: SNAPBACK4_THREAD_EXIT reason=shutdown
+ — SNAPBACK4_THREAD_EXIT reason=shutdown
+insert ruleSNAPBACK4_THREAD_EXIT reason=shutdown
+ at SNAPBACK4_THREAD_EXIT reason=shutdown
+<generated>SNAPBACK4_THREAD_EXIT reason=shutdown
+; execution site SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; phase SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; generation SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; store SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; instance SNAPBACK4_THREAD_EXIT reason=shutdown
+"SNAPBACK4_THREAD_EXIT reason=shutdown
+testSNAPBACK4_THREAD_EXIT reason=shutdown
+"SNAPBACK4_THREAD_EXIT reason=shutdown
+; code SNAPBACK4_THREAD_EXIT reason=shutdown
+"SNAPBACK4_THREAD_EXIT reason=shutdown
+E_RULESNAPBACK4_THREAD_EXIT reason=shutdown
+"SNAPBACK4_THREAD_EXIT reason=shutdown
+; count SNAPBACK4_THREAD_EXIT reason=shutdown
+8SNAPBACK4_THREAD_EXIT reason=shutdown
+; window 1s; first request SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; first job SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; first time SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; first response SNAPBACK4_THREAD_EXIT reason=shutdown
+nullSNAPBACK4_THREAD_EXIT reason=shutdown
+; `snapback4 why recent --instance SNAPBACK4_THREAD_EXIT reason=shutdown
+testSNAPBACK4_THREAD_EXIT reason=shutdown
+`
+SNAPBACK4_THREAD_EXIT reason=shutdown
+
+  left: 37
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes ... FAILED
+
+failures:
+
+failures:
+    serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 207 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

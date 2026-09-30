@@ -1,0 +1,12 @@
+✔ ready fixtures carry existence (0.560541ms)
+✔ ready fixtures carry existence (0.88375ms)
+✔ pending change requires published sync or a whole server answer at its cut (0.86025ms)
+✔ reference rejects transient empty member answers and sign-out loading (0.752583ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 108.245459

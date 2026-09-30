@@ -34,7 +34,7 @@ impl Runner<'_> {
             unreachable!("row view selected before shared witness dispatch");
         };
         self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
-        let Some(mut row) = self.live_lookup(allowance, table, index, index_def, key)? else {
+        let Some(mut row) = self.live_lookup(allowance, table, index, index_def, key, #[cfg(feature = "sqlite")] None)? else {
             let known = !self.device || (definition.sync.as_ref().is_some_and(|s| s.horizon.is_none())
                 && self.schema.tables[&maintain.row_key.as_ref().unwrap().table].sync.as_ref().is_some_and(|s|s.horizon.is_none()));
             return Ok((false, known));
@@ -84,7 +84,7 @@ impl Runner<'_> {
             let (rows, limit) = if !definition.is_expiring() {
                 // Non-expiring indexed predicates need only one candidate;
                 // extra equalities bind a complete unique key.
-                (self.live_lookup(allowance, table, index, index_def, key)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX)
+                (self.live_lookup(allowance, table, index, index_def, key, #[cfg(feature = "sqlite")] None)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX)
             } else { self.witness_scan(allowance, table, index, key, &bounds, 32)? };
             let count = rows.len();
             for (mut row, stored) in rows {
@@ -181,18 +181,20 @@ impl Runner<'_> {
     pub(in crate::engine) fn lookup_stored(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], _charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = &self.schema.tables[table_name];
         if crate::rows::disclosed::actual_size(table) {
-            return self.metered_scan(|runner, scope| runner.live_lookup(scope, table_name, name, index, key));
+            return self.metered_scan(|runner, scope| runner.live_lookup(scope, table_name, name, index, key, #[cfg(feature = "sqlite")] None));
         }
-        self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, scope| runner.live_lookup(scope, table_name, name, index, key))
+        self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, scope| runner.live_lookup(scope, table_name, name, index, key, #[cfg(feature = "sqlite")] None))
     }
 
-    pub(in crate::engine) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+    pub(in crate::engine) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value], #[cfg(feature = "sqlite")] mut encountered: Option<&mut bool>) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if crate::rows::disclosed::actual_size(table) && !self.device_work_active {
             let mark = self.meter.mark();
             let result = self.tx.scan_metered(allowance, table_name, name, key, &Bounds::default(), Dir::Asc, 1, &mut self.meter);
             self.meter.release_heap(mark);
             let Some((row,_)) = result?.pop() else { return Ok(None); };
+            #[cfg(feature = "sqlite")]
+            if let Some(seen) = encountered.as_deref_mut() { *seen = true; }
             // @ref LLP 3000.015#1 — stored public bytes exclude adopted defaults.
             // Keep their materialization charge while the returned witness lives.
             let image = self.disclosed_row(table, row);
@@ -217,12 +219,17 @@ impl Runner<'_> {
             return Ok(Some(image.into_value()));
         }
         if !table.is_expiring() && !self.device_work_active {
-            return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
+            return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| {
+                #[cfg(feature = "sqlite")]
+                if let Some(seen) = encountered.as_deref_mut() { *seen = true; }
+                materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
             let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if !table.is_expiring() { 1 } else { 32 })?;
             let count = rows.len();
+            #[cfg(feature = "sqlite")]
+            if count > 0 { if let Some(seen) = encountered.as_deref_mut() { *seen = true; } }
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;
                 if !self.expired(table, &row) { return Ok(Some(row)); }
@@ -283,7 +290,7 @@ mod tests {
                 let (result,allocated)=crate::rows::word_heap::tests::measured(||runner.authorized_scratch(64,&[],|runner,_| {
                     runner.meter.heap(private_work)?;
                     runner.authorized_scan(&[],|runner,scope| {
-                        let row=runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())])?.unwrap();
+                        let row=runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())], #[cfg(feature = "sqlite")] None)?.unwrap();
                         assert_eq!(row.field("note").unwrap().as_str().unwrap().len(),1_000_000);
                         assert!(runner.meter.used.heap_bytes >= private_work+1_000_000);
                         Ok(())
@@ -312,7 +319,7 @@ mod tests {
             let mut runner=Runner::new(&rows,&schema,crate::Context::new("alice",Default::default()),
                 Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
             let (result,allocated)=crate::rows::word_heap::tests::measured(|| runner.metered_scan(|runner,scope|
-                runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())])));
+                runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())], #[cfg(feature = "sqlite")] None)));
             eprintln!("public default heap={heap}: allocated={allocated}, retained={}, peak={}",runner.meter.used.heap_bytes,runner.meter.heap_peak);
             if heap==64 << 10 {
                 assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"must refuse before copying the default");

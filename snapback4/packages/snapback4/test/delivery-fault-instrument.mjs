@@ -22,6 +22,12 @@ export const scope = {
   'changes.ts': '*',
   'local-search.ts': '*',
   'local-query.ts': ['route'],
+  // LLP 3000.031 boundary review: publish's new pending() wait is query-only;
+  // LocalReads.readQueued awaits the existing local-receipts readQueued I/O
+  // (instrumented above) before updating an in-memory existence cache. Neither
+  // adds delivery I/O or absorbs failures. read-existence.test.mjs exercises
+  // rejection and incarnation/revision fencing at both new continuation sites.
+  // client.ts changes only erased generic arguments; read-existence is sync.
   // The shared decoder now owns both mutation-body I/O and optional query
   // decoding. Retry waits/send calls remain covered by their caller awaits.
   'http-response.ts': ['readResponse'],

@@ -26,7 +26,7 @@ async function eventTurns(t, predicate, label) {
   assert.ok(predicate(), label);
 }
 const cases = ['child-add', 'child-replace', 'child-remove', 'parent', 'joined-profile', 'authorization', 'unknown-footprint'].map(scenario => ({ scenario }));
-cases.push({ scenario: 'child-add', held: true }, { scenario: 'unknown-footprint', held: true }, { scenario: 'child-add', keep: false }, { scenario: 'child-add', keep: true }, { scenario: 'child-add', expire: true }, { scenario: 'child-add', keep: true, expire: true });
+cases.push({ scenario: 'child-add', held: true }, { scenario: 'child-remove', held: true }, { scenario: 'unknown-footprint', held: true }, { scenario: 'child-add', keep: false }, { scenario: 'child-add', keep: true }, { scenario: 'child-add', expire: true }, { scenario: 'child-add', keep: true, expire: true });
 for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire, held } of cases) {
   test(`${tier}: ${scenario} keep=${keep} expire=${!!expire}${held ? ' held=true' : ''} drives mounted reads from change through apply without elapsed timers`, async t => {
     const { url, dir } = await server(t, '', held ? fixture.replace('query decorated(message: messages, c: cursor ?):', 'query decorated(message: messages, c: cursor ?) held:').replace('query reactionRows(message: messages, c: cursor ?):', 'query reactionRows(message: messages, c: cursor ?) held:') : fixture);
@@ -56,6 +56,12 @@ for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire, hel
     const reactions = client.observe(q('reactionRows'), { message: 'anchor', c: null }); reactions.subscribe(() => {});
     t.after(() => { decorated.close(); reactions.close(); });
     await until(() => decorated.getSnapshot().data?.text === 'original' && reactions.getSnapshot().data && deliver, 'initial observations and poll');
+    // Existence follows each value across the publication cut, including a held
+    // watch that never evaluates the old replica while waiting for sync.
+    const initialExistence = scenario === 'child-replace' || scenario === 'child-remove' ? 'present' : 'absent';
+    assert.equal(reactions.getSnapshot().existence, initialExistence);
+    const publications = [];
+    reactions.subscribe(() => publications.push(reactions.getSnapshot()));
     // Let the queue's current zero-delay turn finish before freezing host time.
     await new Promise(resolve => setTimeout(resolve, 10));
     const head = await fetch(url + '/changes?since=0&wait=0', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
@@ -98,6 +104,18 @@ for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire, hel
     assert.ok(queries > beforeApply, 'publication is caused by a new evaluation');
     assert.equal(decorated.getSnapshot().loading, undefined);
     if (scenario === 'unknown-footprint') await eventTurns(t, () => !reactions.getSnapshot().revalidating, 'unknown notification wakes a parked disjoint watch after its cut applies');
+    if (scenario.startsWith('child')) {
+      const expected = scenario === 'child-remove' ? 'absent' : 'present';
+      await eventTurns(t, () => reactions.getSnapshot().existence === expected && !reactions.getSnapshot().revalidating,
+        'resumed live read recomputes existence from the new answer');
+      assert.ok(publications.some(read => read.existence === expected && !read.revalidating));
+      for (const read of publications) if ('data' in read) {
+        if (read.data.length) assert.equal(read.existence, 'present', 'new rows never inherit the previous empty word');
+        else if (!read.revalidating) assert.equal(read.existence, 'absent', 'completed empty replacement proves absence');
+        else assert.ok(['absent', 'partial'].includes(read.existence), 'pending facts may demote retained empty answers');
+      }
+    }
+    if (scenario === 'authorization') assert.equal('existence' in decorated.getSnapshot(), false, 'refusal drops the prior word');
     t.mock.timers.reset();
   });
 }

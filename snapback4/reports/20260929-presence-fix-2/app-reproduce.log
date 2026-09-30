@@ -1,0 +1,103 @@
+✔ app online: signup, restart, rotation, account-bound pending writes and logout (1193.552458ms)
+✔ app local: signup, restart, rotation, account-bound pending writes and logout (5635.231541ms)
+✔ online app recovers two lost confirmations with original IDs and immutable arguments (394.408708ms)
+✔ logoutEverywhere revokes other sessions and session restore cancellation cannot resurrect identity (142.728625ms)
+✔ online logout completes while rotation is stalled and revokes the late successor (24.892375ms)
+✔ online custody refuses unstored admission and retains committed writes when receipt storage fails (174.065584ms)
+✔ failed session commit revokes only the provisional bearer before reporting signed-out (187.994ms)
+✔ logout clears credentials after journal failure, and credential deletion is retryable (4.244417ms)
+✔ logoutEverywhere clears credentials after journal failure, and credential deletion is retryable (3.481375ms)
+✔ signed-out completion waits for durable credential deletion (4.086834ms)
+✔ logout online deletes the bearer while network work is held (177.162ms)
+✔ logout local deletes the bearer while network work is held (249.736458ms)
+✔ ordinary online app close retires an unread rotation and reopening refuses its consumed predecessor (219.982792ms)
+✔ ordinary local app close retires an unread rotation and reopening refuses its consumed predecessor (1231.406708ms)
+✔ a stale online refresh preserves another owner's kept successor (1257.259708ms)
+✔ a stale local refresh preserves another owner's kept successor (1538.439334ms)
+✔ stale online restoration restarts when another app rotates before its first save (629.714209ms)
+✔ stale local restoration restarts when another app rotates before its first save (1567.443166ms)
+✔ stale online restoration restarts when another app rotates before its final save (690.932208ms)
+✔ stale local restoration restarts when another app rotates before its backend acquisition (1559.853833ms)
+✔ online auth rejection after a failed login completes signed-out cleanup (266.541833ms)
+✔ local auth rejection after a failed login completes signed-out cleanup (362.593625ms)
+✔ shared logout fences a held online rotation while signed out (325.185416ms)
+✔ shared logout fences a held online rotation across Bob's login (343.512667ms)
+✔ shared logout fences a held local rotation while signed out (388.032917ms)
+✔ shared logout fences a held local rotation across Bob's login (372.08325ms)
+✔ a sign-in started before another app's logout cannot overwrite its later login (747.193667ms)
+✔ restoration cleanup of invalid JSON preserves a replacement written after its read (488.992292ms)
+✔ restoration cleanup of expired session preserves a replacement written after its read (570.568625ms)
+✔ expired stored-session cleanup deletes bytes without revoking the live bearer (207.8965ms)
+✔ refresh started after a shared logout refuses before dispatch even if remote logout failed (1496.791209ms)
+✔ offline logout replaces credentials when its epoch write exceeds quota (1341.862791ms)
+✔ offline logout replaces credentials when its epoch write keeps failing (281.5225ms)
+✔ near-expiry restoration defers automatic refresh until journal opening and comparison commit succeed (365.443042ms)
+✔ logout tombstone fences another app's held refresh when storage rejects the epoch key (384.382375ms)
+✔ logout tombstone fences another app's held login when storage rejects the epoch key (1925.019042ms)
+✔ logout tombstone fences another app's held refresh when quota blocks the epoch key (985.441834ms)
+✔ logout tombstone fences another app's held login when quota blocks the epoch key (806.377375ms)
+✔ logout does not delete or revoke before either durable fence can be stored (1655.005833ms)
+✔ invalid local asset budget -1 leaves a restored bearer untouched (1320.723333ms)
+✔ invalid local asset budget 1.5 leaves a restored bearer untouched (6349.248833ms)
+✔ failed fence revokes a discarded refresh before logout retry (1120.958083ms)
+✔ failed fence revokes a discarded refresh after logout retry (351.764334ms)
+✔ failed fence revokes a discarded login before logout retry (1042.480792ms)
+✔ failed fence revokes a discarded login after logout retry (678.45075ms)
+✔ logout retry revokes a discarded login after its token-comparison read throws (1001.774417ms)
+✔ logout retry drains deferred revocation after another account replaced the stored bearer (231.270709ms)
+✔ sign-in keeps the tombstone until its epoch promotion is durable (1573.257292ms)
+✔ local restoration captures the asset budget before the caller mutates it (4604.298333ms)
+✔ the native instrumentation hook receives createApp's own restored client (532.265958ms)
+✔ native smoke observes only the published replacement of a near-expiry restored session (3036.863333ms)
+✔ committed refresh body survives sign-out and its unkept bearer is revoked (2396.1075ms)
+✔ committed refresh body survives replacement and its unkept bearer is revoked (710.597666ms)
+✔ local close cancels a mutation caller without aborting its committed response (6953.819709ms)
+✖ local close cancels a upload caller without aborting its committed response (3687.0595ms)
+✔ online app keeps an unrotated bearer when refresh rejects before replacement reopens (1710.722125ms)
+✔ online app keeps an unrotated bearer when refresh rejects after replacement reopens (1617.370792ms)
+✔ sign-in after a failed fence advances the epoch in the same runtime (1685.382125ms)
+✔ sign-in after a failed fence advances the epoch after restart (1261.417541ms)
+✔ displaced-bearer revocation survives restart after offline instead of acknowledgement (2760.431208ms)
+✔ displaced-bearer revocation survives restart after refusal instead of acknowledgement (671.260625ms)
+✔ failed journal write during sign-in preserves the displaced session bytes (290.343875ms)
+✔ failed epoch write during sign-in preserves the displaced session bytes (171.5705ms)
+✔ failed bearer write during sign-in preserves the displaced session bytes (1962.703166ms)
+✔ a comparison read failure retains a discarded login for the next successful logout (674.689959ms)
+✔ a comparison read failure retains a discarded login for the next successful sign-in (1533.274042ms)
+✔ a foreign revocation journal never sends its bearer to this backend (526.6025ms)
+✔ replacement preserves a guest when fourth save fails (245.718708ms)
+✔ replacement preserves a guest when device opening fails (3697.537083ms)
+✔ failed replacement cannot advance the epoch or make a peer revoke the stored bearer (1273.065667ms)
+✔ acknowledged retirement removes journal and tombstone entries (1338.29425ms)
+✔ an observed replacement fences device reads, cached watches and native asset credentials (3063.739083ms)
+✔ a provisional online login cannot replay pending writes before its session commits (437.353917ms)
+✔ failed local restoration cannot consume a near-expiry guest before device opening succeeds (727.62325ms)
+✔ foreign tombstone retirement credentials are preserved without dispatch (12.502542ms)
+✔ Client signOut and logoutAll use the app's atomic logout boundary (202.620417ms)
+✔ session custody preserves a class store's methods and receiver (2.611ms)
+✔ a session comparison read failure returns client refusals without losing identity (485.802333ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 77
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 92360.359375
+
+✖ failing tests:
+
+test at packages/snapback4/test/app.test.mjs:1003:44
+✖ local close cancels a upload caller without aborting its committed response (3687.0595ms)
+  AssertionError [ERR_ASSERTION]: close waited for an effect body
+      at file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/app.test.mjs:1021:65
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/app.test.mjs:1021:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

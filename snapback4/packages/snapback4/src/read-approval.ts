@@ -1,5 +1,5 @@
 import type { Read } from "./contract.ts";
-import { answerIdentity, answerObservation, offlineAnswer, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
+import { answerExistence, answerIdentity, answerObservation, offlineAnswer, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
 import { copyEpisode, ReadEpisode } from "./read-episode.ts";
@@ -62,7 +62,7 @@ export class ReadApprovals {
     this.drops.get(owner)?.({ loading: true });
     answer.snapshot = read;
     const confirmedAt = owner.since;
-    const held = answer;
+    const held = answer, pending = owner.pending;
     const notify = () => this.notify(owner);
     const withdraw = () => {
       held.snapshot = { loading: true };
@@ -77,7 +77,7 @@ export class ReadApprovals {
       return changed ? notify : undefined;
     };
     update(read);
-    held.read = () => { expiry.check(); episode.check(); return held.snapshot; };
+    held.read = () => { owner.read(null); expiry.check(); episode.check(); if (pending) held.snapshot = answerExistence(held.snapshot, pending()); return held.snapshot; };
     const follow: Parameters<typeof owner.followers.add>[0] = change => {
       const next = owner.snapshot;
       if (change === "reset" || !("data" in next)) {
@@ -88,7 +88,7 @@ export class ReadApprovals {
         return drop({ loading: true });
       }
       let retained = answerIdentity(next) === answerIdentity(held.snapshot) ? next
-        : revalidatingAnswer(held.snapshot);
+        : revalidatingAnswer(held.snapshot, false, pending?.());
       if (owner.transportOffline) retained = offlineAnswer(retained, confirmedAt);
       // @ref LLP 3000.023#10 — evidence during an authority hold bounds the
       // displayed answer too, even if later source replacements are already ready.

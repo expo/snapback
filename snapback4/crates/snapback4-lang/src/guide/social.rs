@@ -21,7 +21,7 @@ index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
 unknown coverage stays loading. See `guide offline-interactions`. Search uses
 one ordinary query per scope, combining current server and retained device
-hits online. `usePage` accumulates by message ID; only `complete: false` shows
+hits online. `usePage` accumulates by message ID; only `existence(page.read) === "partial"` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
 
 ## Background notifications
@@ -80,7 +80,8 @@ after the replacement attempt starts. Decorations withdraw immediately. No appli
 Loading, refusal and retained history leave draft and focus owned by the same
 screen; identity reset still clears them. Revealing/consuming protected content
 needs a current answer. Queueing a durable write needs no membership answer:
-only denial or a complete, fresh, non-revalidating absent row disables Send; the server authorizes it. The SDK reports delivery; the screen reports only visible seen
+only `denied`, or `existence(member) === "absent"` when fresh and not revalidating, disables Send.
+Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; the screen reports only visible seen
 positions. The starter passes foreground and navigation visibility explicitly.
 
 ```tsx

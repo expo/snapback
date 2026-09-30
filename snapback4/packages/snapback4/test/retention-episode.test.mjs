@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.023#6 — policy, progress, deadline access and facade evidence.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +10,7 @@ import { bindWatchPeek, closeWatchAnswers, observeWatch, observationKey, peekObs
 import { deferReadNotifications } from "../dist/read-notifications.js";
 import { fixture } from "./helpers/authority-fixture.mjs";
 const q = { kind: "query", name: "read" };
-const ready = data => ({ data, complete: true, cut: null, fresh: false, since: 500, next: null });
+const ready = data => (readyRead({ data, complete: true, cut: null, fresh: false, since: 500, next: null }));
 const why = { code: "HIDDEN", family: "rule", message: "hidden" };
 async function until(check) { for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); } assert.fail("read did not settle"); }
 

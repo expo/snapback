@@ -1,10 +1,12 @@
+import { readyRead } from '../dist/read-existence.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ReadObservation, answerIdentity } from '../dist/read-observation.js';
 import { episodeDeadline } from '../dist/read-episode.js';
 import { createClient } from '../dist/client.js';
 import { parked, until, q } from './helpers/answers-stay.mjs';
-const ready = data => ({ data, complete: true, fresh: true, cut: null });
+const ready = data => readyRead({ data, complete: true, fresh: true, cut: null });
+test('ready fixtures carry existence', () => { assert.equal(ready(null).existence, 'absent'); assert.equal(ready('row').existence, 'present'); });
 for (const keep of [undefined, true]) for (const end of ['late answer', 'throw', 'offline', 'exhausted']) {
   test(`online evidence while already revalidating: keep=${keep}, ${end}`, async t => {
     let now = 1000; t.mock.method(Date, 'now', () => now);

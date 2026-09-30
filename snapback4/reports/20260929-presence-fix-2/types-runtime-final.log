@@ -1,0 +1,22 @@
+✔ generated nullable array: absent admits both [] and null, present keeps the array (188.501458ms)
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (355.481375ms)
+✔ ready literals require the discriminant (232.463458ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (211.245292ms)
+✔ Read is covariant and every narrowed arm retains its result type (210.268875ms)
+✔ README TypeScript examples compile and call every public function (1383.089083ms)
+ℹ 33 README blocks; 48 public functions; 1379.92 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (5.92325ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (6.857209ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (5.538625ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (4.010875ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (13.150666ms)
+✔ client card composer disables only refused or proven absent membership (4.753875ms)
+✔ profile screen waits for proven presence and uses each replacement (1.155584ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1604.337834

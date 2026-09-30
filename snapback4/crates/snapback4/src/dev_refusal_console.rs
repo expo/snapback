@@ -40,8 +40,11 @@ impl Console {
     fn emit_first(&mut self, identity: &Value, out: &mut impl Write) {
         let entry = self.entries.pop_front().unwrap();
         let r = entry.record;
-        let _ = writeln!(out, "dev refusal: {}: {} — {} at {}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`",
+        // Lifecycle diagnostics bypass stderr's Rust lock. Prepare the whole
+        // line so their writes cannot split individual formatting fragments.
+        let line = format!("dev refusal: {}: {} — {} at {}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
             r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or(""));
+        let _ = out.write_all(line.as_bytes());
     }
 }
 
@@ -49,6 +52,33 @@ impl Console {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn counted_line_stays_intact_between_uncoordinated_writes() {
+        // Lifecycle diagnostics bypass Rust's stderr lock. Model another
+        // complete diagnostic arriving after every underlying writer call.
+        struct Interleaved(Vec<u8>);
+        impl Write for Interleaved {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.extend_from_slice(bytes);
+                self.0.extend_from_slice(b"SNAPBACK4_THREAD_EXIT reason=shutdown\n");
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        let mut console = Console::default();
+        let mut out = Interleaved(Vec::new());
+        let now = Instant::now();
+        let identity = json!({"instance":"test"});
+        let record = json!({"operation":"add","code":"E_RULE","clause":"insert rule"});
+        for _ in 0..8 { console.push_at(record.clone(), now, &identity, &mut out); }
+        console.flush_all(&identity, &mut out);
+        let text = String::from_utf8(out.0).unwrap();
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "{text}");
+        assert!(lines[0].starts_with("dev refusal: add:"), "{text}");
+        assert!(lines[0].contains("code \"E_RULE\"; count 8; window 1s;"), "{text}");
+        assert_eq!(lines[1], "SNAPBACK4_THREAD_EXIT reason=shutdown");
+    }
     #[test]
     fn counts_repeats_without_sliding_and_separates_causes() {
         let mut console = Console::default();

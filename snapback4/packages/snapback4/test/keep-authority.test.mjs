@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-existence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
@@ -10,7 +11,7 @@ import { ServerClock } from "../dist/clock.js";
 import { deferReadNotifications } from "../dist/read-notifications.js";
 
 const q = { kind: "query", name: "read" }, options = { keep: true };
-const ready = data => ({ data, complete: true, fresh: true, next: null, cut: null });
+const ready = data => (readyRead({ data, complete: true, fresh: true, next: null, cut: null }));
 const why = { code: "E_AUTH", family: "auth", message: "session ended" };
 async function until(check) {
   for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }

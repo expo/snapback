@@ -1,3 +1,4 @@
+import { readyRead } from "./read-existence.ts";
 import { matchingReads } from "./read-key.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
@@ -595,10 +596,10 @@ export function createClient(options: ClientOptions): Client {
     if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    return { delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
   }
 
-  const currentRead = (result: QueryResult<unknown>, watch?: Watch) => {
+  const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
     const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
@@ -606,7 +607,7 @@ export function createClient(options: ClientOptions): Client {
     return current;
   };
 
-  function acceptDelivery(result: QueryResult<unknown>, read: Read<unknown>) {
+  function acceptDelivery<R>(result: QueryResult<R>, read: Read<unknown>) {
     offerDelivery(client, read, current => { void delivery?.accept(result.delivery, current).catch(() => {}); },
       () => !closed && !storeRefusal && credentials && currentRead(result));
   }
@@ -939,9 +940,9 @@ export function createClient(options: ClientOptions): Client {
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
     },
-    async query(op, args) {
-      const read = new ReadObservation<unknown>();
-      const result = await read.fetch(() => runQuery(op, args), () => {}, { accept: currentRead });
+    async query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>> {
+      const read = new ReadObservation<R>();
+      const result = await read.fetch<QueryResult<R>>(() => runQuery(op, args), () => {}, { accept: result => currentRead(result) });
       // A concurrent response or write can retire the accepted result before
       // this continuation runs. Do not start an additional retry round here.
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };

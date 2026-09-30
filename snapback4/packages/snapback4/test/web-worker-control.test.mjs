@@ -13,6 +13,7 @@ function fixture(changes = {}) {
   const page = new PageDeviceControl(); page.publish(snapshot(changes));
   const counters = { posts: 0, calls: 0 };
   const env = { backend: { programs: [], schema: { operations: {}, tables: {} } },
+    pending: tables => coldReadControl(() => page.read(), page.read()).pending(tables),
     coldRead: coldReadControl(() => page.read(), page.read()),
     ephemeralReads: new EphemeralReads(new AbortController().signal),
     partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0, refreshing: null,

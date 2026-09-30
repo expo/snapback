@@ -1,7 +1,8 @@
+import { readyRead } from "../dist/read-existence.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ReadObservation } from '../dist/read-observation.js';
-const ready = data => ({ data, complete: true, cut: null, fresh: true });
+const ready = data => (readyRead({ data, complete: true, cut: null, fresh: true }));
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 
 for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`replacing fetch outcome: ${outcome}`, async () => {
