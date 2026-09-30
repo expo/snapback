@@ -46,7 +46,6 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
-        if upsert && self.device && table.through.is_some() { return Err(RuntimeError::Prediction("upsert on a read-through child queues without a row".into())); }
         if upsert { self.reserve_capture(table)?; }
         let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
             .saturating_add(if upsert || table.ephemeral.is_some() { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
@@ -107,12 +106,20 @@ impl Runner<'_> {
         let Ok(visibility) = crate::engine::rules::upsert_absence(self.schema, table, index, &expressions) else { return Ok(false) };
         if self.retained_group(table, index, key)? { return Ok(false); }
         if visibility.decided_true { return Ok(true); }
+        // @ref LLP 3000.007#20.5 — the parent key decides authorization; the child's acquired partition separately proves absence.
+        let definition = &self.schema.tables[table];
+        let rule = definition.rules.read.device_audience_rule().into_owned();
+        if let Some(through) = &definition.through
+            && !rule.is_uniformly_readable()
+            && let Some(id) = definition.index(index).expect("checked index").columns().iter().zip(key).find_map(|(column, value)| (column == &through.reference).then_some(value))
+        {
+            let verdict = self.device_work(|runner| runner.parent_verdict(table, through, id))?;
+            return Ok(verdict == crate::engine::through::ParentVerdict::Readable && !self.beyond_horizon);
+        }
         // A uniform key can still name somebody else's private group. Evaluate
         // the rule over only its pinned columns, never using trust_synced_read:
         // the synthetic row was not delivered. A positive membership witness
         // may establish readability; an unknown probe must still queue.
-        let definition = &self.schema.tables[table];
-        let rule = definition.rules.read.device_audience_rule().into_owned();
         let row = crate::value::Supplied::key(definition.index(index).expect("checked index"),key,&TargetInput(()));
         let viewer = self.context.viewer.clone();
         self.meter.heap(row.heap_bytes())?;

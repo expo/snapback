@@ -96,6 +96,8 @@ card/from-sql/2:remove | never
 card/from-sql/3:createRoom | never
 card/from-sql/3:setReminder | never
 card/indexes/2:checkin | never
+card/language/10:react | eligible
+card/language/10:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/1:addNote | eligible
 card/language/1:addNote | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/language/2:checkin | never

@@ -362,7 +362,9 @@ impl Parser {
                         return Err(syntax_with(&site, format!("sync to {table}[...] takes .column keys of this table"), rewrite));
                     }
                     self.take(".")?;
-                    prefix.push(self.word()?.value);
+                    let mut path = self.word()?.value;
+                    while self.maybe(".") { path.push('.'); path.push_str(&self.word()?.value); }
+                    prefix.push(path);
                     if !self.maybe(",") {
                         break;
                     }

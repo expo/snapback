@@ -1,0 +1,18 @@
+{
+  "round0-native": {
+    "bytes": 71233400,
+    "sha256": "de813261f62f41042621963a5945bf206d4b63974d63cbba2f8df0485dad9aee"
+  },
+  "final-native": {
+    "bytes": 71563296,
+    "sha256": "f0025ee005f8efcc291fd1b84d4e0348d827b1c912f460d1129dfc4617de0226"
+  },
+  "final-wasm": {
+    "bytes": 1980716,
+    "sha256": "bfacba0bf3c31c0ca8fef691a592d78e3f74e644d47b58df56f77980159d4875"
+  },
+  "final-package-wasm": {
+    "bytes": 1980716,
+    "sha256": "bfacba0bf3c31c0ca8fef691a592d78e3f74e644d47b58df56f77980159d4875"
+  }
+}

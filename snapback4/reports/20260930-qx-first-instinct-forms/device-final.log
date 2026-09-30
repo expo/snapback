@@ -1,0 +1,12 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 2.91s
+     Running tests/first_instinct.rs (target/debug/deps/first_instinct-cc505f5f318f30b9)
+
+running 4 tests
+test predictions_memory ... ok
+test predictions_sqlite ... ok
+test schedules_memory ... ok
+test schedules_sqlite ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.46s
+

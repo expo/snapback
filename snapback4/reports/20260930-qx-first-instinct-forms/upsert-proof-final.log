@@ -1,0 +1,48 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 2.41s
+     Running tests/device.rs (target/debug/deps/device-d4d8eb0e9e15b5fe)
+
+running 31 tests
+test upsert::observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test upsert::proof::left_self_witness_replay_memory ... ok
+test upsert::proof::left_self_witness_admission_memory ... ok
+test upsert::proof::w6r2_ascending_horizon_advice_memory ... ok
+test upsert::proof::left_self_witness_admission_sqlite ... ok
+test upsert::proof::left_self_witness_replay_sqlite ... ok
+test upsert::proof::defaulted_insert_rule_refusal_matches_server_on_both_stores ... ok
+test upsert::the_feeds_card_predicts_its_first_vote_on_both_stores ... ok
+test upsert::proof::pending_delete_then_upsert_replays_in_order_on_both_stores ... ok
+test upsert::hidden_admitted_upserts_preserve_the_complete_paired_observation ... ok
+test upsert::final_exists::held_upsert_refusal_and_success_match_server ... ok
+test upsert::final_exists::held_insert_refusal_and_success_match_server ... ok
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... ok
+test upsert::final_exists::unpinned_local_hits_still_predict ... ok
+test upsert::proof::changed_audience_image_queues_on_both_stores ... ok
+test upsert::final_exists::unknown_prediction_is_e_predict_on_both_stores ... ok
+test upsert::a_pinned_membership_read_needs_a_positive_witness_for_its_group ... ok
+test upsert::proof::horizon_guard_rewrite_restores_the_pending_message_on_both_stores ... ok
+test upsert::final_exists::unpinned_insert_sqlite ... ok
+test upsert::final_exists::unpinned_upsert_memory ... ok
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... ok
+test upsert::final_exists::unpinned_insert_memory ... ok
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... ok
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::w6r2_ascending_horizon_advice_sqlite ... ok
+test upsert::final_exists::unpinned_upsert_sqlite ... ok
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::covered_constraints_and_insert_defaults_predict_on_both_stores ... ok
+test upsert::first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores ... ok
+test upsert::insert_if_absent_matches_its_reported_absence_proof_on_both_stores ... ok
+test upsert::review_supplied_and_minted_ids_match_prediction_on_both_stores ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 406 filtered out; finished in 4.56s
+

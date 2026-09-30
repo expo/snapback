@@ -1,0 +1,32 @@
+✔ wasm: read-through upsert predicts both arms and server refusal rolls back (620.169112ms)
+✔ wasm: read-through upsert horizon child coverage queues (200.053381ms)
+✖ wasm: read-through upsert missing child coverage queues (190.728871ms)
+✔ process: read-through upsert predicts both arms and server refusal rolls back (239.712299ms)
+✔ process: read-through upsert horizon child coverage queues (219.079806ms)
+✖ process: read-through upsert missing child coverage queues (218.740568ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1813.739038
+
+✖ failing tests:
+
+test at packages/snapback4/test/read-through-upsert.test.mjs:25:92
+✖ wasm: read-through upsert missing child coverage queues (190.728871ms)
+  TypeError: Cannot read properties of null (reading 'messages')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qx/snapback4/packages/snapback4/test/read-through-upsert.test.mjs:39:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/read-through-upsert.test.mjs:25:92
+✖ process: read-through upsert missing child coverage queues (218.740568ms)
+  TypeError: Cannot read properties of null (reading 'messages')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qx/snapback4/packages/snapback4/test/read-through-upsert.test.mjs:39:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

@@ -79498,6 +79498,50 @@ reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+### 2026-09-30 — QX round 0: first-instinct membership paths and reaction upserts
+
+Chose equivalent membership-path sugar. `read <- exists members[.message.conversation,
+viewer]` and `sync to members[.message.conversation]` lower to the existing
+`read through .message` capture and inferred sync. Required immutable references,
+immutable ancestor captures, whole-parent rules, inherited deadlines and parent
+deletion protection remain the contract. Three hops work through an inheriting
+parent; nullable or changing links and different rules get schema-specific
+E_READ_THROUGH repairs. No live join, wire format or resource ceiling was added.
+Decisions and limits are in LLP 3000.014 §§2, 5, 9 and LLP 3000.007 §§20.5, 23,
+and the compiled language, sync and prediction cards.
+
+A private child upsert keyed by its parent now predicts insert/update with a
+current readable parent and independently acquired whole child audience. Unknown,
+left, unfinished or horizon coverage still queues; server refusal rolls back.
+Public whole-table absence preserves its existing proof after parent expiry.
+The obsolete blanket prediction note is removed; the manual branching pattern
+remains only for still-blocked child `insert ... if absent`.
+
+Generated schema/IR comparisons, eight `check --residency` pairs, and 1,024
+membership transitions across both stores compare acquisition, answers,
+withdrawals, retention and meters. The final affected device checks pass
+104 + 31 + 27 cases, and all six actual wasm/process prediction cases pass.
+The whole guide passes 105/105; parser/compatibility checks pass 4/4.
+
+Twenty insert and update samples per tier on the social starter's reaction
+extension measure the writer's React layout effect. Insert p50/p95: web
+29.65/33.80 → 3.60/5.10 ms; process 35.55/73.00 → 8.95/10.30 ms. All 80 final
+samples render pending before mutation return. These localhost measurements do
+not reproduce LL's remote-reader delay; raw samples include host load.
+
+Ran `scripts/test.sh` once; exact summary `== 1 failure(s) in 1369 s` (`cargo test`). Its three Rust test
+failures were ours: the authoring census needed the added example, and both
+inherited-expiry replay tests caught a public coverage regression. An isolated
+original-commit control proved the regression; all three are corrected and
+pass in affected follow-ups. The original full result is preserved separately
+from final-source qualification. Final wasm is 1,979,433 B raw / 593,524 B gzip
+(+605 / +299 versus the rebuilt original), 195 B under the unchanged 593,719 B
+ratchet. No budget increase.
+
+Report, failure ledger, full log, source manifests, reproduction tools and raw
+measurements: `reports/20260930-qx-first-instinct-forms/`. Local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
+
 
 ## 2026-09-30 — NS round 3: final native-smoke review fixes
 
@@ -79592,5 +79636,52 @@ No budget increase. Every failing baseline control, corrected implementation or
 fixture failure, and cold-tree build prerequisite is classified in the report.
 Evidence, source snapshots and rerunnable controls:
 reports/20260930-ka-keepalive-reuse/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+### 2026-09-30 — QX round 1: prove changed constraint populations
+
+Merged origin/main 42ba3ffb904f first in 503f24696c, retaining both journal
+histories. Fixed Astra P1 / Grok High: a held upsert/update now proves complete
+readable coverage before entering a different non-null unique key or cap group.
+The proof uses the existing device allowance; missing facts queue without a
+row. Unchanged keys/groups need no new proof, null unique keys remain exempt,
+and expiring cap moves keep their physical-occupancy restriction. Server rules
+and enforcement are unchanged. The natural immutable parent/principal reaction
+key and cap 50 by parent still predict first writes and replacements.
+
+Corrected the E_SYNC versus E_READ_THROUGH wording in the report and guide.
+Mismatched through audiences now get a schema-specific repair preserving the
+authored horizon. Four repaired variants compile. Check labels blocked-insert
+upserts as conditional updates and explains each constraint. Two exact residency
+snapshots cover the natural shape and an extra unique principal/emoji key.
+LLPs 3000.007 and 3000.014 record the correction.
+
+Generated tests cover 120 constraint/arm/coverage cases over memory and SQLite;
+round-0 code wrongly predicts 24 changed-update cases, while its 96 controls
+already pass. Fixed code passes all 120. Both actual tiers reproduce the old
+unique/cap failure (four cases) and pass the fix alongside the six original
+controls. Final affected device checks 97/97, ordinary upsert 31/31, CLI 8/8,
+paths 4/4, residency 41/41, compatibility 1/1 and whole guide 106/106 pass.
+Fresh 20-trial reaction measurements: insert p50/p95 web 3.95/5.80 ms, process
+6.95/8.70 ms; update 3.30/4.80 and 5.45/6.90 ms. All 80 samples render pending
+before mutation return. These are localhost writer timings, not remote latency.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1312 s
+
+All 13 stages pass: Rust 4,379 passes and 33 existing ignores; clients 5,345
+passes and ten existing skips; models 79/79 and fixtures 9/9. Full-run failures:
+ours 0, baseline 0, environmental 0. No cancellations, reduced counts or relaxed
+timeouts. Product source, tests and snapshots stayed fixed throughout the run.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Wasm is 1,980,716 B raw / 593,539 B gzip, 180 B below the unchanged 593,719 B
+ratchet (+1,283 raw / +15 gzip versus round 0's retained artifact). No ceiling
+increase. Every intermediate implementation, harness and detecting failure is
+classified; the stale-SDK measurement probe is retained separately. Report,
+raw samples, source/artifact hashes and full log:
+reports/20260930-qx-first-instinct-forms/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.

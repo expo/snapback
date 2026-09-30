@@ -1,0 +1,41 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 0.69s
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-643aaa95f5f39f38)
+
+running 3 tests
+test authoritative_replay_invalidates_written_and_withdrawn_tables ... ok
+test expired_unswept_matching_child_queues_parent_delete ... ok
+test reused_deadline_is_part_of_current_capture_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/recorded_coverage.rs (target/debug/deps/recorded_coverage-4babedc5b0e81f68)
+
+running 24 tests
+test maintains::recorded_membership::clockless_orphan_import_memory ... ok
+test maintains::recorded_membership::prediction_clock_json_memory ... ok
+test maintains::recorded_membership::membership_over_budget_memory ... ok
+test maintains::recorded::clique_answers_on_both_stores ... ok
+test maintains::recorded_membership::prediction_clock_json_sqlite ... ok
+test maintains::recorded_membership::actual_gaps_reset_held_and_rejoined_memory ... ok
+test maintains::recorded::a_retained_only_public_target_does_not_predict_on_both_stores ... ok
+test maintains::recorded_membership::clockless_orphan_import_sqlite ... ok
+test maintains::recorded_membership::actual_gaps_reset_held_and_rejoined_sqlite ... ok
+test maintains::recorded_membership::membership_boundary_8191_memory ... ok
+test maintains::recorded_membership::membership_boundary_8190_memory ... ok
+test maintains::recorded_membership::membership_boundary_8189_memory ... ok
+test maintains::recorded_membership::continuous_renewal_keeps_coverage_memory ... ok
+test maintains::recorded_membership::live_replacement_passes_unswept_members_memory ... ok
+test maintains::recorded_membership::membership_boundary_8191_sqlite ... ok
+test maintains::recorded_membership::membership_boundary_8189_sqlite ... ok
+test maintains::recorded_membership::membership_boundary_8190_sqlite ... ok
+test maintains::recorded::activation_has_no_events_and_reacquires_both_stores ... ok
+test maintains::recorded::membership_expiry_before_sweep_and_scope_on_both_stores ... ok
+test maintains::recorded_membership::membership_over_budget_sqlite ... ok
+test maintains::recorded_membership::continuous_renewal_keeps_coverage_sqlite ... ok
+test maintains::recorded_membership::live_replacement_passes_unswept_members_sqlite ... ok
+test maintains::recorded::recorded_prediction_stream_and_reopen_on_both_stores ... ok
+test maintains::recorded::forged_payloads_refuse_on_both_stores ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.44s
+

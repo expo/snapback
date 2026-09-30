@@ -434,6 +434,10 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
+                // @ref LLP 3000.007#20.5 — holding the target does not cover a different unique population.
+                if self.device && effect == Effect::Update && !self.device_work(|runner| runner.upsert_absence_proven(table_name, name, &key))? {
+                    return Err(self.write_miss(table_name, name, &key));
+                }
                 if let Some(existing) = self.collision_lookup(table_name, name, index, &key, Some(&id), effect)
                     .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
                     && existing.field("id")?.as_str()? != id
@@ -497,6 +501,10 @@ impl Runner<'_> {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
+                    // @ref LLP 3000.007#20.5 — moving a held row needs complete coverage of the destination cap group.
+                    if self.device && effect == Effect::Update && !self.device_work(|runner| runner.upsert_absence_proven(table_name, &index_name, &group))? {
+                        return Err(self.write_miss(table_name, &index_name, &group));
+                    }
                     let private_cap = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
                     let count = self.authorized_scan(&[
                         (MeterKind::IndexEntries, 1),

@@ -1,0 +1,17 @@
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-lang)
+error[E0502]: cannot borrow `*tables` as mutable because it is also borrowed as immutable
+   --> crates/snapback4-lang/src/bind/through.rs:199:22
+    |
+117 |     let parent_info = &tables[&parent];
+    |                        ------ immutable borrow occurs here
+...
+199 |     paths::sync(&mut tables.get_mut(name).unwrap().decl, &reference, &captures)?;
+    |                      ^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+200 |     let expiring = info.decl.expire.is_some()
+201 |         || parent_info.decl.expire.is_some()
+    |            ----------------------- immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `snapback4-lang` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

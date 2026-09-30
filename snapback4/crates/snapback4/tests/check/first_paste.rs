@@ -3,32 +3,28 @@ use super::*;
 #[test]
 fn failing_check_keeps_the_terse_prediction_reason() {
     let project = Project::new();
-    project.source(&format!("{}\nquery broken():\n  return missingName\n", include_str!("../../../snapback4-lang/tests/fixtures/ag/upsert.q")));
+    project.source(&format!("{}\nquery broken():\n  return missingName\n", include_str!("../../../snapback4-lang/tests/fixtures/ag/upsert.q").replace("  sync\nview reactionCounts", "  sync last 2 by .id\nview reactionCounts")));
     for flags in [vec!["check"], vec!["check", "--verbose"]] {
         let output = project.run(&flags);
         assert!(!output.status.success());
         let text = String::from_utf8(output.stdout).unwrap();
-        assert!(text.contains("setReaction") && text.contains("upsert on a read-through child queues without a row"), "{text}");
+        assert!(text.contains("insert arms"), "{text}");
     }
     assert_eq!(parsed(&project.run(&["check", "--json"]))["ok"], false);
 }
 
 #[test]
-fn read_through_upsert_prints_the_reason_and_guide_without_a_rewrite() {
+fn read_through_upsert_has_no_obsolete_server_only_note() {
     let project = Project::new();
     project.source("table parents:\n  public\n  sync public\ntable children:\n  parent: parents\n  owner: principal\n  body: text\n  immutable parent\n  unique parent, owner\n  cap 50 by parent\n  read through .parent\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  sync\nmutation save(parent: parents, body: text):\n  return upsert children[parent, viewer] { body }\n");
     for flags in [vec!["why", "save"], vec!["check"], vec!["check", "--verbose"], vec!["check", "--residency"]] {
         let output = project.run(&flags);
         assert!(output.status.success(), "{output:?}");
         let text = String::from_utf8(output.stdout).unwrap();
-        assert!(text.contains("upsert on a read-through child queues without a row"), "{text}");
+        assert!(!text.contains("upsert on a read-through child queues without a row"), "{text}");
         assert!(!text.contains("reads online-only table children"), "{text}");
-        let lines: Vec<_> = text.lines().collect();
-        for (i, line) in lines.iter().enumerate().filter(|(_, line)| line.contains("upsert on a read-through child queues without a row")) {
-            assert!(!line.contains("rewrite:"), "{text}");
-            assert!(!lines.get(i + 1).is_some_and(|next| next.trim_start().starts_with("rewrite:")), "{text}");
-            assert!(line.contains("snapback4 guide prediction") && line.contains("Read-through upserts: explicit insert/update"), "{text}");
-        }
+        assert!(!text.contains("Read-through upserts: explicit insert/update"), "{text}");
+        assert!(!text.contains("N_NOT_PREDICTABLE"), "{text}");
     }
 }
 
@@ -135,5 +131,40 @@ fn no_fix_silently_removes_a_preview_or_changes_query_residency() {
         project.source(source);
         project.run(&["check", "--fix"]);
         assert_eq!(fs::read_to_string(project.0.join("snapback/schema.q")).unwrap(), source);
+    }
+}
+
+mod qx_fixture { include!("../../../snapback4-lang/tests/membership_paths/fixture.rs"); }
+#[test]
+fn membership_paths_keep_check_residency_output() {
+    for depth in [2, 3] { for keep in [false, true] { for horizon in [false, true] {
+        let mut outputs = Vec::new();
+        for sugar in [false, true] {
+            let project = Project::new();
+            project.source(&qx_fixture::source(depth, sugar, keep, horizon, "conversation"));
+            let output = project.run(&["check", "--residency", "--verbose"]);
+            assert!(output.status.success(), "{output:?}");
+            let text = String::from_utf8(output.stdout).unwrap();
+            // The first line carries nondeterministic elapsed milliseconds.
+            outputs.push(text.lines().enumerate().map(|(i, line)| if i == 0 { line.rsplit_once(", ").unwrap().0 } else { line }).collect::<Vec<_>>().join("\n"));
+        }
+        assert_eq!(outputs[0], outputs[1]);
+    }}}
+}
+
+#[test]
+fn reaction_constraint_residency_snapshots() {
+    for shape in ["natural", "secondary-unique"] {
+        let project = Project::new();
+        let mut source = qx_fixture::source(2, true, false, false, "group")
+            .replace("upsert reactions[parent, viewer]", "upsert reactions[parent = parent, principal = viewer]");
+        if shape == "secondary-unique" { source = source.replace("  emoji: text <=32", "  emoji: text <=32\n  unique principal, emoji"); }
+        project.source(&source);
+        let output = project.run(&["check", "--residency"]);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        let normalized = text.lines().skip(1).collect::<Vec<_>>().join("\n") + "\n";
+        let expected = fs::read_to_string(format!("{}/tests/check/fixtures/qx-{shape}.txt",env!("CARGO_MANIFEST_DIR"))).unwrap();
+        assert_eq!(normalized,expected,"{shape}");
     }
 }

@@ -1,0 +1,14 @@
+✔ wasm: read-through upsert predicts both arms and server refusal rolls back (680.588808ms)
+✔ wasm: read-through upsert horizon child coverage queues (265.176035ms)
+✔ wasm: read-through upsert missing child coverage queues (254.767281ms)
+✔ process: read-through upsert predicts both arms and server refusal rolls back (335.194879ms)
+✔ process: read-through upsert horizon child coverage queues (299.373043ms)
+✔ process: read-through upsert missing child coverage queues (313.775618ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2270.356394
