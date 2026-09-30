@@ -31,26 +31,70 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
     let mut names = std::collections::BTreeSet::new();
     for (doc_index, table, clause) in declarations {
         if !names.insert(clause.name.clone()) {
-            errors.push(refuse(&clause.site, "duplicate receipt family name"));
+            errors.push(refuse(
+                &clause.site,
+                format!("duplicate receipt family `{}`", clause.name),
+            ));
             continue;
         }
         let Some(group) = table.columns.iter().find(|c| c.name == clause.group) else {
             errors.push(refuse(
                 &clause.site,
-                "receipt scope must name a reference column",
+                format!(
+                    "receipt scope field `{}` is missing; name a reference column",
+                    clause.group
+                ),
             ));
             continue;
         };
         let TypeKind::Ref { table: scope } = &group.type_.kind else {
             errors.push(refuse(
                 &clause.site,
-                "receipt scope must be a required reference",
+                format!(
+                    "receipt scope field `{}` must be a required table reference, got {}",
+                    clause.group,
+                    format!("{:?}", group.type_.kind).to_lowercase()
+                ),
             ));
             continue;
         };
+        if let Some((role, name)) = [
+            ("scope table", scope.as_str()),
+            ("message table", table.name.as_str()),
+            ("member table", clause.members.as_str()),
+        ]
+        .into_iter()
+        .find(|(_, name)| super::generated::expression_keyword(name) || *name == "principal")
+        {
+            errors.push(refuse(
+                &clause.site,
+                format!(
+                    "receipt {role} mapping `{name}` is reserved expression or scalar-type syntax"
+                ),
+            ));
+            continue;
+        }
+        if let Some((i, name)) = clause
+            .operations
+            .iter()
+            .enumerate()
+            .find(|(_, name)| name.contains('-'))
+        {
+            errors.push(refuse(
+                &clause.site,
+                format!(
+                    "receipt operation {} mapping `{name}` cannot contain a hyphen",
+                    i + 1
+                ),
+            ));
+            continue;
+        }
         let tables: Vec<_> = documents.iter().flat_map(|d| &d.tables).collect();
         let Some(members) = tables.iter().find(|t| t.name == clause.members) else {
-            errors.push(refuse(&clause.site, "receipt audience table is missing"));
+            errors.push(refuse(
+                &clause.site,
+                format!("receipt audience table `{}` is missing", clause.members),
+            ));
             continue;
         };
         let required = |t: &TableDecl, name: &str, kind: TypeKind| {
@@ -102,12 +146,25 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
             || members.ephemeral.is_some()
             || table.ephemeral.is_some()
         {
-            errors.push(refuse(&clause.site, "receipt coordinates need immutable identity, explicit allocation/snapshot fields, a durable non-expiring audience capped at 50, and durable messages"));
+            errors.push(refuse(&clause.site, format!("receipt mappings {} need immutable identity, required coordinate types, explicit allocation/snapshot fields, a durable non-expiring audience capped at 50, and durable messages", mapping_names(&table, &clause))));
+            continue;
+        }
+        if let Some((role, name)) = [
+            ("runs", clause.runs.as_str()),
+            ("projection", clause.operations[0].as_str()),
+        ]
+        .into_iter()
+        .find(|(_, name)| super::generated::expression_keyword(name))
+        {
+            errors.push(refuse(
+                &clause.site,
+                format!("receipt {role} mapping `{name}` is reserved expression syntax"),
+            ));
             continue;
         }
         let mut owned = clause.operations.clone();
         owned.push(clause.runs.clone());
-        owned.push(format!("{}Fold", clause.name));
+        owned.push(format!("$receipt:{}:fold", clause.name));
         if owned
             .iter()
             .collect::<std::collections::BTreeSet<_>>()
@@ -119,26 +176,37 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
         {
             errors.push(refuse(
                 &clause.site,
-                "receipt-generated names must be distinct",
+                format!(
+                    "receipt names must be distinct; watermarks `{}` and `{}` cannot be id",
+                    clause.delivered_field, clause.seen_field
+                ),
             ));
             continue;
         }
-        if documents.iter().any(|d| {
-            d.tables
-                .iter()
-                .map(|t| &t.name)
-                .chain(d.functions.iter().map(|t| &t.name))
-                .chain(d.programs.iter().map(|t| &t.name))
-                .chain(d.views.iter().map(|t| &t.name))
-                .any(|n| owned.contains(n))
-        }) || members
-            .columns
+        let collision = documents
             .iter()
-            .any(|c| [&clause.delivered_field, &clause.seen_field].contains(&&c.name))
-        {
+            .flat_map(|d| {
+                d.tables
+                    .iter()
+                    .map(|t| &t.name)
+                    .chain(d.functions.iter().map(|t| &t.name))
+                    .chain(d.programs.iter().map(|t| &t.name))
+                    .chain(d.views.iter().map(|t| &t.name))
+            })
+            .find(|n| owned.contains(n))
+            .or_else(|| {
+                members
+                    .columns
+                    .iter()
+                    .map(|c| &c.name)
+                    .find(|n| [&clause.delivered_field, &clause.seen_field].contains(n))
+            });
+        if let Some(name) = collision {
             errors.push(refuse(
                 &clause.site,
-                "receipt-generated name collides with an authored declaration",
+                format!(
+                    "receipt mapping `{name}` collides with an authored declaration or member field"
+                ),
             ));
             continue;
         }
@@ -167,33 +235,8 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
         };
         // These words have expression syntax instead of variable meaning.
         let scope_arg = fresh(
-            if matches!(
-                clause.group.as_str(),
-                "viewer"
-                    | "now"
-                    | "null"
-                    | "true"
-                    | "false"
-                    | "not"
-                    | "exists"
-                    | "created"
-                    | "walk"
-                    | "insert"
-                    | "update"
-                    | "upsert"
-                    | "delete"
-                    | "merge"
-                    | "device"
-                    | "oblivious"
-                    | "where"
-                    | "first"
-                    | "last"
-                    | "after"
-                    | "if"
-                    | "else"
-                    | "and"
-                    | "or"
-            ) || clause.group.contains('-')
+            if super::generated::expression_keyword(&clause.group)
+                || matches!(clause.group.as_str(), "first" | "last")
             {
                 "receiptScope"
             } else {
@@ -236,7 +279,7 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
             .replace("@DELIVERED_FIELD@", &clause.delivered_field)
             .replace("@SEEN_FIELD@", &clause.seen_field)
             .replace("@RUNS@", &clause.runs)
-            .replace("@FOLD@", &format!("{}Fold", clause.name))
+            .replace("@FOLD@", "receiptPrivateFold")
             .replace("@RECEIPT@", &clause.operations[0])
             .replace("@DELIVERED@", &clause.operations[1])
             .replace("@SEEN@", &clause.operations[2])
@@ -246,13 +289,18 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
         let (mut generated, diagnostics) =
             crate::parse_document(&documents[doc_index].file, &source);
         if !diagnostics.is_empty() {
-            errors.push(refuse(&clause.site, "receipt mappings include a name reserved by Quarry syntax; choose different generated table and operation names"));
+            errors.push(refuse(
+                &clause.site,
+                format!(
+                    "receipt mappings {} cannot be expressed in Quarry: {}",
+                    mapping_names(&table, &clause),
+                    public_reason(&diagnostics[0].message)
+                ),
+            ));
             continue;
         }
-        // Generated sites point back to the declaration instead of invented source lines.
-        for p in &mut generated.programs {
-            p.site = clause.site.clone();
-        }
+        // @ref LLP 3000.022#14.1 — generated calls and sites have compiler custody.
+        super::generated::receipts(&mut generated, &clause);
         for d in documents.iter_mut() {
             for t in &mut d.tables {
                 if t.name == clause.members {
@@ -392,4 +440,69 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
             schema.receipts.push(family);
         }
     }
+}
+
+// A later planner/type/admission refusal still belongs to the author declaration.
+// Never suggest pasting a generated local or a compiler-only call into an app.
+pub(super) fn diagnostics(documents: &[Document], errors: &mut [Diagnostic]) {
+    for diagnostic in errors {
+        for table in documents.iter().flat_map(|d| &d.tables) {
+            if let Some(clause) = &table.receipts
+                && diagnostic.site == clause.site
+                && diagnostic.code != "E_RECEIPTS_CLAUSE"
+            {
+                *diagnostic = refuse(
+                    &clause.site,
+                    format!(
+                        "receipt mappings {}: {}",
+                        mapping_names(table, clause),
+                        public_reason(&diagnostic.message)
+                    ),
+                );
+                break;
+            }
+        }
+    }
+}
+fn mapping_names(table: &TableDecl, clause: &ReceiptsDecl) -> String {
+    format!(
+        "{}.{}, .{}, .{}, count .{}; members {}.{}, .{}, floor .{}; counter .{}; watermarks .{}, .{}; runs {}; operations {}",
+        table.name,
+        clause.group,
+        clause.position,
+        clause.sender,
+        clause.count,
+        clause.members,
+        clause.member_group,
+        clause.principal,
+        clause.floor,
+        clause.counter,
+        clause.delivered_field,
+        clause.seen_field,
+        clause.runs,
+        clause.operations.join(", ")
+    )
+}
+fn public_reason(reason: &str) -> String {
+    reason
+        .split_inclusive(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '$' && c != ':')
+        .map(|word| {
+            if word.starts_with("__receipt_")
+                || word.starts_with("$receipt:")
+                || word.starts_with("$builtin:")
+                || word.starts_with("$input:")
+            {
+                format!(
+                    "receipt expression{}",
+                    word.chars()
+                        .last()
+                        .filter(|c| !c.is_ascii_alphanumeric())
+                        .map(|c| c.to_string())
+                        .unwrap_or_default()
+                )
+            } else {
+                word.into()
+            }
+        })
+        .collect()
 }

@@ -79748,3 +79748,48 @@ Evidence, source snapshots and rerunnable controls:
 reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — RX round 3: generated receipt call and source custody
+
+Merged origin/main 42ba3ffb904f first in e7f07f2bc144, keeping both journal
+histories and both delivery fault-instrument comments. Read all prior RX prompts,
+reports and review pairs. Generated receipt primitives now bypass the authored
+function catalog, the fold uses a reserved helper name, and viewer input is
+compiler-owned. The max(a,b)=a+b duplicate-[2,2] reproduction leaves the run at
+[2,2] and messages 1, 3 and 4 sent. Every generated multi-column message/member
+probe names its columns, so additional unique pairs and caps remain compatible.
+All emitted expression and declaration sites belong to the receipts clause;
+unsupported mappings name the author's mapping and reason there. LLP 3000.022
+§14 and the primary receipt guide are updated together.
+
+The generated corpus covers 21 mapping positions × 65 spellings: 1,190 compile
+and execute all six surfaces, 123 refuse at the clause, and 52 refuse in authored
+syntax before expansion. Every template primitive/helper spelling is tested as
+an authored function and table. Round-two compiler negative controls yield
+2 passes / 7 failures, detecting all three requested findings. Two narrower
+memory/SQLite retained-run fixtures isolate the existing receipt coverage guard;
+disabling only that guard yields 0 passes / 2 failures. Product core is unchanged.
+
+Final affected checks: compiler units 25/25, receipts 46/46, delivery 16/16,
+delivery clause 6/6, integration 3/3, replay conversion 2 passes / 1 existing
+ignore, device delivery 30/30, readauth 81/81 and whole guide 106/106. Ran
+scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1290 s
+
+All 13 stages pass: Rust 4,415 passes with 33 existing ignores, clients 5,342
+passes with ten existing skips, fixtures 9/9 and serial models 79/79, retaining
+both full 5,000-sequence walks. Full-run failures: ours 0, baseline 0,
+environmental 0. Product and test source stayed fixed throughout. Development
+fixture/compiler/guide failures were ours and corrected; each is retained and
+classified in the report. The inherited nominal 60-second suite bar is exceeded.
+No timeout, count, runtime ceiling or wasm ratchet was relaxed.
+
+Wasm: 1,988,204 B raw / 596,444 B gzip, 803 B below the unchanged 597,247 B
+ratchet. Primary receipt guide 322/350 lines; starter still 231 versus manual
+294. Documentation budget, scoped corpus audit, ref-check and diff check pass.
+This closes the known actionable supplied review findings. Next round takes
+automatic ordinal allocation, recipient counts and join floors. Report and
+retained controls/logs: reports/20260930-rx-declarative-receipts/round3/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

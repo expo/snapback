@@ -122,9 +122,10 @@ and member watermarks. Without overrides, names use the family prefix:
 `floor` and `count` name the scope counter, membership floor and message count.
 Allocation and membership accounting remain explicit. Multiple distinct families
 may coexist, with at most 50 members and 64 disjoint runs per member.
-Membership must be group-readable and synced in full; malformed declarations refuse `E_RECEIPTS_CLAUSE`. Progress fields and
+Membership must be group-readable and synced in full; malformed declarations refuse `E_RECEIPTS_CLAUSE`. Unsupported mappings name the field and reason at that clause. Progress fields and
 runs refuse ordinary writes with `E_RECEIPTS_OWNED`. Deleting a member retires their runs atomically, even for an authorized
-service outside the runs audience.
+service outside the runs audience. Generated primitives cannot be shadowed by
+application declarations; extra unique keys and caps are allowed.
 
 Delivery merges intervals and compacts covered runs before enforcing the
 64-run cap. It crosses only deleted or expired positions, with at most 1,024

@@ -39,6 +39,7 @@ mod intent_search;
 mod held;
 mod delivery;
 mod receipts;
+mod generated;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -222,6 +223,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     index_diagnostics::authored(&catalog, &mut notes);
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
+    receipts::diagnostics(&catalog.documents, &mut diagnostics);
     Bound { refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
 }
 

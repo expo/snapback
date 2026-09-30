@@ -7,8 +7,8 @@ table @RUNS@:
   unique @RUN_GROUP@, principal, fromOrdinal
   cap 64 by @RUN_GROUP@, principal
   cap 3200 by @RUN_GROUP@
-  read <- exists @MEMBERS@[.@RUN_GROUP@, viewer]
-  insert <- .principal = viewer and exists @MEMBERS@[.@RUN_GROUP@, viewer]
+  read <- exists @MEMBERS@[@MEMBER_GROUP@ = .@RUN_GROUP@, @PRINCIPAL@ = viewer]
+  insert <- .principal = viewer and exists @MEMBERS@[@MEMBER_GROUP@ = .@RUN_GROUP@, @PRINCIPAL@ = viewer]
   update <- .principal = viewer
   delete <- .principal = viewer
   sync to @MEMBERS@[.@RUN_GROUP@] by .@PRINCIPAL@
@@ -20,7 +20,7 @@ fn @RECEIPT@($m: @MESSAGES@):
     if $member.@PRINCIPAL@ != $m.@SENDER@ and $member.@FLOOR@ < $m.@POSITION@:
       $remaining = $remaining + 1
       if $m.@POSITION@ > $member.@DELIVERED_FIELD@:
-        $run = first(@RUNS@[@RUN_GROUP@ = $m.@GROUP@, principal = $member.@PRINCIPAL@, fromOrdinal <= $m.@POSITION@] last 1 by .fromOrdinal)
+        $run = receiptBuiltinFirst(@RUNS@[@RUN_GROUP@ = $m.@GROUP@, principal = $member.@PRINCIPAL@, fromOrdinal <= $m.@POSITION@] last 1 by .fromOrdinal)
         if $run = null or $run.throughOrdinal < $m.@POSITION@:
           return 'sent'
       if $member.@SEEN_FIELD@ < $m.@POSITION@:
@@ -28,20 +28,20 @@ fn @RECEIPT@($m: @MESSAGES@):
   return $state if $remaining > 0 or $m.@COUNT@ > 0 else 'sent'
 
 query @MEMBER@(@ARG@: @SCOPE@):
-  return @MEMBERS@[@ARG@, viewer]
+  return @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer]
 
 query @PROGRESS@(@ARG@: @SCOPE@, @CURSOR@: cursor ?):
-  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
-  $delivered = max($me.@DELIVERED_FIELD@, $me.@FLOOR@)
+  $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
+  $delivered = receiptBuiltinMax($me.@DELIVERED_FIELD@, $me.@FLOOR@)
   return { member: $me, runs: @RUNS@ where .@RUN_GROUP@ = @ARG@ and .principal = viewer, ahead: @MESSAGES@ where .@GROUP@ = @ARG@ and .@POSITION@ > $delivered and .@POSITION@ <= $delivered + 100 last 100 by .@POSITION@ after @CURSOR@ }
 
 mutation @DELIVERED@(@ARG@: @SCOPE@, @FROM@: int, @THROUGH@: int)
   reports delivery of @MESSAGES@ by .@GROUP@, .@POSITION@: server
-  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
   $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
   require 0 < @FROM@ and @FROM@ <= @THROUGH@ else NOT_A_RUN
   require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE
-  $initial = max($me.@DELIVERED_FIELD@, $me.@FLOOR@)
+  $initial = receiptBuiltinMax($me.@DELIVERED_FIELD@, $me.@FLOOR@)
   $folded = @FOLD@(@ARG@, $initial, @FROM@, @THROUGH@)
   if $folded.prefix > $initial:
     update @MEMBERS@[$me] { @DELIVERED_FIELD@: $folded.prefix }
@@ -49,9 +49,9 @@ mutation @DELIVERED@(@ARG@: @SCOPE@, @FROM@: int, @THROUGH@: int)
 
 -- Maintenance commits partial progress without acknowledging any new live position.
 mutation @COMPACT@(@ARG@: @SCOPE@): server
-  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
   $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
-  $initial = max($me.@DELIVERED_FIELD@, $me.@FLOOR@)
+  $initial = receiptBuiltinMax($me.@DELIVERED_FIELD@, $me.@FLOOR@)
   $folded = @FOLD@(@ARG@, $initial, $chat.@COUNTER@ + 1, $chat.@COUNTER@)
   if $folded.prefix > $initial:
     update @MEMBERS@[$me] { @DELIVERED_FIELD@: $folded.prefix }
@@ -76,15 +76,15 @@ fn @FOLD@(@ARG@: @SCOPE@, $initial: int, $low: int, $high: int):
   $probes = 0
   $merged = []
   for $interval in $ordered:
-    for $i in range(0, 1024):
+    for $i in receiptBuiltinRange(0, 1024):
       if $end + 1 >= $interval.low or $probes >= 1024:
         break
       $probes = $probes + 1
-      if exists @MESSAGES@[@ARG@, $end + 1]:
+      if exists @MESSAGES@[@GROUP@ = @ARG@, @POSITION@ = $end + 1]:
         break
       $end = $end + 1
     if $end + 1 >= $interval.low:
-      $end = max($end, $interval.high)
+      $end = receiptBuiltinMax($end, $interval.high)
     else:
       if $start = 0:
         $prefix = $end
@@ -97,7 +97,7 @@ fn @FOLD@(@ARG@: @SCOPE@, $initial: int, $low: int, $high: int):
   else:
     if $start <= $end:
       $merged = $merged + [{ low: $start, high: $end }]
-  require count($merged) <= 64 else RUNS_FULL
+  require receiptBuiltinCount($merged) <= 64 else RUNS_FULL
   -- Reuse each surviving start's row; only the input can add a new start.
   $changed = false
   $newHigh = $low - 1
@@ -124,7 +124,7 @@ fn @FOLD@(@ARG@: @SCOPE@, $initial: int, $low: int, $high: int):
   return { prefix: $prefix, changed: $changed }
 
 mutation @SEEN@(@ARG@: @SCOPE@, @THROUGH@: int):
-  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
   $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
   require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE
   if @THROUGH@ > $me.@SEEN_FIELD@:

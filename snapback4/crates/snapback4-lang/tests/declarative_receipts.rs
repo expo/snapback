@@ -618,3 +618,6 @@ mod round1;
 mod round2;
 #[path = "declarative_receipts/schedules.rs"]
 mod schedules;
+
+#[path = "declarative_receipts/round3.rs"]
+mod round3;

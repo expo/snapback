@@ -1,0 +1,16 @@
+{
+  "before": "db1d35895ba979cc75282ba9db8e69a6bd8a5879cc120b8166a4a27e6367f89b",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "declarative_receipts",
+    "receipt_specific_coverage_guard",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 101,
+  "restored": "db1d35895ba979cc75282ba9db8e69a6bd8a5879cc120b8166a4a27e6367f89b"
+}
