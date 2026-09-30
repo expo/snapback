@@ -79575,3 +79575,68 @@ ratchet. No budget increase. Receipts, all failures, logs, source/artifact hashe
 and reproduction: reports/20260930-bn-envelope-proof/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 1: completed reconnect and separate retention clocks
+
+Read BN round 0's prompt/report and both reviews. Merged origin/main 28014164c6
+first in 81090e5a8a, keeping both acquisition and NS native smoke, both guide
+paths and journal histories. NS keeps LLP 3000.030 §13; BN moves to §14 with
+both code refs repaired. Nothing pushed or published.
+
+The acquisition proof records every actual HTTP attempt, including failures,
+and retains partial failed runs. It validates sync replies, requires a terminal
+stream page with no more at the server position applied locally, and observes
+successful native publication. A swallowed transport, HTTP, protocol or native
+validation/application failure cannot seal a passing receipt. Offline coverage
+still compares before reconnect, which must download no row/scope events.
+Remote refusal text and arbitrary timing-header text are not reflected; bearer
+values and common encodings are redacted before receipt/text/error output.
+Acquire input errors now use E_WITNESS_INPUT, and bare witness names both verbs.
+
+Receipts describe Node sending one JSON line per call to the snapback4 device
+subprocess backed by SQLite; Expo links the crate in-process. Restart's first
+local answer and subsequent coverage verification have separate clocks. The
+bounds card and report name the unresolved process-device apply defect, owned
+by NA: Astra profiled 37.862 s of 41.734 s in apply round trips, including a
+35.506 s call. Grok accounts for about 39.5 s after headers versus 2.55 s server
+time, about 16 s after headers on wasm, and worse per-row cost at 105k than 11k.
+This localizes JSON-lines/device application/IPC, not an internal SQLite cause;
+it is separate from retention. No performance optimization was attempted here.
+
+All four fresh receipts pass after tests/builds: 100/1,000 memberships on 96
+CPUs and ten CPUs with eight owned burners. Heavy receipts retain 105,034 rows
+and 4,014 table/group pairs; both reconnect at position 419402 with zero rows
+and confirmed native publication. Unconfined heavy acquisition is 43.208 s,
+restart first answer 0.239 s, subsequent coverage verification 0.289 s. Loaded:
+41.350 s / 0.252 s / 0.285 s. These are single requalification samples, not new
+medians or evidence that contention helps. Original twelve receipts are intact.
+
+Final affected tests pass 37/37 (27 witness, ten HTTP); whole guide 107/107.
+Seventeen controls detect actual round 0: seven reconnect variants expose false
+success, four already failed but lost partial evidence, and the others expose
+redaction, CLI, hosting-note, timing and defect-documentation issues. A further
+self-audit caught invalid native acknowledgements during the full run; guards
+were fixed before its client stage. Post-suite inspection caught parsing binary
+native downloads as JSON: the real-module positive control fails before that
+correction and passes afterward, as does module-digest refusal. Final affected
+checks cover both. Source snapshots retain the changes; no unchanged-source
+full qualification is claimed and the full suite was not rerun.
+
+Ran scripts/test.sh once. Exact summary: `== 1 failure(s) in 1265 s`, exit 1.
+Rust 4,368 pass / 33 existing ignores, clients 5,336 pass / one fail / ten
+existing skips, fixture wrappers 9/9, full-count models 79/79. No cancellations.
+The sole full-run failure is classified baseline: process pending cut preserves
+presentTransition, at the notification-starts-sync barrier. Its test/helpers/SDK
+are unchanged; the whole file passes 10/10 unchanged and the preserved pre-round-1
+binary passes that case 1/1. Root cause remains unresolved; the open filesystem
+ticket records this without claiming a reproduced cause. Full-run failures:
+ours 0, baseline 1, environmental 0. Development failures remain in the ledger.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Wasm is 1,978,828 B raw / 593,233 B gzip, identical to round 0 and 486 B below
+the unchanged 593,719 B cap. No budget increase. Report, failure ledger, raw logs,
+receipts, host load and source/artifact hashes:
+reports/20260930-bn-envelope-proof/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

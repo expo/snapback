@@ -1,0 +1,22 @@
+✔ process: pending cut preserves transition before sync publication (4185.644571ms)
+✔ process: pending cut preserves emptyTransition before sync publication (3994.055923ms)
+✔ process: pending cut preserves presentTransition before sync publication (4001.632563ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (373.583732ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (659.090705ms)
+✔ wasm: pending cut preserves transition before sync publication (3119.154337ms)
+✔ wasm: pending cut preserves emptyTransition before sync publication (1474.021351ms)
+✔ wasm: pending cut preserves presentTransition before sync publication (2699.875486ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (497.901041ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (500.211594ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25251.622052

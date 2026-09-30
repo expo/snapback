@@ -136,14 +136,17 @@ one summary per run. Receipt excerpt (counts depend on your fixture):
 {"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}
 ```
 
-It uses the native process device, the same SQLite module as Expo. Web wasm +
-IndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;
+It runs Node with one JSON line per call to the `snapback4 device` subprocess
+backed by SQLite. Expo links the crate in-process; this is not Expo/iOS timing.
+Web wasm + IndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;
 `firstLocalMs` times the first complete local query after that boundary, both
 from fresh startup including identity checks. Restart firstLocalMs includes cold
-reopen with all HTTP blocked. Retained means identical store/generation/watermark,
+reopen with all HTTP blocked. `restart.coverageVerifiedMs` separately times the
+subsequent coverage scan and comparison. Retained means identical store/generation/watermark,
 per-group row counts and persisted coverage, and table row/byte counts before
-reconnect; reconnect must then send no row events (an empty snapshot is possible
-at watermark zero). Keep the fixture
+reconnect; reconnect must finish a validated stream round with `more: false` at
+the server position applied locally, with no row events or failed attempts. An
+empty snapshot at watermark zero still needs stream catch-up. Keep the fixture
 stable: new writes or expiry can invalidate this comparison. No OS-cache flush,
 app UI, media-cache or physical-phone performance is claimed.
 Groups are table/group pairs with rows or recorded coverage (plus implicit public
@@ -156,6 +159,14 @@ HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000
 memberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;
 first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are
 historical workload measurements, not a promise or native-device numbers.
+Native measurements found a known performance defect in process-device apply: JSON lines to the
+`snapback4 device` subprocess, then SQLite. Astra measured 37.9 s in apply round
+trips out of 41.7 s acquisition, including one 35.5 s call; SQLite internals were
+not isolated. Grok counted about 39.5 s after headers out of 42.1 s, versus
+2.55 s server time and about 16 s after headers on HV's wasm client. Post-header
+cost per row grew from about 0.07 ms at 11k rows to 0.37 ms at 105k. The
+successful retention proof does not establish fast acquisition.
+These review profiles identify device application/IPC, not server or harness cost.
 
 ### Measuring a growth curve
 

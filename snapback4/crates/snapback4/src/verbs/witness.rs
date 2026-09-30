@@ -24,7 +24,7 @@ struct Options {
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
-        if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness ios --build . --smoke [--udid <id>] [--port N] [--artifacts <dir>]; see snapback4 guide witness for installed-app scenarios")); }
+        if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness acquire --as <persona|principal> [--restart] or snapback4 witness ios --build . --smoke [--udid <id>] [--port N] [--artifacts <dir>]; see snapback4 guide witness for installed-app scenarios")); }
         if args.iter().any(|a| matches!(a.as_str(), "--repack" | "--app-project") || a.starts_with("--repack=") || a.starts_with("--app-project=")) {
             return Err(error("E_WITNESS_INPUT", "repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory"));
         }

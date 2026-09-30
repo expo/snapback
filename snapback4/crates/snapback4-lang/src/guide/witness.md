@@ -11,12 +11,9 @@ npx snapback4 witness ios --build . --smoke
 npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --port 4400
 ```
 
-For a heaviest-account acquisition and cold-store proof on any CLI host, use
-`witness acquire --as <persona> --restart`; `guide bounds` explains its receipt.
-
-At every milestone, run `npm run export:ios` for the Hermes export;
-on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
-Both Expo starters provide these scripts. Export alone proves no native execution.
+For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
+At every milestone, run `npm run export:ios` for the Hermes export; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
+Both Expo starters provide these scripts; export alone proves no native execution.
 
 The build route chooses a free backend port and writes fresh artifacts under
 `artifacts/native-smoke/<timestamp>`. Reuse requires an available booted device, the smoke prefix, and a creation record
