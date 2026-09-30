@@ -1,0 +1,4 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+src/web-wasm.ts(1,18): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
+src/web-worker-runtime.ts(2,27): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
+src/web.ts(24,27): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.

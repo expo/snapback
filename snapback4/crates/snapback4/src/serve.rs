@@ -741,6 +741,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     // library's small socket buffer cannot split headers from a short body
     // and leave the latter waiting for a delayed TCP acknowledgement.
     let mut encoded = Vec::with_capacity(capacity);
+    let response = request.prepare_response(response);
     if response.raw_print(&mut encoded, request.http_version().clone(), request.headers(), request.method() == &Method::Head, None).is_ok() {
         let mut writer = request.into_writer();
         latency::finished(writer.write_all(&encoded).and_then(|_| writer.flush()).is_err() || refused);

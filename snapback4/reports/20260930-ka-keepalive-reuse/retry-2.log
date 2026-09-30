@@ -1,0 +1,23 @@
+✔ socket reset: reused=false, reset again=false (26.450292ms)
+✔ socket reset: reused=false, reset again=true (4.15559ms)
+✔ socket reset: reused=true, reset again=false (33.608282ms)
+✔ socket reset: reused=true, reset again=true (28.897461ms)
+✔ no retry after response bytes: partial header (55.878699ms)
+✔ no retry after response bytes: body (55.66675ms)
+✔ no ambiguous replay for /auth/refresh (309.343359ms)
+✔ no ambiguous replay for /assets (318.443952ms)
+✔ no ambiguous replay for /assets/once (181.532477ms)
+✔ no ambiguous replay for /a/work (500.381526ms)
+✔ no ambiguous replay for /m/ephemeral (316.367138ms)
+✔ no ambiguous replay for /m/add (182.542792ms)
+✔ a delivered overload is returned without socket retries (500.674114ms)
+✔ a reset retry preserves one real durable mutation and its write ID (455.00395ms)
+✔ the private agent retires idle sockets within the one-second budget (1005.160995ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5599.894969

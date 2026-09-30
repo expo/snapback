@@ -1,0 +1,30 @@
+(node:2285055) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ccheever/sb4-intent/lane-ka/snapback4/reports/20260930-ka-keepalive-reuse/baseline-node-fetch.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ccheever/sb4-intent/lane-ka/snapback4/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"round":0,"clients":1,"errors":[{"code":"UND_ERR_SOCKET","message":"other side closed"}],"successes":0,"failures":[{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying","retryable":true}}],"serverAlive":true,"serverLog":"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\nsnapback4 dev: http://127.0.0.1:42131  (schema: snapback/, types: /tmp/sb4-ka-deschedule-p5QYhS/snapback/generated/api.ts)\nstore: /tmp/sb4-ka-deschedule-p5QYhS/.snapback4/store.sqlite\nsnapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n"}
+✖ descheduled dev: idle pooled SDK socket (0) (5691.880054ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5781.627458
+
+✖ failing tests:
+
+test at reports/20260930-ka-keepalive-reuse/descheduled-server.test.mjs:18:74
+✖ descheduled dev: idle pooled SDK socket (0) (5691.880054ms)
+  AssertionError [ERR_ASSERTION]: [{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying","retryable":true}}]
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/reports/20260930-ka-keepalive-reuse/descheduled-server.test.mjs:52:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

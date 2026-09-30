@@ -1,0 +1,24 @@
+{"round":0,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (0) (5055.09264ms)
+{"round":1,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (1) (4998.899498ms)
+{"round":2,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (2) (5291.558965ms)
+{"round":3,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (3) (5328.541602ms)
+{"round":4,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (4) (4988.208315ms)
+{"round":5,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (5) (4997.964971ms)
+{"round":6,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (6) (4998.35913ms)
+{"round":7,"clients":48,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":48}
+✔ Node SDK query survives a client pause across the dev idle deadline (7) (5290.173926ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41052.639608

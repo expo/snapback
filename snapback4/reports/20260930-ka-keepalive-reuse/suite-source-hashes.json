@@ -1,0 +1,13 @@
+{
+  "target/debug/snapback4-ka-baseline": "09a24fdb7b59f0db35339ea8662167d777a1b24d5ea4673dc1343e4fcca14899",
+  "packages/snapback4/src/node-fetch.ts": "1c4b755affaeb4086e6298bf91d876b2980e74dc5796fbb4bb3860247f9f31ac",
+  "vendor/tiny_http/src/limits.rs": "2d560433cc0dd876cc70ffc6f2f8bcbff0a2ad1eef351af27cd745e55fb2c61e",
+  "vendor/tiny_http/src/client.rs": "483410abd3a2cdd48a29ae9f947064648082dee72f84b4df2a63ccecdf394253",
+  "vendor/tiny_http/src/request.rs": "1eee023ce35e0d3d6668fd2cc8e5979fd30a7b3eb8eaaf0e33ffbac68ff2c7ad",
+  "vendor/tiny_http/src/response.rs": "5eae34c31cd157d5704a637a84673c6e63c0e05c7904d0fe861c5b34d6da497d",
+  "crates/snapback4/src/serve.rs": "c92348418ad48e3d4bf0afe6492a45b841d7db8c398483cfe400ec3a4fc0d049",
+  "crates/snapback4/src/serve_changes.rs": "8badbe234c4faebcd74495a2246b248a58b279c6745ac497577d1433680007a6",
+  "crates/snapback4/src/serve_ephemeral.rs": "3fba01574c719e1a02896c444f8ba31a7857a30374499fbe107ecf3c5c139571",
+  "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "a2e5db9131f2b439d9fa15826c1b60dbd6f6144c3b9529cc2da799d5d0036c52",
+  "metrics/wasm-budget.json": "1134dde35461ce939cefec4af6e7ff4bd702698d4ef5025b53f959fcb99b7949"
+}
