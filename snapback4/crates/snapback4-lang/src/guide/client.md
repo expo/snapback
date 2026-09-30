@@ -68,11 +68,11 @@ function ConversationList() {
 }
 ```
 
-Keep server-needing decorations separate.
+Keep decorations separate.
 
 ## Expo and acquisition
 
-The social starter uses `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide witness` for native proof, `guide reads` for live timings, `guide sync` for Worker/default choices, progress and five-profile acquisition measurement with offline reopening.
+Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
 
 ## Receipts
 

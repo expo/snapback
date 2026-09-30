@@ -1,0 +1,66 @@
+{
+  "affected-final": {
+    "rustSummaries": [
+      "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.64s",
+      "test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.30s"
+    ],
+    "nodeSummaries": []
+  },
+  "witness-unit": {
+    "rustSummaries": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 206 filtered out; finished in 2.43s"
+    ],
+    "nodeSummaries": []
+  },
+  "guide-final": {
+    "rustSummaries": [
+      "test result: ok. 106 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s"
+    ],
+    "nodeSummaries": []
+  },
+  "periphery": {
+    "rustSummaries": [],
+    "nodeSummaries": [
+      "\u2139 tests 21",
+      "\u2139 pass 21",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  "helpers": {
+    "rustSummaries": [],
+    "nodeSummaries": [
+      "\u2139 tests 36",
+      "\u2139 pass 36",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  "witness-unit-final": {
+    "rustSummaries": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 206 filtered out; finished in 2.43s"
+    ],
+    "nodeSummaries": []
+  },
+  "linux-witness-unit-final": {
+    "rustSummaries": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 206 filtered out; finished in 2.41s"
+    ],
+    "nodeSummaries": []
+  },
+  "linux-workers-focused": {
+    "rustSummaries": [],
+    "nodeSummaries": [
+      "\u2139 tests 5",
+      "\u2139 pass 5",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  }
+}

@@ -26,6 +26,10 @@ impl Guarded {
         Self { child, stdout, stderr, end: Instant::now() + budget, reaped: false }
     }
 
+    pub fn id(&self) -> u32 { self.child.id() }
+
+    pub fn is_running(&self) -> bool { self.status().expect("observe fixture driver").is_none() }
+
     fn status(&self) -> io::Result<Option<ExitStatus>> {
         // Keep the unreaped leader's PID reserved until group cleanup, so even
         // an early driver exit cannot let us signal a reused process group.

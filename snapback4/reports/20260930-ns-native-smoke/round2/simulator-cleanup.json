@@ -1,0 +1,33 @@
+{
+  "created": {
+    "name": "sb4-ns-1790777647371-91422",
+    "prefix": "sb4-ns-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "7CA91203-C914-497F-AFD9-C6C94CE957A9"
+  },
+  "commands": [
+    {
+      "args": [
+        "shutdown",
+        "7CA91203-C914-497F-AFD9-C6C94CE957A9"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "delete",
+        "7CA91203-C914-497F-AFD9-C6C94CE957A9"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "absentBefore": true,
+  "absentAfter": true,
+  "creationRecordRemoved": true,
+  "otherSimulatorsTargeted": false
+}
