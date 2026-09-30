@@ -1,0 +1,70 @@
+✖ Chromium worker=false: mounted Following tracks adopted follow custody (1778.067135ms)
+✖ Chromium worker=false: mounted Following tracks adopted unfollow custody (1670.362336ms)
+✖ Chromium worker=true: mounted Following tracks adopted follow custody (2336.975556ms)
+✖ Chromium worker=true: mounted Following tracks adopted unfollow custody (2109.192821ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8327.707967
+
+✖ failing tests:
+
+test at snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=false: mounted Following tracks adopted follow custody (1778.067135ms)
+  AssertionError [ERR_ASSERTION]: follow: committed custody marks the mounted answer synchronously
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:51:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=false: mounted Following tracks adopted unfollow custody (1670.362336ms)
+  AssertionError [ERR_ASSERTION]: unfollow: committed custody marks the mounted answer synchronously
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:51:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=true: mounted Following tracks adopted follow custody (2336.975556ms)
+  AssertionError [ERR_ASSERTION]: follow: committed custody marks the mounted answer synchronously
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:51:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:80
+✖ Chromium worker=true: mounted Following tracks adopted unfollow custody (2109.192821ms)
+  AssertionError [ERR_ASSERTION]: unfollow: committed custody marks the mounted answer synchronously
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:51:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

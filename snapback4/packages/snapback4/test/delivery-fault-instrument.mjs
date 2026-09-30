@@ -96,6 +96,11 @@ export function instrument(destination) {
 // worker.ts and worker-ledger.ts perform server effects, outside device mutation
 // delivery. Their new awaits are covered by supervised-workers/worker tests:
 // lost acknowledgements, durable replay, failed handlers and process contention.
+// local-following.pending and local-query.publish's followingPending await read
+// existing outbox custody before query publication; neither admits, dispatches,
+// settles nor observes a write. Failure withholds the read. The causal Following
+// regression covers admission/settlement/apply, including zero-wait retirement;
+// mutation delivery continues through the unchanged classified sites above.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

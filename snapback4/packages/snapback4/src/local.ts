@@ -26,6 +26,7 @@ import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // LLP 3000 §7: Rust owns the replica; this transport serves wasm, Expo and native.
 import { evaluateLocal } from "./local-query.ts";
+import { FollowingIntents } from "./local-following.ts";
 import { answerIdentity } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
@@ -135,8 +136,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
   let stopSuspend: (() => void) | undefined;
   let sendingAllowed = !core.onSuspend;
-  let stopOutbox: (() => void) | undefined;
-  let flushRecovered: (() => void) | undefined;
+  let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
+  let followingIntents!: FollowingIntents;
   let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined, deliveryQueue: ReturnType<typeof localDelivery> | undefined, deliveryWitness = false;
   try {
@@ -155,7 +156,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const state = await call({ op: "state" });
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
-  stopOutbox = core.onOutbox?.(time => { clock.raiseIssued(time ?? 0); pending.notify(); flushRecovered?.(); });
+  stopOutbox = core.onOutbox?.((time, entries) => { clock.raiseIssued(time ?? 0); followingIntents?.recovered(entries ?? []); pending.notify(); flushRecovered?.(); });
   await clock.attach(core);
   if (session && session.expiresAt <= clock.issuedDeviceNow()) {
     await forgetSession(base, sessions);
@@ -189,14 +190,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
   };
   const answers = new LocalReads();
+  followingIntents = new FollowingIntents(() => backend, queued, tables => { const delivery: (() => void)[] = []; invalidateAnswers(delivery, "admit", tables); for (const notify of delivery) notify(); }, principal);
   const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), acquireRead);
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
   // Unversioned syncedAt may be server time; omit it until a wall-time resync.
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt:wall:1" })).ok ?? 0);
-  let caughtUp = false;
-  let identityChecked = false;
-  let partitionCurrent = true;
+  let caughtUp = false, identityChecked = false, partitionCurrent = true;
   const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; backend_required?: boolean; restore_refusal?: Refusal };
   let storeIdentity = initialSync?.store_id ?? undefined;
   let identified = !!storeIdentity && !initialSync?.backend_required;
@@ -727,7 +727,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           observeIncarnation(publishedStore ?? undefined);
           storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !publishedState?.backend_required;
           watermark = publishedState?.watermark ?? watermark;
-          if (publishedState) for (const watch of answers.applied(watches.values(), publishedState.watermark)) resumed.add(watch);
+          if (publishedState) { for (const watch of answers.applied(watches.values(), publishedState.watermark)) resumed.add(watch); for (const table of followingIntents.applied()) touched.tables.add(table); }
         }
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
@@ -882,7 +882,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get partitionCurrent() { return partitionCurrent; },
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
-      principal, signal: signal ?? aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify,
+      principal, signal: signal ?? aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify, followingPending: (tables: ReadonlySet<string>) => followingIntents.pending(tables),
       post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined, undefined, signal),
       searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, undefined, decode, signal),
       refreshSearch: (name: string) => refreshSearchRoots(watches, name, backend?.schema.operations?.[name]?.search?.cursor, notify, scheduleRead),
@@ -1210,7 +1210,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (!mutationIds.knows(id)) emitLocalFailure(failed);
         return failedAdmission<R>(id, unavailableWhy);
       }
-      return mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
+      return followingIntents.track(op.name, () => mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
         const waiting = !identified || identification.size > 0;
         const identity = waiting ? localAdmissionIdentity(backend, generation) : undefined;
         const submit = (release = () => {}): Promise<Write<R>> => {
@@ -1261,7 +1261,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (ready === true) { storeIdentity = state!.store_id!; identified = true; }
           return ready;
         }, submit, why => emitLocalFailure({ state: "failed", id, why }));
-      });
+      }));
     }),
     write(id) { return unavailable() ? Promise.resolve(undefined) : identification.write(id) ?? lookupWrite(history, queued, id, unavailable, () => acquired); },
     pendingWrites: async () => identification.visible(await localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired, holds), !unavailable()),

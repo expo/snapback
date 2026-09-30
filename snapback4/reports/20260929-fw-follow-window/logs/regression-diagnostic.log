@@ -1,0 +1,32 @@
+wasm undefined undefined follow call
+wasm undefined undefined follow admitted
+wasm undefined undefined follow settled
+wasm undefined undefined follow applied
+wasm undefined undefined follow published
+wasm undefined undefined follow call
+wasm undefined undefined follow admitted
+wasm undefined undefined follow settled
+wasm undefined undefined follow applied
+wasm undefined undefined follow published
+wasm undefined undefined unfollow call
+wasm undefined undefined unfollow admitted
+wasm undefined undefined unfollow settled
+wasm undefined undefined unfollow applied
+wasm undefined undefined unfollow published
+wasm undefined undefined unfollow call
+wasm undefined undefined unfollow admitted
+✖ wasm keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (31609.626772ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31726.380539
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/tools/follow-window.test.mjs:21:3
+✖ wasm keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (31609.626772ms)
+  'test timed out after 30000ms'

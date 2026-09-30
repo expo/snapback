@@ -79124,3 +79124,111 @@ timeout or runtime contract is relaxed. The nominal 60-second suite bar remains
 missed. Report, hashes, remote scripts, clean-install measurements and unedited
 logs: reports/20260929-hv-heavy-acquisition/round4/REPORT.md.
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+### 2026-09-30 — FW round 0: honest own-follow publication on the reader device
+
+Reproduced calibration #26 using LL's two-client measurement harness structure
+and server-commit instrumenter, with Alice's three originals and independent
+repost. Twenty follow/unfollow pairs per wasm/process × idle/contention cell
+produced 313 complete, fresh, unmarked old-feed publications across all 160
+baseline transitions. React rendered “No posts” during follow settlement and
+before copied rows reached Bob. Pending-write state alone missed the interval
+after settlement. Measurements ran September 29 UTC; completion crossed local
+midnight. All samples and every published/rendered answer are retained.
+
+The local SDK now marks affected observations revalidating in the call turn and
+qualifies data answers as incomplete while its own edge call is unsettled or
+the existing outbox has not observed it. Sent is not observed. The transient
+call marker covers admission; durable custody remains in the existing outbox.
+Sync publication wakes qualified reads even for idempotent follow without row
+changes. Refusal restores the actual answer. No contract.ts, Rust wire, storage,
+authorization, horizon, prediction or 50/1,000-event copy policy changed. The new
+helper is 59 lines; local.ts stays at its 1,500-line cap.
+
+All 160 fixed transitions emitted zero misleading publications. The screen
+renders prior answer → “Updating…” → observed page; changed rows can still be
+incomplete briefly. Fixed call-to-complete p50/p95 in milliseconds: wasm idle
+follow 43.70/46.50, unfollow 43.60/47.50; process idle 23.01/24.87, 23.14/27.88;
+wasm contention 44.10/52.20, 41.70/49.90; process contention 39.12/45.04,
+40.12/54.37. Contention pins the harness and three workers to four CPUs. Shared
+host load limits speed inference; no latency improvement is claimed. A trace
+audit found Alice/Bob process events mixed; all four process cells were repeated
+with Bob-only tracing and the same binaries, keeping superseded evidence.
+
+The frozen-clock causal regression covers real wasm/process devices, both
+retention modes, ordinary/zero-wait calls, follow, idempotent follow, unfollow,
+refusal and disjoint reads. All eight cases pass. A detecting run exposed the
+first fix's missing no-op wakeup; the report retains it and all setup/test
+failures. Affected integration 156/156 and whole guide 99/99 pass. Guide feeds
+keeps 401 lines and gives the “Updating…” recipe; LLP 3000.016 records the design.
+
+Ran scripts/test.sh exactly once, exit 1:
+
+    == 1 failure(s) in 1394 s
+       client tests
+
+The only failure was ours: the new query-publication awaits were absent from
+the await-classification record. Classified and regenerated it; the exact
+assertion passes 1/1 afterward. The full run remains recorded red and was not
+rerun. Baseline failures 0; environmental failures 0. Rust 4,354 passes with
+33 declared ignores; clients 5,257 pass / one failure / ten existing skips,
+including all eight final causal cases; fixture wrappers 9/9; serial models
+79/79. No cancellations, reduced counts or relaxed assertions. The inherited
+nominal 60-second suite bar remains exceeded.
+
+Wasm stays 1,978,828 B raw / 593,295 B gzip, 424 B below the unchanged 593,719 B
+ratchet. No budget increase. Report, every-stage p50/p95, source/artifact hashes,
+raw traces, complete failure ledger and harness:
+reports/20260929-fw-follow-window/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+### 2026-09-30 — FW round 1: Following invalidation follows edge custody
+
+Read the FW round 0 prompt/report and both reviews (Astra NOT READY; Grok
+READY WITH CHANGES). Merged origin/main fc8deceab4 first, preserving the other
+lanes and FW. Resolved local.ts/local-query.ts together and regenerated the
+conflicted delivery-await-boundary.json through awaitBoundary(). The merge is
+882d25763b; no push or publication.
+
+Both browser adapters now report committed outbox entries before pending-write
+notification or delivery. Recovered, adopted and restored own edges synchronously
+invalidate only reads of their timeline's Feed/Edges/Work tables. Restoration
+reports durable entries even when a lost save reply leaves no new write to
+commit. Both recovered invalidation and publication qualification require the
+current viewer. Calls retain their existing synchronous marker, and process
+restart uses the same durable publication check. The merge recomputes the new
+existence discriminator when Following becomes incomplete. No Rust engine,
+contract.ts, storage-format, authorization, horizon or 50/1,000-event change.
+
+All 24 causal cases pass, including four independent two-tab Chromium/IndexedDB
+adoption cases across both browser adapters, plus both-device scope, empty-author,
+overlap, offline and viewer tests, process restart and committed-image restore.
+Actual round 0 fails all four adoption controls, both viewer controls and the
+restore control. Broad-gate and stuck-gate mutants each fail both relevant device
+cases. Other newly covered liveness paths already passed round 0; no false
+baseline failure is claimed. An additional recovered-refusal audit passes 1/1
+without another product change. All 66 original report/tool/measurement files
+remain byte-for-byte unchanged, preserving the measured 313-to-0 result and its
+scope. Guide feeds remains 401 lines; LLP 3000.016 records the revised custody
+rule; local.ts remains 1,500 lines.
+
+Affected integration 138/138, whole guide 105/105, await classification 1/1,
+SDK typecheck/build, docs budget and ref-check pass (525 LLPs, 9,970 refs,
+0 errors or unchecked). Ran scripts/test.sh exactly once, exit 0:
+
+    == 0 failure(s) in 1293 s
+
+Full-suite failures: ours 0, baseline 0, environmental 0. Rust 4,362 passes and
+33 declared ignores; clients 5,308 passes and ten existing skips; fixtures 9/9;
+serial models 79/79 including both full 5,000-sequence walks. No cancellations,
+reduced counts or relaxed timeouts. The inherited nominal 60-second suite bar
+remains exceeded. No product source changed after the full run began.
+
+Wasm is 1,978,828 B raw / 593,295 B gzip, 424 B below the unchanged 593,719 B
+ratchet. No budget increase. Report, source/artifact hashes, all failures including
+superseded harness probes, and causal tools:
+reports/20260929-fw-follow-window/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

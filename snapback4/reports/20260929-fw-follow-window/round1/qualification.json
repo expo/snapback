@@ -1,0 +1,55 @@
+{
+  "round0_commit": "a3a0c76744",
+  "merged_main": "fc8deceab4",
+  "merge_commit": "882d25763b4d259a83a82beb99ea7ea884273cb6",
+  "raw_wasm_bytes": 1978828,
+  "gzip_wasm_bytes": 593295,
+  "budget_gzip_bytes": 593719,
+  "sha256": {
+    "snapback4/packages/snapback4/src/local.ts": "a9d1ab8e3d21bff955b0cc1fb61e2bfec53ede2c8a8dc08c8a928a80814d6dd7",
+    "snapback4/packages/snapback4/src/local-query.ts": "365e01ed0965d010c307b3f36a16ff1c3d9fc783de52d32ef2faa83dd5316160",
+    "snapback4/packages/snapback4/src/local-following.ts": "ab205f6f631a4b1b8896e8f985bc5e144501977ddabc59e760f2b2c85df6187e",
+    "snapback4/packages/snapback4/src/local-device.ts": "3a10750f79a21c067d19c5063e31660e4a74b81df082dfa800e143af7ad92ee8",
+    "snapback4/packages/snapback4/src/web.ts": "0fd403b354048452fb3137dfe3902d3ca273ee1831bb65305a3b6877f9e9ee29",
+    "snapback4/packages/snapback4/src/web-worker-device.ts": "8bf625de83817ddafcb4a3d675ad32e62d4d912a744fc38e0a736b1ac5b21539",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "1b38e322fa5bbaf8a2689b160f46f5b69c60a386c1e7361727b2e53144bde197",
+    "snapback4/metrics/wasm-budget.json": "1134dde35461ce939cefec4af6e7ff4bd702698d4ef5025b53f959fcb99b7949",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/README.md": "a746317c95ea7014c12ffaed681e09ac2f750f5cfb05ba794dd8068661f36b30",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/adoption-page.mjs": "b7689e88ef5260c22e738ee886da47e42aa6e90b24eb8d9233beed09598710f9",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs": "4ea6b2638a8f5052030ba520a94dde147628144541e2803392a41fb429df8ada",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs": "704d3629f8df81fbde1394a5b73326aff5d398a4f0b7dc878e8af135c4cb88c3",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs": "c6c4ef0142b8e56cd90176a71ea5b718964a1cd19db969bd19f5c931b58ae7ef",
+    "snapback4/reports/20260929-fw-follow-window/round1/tools/refusal.test.mjs": "d11047372c2c2aaa2944816099e9d39b3f30d561514f71e7046de6a01302397e",
+    "snapback4/reports/20260929-fw-follow-window/round1/logs/test-sh.log.gz": "be8cddb7940ac0674da8601a1b08f661d260f5acb622d3be2a36d518624bc0b1"
+  },
+  "round0_artifacts_verified_unchanged": 66,
+  "validation": {
+    "causal": {
+      "pass": 24,
+      "fail": 0
+    },
+    "refusal_audit": {
+      "pass": 1,
+      "fail": 0
+    },
+    "affected": {
+      "pass": 138,
+      "fail": 0
+    },
+    "guide": {
+      "pass": 105,
+      "fail": 0
+    },
+    "full_suite": {
+      "exit": 0,
+      "summary": "== 0 failure(s) in 1293 s",
+      "rust_pass": 4362,
+      "rust_ignored": 33,
+      "client_pass": 5308,
+      "client_skipped": 10,
+      "serial_models_pass": 79,
+      "fixture_pass": 9,
+      "failures": []
+    }
+  }
+}

@@ -1,0 +1,74 @@
+✖ wasm keep=undefined: own follow/unfollow stay honest across admission, settlement and apply (1701.762659ms)
+✖ wasm keep=false: own follow/unfollow stay honest across admission, settlement and apply (1299.689292ms)
+✖ process keep=undefined: own follow/unfollow stay honest across admission, settlement and apply (1385.19736ms)
+✖ process keep=false: own follow/unfollow stay honest across admission, settlement and apply (1454.588329ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5996.028665
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/tools/follow-window.test.mjs:21:3
+✖ wasm keep=undefined: own follow/unfollow stay honest across admission, settlement and apply (1701.762659ms)
+  AssertionError [ERR_ASSERTION]: follow: queued direct answer is honest
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs:50:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/tools/follow-window.test.mjs:21:3
+✖ wasm keep=false: own follow/unfollow stay honest across admission, settlement and apply (1299.689292ms)
+  AssertionError [ERR_ASSERTION]: follow: queued direct answer is honest
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs:50:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/tools/follow-window.test.mjs:21:3
+✖ process keep=undefined: own follow/unfollow stay honest across admission, settlement and apply (1385.19736ms)
+  AssertionError [ERR_ASSERTION]: follow: queued direct answer is honest
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs:50:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/tools/follow-window.test.mjs:21:3
+✖ process keep=false: own follow/unfollow stay honest across admission, settlement and apply (1454.588329ms)
+  AssertionError [ERR_ASSERTION]: follow: queued direct answer is honest
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs:50:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

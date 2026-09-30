@@ -163,6 +163,10 @@
     "count": 3,
     "sha256": "20bfb19c94cb1c29e283b0842c02267ba266c62b285449d61dfd5630da4d0f52"
   },
+  "local-following.ts": {
+    "count": 1,
+    "sha256": "c8a795b4cf3c5f622500bca28e008a254ab73ac03b924d8a0fbd3fd40a261946"
+  },
   "local-native.ts": {
     "count": 5,
     "sha256": "d3a4d7a52d5e1659b18148b60132ab3cad4234b68e9f748b78719f8299214815"
@@ -172,8 +176,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-query.ts": {
-    "count": 31,
-    "sha256": "f13deb020218ba5a10a92ff77597479a55ebe021ae884c56d83f9b8fcea6bf79"
+    "count": 32,
+    "sha256": "6c980b8ab21b622c54acf5a4dd109527042100db08037eb2c796a9e9c31116fd"
   },
   "local-read-deadlines.ts": {
     "count": 0,

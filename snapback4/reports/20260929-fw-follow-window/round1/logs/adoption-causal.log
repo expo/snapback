@@ -1,0 +1,54 @@
+open false
+opened
+open false
+opened
+follow offline
+follow close donor
+follow adopted
+✖ Chromium worker=false: mounted Following tracks adopted follow and unfollow custody (7269.928502ms)
+open true
+opened
+open true
+opened
+follow offline
+follow close donor
+follow adopted
+✖ Chromium worker=true: mounted Following tracks adopted follow and unfollow custody (7657.12022ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15344.442661
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:37
+✖ Chromium worker=false: mounted Following tracks adopted follow and unfollow custody (7269.928502ms)
+  AssertionError [ERR_ASSERTION]: follow: {"data":[],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"absent","since":1790729888066}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:51:81)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:11:37
+✖ Chromium worker=true: mounted Following tracks adopted follow and unfollow custody (7657.12022ms)
+  AssertionError [ERR_ASSERTION]: follow: {"data":[],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"absent","since":1790729895252}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:51:81)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

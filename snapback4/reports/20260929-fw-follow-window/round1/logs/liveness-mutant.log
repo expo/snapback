@@ -1,0 +1,26 @@
+✖ wasm: an empty author's follow ends complete, fresh and empty (17598.576347ms)
+✖ process: an empty author's follow ends complete, fresh and empty (15269.922223ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33043.787809
+
+✖ failing tests:
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:32:3
+✖ wasm: an empty author's follow ends complete, fresh and empty (17598.576347ms)
+  Error: causal probe exceeded its deadlock guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs:68:78)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:32:3
+✖ process: an empty author's follow ends complete, fresh and empty (15269.922223ms)
+  Error: causal probe exceeded its deadlock guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-fw/snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs:68:78)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

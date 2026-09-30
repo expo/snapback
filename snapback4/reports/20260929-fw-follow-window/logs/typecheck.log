@@ -1,0 +1,4 @@
+$ tsc -p tsconfig.json --noEmit
+src/local.ts(194,55): error TS2322: Type 'BackendJson | null' is not assignable to type 'BackendJson | undefined'.
+  Type 'null' is not assignable to type 'BackendJson | undefined'.
+src/local.ts(887,120): error TS7006: Parameter 'tables' implicitly has an 'any' type.

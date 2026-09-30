@@ -1,0 +1,21 @@
+✔ Chromium worker=false: mounted Following tracks adopted follow and unfollow custody (13132.866631ms)
+✔ Chromium worker=true: mounted Following tracks adopted follow and unfollow custody (14099.320931ms)
+✔ wasm: post, like and remove do not gate mounted Following (723.790667ms)
+✔ wasm: an empty author's follow ends complete, fresh and empty (141.1217ms)
+✔ wasm: overlapping follow then unfollow before apply ends empty (1248.617459ms)
+✔ wasm: an offline follow survives reconnect and publishes Alice (143.350081ms)
+✔ wasm: sign-out store reuse does not gate another viewer (1139.910467ms)
+✔ process: post, like and remove do not gate mounted Following (1437.814583ms)
+✔ process: an empty author's follow ends complete, fresh and empty (369.019808ms)
+✔ process: overlapping follow then unfollow before apply ends empty (1397.263438ms)
+✔ process: an offline follow survives reconnect and publishes Alice (1274.481118ms)
+✔ process: sign-out store reuse does not gate another viewer (2290.169938ms)
+✔ process: a queued follow survives closing and restarting the device process (1414.833906ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27636.95836
