@@ -33,6 +33,7 @@ export function duringRead<T>(work: Promise<T>, signal?: AbortSignal): Promise<T
 export type ReadWorkState = "queued" | "in-flight" | "idle";
 export class ReadWork<W> {
   private readonly pending = new Map<W, (signal: AbortSignal) => Promise<void>>();
+  private readonly priority = new Map<W, (signal: AbortSignal) => Promise<void>>();
   private readonly urgent = new Set<W>();
   private readonly active = new Map<W, AbortController>();
   private readonly delayed = new Map<W, ReturnType<typeof setTimeout>>();
@@ -44,12 +45,14 @@ export class ReadWork<W> {
     private readonly changed: (watch: W, state: ReadWorkState) => void = () => {}) {}
   schedule(watch: W, run: (signal: AbortSignal) => Promise<void>): void {
     this.stopDelay(watch);
-    this.pending.set(watch, run);
+    (this.urgent.has(watch) ? this.priority : this.pending).set(watch, run);
     if (!this.active.has(watch)) this.changed(watch, "queued");
     this.arm();
   }
   prioritize(watch: W): void {
-    if (this.pending.has(watch) || this.active.has(watch) || this.delayed.has(watch)) this.urgent.add(watch);
+    if (this.pending.has(watch) || this.priority.has(watch) || this.active.has(watch) || this.delayed.has(watch)) this.urgent.add(watch);
+    const run = this.pending.get(watch);
+    if (run) { this.pending.delete(watch); this.priority.set(watch, run); }
   }
   retry(watch: W, delay: number, run: (signal: AbortSignal) => Promise<void>): void {
     this.stopDelay(watch);
@@ -65,33 +68,37 @@ export class ReadWork<W> {
     clearTimeout(timer); this.delayed.delete(watch); return true;
   }
   cancel(watch: W): boolean {
-    const delayed = this.stopDelay(watch), pending = this.pending.delete(watch), active = this.active.get(watch);
+    const delayed = this.stopDelay(watch), pending = this.pending.delete(watch), priority = this.priority.delete(watch), active = this.active.get(watch);
     this.urgent.delete(watch);
     active?.abort();
-    if (!active && (delayed || pending)) this.changed(watch, "idle");
-    return delayed || pending || !!active;
+    if (!active && (delayed || pending || priority)) this.changed(watch, "idle");
+    return delayed || pending || priority || !!active;
   }
   clear(): void {
     for (const watch of this.delayed.keys()) this.stopDelay(watch);
     for (const watch of this.pending.keys()) if (!this.active.has(watch)) this.changed(watch, "idle");
-    this.pending.clear(); this.urgent.clear(); this.urgentStarts = 0;
+    for (const watch of this.priority.keys()) if (!this.active.has(watch)) this.changed(watch, "idle");
+    this.pending.clear(); this.priority.clear(); this.urgent.clear(); this.urgentStarts = 0;
     for (const attempt of this.active.values()) attempt.abort();
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
   }
-  state(watch: W): ReadWorkState { return this.active.has(watch) ? "in-flight" : this.pending.has(watch) || this.delayed.has(watch) ? "queued" : "idle"; }
+  state(watch: W): ReadWorkState { return this.active.has(watch) ? "in-flight" : this.pending.has(watch) || this.priority.has(watch) || this.delayed.has(watch) ? "queued" : "idle"; }
+  private first(queue: Map<W, unknown>): W | undefined {
+    // Only active owners (at most eight) can precede the first runnable entry.
+    for (const watch of queue.keys()) if (!this.active.has(watch)) return watch;
+  }
   // @ref LLP 3000.023#10 — at most eight urgent starts overtake waiting FIFO work.
   private *candidates(): Generator<W> {
     while (true) {
-      const ordinary = [...this.pending.keys()].find(watch => !this.urgent.has(watch) && !this.active.has(watch));
-      const urgent = [...this.urgent].find(watch => this.pending.has(watch) && !this.active.has(watch));
+      const ordinary = this.first(this.pending), urgent = this.first(this.priority);
       const watch = urgent !== undefined && (ordinary === undefined || this.urgentStarts < 8) ? urgent : ordinary;
       if (watch === undefined) return;
       yield watch;
     }
   }
   private arm(): void {
-    if (this.queued || !this.pending.size || this.active.size >= 8) return;
+    if (this.queued || (!this.pending.size && !this.priority.size) || this.active.size >= 8) return;
     if (this.timer === undefined) this.timer = this.later(() => {
       this.timer = undefined; this.starts = 0; this.arm();
     });
@@ -100,12 +107,12 @@ export class ReadWork<W> {
     queueMicrotask(() => {
       this.queued = false;
       for (const watch of this.candidates()) {
-        const run = this.pending.get(watch);
+        const run = this.priority.get(watch) ?? this.pending.get(watch);
         if (!run) continue;
         if (this.starts === 8 || this.active.size === 8) break;
         if (this.active.has(watch)) continue;
         this.urgentStarts = this.urgent.has(watch) ? Math.min(8, this.urgentStarts + 1) : 0;
-        this.pending.delete(watch); this.urgent.delete(watch);
+        this.pending.delete(watch); this.priority.delete(watch); this.urgent.delete(watch);
         const attempt = new AbortController();
         this.active.set(watch, attempt); this.starts++;
         this.changed(watch, "in-flight");
@@ -114,8 +121,8 @@ export class ReadWork<W> {
           clearTimeout(deadline);
           if (this.active.get(watch) !== attempt) return;
           this.active.delete(watch);
-          if (!this.pending.has(watch) && !this.delayed.has(watch)) this.urgent.delete(watch);
-          this.changed(watch, this.pending.has(watch) ? "queued" : "idle"); this.arm();
+          if (!this.pending.has(watch) && !this.priority.has(watch) && !this.delayed.has(watch)) this.urgent.delete(watch);
+          this.changed(watch, this.pending.has(watch) || this.priority.has(watch) ? "queued" : "idle"); this.arm();
         };
         attempt.signal.addEventListener("abort", release, { once: true });
         void Promise.resolve().then(() => { checkRead(attempt.signal); return run(attempt.signal); })

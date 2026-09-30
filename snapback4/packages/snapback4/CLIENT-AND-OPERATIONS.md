@@ -1348,6 +1348,14 @@ change notification, commit, publication, scope loss, refusal or reset discards
 its saved answer before reuse, even for unrelated evidence. Getters never park
 detached owners. Resubscription checks the device watermark and evaluates before
 returning data; without later evidence it rearms the original row deadlines.
+Only notifications intersecting the query's tables hold that reevaluation for
+sync; unknown dependencies stay conservative. The metadata wait cancels with
+the observation or its 30-second attempt lifetime. Notifications also invalidate
+intersecting remembered answers with no live owner, including online-only data
+that produces an empty sync footprint. Older in-flight replies, copied recovery
+candidates and pending facade approvals cannot republish them. Completed memory
+for unrelated tables remains available; credential rotation and terminal refusals
+retire all remembered answers.
 Lingering handles remain live and keep precise audience matching. Observed server expiry also
 fences remembered answers, so clock rollback cannot recover the expired body,
 while preserving newer answers whose server deadlines have not arrived.

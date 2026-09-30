@@ -1,0 +1,205 @@
+✖ wasm: no-owner revocation must retire remembered content (1915.590939ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"3e8e56dbc0fda89c2aad9326070e1966"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"3e8e56dbc0fda89c2aad9326070e1966","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"remembered":{"read":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"scopes":{},"at":1790792451928,"nextExpiry":null,"tables":{}},"rememberedTables":["profiles"],"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790792451928,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790792451928}}
+✖ process: no-owner revocation must retire remembered content (1546.686372ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"daad3104d268c69b8184673d75d99094"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"daad3104d268c69b8184673d75d99094","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"remembered":{"read":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"scopes":{},"at":1790792453477,"nextExpiry":null,"tables":{}},"rememberedTables":["profiles"],"after":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790792453477,"revalidating":true},"direct":{"data":{"present":true,"secret":{"id":"bob","name":"Bob"}},"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790792453477}}
+✖ wasm: notification fences an unremembered in-flight direct answer (178.886542ms)
+✖ process: notification fences an unremembered in-flight direct answer (208.081721ms)
+✖ wasm: resumed handle inherits unrelated notification (5528.979672ms)
+✔ wasm: resumed handle inherits intersecting notification (1451.616217ms)
+✖ process: resumed handle inherits unrelated notification (5326.995513ms)
+✔ process: resumed handle inherits intersecting notification (1478.903677ms)
+✖ queue selection scales linearly, priority=false (46.229451ms)
+ℹ {"n":1000,"inspections":562500,"ms":44.67190699999999}
+✖ queue selection scales linearly, priority=true (58.767032ms)
+ℹ {"n":1000,"inspections":1125000,"ms":58.524979}
+✖ wasm: cancelled resumed watermark releases running (6507.655599ms)
+✖ wasm: expired resumed watermark releases running (6054.24348ms)
+✖ process: cancelled resumed watermark releases running (6092.141544ms)
+✖ process: expired resumed watermark releases running (6081.433096ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 2
+ℹ fail 12
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24871.148083
+
+✖ failing tests:
+
+test at packages/snapback4/test/subscription-pressure-memory.test.mjs:7:39
+✖ wasm: no-owner revocation must retire remembered content (1915.590939ms)
+  AssertionError [ERR_ASSERTION]: observed revoked profile must not return from memory after its notification
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-memory.test.mjs:36:8)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-memory.test.mjs:7:39
+✖ process: no-owner revocation must retire remembered content (1546.686372ms)
+  AssertionError [ERR_ASSERTION]: observed revoked profile must not return from memory after its notification
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-memory.test.mjs:36:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-memory.test.mjs:45:38
+✖ wasm: notification fences an unremembered in-flight direct answer (178.886542ms)
+  AssertionError [ERR_ASSERTION]: a notification retires even a first reply with no memory/owner
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-memory.test.mjs:64:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-memory.test.mjs:45:38
+✖ process: notification fences an unremembered in-flight direct answer (208.081721ms)
+  AssertionError [ERR_ASSERTION]: a notification retires even a first reply with no memory/owner
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-memory.test.mjs:64:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Bob',
+    expected: 'Bob',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-notified-tables.test.mjs:7:75
+✖ wasm: resumed handle inherits unrelated notification (5528.979672ms)
+  AssertionError [ERR_ASSERTION]: timed out: unrelated notification permits local reevaluation before sync
+      at until (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-notified-tables.test.mjs:25:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-notified-tables.test.mjs:7:75
+✖ process: resumed handle inherits unrelated notification (5326.995513ms)
+  AssertionError [ERR_ASSERTION]: timed out: unrelated notification permits local reevaluation before sync
+      at until (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-notified-tables.test.mjs:25:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-scaling.test.mjs:7:36
+✖ queue selection scales linearly, priority=false (46.229451ms)
+  AssertionError [ERR_ASSERTION]: 562500 key visits for 1000 jobs
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-scaling.test.mjs:22:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-scaling.test.mjs:7:36
+✖ queue selection scales linearly, priority=true (58.767032ms)
+  AssertionError [ERR_ASSERTION]: 1125000 key visits for 1000 jobs
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-scaling.test.mjs:22:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-watermark.test.mjs:7:72
+✖ wasm: cancelled resumed watermark releases running (6507.655599ms)
+  AssertionError [ERR_ASSERTION]: timed out: replacement attempt after cancelled/expired metadata response
+      at until (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-watermark.test.mjs:30:1)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-watermark.test.mjs:7:72
+✖ wasm: expired resumed watermark releases running (6054.24348ms)
+  AssertionError [ERR_ASSERTION]: timed out: replacement attempt after cancelled/expired metadata response
+      at until (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-watermark.test.mjs:30:1)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-watermark.test.mjs:7:72
+✖ process: cancelled resumed watermark releases running (6092.141544ms)
+  AssertionError [ERR_ASSERTION]: timed out: replacement attempt after cancelled/expired metadata response
+      at until (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-watermark.test.mjs:30:1)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-watermark.test.mjs:7:72
+✖ process: expired resumed watermark releases running (6081.433096ms)
+  AssertionError [ERR_ASSERTION]: timed out: replacement attempt after cancelled/expired metadata response
+      at until (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-watermark.test.mjs:30:1)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

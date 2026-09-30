@@ -425,7 +425,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
-      answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
+      answers.serverAnswers.clear(); answers.revision++; answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
     });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -546,7 +546,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     await refusedSession(denied, revision);
     if (!denied.retryable && partitionDenied?.code !== "E_STORE_RESTORE") {
       if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
-      answers.evidence(); partitionDenied = denied;
+      answers.refuse(watches.values(), denied); partitionDenied = denied;
       if (denied.code === "E_STORE_RESTORE") pending.notify();
       for (const watch of watches.values()) void scheduleRead(watch);
     }
@@ -816,7 +816,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
-      answers.evidence();
+      answers.notified(json.tables, json.seq);
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
@@ -981,8 +981,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion, startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
-      if (watch.detachedEpoch !== undefined && watch.changeCut !== undefined) {
-        const before = incarnation, state = await captureStore();
+      if (watch.detachedEpoch !== undefined) {
+        const before = incarnation, state = await duringRead(captureStore(), signal);
         if (before !== incarnation) { watch.dirty = true; return; }
         checkRead(signal); if (state) { answers.reconcile(watch, state.watermark); delete watch.detachedEpoch; }
       }
@@ -1198,7 +1198,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
-          if (watch.detachedEpoch !== undefined) watch.changeCut = Math.max(watch.changeCut ?? 0, seq); void scheduleRead(watch); },
+          answers.resume(watch); void scheduleRead(watch); },
         watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
         (watch, detached) => answers.restore(watch, detached, unavailable() ?? changesStopped ?? partitionDenied));
     },

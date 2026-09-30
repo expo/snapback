@@ -79814,3 +79814,51 @@ artifact hashes and compressed traces:
 reports/20260930-pr-subscription-pressure/round3/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — PR round 4: saved memory follows owner-independent evidence
+
+Merged origin/main `6e03a7e7c9` first in `8d4d1c6caf`, keeping both sides.
+Accepted notifications now clear intersecting remembered answers without a live
+owner, including online-only data followed by empty sync. The existing authority
+revision fences first replies, copied recovery candidates and facade approvals.
+Credential rotation and terminal partition refusal retire memory too. The saved
+answer audit covers every evidence channel; no recovery cache or ordering domain
+was added. Detached handles keep round 3's conservative epoch rule, but inherit
+only intersecting unpublished table cuts from one map cleared at publication or
+reset. Resumed metadata uses duringRead for close and 30-second cancellation.
+
+Two FIFO pending maps eliminate per-selection backlog copies while preserving
+eight starts/eight active and eight-start bounded overtaking. Twenty regressions
+fail on round 3 and pass here. Final focused checks: 41 passed; delivery/new-check
+run: 340 passed; real 30-second expiry: both devices pass. Broad affected run was
+779/780: one old private-queue assertion was ours, corrected without changing its
+withdrawal/capacity expectations; the corrected 17-test run passes. Whole guide:
+106 passed. LLP 3000.023 §10 and the client reference record the rules; local.ts
+remains 1,500 lines. The failure ledger preserves our initial test syntax error,
+measurement-instrument OOM and incompatible internal-method control selection.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 1244 s`**, exit 0.
+Rust 4,368 pass/33 existing ignores; client pool 5,440 pass/ten existing skips;
+fixture wrappers nine pass; full-count serial models 79 pass. Full-run failures:
+ours zero, baseline zero, environmental zero. Production source stayed fixed.
+Two test edits completed while Rust ran, before the client pool; all final 1,664
+input hashes match. No second full run or unchanged-test-tree claim from launch.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Normal Chromium/real-device convergence yields 42 unique messages per history,
+zero gaps, peak 116 queued/eight active; forced withdrawals are in flight only.
+LL's 640 actions have zero timeouts: maximum flow p95 wasm 95.269/107.138 ms and
+process 71.543/172.251 ms at zero/three workers. Higher historical wasm samples
+remain reported with shared-host limitations. Queue-only 10,000-job medians fall
+from 140.613 to 25.082 ms ordinary and 462.708 to 26.253 ms priority. Deterministic
+key visits scale from 1,124 at 1,000 to 11,249 at 10,000. Wasm remains
+1,983,105 raw / 595,440 gzip bytes, exactly the unchanged cap. Report, complete
+failure ledger, audit, boundaries, hashes and traces:
+reports/20260930-pr-subscription-pressure/round4/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+Final reference audit: a wrong-working-directory invocation found zero LLPs and
+reported 1,302 errors (ours, retained in the failure ledger). Re-running from the
+repository root passes: 525 LLP docs / 10,015 refs, zero errors and unchecked refs.

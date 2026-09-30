@@ -33,7 +33,7 @@ test('online authorized sibling re-read jumps ordinary queued work after evidenc
  for(let i=0;i<40;i++)work.schedule(Object.assign(new ReadObservation(),{op:q('ordinary'),subscribers:new Set()}),()=>slots[1].promise);
  const removal=await f.post('/m/remove',{id:'remove',args:{}});
  feed.resolve({seq:removal.seq,tables:['messages','members']});
- await until(()=>work.pending.has(owner));
+ await until(()=>work.state(owner)==='queued');
  const events=[];watch.subscribe(()=>events.push(watch.getSnapshot()));
  armed=true;slots[0].resolve();
  await until(()=>starts.length>0);

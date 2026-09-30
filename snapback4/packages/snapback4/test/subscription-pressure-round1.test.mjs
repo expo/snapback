@@ -191,9 +191,9 @@ test('online scope-ambiguous change evidence expires while waiting for capacity'
   for(let i=0;i<8;i++)work.schedule(Object.assign(new ReadObservation(),{op:q('held'),subscribers:new Set()}),()=>slots.promise);
   await until(()=>work.active.size===8);
   await f.post('/m/remove',{id:'online-removal',args:{}}); feed.resolve();
-  await until(()=>work.pending.has(owner));
+  await until(()=>work.state(owner)==='queued');
   await until(()=>history.getSnapshot().loading===true);
-  assert.ok(events.some(r=>'loading' in r)); assert.equal(work.active.size,8); assert.ok(work.pending.has(owner));
+  assert.ok(events.some(r=>'loading' in r)); assert.equal(work.active.size,8); assert.equal(work.state(owner),'queued');
 });
 
 test('online viewer replacement is inspected as viewer, not schema reset',async t=>{

@@ -193,6 +193,21 @@ export class LocalReads {
   predictions: readonly string[] | null = null;
   admissions = 0;
   private scopeCuts: ScopeLoss[] = [];
+  private readonly notifiedCuts = new Map<string | undefined, number>();
+  /** Notifications invalidate memory even when its last observation is closed.
+   * The existing revision fences every older evaluation, including unseen keys. */
+  notified(tables: readonly string[] | undefined, cut: number): void {
+    if (tables === undefined || tables.length) this.revision++;
+    this.evidence();
+    this.serverAnswers.clear(tables);
+    for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));
+  }
+  resume(watch: LocalWatch): void {
+    if (watch.detachedEpoch === undefined) return;
+    for (const [table, cut] of this.notifiedCuts) if (table === undefined || !watch.tables.size || watch.tables.has(table)) {
+      watch.changeCut = Math.max(watch.changeCut ?? 0, cut);
+    }
+  }
   // @ref LLP 3000.031#1.1 — one-shot and observed reads share the admission fence.
   admitting(watches: () => Iterable<LocalWatch>): () => void {
     const notify = () => { for (const watch of watches()) if (watch.updateExistence()) notifyLocalWatch(watch); };
@@ -245,6 +260,7 @@ export class LocalReads {
   // qualifies; a composed answer may still contain pre-change local rows.
   applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
     this.evidence();
+    for (const [table, cut] of this.notifiedCuts) if (cut <= watermark) this.notifiedCuts.delete(table);
     this.scopeCuts = this.scopeCuts.filter(loss => loss.watermark > watermark);
     return [...watches].filter(watch => this.reconcile(watch, watermark));
   }
@@ -342,7 +358,7 @@ export class LocalReads {
 
   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset"): void {
     this.revision++; this.evidence();
-    if (reset) this.scopeCuts = [];
+    if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {

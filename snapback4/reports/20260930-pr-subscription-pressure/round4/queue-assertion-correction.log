@@ -1,0 +1,25 @@
+✔ online authorized sibling re-read jumps ordinary queued work after evidence (210.401199ms)
+✔ evidence priority survives an active attempt retiring into the queue (20.475696ms)
+✔ unused inspection records no timings and allocates no withdrawal callbacks (34.547304ms)
+✔ compound scope matching skips disjoint groups and watches with no tables (1.584534ms)
+✔ a pending group removal fences an initial observation until actual publication (0.183865ms)
+✔ wasm: published removal only withdraws its room and resumes (582.750211ms)
+✔ wasm: staged removal only withdraws its room and resumes (419.524352ms)
+✔ wasm: offline removal only withdraws its room and resumes (290.09989ms)
+✔ wasm: offline-before removal only withdraws its room and resumes (307.020388ms)
+✔ process: published removal only withdraws its room and resumes (249.941606ms)
+✔ process: staged removal only withdraws its room and resumes (448.830171ms)
+✔ process: offline removal only withdraws its room and resumes (321.963342ms)
+✔ process: offline-before removal only withdraws its room and resumes (318.609907ms)
+✔ wasm: terminal change-feed refusal bypasses eight occupied slots (157.44095ms)
+✔ process: terminal change-feed refusal bypasses eight occupied slots (188.920547ms)
+✔ online scope-ambiguous change evidence expires while waiting for capacity (1168.66693ms)
+✔ online viewer replacement is inspected as viewer, not schema reset (57.467074ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4701.999367
