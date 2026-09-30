@@ -1,0 +1,4 @@
+
+thread 'main' (3557054) panicked at crates/snapback4-device/examples/na_replay.rs:8:81:
+called `Result::unwrap()` on an `Err` value: Error("missing field `generation`", line: 1, column: 407080)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

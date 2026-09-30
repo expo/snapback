@@ -68,6 +68,16 @@ fn rebuild(tx: &Connection, temporary: bool) -> Result<(), RuntimeError> {
         }
         if count < 512 { break; }
     }
+    create_triggers(tx, temporary)?;
+    if temporary {
+        let version: i64 = tx.query_row("PRAGMA main.data_version", [], |r| r.get(0))?;
+        tx.execute_batch(&format!("PRAGMA temp.user_version = {version}"))?;
+    }
+    Ok(())
+}
+
+fn create_triggers(tx: &Connection, temporary: bool) -> Result<(), RuntimeError> {
+    let storage = if temporary { "TEMP " } else { "" };
     tx.execute_batch(&format!("CREATE {storage}TRIGGER _device_residency_insert AFTER INSERT ON main.r BEGIN
         INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
         ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
@@ -80,10 +90,30 @@ fn rebuild(tx: &Connection, temporary: bool) -> Result<(), RuntimeError> {
         INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
         ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
       END;"))?;
-    if temporary {
-        let version: i64 = tx.query_row("PRAGMA main.data_version", [], |r| r.get(0))?;
-        tx.execute_batch(&format!("PRAGMA temp.user_version = {version}"))?;
-    }
+    Ok(())
+}
+
+// @ref LLP 3000.007#20.4 — whole-partition replacement computes counters once in the same atomic publication.
+pub(crate) fn replace_in(conn: &Connection, load: impl FnOnce() -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+    assert!(!conn.is_autocommit(), "replacement counters belong to the row transaction");
+    let temporary: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM temp.sqlite_master WHERE name = '_device_residency' AND type = 'table')", [], |r| r.get(0))?;
+    let namespace = if temporary { "temp" } else { "main" };
+    conn.execute_batch(&format!("DROP TRIGGER {namespace}._device_residency_insert;
+        DROP TRIGGER {namespace}._device_residency_delete;
+        DROP TRIGGER {namespace}._device_residency_update;"))?;
+    let result = load().and_then(|()| {
+        // Keep zero entries for formerly occupied tables, like the triggers.
+        // The r primary key groups this scan; only one aggregate per table is
+        // retained, and row bodies are never copied into Rust for bookkeeping.
+        conn.execute_batch(&format!("UPDATE {namespace}._device_residency SET rows = 0, bytes = 0;
+            INSERT INTO {namespace}._device_residency(t, rows, bytes)
+            SELECT t, count(*), sum(length(CAST(data AS BLOB))) FROM main.r GROUP BY t
+            ON CONFLICT(t) DO UPDATE SET rows = excluded.rows, bytes = excluded.bytes;"))?;
+        Ok(())
+    });
+    let restore = create_triggers(conn, temporary);
+    result?;
+    restore?;
     Ok(())
 }
 

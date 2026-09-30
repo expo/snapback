@@ -70,7 +70,7 @@ impl DeviceTx for Tx<'_> {
         Tx::rollback_to(self, name)
     }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
-        Ok(self.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?)
+        Ok(self.conn().prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
     fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
         Tx::set_meta(self, key, value)
@@ -93,6 +93,29 @@ impl DeviceTx for Tx<'_> {
             self.conn().execute_batch("DELETE FROM _cap_counts;")?;
         }
         Ok(())
+    }
+    // @ref LLP 3000.007#20.4 — sort native replacement indexes before coverage and prediction publication; keep FULL durability.
+    fn replace_rows(&self, load: impl FnOnce() -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+        crate::sqlite_residency::replace_in(self.conn(), || {
+            self.clear_rows()?;
+            // Append to a disk-backed SQLite temp heap instead of doing random
+            // B-tree inserts across every index with a bounded page cache. The
+            // SQLite sorter spills to temporary files; Rust retains no key batch.
+            self.conn().execute_batch("CREATE TEMP TABLE _device_index_load (ti INTEGER NOT NULL, k BLOB NOT NULL, id TEXT NOT NULL);")?;
+            let result = load().and_then(|()| {
+                self.conn().execute_batch("INSERT INTO main.i(ti, k, id) SELECT ti, k, id FROM temp._device_index_load ORDER BY ti, k;")?;
+                Ok(())
+            });
+            // Leave no connection-local table after either outcome. Any failure
+            // still propagates to the enclosing transaction's ordinary rollback.
+            let cleanup = self.conn().execute_batch("DROP TABLE temp._device_index_load;");
+            result?;
+            cleanup?;
+            Ok(())
+        })
+    }
+    fn put_staged(&self, _key: &str, name: &str, table: &snapback4_core::schema::Table, row: &snapback4_core::value::Value) -> Result<u64, RuntimeError> {
+        self.put_loading_indexes(name, table, row)
     }
     fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> {
         self.conn().execute("INSERT INTO _device_outbox(seq, id, entry) VALUES (?1, ?2, ?3)", params![stored_seq(seq)?, id, entry])?;
@@ -130,7 +153,7 @@ impl DeviceTx for Tx<'_> {
         Ok(())
     }
     fn staged_put(&self, key: &str, table: &str, image: &str) -> Result<(), RuntimeError> {
-        self.conn().execute("INSERT INTO _device_snapshot(k, t, data) VALUES (?1, ?2, ?3) ON CONFLICT(k) DO UPDATE SET data = excluded.data, t = excluded.t", params![key, table, image])?;
+        self.conn().prepare_cached("INSERT INTO _device_snapshot(k, t, data) VALUES (?1, ?2, ?3) ON CONFLICT(k) DO UPDATE SET data = excluded.data, t = excluded.t")?.execute(params![key, table, image])?;
         Ok(())
     }
     fn staged_delete(&self, key: &str) -> Result<(), RuntimeError> {
@@ -138,7 +161,7 @@ impl DeviceTx for Tx<'_> {
         Ok(())
     }
     fn staged_after(&self, after: &str, limit: usize) -> Result<Vec<(String, String, String)>, RuntimeError> {
-        Ok(self.conn().prepare("SELECT k, t, data FROM _device_snapshot WHERE k > ?1 ORDER BY k LIMIT ?2")?.query_map(params![after, limit as i64], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?)
+        Ok(self.conn().prepare_cached("SELECT k, t, data FROM _device_snapshot WHERE k > ?1 ORDER BY k LIMIT ?2")?.query_map(params![after, limit as i64], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?)
     }
     fn staged_table_after(&self, table: &str, after: &str, limit: usize) -> Result<Vec<(String, String)>, RuntimeError> {
         Ok(self.conn().prepare("SELECT k, data FROM _device_snapshot WHERE t = ?1 AND k > ?2 ORDER BY k LIMIT ?3")?.query_map(params![table, after, limit as i64], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?)

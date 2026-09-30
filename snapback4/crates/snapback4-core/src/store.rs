@@ -530,6 +530,17 @@ impl<'a> Tx<'a> {
     /// that touches only the index entries whose keys changed (a `words`
     /// index has one per token). Returns the number of entries written.
     pub fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        self.put_indexed(table_name, table, row, old, "INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")
+    }
+
+    /// A replacement loader has already cleared the rows and created its
+    /// temporary index heap. It must install those indexes before any read.
+    // @ref LLP 3000.007#20.4 — native replacement sorts complete indexes inside the publication transaction.
+    pub fn put_loading_indexes(&self, table_name: &str, table: &Table, row: &Value) -> Result<u64, RuntimeError> {
+        self.put_indexed(table_name, table, row, None, "INSERT INTO temp._device_index_load(ti, k, id) VALUES (?1, ?2, ?3)")
+    }
+
+    fn put_indexed(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>, insert_index: &str) -> Result<u64, RuntimeError> {
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
@@ -537,6 +548,7 @@ impl<'a> Tx<'a> {
         let data = canonical_json(row);
         let sql = if old.is_some() { "UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2" } else { "INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)" };
         self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
+        let mut insert = self.tx.prepare_cached(insert_index)?;
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {
             if before == after { continue; }
@@ -546,7 +558,7 @@ impl<'a> Tx<'a> {
                 entries += 1;
             }
             for key in after.iter().filter(|key| !before.contains(key)) {
-                self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
+                insert.execute(params![ti, key, id])?;
                 entries += 1;
             }
         }

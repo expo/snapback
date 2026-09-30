@@ -1,0 +1,12 @@
+{
+  "database": "/home/ccheever/sb4-intent/lane-na/target/na-capture-before/direct-final-ffi.sqlite",
+  "rows": 105034,
+  "indexEntries": 1874664,
+  "page_count": 91189,
+  "page_size": 4096,
+  "journal_mode": "wal",
+  "synchronous": 2,
+  "cache_size": -2000,
+  "temp_store": 0,
+  "note": "Pragmas are from a read-only inspection connection; code and tests bind the product connection policy."
+}

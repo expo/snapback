@@ -79374,3 +79374,52 @@ ratchet. No budget increase. Receipts, all failures, logs, source/artifact hashe
 and reproduction: reports/20260930-bn-envelope-proof/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — NA round 0: sorted native acquisition
+
+Lane `sb4-intent/na-native-acquisition`, based on BN's `ea4ec7b99f`.
+Instrumented BN's heavy account through the process device and direct core.
+Baseline apply spends 33.369 s maintaining 1,874,664 index entries; only
+0.242 s of the complete direct replay is fsync. The final empty page publishes
+the partition, so framing and coverage recomputation are not the dominant cost.
+
+Native replacement now appends validated index keys to a SQLite temporary heap
+and installs them in key order inside the existing publication transaction.
+Staging/metadata statements are cached, each row holds one index-insert statement,
+and residency counters are recomputed once before restoring their triggers.
+WAL/FULL, bounded page caches, complete indexes, coverage, acquired publication,
+continuation fencing and prediction semantics remain intact. No protocol,
+web implementation, durable format, horizon or budget changed. LLP 3000.007
+§20.4 records the design. Sorting increases temporary sequential I/O.
+
+On eb1000, three fresh stores per account and condition: heavy acquisition
+median **42.352 → 12.895 s** unconfined and **54.542 → 14.654 s** on ten CPUs
+with eight burners. Small/100-membership median **1.306 → 1.056 s** and
+**1.508 → 1.042 s**. All 24 runs retain identical coverage/table counts and
+bytes through offline reopen, then reconnect with zero row/scope events.
+The heavy account retains 1,000 memberships / 105,034 rows, now 373.5 MB of
+SQLite pages. These are warm-cache process-device measurements, not phone
+measurements. The **10 s target and 5 s stretch remain unmet**. Final direct
+C ABI apply is 8.968 s including JSON decoding, with the baseline coverage digest.
+The bounds guide records the medians within its original 427-line length.
+
+The new crash model passes 48 seeded real process kills across SQLite and a
+memory host's atomic filesystem-save model, for initial and refresh acquisition;
+it checks no early acquired, old/new row and coverage digests, owner restart,
+and another reopen. The memory host is not a browser or power-loss experiment.
+The bulk regression checks exact physical indexes/caps/counters and failure
+rollback. Affected Rust passes 531 with one existing ignore; affected SDK 338;
+whole guide 106 after correcting three editorial failures, all logged.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 0 failure(s) in 1380 s`.
+Rust passes 4,367 including 17 doctests, with 33 existing ignores; clients pass
+5,317 with ten existing skips; models 79/79; fixture wrappers 9/9. No failures
+or cancellations. No assertions, seeds, timeouts or budgets were weakened;
+source manifests confirm implementation/tests/guide stayed fixed during the run.
+The inherited 60-second suite budget remains exceeded. Wasm is unchanged at
+1,978,828 B raw / 593,233 B gzip, 486 B below its unchanged ratchet.
+
+Full attribution, all measurements, artifact/source hashes, validation and every
+development failure: reports/20260930-na-native-acquisition/REPORT.md and
+FAILURES.md. Local commit carries the requested GPT-6 Astra co-author trailer.
+Nothing pushed or published.
