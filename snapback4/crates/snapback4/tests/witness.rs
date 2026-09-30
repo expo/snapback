@@ -47,6 +47,12 @@ fn witness_card_is_published_under_builder_words() {
 #[path = "../src/verbs/witness/protocol.rs"]
 mod protocol;
 
+// @ref LLP 3000#publication-suite-under-contention — a separate guard outlives the timeout under test and owns cleanup.
+#[cfg(unix)]
+#[allow(dead_code)] // Driver scenarios are Darwin-only; portable controls share this guard.
+#[path = "fixtures/witness-watchdog.rs"]
+mod watchdog;
+
 #[test]
 fn simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control() {
     use serde_json::json;
@@ -105,7 +111,7 @@ mod driver {
     use super::*;
     use std::{fs, path::PathBuf, os::unix::fs::PermissionsExt, sync::atomic::{AtomicUsize, Ordering}};
     use serde_json::Value;
-    struct Fixture(PathBuf);
+    struct Fixture(PathBuf, std::cell::RefCell<Vec<watchdog::Guarded>>);
     impl Fixture {
         fn new() -> Self {
             static SERIAL: AtomicUsize = AtomicUsize::new(0);
@@ -118,7 +124,7 @@ mod driver {
             fs::write(dir.join("app/main.jsbundle"), "fake bundle for driver tests").unwrap();
             fs::write(dir.join("xcrun"), include_str!("fixtures/witness-simctl.py")).unwrap();
             fs::set_permissions(dir.join("xcrun"), fs::Permissions::from_mode(0o755)).unwrap();
-            Self(dir)
+            Self(dir, Default::default())
         }
         fn command(&self, mode: &str, port: u16, artifacts: &std::path::Path) -> Command {
             let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
@@ -134,7 +140,10 @@ mod driver {
             command
         }
         fn run(&self, mode: &str, port: u16) -> std::process::Output {
-            self.command(mode, port, std::path::Path::new("artifacts")).output().unwrap()
+            let budget = if mode == "timeout-prepare" { watchdog::PREPARATION_GUARD } else { watchdog::SCENARIO_GUARD };
+            let mut drivers = self.1.borrow_mut();
+            drivers.push(watchdog::Guarded::spawn(&mut self.command(mode, port, std::path::Path::new("artifacts")), &self.0, budget));
+            drivers.last_mut().unwrap().finish()
         }
         fn port() -> u16 {
             // Avoid macOS's outbound ephemeral range: another test's HTTP
@@ -147,7 +156,10 @@ mod driver {
             }
         }
     }
-    impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    impl Drop for Fixture { fn drop(&mut self) {
+        self.1.get_mut().clear();
+        let _ = fs::remove_dir_all(&self.0);
+    } }
     #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
         let fixture = Fixture::new();
@@ -378,9 +390,9 @@ mod driver {
         let mut one = first.command("normal", Fixture::port(), &artifacts);
         let mut two = second.command("normal", Fixture::port(), &artifacts);
         two.env("WITNESS_TEST_UDID", "another-simulator");
-        let one = one.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
-        let two = two.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
-        let outputs = [one.wait_with_output().unwrap(), two.wait_with_output().unwrap()];
+        let mut one = watchdog::Guarded::spawn(&mut one, &first.0, watchdog::SCENARIO_GUARD);
+        let mut two = watchdog::Guarded::spawn(&mut two, &second.0, watchdog::SCENARIO_GUARD);
+        let outputs = [one.finish(), two.finish()];
         assert_eq!(outputs.iter().filter(|o| o.status.success()).count(), 1, "{:?}", outputs);
         let loser = outputs.iter().find(|o| !o.status.success()).unwrap();
         assert!(String::from_utf8_lossy(&loser.stderr).contains("E_WITNESS_ARTIFACT"));

@@ -164,7 +164,7 @@ child_pids+=("$!")
 wait "${child_pids[0]}" || true
 child_pids=()
 collect "client-tests" "client tests"
-# The three seeded models keep full counts and per-history hang guards. Give them a
+# The three seeded models keep full counts and aggregate hang guards. Give them a
 # serial slot after Rust compilation/tests and every other client file finish.
 run "client models" node --test --test-concurrency=1 \
   packages/snapback4/test/app-session-model.test.mjs \

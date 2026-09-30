@@ -1,0 +1,339 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.9 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4)
+warning: unused import: `display::summary`
+  --> crates/snapback4/tests/../src/scale.rs:19:16
+   |
+19 | pub(crate) use display::summary;
+   |                ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:20:16
+   |
+20 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analyze_bound` is never used
+  --> crates/snapback4/tests/../src/scale.rs:85:15
+   |
+85 | pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+   |               ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+
+warning: field `summary` is never read
+  --> crates/snapback4/tests/../src/scale/search.rs:12:9
+   |
+ 5 | pub(crate) struct Search {
+   |                   ------ field in this struct
+...
+12 |     pub summary: &'static str,
+   |         ^^^^^^^
+   |
+   = note: `Search` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `line` is never used
+ --> crates/snapback4/tests/../src/scale/display.rs:4:19
+  |
+3 | impl Certificate {
+  | ---------------- method in this implementation
+4 |     pub(crate) fn line(&self) -> String {
+  |                   ^^^^
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:20:16
+   |
+20 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `summary` is never read
+  --> crates/snapback4/tests/../src/scale/search.rs:12:9
+   |
+ 5 | pub(crate) struct Search {
+   |                   ------ field in this struct
+...
+12 |     pub summary: &'static str,
+   |         ^^^^^^^
+   |
+   = note: `Search` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (test "scale_extremum_expressions") generated 6 warnings (5 duplicates)
+warning: `snapback4` (test "scale_intent") generated 5 warnings (run `cargo fix --test "scale_intent" -p snapback4` to apply 2 suggestions)
+warning: `snapback4` (test "scale_variants") generated 5 warnings (5 duplicates)
+warning: `snapback4` (test "scale_row_ranges") generated 5 warnings (5 duplicates)
+warning: `snapback4` (test "scale_windows_expiry") generated 5 warnings (5 duplicates)
+warning: `snapback4` (test "scale") generated 2 warnings (run `cargo fix --test "scale" -p snapback4` to apply 1 suggestion)
+warning: `snapback4` (test "expiry_writes") generated 5 warnings (5 duplicates)
+warning: `snapback4` (test "intent_issue_tracker") generated 4 warnings (3 duplicates)
+    Finished `test` profile [optimized] target(s) in 13.09s
+     Running unittests src/main.rs (target/debug/deps/snapback4-0fe3ac5ead9516c5)
+
+running 5 tests
+test serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes ... ok
+test serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line ... ok
+test serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts ... ok
+test serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect ... ok
+test serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 212 filtered out; finished in 0.00s
+
+     Running tests/check.rs (target/debug/deps/check-b3654bd2f066150f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 82 filtered out; finished in 0.00s
+
+     Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-40e48a130bba16df)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/check_notes.rs (target/debug/deps/check_notes-15db61632b2df986)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/clock.rs (target/debug/deps/clock-7880dcc3f5b86b5c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+     Running tests/column_commit.rs (target/debug/deps/column_commit-314d610eb65d58d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/delivery_page.rs (target/debug/deps/delivery_page-628ee41069422316)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-774787b27d3b6b4b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests/expiry_writes.rs (target/debug/deps/expiry_writes-8f007989fd363af0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.00s
+
+     Running tests/familiar.rs (target/debug/deps/familiar-9abedfc4adc3a95a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-9fc7058198b9f446)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/fix.rs (target/debug/deps/fix-1a7ca6e64cd25a02)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+
+     Running tests/following_view.rs (target/debug/deps/following_view-ffdd14c0c2be38e2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/http.rs (target/debug/deps/http-bbc0d901bd744fab)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/init.rs (target/debug/deps/init-ec1e708b69c5276f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-01ad5915e735d6cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/latency.rs (target/debug/deps/latency-4edd6fc7f184b2a6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/lifecycle.rs (target/debug/deps/lifecycle-c53b818b821b2a2f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-5c6d9ccae2814008)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-50e3c44fb388e853)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/overload.rs (target/debug/deps/overload-86e864ff630d5494)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/read_latency.rs (target/debug/deps/read_latency-518550c8aa448b58)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/replay.rs (target/debug/deps/replay-c4bf2577df0a3dfc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/run_admission.rs (target/debug/deps/run_admission-4a44f20565b14ef3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+
+     Running tests/scale.rs (target/debug/deps/scale-6a70ccb7cbe33fd9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests/scale_curves.rs (target/debug/deps/scale_curves-bc71b1ac8d226ee2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-d75b69a4a33bd7c5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests/scale_intent.rs (target/debug/deps/scale_intent-0803d6a9da0eeed3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-2871c66a21e034cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/scale_variants.rs (target/debug/deps/scale_variants-63f39bca1be4efc4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.00s
+
+     Running tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-18eafa375801f1bd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/timeline.rs (target/debug/deps/timeline-ad39ba5116f0a3d2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+
+     Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-51fba680653cabcb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-c9b2dcc5ccb8e247)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-f48c162f0803814a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/timeline_design.rs (target/debug/deps/timeline_design-ade6b486e09f0be2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/token_live.rs (target/debug/deps/token_live-46b634ef2e03de2b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/witness.rs (target/debug/deps/witness-c30ce2f33c7840d4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/work_records.rs (target/debug/deps/work_records-ddb581d0491dc7b0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/written_by.rs (target/debug/deps/written_by-8cf37e1c82bc843d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

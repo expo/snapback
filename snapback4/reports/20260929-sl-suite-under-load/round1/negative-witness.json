@@ -1,0 +1,32 @@
+[
+  {
+    "production_sha256": "53fcc5adc2b5e014b6232a835f8c5aff5f65aee6a8dd0bdcf931bbf58fce7c50",
+    "watchdog_sha256": "8f7805b55e29e4a794f5877b89cf010b5c5670218ab1190df42dab56ac9f4c6d"
+  },
+  {
+    "name": "witness-correct",
+    "command": [
+      "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/correct/probe",
+      "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/correct"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 120.12742649903521,
+    "reaped": {
+      "simctl": 1011990,
+      "driver": 1011981
+    }
+  },
+  {
+    "name": "witness-no-deadline",
+    "command": [
+      "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/no-deadline/probe",
+      "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/no-deadline"
+    ],
+    "exit": 101,
+    "elapsed_seconds": 150.1362109798938,
+    "reaped": {
+      "simctl": 1085572,
+      "driver": 1085571
+    }
+  }
+]

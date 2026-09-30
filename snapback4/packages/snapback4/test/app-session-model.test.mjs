@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
 const count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
-// A hang guard for full histories, not a throughput assertion. Each history
-// drives three runtimes through storage/wire faults and fair recovery. Keep the
-// same two seconds per history used by the mixed-evidence oracle under load.
+// An aggregate hang guard, not a throughput assertion or a per-history timer.
+// Each history drives three runtimes through storage/wire faults and fair
+// recovery; two seconds times the full count gives 10,000 seconds per tier.
 for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: Math.max(240_000, count * 2000) }, async t => {
   const coverage = {};
   for (let seed = 1; seed <= count; seed++) {

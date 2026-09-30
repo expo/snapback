@@ -6,6 +6,12 @@ final footer is `== 0 failure(s) in 1216 s`; final-run failures are **ours 0,
 baseline 0, environmental 0**. Earlier failures and the remaining product defects
 are retained below; passing repetitions do not establish those defects are fixed.
 
+**Round 1 review amendment:** model budgets below are aggregate, not individual
+history deadlines. The original typing assertion counted query evaluations and
+could not reject deadline-only polling; the witness fixture also lacked an
+independent hang guard. Both gaps and their retained negative controls are
+covered in [the round 1 report](round1/REPORT.md).
+
 Branch
 `sb4-intent/sl-suite-under-load`, starting at
 `38abb89b8e0b206644b9e2619c6f2d159a981d23`.
@@ -85,9 +91,9 @@ assertions and open tickets.
 | `clique_03::application_fixture` | Batched wall p95 ratios charge descheduling to different populations | Rotate/interleave controls; keep 3 warmups, 20 samples and the 3× bound on thread CPU; retain wall p95 diagnostics and functional/meter assertions |
 | `release_token_owns_the_resolved_database_before_sqlite_open` | Four child startups consume the owner's SQLite busy budget | Require the real sidecar flock to refuse a probe while SQLite is blocked, then release SQLite and retain the owner at a full stdout socket; all four CLI contenders still refuse |
 | `production_accept_loop_waits_for_complete_worker_readiness` and shared worker setup | Ten-second guard expires before worker readiness | Per-state startup guard; retain real readiness events and two-second response assertions |
-| Mixed-evidence oracle, both hosts | 600-second aggregate guard counts one of three fresh schedules per seed | Two seconds per hosted schedule; keep all 300 seeds and three schedules, stop starting schedules after cancellation |
-| Both 5,000-history session models | Fixed 240-second aggregate guard | Two seconds per history, unchanged seeds and coverage |
-| 3,000-interleaving online model | Fixed 180-second aggregate guard | Same per-history guard, unchanged seeds and coverage |
+| Mixed-evidence oracle, both hosts | 600-second aggregate guard counts one of three fresh schedules per seed | 1,800-second aggregate guard per host (300 seeds × three schedules × two seconds); keep every schedule, stop starting new schedules after cancellation |
+| Both 5,000-history session models | Fixed 240-second aggregate guard | 10,000-second aggregate guard per session tier (5,000 histories × two seconds), unchanged seeds and coverage |
+| 3,000-interleaving online model | Fixed 180-second aggregate guard | 6,000-second aggregate guard (3,000 histories × two seconds), unchanged seeds and coverage |
 | Both typing-expiry browser cases | Startup/cleanup and expiry share real time | Controlled browser/server clocks; retain actual React/HTTP/device behavior, pre-expiry visibility, no polling and original deadline assertions; historical cleanup stall remains unproven |
 | Web admission review | Silent held poll triggers the real watchdog; aggregate budget covers 54 scenarios | Heartbeats preserve held evidence without a watchdog probe; original 5-second response wait retained; proportional parent and per-case guards; historical Mac close stall remains open |
 | macOS witness driver cases | Five-second fake-executable startup budget preempts intended premise | Published per-step startup guard; timeout cases still withhold their named milestone and assert timeout phase and cleanup |

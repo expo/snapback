@@ -43,6 +43,15 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     writeFileSync(join(temporary, "index.html"), '<!doctype html><div id="app"></div><script type="module" src="/harness.jsx"></script>');
     writeFileSync(join(temporary, "harness.jsx"), harness);
     server = await createServer({ root: temporary, configFile: false, logLevel: "error",
+      // Observe actual expiry callbacks, including callbacks that merely check
+      // the deadline and rearm without evaluating a query. Keep the real timer,
+      // callback, delay and cancellation; this instrumentation changes no clock.
+      plugins: [{ name: "observe-expiry-wakeups", enforce: "pre", transform(code, id) {
+        if (id.split("?")[0] !== join(root, "packages/snapback4/src/read-expiry.ts")) return;
+        const needle = "watch.expiryTimer = setTimeout(";
+        assert.equal(code.split(needle).length, 2, "instrument exactly the expiry timer");
+        return code.replace(needle, "watch.expiryTimer = window.observeExpiryTimer(watch, deadlines, setTimeout, ");
+      } }],
       // The temporary root has no package manifest. Prebundle its known CJS
       // dependencies up front so late discovery cannot reload open clients.
       optimizeDeps: { noDiscovery: true, include: ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom/client"] },
@@ -86,8 +95,8 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
       { table: "typing", row: { id: "typing", conversationId: "room", principal: "dev:alice", expiresAt } },
     ]) }).then(r => r.json());
     assert.equal(seeded.seeded, 1, JSON.stringify(seeded));
-    // Different remaining lifetimes plus the no-early-evaluation assertion
-    // below reject a fixed mount delay, including periodic fixed-delay polling.
+    // Different remaining lifetimes reject a fixed mount delay. The callback
+    // instrumentation below also rejects polling that performs no early query.
     if (age) await page.clock.runFor(age);
     await page.evaluate(() => window.mount());
     await until(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
@@ -105,8 +114,15 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
       if (!["online", "local"].every(tier => window.expiredAt[tier] != null && window.reads[tier]?.data?.length === 0)) return false;
       return { reads: { ...window.reads }, requests: { ...window.requests }, mountedAt: window.mountedAt,
         visibleAt: { ...window.visibleAt }, expiredAt: { ...window.expiredAt }, evaluations: structuredClone(window.evaluations),
+        expiryWakeups: structuredClone(window.expiryWakeups),
         rendered: document.getElementById("app").textContent };
     });
+    assert.deepEqual(result.expiryWakeups.filter(wake => wake.at < expiresAt), [],
+      "expiry timers must not wake to poll before the row deadline");
+    for (const tier of ["online", "local"]) {
+      assert.ok(result.expiryWakeups.some(wake => wake.tier === tier && wake.at >= expiresAt && wake.at <= deadline),
+        `${tier} expiry callback must be observed at the deadline: ${JSON.stringify(result.expiryWakeups)}`);
+    }
     // Measure React renders in the controlled clock, never browser IPC latency.
     for (const tier of ["online", "local"]) {
       assert.ok(result.visibleAt[tier] < expiresAt, `${tier} renders the live row first`);
@@ -146,6 +162,14 @@ window.reads = {};
 window.visibleAt = {};
 window.expiredAt = {};
 window.evaluations = { online: [], local: [] };
+window.expiryWakeups = [];
+window.observeExpiryTimer = (watch, deadlines, timer, callback, delay) => {
+  const tier = deadlines.device === null ? "online" : "local";
+  return timer(() => {
+    window.expiryWakeups.push({ tier, at: Date.now(), deadlines });
+    callback();
+  }, delay);
+};
 window.requests = { queries: 0, localQueries: 0 };
 const transport = tier => async (input, init) => {
   const path = new URL(input).pathname;
