@@ -81035,4 +81035,75 @@ over RY round 2, +5,247 over main/PR). Final structural guards measure
 Set the ratchet exactly to 604,295 B, no slack, retaining both reasons. These
 are whole-artifact deltas. The full suite rebuilt the identical artifact.
 Report: reports/20260930-ry-receipts-allocation/round3/REPORT.md.
+
+## 2026-10-01 — GQ round 0: eight Start-here guide openings
+
+Language, sync, maintains, rules, prediction, client, search and feeds now
+start with a default pattern, one checked example and two or three registered
+mistakes with one-line fixes, each within 15 physical lines. `guide start`
+(alias `guide index`) assembles those exact openings: 112 opening lines,
+125 CLI output lines with headings and separation. Reference behavior,
+historical Quarry examples and whole-card ceilings stay; client falls from
+114 to 106 lines. Detailed diagnostic explanations stay in their reference
+sections. LLP 3000.011.000.000 §8 records this single-source card structure.
+No compiler, engine, authorization, sync, prediction or SDK behavior changes.
+
+Cal27's mirrored log supplies the actual task mapping. Reconstructed published
+0.4.9 output and the branch baseline give first-example depths totaling
+358 / 354 lines, versus 112 for the openings. These are orientation counts,
+not equivalent standalone programs or completed-task effort. The separate
+full-recipe table honestly retains deeper group-rule, Following, receipts and
+search lookups; some endpoints move later. Prediction, maintains and sync were
+explicitly consulted at M6/M8, not retroactively called M1–M5 evidence. No new
+builder timing or score claim. The original 19 captured card files were absent
+from the mirror; 17 named lookup outputs were reconstructed from npm 0.4.9.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1441 s` (exit 1).
+Cargo had 16 failures, all ours: contextual snippet assumptions, positional
+reference selectors and discovery prefixes. Repaired those and the deterministically
+shifted read-authorization census. All 411 affected Rust tests now pass,
+including whole guide 109/109; four existing aggregate tests stay ignored.
+All other full-suite stages passed, including 5,726 client tests (ten existing
+skips) and 79 models. Wasm remains 1,994,357 raw / 598,401 gzip bytes at the
+unchanged budget. All 2,329 captured source hashes stayed fixed during the
+full run; the later repairs have separate logs, not a claimed full-suite pass.
+
+Root registry/inventory checks remain red from unchanged Snapback 1 baseline
+drift and missing ignored generated demo files; the Snapback 4 diagnostic
+registry passes. No root indexed inputs changed or unrelated projections
+were regenerated. Ref-check and whitespace checks pass. Full report, reading
+tables, exact failure attribution and retained logs:
+reports/20260930-gq-guide-start-here/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-01 — GQ round 1: qualify repairs and teach child membership paths
+
+Read the round-0 prompt/report and Astra's full READY WITH CHANGES review.
+Fetched origin and attempted its merge before editing: Already up to date at
+096a1b78ef. QX's 6e03a7e7c9 merge is already an ancestor; both histories remain.
+Sync's opening now preserves intended selection, restarts pagination after an
+order change, and asks readers to inspect the prediction warning before adding
+a horizon. Maintains states that aggregates do not inherit source horizons and
+that choosing online only also costs prediction for the named dependent mutations.
+
+Rules now opens with reactions using the first-instinct membership path through
+message.conversation, its immutable-reference constraint and a 500-row child
+horizon. The excerpt is compiled verbatim in the existing receipts/reactions
+recipe; its online parent reads and server-run reaction page remain explicit.
+One runtime witness checks equivalent read-through lowering, member insert/read,
+outsider denial, audience sync and parent expiry. Corrected the reference's two
+stale pre-QX claims about path syntax and child upserts. The original self-equality
+tip remains. LLP 3000.011.000.000 §8 records the update.
+
+All 485 affected tests pass, including the whole guide 110/110; four existing
+aggregate ignores remain. All eight openings still total 112 lines and fit 15
+each; start/index remain identical at 125 CLI lines. Rules shrinks 374 → 372.
+CLI build, ref-check and source/doc whitespace checks pass. Root diagnostics
+registry still reports its three unchanged Snapback 1 stale projections, as in
+round 0; no indexed inputs or inventory/manifest inputs changed. No full suite
+this round, as requested. Initial example notes and a test-helper compile error
+are retained and attributed in the report; no assertion or budget was relaxed.
+
+Report: reports/20260930-gq-guide-start-here/round1/REPORT.md, with every failure
+and rendered-card measurements. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

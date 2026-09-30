@@ -1,0 +1,1 @@
+Root inventory and registry source paths unchanged from starting revision: exit 0

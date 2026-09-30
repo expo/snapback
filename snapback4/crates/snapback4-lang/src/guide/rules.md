@@ -1,7 +1,20 @@
 # Rules
 
-Rules decide who may read or write each row; a child uses `read through` to share its parent's audience.
-The engine keeps that inheritance valid across writes, expiry, sync and device prediction.
+**Start here:** Reactions inherit their message's conversation membership; this excerpt uses the complete schema below. The dotted rule and audience are sugar for `read through` and inferred `sync`, including parent lifetime and insert authority.
+
+```quarry
+table reactions:
+  message: messages
+  immutable message
+  read <- exists members[.message.conversation, viewer]
+  sync to members[.message.conversation] last 500 by .id
+```
+
+- `E_READ_THROUGH`: the path must spell the whole parent rule; use a required immutable reference without a default, and immutable parent rule/expiry fields.
+- `E_QUARRY_SELF_EQUALITY`: a nested predicate compares its row to itself; capture the outer value in a local before entering that predicate.
+- `E_RULE`: an insert lacks authority; require a live readable parent and the child's insert rule (omitted rules deny).
+
+## Reference
 
 ```quarry
 table orgs:
@@ -36,61 +49,46 @@ query discussion(issue: issues, c: cursor ?):
   comments where .issue = issue first 20 by .id after c
 ```
 
-A child names one required immutable reference, without a default, to an
-ordinary application table. `read through` is its whole read rule; put service
-grants on the parent. The parent's read-rule fields and authored expiry must
-be immutable. An insert also needs a live parent readable by the writer,
-before the child's insert rule runs. The engine captures those inputs; they
-travel with sync images but never appear in query rows or accept payload values.
+A child names one required immutable reference, without a default, to an ordinary application table. `read through` is its whole read rule; put service grants on the parent. The parent's read-rule fields and authored expiry must be immutable. An insert also needs a live parent readable by the writer, before the child's insert rule runs. The engine captures those inputs; they travel with sync images but never appear in query rows or accept payload values.
 
-Each child expires no later than its parent, through any number of levels.
-A parent's delete needs read authority and waits until its children are deleted
-and expired children swept. Its id cannot be reused while physical children remain.
-A mutable child deadline can shorten its life but cannot extend it past the parent.
+Each child expires no later than its parent, through any number of levels. A parent's delete needs read authority and waits until its children are deleted and expired children swept. Its id cannot be reused while physical children remain. A mutable child deadline can shorten its life but cannot extend it past the parent.
 
-`sync` infers exactly the parent's substituted audience after service grants
-are removed. A conjunction such as membership and an archived flag stays
-`online only`; `check --verbose` explains its server reads. A parent-pinned page resolves
-authorization once, while completeness still requires the child's own coverage.
-An unknown or mismatched parent takes the server fallback. Retained history
-stays marked `retained: true` beside the server's current page.
+`sync` infers exactly the parent's substituted audience after service grants are removed. A conjunction such as membership and an archived flag stays `online only`; `check --verbose` explains its server reads. A parent-pinned page resolves authorization once, while completeness still requires the child's own coverage. An unknown or mismatched parent takes the server fallback. Retained history stays marked `retained: true` beside the server's current page.
 On these syncing delivered-history children, `retained` is row metadata; name an
 application column `wasRetained` instead. Row shapes and spreads preserve the mark.
 
 A device predicts a plain child insert only with a live parent covered by its
-current partition, or one predicted in the same pending chain. An unheld,
-expired or retained-only parent queues the call without a row; child upserts
-and `insert … if absent` also queue. A parent delete requires full current child
+current partition, or one predicted in the same pending chain. An unheld, expired
+or retained-only parent queues without a row. Upserts and `insert … if absent` need complete child-group coverage
+to prove absence; changed unique keys or cap groups need their populations covered. A parent delete requires full current child
 coverage and no live children. Expiry uses the later of the device's supplied
 clock and the last atomically applied server time.
 
-Clique receipts and reactions need only their message reference. The unread
-view uses the captured chat field and inherits its read rule, without an explicit
-`read` or copied deadline:
+Clique receipts and reactions need only their message reference. The unread view uses the captured conversation field and inherits its rule, without an explicit `read` or copied deadline. These parents stay online, so reaction pages use the server:
 
 ```quarry
-table chats:
+table conversations:
   read <- exists members[.id, viewer]
   insert <- allow
   online only
 
 table members:
-  chat: chats
+  conversation: conversations
   principal: principal
-  immutable chat, principal
-  unique chat, principal
-  read <- exists members[.chat, viewer]
-  insert <- created chats[.chat] or exists members[.chat, viewer]
+  immutable conversation, principal
+  unique conversation, principal
+  read <- exists members[.conversation, viewer]
+  insert <- created conversations[.conversation] or exists members[.conversation, viewer]
   online only
 
 table messages:
-  chat: chats
+  conversation: conversations
   sender: principal
   body: text <= 2000
   until: time ?
-  immutable chat, until
-  read <- exists members[.chat, viewer]
-  insert <- .sender = viewer and exists members[.chat, viewer]
+  immutable conversation, until
+  read <- exists members[.conversation, viewer]
+  insert <- .sender = viewer and exists members[.conversation, viewer]
   expire at .until
   online only
 
@@ -107,20 +105,21 @@ table receipts:
 
 table reactions:
   message: messages
+  immutable message
+  read <- exists members[.message.conversation, viewer]
+  sync to members[.message.conversation] last 500 by .id
   principal: principal
   emoji: text <= 20
-  immutable message, principal
+  immutable principal
   unique message, principal
-  read through .message
   insert <- .principal = viewer
   delete <- .principal = viewer
+
+view unread: count receipts where .state < 2 by .message.conversation, .principal
   online only
 
-view unread: count receipts where .state < 2 by .message.chat, .principal
-  online only
-
-query unreadFor(chat: chats):
-  unread[chat, viewer]
+query unreadFor(conversation: conversations):
+  unread[conversation, viewer]
 query received(message: messages, c: cursor ?):
   receipts where .message = message first 50 by .principal after c { id, principal, state }
 query reacted(message: messages, c: cursor ?):
@@ -367,8 +366,7 @@ Read-through limits and repair steps: `why E_READ_THROUGH`,
 `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
 `why E_READ_THROUGH_SCAN`.
 
-Rules do not follow arbitrary references such as `.message.conversation`.
-Use `read through .message` on the child and let parent-key aggregates inherit
-that rule. A diagnostic never suggests dropping the parent hop. An aggregate
+Membership paths spelling the whole parent rule lower to `read through`; other
+reference expressions remain unsupported. Parent-key aggregates inherit that rule. A diagnostic never suggests dropping the parent hop. An aggregate
 read line proved identical to the parent's rule has a whole-line repair;
 additional conditions remain a modeling choice and are not removed by `--fix`.

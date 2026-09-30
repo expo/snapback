@@ -1,0 +1,93 @@
+# Expire: a row's life ends at a time
+
+Expiry makes a row invisible when its declared deadline passes.
+The server then deletes it and syncs the deletion to devices holding it.
+
+```quarry
+table stories:
+  authorId: principal
+  body: text <=500
+  expiresAt: time ?                        -- a null time never expires
+  read <- .authorId = viewer
+  insert <- .authorId = viewer
+  update <- deny
+  delete <- .authorId = viewer
+  expire at .expiresAt
+  sync to .authorId last 200 by .id
+
+mutation postStory(body: text <=500, ttl: int ?):
+  return insert stories { authorId: viewer, body, expiresAt: now + ttl if ttl != null else null }
+
+query expiringStories(c: cursor ?):
+  return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
+```
+
+`guide reads` carries a compilable typing table and its 4,500 ms deadline.
+This is an application table, separate from the server's `connected[p]`.
+That server-decided connection signal has no `expiresAt`.
+Held device observations republish at `nextExpiry`, including offline; render
+those rows directly. The browser witness measures their published expiry
+within a frame. JavaScript timers still wait while a page is suspended.
+Only server-answered reads need a render-deadline filter to hide a returned
+row while its next network answer is pending. Return `expiresAt`, as above.
+In React, `useNow(deadline)` owns the timer and responds to clock estimates:
+
+```ts
+import { useClient, useNow } from "snapback4/react";
+function useExpiringRows<T extends { expiresAt: number | null }>(rows: T[]) {
+  const client = useClient();
+  const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
+  const now = useNow(Number.isFinite(deadline) ? deadline : null);
+  return rows.filter(row => row.expiresAt === null || row.expiresAt > now);
+}
+```
+
+Render the rows returned by `useExpiringRows(rows)`. `client.now()` estimates the server's time and never
+moves backward; `null` never expires. The hook cleans up on unmount.
+
+A row past the time in the column is absent — to every reader, on every
+host, before any rule — from that moment; the server's sweep schedules physical deletion
+on its one-second tick (backlog and work slices can delay it), and the deletion streams to each device holding it, so it
+leaves local stores on the next sync. In development, `snapback4 clock advance 185s`
+runs that sweep immediately on the running `dev`; the deletion reaches both
+device stores through normal sync; devices also learn the advanced server time
+on their next response (guide clock).
+Mutation scans of expiring tables follow guide programs; unswept rows still
+cost examined work, and a backlog can refuse the whole write (why E_BOUND).
+For receipt gaps in expiring messages, use `sequence by` and bounded unique
+ordinal probes: `guide sequences` has the compiled recipe and a row-keyed count.
+Disappearing messages are one field on
+insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
+reads its physical total minus unswept expired contributions under the read
+meter through an internal group/expiry/source-id index. Live rows add no server
+read work. Devices still recompute live source contributions under their meter;
+partial source coverage or a cut cannot supply an exact aggregate. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
+exists at one rule-probe unit, regardless of expired sources. A rule equality
+on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
+view in the program; its live value cannot be probed at one unit. Value
+equalities on non-expiring maintains and ordinary tables remain supported.
+Value-order indexes over expiring sources are refused by check
+(E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use the fresh live bounded query
+on guide feeds. It sorts live counts with no schedule lag or writable score table;
+if candidates or their contributions exceed the meter, the ranking is incomplete.
+The optional scheduled ranked-table recipe trades fresh scores for stored paging.
+The sweep already updates aggregates and indexes transactionally, but stored order
+is stale between expiry and the physical sweep or after a partial sweep. Taking
+stored top-N and rechecking only those winners can miss the live winner. A server
+count index could bound a live threshold scan, but that read form is not built;
+it would have to refuse on devices, whose snapshots deliver live values rather
+than physical upper bounds. Signed sums have no such upper bound.
+A partial device counts only held live
+sources and says `complete: false`. A meter cut of an ordinary aggregate returns `data: null, complete: false`.
+An expiring row-keyed range read returns `{ value: L, recountPending: true }`
+with `complete: false`, the current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
+remain, because one signed contribution can expire before another.
+
+## Operations
+
+In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+```sh
+snapback4 clock advance 36s
+curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+```

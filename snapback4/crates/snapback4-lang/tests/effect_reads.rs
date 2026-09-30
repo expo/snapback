@@ -105,7 +105,7 @@ fn nested_coalescing_keeps_all_fallback_work_in_the_effect_slice() {
 #[test]
 fn clique_send_in_prediction_card_is_eligible_without_hoisting() {
     let blocks = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap());
-    let bound = snapback4_lang::compile(&[("schema.q".into(), blocks[1].clone())]);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), blocks.into_iter().find(|block| block.contains("mutation send(")).unwrap())]);
     assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
     assert_eq!(bound.schema.operations["send"].predicts.as_deref(), Some("eligible"));
     assert_eq!(bound.schema.operations["send"].effect_payload_reads.len(), 1);

@@ -1,8 +1,18 @@
 //! The mutation's eligibility and the device's decision on a call.
 pub(super) const CARD: &str = r##"# Prediction: queued writes and local rows
 
-Prediction applies an eligible write to local rows while the server decides it.
-A write can still queue when the device cannot justify a prediction.
+**Start here:** Write ordinary mutations against synced data; the client predicts when it holds the needed facts and otherwise queues. This mutation is from the default starter's todos schema; show pending writes even when there is no predicted row.
+
+```quarry
+mutation add(title: text <=200):
+  return insert todos { title, done: false, ownerId: viewer }
+```
+
+- `E_NOT_PREDICTABLE`: a `predicts` assertion reads server data; remove that dependency or drop the assertion and accept queued execution.
+- `E_PREDICT`: this device lacks a required fact; keep the queued write pending until sync rather than treating a missing local row as failure.
+- `N_HORIZON_GUARD`: an existence guard used only for retry deduplication blocks prediction; remove it and reuse the mutation write id.
+
+## Reference
 
 ```quarry
 table drafts:
@@ -57,19 +67,9 @@ mutation falliblePost(body: text <=200, recipient: principal):
   return null
 ```
 
-`pending` means the write has not settled; `sent` means the server committed it.
-A predicted row carries `pending: true`; a pending write may have no predicted row.
-Writes that do not predict show pending with `usePendingWrite(op)` from
-`snapback4/react`; pass a saved mutation id as its second argument to observe
-that write after reload. See `guide writes` for terminal receipts and acquisition.
-`client.acquired` and `useAcquired()` say whether snapshot and catch-up finished;
-unacquired writes without a row report `queued without a row: not acquired yet`.
+`pending` means the write has not settled; `sent` means the server committed it. A predicted row carries `pending: true`; a pending write may have no predicted row. Writes that do not predict show pending with `usePendingWrite(op)` from `snapback4/react`; pass a saved mutation id as its second argument to observe that write after reload. See `guide writes` for terminal receipts and acquisition. `client.acquired` and `useAcquired()` say whether snapshot and catch-up finished; unacquired writes without a row report `queued without a row: not acquired yet`.
 
-The web device trusts the backend compiler's structural admission; it does not
-repeat that analysis locally. It still validates arguments, rows, rules, coverage
-and runtime budgets. A hand-built or corrupted backend can therefore produce
-local query answers or predictions where a native device reports a structural refusal. The server
-rechecks every submitted mutation before committing it.
+The web device trusts the backend compiler's structural admission; it does not repeat that analysis locally. It still validates arguments, rows, rules, coverage and runtime budgets. A hand-built or corrupted backend can therefore produce local query answers or predictions where a native device reports a structural refusal. The server rechecks every submitted mutation before committing it.
 
 `predicts: eligible` requires device-readable sites and synced writes;
 the call still needs its facts on this device and must fit the meter and rules.

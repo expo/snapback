@@ -1,0 +1,20 @@
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 0.04s
+     Running tests/device.rs (target/debug/deps/device-d4d8eb0e9e15b5fe)
+
+running 4 tests
+test presence::effect_reads::effect_payload_reads_keep_server_authorization_and_meter_rollback ... ok
+test presence::effect_reads::total_text_payloads_skip_profile_reads_on_devices ... ok
+test presence::effect_reads::unguarded_payload_reads_predict_without_online_only_data ... ok
+test presence::effect_reads::effect_payload_send_predicts_offline_and_agrees_at_every_presence_state ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 433 filtered out; finished in 0.97s
+

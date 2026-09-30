@@ -1,14 +1,24 @@
 # Feeds: Global, Following and Trending
 
-Public originals and reposts form Global, Following and Trending feeds.
-Following can start over retained sources; its launch contract is below.
+**Start here:** Combine originals and reposts in a union view, then page it for Global; add the Following view below for per-reader delivery. This social-starter pattern uses the posts and reposts schema below; keep the branch flag in list keys.
+
+```quarry
+view activity:
+  posts where not .removed { post: .id, actor: .authorId, at, repost: false }
+  reposts { post: .postId, actor: .actorId, at, repost: true }
+query global(c: cursor ?):
+  return activity last 20 by .at after c { *, card: posts[.post] }
+```
+
+- `E_TIMELINE_FILTER`: unsupported selection; use immutable reply keys and `.parentId = null and not .removed` in `view activity`.
+- `E_TIMELINE_READ`: the Following page uses another order; use `following last 20 by .at after c`.
+- `E_TIMELINE_ACTIVATE`: deployment needs retained-source adoption approval; inspect the copy cost before using `--allow-feed-adoption`.
+
+## Reference
 
 ## Global: a union view
 
-Each original and repost is one event. The union reads each source's rules
-before projection. It stores no extra rows. Equal source ids from different
-branches remain distinct; include the branch's `repost` flag in a list key.
-For a moderate corpus without materialization, use planned `home` below.
+Each original and repost is one event. The union reads each source's rules before projection. It stores no extra rows. Equal source ids from different branches remain distinct; include the branch's `repost` flag in a list key. For a moderate corpus without materialization, use planned `home` below.
 
 ```quarry
 table posts:
@@ -38,16 +48,11 @@ query home(c: cursor ?):
   return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c
 ```
 
-Planned `home` serves server pages over a moderate corpus, with no per-follower
-inbox or offline floor. Behind many newer unrelated posts it can hit the meter
-and fail closed: `complete: false`, no `next`, never a complete empty page.
+Planned `home` serves server pages over a moderate corpus, with no per-follower inbox or offline floor. Behind many newer unrelated posts it can hit the meter and fail closed: `complete: false`, no `next`, never a complete empty page.
 
 ## Following: a view for the reader
 
-Dev adopts this view over retained sources automatically; deploy needs
-`--allow-feed-adoption`. This program excludes replies.
-The three sources are public and writable only by their owners. Posts and
-reposts acquire the newest 1,000 rows globally on a cold device.
+Dev adopts this view over retained sources automatically; deploy needs `--allow-feed-adoption`. This program excludes replies. The three sources are public and writable only by their owners. Posts and reposts acquire the newest 1,000 rows globally on a cold device.
 
 ```quarry
 table posts:
@@ -118,12 +123,7 @@ query cards(c: cursor ?):
   return following last 20 by .at after c { *, card: posts[.post] }
 ```
 
-Own-key coverage is the default for this social example. The public windows
-stay bounded; a separate private partition contains every live unique key
-owned by this viewer. The same `postState` answers online and offline. A
-never-queried absent key is false and complete only after whole acquisition
-and catch-up publish durably. A key below the public window can be true without
-its row being held. Offline answers stay stale until sync; an unseen remote
+Own-key coverage is the default for this social example. The public windows stay bounded; a separate private partition contains every live unique key owned by this viewer. The same `postState` answers online and offline. A never-queried absent key is false and complete only after whole acquisition and catch-up publish durably. A key below the public window can be true without its row being held. Offline answers stay stale until sync; an unseen remote
 delete cannot immediately change them. Another principal's missing key is
 still unknown outside the public window. Do not render loading as false.
 

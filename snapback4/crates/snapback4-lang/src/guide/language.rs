@@ -1,8 +1,21 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-Quarry defines backend data and operations.
-`snapback4 guide from-sql` translates SQL and Convex idioms.
+**Start here:** Declare typed tables, row rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
+
+```quarry
+table todos:
+  title: text <=200
+  ownerId: principal
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  sync to .ownerId last 100 by .id
+```
+
+- `E_QUARRY_TYPE`: wrong reference type; pass a reference to the declared table.
+- `E_QUARRY_PLACEMENT`: queries cannot write; use mutations or jobs.
+
+## Reference
 
 ```quarry
 table notes:
@@ -18,18 +31,14 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`table` declares columns and `id`; rules authorize owners, `sync` replicates rows.
-`query` pages newest first; pass `next` as `c`.
-`mutation` inserts atomically, using the default time.
+Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.
 
-`receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting
-(`guide receipts`; expert recipe: `guide manual-receipts`).
+`receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
 
 ## Limits
 
 - `count(x)`, `len(x)`, `length(x)`: text characters or list items; identical typing and meters. Unsupported spellings: E_QUARRY_UNSUPPORTED.
 - A field or argument must fit its declared type: E_QUARRY_TYPE.
-- Queries only read; writes belong in mutations or jobs: E_QUARRY_PLACEMENT.
 
 ## Details
 
@@ -44,8 +53,7 @@ query repeatedFilters(roomId: rooms, c: cursor ?):
   return messages where .roomId = roomId where .body != null last 20 by .at after c
 ```
 
-Quarry defines your tables, access rules and backend operations.
-Queries and eligible mutations can run on devices that hold their inputs.
+Quarry defines your tables, access rules and backend operations. Queries and eligible mutations can run on devices that hold their inputs.
 
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
@@ -516,20 +524,12 @@ query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?
   return intentIssues where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .at after c
 ```
 
-A maintained count can use another table's row as its key:
-`view unread: count messages by members m where .conversationId = m.conversationId
-and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule;
-a large mark change reports `complete: false` while its recount settles.
-The complete, compiled Clique recipe is on `guide maintains`.
+A maintained count can use another table's row as its key: `view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule; a large mark change reports `complete: false` while its recount settles. The complete, compiled Clique recipe is on `guide maintains`.
 
 
-`snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules
-in any order. Other `.q` files share its namespace; their operations and scheduled
-jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name.
-Comments start with `--`; blocks indent two spaces. The suite compiles every block.
+`snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules in any order. Other `.q` files share its namespace; their operations and scheduled jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name. Comments start with `--`; blocks indent two spaces. The suite compiles every block.
 
-Time arithmetic uses durations: `now + 1m` is one minute from now,
-and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
+Time arithmetic uses durations: `now + 1m` is one minute from now, and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
 produce UTC calendar ordinals. See `guide jobs` for scheduled work.
 
 `createRoom` above predicts: its room is readable through the membership

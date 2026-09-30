@@ -1,0 +1,11 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-gq/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-gq/snapback4/crates/snapback4-device)
+   Compiling snapback4-sim v0.4.9 (/home/ccheever/sb4-intent/lane-gq/snapback4/crates/snapback4-sim)
+    Finished `test` profile [optimized] target(s) in 2.29s
+     Running tests/clique.rs (target/debug/deps/clique-ac3d8e759a11a9b2)
+
+running 1 test
+test search_directory::w10c_directory_uses_the_cards_single_query_and_resets_its_cursor ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 253 filtered out; finished in 0.01s
+

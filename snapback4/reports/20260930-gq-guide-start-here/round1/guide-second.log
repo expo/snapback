@@ -1,0 +1,14 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-gq/snapback4/crates/snapback4-lang)
+error[E0596]: cannot borrow `*engine` as mutable, as it is behind a `&` reference
+  --> crates/snapback4-lang/tests/guide/intent.rs:35:47
+   |
+35 |     let page = |engine: &Engine, viewer, now| engine.query("reacted", Context::new(viewer,
+   |                                               ^^^^^^ `engine` is a `&` reference, so it cannot be borrowed as mutable
+   |
+help: consider changing this to be a mutable reference
+   |
+35 |     let page = |engine: &mut Engine, viewer, now| engine.query("reacted", Context::new(viewer,
+   |                          +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `snapback4-lang` (test "guide") due to 1 previous error

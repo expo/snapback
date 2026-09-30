@@ -1,4 +1,6 @@
 //! Enumerate the actual compiled authoring corpus, including inlined helpers.
+#[path = "../../../snapback4-lang/tests/guide/context.rs"]
+mod guide_context;
 use snapback4_core::{ProgramKind, ir};
 use snapback4_lang::{Bound, guide};
 use std::collections::BTreeSet;
@@ -40,7 +42,7 @@ fn authoring_census() {
     let mut private = BTreeSet::new();
     for name in guide::KEYWORDS {
         for (n, block) in guide::quarry(guide::card(name).unwrap()).iter().enumerate() {
-            let source = if block.lines().any(|s|s.trim_start().starts_with("table ")) {block.clone()} else {format!("{}\n{block}",guide::language())};
+            let source = guide_context::source(block);
             collect(&format!("card/{name}/{}",n+1),vec![("schema.q".into(),source)],&mut seen,&mut private);
         }
     }
@@ -52,7 +54,7 @@ fn authoring_census() {
         ("CLIENT-AND-OPERATIONS",include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md")),
         ("SERVER",include_str!("../../../../packages/snapback4/SERVER.md"))] {
         for (n,block) in guide::quarry(doc).iter().enumerate() {
-            let source = if block.lines().any(|s|s.trim_start().starts_with("table ")) {block.clone()} else {format!("{}\n{block}",guide::language())};
+            let source = guide_context::source(block);
             collect(&format!("package/{name}/{}",n+1),vec![("schema.q".into(),source)],&mut seen,&mut private);
         }
     }

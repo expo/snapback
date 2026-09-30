@@ -13,6 +13,40 @@ fn load(engine: &mut Engine, rows: Vec<(&str, Json)>) {
 }
 
 #[test]
+fn rules_opening_inherits_message_authority_lifetime_and_sync() {
+    let opening = quarry(snapback4_lang::guide::card("rules").unwrap()).remove(0);
+    let source = super::in_context(&opening);
+    assert!(source.contains(opening.trim()), "compile the published excerpt verbatim");
+    let source = format!("{source}\nmutation react(message: messages):\n  return insert reactions {{ message, principal: viewer, emoji: 'hi' }}\n");
+    let bound = clean("rules opening", &source);
+    let canonical = clean("rules opening without sugar", &source
+        .replace("read <- exists members[.message.conversation, viewer]", "read through .message")
+        .replace("sync to members[.message.conversation]", "sync"));
+    assert_eq!(serde_json::to_value(&bound.schema).unwrap(), serde_json::to_value(&canonical.schema).unwrap());
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    load(&mut engine, vec![
+        ("conversations", json!({"id":"room"})),
+        ("members", json!({"id":"alice-member", "conversation":"room", "principal":"alice"})),
+        ("members", json!({"id":"bob-member", "conversation":"room", "principal":"bob"})),
+        ("messages", json!({"id":"message", "conversation":"room", "sender":"alice", "body":"hello", "until":200})),
+    ]);
+    let reaction = engine.mutate("react", None, Context::new("bob", args(&[("message", id("message"))])).at(100)).unwrap();
+    assert!(matches!(reaction.state, snapback4_core::WriteState::Sent { .. }), "{reaction:?}");
+    let page = |engine: &mut Engine, viewer, now| engine.query("reacted", Context::new(viewer,
+        args(&[("message", id("message")), ("c", Value::Null)])).at(now)).unwrap();
+    assert_eq!(page(&mut engine, "alice", 100).data.as_array().unwrap().len(), 1);
+    assert!(page(&mut engine, "mallory", 100).data.as_array().unwrap().is_empty());
+    let denied = engine.mutate("react", None, Context::new("mallory", args(&[("message", id("message"))])).at(100)).unwrap();
+    assert!(matches!(denied.state, snapback4_core::WriteState::Failed { .. }), "{denied:?}");
+    for (viewer, expected) in [("alice", true), ("mallory", false)] {
+        let snapshot = engine.snapshot_acquisition_page_at(viewer, None, 1000, 100).unwrap();
+        let images = serde_json::to_value(&snapshot.events).unwrap();
+        assert_eq!(images.to_string().contains("reactions"), expected, "{viewer}: {images}");
+    }
+    assert!(page(&mut engine, "alice", 200).data.as_array().unwrap().is_empty(), "child expires with its parent");
+}
+
+#[test]
 fn language_intent_views_predicates_search_and_durations_run() {
     let bound = clean("language intent", &snapback4_lang::guide::language());
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();

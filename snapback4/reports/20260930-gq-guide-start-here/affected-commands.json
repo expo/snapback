@@ -1,0 +1,77 @@
+[
+  {
+    "name": "core-affected-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--test",
+      "lane_source"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-guide-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "guide_examples::"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-presence-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "presence::effect_reads::"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-census-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "readauth"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sim-search-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "clique",
+      "search_directory::"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "cli-check-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "check"
+    ],
+    "exit": 0
+  }
+]
