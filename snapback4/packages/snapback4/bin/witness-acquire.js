@@ -13,7 +13,13 @@ import { memorySessionStore } from '../dist/auth.js';
 import { defaultFetch } from '../dist/node-fetch.js';
 import { resolveBinary } from '../dist/resolve-binary.js';
 
-const fail = (code, message) => { throw new Error(`${code}: ${message}`); };
+class WitnessError extends Error {}
+const problem = (code, message) => new WitnessError(`${code}: ${message}`);
+const fail = (code, message) => { throw problem(code, message); };
+// Only our own errors carry prose across the boundary. SDK/native errors may
+// contain arbitrary server schema, row, refusal or identity text. Drop it all.
+const safeError = error => error instanceof WitnessError ? error
+  : problem('E_WITNESS_BACKEND', 'witness operation failed; check the backend and device query');
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
@@ -21,20 +27,47 @@ const ms = start => Math.round((performance.now() - start) * 1000) / 1000;
 const host = () => ({ hostname: hostname(), cpus: availableParallelism(), load: loadavg() });
 const NOTE = 'Node process device: one JSON line per call to the snapback4 device subprocess, backed by SQLite. Expo links the crate in-process; these are not Expo/iOS timings; web wasm + IndexedDB figures differ. Bytes are SQLite pages, excluding WAL/SHM, not RSS.';
 
-// Sanitize before serialization (including keys), plus final text/error boundaries.
-function redact(text, secrets) {
-  for (const token of secrets.filter(value => typeof value === 'string' && value.length)) {
-    const variants = [token, encodeURIComponent(token), JSON.stringify(token).slice(1, -1),
-      Buffer.from(token).toString('base64'), Buffer.from(token).toString('base64url'), Buffer.from(token).toString('hex')];
-    for (const value of variants.sort((a, b) => b.length - a.length)) text = text.split(value).join('[REDACTED]');
-  }
-  return text;
+// Allowlist the receipt, never redact patterns. Server identity/position and
+// schema names remain private during verification; only locally computed,
+// domain-separated digests identify them in output. Residency counters come
+// from the native device's local SQLite inspection, never the HTTP response.
+const tableKey = name => digest(['witness-table', name]);
+function publicCoverage(value) {
+  return { acquired: value.acquired === true, groups: value.groups, rows: value.rows,
+    stateSha256: digest(['witness-state', value.storeId, value.generation, value.watermark]),
+    positionSha256: digest(['witness-position', value.watermark]),
+    groupsSha256: value.groupsSha256,
+    groupsByTable: Object.fromEntries(Object.entries(value.groupsByTable).map(([name, count]) => [tableKey(name), count])),
+    residency: { totalBytes: value.residency.totalBytes, totalBytesKind: 'sqlite-pages',
+      tables: Object.fromEntries(Object.entries(value.residency.tables).map(([name, counts]) =>
+        [tableKey(name), { rows: counts.rows, bytes: counts.bytes }])) } };
 }
-function sanitize(value, secrets) {
-  if (typeof value === 'string') return redact(value, secrets);
-  if (Array.isArray(value)) return value.map(item => sanitize(item, secrets));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [redact(key, secrets), sanitize(item, secrets)]));
-  return value;
+function publicRun(value, options) {
+  const result = { beforeHost: value.beforeHost, passed: value.passed, requests: value.requests.map(sample => {
+    const output = { phase: sample.phase, path: sample.path,
+      http: sample.status === null ? 'unavailable' : sample.status === 200 ? 'ok' : 'refused',
+      headerMs: sample.headerMs, totalMs: sample.totalMs, outcome: sample.outcome };
+    for (const key of ['snapshot', 'more', 'applied', 'installed', 'putRows', 'events', 'error']) {
+      if (Object.hasOwn(sample, key)) output[key] = sample[key];
+    }
+    return output;
+  }) };
+  if (value.query) result.query = { name: options.query ?? 'automatic device query',
+    args: options.query ? options.args : {}, selectionSha256: digest(['witness-query', value.query.name]) };
+  for (const key of ['acquiredMs', 'firstLocalMs', 'afterHost', 'error']) {
+    if (Object.hasOwn(value, key)) result[key] = value[key];
+  }
+  if (value.coverage) result.coverage = publicCoverage(value.coverage);
+  if (value.restart) {
+    const r = value.restart;
+    result.restart = { firstLocalMs: r.firstLocalMs, retained: r.retained };
+    for (const key of ['coverageVerifiedMs', 'completed', 'downloadedRows', 'syncResponses', 'snapshotResponses']) {
+      if (Object.hasOwn(r, key)) result.restart[key] = r[key];
+    }
+    for (const key of ['offline', 'reconnected']) if (r[key]) result.restart[key] = publicCoverage(r[key]);
+    if (r.completed) result.restart.serverPositionSha256 = digest(['witness-position', r.serverPosition]);
+  }
+  return result;
 }
 function validateSync(page) {
   const uint = value => Number.isSafeInteger(value) && value >= 0;
@@ -54,15 +87,23 @@ export function parse(args) {
   const options = { url: 'http://127.0.0.1:4400', runs: 1, timeout: 120, args: {} };
   const seen = new Set();
   for (let i = 0; i < args.length; i++) {
-    const flag = args[i];
+    const equal = args[i].indexOf('=');
+    const flag = equal < 0 ? args[i] : args[i].slice(0, equal);
+    if (!['--restart', '--json', '--as', '--url', '--token', '--runs', '--timeout', '--query', '--args', '--artifacts'].includes(flag)) fail('E_WITNESS_INPUT', 'unknown acquire argument; see guide bounds');
     if (seen.has(flag)) fail('E_WITNESS_INPUT', `duplicate ${flag}`);
     seen.add(flag);
-    if (['--restart', '--json'].includes(flag)) { options[flag.slice(2)] = true; continue; }
-    if (!['--as', '--url', '--token', '--runs', '--timeout', '--query', '--args', '--artifacts'].includes(flag)) fail('E_WITNESS_INPUT', `unknown acquire argument ${flag}`);
-    const value = args[++i];
+    if (['--restart', '--json'].includes(flag)) {
+      if (equal >= 0) fail('E_WITNESS_INPUT', `${flag} takes no value`);
+      options[flag.slice(2)] = true; continue;
+    }
+    const value = equal < 0 ? args[++i] : args[i].slice(equal + 1);
     if (!value || value.startsWith('--')) fail('E_WITNESS_INPUT', `${flag} needs a value`);
     options[flag.slice(2)] = value;
   }
+  // Caller-owned labels are eligible for output, credentials are not. Refuse
+  // a raw bearer reused in a non-secret field before creating any artifacts.
+  if (options.token && Object.entries(options).some(([key, value]) => key !== 'token'
+    && typeof value === 'string' && value.includes(options.token))) fail('E_WITNESS_INPUT', 'bearer token must appear only in --token');
   if (!options.as || /[\s\x00-\x1f]/.test(options.as)) fail('E_WITNESS_INPUT', '--as needs a persona or principal');
   for (const key of ['runs', 'timeout']) {
     if (!/^[1-9][0-9]*$/.test(String(options[key])) || !Number.isSafeInteger(Number(options[key]))) fail('E_WITNESS_INPUT', `--${key} needs a positive integer`);
@@ -86,7 +127,7 @@ async function jsonRequest(url, headers, signal, fetcher) {
   const response = await fetcher(url, { headers, signal, redirect: 'error' });
   let body;
   try { body = await response.json(); } catch { fail('E_WITNESS_BACKEND', 'server did not return Snapback JSON'); }
-  if (!response.ok || body?.denied) fail('E_AUTH', `server refused witness identity (HTTP ${response.status})`);
+  if (!response.ok || body?.denied) fail('E_AUTH', 'server refused witness identity');
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail('E_WITNESS_BACKEND', 'server did not return a Snapback object');
   return body;
 }
@@ -96,7 +137,7 @@ async function identity(options, signal, fetcher) {
   const headers = options.token ? { authorization: `Bearer ${options.token}` } : { 'x-snapback-persona': persona };
   if (persona) {
     const status = await jsonRequest(`${options.url}/dev/status`, headers, signal, fetcher);
-    if (!status.personas?.includes(persona)) fail('E_AUTH', `unknown persona ${persona}; use a declared persona or a principal with --token`);
+    if (!status.personas?.includes(persona)) fail('E_AUTH', 'unknown persona; use a declared persona or a principal with --token');
   }
   const probe = await jsonRequest(`${options.url}/probe`, headers, signal, fetcher);
   const expected = persona ? `dev:${persona}` : options.as;
@@ -117,7 +158,7 @@ async function waitFor(check, signal) {
 async function coverage(client, core) {
   const call = async request => {
     const reply = await core.call(request);
-    if (reply.denied) fail(reply.denied.code, reply.denied.message);
+    if (reply.denied) fail('E_WITNESS_RECEIPT', 'native device refused the witness inspection');
     return reply.ok;
   };
   const state = await call({ op: 'sync_state', capture: false });
@@ -166,7 +207,7 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
         return reply;
       } catch {
         if (sample) { sample.outcome = 'failed'; sample.error = 'native validation/application failure'; }
-        deviceFailure ??= new Error('E_WITNESS_RECEIPT: native device refused validation/application');
+        deviceFailure ??= problem('E_WITNESS_RECEIPT', 'native device refused validation/application');
         throw deviceFailure;
       }
     };
@@ -183,20 +224,13 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
       else requestSignal.addEventListener('abort', () => reject(requestSignal.reason), { once: true });
     });
     const start = performance.now();
-    const sample = { phase, path, status: null, headerMs: null, serverTiming: null, serverMs: null, outcome: 'pending' };
+    const sample = { phase, path: ['/dev/status', '/probe', '/schema', '/sync', '/native.wasm'].includes(path) ? path : '/other', status: null, headerMs: null, outcome: 'pending' };
     requests.push(sample); // Include attempts that fail before headers or body decoding.
     try {
       const response = await defaultFetch(input, { ...init, signal: requestSignal, redirect: 'error' });
       sample.status = response.status; sample.headerMs = ms(start);
-      // Keep only timing syntax we produce: never reflect arbitrary header text.
-      const timing = response.headers.get('server-timing');
-      if (timing && /^(?:total|wait|engine|cpu);dur=[0-9]+(?:\.[0-9]+)?(?:,\s*(?:total|wait|engine|cpu);dur=[0-9]+(?:\.[0-9]+)?)*$/.test(timing)) {
-        sample.serverTiming = timing;
-        sample.serverMs = Object.fromEntries(timing.split(',').map(part => {
-          const [name, value] = part.trim().split(';dur='); return [name, Number(value)];
-        }));
-      }
-      if (response.status !== 200) fail('E_WITNESS_BACKEND', `HTTP ${response.status}`);
+      // Even numeric Server-Timing text can encode a credential. Do not retain it.
+      if (response.status !== 200) fail('E_WITNESS_BACKEND', 'server refused the request');
       const body = path === '/native.wasm' ? await response.clone().arrayBuffer() : await response.clone().json();
       if (path !== '/native.wasm' && (!body || typeof body !== 'object' || Array.isArray(body) || Object.hasOwn(body, 'denied'))) fail('E_WITNESS_BACKEND', 'server refused the request or returned a malformed object');
       if (path === '/sync') {
@@ -212,19 +246,19 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
       // Remote text (including transformed credentials) never becomes a diagnostic.
       sample.error = sample.status === null ? 'transport failure before headers' : 'HTTP, body or protocol failure';
       const code = sample.status === 401 || sample.status === 403 ? 'E_AUTH' : 'E_WITNESS_BACKEND';
-      transportFailure ??= new Error(`${code}: ${sample.error} during ${sample.phase} (HTTP ${sample.status ?? 'unavailable'}); check --url and credentials`);
+      transportFailure ??= problem(code, `${sample.error} during ${sample.phase}; check --url and credentials`);
       throw transportFailure;
     } finally { sample.totalMs = ms(start); }
   };
   const call = async request => {
     const reply = await core.call(request);
-    if (reply.denied) fail(reply.denied.code, reply.denied.message);
+    if (reply.denied) fail('E_WITNESS_RECEIPT', 'native device refused the witness inspection');
     return reply.ok;
   };
   let selected;
   const firstAnswer = async origin => {
     const value = await client.query({ kind: 'query', name: selected.name }, selected.args);
-    if (!('data' in value) || !value.complete) fail(phase === 'restart' ? 'E_WITNESS_RECEIPT' : 'E_WITNESS_INPUT', `${phase === 'restart' ? 'cold restart coverage differs: ' : ''}query ${selected.name} cannot give a complete local answer: ${value.denied?.message ?? 'choose a query within held coverage'}`);
+    if (!('data' in value) || !value.complete) fail(phase === 'restart' ? 'E_WITNESS_RECEIPT' : 'E_WITNESS_INPUT', `${phase === 'restart' ? 'cold restart coverage differs: ' : ''}query cannot give a complete local answer; choose a query within held coverage`);
     return ms(origin);
   };
   try {
@@ -238,9 +272,9 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
     const program = options.query ? backend.programs.find(p => p.name === options.query && p.kind === 'Query')
       : backend.programs.find(p => p.kind === 'Query' && p.runs !== 'server' && !p.ephemeral && Object.keys(p.args).length === 0);
     if (!program || program.runs === 'server' || program.ephemeral) fail('E_WITNESS_INPUT', 'choose a device query with --query NAME --args JSON (automatic selection needs a zero-argument device query)');
-    selected = { name: program.name, args: options.query ? options.args : {} };
-    for (const key of Object.keys(selected.args)) if (!Object.hasOwn(program.args, key)) fail('E_WITNESS_INPUT', `unknown query argument ${key}`);
-    for (const key of Object.keys(program.args)) if (!Object.hasOwn(selected.args, key)) fail('E_WITNESS_INPUT', `query ${program.name} needs argument ${key}; pass --args JSON (null for optional arguments)`);
+    selected = { name: program.name, args: options.query ? structuredClone(options.args) : {} };
+    for (const key of Object.keys(selected.args)) if (!Object.hasOwn(program.args, key)) fail('E_WITNESS_INPUT', 'unknown query argument; check --args JSON');
+    for (const key of Object.keys(program.args)) if (!Object.hasOwn(selected.args, key)) fail('E_WITNESS_INPUT', 'query needs an argument; pass --args JSON (null for optional arguments)');
     client.onAcquired(value => { if (value) acquiredMs ??= ms(started); });
     await prepared.start();
     await waitFor(() => { if (transportFailure || deviceFailure) throw transportFailure ?? deviceFailure; return client.acquired; }, deadline);
@@ -277,13 +311,11 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
     }
     if (transportFailure || deviceFailure) throw transportFailure ?? deviceFailure;
     result.passed = true; result.afterHost = host();
-    result.serverSyncMs = requests.filter(r => r.phase === 'acquire' && r.path === '/sync').every(r => r.serverMs !== null)
-      ? requests.filter(r => r.phase === 'acquire' && r.path === '/sync').reduce((sum, r) => sum + (r.serverMs.total ?? 0), 0) : null;
-    return result;
+    return publicRun(result, options);
   } catch (error) {
-    const message = deadline.aborted ? `E_WITNESS_TIMEOUT: ${phase} did not finish within --timeout ${options.timeout} seconds, or was interrupted` : String(error);
-    result.error = redact(message, [options.token]);
-    throw Object.assign(new Error(result.error), { witnessRun: result });
+    const safe = deadline.aborted ? problem('E_WITNESS_TIMEOUT', 'witness did not finish within --timeout, or was interrupted') : safeError(error);
+    result.error = safe.message;
+    throw Object.assign(safe, { witnessRun: publicRun(result, options) });
   } finally {
     try { await client?.close(); } finally {
       stopChildren(); deadline.removeEventListener('abort', stopChildren);
@@ -293,47 +325,49 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
 }
 
 export async function run(args) {
-  // Establish output redaction before parsing: invalid arguments can contain a token.
-  const secrets = args.flatMap((arg, i) => arg === '--token' ? [args[i + 1]] : []);
-  try { return await runWitness(args, secrets); }
-  catch (error) { throw new Error(redact(String(error.message), secrets)); }
+  try { return await runWitness(args); }
+  catch (error) { throw safeError(error); }
 }
 
-async function runWitness(args, secrets) {
+async function runWitness(args) {
   const options = parse(args);
   const dir = resolve(options.artifacts ?? join('artifacts', `acquire-${Date.now()}-${process.pid}`));
-  await mkdir(dir, { recursive: true, mode: 0o700 });
   const path = join(dir, 'acquire.json');
-  // Reserve exclusively: never overwrite a previous proof, including a failure.
-  await writeFile(path, '', { flag: 'wx', mode: 0o600 });
+  try {
+    await mkdir(dir, { recursive: true, mode: 0o700 });
+    // Reserve exclusively: never overwrite a previous proof, including a failure.
+    await writeFile(path, '', { flag: 'wx', mode: 0o600 });
+  } catch (error) {
+    fail('E_WITNESS_ARTIFACT', error.code === 'EEXIST' ? 'EEXIST: receipt already exists; choose a new artifacts directory' : 'cannot create witness receipt');
+  }
   const controller = new AbortController();
-  const interrupt = () => controller.abort(new Error('E_WITNESS_PROCESS: witness interrupted'));
+  const interrupt = () => controller.abort(problem('E_WITNESS_PROCESS', 'witness interrupted'));
   process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
-  const receipt = { format: 1, kind: 'acquire', device: 'native-process', note: NOTE,
+  const receipt = { format: 2, kind: 'acquire', device: 'native-process', note: NOTE,
     sdkVersion: JSON.parse(await readFile(new URL('../package.json', import.meta.url))).version,
     principal: options.as, url: options.url, startedAt: new Date().toISOString(),
-    groupUnit: 'table/group pairs; see groupsByTable for the application envelope', runs: [], passed: false };
+    groupUnit: 'table/group pairs; keys are SHA-256 of JSON ["witness-table", tableName]', runs: [], passed: false };
   let error;
   try {
     for (let i = 0; i < options.runs; i++) receipt.runs.push(await measure(options, { signal: controller.signal }));
     receipt.passed = true;
-  } catch (e) { error = e; if (e.witnessRun) receipt.runs.push(e.witnessRun); receipt.error = controller.signal.aborted ? String(controller.signal.reason) : String(e); }
+  } catch (e) { error = e; if (e instanceof WitnessError && e.witnessRun) receipt.runs.push(e.witnessRun); receipt.error = safeError(controller.signal.aborted ? controller.signal.reason : e).message; }
   finally {
     receipt.finishedAt = new Date().toISOString();
-    await writeFile(path, `${JSON.stringify(sanitize(receipt, secrets), null, 2)}\n`, { mode: 0o600 });
+    await writeFile(path, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
     process.off('SIGINT', interrupt); process.off('SIGTERM', interrupt);
   }
-  if (options.json) console.log(JSON.stringify(sanitize(receipt, secrets)));
+  if (options.json) console.log(JSON.stringify(receipt));
   else {
-    console.error(redact(`${NOTE}\nReceipt: ${path}`, secrets));
+    console.error(`${NOTE}\n${error ? 'Receipt saved in the artifacts directory.' : `Receipt: ${path}`}`);
     for (const sample of receipt.runs) {
       if (!sample.passed) continue;
       const c = sample.coverage;
-      console.log(redact(`acquired ${c.groups.toLocaleString('en-US')} table/groups / ${c.rows.toLocaleString('en-US')} rows / ${(c.residency.totalBytes / 1e6).toFixed(1)} MB in ${(sample.acquiredMs / 1000).toFixed(3)} s; first local ${sample.query.name} ${(sample.firstLocalMs / 1000).toFixed(3)} s; server sync ${sample.serverSyncMs === null ? 'unavailable' : `${(sample.serverSyncMs / 1000).toFixed(3)} s`}${sample.restart ? `; cold restart first local answer ${(sample.restart.firstLocalMs / 1000).toFixed(3)} s; coverage verified (${c.groups.toLocaleString('en-US')} table/groups) in ${(sample.restart.coverageVerifiedMs / 1000).toFixed(3)} s` : ''}`, secrets));
+      console.log(`acquired ${c.groups.toLocaleString('en-US')} table/groups / ${c.rows.toLocaleString('en-US')} rows / ${(c.residency.totalBytes / 1e6).toFixed(1)} MB in ${(sample.acquiredMs / 1000).toFixed(3)} s; first local ${sample.query.name} ${(sample.firstLocalMs / 1000).toFixed(3)} s${sample.restart ? `; cold restart first local answer ${(sample.restart.firstLocalMs / 1000).toFixed(3)} s; coverage verified (${c.groups.toLocaleString('en-US')} table/groups) in ${(sample.restart.coverageVerifiedMs / 1000).toFixed(3)} s` : ''}`);
     }
   }
   if (error) throw error;
-  return sanitize(receipt, secrets);
+  return receipt;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

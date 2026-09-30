@@ -31,8 +31,8 @@ impl Options {
         let mut flags = BTreeMap::new();
         let mut iter = args.iter().skip(1);
         while let Some(flag) = iter.next() {
-            let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", format!("unexpected argument {flag}"))); };
-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
+            let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", "unexpected argument; see snapback4 guide witness")); };
+            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", "unknown flag; see snapback4 guide witness")); }
             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
             };

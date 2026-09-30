@@ -79640,3 +79640,46 @@ receipts, host load and source/artifact hashes:
 reports/20260930-bn-envelope-proof/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 2: allowlist acquisition output and refuse flags safely
+
+Read both prior prompts/reports and Astra's complete round 1 review. Replaced
+credential-pattern redaction with a receipt allowlist and command-authored
+errors. Server free text and codes are dropped entirely; no separate raw file
+is written. Caller query/args/principal come from the caller's own copy.
+Automatic queries use a generated label; table names, store identity and
+positions use locally computed digests. The original private coverage and
+completed zero-event reconnect comparisons remain. Receipt format 2 drops
+Server-Timing/serverMs/serverSyncMs and supplied numeric metadata under the
+round 2 rule: emitted numbers must be locally computed. Native SQLite counts,
+local transport clocks, acquisition and separate restart timers remain.
+
+Acquire accepts --token=VALUE and other valued equals flags, with canonical
+duplicate detection. Unsupported token-file spellings and all unknown flags
+refuse without values; iOS equals/positional refusals also omit values. Raw
+bearers reused in non-secret inputs refuse before artifacts. Runtime refusal
+stderr no longer prints a caller artifact path. LLP 3000.030 §14 and bounds
+record the changed receipt contract. SDK/engine/device code is unchanged.
+
+Eight real-token forms pass 160 proxy invocations spanning successful native
+acquisition/restart and schema, identity, sync, native and refusal paths in JSON
+and text modes. Every output boundary is checked. Actual round 1 fails the
+three primary controls on credential leakage: uppercase hex in stdout and
+acquire/iOS equals-token flags in stderr. A fourth control detects caller-path
+reflection in runtime refusal stderr. The controls print no real credentials.
+
+Final witness Node checks pass 76/76, including 40 acquisition cases; Rust
+witness units pass 11/11 and the whole guide 107/107. Ref-check passes 525 LLPs /
+9,997 refs with zero errors or unchecked references. One development test helper
+error (applying includes to a numeric exit status) was ours and is fixed; all
+failure logs and expected controls are retained. No baseline/environmental
+failures. Full suite not run under the round 2 instruction: only witness
+implementation plus its tests/docs changed. No fresh heavy timing claim; the
+process-device apply performance defect remains assigned to NA.
+
+Existing wasm was hashed/measured, not rebuilt: 1,978,828 B raw / 593,233 B gzip,
+identical to round 1 and 486 B below the unchanged 593,719 B ratchet. No wasm
+inputs changed. Report: reports/20260930-bn-envelope-proof/round2/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

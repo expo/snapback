@@ -82,12 +82,12 @@ test('acquire CLI saves actual SDK acquisition and cold retained receipts across
   assert.match(receipt.note, /web wasm \+ IndexedDB figures differ/);
   assert.deepEqual(JSON.parse(await readFile(join(artifacts, 'acquire.json'), 'utf8')), receipt);
   for (const run of receipt.runs) {
-    assert.equal(run.coverage.rows, 2); assert.equal(run.coverage.groupsByTable.notes, 1);
+    assert.equal(run.coverage.rows, 2); assert.equal(run.coverage.groupsByTable[createHash('sha256').update(JSON.stringify(['witness-table', 'notes'])).digest('hex')], 1);
     assert.equal(run.coverage.residency.totalBytesKind, 'sqlite-pages');
     assert.ok(run.acquiredMs > 0 && run.firstLocalMs > 0 && run.restart.firstLocalMs > 0);
     assert.equal(run.restart.retained, true); assert.equal(run.restart.downloadedRows, 0);
     assert.deepEqual(run.restart.offline.residency.tables, run.coverage.residency.tables);
-    assert.ok(run.requests.some(r => r.path === '/sync' && r.serverTiming?.includes('total;dur=')));
+    assert.ok(run.requests.some(r => r.path === '/sync' && r.headerMs > 0 && !Object.hasOwn(r, 'serverTiming')));
   }
   const overwrite = await cli([...f.args, '--artifacts', artifacts], f.dir);
   assert.notEqual(overwrite.status, 0); assert.match(overwrite.stderr, /EEXIST/);
@@ -106,7 +106,7 @@ test('acquire refuses unknown personas, mismatched bearer identity, unreachable 
   }
 });
 
-test('serve accepts a matching bearer, refuses a different principal, and reports timing unavailable', async t => {
+test('serve accepts a matching bearer, refuses a different principal, and omits server timings', async t => {
   const f = await fixture(t, true);
   const { session } = await fetch(`${f.url}/auth/guest`, { method: 'POST', body: '{}' }).then(r => r.json());
   assert.ok(session);
@@ -114,7 +114,7 @@ test('serve accepts a matching bearer, refuses a different principal, and report
   assert.equal(reply.status, 0, reply.stderr);
   const receipt = JSON.parse(reply.stdout);
   assert.equal(receipt.runs[0].restart.retained, true);
-  assert.equal(receipt.runs[0].serverSyncMs, null);
+  assert.equal(Object.hasOwn(receipt.runs[0], 'serverSyncMs'), false);
   assert.ok(!JSON.stringify(receipt).includes(session.token));
   const mismatch = await cli(['--url', f.url, '--as', 'unknown', '--token', session.token], f.dir);
   assert.notEqual(mismatch.status, 0); assert.match(mismatch.stderr, /principal does not match/);
@@ -148,7 +148,7 @@ for (const control of ['wipe', 'delete-row', 'change-groups', 'change-boundaries
       else if (control === 'change-boundaries') db.prepare("UPDATE _meta SET value = 'unknown' WHERE key LIKE 'device:acquisition-boundaries:%'").run();
       else db.prepare("UPDATE _meta SET value = '{}' WHERE key = 'device:history:groups'").run();
     } finally { db.close(); }
-  } }), control === 'wipe' ? /never synced|E_OFFLINE/ : /E_WITNESS_RECEIPT.*coverage differs/);
+  } }), control === 'wipe' ? /E_WITNESS_BACKEND|E_WITNESS_RECEIPT/ : /E_WITNESS_RECEIPT.*coverage differs/);
 });
 
 
@@ -197,7 +197,7 @@ for (const fault of ['more-then-drop', 'denied', 'malformed-json', 'null', 'miss
     assert.equal(attempts.length, syncs, 'failed transports must not disappear');
     if (fault === 'more-then-drop') {
       assert.equal(attempts.at(-2).more, true);
-      assert.equal(attempts.at(-1).status, null);
+      assert.equal(attempts.at(-1).http, 'unavailable');
       assert.equal(attempts.at(-1).outcome, 'failed');
     } else if (fault !== 'behind-server') assert.equal(attempts.at(-1).outcome, 'failed');
     assert.match(reply.stderr, /E_WITNESS_BACKEND|E_WITNESS_RECEIPT/);
@@ -217,9 +217,8 @@ test('echoed bearer and derived refusal text never reach stderr, JSON, text or r
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(async () => { server.closeAllConnections(); server.close(); await rm(dir, { recursive: true, force: true }); });
   for (const json of [true, false]) {
-    // Also exercise locally supplied principal/path text at output boundaries.
-    const artifacts = join(dir, `${encodeURIComponent(token)}-${json}`);
-    const reply = await cli(['--as', token, '--token', token, '--url', `http://127.0.0.1:${server.address().port}`,
+    const artifacts = join(dir, `proof-${json}`);
+    const reply = await cli(['--as', 'test-principal', '--token', token, '--url', `http://127.0.0.1:${server.address().port}`,
       '--artifacts', artifacts, ...(json ? ['--json'] : [])], dir);
     const file = await readFile(join(artifacts, 'acquire.json'), 'utf8');
     assert.notEqual(reply.status, 0);
@@ -227,7 +226,7 @@ test('echoed bearer and derived refusal text never reach stderr, JSON, text or r
       assert.ok(!text.includes(value), `${boundary} leaked a supplied or reflected credential`);
     }
     assert.equal(JSON.parse(file).passed, false);
-    assert.match(reply.stderr, /E_AUTH.*HTTP 401/);
+    assert.match(reply.stderr, /E_AUTH/);
   }
   const invalid = await cli(['--wat', token, '--token', token], dir);
   assert.notEqual(invalid.status, 0); assert.ok(!invalid.stderr.includes(token));
@@ -260,7 +259,7 @@ test('restart times coverage separately from first answer', async t => {
   const receipt = JSON.parse(await readFile(join(artifacts, 'acquire.json'), 'utf8'));
   const r = receipt.runs[0].restart;
   assert.ok(r.coverageVerifiedMs > 0);
-  assert.equal(r.completed, true); assert.equal(receipt.runs[0].requests.filter(r => r.phase === 'reconnect' && r.path === '/sync').at(-1).applied, true); assert.equal(r.serverPosition, r.reconnected.watermark);
+  assert.equal(r.completed, true); assert.equal(receipt.runs[0].requests.filter(r => r.phase === 'reconnect' && r.path === '/sync').at(-1).applied, true); assert.equal(r.serverPositionSha256, r.reconnected.positionSha256);
   assert.ok(reply.stdout.includes(`cold restart first local answer ${(r.firstLocalMs / 1000).toFixed(3)} s; coverage verified (1 table/groups) in ${(r.coverageVerifiedMs / 1000).toFixed(3)} s`));
   // A delayed native coverage scan belongs entirely to its own timer.
   const measured = await measure(parse(f.args), { binary, beforeRestart({ opener }) {
@@ -313,4 +312,162 @@ for (const valid of [true, false]) test(`binary native module ${valid ? 'install
     assert.equal(receipt.runs[0].restart.retained, true);
     assert.equal(receipt.runs[0].requests.find(r => r.path === '/native.wasm').installed, true);
   } else { assert.notEqual(reply.status, 0); assert.equal(receipt.passed, false); }
+});
+
+const tokenForms = token => ({ raw: token, hex: Buffer.from(token).toString('hex'),
+  HEX: Buffer.from(token).toString('hex').toUpperCase(), base64: Buffer.from(token).toString('base64'),
+  base64url: Buffer.from(token).toString('base64url'), percent: [...Buffer.from(token)].map(b => `%${b.toString(16).padStart(2, '0').toUpperCase()}`).join(''),
+  percentLower: [...Buffer.from(token)].map(b => `%${b.toString(16).padStart(2, '0')}`).join(''),
+  sha256: createHash('sha256').update(token).digest('hex') });
+function assertNoCredentials(variants, boundaries) {
+  for (const [boundary, text] of Object.entries(boundaries)) for (const [form, secret] of Object.entries(variants)) {
+    assert.equal(text.includes(secret), false, `${boundary} leaked ${form}`);
+  }
+}
+
+// Each form reaches a successful receipt through schema names, sync identity,
+// rows and headers; refusal cases exercise the distinct error boundaries too.
+for (const form of Object.keys(tokenForms('synthetic'))) test(`server allowlist drops ${form} from every acquisition output surface`, async t => {
+  const f = await fixture(t);
+  const { session } = await fetch(`${f.url}/auth/guest`, { method: 'POST', body: '{}' }).then(r => r.json());
+  assert.ok(session);
+  const variants = tokenForms(session.token), echo = variants[form];
+  const seeded = await fetch(`${f.url}/seed`, { method: 'POST', body: JSON.stringify([
+    { table: 'notes', row: { id: 'echo-row', owner: session.principal, body: 'row body' } },
+  ]) }).then(r => r.json());
+  assert.equal(seeded.seeded, 1);
+  let mode = 'success', firstPage;
+  const echoed = [];
+  const rename = value => {
+    if (typeof value === 'string') return value === 'notes' || value === 'heldNotes' || value === 'row body' ? echo : value;
+    if (Array.isArray(value)) return value.map(rename);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) =>
+      [key === 'notes' ? echo : key, key === 'store_id' ? echo : rename(item)]));
+    return value;
+  };
+  const proxy = createServer(async (req, res) => {
+    try {
+      assert.equal(req.headers.authorization, `Bearer ${session.token}`);
+      const chunks = []; for await (const chunk of req) chunks.push(chunk);
+      const body = Buffer.concat(chunks), headers = { ...req.headers };
+      delete headers.host; delete headers['content-length'];
+      const response = await fetch(f.url + req.url, { method: req.method, headers, ...(body.length ? { body } : {}) });
+      let page = await response.json();
+      if (req.url === '/schema') firstPage = structuredClone(page);
+      if (mode === 'success') page = rename(page);
+      // Unknown fields, including server-provided numbers/hashes and refusal
+      // vocabulary, must never be serialized by spreading a server object.
+      Object.assign(page, { code: echo, message: echo, family: echo, site: echo, guide: echo,
+        rewrite: echo, principal: echo, query: echo, args: { [echo]: echo }, hash: echo,
+        rows: 987654321, bytes: 987654321, elapsed: 987654321, [echo]: echo });
+      if (mode === 'missing-arg' && req.url === '/schema') {
+        page.programs.find(p => p.name === 'byOwner').args = { [echo]: 'Principal' };
+      }
+      if (mode === 'viewer' && req.url === '/probe') page.viewer = echo;
+      if (mode === 'schema-error' && req.url === '/schema') page.programs = echo;
+      if (mode === 'sync-error' && req.url === '/sync') page.watermark = echo;
+      if (mode === 'native-error' && req.url === '/sync') page.acknowledged = { [echo]: echo };
+      if (mode === 'native-hash' && req.url === '/schema') page.native = { digest: echo };
+      if (mode.startsWith('denied:') && req.url === mode.slice(7)) {
+        page = { denied: Object.fromEntries(['code', 'message', 'family', 'site', 'guide', 'rewrite'].map(key => [key, echo])) };
+      }
+      echoed.push([mode, req.url]);
+      res.writeHead(200, { 'content-type': 'application/json', 'server-timing': `total;dur=987654321, cpu;dur=987654321`,
+        'x-reflection': echo });
+      res.end(JSON.stringify(page));
+    } catch { res.destroy(); }
+  });
+  proxy.listen(0, '127.0.0.1'); await once(proxy, 'listening');
+  t.after(() => { proxy.closeAllConnections(); proxy.close(); });
+  for (const scenario of ['success', 'missing-arg', 'viewer', 'schema-error', 'sync-error', 'native-error', 'native-hash', 'denied:/probe', 'denied:/schema', 'denied:/sync']) {
+    mode = scenario;
+    for (const json of [true, false]) {
+      const artifacts = join(f.dir, `${scenario.replaceAll('/', '-')}-${json}`);
+      const reply = await cli(['--as', session.principal, '--token', session.token,
+        '--url', `http://127.0.0.1:${proxy.address().port}`, '--timeout', '3', '--restart', '--artifacts', artifacts,
+        ...(scenario === 'missing-arg' ? ['--query', 'byOwner'] : []), ...(json ? ['--json'] : [])], f.dir);
+      const file = await readFile(join(artifacts, 'acquire.json'), 'utf8');
+      assertNoCredentials(variants, { stdout: reply.stdout, stderr: reply.stderr, file });
+      assert.ok(!file.includes('987654321'), 'server numeric metadata/timing must be dropped');
+      const receipt = JSON.parse(file);
+      assert.equal(receipt.principal, session.principal, 'principal comes from caller input');
+      if (scenario === 'success') {
+        assert.equal(reply.status, 0, reply.stderr);
+        assert.equal(receipt.passed, true);
+        assert.equal(receipt.runs[0].coverage.rows, 1);
+        assert.equal(receipt.runs[0].query.name, 'automatic device query');
+        assert.equal(receipt.runs[0].restart.completed, true);
+        assert.equal(Object.keys(receipt.runs[0].coverage.groupsByTable).length, 1);
+      } else {
+        assert.notEqual(reply.status, 0, scenario);
+        assert.equal(receipt.passed, false);
+      }
+      assert.deepEqual(await readdir(artifacts), ['acquire.json'], 'server free text is dropped, not saved elsewhere');
+    }
+  }
+  assert.ok(firstPage?.programs.length);
+  for (const scenario of ['sync-error', 'native-error', 'denied:/sync']) assert.ok(echoed.some(([mode, path]) => mode === scenario && path === '/sync'));
+});
+
+test('caller query and args are echoed from the request, never selected schema metadata', async t => {
+  const f = await fixture(t), artifacts = join(f.dir, 'caller-input');
+  const reply = await cli([...f.args, '--query', 'byOwner', '--args', '{"owner":"dev:alice"}', '--json', '--artifacts', artifacts], f.dir);
+  assert.equal(reply.status, 0, reply.stderr);
+  const receipt = JSON.parse(reply.stdout);
+  assert.equal(receipt.principal, 'alice');
+  assert.equal(receipt.runs[0].query.name, 'byOwner');
+  assert.deepEqual(receipt.runs[0].query.args, { owner: 'dev:alice' });
+});
+
+test('equals token spelling authenticates without exposing the bearer', async t => {
+  const f = await fixture(t, true);
+  const { session } = await fetch(`${f.url}/auth/guest`, { method: 'POST', body: '{}' }).then(r => r.json());
+  const reply = await cli([`--url=${f.url}`, `--as=${session.principal}`, `--token=${session.token}`, '--restart', '--json'], f.dir);
+  assert.equal(reply.status, 0, 'equals bearer spelling must authenticate');
+  assert.equal(JSON.parse(reply.stdout).passed, true);
+  assertNoCredentials(tokenForms(session.token), { stdout: reply.stdout, stderr: reply.stderr });
+});
+
+test('acquire argument refusals omit values including equals bearers', async () => {
+  const dir = tmpdir();
+  const marker = 'BN_EQUALS_BEARER_TEST_NOT_REAL';
+  const bad = [
+    [`--token=${marker}`], [`--token=${marker}`, `--token=${marker}`], ['--token', marker, `--token=${marker}`],
+    [`--token-file=${marker}`], ['--token-file', marker], [`--unknown=${marker}`], [marker],
+    [`--${marker}`], [`--json=${marker}`], [`--as=${marker}`, '--runs', marker],
+    ['--as', marker, '--token', marker], ['--as', 'alice', '--token', marker, '--query', marker],
+    ['--as', 'alice', '--token', marker, '--artifacts', marker],
+  ];
+  for (const args of bad) {
+    const result = await cli(args, dir);
+    assertNoCredentials({ marker }, { stdout: result.stdout, stderr: result.stderr });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /E_WITNESS_INPUT/);
+  }
+});
+
+test('iOS argument refusals omit values including equals bearers', async () => {
+  const dir = tmpdir(), marker = 'BN_EQUALS_BEARER_TEST_NOT_REAL';
+  for (const flag of ['token', 'token-file', 'bundle-id', 'udid', 'segment', 'artifacts', 'port', 'timeout', 'prime', 'relaunch', 'smoke', 'build', 'repack', 'app-project', 'unknown']) {
+    const result = await cli(['__family', 'ios', `--${flag}=${marker}`], dir);
+    assertNoCredentials({ marker }, { stdout: result.stdout, stderr: result.stderr });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /E_WITNESS_INPUT/);
+  }
+  for (const args of [[marker], ['--token', marker], ['--token-file', marker], ['--port', marker], ['--timeout', marker], ['--bundle-id', marker, '--segment', '!']]) {
+    const result = await cli(['__family', 'ios', ...args], dir);
+    assertNoCredentials({ marker }, { stdout: result.stdout, stderr: result.stderr });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /E_WITNESS_INPUT/);
+  }
+});
+
+
+test('runtime refusals do not echo caller argument values in stderr', async t => {
+  const f = await fixture(t), marker = 'BN_REFUSAL_ARGUMENT_VALUE';
+  const reply = await cli(['--as', 'alice', '--url', f.url, '--query', marker,
+    '--artifacts', join(f.dir, marker)], f.dir);
+  assert.notEqual(reply.status, 0);
+  assert.match(reply.stderr, /E_WITNESS_INPUT/);
+  assertNoCredentials({ marker }, { stderr: reply.stderr });
 });

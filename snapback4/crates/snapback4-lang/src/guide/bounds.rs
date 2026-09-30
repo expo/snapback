@@ -125,7 +125,7 @@ persona and a device query; SB4_URL is dev's printed URL, SB4_PROOF a new direct
 snapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json
 ```
 
-For serve or a real account, use `--as <principal> --token <bearer>`.
+For serve or a real account, use `--as <principal> --token <bearer>` (or `--token=<bearer>`).
 Optional `--args '{"c":null}'` supplies query arguments; without `--query` the
 witness selects the first zero-argument device query. `--runs 3` uses three fresh
 stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run.
@@ -150,11 +150,14 @@ empty snapshot at watermark zero still needs stream catch-up. Keep the fixture
 stable: new writes or expiry can invalidate this comparison. No OS-cache flush,
 app UI, media-cache or physical-phone performance is claimed.
 Groups are table/group pairs with rows or recorded coverage (plus implicit public
-and principal groups); inspect groupsByTable.messages for the conversation count.
+and principal groups); groupsByTable and residency.tables use hashed table names:
+SHA-256 of UTF-8 JSON.stringify(["witness-table", name]), e.g. name = "messages".
 residency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row
-payload bytes. requests preserve Server-Timing and parsed serverMs; serverSyncMs
-sums acquisition sync total durations (null on serve). Verification scans follow
-the timed answer. Background polling is suppressed; SDK sync itself is unchanged.
+payload bytes. Receipt format 2 keeps local timings/counts and computed digests;
+server text, codes, numeric metadata and Server-Timing are dropped. Automatic queries
+use a generated label; explicit query/args/principal echo only caller input. State and
+position digests preserve equality evidence without reflecting wire identifiers.
+Verification scans follow the timed answer. Background polling is suppressed.
 HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000
 memberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;
 first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are

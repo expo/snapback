@@ -1,0 +1,71 @@
+(node:779473) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ server allowlist drops HEX from every acquisition output surface (1343.819494ms)
+✖ acquire argument refusals omit values including equals bearers (82.140711ms)
+✖ iOS argument refusals omit values including equals bearers (8.565831ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1552.605277
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/witness-acquire.test.mjs:330:58
+✖ server allowlist drops HEX from every acquisition output surface (1343.819494ms)
+  AssertionError [ERR_ASSERTION]: stdout leaked HEX
+
+  true !== false
+
+      at assertNoCredentials (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:324:12)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:390:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/witness-acquire.test.mjs:431:1
+✖ acquire argument refusals omit values including equals bearers (82.140711ms)
+  AssertionError [ERR_ASSERTION]: stderr leaked marker
+
+  true !== false
+
+      at assertNoCredentials (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:324:12)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:443:5)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/witness-acquire.test.mjs:449:1
+✖ iOS argument refusals omit values including equals bearers (8.565831ms)
+  AssertionError [ERR_ASSERTION]: stderr leaked marker
+
+  true !== false
+
+      at assertNoCredentials (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:324:12)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:453:5)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
