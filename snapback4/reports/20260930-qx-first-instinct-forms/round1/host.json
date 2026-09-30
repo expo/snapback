@@ -1,0 +1,14 @@
+{
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "branch": "sb4-intent/qx-first-instinct-forms",
+  "head": "503f24696c5308d0e834344e92de23084cb0d74d",
+  "origin_main_merged": "42ba3ffb904fa227d6dde5ef6a2c8e4c8b23f428",
+  "sqlite_flags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "load": [
+    14.205078125,
+    12.53662109375,
+    12.59619140625
+  ]
+}

@@ -328,7 +328,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
                 }
                 None => match principals.as_slice() {
                     [one] => (*one).to_owned(),
-                    [] => return Err(sync_error(&sync.site, format!("sync to {table}[..] needs a principal column on {table} to read recipients from; it has none"), format!("add `principal: principal` to table {table}"))),
+                    [] => return Err(sync_error(&sync.site, format!("sync to {table}[..] needs a principal column on {table} to read recipients from; it has none"), super::through::sync_repair(catalog, info).unwrap_or_else(|| format!("add `principal: principal` to table {table}")))),
                     many => return Err(sync_error(&sync.site, format!("sync to {table}[..]: {table} has several principal columns ({}); name the recipient column", many.join(", ")), format!("sync to {table}[{}] by .{}", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), many[0]))),
                 },
             };
@@ -338,7 +338,8 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
     let principal = match &audience { Audience::Target { principal, .. } => Some(principal.as_str()), _ => None };
     let implied = infer_audience(catalog, sync, rule, principal)?;
     if audience != implied {
-        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()), "sync  -- infer the audience from the read rule"));
+        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()),
+            super::through::sync_repair(catalog, info).unwrap_or_else(|| "sync  -- infer the audience from the read rule".into())));
     }
     let horizon = match &sync.horizon {
         Some((last, SyncOrder::Index(by))) => {

@@ -151,3 +151,20 @@ fn membership_paths_keep_check_residency_output() {
         assert_eq!(outputs[0], outputs[1]);
     }}}
 }
+
+#[test]
+fn reaction_constraint_residency_snapshots() {
+    for shape in ["natural", "secondary-unique"] {
+        let project = Project::new();
+        let mut source = qx_fixture::source(2, true, false, false, "group")
+            .replace("upsert reactions[parent, viewer]", "upsert reactions[parent = parent, principal = viewer]");
+        if shape == "secondary-unique" { source = source.replace("  emoji: text <=32", "  emoji: text <=32\n  unique principal, emoji"); }
+        project.source(&source);
+        let output = project.run(&["check", "--residency"]);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        let normalized = text.lines().skip(1).collect::<Vec<_>>().join("\n") + "\n";
+        let expected = fs::read_to_string(format!("{}/tests/check/fixtures/qx-{shape}.txt",env!("CARGO_MANIFEST_DIR"))).unwrap();
+        assert_eq!(normalized,expected,"{shape}");
+    }
+}

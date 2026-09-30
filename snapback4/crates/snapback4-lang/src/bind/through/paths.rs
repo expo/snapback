@@ -19,7 +19,7 @@ pub(super) fn reference(info: &TableInfo) -> Option<String> {
     }))
 }
 
-fn repair(decl: &TableDecl, reference: &str) -> String {
+pub(super) fn repair(decl: &TableDecl, reference: &str) -> String {
     let immutable = if decl.immutable.iter().any(|(fields, _)| fields.iter().any(|f| f == reference)) { String::new() } else { format!("immutable {reference}\n") };
     let sync = decl.sync.as_ref().map(|sync| {
         let horizon = sync.horizon.as_ref().map(|(n, order)| format!(" last {n} by {order}")).unwrap_or_default();

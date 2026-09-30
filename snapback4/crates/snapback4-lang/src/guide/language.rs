@@ -823,6 +823,6 @@ mutation react(message: messages, emoji: text <=32) predicts:
 ```
 
 This inherits `read through .message` semantics. `guide sync` covers three hops,
-immutable required references, lifetime and E_READ_THROUGH repairs;
+immutable required references, lifetime and E_READ_THROUGH / E_SYNC repairs;
 `guide prediction` covers acquired coverage and rollback.
 "##;

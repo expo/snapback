@@ -1,0 +1,41 @@
+{
+  "summary": "== 0 failure(s) in 1312 s",
+  "exit": 0,
+  "stages": [
+    "cargo build (0 s)",
+    "wasm build (55 s)",
+    "docs budget (2 s)",
+    "release guard (3 s)",
+    "package typecheck (2 s)",
+    "package build (2 s)",
+    "chat app check (0 s)",
+    "cargo test (517 s)",
+    "chat app typecheck (2 s)",
+    "expo app typecheck (1 s)",
+    "fixture wrapper tests (13 s)",
+    "client tests (412 s)",
+    "client models (319 s)"
+  ],
+  "rust": {
+    "passed": 4379,
+    "failed": 0,
+    "ignored": 33
+  },
+  "clients": {
+    "passed": 5345,
+    "failed": 0,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "fixtures": {
+    "passed": 9,
+    "failed": 0
+  },
+  "source_unchanged": true
+}

@@ -46,9 +46,22 @@ fn durable_schema_and_types_keep_base_bytes() {
     ] { assert_eq!(types.matches(old).count(), 1); *types = types.replace(old, new); }
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
-        assert_eq!(schema, expected[&name].0, "schema bytes: {name}");
+        assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");
         assert_eq!(strip_row_keys(&types), expected[&name].1, "TypeScript bytes: {name}");
     }
+}
+
+// QX round 1 appends per-constraint update explanations to existing upsert
+// insert sites. Only that appended prose is new; the CLI snapshots bind it.
+fn strip_update_explanations(text: &str) -> String {
+    let mut schema: snapback4_core::Schema = serde_json::from_str(text).unwrap();
+    for op in schema.operations.values_mut() {
+        for site in &mut op.sites {
+            if matches!(site.kind.as_str(), "upsert insert" | "upsert insert blocked")
+                && let Some(at) = site.reason.find("; held updates — ") { site.reason.truncate(at); }
+        }
+    }
+    serde_json::to_string(&schema).unwrap()
 }
 
 /// LLP 3000.028 §3.3 (lane OS) adds `rowKey` to generated query entries in `api`,

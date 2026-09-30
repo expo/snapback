@@ -30,7 +30,8 @@ indexes, parent identity, audience, residency, IR, runtime reservations and
 meters are identical. The explicit path still passes exact sync admission.
 Nullable/mutable links, defaults, unrelated fields, narrower/different rules,
 cycles and mismatched audiences remain refused. `E_READ_THROUGH` supplies
-schema-specific repair text; choosing a whole-parent repair is an explicit
+schema-specific repair text for invalid paths/rules. Mismatched sync audiences
+produce `E_SYNC` (round 1 also adds the schema-specific repair there); choosing a whole-parent repair is an explicit
 product choice for a previously narrower child. No automatic `--fix` is added.
 
 The compiler's former blanket server-only upsert site and the engine's matching
@@ -43,7 +44,8 @@ fine when this parent is held. Public whole-table absence keeps its existing
 proof, including complete zero view counts after parent expiry; an actual insert
 still checks capture and lifetime. Every secondary unique key and cap group still
 needs its own proof. Expiring cap groups keep their insert restriction. Held
-children predict updates under the ordinary rules. Settlement remains
+children need coverage of every changed constraint population; round 0 omitted
+this update check, corrected in round 1. Settlement remains
 server-authoritative; refusal restores confirmed rows and replays pending work.
 
 The natural reaction key `(message, viewer)` and `cap 50 by message` therefore

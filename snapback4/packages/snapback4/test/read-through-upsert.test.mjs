@@ -54,3 +54,28 @@ for(const tier of ['wasm','process']) for(const coverage of ['whole','horizon','
  await call({op:'settle',id:'qx-first'});assert.deepEqual((await read()).data,[]);
  const missing=await admit('qx-missing','like','unheld');assert.equal(missing.predictable,false);assert.deepEqual(missing.predicted,[]);
 });
+
+for (const tier of ['wasm','process']) for (const constraint of ['unique byEmoji: emoji','cap 1 by emoji']) test(`${tier}: held upsert queues before entering uncovered ${constraint}`,{timeout:60000},async t=>{
+ const host=await server(t,tier,starter+reactions.replace('  cap 50 by message',`  ${constraint}\n  cap 50 by message`));
+ const seed=[];
+ for (const [c,m,r,emoji] of [['c','m','held','old'],['hidden-c','hidden-m','hidden-r','taken']]) {
+  seed.push({table:'conversations',row:{id:c,creatorId:'dev:bob',title:c}},
+   {table:'messages',row:{id:m,conversation:c,sender:'dev:bob',ordinal:1,recipients:0,text:'Hello',at:1}},
+   {table:'reactions',row:{id:r,message:m,principal:'dev:bob',emoji}});
+ }
+ seed.push({table:'members',row:{id:'member',conversation:'c',principal:'dev:bob',joinedOrdinal:0}});
+ assert.equal((await host.post('/seed',seed)).seeded,seed.length);
+ await host.open();host.pauseSync();
+ const call=async request=>{const reply=await host.core.call(request);assert.equal(reply.denied,undefined,JSON.stringify(reply));return reply.ok;};
+ const read=()=>call({op:'query',name:'reactionsFor',args:{message:'m'},viewer:'dev:bob',now:Date.now()});
+ const before=await read();assert.equal(before.data[0].emoji,'old');assert.equal(before.data.length,1);
+ const queued=await call({op:'admit',entry:{id:'qx-constraint',seq:0,op:'setReaction',args:{message:'m',emoji:'taken'},viewer:'dev:bob',now:Date.now(),predictable:true}});
+ const after=await read();
+ const refused=await host.post('/m/setReaction',{id:'qx-constraint',args:{message:'m',emoji:'taken'}});
+ assert.equal(refused.state,'failed',JSON.stringify(refused));
+ assert.equal(refused.why.code,constraint.startsWith('unique')?'E_RULE':'E_CONSTRAINT',JSON.stringify(refused));
+ await call({op:'settle',id:'qx-constraint'});
+ assert.deepEqual((await read()).data,before.data);
+ assert.equal(queued.predictable,false,JSON.stringify({queued,after,refused}));
+ assert.deepEqual(queued.predicted,[]);assert.deepEqual(after.data,before.data);
+});

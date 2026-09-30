@@ -519,7 +519,7 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
 pub fn operation_lines(name: &str, fact: &Execution) -> String {
     let blocked = fact.sites.iter().find(|site| inserts::blocked(site));
     let mut word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => match blocked {
-        Some(site) if site.kind == inserts::UPSERT_BLOCKED => format!("predicts: updates only — inserts into {} queue without a row", site.table),
+        Some(site) if site.kind == inserts::UPSERT_BLOCKED => format!("predicts: conditional updates — inserts into {} queue without a row", site.table),
         Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };

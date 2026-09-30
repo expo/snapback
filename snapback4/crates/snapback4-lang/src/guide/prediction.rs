@@ -223,7 +223,10 @@ could (`guide effects`). See `guide presence`.
 
 ## Set-state writes: likes and reactions
 
-`upsert` predicts an update of a row the device holds. It predicts the insert
+`upsert` predicts a held-row update when every changed non-null unique key and
+destination cap group has complete readable coverage. Unchanged keys/groups need
+no new proof; null unique keys do not collide. Expiring cap moves queue because
+a device cannot prove server physical occupancy. It predicts the insert
 of a row the device lacks only when the synced group is held with no horizon,
 both the key and the materialized insert image prove readability (public rows,
 or a viewer-keyed rule), and every secondary unique lookup and affected cap
@@ -236,8 +239,8 @@ membership `insert ... if absent` to set and `delete` to clear read most
 plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
 reaction, use `upsert` to insert when absent and update the held row when present.
 An explicit existence branch needs a whole partition; a horizon miss is still unknown.
-`check --verbose` labels an upsert with an unprovable insert arm `predicts: updates only`;
-that means a held-row update remains eligible, not that the first write predicts.
+`check --residency` labels an unprovable insert arm `predicts: conditional updates`
+and explains each update constraint. Missing population coverage queues without a row.
 `insert ... if absent` with an unprovable insert says `predicts: inserts queue
 without a row`. The summary and residency line name the horizon, read rule or
 uncovered unique/cap group; changing the write spelling does not supply that proof.
@@ -320,7 +323,8 @@ invent an empty row or mint different IDs on replay.
 
 A read-through child uses its parent key to prove readability. With a live,
 current parent and the child's whole audience partition acquired, an upsert
-keyed by that parent predicts both insert and update. It keeps the same server
+keyed by that parent can predict both arms under the constraint rules below.
+It keeps the same server
 return value and authority as any upsert; a refusal rolls back the prediction.
 
 ```quarry
@@ -352,8 +356,10 @@ parent or independently prove a wholly readable partition. A parent may have a
 horizon if this parent row is held; a child horizon still prevents insert
 prediction. Unknown coverage, retained-only or provisional parents, absent or
 expired parents, and exhausted allowances queue a missing upsert without a row.
-An expiring cap group also prevents insert prediction. A held target can still
-predict its update. `insert ... if absent` on a child remains server-only.
+An expiring cap group prevents inserts and group moves. Held updates preserve
+unchanged constraints; changed non-null unique keys or cap groups require their
+own coverage. An immutable `(parent, principal)` key and `cap 50 by parent`
+therefore allow both the first reaction and later emoji replacements. `insert ... if absent` on a child remains server-only.
 
 For that remaining case, an explicit `if exists reactions[message, viewer]`
 branch with `update` on a hit and `insert` on a miss is an application pattern,

@@ -49,3 +49,17 @@ fn path_refusals_are_targeted_and_repairs_compile() {
         clean(&repaired);
     }
 }
+
+#[test]
+fn mismatched_audiences_keep_sync_code_and_schema_specific_repair() {
+    for horizon in [false,true] { for audience in ["sync public", "sync to groups[.parent.group]"] {
+        let base=source(2,true,false,horizon,"group");
+        let bad=base.replace("sync to members[.parent.group]",audience);
+        let b=bind(&bad);
+        let d=b.diagnostics.iter().find(|d|d.code=="E_SYNC").unwrap_or_else(||panic!("{:?}",b.diagnostics));
+        let expected=format!("read through .parent\nsync{}",if horizon {" last 2 by .id"} else {""});
+        assert_eq!(d.rewrite,expected,"{d}");
+        let repaired=bad.replace("read <- exists members[.parent.group, viewer]","read through .parent").replace(audience,"sync");
+        clean(&repaired);
+    }}
+}

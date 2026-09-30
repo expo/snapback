@@ -79638,3 +79638,50 @@ Evidence, source snapshots and rerunnable controls:
 reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+### 2026-09-30 — QX round 1: prove changed constraint populations
+
+Merged origin/main 42ba3ffb904f first in 503f24696c, retaining both journal
+histories. Fixed Astra P1 / Grok High: a held upsert/update now proves complete
+readable coverage before entering a different non-null unique key or cap group.
+The proof uses the existing device allowance; missing facts queue without a
+row. Unchanged keys/groups need no new proof, null unique keys remain exempt,
+and expiring cap moves keep their physical-occupancy restriction. Server rules
+and enforcement are unchanged. The natural immutable parent/principal reaction
+key and cap 50 by parent still predict first writes and replacements.
+
+Corrected the E_SYNC versus E_READ_THROUGH wording in the report and guide.
+Mismatched through audiences now get a schema-specific repair preserving the
+authored horizon. Four repaired variants compile. Check labels blocked-insert
+upserts as conditional updates and explains each constraint. Two exact residency
+snapshots cover the natural shape and an extra unique principal/emoji key.
+LLPs 3000.007 and 3000.014 record the correction.
+
+Generated tests cover 120 constraint/arm/coverage cases over memory and SQLite;
+round-0 code wrongly predicts 24 changed-update cases, while its 96 controls
+already pass. Fixed code passes all 120. Both actual tiers reproduce the old
+unique/cap failure (four cases) and pass the fix alongside the six original
+controls. Final affected device checks 97/97, ordinary upsert 31/31, CLI 8/8,
+paths 4/4, residency 41/41, compatibility 1/1 and whole guide 106/106 pass.
+Fresh 20-trial reaction measurements: insert p50/p95 web 3.95/5.80 ms, process
+6.95/8.70 ms; update 3.30/4.80 and 5.45/6.90 ms. All 80 samples render pending
+before mutation return. These are localhost writer timings, not remote latency.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1312 s
+
+All 13 stages pass: Rust 4,379 passes and 33 existing ignores; clients 5,345
+passes and ten existing skips; models 79/79 and fixtures 9/9. Full-run failures:
+ours 0, baseline 0, environmental 0. No cancellations, reduced counts or relaxed
+timeouts. Product source, tests and snapshots stayed fixed throughout the run.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Wasm is 1,980,716 B raw / 593,539 B gzip, 180 B below the unchanged 593,719 B
+ratchet (+1,283 raw / +15 gzip versus round 0's retained artifact). No ceiling
+increase. Every intermediate implementation, harness and detecting failure is
+classified; the stale-SDK measurement probe is retained separately. Report,
+raw samples, source/artifact hashes and full log:
+reports/20260930-qx-first-instinct-forms/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

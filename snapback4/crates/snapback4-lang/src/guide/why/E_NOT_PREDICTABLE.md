@@ -4,7 +4,7 @@
 the call still needs its facts on this device and must fit the meter and rules.
 `mutation name(args) predicts:` asserts this eligibility: `check` refuses
 `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
-the reason and rewrite. It does not promise prediction on every call. Remove
+the reason and rewrite. Prediction eligibility is not a promise that every call produces a predicted row. Remove
 the named server dependency to keep `predicts`, or remove that assertion and let the client queue
 without prediction.
 Every `check` summarizes mutations that never predict, insert arms that
@@ -14,8 +14,7 @@ past a horizon, even on an unchanged program. `check --verbose` keeps the full s
 A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
 causes with deduplicated sites and rewrites.
-Every mutation can queue on the local client; eligibility is not a promise
-that every call produces a predicted row. Native reads also need their module.
+Native reads need their module.
 Persisted writes without a valid integer prediction clock queue without rows;
 their write and row IDs survive for submission to the server. Direct device
 `predict` calls require an explicit integer `now`; `admit` and `enqueue` clear
@@ -27,9 +26,11 @@ and the viewer-readable partition covers every secondary unique lookup and
 affected cap group. The image includes key columns, patch and defaults; a
 whole-table cap needs the whole public table. Left groups and unproved
 conditions queue without a predicted row and still send `/m` (guide prediction).
-`check --verbose` calls an upsert with an unprovable insert arm `predicts: updates only`,
+`check --verbose` calls an upsert with an unprovable insert arm `predicts: conditional updates`,
 and lists that arm in its summary with the first failing horizon, rule or cap
-coverage proof. `insert ... if absent` reports the same insert limitation.
+coverage proof. Updates need coverage for changed non-null unique keys and cap groups.
+Unchanged keys/groups need no new proof. Expiring cap moves queue.
+Residency explains each constraint. `insert ... if absent` reports the same insert limitation.
 An id supplied to `insert ... if absent`, including a parameter or helper result,
 needs the `byId` absence proof too. Only an id minted by `new` during the call
 (including an omitted id) can use a covered secondary unique key instead.
@@ -49,5 +50,3 @@ If no shape fits the product, this write queues until the server answers;
 show its pending state using the returned write's `state` and `client.onWrite`
 (guide writes). Changing `upsert` to an existence branch does not supply absence
 or cap coverage.
-
-Read-through upserts: no rewrite; adapt the explicit insert/update pattern in `guide prediction`.

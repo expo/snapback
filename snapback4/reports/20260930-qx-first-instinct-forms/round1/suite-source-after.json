@@ -1,0 +1,21 @@
+{
+  "snapback4/crates/snapback4-core/src/engine/write.rs": "dea19c7d58590c3aabfd87845946800ec7f41c4c240aaff4df420839caf16019",
+  "snapback4/crates/snapback4-device/tests/upsert_constraints.rs": "da188378ad7f78791f4332eb8dfcf6b1f5ea0e85c31e5e2d8c29f5069f260f1c",
+  "snapback4/crates/snapback4-lang/src/bind/residency.rs": "1fef0b34ec6f65bcd86bad705a713b820720b88427fee023090ab7972662610c",
+  "snapback4/crates/snapback4-lang/src/bind/residency/inserts.rs": "7019c7c6ce85308434819923fb96d2d5267b6276a7309583ffd984f2d67140d9",
+  "snapback4/crates/snapback4-lang/src/bind/schema.rs": "f59c9612cc70254f4b120574c8ab366c214d35575747506d7349304e68c3f674",
+  "snapback4/crates/snapback4-lang/src/bind/through.rs": "436585b71ecc27a2dad96a712ca38354d1d769a25782f15ae8dc592dd322c37f",
+  "snapback4/crates/snapback4-lang/src/bind/through/paths.rs": "cdd5bb5e87518771f541250cd7410c1c09194bbc88b9ee4b2ff5bf9ecae758e9",
+  "snapback4/crates/snapback4-lang/src/guide/language.rs": "7045bbeb0baaea633783fc4f30cc2b9536121578d74dd15ef50a1cb3cd44d248",
+  "snapback4/crates/snapback4-lang/src/guide/prediction.rs": "6f3f4d9c85e87695a7887beabe7ab7f56cbb190b42e0e5aa27fcda38bf691cb7",
+  "snapback4/crates/snapback4-lang/src/guide/sync.rs": "b2b3ba8d9037d47ebf4109e7951b6f794b732f15a2cc857628dd9f3e8c8adff2",
+  "snapback4/crates/snapback4-lang/src/guide/why/E_NOT_PREDICTABLE.md": "ab70a4371f80cc6ac9a21e41d75c051b66715e37936adfe58faf829810acf9e1",
+  "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "2661c34391676fa13e44d4de3def7964504f410606855d88c858591223bc90bf",
+  "snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json": "e4f0e698076aaf7dbb2428d74c7d151721512a9c5f0910897ecf0aac835824e3",
+  "snapback4/crates/snapback4-lang/tests/membership_paths.rs": "7c2d7f4d7fdcc702bda7ff439e308430b8fac6f09408fdac166e4353470f7f8e",
+  "snapback4/crates/snapback4-lang/tests/residency_notes.rs": "b2c12c5d5b2cbaed38b5e06d4d819267265831ab5881c78ab66a75a030acb077",
+  "snapback4/crates/snapback4/tests/check/first_paste.rs": "3ca1e0da05bc9cd94f2f323ad62db85c518ae640191496a26576bdb3dc70890f",
+  "snapback4/crates/snapback4/tests/check/fixtures/qx-natural.txt": "f7ceee459ed4a0636d03179fce2a53f80d700400d2243db3f18cd7666eaa7a28",
+  "snapback4/crates/snapback4/tests/check/fixtures/qx-secondary-unique.txt": "4d007cbad43c9c699b5411076e0df1e08c79e249ac98a569851a947e0d20a22c",
+  "snapback4/packages/snapback4/test/read-through-upsert.test.mjs": "b88bdcfb02f373f9f232ee5b98b6bba36d62fe2c46f38099bde7de38fe6799f6"
+}

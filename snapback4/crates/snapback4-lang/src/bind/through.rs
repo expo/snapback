@@ -6,6 +6,13 @@ use snapback4_core::schema::through::{CHILDREN, DEADLINE, PARENT_DEADLINE, Throu
 use std::collections::{BTreeMap, BTreeSet};
 mod paths;
 
+pub(super) fn sync_repair(catalog: &super::catalog::Catalog, info: &TableInfo) -> Option<String> {
+    // Keep the authored horizon, before planning adds captured audience columns.
+    let decl = catalog.documents.iter().flat_map(|doc| &doc.tables)
+        .find(|decl| decl.name == info.decl.name).unwrap_or(&info.decl);
+    info.through.as_ref().map(|through| paths::repair(decl, &through.reference))
+}
+
 fn reference(info: &TableInfo) -> Option<String> {
     info.decl.rules.iter().find_map(|rule| match &rule.value {
         Expr::Call { name, args, .. } if name == "$readThrough" => match args.as_slice() {
