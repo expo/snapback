@@ -146,6 +146,39 @@ mod driver {
     }
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
     #[test]
+    fn automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime() {
+        for (mode, prefix) in [("normal", "snapback4-smoke-"), ("auto-create", "snapback4-smoke-"), ("auto-create-lane", "sb4-ns-")] {
+            let fixture = Fixture::new();
+            let output = fixture.command(mode, Fixture::port(), std::path::Path::new("artifacts"))
+                .env("SNAPBACK4_SMOKE_DEVICE_PREFIX", prefix).output().unwrap();
+            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+            assert!(manifest["simulator"]["name"].as_str().unwrap().starts_with(prefix));
+            assert_eq!(manifest["simulator"]["selection"], if mode == "normal" { "reused" } else { "created" });
+            assert!(String::from_utf8_lossy(&output.stderr).contains(manifest["udid"].as_str().unwrap()));
+            let calls = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap();
+            assert_eq!(calls.contains("\"create\""), mode != "normal");
+            assert!(!calls.contains("someone-else") && !calls.contains("near-prefix") && !calls.contains("unavailable"));
+        }
+    }
+    #[test]
+    fn missing_xcode_or_runtime_fails_once_before_build_or_backend() {
+        for mode in ["no-xcode", "no-runtime"] {
+            let fixture = Fixture::new();
+            let output = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+                .args(["witness", "ios", "--build", ".", "--smoke"])
+                .current_dir(&fixture.0).env("PATH", format!("{}:{}", fixture.0.display(), std::env::var("PATH").unwrap()))
+                .env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", mode).output().unwrap();
+            let err = String::from_utf8_lossy(&output.stderr);
+            assert!(!output.status.success()); assert_eq!(err.lines().count(), 1, "{err}");
+            assert!(err.contains("E_WITNESS_PLATFORM") && err.contains("Settings > Components"), "{err}");
+            assert!(!err.contains("tool noise"));
+            assert!(!fixture.0.join(".snapback4-witness").exists() && !fixture.0.join(".snapback4").exists());
+            assert!(fixture.0.join("artifacts/native-smoke").exists());
+            assert_eq!(fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().count(), 1);
+        }
+    }
+    #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
         let fixture = Fixture::new();
         let output = fixture.run("smoke-source-race", Fixture::port());
@@ -249,8 +282,8 @@ mod driver {
         smoke_rejects_failure_after_receipt("smoke-crash-after-done-offline", "offline", "E_WITNESS_APP");
     }
     #[test]
-    fn cli_missing_app_and_ambiguous_simulator_never_start_a_backend() {
-        for (mode, code) in [("missing", "E_WITNESS_APP"), ("ambiguous", "E_WITNESS_SIMULATOR")] {
+    fn cli_missing_app_never_starts_a_backend() {
+        for (mode, code) in [("missing", "E_WITNESS_APP")] {
             let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());
             assert!(!output.status.success()); let err = String::from_utf8_lossy(&output.stderr);
             assert!(err.contains(code), "{err}");
@@ -300,7 +333,7 @@ mod driver {
         let output = fixture.run("timeout-prepare", port);
         let error = String::from_utf8_lossy(&output.stderr);
         assert!(!output.status.success());
-        assert!(error.contains("E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out"), "{error}");
+        assert!(error.contains("E_WITNESS_TIMEOUT: xcrun simctl list runtimes --json timed out"), "{error}");
         assert!(!fixture.0.join(".snapback4").exists(), "preparation must not start the backend");
         assert!(protocol::refused(port).unwrap());
         let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).expect("preparation failure must have a manifest")).unwrap();

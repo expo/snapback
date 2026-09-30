@@ -79232,3 +79232,57 @@ superseded harness probes, and causal tools:
 reports/20260929-fw-follow-window/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — NS round 0: native smoke at every Expo milestone
+
+Both Expo starters now generate `npm run native:smoke` beside `export:ios`.
+The command checks/generates the backend, chooses only a tool-named booted
+simulator or creates one for the latest available iOS runtime, reserves a free
+port, builds and installs Release, and records its selected device and all
+three smoke segments under timestamped artifacts. Explicit UDIDs remain.
+Missing Xcode/runtime gives one actionable message. The starter README and
+client/witness guide cards make this the per-milestone native check, with the
+existing line/word budgets intact and no source-revision instructions.
+
+Fresh Expo 57 starters need the bounded UIScene plugin on iOS 27 and ordinary
+guest sign-in during smoke prime after signed-out restoration. Both starters
+include these. Native preparation retains generated iOS, Pods and DerivedData;
+header inventories run after Pods regeneration, and Metro's cache is keyed by
+origin to prevent a previous free port remaining in inlined JavaScript. Xcode
+still runs and emits fresh JS each time. Exact plain/social generated Podfile
+and support-script forms are admitted; arbitrary native hooks still refuse.
+
+Final `init --expo` starter: cold 221.724 s (n=1), warm 84.566 / 82.009 /
+83.511 s, median 83.511 s (n=3), all passed. Independent social starter passes
+in 186.191 s. Apartment M5 Pro mini, 18 cores / 64 GiB, Xcode 27.0 / iOS 27.0;
+final cold load median 18.24 (range 3.61–61.41), warm load range 3.21–7.22.
+These are complete no-argument npm commands after dependency installation.
+All eleven development/qualification attempts and their receipts are retained,
+including four failed invocations and the fixes they drove. Each final run
+uses a fresh port and JS hash. All three `sb4-ns-` simulators were deleted by
+UDID; `mini-verify-iphone`, system settings and xcode-select were untouched.
+
+Final Mac checks: 22 starter, 32 driver, 10 witness unit, 36 helper/preparation/
+smoke, 19 periphery and 106 whole-guide tests pass. Client/native builds,
+ref-check and diff check pass. Ran `scripts/test.sh` once on eb1000, exit 1:
+
+    == 1 failure(s) in 1665 s
+       client tests
+
+Ours 1, baseline 0, environmental 0: the existing exact starter app.json
+assertion lacked the new UIScene plugin. Updated it while retaining all other
+config checks; the affected file passes 19/19. The original full result remains
+red in the report. Rust 4,365 passes / 33 declared ignores; client pool 5,309
+passes / one failure / ten existing skips; fixtures 9/9; serial models 79/79,
+with full counts. No reduced counts or relaxed timeouts. The full-suite snapshot
+predates the last origin-cache repair; final affected checks and cold/three-warm
+native runs cover that delta. The report binds both source inventories.
+
+Wasm: Mac 1,977,951 B raw / 593,592 B gzip; Linux 1,978,828 / 593,225.
+Both fit the unchanged 593,719 B ratchet. LLP 3000.030 §13 records the decisions.
+Generic smoke proves installed Release/local-store acquisition, offline reopen
+and restart, not queued-write replay; an empty starter proves lifecycle only.
+Replay, populated histories and application assertions still need scenarios.
+Report: reports/20260930-ns-native-smoke/REPORT.md. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

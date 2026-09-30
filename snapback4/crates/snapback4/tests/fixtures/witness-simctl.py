@@ -14,13 +14,38 @@ udid = os.environ.get('WITNESS_TEST_UDID', 'dedicated')
 a = sys.argv[1:]
 assert a[0] == 'simctl'
 a = a[1:]
+with (root / 'simctl-calls.jsonl').open('a') as f:
+    f.write(json.dumps(a) + '\n')
 if a[0] == 'list':
     if mode == 'timeout-prepare':
-        time.sleep(6)  # Exceed the fixture's five-second simulator step budget.
-    devices = [{'udid': udid, 'state': 'Booted'}]
-    if mode == 'ambiguous':
-        devices.append({'udid': 'someone-else', 'state': 'Booted'})
-    print(json.dumps({'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-5': devices}}))
+        time.sleep(6)
+    if mode == 'no-xcode':
+        print('tool noise that must not reach the user', file=sys.stderr)
+        sys.exit(1)
+    runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+    kind = {'identifier': 'com.apple.CoreSimulator.SimDeviceType.iPhone-17', 'productFamily': 'iPhone'}
+    if a[1] == 'runtimes':
+        runtimes = [{'identifier': runtime, 'version': '26.5', 'isAvailable': True, 'supportedDeviceTypes': [kind]}]
+        if mode.startswith('auto-create'):
+            runtimes += [{'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-9-3', 'version': '9.3', 'isAvailable': True},
+                         {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-99', 'version': '99', 'isAvailable': False}]
+        print(json.dumps({'runtimes': [] if mode == 'no-runtime' else runtimes}))
+    elif a[1] == 'devicetypes':
+        print(json.dumps({'devicetypes': [kind]}))
+    else:
+        devices = [{'udid': udid, 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'prior', 'state': 'Booted', 'isAvailable': True}]
+        if mode.startswith('auto-create'):
+            devices[0]['state'] = 'Shutdown'
+            devices += [{'udid': 'unavailable', 'name': 'snapback4-smoke-unavailable', 'state': 'Booted', 'isAvailable': False}]
+        devices += [{'udid': 'someone-else', 'name': 'mini-verify-iphone', 'state': 'Booted', 'isAvailable': True},
+                    {'udid': 'near-prefix', 'name': 'other-snapback4-smoke-not-ours', 'state': 'Booted', 'isAvailable': True}]
+        print(json.dumps({'devices': {runtime: devices}}))
+elif a[0] == 'create':
+    assert a[1].startswith(os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-'))
+    assert a[3] == 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+    print(udid)
+elif a[0] in ['boot', 'bootstatus']:
+    assert a[1] == udid
 elif a[0] == 'getenv':
     assert a == ['getenv', udid, 'HOME']
     print(root / 'data')

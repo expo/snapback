@@ -155,7 +155,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   }
   const require = createRequire(join(reference, "package.json"));
   assert.equal(actual.devDependencies["babel-preset-expo"], require("babel-preset-expo/package.json").version);
-  assert.deepEqual(json(join(dir, "app.json")), json(join(reference, "app.json")));
+  const starterConfig = json(join(reference, "app.json"));
+  starterConfig.expo.plugins.push("snapback4-expo/plugin");
+  assert.deepEqual(json(join(dir, "app.json")), starterConfig);
   assert.deepEqual(json(join(dir, "tsconfig.json")), json(join(reference, "tsconfig.json")));
   assert.equal(read(join(dir, "babel.config.js")), read(join(reference, "babel.config.js")));
   const babel = { module: { exports: {} } };

@@ -17,7 +17,9 @@ const cache = path.join(project, '.snapback4-witness'), snapshot = path.join(cac
 const env = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'DEVELOPER_DIR', 'LANG'].filter(k => process.env[k]).map(k => [k, process.env[k]]));
 Object.assign(env, { CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1', NODE_ENV: 'production',
   EXPO_PUBLIC_SNAPBACK_URL: origin, CP_HOME_DIR: path.join(cache, 'pods-home'), CP_CACHE_DIR: path.join(cache, 'pods-cache'),
-  HOME: path.join(cache, 'home'), npm_config_cache: path.join(cache, 'npm-cache'), TMPDIR: path.join(cache, 'tmp') });
+  HOME: path.join(cache, 'home'), npm_config_cache: path.join(cache, 'npm-cache'), TMPDIR: path.join(cache, 'tmp', hash(origin)) });
+// Expo's CI embed keeps Metro transforms, including inlined EXPO_PUBLIC values.
+// A new free port needs a distinct JS cache; native DerivedData stays warm.
 fs.mkdirSync(env.TMPDIR, { recursive: true });
 fs.mkdirSync(env.HOME, { recursive: true });
 function command(label, executable, args, cwd = snapshot) {
@@ -32,10 +34,10 @@ function command(label, executable, args, cwd = snapshot) {
 const excluded = new Set(['.git', '.expo', '.snapback4', '.snapback4-witness', 'artifacts', 'evidence', 'dist', 'choreography', 'node_modules', 'ios']);
 function sourceOmit(p) { return excluded.has(p.split('/')[0]) || p.split('/').some(n => n === 'provider-secrets.env' || n.startsWith('.env')); }
 function nativeOmit(p) { return p === 'build' || p.startsWith('build/') || p === 'Pods' || p.startsWith('Pods/') || p.includes('/xcuserdata') || p === '.xcode.env.local'; }
-function nativeInput(root) {
+function nativeInput(root, generatedIOS = false) {
   root = fs.realpathSync(root);
   const deps = inventory(path.join(root, 'node_modules'));
-  const ios = fs.existsSync(path.join(root, 'ios')) ? inventory(path.join(root, 'ios'), nativeOmit) : null;
+  const ios = !generatedIOS && fs.existsSync(path.join(root, 'ios')) ? inventory(path.join(root, 'ios'), nativeOmit) : null;
   const references = [];
   if (ios) for (const name of fs.readdirSync(path.join(root, 'ios')).filter(n => n.endsWith('.xcodeproj'))) {
     const file = path.join(root, 'ios', name, 'project.pbxproj');
@@ -46,13 +48,13 @@ function nativeInput(root) {
   // Root the Pods inventory at the project: generated header links point into
   // node_modules, which is independently inventoried in full above.
   const podTargets = [];
-  const pods = fs.existsSync(path.join(root, 'ios/Pods'))
+  const pods = !generatedIOS && fs.existsSync(path.join(root, 'ios/Pods'))
     ? inventory(root, p => p !== 'ios' && p !== 'ios/Pods' && !p.startsWith('ios/Pods/'),
       (file, resolved) => podTargets.push({ path: file, target: path.relative(root, resolved) })) : null;
   // CocoaPods headers also link into Expo/RN codegen's generated input tree.
   // Bind its bytes explicitly rather than treating all ignored build files as safe.
   const generated = path.join(root, 'ios/build/generated');
-  const podsGenerated = fs.existsSync(generated) ? inventory(generated) : null;
+  const podsGenerated = !generatedIOS && fs.existsSync(generated) ? inventory(generated) : null;
   for (const row of podTargets) {
     const target = row.target;
     if (!target.startsWith('node_modules/') && !target.startsWith('ios/Pods/')
@@ -109,16 +111,20 @@ try {
   let nativeClosure = null;
   // Stable private path permits warm Xcode intermediates. A project lease in
   // the Rust parent excludes competing writers; each run retains its inputs.
+  const generatedIOS = !fs.existsSync(path.join(project, 'ios'));
   fs.mkdirSync(snapshot, { recursive: true });
-  command('snapshot', '/usr/bin/rsync', ['-a', '--delete', '--exclude=/.git', '--exclude=/.expo', '--exclude=/.snapback4', '--exclude=/.snapback4-witness', '--exclude=/artifacts', '--exclude=/evidence', '--exclude=/dist', '--exclude=/choreography', '--exclude=provider-secrets.env', '--exclude=.env*', project + '/', snapshot + '/'], project);
+  command('snapshot', '/usr/bin/rsync', ['-a', '--delete', '--exclude=/.git', '--exclude=/.expo', '--exclude=/.snapback4', '--exclude=/.snapback4-witness', '--exclude=/artifacts', '--exclude=/evidence', '--exclude=/dist', '--exclude=/choreography', '--exclude=provider-secrets.env', '--exclude=.env*', ...(generatedIOS ? ['--exclude=/ios'] : []), project + '/', snapshot + '/'], project);
   const sourceSnapshot = inventory(snapshot, sourceOmit);
   if (sourceSnapshot.sha256 !== source.sha256) fail('E_WITNESS_PROOF', 'source changed while snapshotting');
-  sameInputs(inputs, nativeInput(snapshot), 'E_WITNESS_PROOF');
+  // Cached Pods can link generated headers removed by dependency snapshotting.
+  // Audit that derived tree after pod install regenerates them, not mid-stage.
+  const copiedInputs = nativeInput(snapshot, generatedIOS);
+  sameInputs(inputs, copiedInputs, 'E_WITNESS_PROOF');
   seal(path.join(out, 'source-inputs.json'), source);
   const expoCLI = path.join(snapshot, 'node_modules/expo/bin/cli');
   const publicConfig = JSON.parse(command('public-config', process.execPath, [expoCLI, 'config', '--type', 'public', '--json']));
   let app, settings = null;
-  if (!fs.existsSync(path.join(snapshot, 'ios'))) command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install']);
+  if (generatedIOS) command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install']);
   // rsync preserves the ignored environment entry, including an outside link.
   // Replace that entry without following it; exclusive creation also refuses a
   // replacement link appearing between removal and creation.
