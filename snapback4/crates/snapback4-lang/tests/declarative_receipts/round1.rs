@@ -161,7 +161,7 @@ fn self_only_membership_cannot_promise_complete_receipts() {
     );
 }
 
-fn expired_fixture(last: i64) -> Engine {
+pub(super) fn expired_fixture(last: i64) -> Engine {
     let source = DECLARATIVE.replace(
         "  photo: image <=5000000 once ?",
         "  expiresAt: time ?\n  expire at .expiresAt\n  photo: image <=5000000 once ?",
@@ -239,13 +239,9 @@ fn unswept_long_expiry_hole_records_coverage_and_resumes_bounded_compaction() {
     let mut calls = 0;
     while prefix(&mut e, 4_000_000_000_101) < 9001 {
         let before = prefix(&mut e, 4_000_000_000_101);
-        let r = e
-            .mutate(
-                "compactReceipts",
-                None,
-                ctx("bob", &[("conversation", id("c"))], 4_000_000_000_101),
-            )
-            .unwrap();
+        let mut context = ctx("bob", &[("conversation", id("c"))], 4_000_000_000_101);
+        context.delivery_fingerprint = Some(e.schema().delivery[0].fingerprint.clone());
+        let r = e.mutate("compactReceipts", None, context).unwrap();
         sent(r.state);
         assert!(r.metered.examined < 8192);
         assert!(prefix(&mut e, 4_000_000_000_101) > before);

@@ -9,6 +9,15 @@ fn refuse(site: &crate::diag::Site, message: impl Into<String>) -> Diagnostic {
         "name a receipt family and map counter, floor and count; use group-readable synced members and distinct generated names").guide("receipts")
 }
 
+// Preserve existing storage names except when the scope would duplicate a run column.
+fn run_group(group: &str) -> &str {
+    if matches!(group, "principal" | "fromOrdinal" | "throughOrdinal") {
+        "receiptScope"
+    } else {
+        group
+    }
+}
+
 pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
     let declarations: Vec<_> = documents
         .iter()
@@ -105,6 +114,8 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
             .len()
             != owned.len()
             || clause.delivered_field == clause.seen_field
+            || clause.delivered_field == "id"
+            || clause.seen_field == "id"
         {
             errors.push(refuse(
                 &clause.site,
@@ -131,9 +142,88 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
             ));
             continue;
         }
-        let source = include_str!("receipts.q")
+        // Reserve authored/global identifiers before allocating template locals.
+        // Public scope/range/cursor names keep their usual spelling when possible.
+        let mut used: std::collections::BTreeSet<String> = documents
+            .iter()
+            .flat_map(|d| {
+                d.tables
+                    .iter()
+                    .map(|t| t.name.clone())
+                    .chain(d.functions.iter().map(|f| f.name.clone()))
+                    .chain(d.programs.iter().map(|p| p.name.clone()))
+                    .chain(d.views.iter().map(|v| v.name.clone()))
+            })
+            .chain(owned.iter().cloned())
+            .collect();
+        let mut fresh = |base: &str| {
+            let mut name = base.to_owned();
+            let mut suffix = 0;
+            while !used.insert(name.clone()) {
+                suffix += 1;
+                name = format!("{base}{suffix}");
+            }
+            name
+        };
+        // These words have expression syntax instead of variable meaning.
+        let scope_arg = fresh(
+            if matches!(
+                clause.group.as_str(),
+                "viewer"
+                    | "now"
+                    | "null"
+                    | "true"
+                    | "false"
+                    | "not"
+                    | "exists"
+                    | "created"
+                    | "walk"
+                    | "insert"
+                    | "update"
+                    | "upsert"
+                    | "delete"
+                    | "merge"
+                    | "device"
+                    | "oblivious"
+                    | "where"
+                    | "first"
+                    | "last"
+                    | "after"
+                    | "if"
+                    | "else"
+                    | "and"
+                    | "or"
+            ) || clause.group.contains('-')
+            {
+                "receiptScope"
+            } else {
+                &clause.group
+            },
+        );
+        let from_arg = fresh("from");
+        let through_arg = fresh("through");
+        let cursor_arg = fresh("c");
+        let mut template = include_str!("receipts.q").to_owned();
+        let mut locals = std::collections::BTreeMap::new();
+        while let Some(start) = template.find('$') {
+            let length = template[start + 1..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .count();
+            let key = template[start + 1..start + 1 + length].to_owned();
+            let name = locals
+                .entry(key.clone())
+                .or_insert_with(|| fresh(&format!("__receipt_{key}")));
+            template.replace_range(start..start + 1 + length, name);
+        }
+        let source = template
+            .replace("@ARG@", &scope_arg)
+            .replace("@FROM@", &from_arg)
+            .replace("@THROUGH@", &through_arg)
+            .replace("@CURSOR@", &cursor_arg)
             .replace("@SCOPE@", scope)
             .replace("@GROUP@", &clause.group)
+            .replace("@RUN_GROUP@", run_group(&clause.group))
             .replace("@MESSAGES@", &table.name)
             .replace("@MEMBERS@", &clause.members)
             .replace("@POSITION@", &clause.position)
@@ -155,7 +245,10 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
             .replace("@COMPACT@", &clause.operations[5]);
         let (mut generated, diagnostics) =
             crate::parse_document(&documents[doc_index].file, &source);
-        errors.extend(diagnostics);
+        if !diagnostics.is_empty() {
+            errors.push(refuse(&clause.site, "receipt mappings include a name reserved by Quarry syntax; choose different generated table and operation names"));
+            continue;
+        }
         // Generated sites point back to the declaration instead of invented source lines.
         for p in &mut generated.programs {
             p.site = clause.site.clone();
@@ -263,7 +356,7 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
                 group: clause.member_group.clone(),
                 principal: clause.principal.clone(),
                 runs: clause.runs.clone(),
-                run_group: clause.group.clone(),
+                run_group: run_group(&clause.group).into(),
                 delivered_field: clause.delivered_field.clone(),
                 seen_field: clause.seen_field.clone(),
                 delivered: operation_name(&module, &clause.operations[1]),
@@ -278,12 +371,20 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
             binding.compact = Some(family.compact.clone());
             // All semantic coordinates plus the template version fence SDK debt.
             binding.semantics = Some(format!(
-                "receipts.v2:{}:{}:{}:{}:{}:{}",
+                "receipts.v2:{}:{}:{}:{}:{}:{}:{}",
                 serde_json::to_string(&family).unwrap(),
                 clause.counter,
                 clause.floor,
                 clause.count,
                 clause.sender,
+                serde_json::to_string(
+                    &clause
+                        .operations
+                        .iter()
+                        .map(|name| operation_name(&module, name))
+                        .collect::<Vec<_>>()
+                )
+                .unwrap(),
                 include_str!("receipts.q")
             ));
             binding.semantics = Some(format!("receipts.v2:{}", binding.compute_fingerprint()));

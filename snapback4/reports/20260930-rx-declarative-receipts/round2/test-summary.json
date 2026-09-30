@@ -1,0 +1,49 @@
+{
+  "suite_command": "bash scripts/test.sh",
+  "suite_invocations": 1,
+  "suite_exit": 1,
+  "summary": "== 1 failure(s) in 1355 s",
+  "failed_checks": [
+    "client tests"
+  ],
+  "rust": {
+    "passed": 4400,
+    "failed": 0,
+    "ignored": 33
+  },
+  "client_pool": {
+    "passed": 5314,
+    "failed": 1,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "serial_models": {
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "fixture_wrappers": {
+    "passed": 9,
+    "failed": 0
+  },
+  "failure_ledger": [
+    {
+      "test": "declarative full runs compact a long deleted hole through the real SDK",
+      "message": "AssertionError: timed out: bound compaction",
+      "attribution": "ours (test fixture)",
+      "resolution": "Live gap blockers preserve saturation; existing assertions retained; delivery-integrated.test.mjs rerun passes 4/4."
+    }
+  ],
+  "baseline_failures": 0,
+  "environmental_failures": 0,
+  "unresolved_failures": 0,
+  "affected": {
+    "receipts": 37,
+    "delivery": 16,
+    "guide": 105,
+    "device_delivery": 30,
+    "readauth": 81,
+    "real_sdk_delivery": 4
+  }
+}

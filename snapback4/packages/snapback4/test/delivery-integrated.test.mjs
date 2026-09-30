@@ -157,12 +157,19 @@ mutation seed():
   insert messages { conversation: chat.id, ordinal: 1, sender: viewer, recipients: 1 }
   insert messages { conversation: chat.id, ordinal: 2000, sender: viewer, recipients: 1 }
   for i in range(0,64):
+    insert messages { conversation: chat.id, ordinal: 2001 + i * 2, sender: viewer, recipients: 1 }
     insert messages { conversation: chat.id, ordinal: 2002 + i * 2, sender: viewer, recipients: 1 }
+  insert messages { conversation: chat.id, ordinal: 2130, sender: viewer, recipients: 1 }
   insert messages { conversation: chat.id, ordinal: 2131, sender: viewer, recipients: 1 }
   return chat.id
 mutation erase(conversation: conversations):
   delete messages[conversation, 1]
   delete messages[conversation, 2000]
+  delete messages[conversation, 2001]
+mutation eraseGaps(conversation: conversations):
+  for i in range(1,64):
+    delete messages[conversation, 2001 + i * 2]
+  delete messages[conversation, 2130]
 query fetched(conversation: conversations):
   return messages[conversation, 2131]
 `;
@@ -172,6 +179,9 @@ query fetched(conversation: conversations):
  for(let i=0;i<64;i++) {
    const r=await post('bob','/m/chatDelivered',{id:`run${i}`,args:{conversation:chat,from:2002+i*2,through:2002+i*2}});assert.equal(r.state,'sent',JSON.stringify(r));
  }
+ // Live blockers keep all 64 intervals distinct even with gap-aware compaction.
+ const saturated=await post('bob','/q/chatProgress',{args:{conversation:chat,c:null}});
+ assert.equal(saturated.data.runs.length,64);
  assert.equal((await post('alice','/m/erase',{id:'erase',args:{conversation:chat}})).state,'sent');
  const calls=[];
  const client=createClient({url,persona:'bob',fetch:async(input,init)=>{
@@ -188,6 +198,7 @@ query fetched(conversation: conversations):
  assert.equal(successful.body.delivery.fingerprint,compact.body.delivery.fingerprint);
  const progress=await post('bob','/q/chatProgress',{args:{conversation:chat,c:null}});
  assert.ok(progress.data.member.chatDeliveredOrdinal>=2131 || progress.data.runs.some(r=>r.fromOrdinal<=2131&&r.throughOrdinal>=2131),'success covers the whole input even when compaction remains chunked');
+ assert.equal((await post('alice','/m/eraseGaps',{id:'erase-gaps',args:{conversation:chat}})).state,'sent');
  const finish=await post('bob','/m/chatCompact',{id:'finish-compaction',delivery:successful.body.delivery,args:{conversation:chat}});assert.equal(finish.state,'sent');
  const final=await post('bob','/q/chatProgress',{args:{conversation:chat,c:null}});
  assert.equal(final.data.member.chatDeliveredOrdinal,2131);assert.deepEqual(final.data.runs,[]);

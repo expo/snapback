@@ -84,13 +84,15 @@ impl DeliveryBinding {
 #[cfg(feature = "sqlite")]
 impl super::Schema {
     pub fn check_delivery(&self, mutation: &str, fingerprint: Option<&str>) -> Result<(), crate::RuntimeError> {
-        if let Some(fingerprint) = fingerprint {
-            if !self.delivery.iter().any(|binding| (binding.mutation == mutation || binding.compact.as_deref() == Some(mutation)) && binding.fingerprint == fingerprint) {
-                return Err(crate::RuntimeError::Structural {
-                    code: "E_DELIVERY_BINDING",
-                    message: format!("{mutation}'s delivery binding changed or was removed; drop this binding's debt and collect under the current binding"),
-                });
-            }
+        let valid = match fingerprint {
+            Some(fingerprint) => self.delivery.iter().any(|binding| (binding.mutation == mutation || binding.compact.as_deref() == Some(mutation)) && binding.fingerprint == fingerprint),
+            None => !self.delivery.iter().any(|binding| binding.compact.as_deref() == Some(mutation)),
+        };
+        if !valid {
+            return Err(crate::RuntimeError::Structural {
+                code: "E_DELIVERY_BINDING",
+                message: format!("{mutation}'s delivery binding changed, was removed or requires a fingerprint; collect under the current binding"),
+            });
         }
         Ok(())
     }

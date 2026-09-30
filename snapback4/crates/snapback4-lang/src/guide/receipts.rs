@@ -131,8 +131,8 @@ Delivery merges intervals and compacts covered runs before enforcing the
 unique position probes per call. Longer holes save partial progress while
 recording the full input interval. At saturation the SDK calls the bound
 compaction operation in a separate transaction, then retries delivery with a
-fresh id when compaction advanced. A live blocker keeps the ordinary delayed
-retry. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
+fresh id when the prefix or runs advance. A live blocker stops that interval;
+later runs still merge. Long gaps persist partial endpoints across calls. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
 before the count. Replaying its write id returns that success.
 Maintenance success never acknowledges delivery. Each step
 uses the ordinary meter; a refusal rolls back its transaction.
@@ -229,13 +229,13 @@ remains the raw watch publication or query return after its final fences.
 Collection persistence never delays the answer and rechecks its fences on
 every attempt. Ordinary device publication still persists debt with its rows.
 
-Every report and compaction sends its binding's fingerprint; the server checks it under the
-writer before executing the mutation. Unrelated generation changes preserve
+Every SDK report and compaction sends its binding's fingerprint; the server checks it under the
+writer. Compaction requires the fingerprint. Unrelated generation changes preserve
 unchanged bindings.
 
 `E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
 drops that binding's debt and collects under the current fingerprint; it
-does not retry the old report.
+does not retry the old report. Compaction also refuses omission.
 
 For explicit catch-up, `progress` answers with the member's row, their stored
 runs and the next 100 ordinals ahead of the prefix, counted from the join,

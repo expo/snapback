@@ -18,7 +18,14 @@ fn ctx(who: &str, values: &[(&str, Value)], now: i64) -> Context {
     Context::new(who, args(values)).at(now)
 }
 fn mutate(e: &mut Engine, who: &str, op: &str, values: &[(&str, Value)], now: i64) -> WriteState {
-    let r = e.mutate(op, None, ctx(who, values, now)).unwrap().state;
+    let mut context = ctx(who, values, now);
+    context.delivery_fingerprint = e
+        .schema()
+        .delivery
+        .iter()
+        .find(|b| b.compact.as_deref() == Some(op))
+        .map(|b| b.fingerprint.clone());
+    let r = e.mutate(op, None, context).unwrap().state;
     if !matches!(r, WriteState::Sent { .. }) {
         eprintln!("{op} {who} {values:?}: {r:?}");
     }
@@ -227,16 +234,23 @@ fn schedule<H: Host>(host: &mut H, random_seed: u64, expiring: bool) {
             receipt(&mut decl, now),
             "seed {random_seed}, step {step}, expires {expiring}"
         );
-        if joined { schedules::assert_live_coverage(&mut manual, &mut decl, now, expiring); }
+        if joined {
+            schedules::assert_live_coverage(&mut manual, &mut decl, now, expiring);
+        }
         // Exercise the real wire publication, shared interpreter and both persistence hosts.
         for (e, d) in [(&mut manual, &mut md), (&mut decl, &mut dd)] {
             for (i, page) in snapshot_pages(e, "alice", 1000).into_iter().enumerate() {
                 d.apply(&page, i == 0).unwrap();
             }
             for table in ["members", "runs"] {
-                let mut server=e.store().rows(table).unwrap();let mut device=d.store().raw_rows(table);
-                server.sort_by(Value::total_cmp);device.sort_by(Value::total_cmp);
-                assert_eq!(server,device,"published {table} seed {random_seed}, step {step}");
+                let mut server = e.store().rows(table).unwrap();
+                let mut device = d.store().raw_rows(table);
+                server.sort_by(Value::total_cmp);
+                device.sort_by(Value::total_cmp);
+                assert_eq!(
+                    server, device,
+                    "published {table} seed {random_seed}, step {step}"
+                );
             }
         }
         let query = json!({"conversation":"c","c":null});
@@ -594,9 +608,13 @@ fn device_predictions_keep_owned_progress_and_include_removal_cleanup() {
     );
 }
 
-#[path = "declarative_receipts/round1.rs"]
-mod round1;
-#[path = "declarative_receipts/schedules.rs"]
-mod schedules;
 #[path = "declarative_receipts/device_round1.rs"]
 mod device_round1;
+#[path = "declarative_receipts/names.rs"]
+mod names;
+#[path = "declarative_receipts/round1.rs"]
+mod round1;
+#[path = "declarative_receipts/round2.rs"]
+mod round2;
+#[path = "declarative_receipts/schedules.rs"]
+mod schedules;

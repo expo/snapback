@@ -79443,3 +79443,50 @@ Report and complete failure dispositions:
 reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+### 2026-09-30 — RX round 2: receipt compaction beyond live blockers
+
+Read both prior prompts/reports and both review pairs. Merged origin/main
+9d03e946232b4017564f3e7c6aa87bd424ce8d58 first in 85dc73c0e7, retaining both
+append-only journal histories. Nothing pushed or published.
+
+The generated Quarry fold now normalizes later runs even when a live blocker
+holds the prefix. One shared 1,024-position probe allowance covers every gap;
+partial run endpoints persist through bounded maintenance. The 1–131 deleted
+and mixed-expiry reproduction becomes [2,131] with position 1 still sent and
+prefix zero. A 9,000-position hole after that blocker converges within the
+unchanged meters. Generated locals/arguments avoid collisions; 510 generated
+field/scope cases run all six public surfaces. All six public names enter the
+fingerprint. Compact refuses omitted fingerprints with E_DELIVERY_BINDING.
+Grok's label and partial-leave witnesses are in-tree, the latter on both stores.
+Automatic allocation, recipient counts and join floors stay for the next round.
+
+Final affected checks pass: receipts 37/37, delivery 16/16, whole guide 105/105,
+device delivery 30/30, readauth 81/81 and real-SDK integration 4/4. Round-one
+product controls fail five compaction/fingerprint checks and five naming/hash
+checks; both scratch witnesses already pass on round one. Ownership still
+refuses application run updates. Reference audit and documentation budget pass.
+
+Ran scripts/test.sh exactly once, exit 1:
+
+    == 1 failure(s) in 1355 s
+       client tests
+
+The sole failure was ours: the existing real-SDK maintenance fixture used
+absent gaps, so the repaired fold merged its runs before saturation. Added live
+blockers, asserted all 64 runs, then removed blockers in stages. Preserved every
+maintenance/retry/fingerprint/coverage assertion; its complete file passes 4/4.
+Product source did not change during the full run. Baseline failures 0;
+environmental failures 0; unresolved failures 0. The full run remains recorded
+red and was not rerun. Rust 4,400 passes and 33 existing ignores; clients 5,314
+passes, that one failure and ten existing skips; serial models 79/79 including
+both full 5,000-sequence walks; fixture wrappers 9/9. No counts, ceilings or
+timeouts were reduced. The inherited nominal 60-second suite bar is exceeded.
+
+Wasm remains 1,988,204 B raw / 596,444 B gzip, 803 B below the unchanged
+597,247 B ratchet. No budget increase. Starter remains 231 lines versus the
+original 294; primary guide remains 321/350. Report, complete failure ledger,
+controls, exact logs and source/artifact hashes:
+reports/20260930-rx-declarative-receipts/round2/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

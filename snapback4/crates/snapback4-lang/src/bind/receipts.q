@@ -1,120 +1,132 @@
 -- @ref LLP 3000.022#14 — compiler-owned recipe, executed by the ordinary metered interpreter.
 table @RUNS@:
-  @GROUP@: @SCOPE@
+  @RUN_GROUP@: @SCOPE@
   principal: principal
   fromOrdinal: int
   throughOrdinal: int
-  unique @GROUP@, principal, fromOrdinal
-  cap 64 by @GROUP@, principal
-  cap 3200 by @GROUP@
-  read <- exists @MEMBERS@[.@GROUP@, viewer]
-  insert <- .principal = viewer and exists @MEMBERS@[.@GROUP@, viewer]
+  unique @RUN_GROUP@, principal, fromOrdinal
+  cap 64 by @RUN_GROUP@, principal
+  cap 3200 by @RUN_GROUP@
+  read <- exists @MEMBERS@[.@RUN_GROUP@, viewer]
+  insert <- .principal = viewer and exists @MEMBERS@[.@RUN_GROUP@, viewer]
+  update <- .principal = viewer
   delete <- .principal = viewer
-  sync to @MEMBERS@[.@GROUP@] by .@PRINCIPAL@
+  sync to @MEMBERS@[.@RUN_GROUP@] by .@PRINCIPAL@
 
-
-fn @RECEIPT@(m: @MESSAGES@):
-  state = 'read'
-  remaining = 0
-  for member in @MEMBERS@ where .@MEMBER_GROUP@ = m.@GROUP@:
-    if member.@PRINCIPAL@ != m.@SENDER@ and member.@FLOOR@ < m.@POSITION@:
-      remaining = remaining + 1
-      if m.@POSITION@ > member.@DELIVERED_FIELD@:
-        run = first(@RUNS@[@GROUP@ = m.@GROUP@, principal = member.@PRINCIPAL@, fromOrdinal <= m.@POSITION@] last 1 by .fromOrdinal)
-        if run = null or run.throughOrdinal < m.@POSITION@:
+fn @RECEIPT@($m: @MESSAGES@):
+  $state = 'read'
+  $remaining = 0
+  for $member in @MEMBERS@ where .@MEMBER_GROUP@ = $m.@GROUP@:
+    if $member.@PRINCIPAL@ != $m.@SENDER@ and $member.@FLOOR@ < $m.@POSITION@:
+      $remaining = $remaining + 1
+      if $m.@POSITION@ > $member.@DELIVERED_FIELD@:
+        $run = first(@RUNS@[@RUN_GROUP@ = $m.@GROUP@, principal = $member.@PRINCIPAL@, fromOrdinal <= $m.@POSITION@] last 1 by .fromOrdinal)
+        if $run = null or $run.throughOrdinal < $m.@POSITION@:
           return 'sent'
-      if member.@SEEN_FIELD@ < m.@POSITION@:
-        state = 'delivered'
-  return state if remaining > 0 or m.@COUNT@ > 0 else 'sent'
+      if $member.@SEEN_FIELD@ < $m.@POSITION@:
+        $state = 'delivered'
+  return $state if $remaining > 0 or $m.@COUNT@ > 0 else 'sent'
 
+query @MEMBER@(@ARG@: @SCOPE@):
+  return @MEMBERS@[@ARG@, viewer]
 
-query @MEMBER@(@GROUP@: @SCOPE@):
-  return @MEMBERS@[@GROUP@, viewer]
+query @PROGRESS@(@ARG@: @SCOPE@, @CURSOR@: cursor ?):
+  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $delivered = max($me.@DELIVERED_FIELD@, $me.@FLOOR@)
+  return { member: $me, runs: @RUNS@ where .@RUN_GROUP@ = @ARG@ and .principal = viewer, ahead: @MESSAGES@ where .@GROUP@ = @ARG@ and .@POSITION@ > $delivered and .@POSITION@ <= $delivered + 100 last 100 by .@POSITION@ after @CURSOR@ }
 
-query @PROGRESS@(@GROUP@: @SCOPE@, c: cursor ?):
-  me = @MEMBERS@[@GROUP@, viewer] ! else NOT_MEMBER
-  delivered = max(me.@DELIVERED_FIELD@, me.@FLOOR@)
-  return { member: me, runs: @RUNS@ where .@GROUP@ = @GROUP@ and .principal = viewer, ahead: @MESSAGES@ where .@GROUP@ = @GROUP@ and .@POSITION@ > delivered and .@POSITION@ <= delivered + 100 last 100 by .@POSITION@ after c }
-
-
-mutation @DELIVERED@(@GROUP@: @SCOPE@, from: int, through: int)
+mutation @DELIVERED@(@ARG@: @SCOPE@, @FROM@: int, @THROUGH@: int)
   reports delivery of @MESSAGES@ by .@GROUP@, .@POSITION@: server
-  me = @MEMBERS@[@GROUP@, viewer] ! else NOT_MEMBER
-  chat = @SCOPE@[@GROUP@] ! else NOT_FOUND
-  require 0 < from and from <= through else NOT_A_RUN
-  require through <= chat.@COUNTER@ else PAST_LAST_MESSAGE
-  prefix = max(me.@DELIVERED_FIELD@, me.@FLOOR@)
-  low = from
-  high = through
-  all = @RUNS@ where .@GROUP@ = @GROUP@ and .principal = viewer first 64 by .fromOrdinal
-  for run in all:
-    if run.fromOrdinal <= high + 1 and run.throughOrdinal + 1 >= low:
-      low = min(low, run.fromOrdinal)
-      high = max(high, run.throughOrdinal)
-  prefix = @FOLD@(@GROUP@, prefix, low, high)
-  covered = through <= prefix
-  remaining = 0
-  for run in all:
-    if run.throughOrdinal <= prefix or (run.fromOrdinal <= high + 1 and run.throughOrdinal + 1 >= low):
-      if run.throughOrdinal > prefix and run.fromOrdinal <= from and run.throughOrdinal >= through:
-        covered = true
-      else:
-        delete @RUNS@[run]
-    else:
-      remaining = remaining + 1
-  if not covered:
-    require remaining < 64 else RUNS_FULL
-    insert @RUNS@ { @GROUP@, principal: viewer, fromOrdinal: low, throughOrdinal: high }
-  if prefix > max(me.@DELIVERED_FIELD@, me.@FLOOR@):
-    update @MEMBERS@[me] { @DELIVERED_FIELD@: prefix }
+  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
+  require 0 < @FROM@ and @FROM@ <= @THROUGH@ else NOT_A_RUN
+  require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE
+  $initial = max($me.@DELIVERED_FIELD@, $me.@FLOOR@)
+  $folded = @FOLD@(@ARG@, $initial, @FROM@, @THROUGH@)
+  if $folded.prefix > $initial:
+    update @MEMBERS@[$me] { @DELIVERED_FIELD@: $folded.prefix }
   return null
 
--- The maintenance transaction can commit partial progress even at the run cap.
-mutation @COMPACT@(@GROUP@: @SCOPE@): server
-  me = @MEMBERS@[@GROUP@, viewer] ! else NOT_MEMBER
-  chat = @SCOPE@[@GROUP@] ! else NOT_FOUND
-  initial = max(me.@DELIVERED_FIELD@, me.@FLOOR@)
-  prefix = @FOLD@(@GROUP@, initial, chat.@COUNTER@ + 1, chat.@COUNTER@)
-  for run in @RUNS@ where .@GROUP@ = @GROUP@ and .principal = viewer:
-    if run.throughOrdinal <= prefix:
-      delete @RUNS@[run]
-  if prefix > max(me.@DELIVERED_FIELD@, me.@FLOOR@):
-    update @MEMBERS@[me] { @DELIVERED_FIELD@: prefix }
-  return prefix > initial
+-- Maintenance commits partial progress without acknowledging any new live position.
+mutation @COMPACT@(@ARG@: @SCOPE@): server
+  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
+  $initial = max($me.@DELIVERED_FIELD@, $me.@FLOOR@)
+  $folded = @FOLD@(@ARG@, $initial, $chat.@COUNTER@ + 1, $chat.@COUNTER@)
+  if $folded.prefix > $initial:
+    update @MEMBERS@[$me] { @DELIVERED_FIELD@: $folded.prefix }
+  return $folded.changed or $folded.prefix > $initial
 
--- At most 1024 unique message probes, shared across all 64 runs and the input.
-fn @FOLD@(@GROUP@: @SCOPE@, initial: int, low: int, high: int):
-  prefix = initial
-  probes = 0
-  for run in @RUNS@ where .@GROUP@ = @GROUP@ and .principal = viewer first 64 by .fromOrdinal:
-    for i in range(0, 1024):
-      if low <= prefix + 1:
-        prefix = max(prefix, high)
-      if prefix + 1 >= run.fromOrdinal or probes >= 1024:
+-- Normalize at most 65 sorted intervals with one shared 1024-position allowance.
+-- A live blocker ends one interval; later intervals still get their own turn.
+fn @FOLD@(@ARG@: @SCOPE@, $initial: int, $low: int, $high: int):
+  $all = @RUNS@ where .@RUN_GROUP@ = @ARG@ and .principal = viewer first 64 by .fromOrdinal
+  $ordered = []
+  $added = false
+  for $run in $all:
+    if not $added and $low < $run.fromOrdinal:
+      $ordered = $ordered + [{ low: $low, high: $high }]
+      $added = true
+    $ordered = $ordered + [{ low: $run.fromOrdinal, high: $run.throughOrdinal }]
+  if not $added:
+    $ordered = $ordered + [{ low: $low, high: $high }]
+  $start = 0
+  $end = $initial
+  $prefix = $initial
+  $probes = 0
+  $merged = []
+  for $interval in $ordered:
+    for $i in range(0, 1024):
+      if $end + 1 >= $interval.low or $probes >= 1024:
         break
-      probes = probes + 1
-      if exists @MESSAGES@[@GROUP@ = @GROUP@, @POSITION@ = prefix + 1]:
-        return prefix
-      prefix = prefix + 1
-    if run.fromOrdinal <= prefix + 1:
-      prefix = max(prefix, run.throughOrdinal)
+      $probes = $probes + 1
+      if exists @MESSAGES@[@ARG@, $end + 1]:
+        break
+      $end = $end + 1
+    if $end + 1 >= $interval.low:
+      $end = max($end, $interval.high)
     else:
-      return prefix
-  for i in range(0, 1024):
-    if prefix + 1 >= low or probes >= 1024:
-      break
-    probes = probes + 1
-    if exists @MESSAGES@[@GROUP@ = @GROUP@, @POSITION@ = prefix + 1]:
-      return prefix
-    prefix = prefix + 1
-  if low <= prefix + 1:
-    prefix = max(prefix, high)
-  return prefix
+      if $start = 0:
+        $prefix = $end
+      else:
+        $merged = $merged + [{ low: $start, high: $end }]
+      $start = $interval.low
+      $end = $interval.high
+  if $start = 0:
+    $prefix = $end
+  else:
+    if $start <= $end:
+      $merged = $merged + [{ low: $start, high: $end }]
+  require count($merged) <= 64 else RUNS_FULL
+  -- Reuse each surviving start's row; only the input can add a new start.
+  $changed = false
+  $newHigh = $low - 1
+  for $interval in $merged:
+    if $interval.low = $low:
+      $newHigh = $interval.high
+  for $run in $all:
+    $end = $run.fromOrdinal - 1
+    for $interval in $merged:
+      if $interval.low = $run.fromOrdinal:
+        $end = $interval.high
+    if $run.fromOrdinal = $low:
+      $newHigh = $low - 1
+    if $end < $run.fromOrdinal:
+      delete @RUNS@[$run]
+      $changed = true
+    else:
+      if $end != $run.throughOrdinal:
+        update @RUNS@[$run] { throughOrdinal: $end }
+        $changed = true
+  if $newHigh >= $low:
+    insert @RUNS@ { @RUN_GROUP@: @ARG@, principal: viewer, fromOrdinal: $low, throughOrdinal: $newHigh }
+    $changed = true
+  return { prefix: $prefix, changed: $changed }
 
-mutation @SEEN@(@GROUP@: @SCOPE@, through: int):
-  me = @MEMBERS@[@GROUP@, viewer] ! else NOT_MEMBER
-  chat = @SCOPE@[@GROUP@] ! else NOT_FOUND
-  require through <= chat.@COUNTER@ else PAST_LAST_MESSAGE
-  if through > me.@SEEN_FIELD@:
-    update @MEMBERS@[me] { @SEEN_FIELD@: through }
+mutation @SEEN@(@ARG@: @SCOPE@, @THROUGH@: int):
+  $me = @MEMBERS@[@ARG@, viewer] ! else NOT_MEMBER
+  $chat = @SCOPE@[@ARG@] ! else NOT_FOUND
+  require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE
+  if @THROUGH@ > $me.@SEEN_FIELD@:
+    update @MEMBERS@[$me] { @SEEN_FIELD@: @THROUGH@ }
   return null

@@ -1,0 +1,40 @@
+{
+  "baseline": "be75e9b25d",
+  "backup": "/tmp/rx-r2-control-lu0_k7k6",
+  "final_product_hashes": {
+    "snapback4/crates/snapback4-lang/src/bind/receipts.rs": "a8c1a1971afa5735e1dde434288cdba51f8568d7a7ea3ecc518695b53669643a",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.q": "771cf18cb2f224b6d844ccc0cbd128b7158caead68dfe0a62819a8e6234a56e4",
+    "snapback4/crates/snapback4-core/src/schema/delivery.rs": "2fd486d9c07c86f206e4bde571a4aca218fa388ed5094c0a805f461369d82379"
+  },
+  "runs": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "declarative_receipts",
+        "round2",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "declarative_receipts",
+        "names",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101
+    }
+  ],
+  "restored": true
+}
