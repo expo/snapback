@@ -43,11 +43,17 @@ query insights():
   return total['room']
 query heldInsights() held:
   return total['room']
+query heldChoice() held:
+  if messages['item'].body = 'image-1':
+    return total['room']
+  return 7
+query heldItem() held:
+  return messages['item']
 query keyed(tag: int):
   return messages['item']
 `;
 
-export async function setup(t, tier, { fetch: intercept, device: wrap } = {}) {
+export async function setup(t, tier, { fetch: intercept, device: wrap, changes } = {}) {
   const f = await fixture(t, program);
   const controls = {}; globalThis[key] = controls;
   let online = true;
@@ -55,9 +61,9 @@ export async function setup(t, tier, { fetch: intercept, device: wrap } = {}) {
     const path = new URL(input).pathname;
     if (path === '/auth/refresh') return Response.json({ ok: true, session });
     if (path === '/auth/logout') return Response.json({ ok: true });
-    if (path === '/changes') return parked(init.signal);
+    if (path === '/changes') return changes ? changes(init.signal) : parked(init.signal);
     if (!online) throw new TypeError('test link down');
-    const headers = new Headers(init?.headers); headers.delete('authorization'); headers.set('x-snapback-persona', 'bob');
+    const headers = new Headers(init?.headers); const persona = headers.get('authorization') === 'Bearer alice-session' ? 'alice' : 'bob'; headers.delete('authorization'); headers.set('x-snapback-persona', persona);
     const send = () => fetch(input, { ...init, headers });
     return intercept ? intercept(path, init, send) : send();
   };

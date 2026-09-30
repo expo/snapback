@@ -59,7 +59,8 @@ for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
   test(`${tier}: an unavailable held online-only view refuses instead of returning loading`, async t => {
     const f = await setup(t, tier);
     const up = record(t, await f.client.query(q('heldInsights'), {}));
-    assert.equal(up.denied?.code, 'E_QUERY_RETRY');
+    assert.equal(up.denied?.code, 'E_QUERY_HELD');
+    assert.equal(up.denied.retryable, false);
     await f.offline();
     const down = record(t, await f.client.query(q('heldInsights'), {}));
     assert.equal(down.denied?.code, 'E_OFFLINE');

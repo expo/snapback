@@ -1,0 +1,16 @@
+[
+  {
+    "test": "bounded Following wasm: untaken online-only card branches remain answerable when held",
+    "classification": "ours",
+    "actual": "E_QUERY_HELD",
+    "expected_in_full_run": "E_QUERY_RETRY",
+    "resolution": "Required held online-only branches now assert E_QUERY_HELD with retryable false; offline branches assert E_OFFLINE with retryable true. Untaken complete branches and zero server requests remain exact. following-final.log passes both host cases."
+  },
+  {
+    "test": "bounded Following native: untaken online-only card branches remain answerable when held",
+    "classification": "ours",
+    "actual": "E_QUERY_HELD",
+    "expected_in_full_run": "E_QUERY_RETRY",
+    "resolution": "Required held online-only branches now assert E_QUERY_HELD with retryable false; offline branches assert E_OFFLINE with retryable true. Untaken complete branches and zero server requests remain exact. following-final.log passes both host cases."
+  }
+]

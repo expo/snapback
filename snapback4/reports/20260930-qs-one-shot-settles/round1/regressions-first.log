@@ -1,0 +1,138 @@
+TAP version 13
+# Subtest: wasm: restore refusal wins a blocked query deadline
+ok 1 - wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 598.756465
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: wasm: partition refusal wins a blocked query deadline
+ok 2 - wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 191.503503
+  type: 'test'
+  ...
+# Subtest: wasm: impossible held count refuses in one evaluation and never contacts the server
+ok 3 - wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 199.596371
+  type: 'test'
+  ...
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# Subtest: process: restore refusal wins a blocked query deadline
+ok 4 - process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 224.125912
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: process: partition refusal wins a blocked query deadline
+ok 5 - process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 209.950077
+  type: 'test'
+  ...
+# Subtest: process: impossible held count refuses in one evaluation and never contacts the server
+ok 6 - process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 203.678759
+  type: 'test'
+  ...
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# Subtest: app-wasm: restore refusal wins a blocked query deadline
+ok 7 - app-wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 215.178573
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-wasm: partition refusal wins a blocked query deadline
+ok 8 - app-wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 174.528494
+  type: 'test'
+  ...
+# Subtest: app-wasm: impossible held count refuses in one evaluation and never contacts the server
+ok 9 - app-wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 203.825279
+  type: 'test'
+  ...
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# Subtest: app-process: restore refusal wins a blocked query deadline
+ok 10 - app-process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 204.698357
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-process: partition refusal wins a blocked query deadline
+ok 11 - app-process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 225.122014
+  type: 'test'
+  ...
+# Subtest: app-process: impossible held count refuses in one evaluation and never contacts the server
+ok 12 - app-process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 227.909182
+  type: 'test'
+  ...
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# {"ok":{"complete":false,"cut":null,"data":0,"next":null,"nextExpiry":null,"retained":false,"speculative":true,"tables":["members","total"],"unknown":true}}
+# Subtest: mock: a retired one-shot rereads instead of returning the old value
+ok 13 - mock: a retired one-shot rereads instead of returning the old value
+  ---
+  duration_ms: 27.881364
+  type: 'test'
+  ...
+# Subtest: mock: genuine publication exhaustion uses the shared retryable refusal
+ok 14 - mock: genuine publication exhaustion uses the shared retryable refusal
+  ---
+  duration_ms: 177.92284
+  type: 'test'
+  ...
+# Subtest: mock: closed and signed-out clients preserve terminal refusals
+ok 15 - mock: closed and signed-out clients preserve terminal refusals
+  ---
+  duration_ms: 0.569944
+  type: 'test'
+  ...
+# Subtest: mock: a throwing evaluator settles with the shared client refusal
+ok 16 - mock: a throwing evaluator settles with the shared client refusal
+  ---
+  duration_ms: 0.383605
+  type: 'test'
+  ...
+# Subtest: guide: stale one-shot continuations refuse and retain the first-page recovery
+ok 17 - guide: stale one-shot continuations refuse and retain the first-page recovery
+  ---
+  duration_ms: 0.573529
+  type: 'test'
+  ...
+# Subtest: guide: server-needing decorations remain separate
+ok 18 - guide: server-needing decorations remain separate
+  ---
+  duration_ms: 0.218517
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3256.508943

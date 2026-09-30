@@ -1,5 +1,5 @@
 import { readyRead } from "./read-existence.ts";
-import { settledQuery } from "./query-settlement.ts";
+import { heldQueryRefusal, settledQuery } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
 import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
@@ -1186,9 +1186,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const writes = "data" in result.read ? await queued() : []; checkRead(signal); return () => {
         if ("data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) return;
         if ("data" in result.read && writes.some(w => w.observed_seq == null && (!w.predictable || result.served || result.localWakeup))) return;
-        if (publishLocal(result, () => true)) return "loading" in result.read && link === "offline" ? { denied: offline() } : result.read;
+        if (publishLocal(result, () => true)) return "loading" in result.read && (link === "offline" || result.heldUnavailable) ? { denied: link === "offline" ? offline() : heldQueryRefusal() } : result.read;
       };
-    }, unavailable, aborter.signal),
+    }, () => unavailable() ?? changesStopped ?? partitionDenied, aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep;
       const key = observationKey(op, args, options);

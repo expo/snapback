@@ -1,4 +1,5 @@
 import { readyRead } from "./read-existence.ts";
+import { settledQuery } from "./query-settlement.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { mockSignals } from "./mock-ephemeral.ts";
 // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no
@@ -65,6 +66,10 @@ export function createMockClient(options: MockOptions): MockClient {
   let viewer = options.viewer;
   let seq = 0;
   let version = 0;
+  let closed = false;
+  const unavailable = (): Refusal | undefined => link === "signed-out"
+    ? { code: "E_AUTH", family: "auth", message: "sign in to read" }
+    : closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : undefined;
   let lastServer = Date.now();
   const listeners = new Set<() => void>();
   const linkListeners = new Set<(link: Link) => void>();
@@ -130,10 +135,12 @@ export function createMockClient(options: MockOptions): MockClient {
       return outcome as Promise<Act<never>>;
     },
     tables,
-    async query(op, args) {
+    query: settledQuery(async (op, args) => {
+      const revision = version;
       const read = evaluate(op, args);
-      return "loading" in read ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
-    },
+      return () => revision !== version ? undefined : "loading" in read && link === "offline"
+        ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
+    }, unavailable),
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       let seen = -1;
       let snapshot: Read<R> = { loading: true };
@@ -209,7 +216,7 @@ export function createMockClient(options: MockOptions): MockClient {
     async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
     async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
     async signOut() { client.setLink("signed-out"); await client.close(); },
-    async close() { pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
+    async close() { closed = true; pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;
       if (next === "online") for (const [id, entry] of pending) pending.set(id, { ...entry, state: "sent" });

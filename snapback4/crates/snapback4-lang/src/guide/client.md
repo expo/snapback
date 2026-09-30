@@ -29,17 +29,17 @@ Membership with no horizon, synced in the conversation's own group with the mess
 Queueing needs no membership answer: only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable.
 
 `waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
-Clear on submit; restore refused text only into an empty draft, otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
+Clear on submit; restore refused text into empty drafts; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
 Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Keep saved text; Dismiss only after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
 
 ## Honest read boundaries
 
-`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale; `existence(await query(...))` excludes loading.
-Use `existence(read)`; after `isReady(read)`, `read.existence` narrows point data.
+`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online unless `held`; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale.
+`existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
 
 | Meaning | UI decision |
 | --- | --- |
-| `loading` | No answer yet or withheld: keep composers, headers and routes mounted. |
+| `loading` | Unavailable: keep composers, headers and routes mounted. |
 | `denied` | Refusal: show its message; disable the durable action. |
 | `present` | Nonempty top-level value: render it, even with incomplete coverage. |
 | `absent` | Proven empty answer: resolve the missing route/row. |
@@ -69,13 +69,9 @@ function ConversationList() {
 }
 ```
 
-Keep decorations separate.
-
 ## Expo and acquisition
 
 Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
-
-Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide witness`: native proof; `guide reads`: live timings; `guide sync`: acquisition and offline reopening.
 
 ## Receipts
 

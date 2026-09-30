@@ -7,7 +7,19 @@ export const QUERY_ROUNDS = 4;
 const expired = Symbol("one-shot deadline");
 type Publication<R> = () => Read<R> | undefined;
 type Attempt = <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => Promise<Publication<R>>;
-const attempts = new WeakMap<Client["query"], Attempt>();
+type Unavailable = () => Refusal | null | undefined;
+const attempts = new WeakMap<Client["query"], { run: Attempt; unavailable: Unavailable }>();
+
+// A facade's deadline can win before the raw attempt's catch resumes. Read its
+// terminal state synchronously at that outer decision, including store halts.
+export function queryRefusal(client: Client): Refusal | null | undefined {
+  return attempts.get(client.query)?.unavailable();
+}
+
+export function heldQueryRefusal(): Refusal {
+  return { code: "E_QUERY_HELD", family: "client", retryable: false, site: "client.query", guide: "search",
+    message: "this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data" };
+}
 
 function retry(): Refusal {
   return { code: "E_QUERY_RETRY", family: "client", retryable: true, site: "client.query", guide: "client",
@@ -18,12 +30,12 @@ function retry(): Refusal {
 // add approval inside this budget, rather than nesting independent retry loops.
 export async function queryAttempt<A, R>(client: Client, op: Query<A, R>, args: A, signal: AbortSignal): Promise<Publication<R>> {
   const attempt = attempts.get(client.query);
-  if (attempt) return attempt(op, args, signal);
+  if (attempt) return attempt.run(op, args, signal);
   const read = await duringRead(client.query(op, args), signal);
   return () => read;
 }
 
-export function settledQuery(run: Attempt, unavailable: () => Refusal | null | undefined, lifetime?: AbortSignal): Client["query"] {
+export function settledQuery(run: Attempt, unavailable: Unavailable, lifetime?: AbortSignal): Client["query"] {
   const attempt: Attempt = async <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => {
     checkRead(signal);
     const denied = unavailable();
@@ -74,6 +86,6 @@ export function settledQuery(run: Attempt, unavailable: () => Refusal | null | u
     };
     return settle();
   };
-  attempts.set(query, attempt);
+  attempts.set(query, { run: attempt, unavailable });
   return query;
 }

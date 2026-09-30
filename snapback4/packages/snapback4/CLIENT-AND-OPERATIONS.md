@@ -1847,6 +1847,13 @@ it mints a session for `member:<email>` and returns only `{ principal }`.
 
 ### The mock (`snapback4/mock`)
 
+One-shot queries use the same bounded settlement rules as `guide client`:
+retired publications reread, genuine exhaustion is retryable `E_QUERY_RETRY`,
+and closed/signed-out clients refuse. Only unavailable offline reads use
+`E_OFFLINE`. Mock query handlers return values or pages, not `Read` envelopes;
+the mock has no Quarry acquisition or server fallback. Pending predictions can
+make an empty ready answer partial; they do not prove the link is offline.
+
 `createMockClient({ viewer, tables, ops })` is a client with the same
 card over in-memory tables, for component tests: `ops` is `{ queries:
 { name: (tables, args, viewer) => value | page(rows, next) }, mutations:

@@ -79592,3 +79592,60 @@ native-smoke-fixtures-device-choice-log-name ticket was absent from main at the
 merged commit; all three named findings are resolved. Report and retained logs:
 reports/20260930-ns-native-smoke/round3/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-30 — QS round 1: terminal one-shot refusals survive deadlines
+
+Read the round 0 prompt/report and both complete READY WITH CHANGES reviews.
+Merged origin/main 42ba3ffb904f first (edd5d68fbd), preserving both journal
+histories and guide changes. Local one-shot settlement now exposes partition
+and change-stream refusals to its outer decision; facades synchronously read
+the raw terminal state even when their own deadline wins during authority I/O.
+Tests cover persisted same-store regression, partition/change refusal, online
+reset/restore, close, sign-out and viewer replacement, including wasm/process
+and app facades. Reset adoption behavior remains unchanged.
+
+An acquired held read requiring unsynced data, without a pending prediction,
+now refuses non-retryable E_QUERY_HELD after one device evaluation and no server
+request. Its message says to remove held for the online path or sync the data.
+Concurrent invalidation still rereads; offline misses still use E_OFFLINE and
+genuine exhaustion E_QUERY_RETRY. The existing evaluator only adds internal
+metadata; observation publication and the existence/pending classifier remain
+unchanged. Mock queries now share settlement and version fences. LLP 3000.023
+section 11 records these corrections. Search documents E_QUERY_RETRY with a
+fresh-first-page restart; the complete guide/README audit clarifies other
+loading prose. Offline-interactions restores server-needing decorations
+separately. The client card retains native smoke, clear-on-submit and runnable
+host guidance within 1,200 words / 113 lines. local.ts remains 1,500 lines.
+
+Round 0 replay: 24 runtime failures / 16 controls pass; both old-text regression
+checks also fail. Final affected checks: 452/452 plus four change-stream cases
+and two corrected Following cases. Whole guide 106/106, refs clean. Ran
+scripts/test.sh exactly once; exit 1, exact summary:
+
+    == 1 failure(s) in 1290 s
+       client tests
+
+All other 12 stages pass, including serial client models 79/79 and 5,000
+session sequences on each tier. Client pool: 5,457 pass, two fail, ten existing
+skips, zero cancellations. Both 300-seed search hosts and both 300-history
+mixed-evidence hosts pass at full counts. Every full-run failure is ours:
+wasm/native bounded Following expected retryable exhaustion for an executed
+online-only held branch. After the run, both now assert E_QUERY_HELD and
+retryable=false online, E_OFFLINE and retryable=true offline, preserving exact
+untaken answers/completeness and zero server calls; final rerun 2/2. Baseline
+failures 0, environmental 0. This remains a failed full run with passing affected
+follow-ups, not a green qualification. The inherited 60-second budget remains
+exceeded. Product semantics stayed fixed through the run; one return expression
+was folded during the initial wasm build solely to keep the line cap.
+
+Wasm unchanged: 1,978,828 B raw / 593,225 B gzip, 494 B under the unchanged
+593,719 B cap. Exact inputs, every failure/disposition and logs:
+reports/20260930-qs-one-shot-settles/round1/REPORT.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+Provenance correction before handoff: the main parent actually merged by
+edd5d68fbd is 28014164c6979995708e758c2090e53455101134. The 42ba3ffb904f value
+above was sampled later from the shared origin/main ref after it advanced;
+it was not merged. The report now uses the actual merge parent. Code and
+verification evidence are unchanged.

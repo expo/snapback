@@ -1,0 +1,233 @@
+TAP version 13
+# Subtest: wasm: restore refusal wins a blocked query deadline
+ok 1 - wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 1087.573277
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: wasm: partition refusal wins a blocked query deadline
+ok 2 - wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 195.242391
+  type: 'test'
+  ...
+# Subtest: wasm: impossible held count refuses in one evaluation and never contacts the server
+ok 3 - wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 195.9753
+  type: 'test'
+  ...
+# Subtest: wasm: a held query retries a concurrent prediction and can answer its other branch
+ok 4 - wasm: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 193.133632
+  type: 'test'
+  ...
+# Subtest: process: restore refusal wins a blocked query deadline
+ok 5 - process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 213.800555
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: process: partition refusal wins a blocked query deadline
+ok 6 - process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 214.705802
+  type: 'test'
+  ...
+# Subtest: process: impossible held count refuses in one evaluation and never contacts the server
+ok 7 - process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 202.517405
+  type: 'test'
+  ...
+# Subtest: process: a held query retries a concurrent prediction and can answer its other branch
+ok 8 - process: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 213.935167
+  type: 'test'
+  ...
+# Subtest: app-wasm: restore refusal wins a blocked query deadline
+ok 9 - app-wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 209.143025
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-wasm: partition refusal wins a blocked query deadline
+ok 10 - app-wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 185.563436
+  type: 'test'
+  ...
+# Subtest: app-wasm: impossible held count refuses in one evaluation and never contacts the server
+ok 11 - app-wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 182.205033
+  type: 'test'
+  ...
+# Subtest: app-wasm: a held query retries a concurrent prediction and can answer its other branch
+ok 12 - app-wasm: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 174.945603
+  type: 'test'
+  ...
+# Subtest: app-process: restore refusal wins a blocked query deadline
+ok 13 - app-process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 216.565119
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-process: partition refusal wins a blocked query deadline
+ok 14 - app-process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 230.59134
+  type: 'test'
+  ...
+# Subtest: app-process: impossible held count refuses in one evaluation and never contacts the server
+ok 15 - app-process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 270.791478
+  type: 'test'
+  ...
+# Subtest: app-process: a held query retries a concurrent prediction and can answer its other branch
+ok 16 - app-process: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 243.267368
+  type: 'test'
+  ...
+# Subtest: online: restore wins the transport deadline
+ok 17 - online: restore wins the transport deadline
+  ---
+  duration_ms: 2.6757
+  type: 'test'
+  ...
+# Subtest: online: reset wins the transport deadline
+ok 18 - online: reset wins the transport deadline
+  ---
+  duration_ms: 1.196614
+  type: 'test'
+  ...
+# Subtest: facade: restore wins the transport deadline
+ok 19 - facade: restore wins the transport deadline
+  ---
+  duration_ms: 12.064451
+  type: 'test'
+  ...
+# Subtest: facade: restore wins the authority deadline
+ok 20 - facade: restore wins the authority deadline
+  ---
+  duration_ms: 1.050715
+  type: 'test'
+  ...
+# Subtest: facade: reset wins the transport deadline
+ok 21 - facade: reset wins the transport deadline
+  ---
+  duration_ms: 12.536248
+  type: 'test'
+  ...
+# Subtest: facade: reset wins the authority deadline
+ok 22 - facade: reset wins the authority deadline
+  ---
+  duration_ms: 1.776102
+  type: 'test'
+  ...
+# Subtest: app-online: viewer scope change wins a blocked authority deadline
+not ok 23 - app-online: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 5149.947865
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:116:63'
+  failureType: 'testCodeFailure'
+  error: 'timed out: condition'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:121:50)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-wasm: viewer scope change wins a blocked authority deadline
+not ok 24 - app-wasm: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 6089.343869
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:116:63'
+  failureType: 'testCodeFailure'
+  error: 'timed out: condition'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:121:50)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: app-process: viewer scope change wins a blocked authority deadline
+not ok 25 - app-process: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 6100.279589
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:116:63'
+  failureType: 'testCodeFailure'
+  error: 'timed out: condition'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot-review.test.mjs:121:50)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: mock: a retired one-shot rereads instead of returning the old value
+ok 26 - mock: a retired one-shot rereads instead of returning the old value
+  ---
+  duration_ms: 26.90936
+  type: 'test'
+  ...
+# Subtest: mock: genuine publication exhaustion uses the shared retryable refusal
+ok 27 - mock: genuine publication exhaustion uses the shared retryable refusal
+  ---
+  duration_ms: 176.629458
+  type: 'test'
+  ...
+# Subtest: mock: closed and signed-out clients preserve terminal refusals
+ok 28 - mock: closed and signed-out clients preserve terminal refusals
+  ---
+  duration_ms: 0.559429
+  type: 'test'
+  ...
+# Subtest: mock: a throwing evaluator settles with the shared client refusal
+ok 29 - mock: a throwing evaluator settles with the shared client refusal
+  ---
+  duration_ms: 0.298857
+  type: 'test'
+  ...
+# Subtest: guide: stale one-shot continuations refuse and retain the first-page recovery
+ok 30 - guide: stale one-shot continuations refuse and retain the first-page recovery
+  ---
+  duration_ms: 0.535652
+  type: 'test'
+  ...
+# Subtest: guide: server-needing decorations remain separate
+ok 31 - guide: server-needing decorations remain separate
+  ---
+  duration_ms: 0.199509
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 28
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21950.627707
