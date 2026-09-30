@@ -1,0 +1,61 @@
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+ WARN  The package /Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4 contains an invalid package.json configuration. Consider raising this issue with the package maintainer(s).
+Reason: The resolution for "/Users/ccheever/projects/snapback-pub-049/snapback4/node_modules/snapback4/react" defined in "exports" is /Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/dist/react.js, however this file does not exist. Falling back to file-based resolution.
+ WARN  The package /Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4 contains an invalid package.json configuration. Consider raising this issue with the package maintainer(s).
+Reason: The resolution for "/Users/ccheever/projects/snapback-pub-049/snapback4/node_modules/snapback4/react" defined in "exports" is /Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/dist/react.js, however this file does not exist. Falling back to file-based resolution.
+ WARN  The package /Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4 contains an invalid package.json configuration. Consider raising this issue with the package maintainer(s).
+Reason: The resolution for "/Users/ccheever/projects/snapback-pub-049/snapback4/node_modules/snapback4/react" defined in "exports" is /Users/ccheever/projects/snapback-pub-049/snapback4/packages/snapback4/dist/react.js, however this file does not exist. Falling back to file-based resolution.
+iOS Bundling failed 3841ms apps/chat-expo/index.js (577 modules)
+Unable to resolve module snapback4/react from /Users/ccheever/projects/snapback-pub-049/snapback4/apps/chat-expo/App.tsx: snapback4/react could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  ../../../node_modules
+  node_modules
+  ../../node_modules
+[0m [90m 4 |[39m [36mimport[39m type { [33mApp[39m [36mas[39m [33mSnapbackApp[39m } [36mfrom[39m [32m"snapback4/app"[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m type { [33mClient[39m } [36mfrom[39m [32m"snapback4/contract"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 6 |[39m [36mimport[39m { [33mAppProvider[39m[33m,[39m [33mSnapbackProvider[39m[33m,[39m useAuth[33m,[39m useLink } [36mfrom[39m [32m"snapback4/react"[39m[33m;[39m
+ [90m   |[39m                                                                  [31m[1m^[22m[39m
+ [90m 7 |[39m [36mimport[39m { openApp[33m,[39m openClient[33m,[39m persona[33m,[39m url } [36mfrom[39m [32m"./src/client"[39m[33m;[39m
+ [90m 8 |[39m [36mimport[39m { [33mInbox[39m } [36mfrom[39m [32m"./src/Inbox"[39m[33m;[39m
+ [90m 9 |[39m [36mimport[39m { [33mThread[39m } [36mfrom[39m [32m"./src/Thread"[39m[33m;[39m[0m
+
+Import stack:
+
+ apps/chat-expo/App.tsx
+ | import "snapback4/react"
+
+ apps/chat-expo/index.js
+ | import "./App"
+
+ 
+ | import "./apps/chat-expo/index"
+
+Error: Unable to resolve module snapback4/react from /Users/ccheever/projects/snapback-pub-049/snapback4/apps/chat-expo/App.tsx: snapback4/react could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  ../../../node_modules
+  node_modules
+  ../../node_modules
+[0m [90m 4 |[39m [36mimport[39m type { [33mApp[39m [36mas[39m [33mSnapbackApp[39m } [36mfrom[39m [32m"snapback4/app"[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m type { [33mClient[39m } [36mfrom[39m [32m"snapback4/contract"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 6 |[39m [36mimport[39m { [33mAppProvider[39m[33m,[39m [33mSnapbackProvider[39m[33m,[39m useAuth[33m,[39m useLink } [36mfrom[39m [32m"snapback4/react"[39m[33m;[39m
+ [90m   |[39m                                                                  [31m[1m^[22m[39m
+ [90m 7 |[39m [36mimport[39m { openApp[33m,[39m openClient[33m,[39m persona[33m,[39m url } [36mfrom[39m [32m"./src/client"[39m[33m;[39m
+ [90m 8 |[39m [36mimport[39m { [33mInbox[39m } [36mfrom[39m [32m"./src/Inbox"[39m[33m;[39m
+ [90m 9 |[39m [36mimport[39m { [33mThread[39m } [36mfrom[39m [32m"./src/Thread"[39m[33m;[39m[0m
+
+Import stack:
+
+ apps/chat-expo/App.tsx
+ | import "snapback4/react"
+
+ apps/chat-expo/index.js
+ | import "./App"
+
+ 
+ | import "./apps/chat-expo/index"
+
