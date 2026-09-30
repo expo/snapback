@@ -31,8 +31,11 @@ impl Options {
         let mut flags = BTreeMap::new();
         let mut iter = args.iter().skip(1);
         while let Some(flag) = iter.next() {
-            let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", "unexpected argument; see snapback4 guide witness")); };
+            let Some(raw) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", "unexpected argument; see snapback4 guide witness")); };
+            let key = raw.split('=').next().unwrap();
+            if ["token", "token-file"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("--{key} is unsupported for witness ios"))); }
             if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", "unknown flag; see snapback4 guide witness")); }
+            if raw.contains('=') { return Err(error("E_WITNESS_INPUT", format!("--{key} does not accept equals spelling; see snapback4 guide witness"))); }
             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
             };
@@ -43,7 +46,7 @@ impl Options {
         if selectors == 0 { return Err(error("E_WITNESS_INPUT", "--bundle-id is required for installed-app mode, or use --build <project>")); }
         if selectors != 1 { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id or --build")); }
         let bundle = flags.get("bundle-id").cloned().unwrap_or_default();
-        if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "invalid bundle identifier")); }
+        if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "--bundle-id must be a valid bundle identifier")); }
         let smoke = flags.contains_key("smoke");
         if !smoke && flags.contains_key("build") {
             return Err(error("E_WITNESS_INPUT", "prepared proof currently requires --smoke; application scenarios use installed-app mode"));
@@ -103,15 +106,15 @@ fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
     let end = Instant::now() + timeout;
     let status = loop {
         if let Some(status) = child.status()? { break status; }
-        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("xcrun simctl {} timed out", args.join(" ")))); }
+        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "xcrun simctl timed out; check --udid and --timeout")); }
         tick()?;
     };
-    let text = out.join().unwrap_or_default(); let problem = err.join().unwrap_or_default();
-    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", format!("xcrun simctl {}: {}", args.join(" "), problem.trim()))); }
+    let text = out.join().unwrap_or_default(); let _ = err.join();
+    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", "xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime")); }
     Ok(text.trim().to_owned())
 }
 
-fn output(path: &Path) -> Result<File> { OpenOptions::new().create(true).append(true).open(path).map_err(|e| error("E_WITNESS_ARTIFACT", format!("{}: {e}", path.display()))) }
+fn output(path: &Path) -> Result<File> { OpenOptions::new().create(true).append(true).open(path).map_err(|e| error("E_WITNESS_ARTIFACT", format!("cannot open command log; check --artifacts permissions: {e}"))) }
 fn read_rows(path: &Path, final_file: bool) -> Result<Vec<Value>> {
     match fs::read(path) {
         Ok(bytes) => receipts(&bytes, final_file),
@@ -134,7 +137,7 @@ impl Run {
         app_pid(&simctl(&["spawn", &self.udid, "launchctl", "list"], self.options.timeout)?, &self.options.bundle)
     }
     fn require_stopped(&self) -> Result<()> {
-        if self.running_app()?.is_some() { return Err(error("E_WITNESS_APP", format!("{} is already running on {}; quit it before starting the witness", self.options.bundle, self.udid))); }
+        if self.running_app()?.is_some() { return Err(error("E_WITNESS_APP", "--bundle-id selects an app already running on --udid; quit it before starting the witness")); }
         Ok(())
     }
     // @ref LLP 3000.007#20.10 — the launch PID owns cleanup, never the bundle alone
@@ -144,7 +147,7 @@ impl Run {
             None => { self.app_pid = None; return if require_alive { Err(error("E_WITNESS_APP", format!("app PID {pid} exited before deliberate termination"))) } else { Ok(()) }; }
             Some(current) if current != pid => {
                 self.app_pid = None;
-                return Err(error("E_WITNESS_APP", format!("{} on {} was replaced by PID {current}; leaving that instance running", self.options.bundle, self.udid)));
+                return Err(error("E_WITNESS_APP", "--bundle-id app on --udid was replaced; leaving that instance running"));
             }
             Some(_) => {}
         }
@@ -185,7 +188,7 @@ impl Run {
         self.app_pid = text.lines().find_map(|l| l.strip_prefix(&prefix).and_then(|p| p.trim().parse::<u32>().ok())).filter(|p| *p > 0);
         output(&self.path("launch.log"))?.write_all(text.as_bytes()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let status = status?;
-        if !status.success() { return Err(error("E_WITNESS_APP", format!("app launch failed ({status}); see {}", self.path("launch.log").display()))); }
+        if !status.success() { return Err(error("E_WITNESS_APP", format!("--bundle-id app launch failed ({status}); see the command's own log path: {}", self.path("launch.log").display()))); }
         let pid = self.app_pid.ok_or_else(|| error("E_WITNESS_APP", "simctl launch did not report an app PID; cannot claim ownership"))?;
         self.events.push(json!({ "step": format!("{segment}-launched"), "pid": pid, "at": now() })); Ok(())
     }
@@ -204,7 +207,7 @@ impl Run {
         let end = Instant::now() + self.options.timeout;
         loop {
             let child = self.backend.as_mut().unwrap();
-            if let Some(status) = child.status()? { return Err(error("E_WITNESS_BACKEND", format!("dev exited ({status}); see {}", self.path("backend.log").display()))); }
+            if let Some(status) = child.status()? { return Err(error("E_WITNESS_BACKEND", format!("dev exited ({status}); see the command's own log path: {}", self.path("backend.log").display()))); }
             // Only our child's readiness announcement can satisfy startup.
             if fs::read_to_string(&stdout).unwrap_or_default().get(offset..).unwrap_or_default().lines().any(|line| line == format!("http://127.0.0.1:{}", self.options.port)) && !refused(self.options.port)? { break; }
             if Instant::now() >= end { return Err(error("E_WITNESS_BACKEND", "dev did not become ready before the step timeout")); }
@@ -256,7 +259,7 @@ impl Run {
                 }
                 self.event(expected); return Ok(());
             }
-            if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("app did not reach {expected} within {} seconds", self.options.timeout.as_secs()))); }
+            if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("app did not reach {expected} within --timeout"))); }
             tick()?;
         }
     }
@@ -404,13 +407,13 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     options.port = _port.local_addr().map_err(|e| error("E_WITNESS_PORT", e))?.port();
     let project_lease = preparation::check_project(&options)?;
     let proof = preparation::prepare_app(&mut options, &udid)?;
-    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nUse witness ios --build <project> --smoke for the qualified adapter, or expo run:ios --configuration Release --device generic --no-bundler --output <private-output> then simctl install the exact product", options.bundle)))?;
+    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|_| error("E_WITNESS_APP", "--bundle-id app is not installed on --udid; use witness ios --build <project> --smoke or install the exact Release product"))?;
     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
     let plist = Path::new(&app).join("Info.plist");
     let mut build = json!({});
     for key in ["CFBundleIdentifier", "CFBundleVersion", "CFBundleShortVersionString", "CFBundleExecutable"] {
         let output = Command::new("/usr/bin/plutil").args(["-extract", key, "raw", "-o", "-"]).arg(&plist).output().map_err(|e| error("E_WITNESS_APP", e))?;
-        if !output.status.success() { return Err(error("E_WITNESS_APP", format!("cannot read {key} from {}", plist.display()))); }
+        if !output.status.success() { return Err(error("E_WITNESS_APP", format!("cannot read {key} from installed Info.plist; check --bundle-id"))); }
         build[key] = json!(String::from_utf8_lossy(&output.stdout).trim());
     }
     if build["CFBundleIdentifier"] != options.bundle { return Err(error("E_WITNESS_APP", "installed Info.plist bundle identifier does not match --bundle-id")); }
@@ -419,7 +422,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
             "javascript": artifact(&Path::new(&app).join("main.jsbundle"))? })
     } else { Value::Null };
     if app_pid(&simctl(&["spawn", &udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
-        return Err(error("E_WITNESS_APP", format!("{} is already running on {udid}; quit it before starting the witness", options.bundle)));
+        return Err(error("E_WITNESS_APP", "--bundle-id selects an app already running on --udid; quit it before starting the witness"));
     }
     let run = format!("{}-{}", now(), std::process::id());
     let dir = container.join("Documents/.snapback4-witness").join(&run);
@@ -443,8 +446,8 @@ pub fn run(args: &[String]) -> i32 {
     let execute = || -> Result<()> {
         let invoked = now();
         let mut options = Options::parse(args)?;
-        fs::create_dir_all(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-        options.artifacts = fs::canonicalize(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        fs::create_dir_all(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", format!("cannot create --artifacts directory: {e}")))?;
+        options.artifacts = fs::canonicalize(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", format!("cannot resolve --artifacts directory: {e}")))?;
         #[cfg(unix)]
         unsafe { libc::signal(libc::SIGINT, interrupt as *const () as libc::sighandler_t); libc::signal(libc::SIGTERM, interrupt as *const () as libc::sighandler_t); }
         platform(std::env::consts::OS)?;
@@ -460,7 +463,7 @@ pub fn run(args: &[String]) -> i32 {
                 preparation["error"] = json!(problem);
                 preparation["finishedAt"] = json!(now());
                 fs::write(&failure_path, serde_json::to_vec_pretty(&preparation).unwrap())
-                    .map_err(|e| error("E_WITNESS_ARTIFACT", format!("{problem}; could not write {}: {e}", failure_path.display())))?;
+                    .map_err(|e| error("E_WITNESS_ARTIFACT", format!("{problem}; could not write failure receipt; check --artifacts permissions: {e}")))?;
                 return Err(problem);
             }
         };
@@ -479,7 +482,7 @@ pub fn run(args: &[String]) -> i32 {
             (true, _) => "Installed-app smoke passed (preparation unknown)",
             _ => "Installed-app scenario complete (preparation unknown)",
         };
-        println!("witness: {label} — {}", run.path("run.json").display());
+        println!("witness: {label} — command's own receipt path: {}", run.path("run.json").display());
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(problem) => { if problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("{problem}"); } else { eprintln!("{problem}; see snapback4 guide witness"); } 1 } }

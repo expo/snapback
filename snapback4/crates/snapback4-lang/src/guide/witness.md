@@ -297,8 +297,8 @@ E_WITNESS_INPUT means a flag, launch configuration or signal label is
 invalid. For example, invoking `witness ios` without a bundle ID cannot
 select an app. Use `snapback4 witness ios --bundle-id com.example.chat`
 with the dedicated simulator, segment, port and fresh artifacts directory
-shown above. Follow the named invalid argument; signal labels must match
-the runner's supported step protocol.
+shown above. Refusals name flags and reasons, never values; required output paths
+are labelled the command's own. Signal labels must match the runner's protocol.
 
 E_WITNESS_PLATFORM means the iOS witness lacks its required host tools.
 For example, running it on Linux cannot drive an iOS simulator. Run on

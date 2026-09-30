@@ -1,0 +1,21 @@
+✔ sibling Xcode output settings refuse raw overrides and resolved outside destinations (12.385885ms)
+✔ dangling final and ancestor output links refuse before an outside file can be created (1.615332ms)
+✔ Xcode shell environment keeps executable paths literal (3.872405ms)
+✔ output audits follow symlinks before parent traversal, including within link targets (4.758973ms)
+✔ installation accepts only the measured framework execute-bit normalization (0.501011ms)
+✔ payload inventory binds bytes, paths, modes and safe relative links (2.536162ms)
+✔ source, truncated and wrong magic bundles cannot masquerade as HBC (0.859979ms)
+✔ native Xcode sources, resources and build inputs outside covered roots refuse (6.458701ms)
+✔ preparation rejects wrong HBC versions and escaping outputs before issuing a build receipt (2871.873284ms)
+✔ compiler records cover spaced and macro includes, transitive dependencies and missing coverage (11.888681ms)
+✔ all target outputs and symlink parents must stay private (6.442167ms)
+✔ Pods graph audit refuses external search paths, config includes, phase lists and scripts (18.07922ms)
+✔ linker records require products and refuse external frameworks including missing probes (1.891375ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2998.954801

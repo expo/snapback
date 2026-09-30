@@ -52,8 +52,10 @@ function publicRun(value, options) {
     }
     return output;
   }) };
-  if (value.query) result.query = { name: options.query ?? 'automatic device query',
-    args: options.query ? options.args : {}, selectionSha256: digest(['witness-query', value.query.name]) };
+  if (options.query || value.query) {
+    result.query = { name: options.query ?? 'automatic device query', args: options.query ? options.args : {} };
+    if (value.query) result.query.selectionSha256 = digest(['witness-query', value.query.name]);
+  }
   for (const key of ['acquiredMs', 'firstLocalMs', 'afterHost', 'error']) {
     if (Object.hasOwn(value, key)) result[key] = value[key];
   }
@@ -89,6 +91,7 @@ export function parse(args) {
   for (let i = 0; i < args.length; i++) {
     const equal = args[i].indexOf('=');
     const flag = equal < 0 ? args[i] : args[i].slice(0, equal);
+    if (flag === '--token-file') fail('E_WITNESS_INPUT', '--token-file is unsupported; use --token');
     if (!['--restart', '--json', '--as', '--url', '--token', '--runs', '--timeout', '--query', '--args', '--artifacts'].includes(flag)) fail('E_WITNESS_INPUT', 'unknown acquire argument; see guide bounds');
     if (seen.has(flag)) fail('E_WITNESS_INPUT', `duplicate ${flag}`);
     seen.add(flag);
@@ -258,7 +261,18 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
   let selected;
   const firstAnswer = async origin => {
     const value = await client.query({ kind: 'query', name: selected.name }, selected.args);
-    if (!('data' in value) || !value.complete) fail(phase === 'restart' ? 'E_WITNESS_RECEIPT' : 'E_WITNESS_INPUT', `${phase === 'restart' ? 'cold restart coverage differs: ' : ''}query cannot give a complete local answer; choose a query within held coverage`);
+    if (!('data' in value) || !value.complete) {
+      // Select only our own prose from validated engine/server codes. Never
+      // interpolate the code, message, schema names or rejected argument value.
+      const supplied = value.denied?.code;
+      const code = typeof supplied === 'string' && /^[A-Z][A-Z0-9_]*$/.test(supplied) ? supplied : null;
+      const reason = ['E_INPUT', 'E_TYPE', 'E_FIELD'].includes(code)
+        ? 'query arguments rejected; check --args against the --query argument types'
+        : value.denied && !['E_OFFLINE', 'E_PREDICT'].includes(code)
+          ? 'query refused; check --query rules and requirements'
+          : 'query coverage incomplete; choose --query and --args within held coverage';
+      fail(phase === 'restart' ? 'E_WITNESS_RECEIPT' : 'E_WITNESS_INPUT', `${phase === 'restart' ? 'cold restart coverage differs: ' : ''}${reason}`);
+    }
     return ms(origin);
   };
   try {
@@ -273,6 +287,7 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
       : backend.programs.find(p => p.kind === 'Query' && p.runs !== 'server' && !p.ephemeral && Object.keys(p.args).length === 0);
     if (!program || program.runs === 'server' || program.ephemeral) fail('E_WITNESS_INPUT', 'choose a device query with --query NAME --args JSON (automatic selection needs a zero-argument device query)');
     selected = { name: program.name, args: options.query ? structuredClone(options.args) : {} };
+    result.query = selected;
     for (const key of Object.keys(selected.args)) if (!Object.hasOwn(program.args, key)) fail('E_WITNESS_INPUT', 'unknown query argument; check --args JSON');
     for (const key of Object.keys(program.args)) if (!Object.hasOwn(selected.args, key)) fail('E_WITNESS_INPUT', 'query needs an argument; pass --args JSON (null for optional arguments)');
     client.onAcquired(value => { if (value) acquiredMs ??= ms(started); });
@@ -280,7 +295,6 @@ export async function measure(options, { binary = resolveBinary(), beforeRestart
     await waitFor(() => { if (transportFailure || deviceFailure) throw transportFailure ?? deviceFailure; return client.acquired; }, deadline);
     acquiredMs ??= ms(started);
     const firstLocalMs = await firstAnswer(started);
-    result.query = selected;
     result.acquiredMs = acquiredMs; result.firstLocalMs = firstLocalMs;
     result.coverage = await coverage(client, core);
     if (!result.coverage.acquired) fail('E_WITNESS_RECEIPT', 'SDK did not acquire the partition');
@@ -338,7 +352,7 @@ async function runWitness(args) {
     // Reserve exclusively: never overwrite a previous proof, including a failure.
     await writeFile(path, '', { flag: 'wx', mode: 0o600 });
   } catch (error) {
-    fail('E_WITNESS_ARTIFACT', error.code === 'EEXIST' ? 'EEXIST: receipt already exists; choose a new artifacts directory' : 'cannot create witness receipt');
+    fail('E_WITNESS_ARTIFACT', error.code === 'EEXIST' ? 'EEXIST: receipt already exists; choose a fresh --artifacts directory' : 'cannot create witness receipt; check --artifacts permissions');
   }
   const controller = new AbortController();
   const interrupt = () => controller.abort(problem('E_WITNESS_PROCESS', 'witness interrupted'));
@@ -359,7 +373,7 @@ async function runWitness(args) {
   }
   if (options.json) console.log(JSON.stringify(receipt));
   else {
-    console.error(`${NOTE}\n${error ? 'Receipt saved in the artifacts directory.' : `Receipt: ${path}`}`);
+    console.error(`${NOTE}\n${error ? 'Receipt saved in the artifacts directory.' : `Command's own receipt path: ${path}`}`);
     for (const sample of receipt.runs) {
       if (!sample.passed) continue;
       const c = sample.coverage;

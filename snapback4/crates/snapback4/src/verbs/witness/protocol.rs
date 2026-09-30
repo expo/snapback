@@ -21,7 +21,7 @@ pub fn device(list: &Value, requested: Option<&str>) -> Result<(String, String)>
         }
     }
     if let Some(id) = requested {
-        return booted.into_iter().find(|(udid, _)| udid == id).ok_or_else(|| error("E_WITNESS_SIMULATOR", format!("{id} is not a booted, available iOS simulator; boot that UDID first")));
+        return booted.into_iter().find(|(udid, _)| udid == id).ok_or_else(|| error("E_WITNESS_SIMULATOR", "--udid must select a booted, available iOS simulator; boot that device first"));
     }
     match booted.len() {
         1 => Ok(booted.remove(0)),
@@ -35,11 +35,11 @@ pub fn refused(port: u16) -> Result<bool> {
     match TcpStream::connect_timeout(&address(port), Duration::from_millis(200)) {
         Ok(_) => Ok(false),
         Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => Ok(true),
-        Err(e) => Err(error("E_WITNESS_BACKEND", format!("cannot verify port {port} refuses connections: {e}"))),
+        Err(_) => Err(error("E_WITNESS_BACKEND", "cannot verify connection refusal; check --port and loopback networking")),
     }
 }
 pub fn reserve(port: u16) -> Result<TcpListener> {
-    TcpListener::bind(address(port)).map_err(|e| error("E_WITNESS_PORT", format!("127.0.0.1:{port} is unavailable: {e}; choose a free --port; no existing process was stopped")))
+    TcpListener::bind(address(port)).map_err(|_| error("E_WITNESS_PORT", "--port is unavailable; choose a free loopback port; no existing process was stopped"))
 }
 
 /// Only complete lines are observed while the app may be appending. The
@@ -52,7 +52,7 @@ pub fn receipts(bytes: &[u8], final_file: bool) -> Result<Vec<Value>> {
     let mut lines = bytes.split(|b| *b == b'\n').peekable();
     while let Some(line) = lines.next() {
         if lines.peek().is_none() { break; }
-        let row: Value = serde_json::from_slice(line).map_err(|e| error("E_WITNESS_RECEIPT", format!("receipt line {} is not JSON: {e}", rows.len() + 1)))?;
+        let row: Value = serde_json::from_slice(line).map_err(|_| error("E_WITNESS_RECEIPT", format!("receipt line {} is not JSON", rows.len() + 1)))?;
         if !row.is_object() { return Err(error("E_WITNESS_RECEIPT", format!("receipt line {} is not an object", rows.len() + 1))); }
         let envelope = row["witness"].as_object();
         if !envelope.is_some_and(|w| w.len() == 2 && w.get("at").and_then(Value::as_str).is_some_and(|at| timestamp(at))
@@ -60,20 +60,20 @@ pub fn receipts(bytes: &[u8], final_file: bool) -> Result<Vec<Value>> {
             return Err(error("E_WITNESS_RECEIPT", format!("receipt line {} has an invalid witness envelope; expected witness: {{ at: ISO timestamp, step: name }}", rows.len() + 1)));
         }
         let step = row["witness"]["step"].as_str().unwrap();
-        if step.ends_with(":failed") { return Err(error("E_WITNESS_STEP", format!("app step {step}; see receipts and device log"))); }
+        if step.ends_with(":failed") { return Err(error("E_WITNESS_STEP", "app step failed; check --segment and see receipts and device log")); }
         rows.push(row);
     }
     Ok(rows)
 }
 
 pub fn artifact(path: &Path) -> Result<Value> {
-    let mut file = fs::File::open(path).map_err(|e| error("E_WITNESS_ARTIFACT", format!("missing artifact {}: {e}", path.display())))?;
+    let mut file = fs::File::open(path).map_err(|_| error("E_WITNESS_ARTIFACT", "missing artifact or unreadable file; check --artifacts and the recorded app outputs"))?;
     let mut digest = Sha256::new(); let mut bytes = 0_u64; let mut buffer = [0_u8; 65536];
     loop {
-        let read = file.read(&mut buffer).map_err(|e| error("E_WITNESS_ARTIFACT", format!("{}: {e}", path.display())))?;
+        let read = file.read(&mut buffer).map_err(|_| error("E_WITNESS_ARTIFACT", "cannot read artifact; check --artifacts and the recorded app outputs"))?;
         if read == 0 { break; } digest.update(&buffer[..read]); bytes += read as u64;
     }
-    if bytes == 0 { return Err(error("E_WITNESS_ARTIFACT", format!("empty artifact {}", path.display()))); }
+    if bytes == 0 { return Err(error("E_WITNESS_ARTIFACT", "empty artifact; check --artifacts and the recorded app outputs")); }
     Ok(json!({ "path": path, "bytes": bytes, "sha256": format!("{:x}", digest.finalize()) }))
 }
 
@@ -90,16 +90,16 @@ pub fn sequence(rows: &[Value], expected: &[&str], final_file: bool) -> Result<(
             // `between-steps` rows come only from receipt() calls, including an empty
             // receipt; any other step after `done` is a step change.
             if step != "between-steps" {
-                return Err(error("E_WITNESS_STEP", format!("app changed step after done: {step}")));
+                return Err(error("E_WITNESS_STEP", "app changed step after done; check --segment protocol"));
             }
         } else if milestone(step) {
             if expected.get(next) != Some(&step) {
-                return Err(error("E_WITNESS_STEP", format!("expected {}, received {step}", expected.get(next).unwrap_or(&"no further milestone"))));
+                return Err(error("E_WITNESS_STEP", "unexpected milestone; check --segment protocol"));
             }
             next += 1; done = step == "done";
         }
     }
-    if final_file && next != expected.len() { return Err(error("E_WITNESS_STEP", format!("missing milestone {} in final receipts", expected[next]))); }
+    if final_file && next != expected.len() { return Err(error("E_WITNESS_STEP", "missing milestone in final receipts; check --segment protocol")); }
     Ok(())
 }
 
@@ -108,10 +108,10 @@ pub const OUTPUTS: &[&str] = &["run.json", "screen.mp4", "receipts.jsonl", "devi
 // The marker stays with success and failure artifacts. Creating it, rather
 // than checking for it, is the single winner operation across driver runs.
 pub fn reserve_artifacts(dir: &Path, segment: &str) -> Result<()> {
-    fs::create_dir_all(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    fs::create_dir_all(dir).map_err(|_| error("E_WITNESS_ARTIFACT", "cannot create --artifacts directory; check its parent and permissions"))?;
     let marker = dir.join(format!("{segment}-ios-reserved"));
     fs::OpenOptions::new().write(true).create_new(true).open(&marker)
-        .map_err(|e| error("E_WITNESS_ARTIFACT", format!("cannot reserve {}: {e}; choose a fresh --artifacts directory or --segment", marker.display())))?;
+        .map_err(|_| error("E_WITNESS_ARTIFACT", "cannot reserve outputs; choose a fresh writable --artifacts directory or --segment"))?;
     for suffix in OUTPUTS {
         if dir.join(format!("{segment}-ios-{suffix}")).symlink_metadata().is_ok() {
             return Err(error("E_WITNESS_ARTIFACT", "segment artifacts already exist; choose a fresh --artifacts directory or --segment"));
@@ -152,6 +152,33 @@ fn timestamp(at: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn runtime_device_refusal_names_flag_without_value() {
+        let marker = "BN_PRIVATE_UDID";
+        let list = json!({"devices": {"iOS": [{"udid": "ours", "state": "Booted"}]}});
+        let message = device(&list, Some(marker)).unwrap_err();
+        assert!(!message.contains(marker), "device refusal echoed --udid value");
+        assert!(message.contains("--udid") && message.contains("booted"));
+        assert_eq!(device(&list, Some("ours")).unwrap().0, "ours");
+    }
+    #[test]
+    fn runtime_artifact_refusals_name_flags_without_values() {
+        let marker = "BN_PRIVATE_ARTIFACT";
+        let dir = std::env::temp_dir().join(format!("{marker}-{}", std::process::id()));
+        let segment = "BN_PRIVATE_SEGMENT";
+        fs::create_dir_all(&dir).unwrap();
+        reserve_artifacts(&dir, segment).unwrap();
+        let collision = reserve_artifacts(&dir, segment).unwrap_err();
+        let missing = artifact(&dir.join(marker)).unwrap_err();
+        fs::write(dir.join(marker), "").unwrap();
+        let empty = artifact(&dir.join(marker)).unwrap_err();
+        let invalid_dir = reserve_artifacts(&dir.join(marker), segment).unwrap_err();
+        fs::remove_dir_all(&dir).unwrap();
+        for message in [collision, missing, empty, invalid_dir] {
+            assert!(!message.contains(marker) && !message.contains(segment), "artifact refusal echoed an argument value");
+            assert!(message.contains("--artifacts"), "{message}");
+        }
+    }
     use serde_json::json;
 
     #[test]

@@ -26,6 +26,9 @@ query heldNotes():
   return notes where .owner = viewer last 20 by .id
 query byOwner(owner: principal):
   return notes where .owner = owner last 20 by .id
+query refusedOwner(owner: principal):
+  require owner = viewer else NOT_OWNER
+  return notes where .owner = owner last 20 by .id
 `;
 
 async function cli(args, cwd) {
@@ -417,6 +420,64 @@ test('caller query and args are echoed from the request, never selected schema m
   assert.equal(receipt.principal, 'alice');
   assert.equal(receipt.runs[0].query.name, 'byOwner');
   assert.deepEqual(receipt.runs[0].query.args, { owner: 'dev:alice' });
+});
+
+test('failed query receipts distinguish argument rejection, query refusal and incomplete coverage', async t => {
+  const f = await fixture(t);
+  for (const [query, args, message] of [
+    ['byOwner', { owner: 7 }, /query arguments rejected; check --args against the --query argument types/],
+    ['refusedOwner', { owner: 'dev:bob' }, /query refused; check --query rules and requirements/],
+    ['byOwner', { owner: 'dev:bob' }, /query coverage incomplete; choose --query and --args within held coverage/],
+    ['byOwner', {}, /query needs an argument/],
+    ['byOwner', { owner: 'dev:alice', extra: 7 }, /unknown query argument/],
+    ['missingQuery', { owner: 7 }, /choose a device query/],
+  ]) {
+    const artifacts = join(f.dir, `failure-${query}-${Object.keys(args).join('-')}-${args.owner}`);
+    const reply = await cli([...f.args, '--query', query, '--args', JSON.stringify(args), '--artifacts', artifacts, '--json'], f.dir);
+    assert.notEqual(reply.status, 0);
+    assert.match(reply.stderr, message);
+    const file = await readFile(join(artifacts, 'acquire.json'), 'utf8');
+    const receipt = JSON.parse(file);
+    assert.deepEqual(JSON.parse(reply.stdout), receipt);
+    assert.equal(receipt.passed, false);
+    assert.equal(receipt.runs[0].query.name, query);
+    assert.deepEqual(receipt.runs[0].query.args, args);
+    assert.match(receipt.runs[0].error, message);
+    assert.equal(reply.stderr.includes(query), false, 'refusal must not echo --query value');
+    assert.equal(reply.stderr.includes(JSON.stringify(args)), false, 'refusal must not echo --args value');
+  }
+});
+
+test('query diagnostics use validated codes and drop arbitrary refusal prose', async t => {
+  const f = await fixture(t);
+  const marker = 'BN_UNTRUSTED_REFUSAL_TEXT';
+  for (const [code, expected] of [
+    ['E_INPUT', /query arguments rejected/], ['E_TYPE', /query arguments rejected/],
+    ['E_FIELD', /query arguments rejected/], ['E_RULE', /query refused/],
+    ['E_OFFLINE', /query coverage incomplete/], ['E_PREDICT', /query coverage incomplete/],
+    ['E_UNKNOWN', /query refused/], [`E_INPUT\n${marker}`, /query refused/],
+    [marker, /query refused/], [7, /query refused/], [null, /query refused/],
+  ]) {
+    await assert.rejects(measure(parse([...f.args, '--query', 'byOwner', '--args', '{"owner":"dev:alice"}']), {
+      binary, beforeRestart({ opener }) {
+        const open = opener.open.bind(opener);
+        opener.open = async (...args) => {
+          const core = await open(...args), call = core.call.bind(core);
+          core.call = request => request.op === 'query'
+            ? Promise.resolve({ denied: { code, message: marker, family: marker, site: marker, guide: marker, rewrite: marker } })
+            : call(request);
+          return core;
+        };
+      },
+    }), error => {
+      assert.match(error.message, expected);
+      assertNoCredentials({ marker }, { message: error.message, receipt: JSON.stringify(error.witnessRun) });
+      assert.equal(error.witnessRun.passed, false);
+      assert.equal(error.witnessRun.query.name, 'byOwner');
+      assert.deepEqual(error.witnessRun.query.args, { owner: 'dev:alice' });
+      return true;
+    });
+  }
 });
 
 test('equals token spelling authenticates without exposing the bearer', async t => {

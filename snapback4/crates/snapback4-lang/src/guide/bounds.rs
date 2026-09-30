@@ -154,8 +154,10 @@ and principal groups); groupsByTable and residency.tables use hashed table names
 SHA-256 of UTF-8 JSON.stringify(["witness-table", name]), e.g. name = "messages".
 residency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row
 payload bytes. Receipt format 2 keeps local timings/counts and computed digests;
-server text, codes, numeric metadata and Server-Timing are dropped. Automatic queries
-use a generated label; explicit query/args/principal echo only caller input. State and
+server text, codes, numeric metadata and Server-Timing are dropped. Validated codes choose
+distinct argument-rejection, query-refusal or incomplete-coverage diagnostics; check --args types,
+--query requirements or held coverage respectively. Failed receipts keep caller query/args.
+Automatic queries use a generated label; explicit query/args/principal echo only caller input. State and
 position digests preserve equality evidence without reflecting wire identifiers.
 Verification scans follow the timed answer. Background polling is suppressed.
 HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000

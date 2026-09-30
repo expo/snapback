@@ -79683,3 +79683,38 @@ identical to round 1 and 486 B below the unchanged 593,719 B ratchet. No wasm
 inputs changed. Report: reports/20260930-bn-envelope-proof/round2/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-30 — BN round 3: runtime refusal values and query failure reasons
+
+Read rounds 0–2 prompts/reports and Astra's complete round 2 review. Unknown
+--udid and artifact-reservation refusals now name flags/reasons without values.
+Audited the remaining witness runtime/parse paths, including iOS app selection,
+simctl, leases, ports and preparation. Own native helper errors omit input
+values; unexpected setup errors do not print Node stacks. Child-tool prose stays
+in separate raw logs, never forwarded into refusal/manifest errors. Required
+output locators explicitly say the command's own log or receipt path.
+
+Acquisition distinguishes argument rejection, query refusal and incomplete
+coverage using validated engine/server codes and fixed command prose. Failed
+receipts keep the caller's own query/args even before selection or execution;
+no arbitrary server text or code is emitted. LLP 3000.030 §14, bounds and witness
+cards record the changes. SDK, engine, device and wire behavior are unchanged.
+
+Two Rust controls fail on round 2's UDID/artifact leaks; the Node wrong-type
+query control fails on its misleading coverage advice. Final Node witness checks
+pass 79/79, including all 160 existing real-token echo invocations. Rust witness
+units pass 13/13; the portable integration target passes 13/13 (overlapping
+protocol tests). Whole guide passes 107/107; ref-check has zero errors/unchecked.
+This is Linux protocol and mocked preparation evidence; no native simulator run.
+Development assertion/command mistakes and one exploratory lease-test failure
+are classified conservatively as ours in the ledger; final checks pass with
+normal eight-thread Rust settings. No existing test/timeout/workload was reduced.
+
+Full suite omitted per round 3: only witness implementation plus its tests/docs
+changed. Existing wasm was hashed/measured, not rebuilt: 1,978,828 B raw /
+593,233 B gzip, unchanged and 486 B below the 593,719 B ratchet. No performance
+requalification or budget increase. Report and all evidence:
+reports/20260930-bn-envelope-proof/round3/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
