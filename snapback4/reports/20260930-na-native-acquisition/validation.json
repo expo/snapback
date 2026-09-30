@@ -1,0 +1,52 @@
+{
+  "fullSuite": {
+    "runs": 1,
+    "summary": "== 0 failure(s) in 1380 s",
+    "exit": 0,
+    "rust": {
+      "passed": 4367,
+      "failed": 0,
+      "ignored": 33,
+      "doctestsIncluded": 17
+    },
+    "clients": {
+      "passed": 5317,
+      "failed": 0,
+      "skipped": 10,
+      "cancelled": 0
+    },
+    "models": {
+      "passed": 79,
+      "failed": 0
+    },
+    "fixtureWrappers": {
+      "passed": 9,
+      "failed": 0
+    }
+  },
+  "affectedRust": {
+    "passed": 531,
+    "ignored": 1
+  },
+  "affectedClients": {
+    "passed": 338,
+    "failed": 0
+  },
+  "wholeGuide": {
+    "passed": 106,
+    "failed": 0
+  },
+  "crashKills": 48,
+  "boundsLines": 427,
+  "wasm": {
+    "rawBytes": 1978828,
+    "gzipBytes": 593233,
+    "budgetBytes": 593719,
+    "budgetChanged": false
+  },
+  "sourceBinding": {
+    "exit": 0,
+    "files": 2073,
+    "changed": []
+  }
+}

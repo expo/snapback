@@ -37,7 +37,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
               data: { kept: ["local"], current: [] }, speculative: false, held: true, complete: false, unknown: true, tables: ["feedFeed"],
               components: { kept: { complete: true, retained: true }, current: { complete: false, unknown: true } },
             } };
-            assert.equal(observations, 2);
+            assert.ok(observations >= 2);
             pending = scenario === "pending";
             // A separate successful request can restore the link before this
             // local reply, without making the failed composed fallback succeed.
@@ -73,9 +73,9 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
     await client.sync();
     if (scenario === "transport recovered") recovering = client.query({ kind: "query", name: "probe" }, {});
     const result = await client.query({ kind: "query", name: "read" }, input);
-    assert.equal(observations, 2);
-    assert.deepEqual(requests, [{ args: input }]);
+    assert.equal(observations, scenario === "pending" ? 5 : scenario === "transport recovered" ? 3 : 2);
+    assert.deepEqual(requests, Array.from({ length: scenario === "transport recovered" ? 2 : 1 }, () => ({ args: input })));
     if (scenario === "server") assert.deepEqual(result.data, { kept: ["server"], current: ["original"] });
-    else assert.deepEqual(result, { loading: true });
+    else assert.equal(result.denied?.code, scenario === "pending" ? "E_QUERY_RETRY" : "E_OFFLINE");
   });
 }

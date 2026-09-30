@@ -103,7 +103,8 @@ for (const tier of ['process','wasm']) test(`review replacement query server inv
  assert.equal((await fetch(`${replacement.url}/seed`,{method:'POST',body:JSON.stringify(rows)}).then(r=>r.json())).seeded,rows.length);
  f.replaceQueryServer(replacement.url);
  const before=f.requests.length,second=await f.client.query(q,{q:'coffee',c:first.next});
- assert.equal(f.requests.length-before,1);
+ assert.equal(f.requests.length-before,4);
+ assert.equal(second.denied?.code,'E_QUERY_RETRY');
  console.log(tier,{oldStore:f.requests[0].json.store_id,newStore:f.requests.at(-1).json.store_id,data:second.data?.map(r=>r.id),complete:second.complete,loading:second.loading});
  assert.equal(second.data,undefined,'must withdraw old source positions across server incarnation change');
  await f.client.sync();
@@ -118,7 +119,7 @@ for (const tier of ['process','wasm']) test(`review changed generation invalidat
   writeFileSync(join(f.dir,'snapback/schema.q'),source+'\nquery added():\n  return true\n');
   await until(async()=>{const next=await fetch(`${f.url}/schema`,{headers:{"x-snapback-persona":"bob"}}).then(r=>r.json());return next.generation>previous.generation;},'new generation');
   const before=f.requests.length,read=await f.client.query(q,{q:'coffee',c:first.next});
-  assert.equal(f.requests.length-before,1);assert.deepEqual(read,{loading:true});
+  assert.equal(f.requests.length-before,4);assert.equal(read.denied?.code,'E_QUERY_RETRY');
   await f.client.sync();
   const fresh=await f.client.query(q,{q:'coffee',c:first.next});
   assert.ok(Array.isArray(fresh.data),JSON.stringify(fresh));

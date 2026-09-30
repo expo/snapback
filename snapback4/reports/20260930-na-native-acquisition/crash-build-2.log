@@ -1,0 +1,29 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/acquisition_crash.rs:101:9
+    |
+101 |         d.store().conn().progress_handler(200, Some(move || { hook.tick(); false }));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+101 |         let _ = d.store().conn().progress_handler(200, Some(move || { hook.tick(); false }));
+    |         +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/acquisition_crash.rs:103:9
+    |
+103 |         d.store().conn().progress_handler(0, None::<fn() -> bool>);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+103 |         let _ = d.store().conn().progress_handler(0, None::<fn() -> bool>);
+    |         +++++++
+
+warning: `snapback4-device` (test "acquisition_crash") generated 2 warnings
+    Finished `test` profile [optimized] target(s) in 18.22s
+  Executable tests/acquisition_crash.rs (snapback4/target/debug/deps/acquisition_crash-bd71192e0cda91b9)

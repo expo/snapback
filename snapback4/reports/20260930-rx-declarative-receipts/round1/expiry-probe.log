@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.89s
+     Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-d889afe7ff648456)
+
+running 1 test
+before deletes members [Row(ObjectFields({"conversation": Id("c"), "deliveredOrdinal": Int(0), "id": Id("a"), "joinedOrdinal": Int(0), "principal": Id("alice"), "seenOrdinal": Int(0)}, false, None, false)), Row(ObjectFields({"conversation": Id("c"), "deliveredOrdinal": Int(0), "id": Id("b"), "joinedOrdinal": Int(0), "principal": Id("bob"), "seenOrdinal": Int(0)}, false, None, false))] raw runs 64 messages 9131
+
+thread 'round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input' (572169) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:93:5:
+assertion `left == right` failed
+  left: 0
+ right: 64
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input ... FAILED
+
+failures:
+
+failures:
+    round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.80s
+
+error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`

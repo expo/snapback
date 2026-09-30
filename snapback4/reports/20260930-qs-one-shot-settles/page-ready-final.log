@@ -1,0 +1,10 @@
+✔ ready list reads survive account restoration, new chat acquisition and pending unread counts (5748.201959ms)
+ℹ unavailable inbox device reply: {"ok":{"complete":false,"cut":null,"loading":true,"nextExpiry":null,"retained":false,"tables":["members","messages"],"unknown":true}}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5845.336631

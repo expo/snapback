@@ -1,0 +1,606 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 3.37s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_device-d6febd1edff9281e)
+
+running 58 tests
+test device::deferred::recording::recording_refuses_unsupported_nested_savepoints - should panic ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_memory_changes_restore_reopen_and_reset ... ok
+test device::opening_tests::explicit_open_checks_its_backend_memory ... ok
+test device::expired_births_tests::retired_birth_keeps_memory_device_caps_exact ... ok
+test device::opening_tests::first_install_checks_absence_memory ... ok
+test device::delivery::interval_union_matches_round_zero_for_order_gaps_bounds_and_extremes ... ok
+test device::opening_tests::first_install_envelope_is_not_a_legacy_backend ... ok
+test device::opening_tests::kept_open_checks_its_backend_memory ... ok
+test device::deferred::recording::tests::prefix_deletion_is_an_ordered_fold_operation ... ok
+test device::opening_tests::explicit_open_checks_its_backend_sqlite ... ok
+test device::deferred::recording::failed_metadata_operation_is_not_recorded ... ok
+test device::opening_tests::first_install_checks_absence_sqlite ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_sqlite_changes_restore_and_reset ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_sqlite ... ok
+test device::opening_tests::kept_open_checks_its_backend_sqlite ... ok
+test device::expired_births_tests::retired_birth_keeps_sqlite_device_caps_exact ... ok
+test device::publication_round5::live_cursor_precedes_terminal_snapshot_cut ... ok
+test device::publication_round5::absent_capture_and_echo_preserve_published_exclusion ... ok
+test device::publication_round5::terminal_gap_is_a_protocol_refusal ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::memory ... ok
+test device::publication_round5::stored_capture_must_be_a_bounded_prefix ... ok
+test device::publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::memory ... ok
+test device::publication_round7::capture_revision_checkpoint_and_optional_echo ... ok
+test device::publication_round6::clear_rows_consumes_all_private_progress_and_keeps_incarnation ... ok
+test device::publication_tests::leased_nonterminal_continuation_memory ... ok
+test device::publication_round7::only_unbound_receipts_bind_to_first_private_identity ... ok
+test device::publication_tests::leased_terminal_continuation_memory ... ok
+test device::publication_round7::recovery_discards_corrupt_capture_without_discarding_private_pages ... ok
+test device::publication_tests::checkpoint_capture_remains_readable_without_widening ... ok
+test device::publication_tests::apply_returns_publication_without_a_second_store_read ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::sqlite ... ok
+test device::search::tests::delivery_state_preserves_a_scans_exhausted_read_counter ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::sqlite ... ok
+test device::search::tests::pagination_epoch_excludes_progress_but_delivery_fence_keeps_it ... ok
+test device::search::tests::retained_search_excludes_current_and_rejoined_images ... ok
+test device::search::tests::pagination_epoch_tracks_only_this_tables_membership_and_retention ... ok
+test device::publication_tests::empty_cursor_and_reset_remove_all_publication_keys ... ok
+test device::publication_tests::leased_nonterminal_continuation_sqlite ... ok
+test device::publication_tests::leased_terminal_continuation_sqlite ... ok
+test device::publication_tests::pending_publication_reads_the_slot_not_request_progress ... ok
+test ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal ... ok
+test device::recorded::tests::membership_transitions_do_not_depend_on_recording_targets_on_both_stores ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_memory ... ok
+test memory::compact_index::tests::pages_match_a_tree_through_splits_updates_deletes_and_ranges ... ok
+test memory::compact_key::tests::split_keys_order_exactly_like_complete_bytes ... ok
+test memory::tests::noncanonical_staged_rows_keep_canonical_metered_prices ... ok
+test memory::tests::replacement_indexes_match_scalar_puts_and_rollback_with_counts_and_savepoints ... ok
+test memory::tests::staged_sharing_accepts_only_the_exact_row_value ... ok
+test sqlite_residency::tests::interrupted_installation_is_one_transaction_and_excludes_a_competing_installer ... ok
+test memory::compact_index::tests::bulk_pages_accept_smaller_keys_and_remove_to_empty ... ok
+test ffi::tests::open_reason_reports_the_attempt_without_trying_again ... ok
+test ffi::tests::first_install_envelope_preserves_a_backend_installed_by_another_owner ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_memory ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_sqlite ... ok
+test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_both_stores ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
+
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+
+     Running tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-bd71192e0cda91b9)
+
+running 2 tests
+test acquisition_crash_worker ... ok
+test random_process_kills_preserve_atomic_acquisition_on_both_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.99s
+
+     Running tests/adoption.rs (target/debug/deps/adoption-c0ea8ac78a1c01ef)
+
+running 6 tests
+test defaulted_membership_group_agrees_with_rules_snapshot_and_stream_memory ... ok
+test defaulted_sum_keeps_zero_candidate_through_expiry_memory ... ok
+test defaulted_sum_keeps_zero_candidate_through_expiry_sqlite ... ok
+test a_pending_old_image_keeps_its_mark_and_gains_default_index_entries_on_both_stores ... ok
+test defaulted_membership_group_agrees_with_rules_snapshot_and_stream_sqlite ... ok
+test literal_default_images_on_both_device_stores ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+
+     Running tests/background_durability.rs (target/debug/deps/background_durability-b8945f3a57d733b2)
+
+running 2 tests
+test normal_replay_repairs_copies_but_cannot_repair_an_observed_watermark ... ok
+test delivery_wal_cuts_recover_copies_cursor_and_log_together ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+
+     Running tests/device.rs (target/debug/deps/device-d4d8eb0e9e15b5fe)
+
+running 437 tests
+test device_scenarios::actions_never_predict_query_or_enter_either_device_outbox ... ok
+test a_zero_sum_can_become_nonzero_on_the_device_clock ... ok
+test device_scenarios::a_scope_tombstone_applies_the_leave_policy ... ok
+test delivered_history_survives_membership_expiry_during_a_paged_snapshot ... ok
+test device_scenarios::a_scope_retires_media_past_a_page_while_preserving_delivered_history ... ok
+test device_scenarios::a_wide_merge_matches_the_server_until_the_device_horizon ... ok
+test acquisition::w5c_sync_state_reports_durable_acquisition_after_snapshot_and_catchup ... ok
+test device_scenarios::extra_probe_equalities_run_on_both_device_stores ... ok
+test device_scenarios::online_only_final_insert_target_is_unknown_to_the_predictor ... ok
+test device_scenarios::durable_rejection_rebase_preserves_confirmed_images ... ok
+test a_rejoin_after_an_expired_gap_revokes_stale_device_rows_before_reacquiring_live_rows ... ok
+test device_scenarios::media_home_follows_stream_clear_delete_expiry_and_scope_on_both_stores ... ok
+test device_scenarios::outbox_status_survives_reopen_without_changing_intent_or_order ... ok
+test device_scenarios::pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_hosts ... ok
+test device_scenarios::the_memory_host_keeps_only_what_a_reopen_needs ... ok
+test device_scenarios::the_call_answers_the_card_on_every_host ... ok
+test expiring_maintain_sources_recompute_held_rows_without_inventing_online_counts ... ok
+test device_scenarios::upload_receipts_predict_id_only_image_and_video_on_both_stores ... ok
+test following::app::w10b_wired_repost_predicts_on_both_stores ... ok
+test device_scenarios::the_device_follows_the_server_and_answers_locally ... ok
+test expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up ... ok
+test following::app::w7a_wired_mutations_predict_or_queue_offline_on_both_stores ... ok
+test following::privacy::w7r1b_pull_audience_memory ... ok
+test following::following_streams_backfill_purge_own_posts_and_reposts ... ok
+test device_scenarios::heap_cuts_and_successful_accumulators_on_both_stores ... ok
+test following::removal::following_merge_predicate_memory ... ok
+test following::removal::following_merge_predicate_sqlite ... ok
+test following::privacy::w7r1b_pull_audience_sqlite ... ok
+test following::removal::following_removal_fills_live_pages_on_both_stores ... ok
+test following::removal::following_removal_foreign_tombstone_memory ... ok
+test following::removal::following_removal_cut_memory ... ok
+test following::app::w6a_wired_following_memory ... ok
+test following::removal::following_removal_n1_memory ... ok
+test following::removal::following_removal_n1_sqlite ... ok
+test following::removal::following_removal_cut_sqlite ... ok
+test following::removal::following_removal_foreign_tombstone_sqlite ... ok
+test following::app::w6a_wired_following_sqlite ... ok
+test following::saturation::w11a_promotion_free_slot_memory ... ok
+test following::saturation::w11a_promotion_partial_routes_memory ... ok
+test following::saturation::w11a_promotion_refusal_memory ... ok
+test following::saturation::w11a_promotion_free_slot_sqlite ... ok
+test following::app::w6r1_wired_cards_respect_rules_and_horizons_on_both_stores ... ok
+test following::saturation::w11r1c_saturated_trigger_memory ... ok
+test following::saturation::w11a_promotion_partial_routes_sqlite ... ok
+test following::saturation::w11r1c_saturated_trigger_sqlite ... ok
+test following::saturation::w11a_promotion_refusal_sqlite ... ok
+test guide_examples::w10r1_directory_card_pages_and_searches_on_both_stores ... ok
+test guide_examples::w10r1_typing_card_extends_and_expires_on_both_stores ... ok
+test lane_domains::w13c2_nonuniform_paired_worlds_match_on_both_stores ... ok
+test language::defaults_predict_on_both_stores_with_the_explicit_write_clock ... ok
+test language::sha256_uses_the_shared_interpreter_on_both_device_stores ... ok
+test language::shapes_preserve_pending_through_spreads_and_projection_on_both_stores ... ok
+test maintains::columns::columns_are_server_values_on_both_device_stores ... ok
+test maintains::columns::independent_source_model_matches_both_device_readers ... ok
+test maintains::columns::projected_columns_keep_recorded_decoder_fence_and_capture_on_both_stores ... ok
+test maintains::columns::projected_metadata_refuses_every_forged_write_arm_on_both_stores ... ok
+test maintains::columns::provisional_parents_authorize_implicit_zero_at_read_time_on_both_stores ... ok
+test maintains::maintains_predict_new_groups_and_omit_online_side_effects_on_both_stores ... ok
+test maintains::maintains_queue_unknown_bases_and_unheld_source_images_on_both_stores ... ok
+test maintains::retains_source_history_but_revokes_aggregate_and_replacement_snapshot_on_both_stores ... ok
+test maintains::review::review1_history_memory ... ok
+test lane_domains::w13c2_range_list_and_meter_on_both_device_stores ... ok
+test maintains::review::review3_subset_memory ... ok
+test maintains::review::review1_history_sqlite ... ok
+test maintains::review::review3_subset_sqlite ... ok
+test maintains::review::review4_raw_adoption ... ok
+test maintains::review::review4_raw_creation ... ok
+test maintains::review::review5_generation_memory ... ok
+test maintains::review::review5_old_cursor_after_value_change_memory ... ok
+test maintains::review::review5_generation_sqlite ... ok
+test maintains::review::review5_prefix_memory ... ok
+test maintains::review::review5_old_cursor_after_value_change_sqlite ... ok
+test maintains::review::review5_prefix_sqlite ... ok
+test maintains::review::review5_query_cursor_in_mutation_memory ... ok
+test maintains::review::review5_query_cursor_in_mutation_sqlite ... ok
+test maintains::review::review5_table_generation_memory ... ok
+test maintains::review::review5_table_prefix_memory ... ok
+test maintains::review::review5_table_generation_sqlite ... ok
+test maintains::review::review5_table_prefix_sqlite ... ok
+test maintains::review::review6_fold_memory ... ok
+test maintains::review::review6_fold_sqlite ... ok
+test maintains::w6r1_rule_live_aggregate_prediction_on_both_stores ... ok
+test merge_continuation::memory::cases::a_predicate_cursor_does_not_take_page_ownership_and_shapes_stay_complete ... ok
+test merge_continuation::memory::cases::a_v1_matching_predicate_does_not_overflow ... ok
+test merge_continuation::memory::cases::a_v2_plain_predicate_does_not_overflow ... ok
+test merge_continuation::memory::cases::control_a_inner_meter_cut_is_still_incomplete ... ok
+test merge_continuation::memory::cases::control_c1_c2b_opening_cut_has_no_continuation_even_with_buffered_siblings ... ok
+test merge_continuation::memory::cases::control_c1_opening_cut_with_a_short_nonempty_buffer_stays_terminal ... ok
+test merge_continuation::memory::cases::control_c2c_later_meter_cut_does_not_strand_the_owner ... ok
+test merge_continuation::memory::cases::control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidate ... ok
+test merge_continuation::memory::cases::control_c3_direct_filtered_cut_keeps_last_rule_visible_position ... ok
+test merge_continuation::memory::cases::control_direct_unique_suffix_keeps_its_scoped_token ... ok
+test merge_continuation::memory::cases::d01_equal_suffix_unique_and_non_unique_every_admitting_path ... ok
+test merge_continuation::memory::cases::d01_old_descriptor_refused_and_paved_token_bytes_unchanged ... ok
+test merge_continuation::memory::cases::d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths ... ok
+test merge_continuation::memory::cases::d51_filter_drain_cut_continues ... ok
+test merge_continuation::memory::cases::d52_d54_further_term_lookahead_cut_continues ... ok
+test membership::self_witness_membership_keeps_online_coverage_unknown_on_both_stores ... ok
+test merge_continuation::memory::cases::ticket_merge_cursor_bypasses_cursor_index ... ok
+test merge_continuation::memory::cases::ticket_merge_equal_suffix_skip ... ok
+test merge_continuation::memory::cases::d53_duplicate_pop_stops_before_an_unknown_head ... ok
+test merge_continuation::memory::cases::ticket_merge_next_after_non_uniform ... ok
+test merge_continuation::memory::shape_pages::w13h_auxiliary_shape_does_not_rewind_the_returned_raw_page ... ok
+test merge_continuation::memory::shape_pages::w13h_collector_shape_embedding_raw_page_keeps_main_position ... ok
+test merge_continuation::memory::shape_pages::w13h_collector_wrapping_conditional_page_keeps_main_position ... ok
+test merge_continuation::memory::shape_pages::w13h_collector_wrapping_raw_page_keeps_main_position ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_cursor_field_does_not_hide_the_page_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_canonical_bound_read_retries_direct_eager_and_lazy_pages ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_same_shape_keeps_partial_rows_without_rewind ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_return_keeps_the_raw_position_for_both_arms ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_raw_keeps_its_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_record_raw_keeps_its_position ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_record_field_keeps_its_page ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_record_shaped_keeps_its_rows ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_shaped_keeps_its_rows ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_without_exhaustion_keeps_next ... ok
+test merge_continuation::memory::shape_pages::w13h_conditional_value_successive_shape_keeps_its_rows ... ok
+test merge_continuation::memory::shape_pages::w13h_cursorless_return_also_drops_an_unfinished_shape ... ok
+test merge_continuation::memory::shape_pages::w13h_container_transport_never_erases_a_possible_raw_page ... ok
+test merge_continuation::memory::shape_pages::w13h_finite_helper_composition_terminates ... ok
+test merge_continuation::memory::shape_pages::w13h_drain_cut_keeps_only_fully_shaped_emissions ... ok
+test merge_continuation::memory::shape_pages::w13h_helper_returned_shape_keeps_partial_rows_and_main_ownership ... ok
+test merge_continuation::memory::shape_pages::w13h_incompatible_record_alternatives_are_refused_at_the_join ... ok
+test merge_continuation::memory::shape_pages::w13h_inherited_cap_cuts_list_merge_shapes ... ok
+test merge_continuation::memory::shape_pages::w13h_grouped_9000_walk_never_emits_an_empty_preview ... ok
+test merge_continuation::memory::shape_pages::w13h_inline_returned_read_retries_the_starved_preview ... ok
+test merge_continuation::memory::shape_pages::w13h_inherited_cap_cuts_range_merge_shapes ... ok
+test merge_continuation::memory::shape_pages::w13h_loop_carried_page_keeps_partial_rows_without_an_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_item_and_alias_collectors_keep_partial_rows_without_rewind ... ok
+test merge_continuation::memory::shape_pages::w13h_loop_carried_record_keeps_owner_position_and_rows ... ok
+test merge_continuation::memory::shape_pages::w13h_loop_same_shape_keeps_partial_rows_without_an_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_loop_unknown_record_keeps_the_sibling_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_multiple_backedges_keep_the_sibling_raw_position ... ok
+test merge_continuation::memory::shape_pages::w13h_loop_exits_keep_main_ownership_without_trimming ... ok
+test merge_continuation::memory::shape_pages::w13h_nested_shape_cut_control_preserves_its_outer_row ... ok
+test merge_continuation::memory::shape_pages::w13h_page_or_empty_in_either_order_keeps_rows_without_an_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_predicate_cut_control_keeps_the_last_rule_visible_position ... ok
+test merge_continuation::memory::shape_pages::w13h_raw_page_returned_beside_its_shape_keeps_its_own_position ... ok
+test merge_continuation::memory::shape_pages::w13h_page_or_null_record_keeps_owner_and_rows ... ok
+test merge_continuation::memory::shape_pages::w13h_rescan_collector_keeps_partial_shapes_and_main_position ... ok
+test merge_continuation::memory::shape_pages::w13h_shape_cut_retries_the_first_unfinished_row_in_both_directions ... ok
+test merge_continuation::memory::shape_pages::w13h_record_or_null_keeps_its_value_without_an_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_successive_shapes_keep_partial_rows_on_direct_eager_and_lazy_pages ... ok
+test following::slots::following_w7r2_slots_memory ... ok
+test merge_continuation::memory::shape_pages::w13h_used_auxiliary_summary_does_not_rewind_the_returned_raw_page ... ok
+test merge_continuation::memory::shape_pages::w13h_unknown_sibling_and_field_alias_keep_the_unique_owner ... ok
+test merge_continuation::memory::shape_pages::w13h_two_page_loop_keeps_unique_sibling_owner_but_not_two_sites ... ok
+test merge_continuation::memory::shape_pages::w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow ... ok
+test merge_continuation::memory::shape_pages::w13j_exclusive_or_advancing_inclusive_follows_and_finished_shapes_still_answer ... ok
+test merge_continuation::sqlite::cases::a_predicate_cursor_does_not_take_page_ownership_and_shapes_stay_complete ... ok
+test merge_continuation::sqlite::cases::a_v1_matching_predicate_does_not_overflow ... ok
+test merge_continuation::sqlite::cases::a_v2_plain_predicate_does_not_overflow ... ok
+test merge_continuation::memory::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read ... ok
+test merge_continuation::memory::shape_pages::w13j_unfinishable_merge_shapes_refuse_in_both_directions ... ok
+test merge_continuation::sqlite::cases::control_a_inner_meter_cut_is_still_incomplete ... ok
+test following::slots::following_w7r2_slots_sqlite ... ok
+test merge_continuation::sqlite::cases::control_c1_c2b_opening_cut_has_no_continuation_even_with_buffered_siblings ... ok
+test merge_continuation::sqlite::cases::control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidate ... ok
+test merge_continuation::sqlite::cases::control_c1_opening_cut_with_a_short_nonempty_buffer_stays_terminal ... ok
+test merge_continuation::sqlite::cases::control_direct_unique_suffix_keeps_its_scoped_token ... ok
+test merge_continuation::sqlite::cases::d01_old_descriptor_refused_and_paved_token_bytes_unchanged ... ok
+test merge_continuation::sqlite::cases::control_c2c_later_meter_cut_does_not_strand_the_owner ... ok
+test merge_continuation::sqlite::cases::control_c3_direct_filtered_cut_keeps_last_rule_visible_position ... ok
+test following::removal::following_removal_reaches_every_reader_before_purge_memory ... ok
+test merge_continuation::sqlite::cases::d52_d54_further_term_lookahead_cut_continues ... ok
+test merge_continuation::sqlite::cases::ticket_merge_cursor_bypasses_cursor_index ... ok
+test merge_continuation::sqlite::cases::d53_duplicate_pop_stops_before_an_unknown_head ... ok
+test merge_continuation::sqlite::cases::ticket_merge_equal_suffix_skip ... ok
+test merge_continuation::sqlite::cases::d01_equal_suffix_unique_and_non_unique_every_admitting_path ... ok
+test merge_continuation::sqlite::cases::d51_filter_drain_cut_continues ... ok
+test merge_continuation::sqlite::shape_pages::w13h_auxiliary_shape_does_not_rewind_the_returned_raw_page ... ok
+test merge_continuation::sqlite::cases::ticket_merge_next_after_non_uniform ... ok
+test merge_continuation::sqlite::cases::d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths ... ok
+test merge_continuation::sqlite::shape_pages::w13h_collector_shape_embedding_raw_page_keeps_main_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_collector_wrapping_raw_page_keeps_main_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_cursor_field_does_not_hide_the_page_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_collector_wrapping_conditional_page_keeps_main_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_same_shape_keeps_partial_rows_without_rewind ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_raw_keeps_its_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_return_keeps_the_raw_position_for_both_arms ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_record_raw_keeps_its_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_record_shaped_keeps_its_rows ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_without_exhaustion_keeps_next ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_shaped_keeps_its_rows ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_record_field_keeps_its_page ... ok
+test merge_continuation::sqlite::shape_pages::w13h_cursorless_return_also_drops_an_unfinished_shape ... ok
+test merge_continuation::sqlite::shape_pages::w13h_finite_helper_composition_terminates ... ok
+test merge_continuation::sqlite::shape_pages::w13h_canonical_bound_read_retries_direct_eager_and_lazy_pages ... ok
+test merge_continuation::sqlite::shape_pages::w13h_conditional_value_successive_shape_keeps_its_rows ... ok
+test merge_continuation::sqlite::shape_pages::w13h_incompatible_record_alternatives_are_refused_at_the_join ... ok
+test merge_continuation::sqlite::shape_pages::w13h_helper_returned_shape_keeps_partial_rows_and_main_ownership ... ok
+test merge_continuation::sqlite::shape_pages::w13h_drain_cut_keeps_only_fully_shaped_emissions ... ok
+test merge_continuation::sqlite::shape_pages::w13h_inherited_cap_cuts_list_merge_shapes ... ok
+test merge_continuation::sqlite::shape_pages::w13h_grouped_9000_walk_never_emits_an_empty_preview ... ok
+test merge_continuation::sqlite::shape_pages::w13h_container_transport_never_erases_a_possible_raw_page ... ok
+test merge_continuation::sqlite::shape_pages::w13h_inherited_cap_cuts_range_merge_shapes ... ok
+test merge_continuation::sqlite::shape_pages::w13h_inline_returned_read_retries_the_starved_preview ... ok
+test merge_continuation::sqlite::shape_pages::w13h_loop_same_shape_keeps_partial_rows_without_an_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_loop_carried_page_keeps_partial_rows_without_an_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_loop_carried_record_keeps_owner_position_and_rows ... ok
+test merge_continuation::sqlite::shape_pages::w13h_nested_shape_cut_control_preserves_its_outer_row ... ok
+test merge_continuation::sqlite::shape_pages::w13h_loop_unknown_record_keeps_the_sibling_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_item_and_alias_collectors_keep_partial_rows_without_rewind ... ok
+test merge_continuation::sqlite::shape_pages::w13h_multiple_backedges_keep_the_sibling_raw_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_predicate_cut_control_keeps_the_last_rule_visible_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_raw_page_returned_beside_its_shape_keeps_its_own_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_rescan_collector_keeps_partial_shapes_and_main_position ... ok
+test merge_continuation::sqlite::shape_pages::w13h_loop_exits_keep_main_ownership_without_trimming ... ok
+test merge_continuation::sqlite::shape_pages::w13h_page_or_empty_in_either_order_keeps_rows_without_an_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_shape_cut_retries_the_first_unfinished_row_in_both_directions ... ok
+test following::following_scale_pages_match_on_both_device_stores ... ok
+test merge_continuation::sqlite::shape_pages::w13h_page_or_null_record_keeps_owner_and_rows ... ok
+test merge_continuation::sqlite::shape_pages::w13h_unknown_sibling_and_field_alias_keep_the_unique_owner ... ok
+test merge_continuation::sqlite::shape_pages::w13h_used_auxiliary_summary_does_not_rewind_the_returned_raw_page ... ok
+test following::calibration::w8b_wired_calibration_acquisition_on_server_and_both_stores has been running for over 60 seconds
+test merge_continuation::sqlite::shape_pages::w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow ... ok
+test merge_continuation::sqlite::shape_pages::w13j_exclusive_or_advancing_inclusive_follows_and_finished_shapes_still_answer ... ok
+test merge_cursor::cross_table_hidden_cut_memory ... ok
+test merge_continuation::sqlite::shape_pages::w13h_two_page_loop_keeps_unique_sibling_owner_but_not_two_sites ... ok
+test following::removal::following_removal_reaches_every_reader_before_purge_sqlite has been running for over 60 seconds
+test merge_continuation::sqlite::shape_pages::w13h_successive_shapes_keep_partial_rows_on_direct_eager_and_lazy_pages ... ok
+test merge_cursor::cross_table_hidden_cut_sqlite ... ok
+test merge_cursor::equal_keys_and_cross_generation_cursor_on_both_devices ... ok
+test merge_continuation::sqlite::shape_pages::w13h_record_or_null_keeps_its_value_without_an_owner ... ok
+test merge_cursor::single_table_hidden_cut_memory ... ok
+test merge_cursor::hidden_absent_wire_pairs_memory ... ok
+test merge_cursor::uniform_eager_and_lazy_cuts_memory ... ok
+test omitted_apply_first_continues_the_staged_snapshot ... ok
+test merge_cursor::single_table_hidden_cut_sqlite ... ok
+test papercuts::w9c_unique_hook_and_legacy_refusals_on_both_stores ... ok
+test papercuts::w9c_emit_only_lists_predict_and_replay_on_both_stores ... ok
+test prefix_reads::first_witness::memory::cases::first_witness_predicate_retry_without_shape_stops_when_it_cannot_progress ... ok
+test prefix_reads::first_witness::memory::cases::matching_exists_eager_first_witness ... ok
+test prefix_reads::first_witness::memory::cases::matching_exists_eager_grouped_walk ... ok
+test prefix_reads::first_witness::memory::cases::matching_exists_lazy_first_witness ... ok
+test prefix_reads::first_witness::memory::cases::matching_exists_lazy_grouped_walk ... ok
+test merge_cursor::uniform_eager_and_lazy_cuts_sqlite ... ok
+test prefix_reads::first_witness::sqlite::cases::matching_exists_eager_first_witness ... ok
+test papercuts::w9r1b_hidden_unique_collisions_queue_and_settle_on_both_stores ... ok
+test merge_continuation::sqlite::shape_pages::w13j_unfinishable_merge_shapes_refuse_in_both_directions ... ok
+test prefix_reads::first_witness::sqlite::cases::matching_exists_lazy_first_witness ... ok
+test prefix_reads::first_witness::sqlite::cases::matching_exists_eager_grouped_walk ... ok
+test prefix_reads::first_witness::sqlite::cases::first_witness_predicate_retry_without_shape_stops_when_it_cannot_progress ... ok
+test prefix_reads::first_witness::sqlite::cases::matching_exists_lazy_grouped_walk ... ok
+test merge_continuation::sqlite::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read ... ok
+test prefix_reads::w13c_capped_roster_predicts_and_prefix_existence_has_precise_horizon_coverage ... ok
+test prefix_reads::w13c_hidden_worlds_have_identical_existence_answers_on_both_stores ... ok
+test prefix_reads::w13c_lane_source_expressions_run_before_eager_and_lazy_discovery_on_both_stores ... ok
+test presence::effect_reads::effect_payload_reads_keep_server_authorization_and_meter_rollback ... ok
+test presence::a_meter_cut_after_an_untaken_presence_arm_queues_instead_of_refusing_on_both_stores ... ok
+test presence::grace_push_prediction_remains_identical_on_both_stores ... ok
+test presence::presence_effects_send_predicts_identical_rows_on_both_stores ... ok
+test presence::effect_reads::total_text_payloads_skip_profile_reads_on_devices ... ok
+test presence::effect_reads::unguarded_payload_reads_predict_without_online_only_data ... ok
+test presence::r1p_counterfactual_refinement_queues_and_separate_data_guard_predicts ... ok
+test presence::r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores ... ok
+test presence::r1p_presence_guard_pays_server_cost_on_both_stores ... ok
+test presence::r1p_presence_division_never_predicts_rolled_back_rows_on_both_stores ... ok
+test presence::r1p_unconditional_payload_new_and_effect_only_commits_have_separate_ids ... ok
+test presence::effect_reads::effect_payload_send_predicts_offline_and_agrees_at_every_presence_state ... ok
+test presence::review::w15a4_shared_payload_fits_prediction_on_both_stores ... ok
+test presence::review::w15a4_complementary_guards_fit_prediction_on_both_stores ... ok
+test presence::review::w15a5_conjunction_fits_final_i1_on_both_stores ... ok
+test presence::w13b_unknown_presence_crosses_both_device_wires ... ok
+test prefix_reads::w13c_meter_loop_cuts_on_both_device_stores ... ok
+test presence::w15a_necessary_absence_server_fits_prediction_reservation_on_both_stores ... ignored, pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md
+test presence::review::w15a6_composition_inherits_only_conjunction_excess_on_both_stores ... ok
+test presence::unconfirmed::w15a_fifty_member_prediction_includes_read_authorization_on_both_stores ... ok
+test query_reports_the_next_expiry_to_the_host ... ok
+test read_cut::full_partition_response_sweep_memory ... ok
+test read_cut::full_partition_response_sweep_sqlite ... ok
+test read_cut::held_query_answers_on_both_devices ... ok
+test presence::w15a_guarded_send_held_matches_grace_and_prediction_is_unchanged_on_both_stores ... ok
+test read_cut::point_probe_cut_memory ... ok
+test read_cut::point_probe_cut_sqlite ... ok
+test receipt_history::caller_id_admission_compares_before_prediction_on_both_stores ... ok
+test receipt_history::caller_id_replay_candidate_rolls_back_partial_predictions_on_both_stores ... ok
+test presence::unconfirmed::w15a5_fifty_member_server_fits_prediction_rule_probe_boundary_on_both_stores ... ok
+test row_preserving_pages::memory::cases::w13i_cursor_notes_keep_their_existing_triggers ... ok
+test renewing_a_live_membership_does_not_prematurely_revoke_held_rows ... ok
+test receipt_history::receipt_history_adoption_fills_only_spare_capacity_on_both_stores ... ok
+test row_preserving_pages::memory::cases::w13i_group_carries_the_membership_page ... ok
+test row_preserving_pages::memory::cases::w13i_group_does_not_extend_the_returned_shape_mark ... ok
+test row_preserving_pages::memory::cases::w13i_dropping_helpers_and_unrelated_values_have_no_owner ... ok
+test row_preserving_pages::memory::cases::w13i_original_probe_walks_direct_and_merged_pages_to_completion ... ok
+test row_preserving_pages::memory::cases::w13i_nested_group_sort_carries_the_membership_page ... ok
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_group_sites ... ok
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_nested_sites ... ok
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_nonowners_have_no_sites ... ok
+test row_preserving_pages::memory::cases::w13ir1_diagnostics_sort_sites ... ok
+test row_preserving_pages::sqlite::cases::w13i_cursor_notes_keep_their_existing_triggers ... ok
+test row_preserving_pages::memory::cases::w13i_helpers_preserve_a_meter_cut_and_continue_its_filtered_source ... ok
+test row_preserving_pages::memory::cases::w13i_sort_carries_the_membership_page ... ok
+test row_preserving_pages::sqlite::cases::w13i_group_carries_the_membership_page ... ok
+test row_preserving_pages::sqlite::cases::w13i_group_does_not_extend_the_returned_shape_mark ... ok
+test row_preserving_pages::sqlite::cases::w13i_nested_group_sort_carries_the_membership_page ... ok
+test row_preserving_pages::sqlite::cases::w13i_original_probe_walks_direct_and_merged_pages_to_completion ... ok
+test merge_cursor::hidden_absent_wire_pairs_sqlite ... ok
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_group_sites ... ok
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_nested_sites ... ok
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_nonowners_have_no_sites ... ok
+test row_preserving_pages::sqlite::cases::w13ir1_diagnostics_sort_sites ... ok
+test row_preserving_pages::sqlite::cases::w13i_dropping_helpers_and_unrelated_values_have_no_owner ... ok
+test row_preserving_pages::sqlite::cases::w13i_helpers_preserve_a_meter_cut_and_continue_its_filtered_source ... ok
+test search_global::coverage::w9r1a_clique_full_and_horizon_memory ... ok
+test search_global::coverage::w9r1a_online_source_and_zero_reads_memory ... ok
+test read_cut::uniform_words_continue_and_nonuniform_cut_reasons_cross_both_device_wires ... ok
+test search_global::coverage::w9r1a_clique_full_and_horizon_sqlite ... ok
+test search_global::coverage::w9r1a_temporary_audience_search_memory ... ok
+test search_global::coverage::w9r1a_truncated_held_page_memory ... ok
+test search_global::coverage::w9r1a_online_source_and_zero_reads_sqlite ... ok
+test search_global::coverage::w9r2_matching_full_memory ... ok
+test search_global::coverage::w9r1a_temporary_audience_search_sqlite ... ok
+test row_preserving_pages::sqlite::cases::w13i_sort_carries_the_membership_page ... ok
+test search_global::coverage::w9r1a_truncated_held_page_sqlite ... ok
+test search_global::coverage::w9r2_matching_horizon_memory ... ok
+test search_global::coverage::w9r2_matching_online_memory ... ok
+test search_global::coverage::w9r2_matching_full_sqlite ... ok
+test search_global::coverage::w9r2_matching_horizon_sqlite ... ok
+test search_global::coverage::w9r2_matching_online_sqlite ... ok
+test search_global::forms::memory::cases::w13e_both_forms_report_unknown_history_at_a_device_horizon ... ok
+test search_global::forms::memory::cases::w13e_dense_100 ... ok
+test search_global::forms::memory::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page ... ok
+test search_global::forms::memory::cases::w13e_grouped_cut_continues_through_9000_memberships ... ok
+test search_global::forms::sqlite::cases::w13e_both_forms_report_unknown_history_at_a_device_horizon ... ok
+test search_global::forms::sqlite::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page ... ok
+test search_global::forms::sqlite::cases::w13e_dense_100 ... ok
+test presence::w7r1_grace_bookkeeping_reservation_matches_both_device_stores ... ok
+test search_global::forms::sqlite::cases::w13e_grouped_cut_continues_through_9000_memberships ... ok
+test following::calibration::w8b_wired_calibration_acquisition_on_server_and_both_stores ... ok
+test search_global::forms::memory::cases::w13e_dense_500 ... ok
+test search_global::lazy::memory::cases::w13f_dense_100 ... ok
+test search_global::forms::sqlite::cases::w13e_dense_500 ... ok
+test search_global::lazy::memory::cases::w13f_clique_every_row_hits_in_1000_lanes ... ok
+test search_global::lazy::memory::cases::w13f_flattened_drain_cut_continues_after_32_emissions ... ok
+test search_global::lazy::memory::cases::w13f_flattened_opening_cut_stays_terminal ... ok
+test search_global::lazy::memory::cases::w13f_further_terms_and_duplicate_words_preserve_one_ordered_walk ... ok
+test search_global::lazy::memory::cases::w13f_hidden_worlds_have_identical_pages_and_dev_meters ... ok
+test search_global::lazy::memory::cases::w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped ... ok
+test search_global::lazy::memory::cases::w13f_dense_500 ... ok
+test following::removal::following_removal_reaches_every_reader_before_purge_sqlite ... ok
+test search_global::lazy::sqlite::cases::w13f_dense_100 ... ok
+test search_global::lazy::sqlite::cases::w13f_clique_every_row_hits_in_1000_lanes ... ok
+test search_global::lazy::sqlite::cases::w13f_flattened_drain_cut_continues_after_32_emissions ... ok
+test search_global::lazy::sqlite::cases::w13f_flattened_opening_cut_stays_terminal ... ok
+test search_global::lazy::sqlite::cases::w13f_further_terms_and_duplicate_words_preserve_one_ordered_walk ... ok
+test search_global::lazy::sqlite::cases::w13f_hidden_worlds_have_identical_pages_and_dev_meters ... ok
+test search_global::lazy::sqlite::cases::w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped ... ok
+test search_global::lazy::sqlite::cases::w13f_dense_500 ... ok
+test search_global::w7d_global_word_scope_can_cut_when_each_chat_scope_fits ... ok
+test search_global::w7r1b_search_cursor_memory ... ok
+test search_global::w7r1b_search_cursor_sqlite ... ok
+test search_merge::matching_merges_page_the_same_rows_on_both_device_stores ... ok
+test search_merge::r1a_empty_matching_horizon_is_unknown_held_and_retained_left ... ok
+test search_merge::r1a_left_read_cannot_mask_an_unknown_held_read_in_either_order ... ok
+test search_merge::r1a_nested_search_filter_does_not_filter_members_on_either_store ... ok
+test search_merge::r1a_repeated_site_still_rechecks_an_expired_audience_on_both_stores ... ok
+test search_merge::round2::program_only_adoption_resets_retained_components_on_both_stores ... ok
+test search_merge::round2::r2_n2_self_witness_plain_and_matching_memory_both_cuts ... ok
+test search_merge::round2::r2_n2_self_witness_plain_and_matching_sqlite_both_cuts ... ok
+test search_merge::round2::r2_n3_mixed_returned_history_exposes_independent_components ... ok
+test search_merge::round2::retained_point_hits_and_misses_on_both_stores ... ok
+test search_merge::round3::r3_admitted_hidden_words_memory ... ok
+test search_merge::round3::r3_admitted_hidden_words_sqlite ... ok
+test store_reset::legacy_first_identification_discards_left_history_even_on_the_same_store ... ok
+test store_reset::replaced_backend_memory ... ok
+test store_reset::replaced_backend_sqlite ... ok
+test store_reset::replacement_backend_obligation_survives_restart_and_blocks_publication_on_both_stores ... ok
+test store_reset::replacement_during_paged_snapshot_and_catchup_rejects_delayed_a_pages_on_both_stores ... ok
+test store_reset::same_store_backend_adoption_and_backwards_clock_keep_identity_and_history ... ok
+test store_reset::same_store_restore_memory ... ok
+test store_reset::same_store_restore_sqlite ... ok
+test store_reset::store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_both_stores ... ok
+test store_reset::store_replacement_discards_left_group_history_on_both_stores ... ok
+test the_unified_device_shares_search_value_and_output_bound_semantics ... ok
+test time_indexes::w13c2_daily_unique_predicts_on_both_stores_under_the_clock ... ok
+test time_indexes::w13c2_time_keys_page_update_and_adopt_on_both_stores ... ok
+test trending::lanes::w14a_hour_lanes_on_memory ... ok
+test trending::lanes::w14a_hour_lanes_on_sqlite ... ok
+test trending::lanes::w14a_population_on_memory ... ok
+test trending::lanes::w14a_population_on_sqlite ... ok
+test trending::lanes::w15c_ties_on_memory ... ok
+test trending::lanes::w15c_ties_on_sqlite ... ok
+test search_global::forms::memory::cases::w13e_dense_1000 has been running for over 60 seconds
+test search_global::forms::memory::cases::w13e_newest_measures_complete_page_and_opening_envelope ... ok
+test trending::rolling::w12a_live_ranking_and_partial_sweeps_on_both_stores ... ok
+test trending::rolling::w12a_bounded_ranking_coverage_on_both_stores ... ok
+test trending::trending_equal_score_equal_time_pages_match_immediate_on_memory ... ok
+test trending::trending_equal_score_equal_time_pages_match_immediate_on_sqlite ... ok
+test trending::trending_recipe_predicts_on_memory ... ok
+test trending::trending_recipe_predicts_on_sqlite ... ok
+test uniform_word_expansion::search_45_words_memory_walks_20_20_5 ... ok
+test uniform_word_expansion::search_45_words_sqlite_walks_20_20_5 ... ok
+test uniform_word_expansion::search_admitted_nonuniform_pair_on_both_stores ... ok
+test uniform_word_expansion::search_expired_meter_boundary_memory ... ok
+test uniform_word_expansion::search_expired_meter_boundary_sqlite ... ok
+test trending::rolling::w12r1a_exhausted_live_count_is_unavailable_on_both_stores ... ok
+test uniform_word_expansion::search_nonuniform_legitimate_acquisition_envelopes_on_both_stores ... ok
+test uniform_word_expansion::search_expired_word_pairs_on_both_stores ... ok
+test uniform_word_expansion::search_reduced_ceilings_on_both_stores ... ok
+test search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope ... ok
+test upsert::a_pinned_membership_read_needs_a_positive_witness_for_its_group ... ok
+test upsert::final_exists::held_insert_refusal_and_success_match_server ... ok
+test upsert::final_exists::held_upsert_refusal_and_success_match_server ... ok
+test upsert::final_exists::unknown_prediction_is_e_predict_on_both_stores ... ok
+test upsert::final_exists::unpinned_insert_memory ... ok
+test upsert::final_exists::unpinned_insert_sqlite ... ok
+test uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots ... ok
+test upsert::final_exists::unpinned_local_hits_still_predict ... ok
+test upsert::final_exists::unpinned_upsert_memory ... ok
+test upsert::final_exists::unpinned_upsert_sqlite ... ok
+test upsert::hidden_admitted_upserts_preserve_the_complete_paired_observation ... ok
+test upsert::first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores ... ok
+test upsert::observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test upsert::proof::changed_audience_image_queues_on_both_stores ... ok
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... ok
+test upsert::insert_if_absent_matches_its_reported_absence_proof_on_both_stores ... ok
+test search_global::w7d_every_chat_word_search_measures_full_and_horizon_holdings_on_both_stores ... ok
+test upsert::proof::covered_constraints_and_insert_defaults_predict_on_both_stores ... ok
+test upsert::proof::defaulted_insert_rule_refusal_matches_server_on_both_stores ... ok
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... ok
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... ok
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::left_self_witness_admission_memory ... ok
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::left_self_witness_replay_memory ... ok
+test upsert::proof::left_self_witness_admission_sqlite ... ok
+test upsert::proof::left_self_witness_replay_sqlite ... ok
+test upsert::proof::pending_delete_then_upsert_replays_in_order_on_both_stores ... ok
+test upsert::proof::horizon_guard_rewrite_restores_the_pending_message_on_both_stores ... ok
+test upsert::proof::w6r2_ascending_horizon_advice_memory ... ok
+test upsert::the_feeds_card_predicts_its_first_vote_on_both_stores ... ok
+test upsert::proof::w6r2_ascending_horizon_advice_sqlite ... ok
+test withdrawing_one_prediction_replays_the_remaining_outbox ... ok
+test uniform_word_expansion::search_uniform_word_counts_and_worlds_on_both_stores ... ok
+test upsert::review_supplied_and_minted_ids_match_prediction_on_both_stores ... ok
+test search_global::lazy::memory::cases::w13f_dense_1000 ... ok
+test search_global::forms::sqlite::cases::w13e_dense_1000 has been running for over 60 seconds
+test search_global::forms::memory::cases::w13e_dense_1000 ... ok
+test search_global::lazy::sqlite::cases::w13f_dense_1000 ... ok
+test search_global::forms::sqlite::cases::w13e_dense_1000 ... ok
+
+test result: ok. 436 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 182.60s
+
+     Running tests/heavy_acquisition.rs (target/debug/deps/heavy_acquisition-9cb6a9eca40bacf8)
+
+running 1 test
+test heavy_acquisition ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.58s
+
+     Running tests/index_key_bound.rs (target/debug/deps/index_key_bound-7a149a763a132b6a)
+
+running 3 tests
+test browser_can_rewrite_a_kept_legacy_violation_then_delete_it ... ok
+test browser_device_refuses_the_same_key_as_server_without_partial_writes ... ok
+test time_key_bytes_and_order_match_on_every_store ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-65b037bb93964f7f)
+
+running 2 tests
+test replay_refreshes_predicted_memory ... ok
+test replay_refreshes_predicted_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/retained_history.rs (target/debug/deps/retained_history-6b906ab05a1094ff)
+
+running 20 tests
+test interrupted_collector_is_not_only_retained_history_memory ... ok
+test empty_rejoin_memory ... ok
+test removal_between_pages_memory ... ok
+test interrupted_collector_is_not_only_retained_history_sqlite ... ok
+test empty_rejoin_sqlite ... ok
+test missed_log_memory ... ok
+test retained_history_media_scope_memory ... ok
+test removal_between_pages_sqlite ... ok
+test retained_history_confirmed_only_memory ... ok
+test horizonless_join_and_closed_private_or_public_join_memory ... ok
+test retained_history_rejoin_memory ... ok
+test retained_history_media_scope_sqlite ... ok
+test retained_history_rejoin_sqlite ... ok
+test retained_history_confirmed_only_sqlite ... ok
+test missed_log_sqlite ... ok
+test horizonless_join_and_closed_private_or_public_join_sqlite ... ok
+test retained_history_with_horizon_memory ... ok
+test retained_history_without_horizon_memory ... ok
+test retained_history_with_horizon_sqlite ... ok
+test retained_history_without_horizon_sqlite ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+
+     Running tests/sqlite_bulk.rs (target/debug/deps/sqlite_bulk-5f6e60b599f654ae)
+
+running 1 test
+test sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

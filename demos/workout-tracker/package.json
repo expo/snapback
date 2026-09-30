@@ -1,0 +1,33 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2",
+    "convex": "1.46.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "snapback4": "0.4.9"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "supabase": "2.118.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.0"
+  },
+  "name": "workout-tracker-backend-comparison",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "build:snapback4": "vite build && snapback4 web-shell dist",
+    "dev": "vite",
+    "dev:convex": "VITE_BACKEND=convex vite",
+    "dev:supabase": "VITE_BACKEND=supabase vite",
+    "backend:snapback4": "snapback4 dev --port 4488",
+    "backend:convex": "convex dev --tail-logs disable",
+    "backend:supabase": "supabase start",
+    "configure:supabase": "node scripts/configure-local-supabase.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "type": "module",
+  "version": "0.0.1"
+}

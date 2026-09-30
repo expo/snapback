@@ -38,6 +38,8 @@ mod intent_sync;
 mod intent_search;
 mod held;
 mod delivery;
+mod receipts;
+mod generated;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -63,6 +65,7 @@ pub struct Bound {
 
 pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    receipts::expand(&mut documents, &mut diagnostics);
     ephemeral::declarations(&documents, &mut diagnostics);
     helper_names::normalize(&mut documents, &mut diagnostics);
     let server = documents.iter().any(|doc| doc.server);
@@ -84,6 +87,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     delivery::bind(&catalog, &mut schema, &mut diagnostics);
+    receipts::bind(&catalog, &mut schema, &mut diagnostics);
     // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
     for issue in snapback4_core::schema::field_authority::validate(&schema) {
         if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
@@ -219,6 +223,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     index_diagnostics::authored(&catalog, &mut notes);
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
+    receipts::diagnostics(&catalog.documents, &mut diagnostics);
     Bound { refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
 }
 

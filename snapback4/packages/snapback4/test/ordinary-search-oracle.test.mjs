@@ -97,7 +97,7 @@ async function scenario(host, seed, currentOnly = false, large = null) {
             const before = calls, read = await client.query(query, { q: 'cof', c });
             trace.push({ page, c: !!c, ids: read.data?.map(r => r.id), loading: read.loading, denied: read.denied?.code, cut: read.cut, complete: read.complete, next: !!read.next, calls: calls - before });
             if (!offline)
-                assert.equal(calls - before, 1, 'exactly one invocation per online page');
+                assert.equal(calls - before, expectedWithdrawal || freshIdentity ? 4 : 1, 'one invocation per publication round, bounded at four for a retired page');
             else
                 assert.equal(calls, before);
             if (freshIdentity && !offline && calls > before) {
@@ -112,7 +112,7 @@ async function scenario(host, seed, currentOnly = false, large = null) {
                 continue;
             }
             if (expectedWithdrawal) {
-                assert.equal(read.loading,true, 'modeled withdrawal');
+                assert.equal(read.denied?.code, offline ? 'E_OFFLINE' : 'E_QUERY_RETRY', 'modeled one-shot refusal');
                 if (offline) {
                     offline = false;
                     trace.push('reconnect after reset without acquired data');

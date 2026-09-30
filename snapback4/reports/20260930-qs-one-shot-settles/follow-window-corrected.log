@@ -1,0 +1,32 @@
+✔ wasm keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3870.578186ms)
+✔ wasm keep=undefined wait=0: own follow/unfollow stay honest across admission, settlement and apply (5121.136328ms)
+✔ wasm keep=false wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3156.803573ms)
+✔ wasm keep=false wait=0: own follow/unfollow stay honest across admission, settlement and apply (3500.281194ms)
+✔ process keep=undefined wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3037.256961ms)
+✔ process keep=undefined wait=0: own follow/unfollow stay honest across admission, settlement and apply (3021.366908ms)
+✔ process keep=false wait=undefined: own follow/unfollow stay honest across admission, settlement and apply (3049.509749ms)
+✔ process keep=false wait=0: own follow/unfollow stay honest across admission, settlement and apply (2975.227116ms)
+✔ wasm: post, like and remove do not gate mounted Following (677.324887ms)
+✔ wasm: an empty author's follow ends complete, fresh and empty (387.688962ms)
+✔ wasm: overlapping follow then unfollow before apply ends empty (574.342488ms)
+✔ wasm: an offline follow survives reconnect and publishes Alice (374.668562ms)
+✔ wasm: sign-out store reuse does not gate another viewer (1133.020081ms)
+✔ process: post, like and remove do not gate mounted Following (1588.199273ms)
+✔ process: an empty author's follow ends complete, fresh and empty (467.072942ms)
+✔ process: overlapping follow then unfollow before apply ends empty (1480.035466ms)
+✔ process: an offline follow survives reconnect and publishes Alice (1478.389298ms)
+✔ process: sign-out store reuse does not gate another viewer (2201.361036ms)
+✔ process: a queued follow survives closing and restarting the device process (1509.146077ms)
+✔ wasm: restoring a committed edge after a lost save reply invalidates Following (1561.027937ms)
+✔ Chromium worker=false: mounted Following tracks adopted follow custody (2104.467235ms)
+✔ Chromium worker=false: mounted Following tracks adopted unfollow custody (1930.85449ms)
+✔ Chromium worker=true: mounted Following tracks adopted follow custody (2702.870934ms)
+✔ Chromium worker=true: mounted Following tracks adopted unfollow custody (2555.198188ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 50656.958233

@@ -1,7 +1,7 @@
 import type { Refusal } from "./contract.ts";
 
 export type Run = [number, number];
-export interface DeliveryBinding { fingerprint: string; table: string; mutation: string; args: [string, string, string] }
+export interface DeliveryBinding { compact?: string; fingerprint: string; table: string; mutation: string; args: [string, string, string] }
 export interface DeliveryRefused extends DeliveryBinding { group: string; from: number; through: number; why: Refusal }
 export interface Attempt { id: string; run: Run; retries: number; readyAt: number; recent?: Run[] }
 export interface Parked { run: Run; kind: "full" | "start" | "retry"; at: number; ready?: boolean; attempt?: Attempt }
@@ -101,6 +101,7 @@ export function acceptManifest(state: DeliveryState, manifest: unknown, cap: num
     if (!item || typeof item.fingerprint !== "string" || !item.fingerprint || typeof item.table !== "string" || typeof item.mutation !== "string"
       || !Array.isArray(item.args) || item.args.length !== 3 || !item.args.every((s: unknown) => typeof s === "string") || !Array.isArray(item.rows)) continue;
     const binding: DeliveryBinding = { fingerprint: item.fingerprint, table: item.table, mutation: item.mutation, args: item.args };
+    if (typeof item.compact === "string" && item.compact) binding.compact = item.compact;
     // Reconcile only the bindings this answer names. Unrelated generations
     // preserve debt, refusals and saturation, including evicted groups.
     state.bindings ??= [];

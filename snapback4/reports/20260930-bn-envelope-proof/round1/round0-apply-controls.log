@@ -1,0 +1,44 @@
+(node:3829147) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ reconnect proof rejects bad-ack and records every attempted request (1355.693058ms)
+✖ reconnect proof rejects bad-acquisitions and records every attempted request (1321.756602ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2786.360247
+
+✖ failing tests:
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects bad-ack and records every attempted request (1355.693058ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:191:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects bad-acquisitions and records every attempted request (1321.756602ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:191:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

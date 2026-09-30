@@ -1,0 +1,28 @@
+   Compiling libsqlite3-sys v0.38.2
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 15.77s
+     Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-af017aca887ee749)
+
+running 2 tests
+
+thread 'round4::unique_creator_id_on_scope_keeps_receipts_and_delivery_named' (1543157) panicked at crates/snapback4-lang/tests/declarative_receipts.rs:14:5:
+[Diagnostic { site: Site { file: "schema.q", line: 19, col: 3 }, code: "E_RECEIPTS_CLAUSE", message: "receipt mappings notes.room, .number, .author, count .size; members audience.group, .who, floor .joined; counter .total; watermarks .received, .viewed; runs inboxRuns; operations inboxReceipt, inboxDelivered, inboxSeen, inboxMember, inboxProgress, inboxCompact: rooms positional key has 2 declared unique keys of arity 1; use named columns", rewrite: "name a receipt family and map counter, floor and count; use group-readable synced members and distinct generated names", guide: "receipts", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'round4::unique_slug_on_scope_keeps_receipts_and_delivery_named' (1543158) panicked at crates/snapback4-lang/tests/declarative_receipts.rs:14:5:
+[Diagnostic { site: Site { file: "schema.q", line: 19, col: 3 }, code: "E_RECEIPTS_CLAUSE", message: "receipt mappings notes.room, .number, .author, count .size; members audience.group, .who, floor .joined; counter .total; watermarks .received, .viewed; runs inboxRuns; operations inboxReceipt, inboxDelivered, inboxSeen, inboxMember, inboxProgress, inboxCompact: rooms positional key has 2 declared unique keys of arity 1; use named columns", rewrite: "name a receipt family and map counter, floor and count; use group-readable synced members and distinct generated names", guide: "receipts", mechanical: false, cascade_of: None }]
+test round4::unique_creator_id_on_scope_keeps_receipts_and_delivery_named ... FAILED
+test round4::unique_slug_on_scope_keeps_receipts_and_delivery_named ... FAILED
+
+failures:
+
+failures:
+    round4::unique_creator_id_on_scope_keeps_receipts_and_delivery_named
+    round4::unique_slug_on_scope_keeps_receipts_and_delivery_named
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`

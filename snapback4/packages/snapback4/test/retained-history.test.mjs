@@ -471,7 +471,7 @@ query wordBoth():
         if (name === "home" && !fenced) {
           assert.ok(answer.data.events.some(row => row.postId === "p3"), "an ineligible whole query recovers its server answer, never the empty placeholder");
           assert.equal(answer.fresh, false);
-        } else assert.deepEqual(answer, { loading: true });
+        } else assert.equal(answer.denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
         assert.equal(allRequests.filter(path => path === `/q/${name}`).length, requestsBefore);
         const raw = allAnswers.findLast(answer => answer.name === name);
         assert.deepEqual(raw.data.older, expected("left", 1)); assert.deepEqual(raw.data.events, []);
@@ -488,7 +488,7 @@ query wordBoth():
     const online = await client.query(op, {});
     assert.deepEqual(online.data.left, expected("left", 1)); assert.equal(online.data.right.id, "held-0");
     const expectLocal = read => {
-      assert.deepEqual(read, { loading: true }, "a speculative sibling cannot be data in an atomic Read<T>");
+      assert.equal(read.denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "a speculative sibling cannot be data in an atomic Read<T>");
       const raw = allAnswers.findLast(answer => answer.name === "retainedPoint");
       assert.equal(raw.components.left.retained, true); assert.equal(raw.components.right.speculative, true);
     };

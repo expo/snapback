@@ -99,7 +99,10 @@ for (const tier of ['online', 'web']) test(`${tier}: refusals remain HTTP, reads
   assert.ok(writes[2].at - writes[1].at >= 490, 'mutation delay increases');
   assert.ok(!links.includes('offline'), JSON.stringify(links));
   for (const mode of ['invalid', 'ECONNRESET', 'ECONNREFUSED', 'unknown']) {
-    fault = false; if (tier === 'web') await client.sync(); fault = true;
+    fault = false;
+    if (tier === 'web') await client.sync();
+    else { await client.query({ kind: 'query', name: 'live', runs: 'server' }, {}); await until(() => client.link() === 'online', 'probe reconnects before the next fault'); }
+    fault = true;
     queryMode = mode;
     const denied = (await client.query({ kind: 'query', name: 'live', runs: 'server' }, {})).denied;
     assert.equal(denied?.code, mode === 'invalid' ? 'E_HTTP_RESPONSE' : 'E_OFFLINE', JSON.stringify(denied));

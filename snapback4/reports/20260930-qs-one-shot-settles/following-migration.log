@@ -1,0 +1,50 @@
+✔ bounded Following wasm: unknown conditions preserve static and helper dependencies (5508.983909ms)
+✔ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (4590.517691ms)
+✖ bounded Following wasm: a response racing prediction admission is invalidated (4298.308856ms)
+✖ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (13672.216351ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28201.871166
+
+✖ failing tests:
+
+test at packages/snapback4/test/bounded-following.test.mjs:644:3
+✖ bounded Following wasm: a response racing prediction admission is invalidated (4298.308856ms)
+  AssertionError [ERR_ASSERTION]: the response predating admission cannot replace a prediction
+  + actual - expected
+  
+    {
+  +   denied: {
+  +     code: 'E_QUERY_RETRY',
+  +     family: 'client',
+  +     guide: 'client',
+  +     message: 'the read did not settle within four rounds or 30 seconds; retry the query',
+  +     retryable: true,
+  +     site: 'client.query'
+  +   }
+  -   loading: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:652:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { denied: { code: 'E_QUERY_RETRY', family: 'client', retryable: true, site: 'client.query', guide: 'client', message: 'the read did not settle within four rounds or 30 seconds; retry the query' } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:666:3
+✖ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (13672.216351ms)
+  TypeError: Cannot read properties of undefined (reading 'length')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/bounded-following.test.mjs:723:76)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

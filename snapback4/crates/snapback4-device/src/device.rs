@@ -19,6 +19,8 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod predictions;
+#[cfg(not(target_arch = "wasm32"))]
+mod witness;
 mod delivery;
 mod deferred;
 mod media;

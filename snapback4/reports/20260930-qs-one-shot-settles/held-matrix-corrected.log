@@ -1,0 +1,20 @@
+✔ online: held online-only view, both link states recorded (171.89695ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_HELD","family":"residency","guide":"search","message":"query heldInsights is held: it runs only on the device","rewrite":"call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\""}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: held online-only view, both link states recorded (692.050048ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ process: held online-only view, both link states recorded (302.945644ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ app-online: held online-only view, both link states recorded (165.031887ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_HELD","family":"residency","guide":"search","message":"query heldInsights is held: it runs only on the device","rewrite":"call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\""}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ app-wasm: held online-only view, both link states recorded (286.272425ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+✔ app-process: held online-only view, both link states recorded (306.96476ms)
+ℹ {"up":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}},"down":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2079.642371

@@ -1,7 +1,5 @@
 # Client: answers stay on screen
 
-Submit at custody.
-
 ```tsx
 import { useState } from "react"; import { useMutation, useQuery } from "snapback4/react";
 import { existence, isReady } from "snapback4/contract";
@@ -22,16 +20,17 @@ export function Composer({ conversationId }: { conversationId: string }) {
 }
 ```
 
-Membership with no horizon, synced within the conversation's own group with the messages' audience, proves presence/absence after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
+Membership with no horizon in the conversation's own group and messages' audience proves presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
 Only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence queues; sync authorizes/refuses. `loading`/`partial` never disable.
 
-`waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. Acquisition never gates admission after session readiness. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Identification resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
+`waitSeconds: 0` returns at custody; `inFlight` covers admission. Acquisition never gates it after session readiness. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Identification resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
 Restore refused text into an empty draft; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
 Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Dismiss after lookup settles. New attempts need new ids; replay omits historical results. Web/Expo starters include this journal.
 
 ## Honest read boundaries
 
-Use `existence(read)`; `isReady(read)` then `read.existence` narrows point data.
+`query(op, args)` settles ready/denied after device/server evaluation and authority: four rounds/30 seconds including queues/approval while runnable, then retryable `E_QUERY_RETRY`. Permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or `E_OFFLINE`. Terminal refusals win; ready may be partial/stale.
+`existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
 
 | Meaning | UI decision |
 | --- | --- |
@@ -44,12 +43,12 @@ Use `existence(read)`; `isReady(read)` then `read.existence` narrows point data.
 Only top-level `null`/`[]` is empty; `false`, `0`, nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
 Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
 Same-key plain refetch, reconnect and failed retries retain `revalidating` answers without timeout. Replacements recompute existence. Local changes get one second at attempt execution, excluding capacity wait; online change evidence includes queue wait because it may revoke access. Failure/timeout withdraws. Applied scope loss withdraws dependent groups immediately, including staged removals; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
-Search with `usePage` per scope: render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present. Unknown unread counts never hide conversations.
+Search with `usePage` per scope: render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Loading items prove nothing. Unknown unread counts never hide conversations.
 
 ## Queries in rows
 
-Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paged lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
-At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
+Wire-equivalent names/arguments share observations per retention policy. Prefer paging: 1,000 row hooks require 1,000 evaluations/write. Disjoint writes do zero; authorization inputs are dependencies.
+Eight observation starts/turn, eight active; direct queries and timed presence refreshes are separate. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
@@ -63,20 +62,20 @@ function ConversationList() { const page = usePage(api.inboxCards, {});
 }
 ```
 
-Server/composed scope metadata preserves unrelated rooms. Unknown selectors use table-wide withdrawal; see [read boundaries](CLIENT-AND-OPERATIONS.md).
+Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide. [Read boundaries](CLIENT-AND-OPERATIONS.md).
 
-Screen flashes empty: `inspect(client)` from `snapback4/inspection` enables collection. Compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Counts include linger, exclude direct/presence reads.
-Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null, no timer; enabled: 250-ms samples. No arguments/values.
+Screen flashes empty: `inspect(client)` from `snapback4/inspection` enables collection. Compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Includes linger; excludes direct/presence.
+Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
 
 Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide sync` covers acquisition/Workers.
 
-Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). Proves Release/local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
+Every milestone: `npm run export:ios` for Hermes; Mac/Xcode: `npm run native:smoke` (about 3 minutes warm). Proves Release/local-store acquisition, offline reopen/reconnect. Write replay needs an app scenario (`guide witness`).
 
 ## Receipts
 
-`guide receipts` covers `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows newest-message `seen` while foregrounded. Send-time members are recipients; removal claims no reading.
+`guide receipts`: schema, mutations, `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.
 
 ## One-view photos
 

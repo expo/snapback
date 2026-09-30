@@ -131,6 +131,8 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
     // An older compiled generation must not collect into a newer manifest binding.
     let debt = &state["groups"][&key];
     if debt["binding"]["fingerprint"] != binding.fingerprint || debt["saturated"] == true { return Ok(true); }
+    if let Some(compact) = &binding.compact { state["groups"][&key]["binding"]["compact"] = json!(compact); }
+    let debt = &state["groups"][&key];
     // Activation pauses before a collection could displace an owed or parked
     // run. A publication retains its ordinary bounded under-reporting policy.
     let known = covers(&debt["reported"], position) || covers(&debt["refused"], position)

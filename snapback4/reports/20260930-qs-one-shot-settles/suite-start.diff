@@ -1,0 +1,1062 @@
+diff --git a/llp/3000.023-answers-stay-on-screen.rfc.md b/llp/3000.023-answers-stay-on-screen.rfc.md
+index 300c194326..400ac7db91 100644
+--- a/llp/3000.023-answers-stay-on-screen.rfc.md
++++ b/llp/3000.023-answers-stay-on-screen.rfc.md
+@@ -5,7 +5,7 @@
+ **Systems:** Snapback 4 — the client SDK (`ReadObservation`, the local and online clients, the app facade, React hooks), the client guide
+ **Author:** Claude Opus 5.5 (for Charlie Cheever)
+ **Date:** 2026-09-27
+-**Revised:** 2026-09-29 (LL round 1: held-only parking preserves changing fallback routes and terminal refusals; every pending-cut watch resumes at publication, §10); 2026-09-29 (LL round 0: event-driven pending-cut resumption and media dependency invalidation, §10); 2026-09-29 (PQ round 7: merge RL plain revalidation and PQ queued change bounds into §10); 2026-09-29 (PQ round 6: background presence shares change-version checks through memory and publication, §10); 2026-09-29 (PQ round 5: raw local resubscription applies its retention policy, §10); 2026-09-29 (PQ round 4: queued episodes start at attempt execution; disjoint remembered answers survive commits, §10); 2026-09-27 (Accepted after three dual-family rounds: round 0 NOT READY from both, round 1 NOT READY and READY WITH CHANGES, round 2 READY WITH CHANGES from both, applied in r3: `publish({ loading })` always replaces and retention is its own method; the episode is an absolute timestamp written once; one stable loading snapshot; normalized per-call retention; KG's hold marks `revalidating`, clears on every source withdrawal, and follows `retain`; `usePage` checks its cache's deadlines); 2026-09-27 (r2: round 1 (Grok READY WITH CHANGES, Astra NOT READY): one non-renewable episode deadline per displayed answer, shared by the facade and checked by snapshots and peeks, whose withdrawal lets the in-flight read still publish; three watch keys; `retain: false` wins; the reset fence and re-read for every watch; `usePage` carries `revalidating`; fallback success keeps retaining; presence samples excluded; corrected sites); 2026-09-27 (r1: retention is bounded and marked `revalidating`; unsuccessful re-reads withdraw; `keep` has three states; every protection that followed `keep` follows retention; the facade needs KG's deadline invariant); 2026-09-27 (initial)
++**Revised:** 2026-09-30 (QS round 0: bounded settled one-shot reads, §11); 2026-09-29 (LL round 1: held-only parking preserves changing fallback routes and terminal refusals; every pending-cut watch resumes at publication, §10); 2026-09-29 (LL round 0: event-driven pending-cut resumption and media dependency invalidation, §10); 2026-09-29 (PQ round 7: merge RL plain revalidation and PQ queued change bounds into §10); 2026-09-29 (PQ round 6: background presence shares change-version checks through memory and publication, §10); 2026-09-29 (PQ round 5: raw local resubscription applies its retention policy, §10); 2026-09-29 (PQ round 4: queued episodes start at attempt execution; disjoint remembered answers survive commits, §10); 2026-09-27 (Accepted after three dual-family rounds: round 0 NOT READY from both, round 1 NOT READY and READY WITH CHANGES, round 2 READY WITH CHANGES from both, applied in r3: `publish({ loading })` always replaces and retention is its own method; the episode is an absolute timestamp written once; one stable loading snapshot; normalized per-call retention; KG's hold marks `revalidating`, clears on every source withdrawal, and follows `retain`; `usePage` checks its cache's deadlines); 2026-09-27 (r2: round 1 (Grok READY WITH CHANGES, Astra NOT READY): one non-renewable episode deadline per displayed answer, shared by the facade and checked by snapshots and peeks, whose withdrawal lets the in-flight read still publish; three watch keys; `retain: false` wins; the reset fence and re-read for every watch; `usePage` carries `revalidating`; fallback success keeps retaining; presence samples excluded; corrected sites); 2026-09-27 (r1: retention is bounded and marked `revalidating`; unsuccessful re-reads withdraw; `keep` has three states; every protection that followed `keep` follows retention; the facade needs KG's deadline invariant); 2026-09-27 (initial)
+ **Related:** [LLP 3000.019](./3000.019-what-the-builder-still-wrote.rfc.md) §3.3 (P3: `keep` is the application's choice, which this RFC revisits), [LLP 3000.021](./3000.021-what-the-comparative-builder-still-wrote.rfc.md), [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md) §6 (the facade's fences)
+ 
+ > **Current model:** §10 revises the episode and failure policy in §§3–6.
+@@ -743,3 +743,67 @@ sign-out cleanup. Authority assertions, the 300 seeds per host and the model
+ timeout are unchanged. The integrated report records each semantic conflict,
+ all proof failures and the real-clock 1,000-hook process/wasm/Worker results:
+ `snapback4/reports/20260929-pq-per-row-hooks/round7/REPORT.md`.
++
++## 11. One-shot reads settle (QS, 2026-09-30)
++
++`client.query(op, args)` returns `Promise<SettledRead<R>>`: a ready answer or
++`{ denied: Refusal }`, never loading. `SettledRead<T>` excludes the loading arm
++of `Read<T>`. The `existence` overload excludes `"loading"` for that type;
++its implementation and the sole ready classifier/pending predicate of
++LLP 3000.031 §1.1 are unchanged. Ready still permits partial coverage and stale
++freshness; settlement proves neither completeness nor absence.
++
++A one-shot has four publication rounds, with 25/50/100 ms pauses between them,
++and one 30-second host timer starting at invocation. The earlier limit wins.
++The timer includes device/transport queueing, server requests, retry backoff,
++and the app facade's opening and final authority checks. A suspended host runs
++no code; settlement resumes when it runs. Existing evaluator/transport retries
++stay within this one timer. Exhaustion returns `E_QUERY_RETRY`, family client,
++`retryable: true`, guide `client`. Unexpected adapter exceptions become
++`E_CLIENT`. A refused query makes no mutation-outcome claim.
++
++Both clients call the same evaluators and final publication fences as
++observations. A withdrawn deadline, concurrent commit, obsolete scope or
++internal loading candidate triggers another round. Local one-shots leave
++incarnation retry ownership to this bounded loop. The facade calls the same
++raw attempt through an internal function-identity map, adds authority checks,
++then runs the raw final fence and delivery approval synchronously. There is one
++budget, not a fresh raw budget per facade retry. Terminal store/session/close
++refusals win over timeout. Aborting ends the caller's wait even if an adapter
++ignores abort; existing signal fences prevent its late answer from publishing
++or adopting transport evidence. Raw attempts also observe their client's
++lifetime when entered through the facade.
++
++Admitted writes precede a successful one-shot. The online tier cannot return
++data while its write queue remains unresolved. The local tier can return a
++complete predicted device answer; an unobserved nonpredictable write blocks
++ready publication, and any unobserved write blocks server, composed and
++remembered data. This conservative one-shot custody barrier uses existing
++outbox predictable/observed fields. It does not classify existence or alter
++its shared pending predicate. It also covers an online-only aggregate whose
++operation dependencies name the materialized view while a predicted source
++write names a source row. Once observed, ordinary evaluation supplies the
++answer; otherwise the caller receives the bounded retryable refusal.
++
++`online only` views fall back to the server online. Offline, the local
++evaluator may return a permitted device/remembered answer; an unavailable
++result refuses `E_OFFLINE` in that round. The bare online tier refuses its known
++offline link immediately and starts its existing probe for future calls.
++Neither waits for reconnection. Closed, signed-out, replaced, restored and
++reset-store refusal codes remain those of the existing fences. A schema reset
++can require another round; it cannot bypass adoption. Held-only queries retain
++their no-server rule and refuse if their device answer stays unavailable.
++
++Observations, hooks, retention, withdrawal, queues, row deadlines and existence
++semantics remain §10 and LLP 3000.031. Direct reads share evaluators and
++device/transport resources, not the eight-observation start queue. Occupied
++observation slots alone do not starve them; waiting on a shared host or
++transport consumes their 30-second total. No wasm/core change.
++
++Evidence: `snapback4/reports/20260930-qs-one-shot-settles/`. Causal tests cover
++online, wasm, process and all three app facades, links, final continuation
++retirement, expiry and rollback latches, delivery approval, occupied observation
++slots, ignored aborts, terminal sessions, exhaustion and offline memory. The
++seeded local model interleaves admissions, one-shots, links, deadlines and close
++with an independent admitted-value oracle. Type tests require settled results
++and preserve live loading.
+diff --git a/snapback4/crates/snapback4-lang/src/diag.rs b/snapback4/crates/snapback4-lang/src/diag.rs
+index bcfaae08aa..c7ae6764eb 100644
+--- a/snapback4/crates/snapback4-lang/src/diag.rs
++++ b/snapback4/crates/snapback4-lang/src/diag.rs
+@@ -176,6 +176,7 @@ pub fn guide_for(code: &str) -> &'static str {
+         "E_AUTH" => "services",
+         "E_WORKER_REFRESH" => "effects",
+         "E_SERVER_REQUIRED" => "actions",
++        "E_QUERY_RETRY" => "client",
+         "E_OFFLINE" => "residency",
+         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" => "refusals",
+         "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",
+diff --git a/snapback4/crates/snapback4-lang/src/guide/client.md b/snapback4/crates/snapback4-lang/src/guide/client.md
+index 3aec6c611c..6436bfa566 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/client.md
++++ b/snapback4/crates/snapback4-lang/src/guide/client.md
+@@ -1,6 +1,6 @@
+ # Client: answers stay on screen
+ 
+-Submit once at custody.
++Submit at custody.
+ 
+ ```tsx
+ import { useState } from "react";
+@@ -25,7 +25,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
+ }
+ ```
+ 
+-Membership with no horizon, synced within the conversation's own group with the messages' audience, proves `present`/`absent` after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
++Membership with no horizon, synced in the conversation's own group with the messages' audience, proves `present`/`absent` after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
+ Queueing needs no membership answer: only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable.
+ 
+ `waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
+@@ -34,7 +34,8 @@ Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args
+ 
+ ## Honest read boundaries
+ 
+-Use `existence(read)` for status; after `isReady(read)`, branch on `read.existence` to narrow point data.
++`query(op, args)` waits for publishable device/server data and app authority: ready or denied, never loading. Retired/expired answers reread: four rounds, 30 seconds including queues/authority (while runnable); exhaustion refuses retryable `E_QUERY_RETRY`. Admitted writes precede ready data. `online only` waits online; offline: permitted device data or immediate `E_OFFLINE`. Closed/signed-out/replaced/restored stores retain their refusals. Ready may be partial/stale; `existence(await query(...))` excludes loading.
++Use `existence(read)`; after `isReady(read)`, `read.existence` narrows point data.
+ 
+ | Meaning | UI decision |
+ | --- | --- |
+@@ -44,14 +45,14 @@ Use `existence(read)` for status; after `isReady(read)`, branch on `read.existen
+ | `absent` | Proven empty answer: resolve the missing route/row. |
+ | `partial` | Empty, uncertain answer: show “Partial results”; never infer absence or denial. |
+ 
+-Only top-level `null`/`[]` is empty; `false`, `0`, nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
++Only top-level `null`/`[]` is empty; scalars/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
+ Route on `present`/`absent`, never `loading`/`partial`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
+ Same-key plain refetch, reconnect, slow reads, transport failure and retry exhaustion retain `revalidating` answers without timeout. Completed replacements recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. Whole server answers can precede sync; older replicas cannot clear pending notifications. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets withdraw; generation changes withdraw before adoption, even without changed tables.
+-Search one query per scope with `usePage`: render `page.items`, classify `page.read`; empty items during loading prove nothing. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present with cuts/continuations. Unknown unread counts never hide conversations.
++Search with `usePage`: render `page.items`, classify `page.read`; loading items prove nothing. Show “Partial results” for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Unknown unread counts never hide conversations.
+ 
+ ## Queries in rows
+ 
+-Equal query names and wire-equivalent arguments share an observation within the same retention policy; object key order is irrelevant. Prefer one paged query for large lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
++Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paging: 1,000 row hooks require 1,000 evaluations per write. Disjoint writes do zero; authorization inputs are dependencies.
+ At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. `keep: false` withdraws before queueing. Queue wait precedes a new episode; retries never renew existing deadlines. Expiry/resets stay immediate. Unrelated writes preserve fallback memory; clock refresh preserves unexpired newer answers.
+ 
+ ```tsx
+@@ -68,15 +69,13 @@ function ConversationList() {
+ }
+ ```
+ 
+-Keep server-needing decorations separate.
+-
+ ## Expo and acquisition
+ 
+-The social starter uses `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide witness` for native proof, `guide reads` for live timings, `guide sync` for Worker/default choices, progress and five-profile acquisition measurement with offline reopening.
++Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide witness`: native proof; `guide reads`: live timings; `guide sync`: acquisition and offline reopening.
+ 
+ ## Receipts
+ 
+-`guide receipts` covers schema, mutations and `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows newest-message `seen` while foregrounded. Send-time members are recipients; removal claims no reading.
++`guide receipts`: schema, mutations, `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.
+ 
+ ## One-view photos
+ 
+@@ -110,5 +109,5 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
+ }
+ ```
+ 
+-`useAsset` revokes on unmount. Never refetch once media (`E_ASSET_VIEWED`); handles are transient.
++`useAsset` revokes on unmount. Never refetch once media (`E_ASSET_VIEWED`).
+ Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.
+diff --git a/snapback4/crates/snapback4-lang/src/guide/codes.rs b/snapback4/crates/snapback4-lang/src/guide/codes.rs
+index fe56c8e335..b9418d16bb 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/codes.rs
++++ b/snapback4/crates/snapback4-lang/src/guide/codes.rs
+@@ -82,6 +82,7 @@ pub const CODES: &[(&str, &str)] = &[
+     ("FEED_POST_NOT_FOUND", "the requested source post/event is absent. Refresh the source lookup and pass an existing event reference; a new repost requires a live original event. guide feeds."),
+     ("FEED_PULL_CAP", "the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds."),
+     ("FEED_PROMOTION_PULL_CAP", "another follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. Until every saturated follower frees a slot, every later follow refuses the same way and the author stays at 50 followers, gaining no new followers. A server-run query over public follows and pullCounts identifies the blocker by used = 32 in 51 reads (one scan plus 50 count lookups). More than 32 shared authors needs a separate serving design. guide feeds."),
++    ("E_QUERY_RETRY", "family client — a one-shot did not obtain a publishable answer within four publication rounds or 30 seconds including queue, transport and authority waits. Retry the query; ready may still be partial or stale. guide client."),
+     ("E_QUERY_HELD", "this query is declared held and runs only on the device. Call it with the local client; for server search, use the grouped or newest form in guide search, section Search every chat I'm in. A held read never falls back to the server."),
+     ("E_SHAPE_EXCEEDS_METER", "following an inclusive cursor starved the same first returned shape again, leaving an empty page at the same position. The refusal names the read site and meter ceiling (8,192 examined rows). Bound the shape's read with `first N`/`last N`, or move it out of the returned shape; guide reads. If an earlier read spent the meter, the refusal names that read as the one to bound."),
+     ("E_INDEX_KEY_BYTES", "family schema — an encoded index key, including its components, encoding overhead and appended id, must fit 2048 bytes on every store; table and index labels together have 512 UTF-8 bytes. Bound indexed text with <=N, reduce the composite key or shorten the labels; check names the column and suggests a bound. Writes enforce the same limits. guide indexes."),
+diff --git a/snapback4/crates/snapback4-lang/tests/guide/definitions.rs b/snapback4/crates/snapback4-lang/tests/guide/definitions.rs
+index d87d18869d..7bf1e0f2b2 100644
+--- a/snapback4/crates/snapback4-lang/tests/guide/definitions.rs
++++ b/snapback4/crates/snapback4-lang/tests/guide/definitions.rs
+@@ -241,6 +241,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
+     ("E_QUARRY_TYPE", "E_QUARRY_TYPE means the expression's type does not fit its position."),
+     ("E_QUARRY_UNKNOWN", "E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local, argument, table, column, index or helper may be misspelled or undeclared."),
+     ("E_QUARRY_UNSUPPORTED", "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form."),
++    ("E_QUERY_RETRY", "exhaustion refuses retryable `E_QUERY_RETRY`"),
+     ("E_QUERY_HELD", "If the server cannot answer the query, declare `query … held:` to answer from the device; the server refuses it with E_QUERY_HELD."),
+     ("E_RATE_LIMIT", "Under `serve`, guest, login and signup share 30 attempts per socket peer per minute, while login and signup also share 10 per normalized email per minute (E_RATE_LIMIT)."),
+     ("E_RECIPE_RETIRED", "E_RECIPE_RETIRED means the installer wrote nothing; use the new view for a new app."),
+diff --git a/snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs b/snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
+index eb0e98cdc5..579b171276 100644
+--- a/snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
++++ b/snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
+@@ -133,6 +133,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+     ("E_QUARRY_TYPE", &["Narrow an optional value with `if x != null:`, `x ! else CODE` or `x ?? default`", "changing a type never converts stored values"]),
+     ("E_QUARRY_UNKNOWN", &["Check the declared spelling and the diagnostic's suggested name", "declare a missing local before using it"]),
+     ("E_QUARRY_UNSUPPORTED", &["The reported rewrite names the accepted spelling", "`snapback4 check --fix` applies it when marked mechanical"]),
++    ("E_QUERY_RETRY", &["four rounds", "30 seconds", "immediate `E_OFFLINE`"]),
+     ("E_QUERY_HELD", &["Call a held query through a local client over acquired partitions", "it has no server fallback", "Use the grouped membership read for a server answer"]),
+     ("E_RATE_LIMIT", &["Retry after the minute counter or concurrent-slot pressure clears", "do not retry in a tight loop"]),
+     ("E_RECIPE_RETIRED", &["the installer wrote nothing", "use the new view for a new app", "Existing apps must follow the"]),
+diff --git a/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md b/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
+index 852781bf0d..82f1b19dbe 100644
+--- a/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
++++ b/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
+@@ -311,9 +311,9 @@ already manage their own session lifetime:
+ 
+ The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
+ 
+-The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance sends `speculative` only when true; an absent field means false, including in component coverage. It keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
+-Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
+-Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. Recovery preserves the next local wakeup separately from remembered data's server expiry. An elapsed local wakeup, whether during publication or from the watch timer, reruns its watch without withdrawing valid memory; only the remembered answer's own server deadline expires it, including during that rerun. Actual local-row deadlines still withdraw local or composed data. A retry needing the server clears the expired watch value during transport; a purely local retry publishes without a loading reset. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
++The shared local evaluator (one-shots and observations) runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance sends `speculative` only when true; an absent field means false, including in component coverage. It keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
++Inside that evaluator, engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
++One-shots settle these internal loading candidates under the [`query` contract](#the-card); observations can publish them. Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. Recovery preserves the next local wakeup separately from remembered data's server expiry. An elapsed local wakeup, whether during publication or from the watch timer, reruns its watch without withdrawing valid memory; only the remembered answer's own server deadline expires it, including during that rerun. Actual local-row deadlines still withdraw local or composed data. A retry needing the server clears the expired watch value during transport; a purely local retry publishes without a loading reset. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
+ 
+ ```ts
+ import { createLocalClient } from "snapback4/local";   // the local-first tier
+@@ -793,6 +793,7 @@ type Read<T> =
+   | Ready<T> // required existence: present | absent | partial, narrowed by result type
+   | { loading: true }
+   | { denied: Refusal };
++type SettledRead<T> = Exclude<Read<T>, { loading: true }>; // await client.query(...)
+ type Write<R> =
+   | { state: "pending"; id: string; reason?: string }
+   | { state: "sent"; id: string; seq: number; replayed?: false; result: R }
+@@ -802,6 +803,8 @@ type Refusal = { code: string; family: string; message: string; detail?: string;
+ type Link = "online" | "offline" | "signed-out";
+ ```
+ 
++`client.query(op, args)` returns `Promise<SettledRead<R>>`. See `snapback4 guide client` for its settling rounds, total deadline, offline behavior and refusals. Ready may still be partial; `existence(await client.query(...))` never returns `"loading"`. Use `observe`/`useQuery` for later updates.
++
+ To measure a real account's server read in development, use the online
+ client (the same session or bearer token works alongside a local client):
+ 
+@@ -1619,7 +1622,7 @@ const url = "http://127.0.0.1:4400";
+ async function profileScreen(client: Client) {
+   const profile = await client.query(api.myProfile, {});
+   const state = existence(profile);
+-  if (state === "loading" || state === "partial") return "loading";
++  if (state === "partial") return "partial"; // show a retry action; this answer will not update
+   if (state === "denied") return "error";
+   return state === "absent" ? "profile" : "app";
+ }
+diff --git a/snapback4/packages/snapback4/README.md b/snapback4/packages/snapback4/README.md
+index a58c3306c6..7e28705710 100644
+--- a/snapback4/packages/snapback4/README.md
++++ b/snapback4/packages/snapback4/README.md
+@@ -268,7 +268,7 @@ Streaming aggregates count a domain under the meter; maintained views read store
+ Jobs run as the system: select the recipient's authorized data before emitting. `once` prevents repeated emission;
+ declare `snapback/workers/push.mjs` and opt into `runWorker({ ledger: true, ... })` for durable completion deduplication; pass `meta.idempotencyKey` to the provider. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
+ 
+-Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
++`await client.query(op, args)` returns ready data or a refusal; show partial results and refusals explicitly. See `snapback4 guide client` for the bounded one-shot contract. Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
+ items, `hasMore`, `loadMore` and read completeness. For generated queries returning source rows, it keeps one newest observed image per row ID; projections keep list semantics even when they contain a field named `id`. Both read hooks keep the same-key answer marked `revalidating` through refetch, reconnect, slow reads, offline transport and retry exhaustion, with no timeout. Local commits replace it directly after the replica re-read. All change evidence—local commits, acknowledged online mutations, durable and ephemeral `/changes`, and `/sync` publications—starts a one-second bound and withdraws on failure or timeout. Successful immediate replica replacements never show `loading`. An older replica read cannot clear a pending notification; sync must apply its cut or a current server answer must replace the display. Offline ephemeral answers keep their original row expiry. Membership removal replaces the answer with the denial or empty result. `keep: false` withdraws immediately; `keep: true` adds a 30-second linger after the last subscriber. Key changes, deadlines, sign-out, credential, store and schema resets still withdraw. A reported program-generation change withdraws immediately, even with no changed tables; the old replica stays unavailable until adoption completes. Offline retention uses `fresh: false` and `since`; no profile identity latch is needed. `useMutation` tracks writes; `useAsset` resolves
+ a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
+ `api.name`; module files use `api.module.name`. Effects run in declared Node entries `snapback/workers/<service>.mjs`: dev and serve start, restart and stop them, with service tokens injected and logs redacted. `guide effects` shows `ledger: true` and the stable `meta.idempotencyKey`; a crash after the provider call but before the ledger commit still needs provider idempotency.
+diff --git a/snapback4/packages/snapback4/src/app-client.ts b/snapback4/packages/snapback4/src/app-client.ts
+index bf8d91ce5d..ea5cd70329 100644
+--- a/snapback4/packages/snapback4/src/app-client.ts
++++ b/snapback4/packages/snapback4/src/app-client.ts
+@@ -11,6 +11,7 @@ import { episodeDeadline } from "./read-episode.ts";
+ import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
+ import { residencyError } from "./residency.ts";
+ import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
++import { queryAttempt, settledQuery } from "./query-settlement.ts";
+ 
+ /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
+  * The raw client may retain private rotation/logout custody after this fence.
+@@ -18,6 +19,7 @@ import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
+ export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
+   guardDelivery(raw);
+   let active = true;
++  const queries = new AbortController();
+   const valid = () => active && validScope();
+   const approved = new WeakSet<object>();
+   const kept = new ReadApprovals();
+@@ -68,14 +70,17 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
+       return raw.refreshSession();
+     },
+     assetSource: id => valid() ? raw.assetSource(id) : { uri: "", headers: {} },
+-    async query(op, args) {
++    query: settledQuery(async (op, args, signal) => {
+       const denied = await refusal();
+-      if (denied) return { denied };
+-      const read = await raw.query(op, args);
++      if (denied) return () => ({ denied });
++      const publish = await queryAttempt(raw, op, args, signal);
+       const after = await refusal();
+-      if (after) return { denied: after };
+-      return approveDelivery(read) ? read : { loading: true };
+-    },
++      return () => {
++        if (after) return { denied: after };
++        const read = publish();
++        return read && approveDelivery(read) ? read : undefined;
++      };
++    }, () => valid() ? undefined : why(), queries.signal),
+     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
+       const loading: Read<R> = { loading: true };
+@@ -289,6 +294,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
+   return { client, fence() {
+     if (!active) return () => {};
+     active = false;
++    queries.abort();
+     const deliver = deferReadNotifications(() => kept.close());
+     for (const cleanup of cleanups) cleanup();
+     cleanups.clear();
+diff --git a/snapback4/packages/snapback4/src/client.ts b/snapback4/packages/snapback4/src/client.ts
+index c8b0c3c2a6..367bcb2e43 100644
+--- a/snapback4/packages/snapback4/src/client.ts
++++ b/snapback4/packages/snapback4/src/client.ts
+@@ -1,4 +1,5 @@
+ import { readyRead } from "./read-existence.ts";
++import { settledQuery } from "./query-settlement.ts";
+ import { matchingReads } from "./read-key.ts";
+ import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
+ import { onlineDelivery } from "./online-delivery.ts";
+@@ -940,17 +941,17 @@ export function createClient(options: ClientOptions): Client {
+       const response = closingResponses.request();
+       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
+     },
+-    async query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>> {
++    query: settledQuery(async <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => {
++      if (link === "offline") { void probe(); return () => ({ denied: offline() }); }
+       const read = new ReadObservation<R>();
+-      const result = await read.fetch<QueryResult<R>>(() => runQuery(op, args), () => {}, { accept: result => currentRead(result) });
+-      // A concurrent response or write can retire the accepted result before
+-      // this continuation runs. Do not start an additional retry round here.
+-      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
+-      if (!credentials) return { denied: auth() };
+-      if (result.deadlineWithdrawn?.() || !currentRead(result)) return { loading: true };
+-      acceptDelivery(result, result.read);
+-      return result.read;
+-    },
++      const result = await read.fetch<QueryResult<R>>(() => runQuery(op, args, false, signal), () => {}, { publishResult: false });
++      return () => {
++        if (result.deadlineWithdrawn?.() || !currentRead(result)) return;
++        if ("data" in result.read && pending.length) return;
++        acceptDelivery(result, result.read);
++        return result.read;
++      };
++    }, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), aborter.signal),
+     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+       const keep = options?.keep;
+       const key = observationKey(op, args, options);
+diff --git a/snapback4/packages/snapback4/src/contract.ts b/snapback4/packages/snapback4/src/contract.ts
+index c755d3c9c5..d40f0a8b4b 100644
+--- a/snapback4/packages/snapback4/src/contract.ts
++++ b/snapback4/packages/snapback4/src/contract.ts
+@@ -97,6 +97,8 @@ export type Read<T> =
+   | Ready<T>
+   | { readonly loading: true }
+   | { readonly denied: Refusal };
++/** A one-shot's final answer; ready can still be partial or stale. */
++export type SettledRead<T> = Exclude<Read<T>, { readonly loading: true }>;
+ 
+ /** Engine work for this server answer under dev; never returned by serve. */
+ export interface ReadMeter {
+@@ -281,7 +283,8 @@ export interface Client {
+   residency(): Promise<Residency | null>;
+   /** Estimated server Unix milliseconds; never goes backward on this device. */
+   now(): number;
+-  query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
++  /** Ready or refused within four rounds / 30 seconds, including queue and authority waits. */
++  query<A, R>(op: Query<A, R>, args: A): Promise<SettledRead<R>>;
+   observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R>;
+   /** Retry-safe intents: pass { id } to reuse the original write. A client
+    * never admits a known id twice; an evicted receipt requires reopening. */
+@@ -338,6 +341,8 @@ export function isDenied<T>(read: Read<T>): read is { readonly denied: Refusal }
+ }
+ 
+ /** The five UI meanings; narrow on read.existence after isReady for typed data. */
++export function existence<T>(read: SettledRead<T>): "denied" | "present" | "absent" | "partial";
++export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial";
+ export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
+   return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
+ }
+diff --git a/snapback4/packages/snapback4/src/local.ts b/snapback4/packages/snapback4/src/local.ts
+index 2eb2d420ea..b741589c4e 100644
+--- a/snapback4/packages/snapback4/src/local.ts
++++ b/snapback4/packages/snapback4/src/local.ts
+@@ -1,4 +1,5 @@
+ import { readyRead } from "./read-existence.ts";
++import { settledQuery } from "./query-settlement.ts";
+ import { matchingReads } from "./read-key.ts";
+ import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
+ import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
+@@ -897,6 +898,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+         checkRead(signal);
+         const denied = unavailable(); // Rule 1 also holds across the caller's await.
+         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
++        if (!owner && signal) return { ...result, incarnation: revision, authority }; // One-shot owns the bounded rounds.
+         if (result.ephemeralStale || (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest))) {
+           if (attempt >= 3) return { ...result, retryExhausted: true, read: { loading: true } as Read<R>, incarnation: revision, authority };
+           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
+@@ -1179,16 +1181,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+       const response = closingResponses.request();
+       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return response.take(); } });
+     },
+-    async query(op, args) {
+-      while (true) {
+-        const result = await runLocal(op, args);
+-        const denied = unavailable(); // Rule 1: immediately before returning to the caller.
+-        if (denied) return { denied };
+-        if ("data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) return { loading: true };
+-        if (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest)) continue;
+-        if (publishLocal(result, () => true)) return result.read;
+-      }
+-    },
++    query: settledQuery(async (op, args, signal) => {
++      const result = await runLocal(op, args, undefined, false, undefined, signal);
++      const writes = "data" in result.read ? await queued() : []; checkRead(signal); return () => {
++        if ("data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) return;
++        if ("data" in result.read && writes.some(w => w.observed_seq == null && (!w.predictable || result.served || result.localWakeup))) return;
++        if (publishLocal(result, () => true)) return "loading" in result.read && link === "offline" ? { denied: offline() } : result.read;
++      };
++    }, unavailable, aborter.signal),
+     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+       const keep = options?.keep;
+       const key = observationKey(op, args, options);
+diff --git a/snapback4/packages/snapback4/src/mock.ts b/snapback4/packages/snapback4/src/mock.ts
+index 188f69c1fa..6ed2acb370 100644
+--- a/snapback4/packages/snapback4/src/mock.ts
++++ b/snapback4/packages/snapback4/src/mock.ts
+@@ -131,7 +131,8 @@ export function createMockClient(options: MockOptions): MockClient {
+     },
+     tables,
+     async query(op, args) {
+-      return evaluate(op, args);
++      const read = evaluate(op, args);
++      return "loading" in read ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
+     },
+     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
+       let seen = -1;
+diff --git a/snapback4/packages/snapback4/test/acquisition.test.mjs b/snapback4/packages/snapback4/test/acquisition.test.mjs
+index 1800087bde..e5d4386888 100644
+--- a/snapback4/packages/snapback4/test/acquisition.test.mjs
++++ b/snapback4/packages/snapback4/test/acquisition.test.mjs
+@@ -238,7 +238,7 @@ async function observations(client, t) {
+ }
+ function assertUnknown(answers) {
+   for (const [name, answer] of Object.entries(answers)) {
+-    assert.deepEqual(answer, { loading: true }, `${name}: no fabricated absence or authoritative refusal`);
++    assert.equal(answer.denied?.code, "E_OFFLINE", `${name}: no fabricated absence or authoritative refusal`);
+     assert.equal("data" in answer, false);
+   }
+ }
+diff --git a/snapback4/packages/snapback4/test/bounded-following.test.mjs b/snapback4/packages/snapback4/test/bounded-following.test.mjs
+index 190236996b..1164f48622 100644
+--- a/snapback4/packages/snapback4/test/bounded-following.test.mjs
++++ b/snapback4/packages/snapback4/test/bounded-following.test.mjs
+@@ -146,18 +146,18 @@ query conditionalEventsHeld():
+     const input = { eventId: "p3" };
+     assert.equal((await bob.client.query(query("ownedEvent"), input)).data.id, "p3");
+     bob.offline = true; await bob.client.sync();
+-    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+-    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
++    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
++    assert.equal((await bob.client.query(query("ownedEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
+     await bob.client.mutate(mutation("post"), { postId: "own-event", parentId: null, at: 30 });
+     const queued = (await bob.core.call({ op: "queued" })).ok;
+     assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("posts/"))));
+     assert.ok(queued.every(q => q.predicted.every(row => !row.startsWith("feedPosts/"))), "partial events have no predicted owned row");
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+-    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
+-    assert.deepEqual(await bob.client.query(query("conditionalEvents"), {}), { loading: true });
+-    assert.deepEqual(await bob.client.query(query("conditionalEventsHeld"), {}), { loading: true }, "an unrelated held post cannot validate the speculative branch");
++    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
++    assert.equal((await bob.client.query(query("ownedEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
++    assert.equal((await bob.client.query(query("conditionalEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
++    assert.equal((await bob.client.query(query("conditionalEventsHeld"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unrelated held post cannot validate the speculative branch");
+     const branch = bob.observed.at(-1);
+     assert.deepEqual(branch.data, []);
+     assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.ok(branch.tables.includes("posts"));
+@@ -166,7 +166,7 @@ query conditionalEventsHeld():
+     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");
+     assert.ok((await bob.client.query(query("ownedEvents"), {})).data.some(row => row.postId === "own-event"));
+     bob.failQueries = true;
+-    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
++    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   });
+ 
+   test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: 30000 }, async t => {
+@@ -191,7 +191,7 @@ query filteredEvents():
+     const queued = (await bob.core.call({ op: "queued" })).ok;
+     assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("feedPosts/"))), "the scan intersects a pending owned-event prediction");
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(query("filteredEvents"), {}), { loading: true });
++    assert.equal((await bob.client.query(query("filteredEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     const scan = bob.observed.at(-1);
+     assert.deepEqual(scan.data, []); assert.equal(scan.unknown, true); assert.equal(scan.speculative, true);
+     assert.equal("held" in scan, false, "query-wide held provenance has been removed");
+@@ -251,7 +251,7 @@ query speculativePage():
+       bob.offline = offline; await bob.client.sync();
+       for (const name of ["guarded", "conditionalEvents", "filteredEvents", "speculativePage"]) {
+         const before = bob.queries.length;
+-        assert.deepEqual(await bob.client.query(query(name), {}), { loading: true }, name);
++        assert.equal((await bob.client.query(query(name), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", name);
+         const raw = bob.observed.at(-1);
+         assert.equal(raw.unknown, true); assert.equal(raw.speculative, true);
+         if (name === "guarded") assert.equal(raw.denied.code, "NOT_FOUND");
+@@ -307,11 +307,11 @@ query conditionalHelper(c: cursor ?):
+     assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
+     for (const offline of [false, true]) {
+       bob.offline = offline; await bob.client.sync();
+-      assert.deepEqual(await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" }), { loading: true }, "an unknown branch cannot publish a placeholder or replace a prediction");
++      assert.equal((await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unknown branch cannot publish a placeholder or replace a prediction");
+       for (const name of ["conditionalFeed", "conditionalHelper"]) {
+         const before = bob.queries.length;
+         const read = await bob.client.query(query(name), input);
+-        assert.deepEqual(read, { loading: true });
++        assert.equal(read.denied?.code, offline ? "E_OFFLINE" : "E_QUERY_RETRY");
+         const raw = bob.observed.at(-1);
+         assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
+         assert.deepEqual(raw.tables, ["switches"]);
+@@ -320,7 +320,7 @@ query conditionalHelper(c: cursor ?):
+     }
+     bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
+     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");
+-    assert.deepEqual(await bob.client.query(query("conditionalHelper"), input), { loading: true });
++    assert.equal((await bob.client.query(query("conditionalHelper"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     bob.holdSync = false; f.releaseSync();
+     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
+     assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own/conditional"));
+@@ -342,7 +342,7 @@ query countedFeed(c: cursor ?):
+     const bob = await f.open("bob"); bob.holdWrites = true;
+     await bob.client.mutate(mutation("post"), { postId: "own-cut", parentId: null, at: 20 });
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(query("countedFeed"), { c: null }), { loading: true });
++    assert.equal((await bob.client.query(query("countedFeed"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     const raw = bob.observed.at(-1);
+     assert.equal(raw.loading, true); assert.equal(raw.unknown, false); assert.equal(raw.complete, false);
+     assert.deepEqual(raw.tables, ["events"], "the scalar cap skipped the following statements");
+@@ -417,7 +417,7 @@ query remoteProfile():
+     await bob.client.mutate(mutation("post"), { postId: "own-profile", parentId: null, at: 20 });
+     const before = bob.queries.length;
+     const answer = await bob.client.query(query("withProfile"), {});
+-    assert.deepEqual(answer, { loading: true }, "an unrelated held page cannot validate a speculative profile");
++    assert.equal(answer.denied?.code, "E_QUERY_RETRY", "an unrelated held page cannot validate a speculative profile");
+     const raw = bob.observed.at(-1); assert.equal(raw.unknown, true); assert.notEqual(raw.loading, true);
+     assert.equal(raw.speculative, true);
+     assert.equal(bob.queries.length, before, "a prediction fences speculative profile recovery");
+@@ -425,11 +425,11 @@ query remoteProfile():
+     assert.equal(partial.data.rows[0].post.id, "own-profile"); assert.equal(partial.data.rows[0].pending, true);
+     assert.equal(partial.complete, false); assert.equal(Object.hasOwn(bob.observed.at(-1), "speculative"), false);
+     const profile = await bob.client.query(query("remoteProfile"), {});
+-    assert.equal(profile.data.name, "remote");
++    assert.equal(profile.denied?.code, "E_QUERY_RETRY", "one-shot custody conservatively waits for admitted writes before remote data");
+     assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
+     bob.offline = true; await bob.client.sync();
+     const offline = await bob.client.query(query("withProfile"), {});
+-    assert.deepEqual(offline, { loading: true });
++    assert.equal(offline.denied?.code, "E_OFFLINE");
+     const offlinePartial = await bob.client.query(query("partialWithProfile"), {});
+     assert.equal(offlinePartial.data.rows[0].post.id, "own-profile"); assert.equal(offlinePartial.complete, false);
+   });
+@@ -454,7 +454,7 @@ query oversized(postId: posts, payload: text <=600):
+     const cases = [["cappedCard", { postId: "old" }], ["cappedRepost", { postId: "p0" }], ["oversized", { postId: "old", payload: "x".repeat(600) }]];
+     bob.offline = true; await bob.client.sync();
+     for (const [name, input] of cases) {
+-      assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
++      assert.equal((await bob.client.query(query(name), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+       const raw = bob.observed.at(-1);
+       assert.equal(raw.loading, true); assert.equal(raw.unknown, true);
+       assert.equal("data" in raw, false); assert.equal("next" in raw, false);
+@@ -488,7 +488,7 @@ query conditionalGet(want: bool, postId: posts) held:
+         const before = bob.queries.length;
+         const skipped = await bob.client.query(query(name), { want: false, postId: "p3" });
+         assert.equal(skipped.data, data); assert.equal(skipped.complete, true);
+-        assert.deepEqual(await bob.client.query(query(name), { want: true, postId: "p3" }), { loading: true });
++        assert.equal((await bob.client.query(query(name), { want: true, postId: "p3" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+         assert.equal(bob.queries.length, before, "held queries never dispatch, including their executed card reads");
+       }
+     }
+@@ -503,12 +503,12 @@ query composed(c: cursor ?):
+ `), bob = await f.open("bob");
+     const op = query("composed"), input = { c: null };
+     bob.offline = true; await bob.client.sync();
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
+     await bob.client.mutate(mutation("post"), { postId: "own-composed", parentId: null, at: 20 });
+     assert.ok((await bob.core.call({ op: "queued" })).ok.some(e => e.predictable));
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(bob.queries.length, before);
+     bob.holdWrites = false;
+     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "composed prediction not observed");
+@@ -516,7 +516,7 @@ query composed(c: cursor ?):
+     assert.ok(answer.data.rows.some(row => row.post.id === "own-composed"));
+     assert.ok(answer.data.rows.some(row => row.post.id === "old"));
+     bob.failQueries = true;
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   });
+ 
+   test(`bounded Following ${tier}: exact offline pages, original-cursor fallback and quiet authors`, { timeout: 30000 }, async t => {
+@@ -528,8 +528,8 @@ query composed(c: cursor ?):
+     assert.ok(input.c);
+     bob.offline = true; await bob.client.sync();
+     assert.deepEqual((await bob.client.query(query("cards"), { c: null })).data.map(row => row.post.id), ["p3", "p2"]);
+-    assert.deepEqual(await bob.client.query(query("cards"), input), { loading: true });
+-    assert.deepEqual(await bob.client.query(query("required"), { postId: "old" }), { loading: true });
++    assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
++    assert.equal((await bob.client.query(query("required"), { postId: "old" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     const local = bob.observed.find(read => read.request.name === "cards" && read.request.args.c === input.c);
+     assert.equal(local.loading, true); assert.equal(local.unknown, true);
+     assert.equal("data" in local, false); assert.equal("next" in local, false);
+@@ -549,7 +549,7 @@ query composed(c: cursor ?):
+     const reader = await f.open("reader");
+     reader.offline = true; await reader.client.sync();
+     assert.equal((await reader.client.query(query("home"), { c: null })).complete, true);
+-    assert.deepEqual(await reader.client.query(query("cards"), { c: null }), { loading: true });
++    assert.equal((await reader.client.query(query("cards"), { c: null })).denied?.code, reader.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     reader.offline = false; await reader.client.sync();
+     assert.equal((await reader.client.query(query("cards"), { c: null })).data[0].post.id, "old");
+   });
+@@ -564,13 +564,13 @@ query composed(c: cursor ?):
+     const metadata = await bob.client.query(query("wideMetadata"), {});
+     assert.equal(metadata.data[0].post, "own"); assert.equal(metadata.data[0].pending, true);
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(query("wide"), { c: null }), { loading: true });
++    assert.equal((await bob.client.query(query("wide"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(bob.queries.length, before, "no fallback can drop the predicted row");
+     bob.holdSync = true; bob.holdWrites = false;
+     // Let the outbox acknowledge, while retaining its actual sync response.
+     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(entry => entry.sent_seq != null && entry.observed_seq == null), "write was not acknowledged before observation");
+     assert.equal(bob.client.link(), "online");
+-    assert.deepEqual(await bob.client.query(query("wide"), { c: null }), { loading: true });
++    assert.equal((await bob.client.query(query("wide"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(bob.queries.length, before);
+     bob.holdSync = false; f.releaseSync();
+     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "write was not observed");
+@@ -586,7 +586,7 @@ query composed(c: cursor ?):
+     assert.equal((await bob.client.query(query("cards"), { c: null })).data.length, 2);
+     const global = await bob.client.query(query("globalRows"), {});
+     bob.offline = true; await bob.client.sync();
+-    assert.deepEqual(await bob.client.query(query("cards"), { c: null }), { loading: true });
++    assert.equal((await bob.client.query(query("cards"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal((await bob.client.query(query("home"), { c: null })).complete, true);
+     const partial = await bob.client.query(query("globalRows"), {});
+     assert.deepEqual(partial.data, global.data); assert.equal(partial.fresh, false);
+@@ -609,13 +609,13 @@ query composed(c: cursor ?):
+     const f = await fixture(t, tier, undefined, source => source + "\nquery heldCards(c: cursor ?) held:\n  return feed last 2 by .at after c { *, post: posts[.post] }\n"), bob = await f.open("bob");
+     const first = await bob.client.query(query("cards"), { c: null }), input = { c: first.next };
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(query("heldCards"), input), { loading: true });
++    assert.equal((await bob.client.query(query("heldCards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(bob.queries.length, before, "held queries never dispatch");
+     assert.equal((await bob.client.query(query("cards"), input)).data.length, 2);
+     bob.failQueries = true;
+-    assert.deepEqual(await bob.client.query(query("cards"), input), { loading: true }, "a remembered answer cannot mask transport failure");
++    assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "a remembered answer cannot mask transport failure");
+     bob.offline = true; await bob.client.sync();
+-    assert.deepEqual(await bob.client.query(query("cards"), input), { loading: true });
++    assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   });
+ 
+   test(`bounded Following ${tier}: online-only repost cards use the prediction fence before server routing`, { timeout: 30000 }, async t => {
+@@ -623,22 +623,22 @@ query composed(c: cursor ?):
+     const op = query("repostCards"), input = { c: null };
+     assert.ok("data" in await bob.client.query(op, input));
+     bob.offline = true; await bob.client.sync();
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true }, "no remembered online-only cards");
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "no remembered online-only cards");
+     bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
+     assert.equal((await bob.client.mutate(mutation("post"), { postId: "own", parentId: null, at: 20 })).state, "pending");
+     assert.equal((await bob.core.call({ op: "queued" })).ok[0].predictable, true);
+     const before = bob.queries.length;
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(bob.queries.length, before);
+     bob.holdSync = true; bob.holdWrites = false;
+     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "prediction not acknowledged");
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(bob.queries.length, before);
+     bob.holdSync = false; f.releaseSync();
+     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "prediction not observed");
+     assert.ok((await bob.client.query(op, input)).data.some(row => row.post === "own"));
+     bob.failQueries = true;
+-    assert.deepEqual(await bob.client.query(op, input), { loading: true });
++    assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   });
+ 
+   test(`bounded Following ${tier}: a response racing prediction admission is invalidated`, { timeout: 30000 }, async t => {
+@@ -649,7 +649,7 @@ query composed(c: cursor ?):
+     bob.holdWrites = true;
+     await bob.client.mutate(mutation("post"), { postId: "racing", parentId: null, at: 20 });
+     bob.holdQueries = false; f.releaseSync();
+-    assert.deepEqual(await result, { loading: true }, "the response predating admission cannot replace a prediction");
++    assert.equal((await result).denied?.code, "E_QUERY_RETRY", "the response predating admission cannot replace a prediction");
+     assert.equal((await bob.client.query(query("wideMetadata"), {})).data[0].post, "racing");
+   });
+ 
+@@ -659,7 +659,7 @@ query composed(c: cursor ?):
+     const input = { actor: "dev:bob", postId: "p3" };
+     assert.equal((await bob.client.query(query("repostPoint"), input)).data, null);
+     bob.offline = true; await bob.client.sync();
+-    assert.deepEqual(await bob.client.query(query("repostPoint"), input), { loading: true });
++    assert.equal((await bob.client.query(query("repostPoint"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal((await bob.client.query(query("optional"), { postId: "missing" })).data, null);
+   });
+ 
+@@ -693,26 +693,26 @@ query cut(c: cursor ?):
+     }
+     const input = { c }, edge = await alice.client.query(query("inbox"), input);
+     assert.equal(edge.complete, true); assert.equal(edge.data.length, 200); assert.ok(edge.next);
+-    assert.deepEqual(await alice.client.query(query("inbox"), { c: edge.next }), { loading: true });
+-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
++    assert.equal((await alice.client.query(query("inbox"), { c: edge.next })).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
++    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     alice.offline = false; await alice.client.sync();
+     const before = alice.queries.length;
+-    assert.deepEqual(await alice.client.query(query("heldCrossing"), input), { loading: true });
++    assert.equal((await alice.client.query(query("heldCrossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(alice.queries.length, before);
+     const answered = await alice.client.query(query("crossing"), input);
+     assert.deepEqual(answered.data, (await f.request("/q/crossing", "alice", input)).data);
+     assert.equal(answered.data.length, 201);
+     assert.ok(alice.queries.some(q => q.path === "/q/crossing" && q.args.c === c));
+     alice.failQueries = true;
+-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
++    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     alice.failQueries = false; await alice.client.sync(); alice.holdWrites = true;
+     await alice.client.mutate(mutation("post"), { postId: "floor-pending", parentId: null, at: 3000 });
+     const sent = alice.queries.length;
+-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
++    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(alice.queries.length, sent);
+     alice.holdSync = true; alice.holdWrites = false;
+     await until(async () => (await alice.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "inbox prediction not acknowledged");
+-    assert.deepEqual(await alice.client.query(query("crossing"), input), { loading: true });
++    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, alice.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(alice.queries.length, sent);
+     alice.holdSync = false; f.releaseSync();
+     await until(async () => { await alice.client.sync(); return (await alice.core.call({ op: "queued" })).ok.length === 0; }, "inbox prediction not observed");
+@@ -720,7 +720,7 @@ query cut(c: cursor ?):
+     alice.holdWrites = true;
+     await alice.client.mutate(mutation("follow"), { actor: "dev:quiet" });
+     assert.ok((await alice.core.call({ op: "queued" })).ok.every(e => e.predictable === false));
+-    assert.equal((await alice.client.query(query("crossing"), input)).data.length, 201, "unpredicted intent does not fence fallback");
++    assert.equal((await alice.client.query(query("crossing"), input)).denied?.code, "E_QUERY_RETRY", "a one-shot cannot acknowledge an unobserved nonpredictable intent");
+   });
+ }
+ 
+@@ -742,11 +742,11 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
+   assert.equal(raw.speculative, true, "native card misses carry engine provenance");
+   assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
+   bob.offline = true; await bob.client.sync();
+-  assert.deepEqual(await bob.client.query(op, input), { loading: true });
++  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   assert.equal((await bob.client.query(op, { postId: "p3", c: null })).data.original.id, "p3", "held native reads still answer offline");
+   bob.offline = false; await bob.client.sync();
+   const beforeHeld = bob.queries.length;
+-  assert.deepEqual(await bob.client.query(query("native_held"), input), { loading: true });
++  assert.equal((await bob.client.query(query("native_held"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   assert.equal(bob.queries.length, beforeHeld);
+   const remote = await bob.client.query(op, input);
+   assert.equal(remote.data.original.id, "old");
+@@ -755,17 +755,17 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
+   assert.deepEqual(remote.data, (await f.request("/q/native_cards", "bob", input)).data);
+   assert.deepEqual(bob.queries.at(-1), { path: "/q/native_cards", args: input });
+   bob.failQueries = true;
+-  assert.deepEqual(await bob.client.query(op, input), { loading: true }, "no remembered server answer on transport failure");
++  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "no remembered server answer on transport failure");
+   bob.failQueries = false; await bob.client.sync(); bob.holdWrites = true;
+   const pending = await bob.client.mutate(mutation("post"), { postId: "own-native", parentId: null, at: 20 });
+   assert.equal(pending.state, "pending");
+   assert.ok((await bob.core.call({ op: "queued" })).ok.some(e => e.predictable && e.observed_seq == null));
+   const before = bob.queries.length;
+-  assert.deepEqual(await bob.client.query(op, input), { loading: true });
++  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   assert.equal(bob.queries.length, before, "server data cannot replace an unobserved native prediction");
+   bob.holdSync = true; bob.holdWrites = false;
+   await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "native prediction not acknowledged");
+-  assert.deepEqual(await bob.client.query(op, input), { loading: true });
++  assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   assert.equal(bob.queries.length, before);
+   bob.holdSync = false; f.releaseSync();
+   await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "native prediction not observed");
+diff --git a/snapback4/packages/snapback4/test/delivery-approval.test.mjs b/snapback4/packages/snapback4/test/delivery-approval.test.mjs
+index f4b4b2e10f..6c906784f7 100644
+--- a/snapback4/packages/snapback4/test/delivery-approval.test.mjs
++++ b/snapback4/packages/snapback4/test/delivery-approval.test.mjs
+@@ -122,17 +122,20 @@ for (const tier of ['online', 'local']) {
+     const query = h.client.query(op, {}).then(read => { returned = true; return read; });
+     await until(() => h.pending.length); assert.equal(returned, false);
+     await silent(h);
+-    if (outcome === 'expired') await delay(220);
++    if (outcome === 'expired') {
++      await delay(220);
++      h.onAnswer(() => answer([42])); h.release();
++    }
+     if (outcome === 'throw') h.pending[0].reject(Error('query authority failed'));
+     else h.pending[0].resolve(outcome !== 'false');
+     const read = await query;
+-    if (outcome === 'approve') {
+-      assert.equal(read.data[0].ordinal, 41);
++    if (outcome === 'approve' || outcome === 'expired') {
++      const position = outcome === 'approve' ? 41 : 42;
++      assert.equal(read.data[0].ordinal, position);
+       await until(() => h.reports.length === 1);
+-      assert.deepEqual(h.collections, [manifest([41])]);
++      assert.deepEqual(h.collections, [manifest([position])]);
+     } else {
+-      if (outcome === 'expired') assert.deepEqual(read, { loading: true });
+-      else assert.equal(read.denied.code, outcome === 'throw' ? 'E_CLIENT' : 'E_AUTH');
++      assert.equal(read.denied.code, outcome === 'throw' ? 'E_CLIENT' : 'E_AUTH');
+       h.release(); await silent(h);
+     }
+   });
+diff --git a/snapback4/packages/snapback4/test/delivery-clients.test.mjs b/snapback4/packages/snapback4/test/delivery-clients.test.mjs
+index ab792cfbd2..7aa94b075a 100644
+--- a/snapback4/packages/snapback4/test/delivery-clients.test.mjs
++++ b/snapback4/packages/snapback4/test/delivery-clients.test.mjs
+@@ -72,7 +72,7 @@ test('online query below the publication floor accepts no manifest',async t=>{
+   if(url.endsWith('/probe'))return Response.json({ok:true,viewer:'dev:bob',store_id:'S',seq:10});
+   if(url.includes('/m/')){calls.push(JSON.parse(init.body));return Response.json({state:'sent',head:10,seq:10,store_id:'S'});}
+   return Response.json({data:41,seq:3,head:10,store_id:'S',delivery:manifest([['c',41]])});
+- }});t.after(()=>client.close());assert.deepEqual(await client.query({kind:'query',name:'inbox'},{}),{loading:true});await delay(300);assert.deepEqual(calls,[]);
++ }});t.after(()=>client.close());assert.equal((await client.query({kind:'query',name:'inbox'},{})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");await delay(300);assert.deepEqual(calls,[]);
+ });
+ test('online E_OFFLINE reaches the existing probe and reconnects the same attempt',async t=>{
+  let change,probes=0;const calls=[];
+diff --git a/snapback4/packages/snapback4/test/ephemeral-mock.test.mjs b/snapback4/packages/snapback4/test/ephemeral-mock.test.mjs
+index 3c0f3524e6..e3480849b5 100644
+--- a/snapback4/packages/snapback4/test/ephemeral-mock.test.mjs
++++ b/snapback4/packages/snapback4/test/ephemeral-mock.test.mjs
+@@ -29,7 +29,7 @@ test('mock renews unchanged rows, expires per table, rolls back refusals, and ne
+   assert.equal(watch.getSnapshot().data.length, 0);
+   assert.equal(client.tables.viewing.size, 1, 'longer table life remains');
+   client.setLink('offline'); assert.equal((await client.mutate(set, {})).why.code, 'E_OFFLINE');
+-  assert.deepEqual(await client.query(list, {}), { loading: true });
++  assert.equal((await client.query(list, {})).denied?.code, 'E_OFFLINE');
+   assert.deepEqual(writes, []);
+ });
+ 
+diff --git a/snapback4/packages/snapback4/test/expired-server-watch.test.mjs b/snapback4/packages/snapback4/test/expired-server-watch.test.mjs
+index 56f97d0434..c581c03219 100644
+--- a/snapback4/packages/snapback4/test/expired-server-watch.test.mjs
++++ b/snapback4/packages/snapback4/test/expired-server-watch.test.mjs
+@@ -51,7 +51,7 @@ for (const ending of ['recover', 'close watch', 'close client']) {
+       await client.sync();
+       assert.equal((await writer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
+       // Finish incarnation discovery before measuring only expiry retries.
+-      assert.deepEqual(await client.query(api.typingIn, { room: 'r' }), { loading: true });
++      assert.equal((await client.query(api.typingIn, { room: 'r' })).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+       requests.length = 0; peak = 0; invalidate = true;
+       const context = new AsyncLocalStorage();
+       const timerContext = {};
+diff --git a/snapback4/packages/snapback4/test/following-routing.test.mjs b/snapback4/packages/snapback4/test/following-routing.test.mjs
+index adb0beec5e..e5673806eb 100644
+--- a/snapback4/packages/snapback4/test/following-routing.test.mjs
++++ b/snapback4/packages/snapback4/test/following-routing.test.mjs
+@@ -37,7 +37,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"])
+               data: { kept: ["local"], current: [] }, speculative: false, held: true, complete: false, unknown: true, tables: ["feedFeed"],
+               components: { kept: { complete: true, retained: true }, current: { complete: false, unknown: true } },
+             } };
+-            assert.equal(observations, 2);
++            assert.ok(observations >= 2);
+             pending = scenario === "pending";
+             // A separate successful request can restore the link before this
+             // local reply, without making the failed composed fallback succeed.
+@@ -73,9 +73,9 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"])
+     await client.sync();
+     if (scenario === "transport recovered") recovering = client.query({ kind: "query", name: "probe" }, {});
+     const result = await client.query({ kind: "query", name: "read" }, input);
+-    assert.equal(observations, 2);
+-    assert.deepEqual(requests, [{ args: input }]);
++    assert.equal(observations, scenario === "pending" ? 5 : scenario === "transport recovered" ? 3 : 2);
++    assert.deepEqual(requests, Array.from({ length: scenario === "transport recovered" ? 2 : 1 }, () => ({ args: input })));
+     if (scenario === "server") assert.deepEqual(result.data, { kept: ["server"], current: ["original"] });
+-    else assert.deepEqual(result, { loading: true });
++    else assert.equal(result.denied?.code, scenario === "pending" ? "E_QUERY_RETRY" : "E_OFFLINE");
+   });
+ }
+diff --git a/snapback4/packages/snapback4/test/online-read-order.test.mjs b/snapback4/packages/snapback4/test/online-read-order.test.mjs
+index a6cd02d410..e9d71c656a 100644
+--- a/snapback4/packages/snapback4/test/online-read-order.test.mjs
++++ b/snapback4/packages/snapback4/test/online-read-order.test.mjs
+@@ -132,7 +132,7 @@ for (const event of ['replacement', 'regression', 'revoke', 'close', 'sign-out']
+     const client = createClient({ url: 'http://order.test', persona: 'alice', fetch: async (url, init) => {
+       requests++;
+       if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: ++seq, store_id: store });
+-      return Response.json({ ...ready(JSON.parse(init.body).args.buffer ? ['buffered private'] : [], seq), store_id: store });
++      return Response.json({ ...ready(JSON.parse(init.body).args.buffer && seq === 2 ? ['buffered private'] : [], seq), store_id: store });
+     } });
+     t.after(async () => { resume.resolve(); await client.close(); });
+     await client.query(q, {});
+@@ -144,7 +144,7 @@ for (const event of ['replacement', 'regression', 'revoke', 'close', 'sign-out']
+     else await (event === 'close' ? client.close() : client.signOut());
+     const before = requests; resume.resolve();
+     const read = await pending;
+-    if (event === 'revoke') assert.deepEqual(read, { loading: true });
++    if (event === 'revoke') assert.deepEqual(read.data, []);
+     else assert.equal(read.denied?.code, event === 'replacement' ? 'E_STORE_REPLACED' : event === 'regression' ? 'E_STORE_RESTORE' : 'E_CLOSED');
+-    assert.equal(requests, before, 'the outer fence discards without starting another retry loop');
++    assert.equal(requests, before + (event === 'revoke' ? 1 : 0), 'a retired answer rereads; terminal scopes never retry');
+   });
+diff --git a/snapback4/packages/snapback4/test/page-authority.test.mjs b/snapback4/packages/snapback4/test/page-authority.test.mjs
+index 39a49c50ac..e975ea3cd9 100644
+--- a/snapback4/packages/snapback4/test/page-authority.test.mjs
++++ b/snapback4/packages/snapback4/test/page-authority.test.mjs
+@@ -72,7 +72,7 @@ test('a loading server reply retires memory before a speculative transport failu
+   // Change only the query response: no replica commit may clear the cache
+   // for us, and no observer or background invalidation is needed.
+   f.loadingServer();
+-  assert.deepEqual(await f.client.query(query('serverPage'), {}), { loading: true });
++  assert.equal((await f.client.query(query('serverPage'), {})).denied?.code, f.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   f.failServer(true);
+   const unavailable = await f.client.query(query('serverPage'), {});
+   assert.equal(unavailable.denied.code, 'E_OFFLINE', 'unfenced speculative reads have no answer after loading retires memory');
+diff --git a/snapback4/packages/snapback4/test/page-ready.test.mjs b/snapback4/packages/snapback4/test/page-ready.test.mjs
+index c3ab5f764c..7cc01a6bc9 100644
+--- a/snapback4/packages/snapback4/test/page-ready.test.mjs
++++ b/snapback4/packages/snapback4/test/page-ready.test.mjs
+@@ -94,8 +94,9 @@ test("ready list reads survive account restoration, new chat acquisition and pen
+   history.subscribe(() => snapshots.push(history.getSnapshot()));
+   listRead(await app.client.query(query("history"), { chat }));
+   const partial = await app.client.query(query("history"), { chat });
+-  assert.deepEqual(partial.data, [], "an unknown non-speculative scan is partial data even when empty");
+-  assert.equal(partial.complete, false);
++  assert.equal(partial.denied?.code, "E_QUERY_RETRY", "one-shot waits for the admitted nonpredictable startDM before answering");
++  assert.deepEqual(history.getSnapshot().data, [], "the observation keeps its ordinary partial publication");
++  assert.equal(history.getSnapshot().complete, false);
+   const observation = replies.findLast(row => row.name === "history").reply.ok;
+   assert.equal(observation.unknown, true); assert.equal(Object.hasOwn(observation, "speculative"), false);
+   holdSync = false;
+@@ -191,7 +192,7 @@ test("unavailable server list responses end retention in both clients", { timeou
+   for (const client of clients) {
+     if (client === local) await local.sync();
+     else await client.query(query("ping"), {});
+-    assert.deepEqual(await client.query(query("costly"), {}), { loading: true });
++    assert.equal((await client.query(query("costly"), {})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   }
+   assert.ok(fetched.some(reply => reply.loading === true && reply.data === null && reply.complete === false), "legacy clients see an incomplete placeholder; current clients see loading");
+   queryOffline = true;
+@@ -225,6 +226,6 @@ test("loading server replies retain expiry retries and missing data cannot becom
+   const watch = client.observe(query("page"), {});
+   await until(() => Array.isArray(watch.getSnapshot().data), "expiry retries the unavailable answer");
+   assert.equal(reads, 2);
+-  assert.deepEqual(await client.query(query("missing"), {}), { loading: true });
++  assert.equal((await client.query(query("missing"), {})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   watch.close();
+ });
+diff --git a/snapback4/packages/snapback4/test/prediction-routing.test.mjs b/snapback4/packages/snapback4/test/prediction-routing.test.mjs
+index 20f9dd50b9..b3d2ac4149 100644
+--- a/snapback4/packages/snapback4/test/prediction-routing.test.mjs
++++ b/snapback4/packages/snapback4/test/prediction-routing.test.mjs
+@@ -264,7 +264,7 @@ for (const mode of ["reset", "install failure"]) {
+       await client.sync();
+     }
+     const before = queryCalls;
+-    assert.deepEqual(await client.query(op, input), { loading: true });
++    assert.equal((await client.query(op, input)).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+     assert.equal(queryCalls, before, "the unavailable guest/partition cannot run locally");
+     assert.equal(requests.length, 0);
+     assert.ok(snapshots.every(read => !("data" in read) || !read.data.includes("server-without-own")));
+diff --git a/snapback4/packages/snapback4/test/read-types.test.mjs b/snapback4/packages/snapback4/test/read-types.test.mjs
+index 99b1f63058..b6d8768fee 100644
+--- a/snapback4/packages/snapback4/test/read-types.test.mjs
++++ b/snapback4/packages/snapback4/test/read-types.test.mjs
+@@ -25,6 +25,25 @@ test('ready literals require the discriminant', () => {
+ const read: Read<{id: string}> = {data: {id: 'row'}, complete: true, cut: null, fresh: true};`);
+   assert.deepEqual(result.codes, [2322], result.text);
+ });
++test('awaited query excludes loading, including existence, while observe retains it', () => {
++  const result = check(`import { existence, type Client, type Query, type SettledRead, type Read } from './src/contract.ts';
++declare const client: Client, op: Query<{}, { id: string } | null>;
++async function consumer() {
++  const read = await client.query(op, {});
++  const settled: SettledRead<{ id: string } | null> = read;
++  const state: 'present' | 'absent' | 'partial' | 'denied' = existence(read);
++  type Loading = Extract<typeof read, { loading: true }>;
++  // @ts-expect-error no loading value can inhabit the settled type
++  const impossible: Loading = { loading: true };
++  // @ts-expect-error existence cannot be loading after an await
++  if (existence(read) === 'loading') throw Error('unreachable');
++  const observed: Read<unknown> = client.observe(op, {}).getSnapshot();
++  const all: 'loading' | 'present' | 'absent' | 'partial' | 'denied' = existence(observed);
++  if ('denied' in read) return read.denied;
++  return read.data;
++}`);
++  assert.deepEqual(result.codes, [], result.text);
++});
+ test('Astra nullable consumer: absent arrays cannot be assigned to null', () => {
+   const result = check(null, 'nullable-consumer.ts');
+   assert.deepEqual(result.codes, [2322], result.text);
+diff --git a/snapback4/packages/snapback4/test/retained-history.test.mjs b/snapback4/packages/snapback4/test/retained-history.test.mjs
+index 62a4a27653..37f330f987 100644
+--- a/snapback4/packages/snapback4/test/retained-history.test.mjs
++++ b/snapback4/packages/snapback4/test/retained-history.test.mjs
+@@ -471,7 +471,7 @@ query wordBoth():
+         if (name === "home" && !fenced) {
+           assert.ok(answer.data.events.some(row => row.postId === "p3"), "an ineligible whole query recovers its server answer, never the empty placeholder");
+           assert.equal(answer.fresh, false);
+-        } else assert.deepEqual(answer, { loading: true });
++        } else assert.equal(answer.denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+         assert.equal(allRequests.filter(path => path === `/q/${name}`).length, requestsBefore);
+         const raw = allAnswers.findLast(answer => answer.name === name);
+         assert.deepEqual(raw.data.older, expected("left", 1)); assert.deepEqual(raw.data.events, []);
+@@ -488,7 +488,7 @@ query wordBoth():
+     const online = await client.query(op, {});
+     assert.deepEqual(online.data.left, expected("left", 1)); assert.equal(online.data.right.id, "held-0");
+     const expectLocal = read => {
+-      assert.deepEqual(read, { loading: true }, "a speculative sibling cannot be data in an atomic Read<T>");
++      assert.equal(read.denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "a speculative sibling cannot be data in an atomic Read<T>");
+       const raw = allAnswers.findLast(answer => answer.name === "retainedPoint");
+       assert.equal(raw.components.left.retained, true); assert.equal(raw.components.right.speculative, true);
+     };
+diff --git a/snapback4/packages/snapback4/test/store-reset-review.test.mjs b/snapback4/packages/snapback4/test/store-reset-review.test.mjs
+index f1ef09d5aa..0deea3d4d4 100644
+--- a/snapback4/packages/snapback4/test/store-reset-review.test.mjs
++++ b/snapback4/packages/snapback4/test/store-reset-review.test.mjs
+@@ -834,7 +834,7 @@ test("FF1: committed reset invalidates watches and acquisition before a denied s
+   assert.deepEqual(atFailure.acquisition, [false]);
+   assert.equal(f.client.acquired, false, "failed inspection cannot retain retired acquisition");
+   f.offline(true);
+-  assert.deepEqual(await f.client.query(remote, {}), { loading: true }, "unavailable partitions cannot recover the retired answer");
++  assert.equal((await f.client.query(remote, {})).denied?.code, f.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "unavailable partitions cannot recover the retired answer");
+   f.offline(false);
+   const retryAt = f.syncRequests.length;
+   await f.client.sync();
+@@ -1075,7 +1075,7 @@ for (const mode of ["server", "horizon", "watch"]) test(`finding 2: delayed ${mo
+   f.offline(true); await f.client.sync();
+   const offline = await f.client.query(op, args);
+   if (mode === "horizon") assert.ok(offline.data.every(row => row.body === "B"));
+-  else assert.deepEqual(offline, { loading: true }, "a query the device cannot run stays withheld offline");
++  else assert.equal(offline.denied?.code, "E_OFFLINE", "a one-shot the device cannot run refuses offline");
+ });
+ 
+ test("finding 2: changes observation drops freshness while a mutation holds the network queue", async t => {
+@@ -1089,7 +1089,7 @@ test("finding 2: changes observation drops freshness while a mutation holds the
+   const read = await f.client.query(thread, args);
+   const during = f.stats().syncStarts;
+   barrier.resolve(); await write;
+-  assert.deepEqual(read, { loading: true }, "a reset cannot replace an unobserved prediction with either store’s server answer");
++  assert.equal(read.denied?.code, "E_QUERY_RETRY", "a reset cannot replace an unobserved prediction with either store’s server answer");
+   assert.equal(before, during, "the assertion runs before queued sync can start");
+ });
+ 
+diff --git a/snapback4/packages/snapback4/test/store-reset.test.mjs b/snapback4/packages/snapback4/test/store-reset.test.mjs
+index de73e569de..ef86fb7de4 100644
+--- a/snapback4/packages/snapback4/test/store-reset.test.mjs
++++ b/snapback4/packages/snapback4/test/store-reset.test.mjs
+@@ -98,7 +98,7 @@ test("wasm: persisted device reacquires after two backend replacements and prese
+   assert.equal(b.watermark, 0); assert.equal(queue.length, 1); assert.equal(queue[0].id, pending.id);
+   assert.equal(queue[0].predictable, false); assert.deepEqual(queue[0].predicted, []);
+   f.offline(true); await client.sync(); await client.close(); client = await f.open();
+-  assert.deepEqual(await client.query(query, {}), { loading: true });
++  assert.equal((await client.query(query, {})).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+   f.interrupt(false); f.offline(false); await client.sync();
+   await until(async () => (await f.core().call({ op: "queued" })).ok.length === 0, "pending write did not flush");
+   await client.sync();

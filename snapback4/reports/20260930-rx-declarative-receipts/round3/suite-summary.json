@@ -1,0 +1,52 @@
+{
+  "command": "bash scripts/test.sh",
+  "runs": 1,
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1290 s",
+  "rust": {
+    "passed": 4415,
+    "failed": 0,
+    "ignored": 33
+  },
+  "stages": [
+    "cargo build (8 s)",
+    "wasm build (54 s)",
+    "docs budget (1 s)",
+    "release guard (4 s)",
+    "package typecheck (2 s)",
+    "package build (2 s)",
+    "chat app check (0 s)",
+    "cargo test (504 s)",
+    "chat app typecheck (1 s)",
+    "expo app typecheck (2 s)",
+    "fixture wrapper tests (14 s)",
+    "client tests (412 s)",
+    "client models (303 s)"
+  ],
+  "fixture wrapper tests": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "client tests": {
+    "tests": 5352,
+    "pass": 5342,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10
+  },
+  "client models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "full_run_failure_attribution": {
+    "ours": 0,
+    "baseline": 0,
+    "environmental": 0
+  }
+}

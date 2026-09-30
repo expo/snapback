@@ -1,0 +1,180 @@
+(node:745616) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maximal exact runs, binding identity and named arguments (9.717694ms)
+✔ why: RUNS_FULL (0.838317ms)
+✔ why: NOT_MEMBER (0.730344ms)
+✔ why: NOT_FOUND (0.675082ms)
+✔ why: NOT_A_RUN (0.705647ms)
+✔ why: PAST_LAST_MESSAGE (0.709143ms)
+✔ why: E_INPUT (0.570104ms)
+✔ why: E_OP (1.909021ms)
+✔ why: NEW_CODE (0.687791ms)
+✔ why: E_AUTH (0.589303ms)
+✔ why: E_OFFLINE (0.417916ms)
+✔ denied: RUNS_FULL (0.37418ms)
+✔ denied: NOT_MEMBER (0.359018ms)
+✔ denied: NOT_FOUND (0.404677ms)
+✔ denied: NOT_A_RUN (0.419819ms)
+✔ denied: PAST_LAST_MESSAGE (0.645578ms)
+✔ denied: E_INPUT (0.36662ms)
+✔ denied: E_OP (0.370926ms)
+✔ denied: NEW_CODE (0.332608ms)
+✔ denied: E_AUTH (1.215201ms)
+✔ denied: E_OFFLINE (0.415532ms)
+✔ RUNS_FULL continues; coalesced wakes retry one after 30 seconds (1.323894ms)
+✔ four slots, one per group, longest waiter precedes busy group (0.834181ms)
+✔ uncertain retry id persists across restart; recorded conflict uses a new id (0.883514ms)
+✔ missing head is uncertain; obsolete auth retries same id; current auth pauses (0.762894ms)
+✔ refused manifests and eviction cannot recreate debt; saturation survives restart (1.772386ms)
+✔ stale group callback releases slot and cannot erase rejoin (1.965336ms)
+✔ online membership refusal preserves post-dispatch collections (3.90302ms)
+✔ generation and viewer fences reject callbacks (0.864756ms)
+✔ deadline frees slot with same attempt id (1.015762ms)
+✔ offline spends no retries; outbox dispatch gate sends nothing (0.652949ms)
+✔ eight uncertain retries park until reconnect and preserve each exhausted id (3.103381ms)
+✔ the slow timer wakes a RUNS_FULL run while home remains mounted (0.78106ms)
+✔ new owed work in any group precedes a parked retry (0.691496ms)
+✔ CAS retry discards abandoned NOT_A_RUN callback effects (0.777836ms)
+✔ CAS retry discards abandoned E_AUTH callback effects (0.643485ms)
+✔ CAS retry discards abandoned E_OFFLINE callback effects (0.818937ms)
+✔ an outcome splitting a collected interval still enforces the debt cap (3.065724ms)
+✔ evicting lowest debt also fences its persisted uncertain attempt (1.18811ms)
+✔ a pre-transport serial gate race spends no retry and keeps its persisted id (0.618237ms)
+✔ a lost recorded membership refusal keeps its original collection boundary on retry (0.64766ms)
+✔ positions 41 and 43 never report unfetched 42 (0.517175ms)
+✔ binding fingerprints travel on reports and reconcile only changed bindings (1.018667ms)
+✔ why: E_DELIVERY_BINDING drops the entire binding only (0.854421ms)
+✔ denied: E_DELIVERY_BINDING drops the entire binding only (0.636494ms)
+✔ identical fingerprints keep refused and saturated evicted state (0.278588ms)
+✔ an exhausted attempt retains its collection boundary while another interval runs: fresh reply held (2.014259ms)
+✔ an exhausted attempt retains its collection boundary while another interval runs: fresh reply arrived (2.756842ms)
+✔ manifests omit unsafe coordinates rather than rounding an unfetched position (0.445688ms)
+✔ the completed startup barrier cannot reopen when bounded reported history ages out (0.67989ms)
+✔ startup waits for a ready persisted retry behind a post-start lower interval (1.152668ms)
+✔ startup waits for a ready persisted start behind a post-start lower interval (0.698838ms)
+✔ startup stops waiting for its retry when this session exhausts it again (1.021982ms)
+✔ answers without delivery manifests leave the dormant queue without timers (0.370616ms)
+✔ retired refusal state is removed and restored only for its fingerprint (0.15383ms)
+✔ an older membership retry cannot resurrect reported coverage (1.69448ms)
+✔ an older membership retry cannot resurrect refused coverage (1.000119ms)
+✔ a due full park cannot replace a held attempt on reconnect (0.678917ms)
+✔ a due full park cannot replace a held attempt on start (1.929802ms)
+✔ a due full park cannot replace a held attempt on timer (0.494862ms)
+✖ receipt compaction resumes full runs and retries coverage with fresh ids (1.355381ms)
+✖ receipt compaction blocked preserves debt without a busy loop (1.012938ms)
+✖ receipt compaction uncertain preserves debt without a busy loop (0.705246ms)
+✖ receipt compaction refused preserves debt without a busy loop (0.710395ms)
+✖ receipt compaction unaccepted preserves debt without a busy loop (0.566399ms)
+✖ stale compaction reply cannot acknowledge or retry a replaced binding (0.647941ms)
+ℹ tests 66
+ℹ suites 0
+ℹ pass 60
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 190.336946
+
+✖ failing tests:
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:315:1
+✖ receipt compaction resumes full runs and retries coverage with fresh ids (1.355381ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  0 !== 9
+
+      at TestContext.<anonymous> (file:///tmp/rx-r0-sdk/delivery.test.mjs:323:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 9,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:330:69
+✖ receipt compaction blocked preserves debt without a busy loop (1.012938ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///tmp/rx-r0-sdk/delivery.test.mjs:337:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:330:69
+✖ receipt compaction uncertain preserves debt without a busy loop (0.705246ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///tmp/rx-r0-sdk/delivery.test.mjs:337:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:330:69
+✖ receipt compaction refused preserves debt without a busy loop (0.710395ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///tmp/rx-r0-sdk/delivery.test.mjs:337:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:330:69
+✖ receipt compaction unaccepted preserves debt without a busy loop (0.566399ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///tmp/rx-r0-sdk/delivery.test.mjs:337:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:340:1
+✖ stale compaction reply cannot acknowledge or retry a replaced binding (0.647941ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 2
+
+      at TestContext.<anonymous> (file:///tmp/rx-r0-sdk/delivery.test.mjs:345:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

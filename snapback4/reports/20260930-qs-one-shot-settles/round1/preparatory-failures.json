@@ -1,0 +1,100 @@
+{
+  "baseline-regressions.log": [
+    "wasm: restore refusal wins a blocked query deadline",
+    "wasm: partition refusal wins a blocked query deadline",
+    "wasm: impossible held count refuses in one evaluation and never contacts the server",
+    "process: restore refusal wins a blocked query deadline",
+    "process: partition refusal wins a blocked query deadline",
+    "process: impossible held count refuses in one evaluation and never contacts the server",
+    "app-wasm: restore refusal wins a blocked query deadline",
+    "app-wasm: partition refusal wins a blocked query deadline",
+    "app-wasm: impossible held count refuses in one evaluation and never contacts the server",
+    "app-process: restore refusal wins a blocked query deadline",
+    "app-process: partition refusal wins a blocked query deadline",
+    "app-process: impossible held count refuses in one evaluation and never contacts the server",
+    "mock: a retired one-shot rereads instead of returning the old value",
+    "mock: genuine publication exhaustion uses the shared retryable refusal",
+    "mock: closed and signed-out clients preserve terminal refusals",
+    "mock: a throwing evaluator settles with the shared client refusal",
+    "guide: stale one-shot continuations refuse and retain the first-page recovery",
+    "guide: server-needing decorations remain separate"
+  ],
+  "baseline-regressions-corrected.log": [
+    "wasm: restore refusal wins a blocked query deadline",
+    "wasm: partition refusal wins a blocked query deadline",
+    "wasm: impossible held count refuses in one evaluation and never contacts the server",
+    "process: restore refusal wins a blocked query deadline",
+    "process: partition refusal wins a blocked query deadline",
+    "process: impossible held count refuses in one evaluation and never contacts the server",
+    "app-wasm: restore refusal wins a blocked query deadline",
+    "app-wasm: partition refusal wins a blocked query deadline",
+    "app-wasm: impossible held count refuses in one evaluation and never contacts the server",
+    "app-process: restore refusal wins a blocked query deadline",
+    "app-process: partition refusal wins a blocked query deadline",
+    "app-process: impossible held count refuses in one evaluation and never contacts the server",
+    "mock: a retired one-shot rereads instead of returning the old value",
+    "mock: genuine publication exhaustion uses the shared retryable refusal",
+    "mock: closed and signed-out clients preserve terminal refusals",
+    "mock: a throwing evaluator settles with the shared client refusal",
+    "guide: stale one-shot continuations refuse and retain the first-page recovery",
+    "guide: server-needing decorations remain separate"
+  ],
+  "round0-expanded-regressions.log": [
+    "wasm: a terminal change-stream refusal wins a blocked query deadline",
+    "wasm: restore refusal wins a blocked query deadline",
+    "wasm: partition refusal wins a blocked query deadline",
+    "wasm: impossible held count refuses in one evaluation and never contacts the server",
+    "process: a terminal change-stream refusal wins a blocked query deadline",
+    "process: restore refusal wins a blocked query deadline",
+    "process: partition refusal wins a blocked query deadline",
+    "process: impossible held count refuses in one evaluation and never contacts the server",
+    "app-wasm: a terminal change-stream refusal wins a blocked query deadline",
+    "app-wasm: restore refusal wins a blocked query deadline",
+    "app-wasm: partition refusal wins a blocked query deadline",
+    "app-wasm: impossible held count refuses in one evaluation and never contacts the server",
+    "app-process: a terminal change-stream refusal wins a blocked query deadline",
+    "app-process: restore refusal wins a blocked query deadline",
+    "app-process: partition refusal wins a blocked query deadline",
+    "app-process: impossible held count refuses in one evaluation and never contacts the server",
+    "facade: restore wins the transport deadline",
+    "facade: restore wins the authority deadline",
+    "facade: reset wins the transport deadline",
+    "facade: reset wins the authority deadline",
+    "mock: a retired one-shot rereads instead of returning the old value",
+    "mock: genuine publication exhaustion uses the shared retryable refusal",
+    "mock: closed and signed-out clients preserve terminal refusals",
+    "mock: a throwing evaluator settles with the shared client refusal"
+  ],
+  "regressions-expanded.log": [
+    "app-online: viewer scope change wins a blocked authority deadline",
+    "app-wasm: viewer scope change wins a blocked authority deadline",
+    "app-process: viewer scope change wins a blocked authority deadline"
+  ],
+  "affected-core.log": [
+    "app-wasm: viewer scope change wins a blocked authority deadline",
+    "app-process: viewer scope change wins a blocked authority deadline"
+  ],
+  "scope-final.log": [
+    "app-wasm: viewer scope change wins a blocked authority deadline",
+    "app-process: viewer scope change wins a blocked authority deadline"
+  ],
+  "viewer-diagnostic.log": [
+    "app-wasm: viewer scope change wins a blocked authority deadline"
+  ],
+  "guide.log": [
+    "client::native_smoke_is_the_milestone_path_with_honest_limits",
+    "every_card_introduces_the_feature_before_examples_and_reference_details",
+    "familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block",
+    "familiar::every_moved_fact_has_its_why_or_details_home",
+    "w9b_every_code_has_bounded_card_context_and_a_full_card_command"
+  ],
+  "guide-final.log": [
+    "every_card_introduces_the_feature_before_examples_and_reference_details",
+    "familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block",
+    "familiar::every_moved_fact_has_its_why_or_details_home",
+    "w9b_every_code_has_bounded_card_context_and_a_full_card_command"
+  ],
+  "guide-complete.log": [
+    "familiar::every_moved_fact_has_its_why_or_details_home"
+  ]
+}

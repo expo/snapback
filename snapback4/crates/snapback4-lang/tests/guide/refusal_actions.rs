@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_RECEIPTS_CLAUSE", &["Multiple distinct families may coexist", "at most 50 members", "64 disjoint runs per member"]),
+    ("E_RECEIPTS_OWNED", &["Deleting a member retires their runs atomically"]),
     ("EMPTY_READ", &["does not prove denial", "snapback4 dev --trace-empty", "snapback4 why TABLE", "snapback4 check --residency", "snapback4 guide sync"]),
     ("E_DELIVERY_BINDING", &["drops that binding's debt", "does not retry the old report"]),
     ("E_DELIVERY_CLAUSE", &["immutable group and position columns, their unique key", "one reporter per tracked table", "Never reuse a deleted position"]),
@@ -133,6 +135,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_TYPE", &["Narrow an optional value with `if x != null:`, `x ! else CODE` or `x ?? default`", "changing a type never converts stored values"]),
     ("E_QUARRY_UNKNOWN", &["Check the declared spelling and the diagnostic's suggested name", "declare a missing local before using it"]),
     ("E_QUARRY_UNSUPPORTED", &["The reported rewrite names the accepted spelling", "`snapback4 check --fix` applies it when marked mechanical"]),
+    ("E_QUERY_RETRY", &["four rounds", "30 seconds", "immediate `E_OFFLINE`"]),
     ("E_QUERY_HELD", &["Call a held query through a local client over acquired partitions", "it has no server fallback", "Use the grouped membership read for a server answer"]),
     ("E_RATE_LIMIT", &["Retry after the minute counter or concurrent-slot pressure clears", "do not retry in a tight loop"]),
     ("E_RECIPE_RETIRED", &["the installer wrote nothing", "use the new view for a new app", "Existing apps must follow the"]),

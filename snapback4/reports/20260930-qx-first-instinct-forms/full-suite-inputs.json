@@ -1,0 +1,21 @@
+{
+  "base": "9d03e946232b4017564f3e7c6aa87bd424ce8d58",
+  "started": "2026-09-30T15:15:57Z",
+  "files": {
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "9d5167d9c0c3e6f7578e852ea04b57126ed04a9bc0dde6c78478e4c671f2e3c2",
+    "llp/3000.014-a-child-reads-through-its-parent.rfc.md": "aa16cbb9f7d353be76b9740b478c1406fe1783364f0f7845daf93feb54fb092a",
+    "snapback4/crates/snapback4-core/src/engine/write_target.rs": "223ef40b8a47c986a99af0c2abb711bb3d745b0b9fda234db11713af155331ea",
+    "snapback4/crates/snapback4-device/tests/read_through.rs": "2a99bd04c4252cdc2c2c8d2892f9ba7471d49e5a4fff019f535af2f3ddefd7de",
+    "snapback4/crates/snapback4-lang/src/bind/residency.rs": "d723d01c89da0d48d617a3596c907385634c0af964d888d76adaf3cba84f8afe",
+    "snapback4/crates/snapback4-lang/src/bind/schema.rs": "59cc5bc8d0075a6bccdc06eebd2bf4b213fb7618ec115fd9cf92be331b85ba8c",
+    "snapback4/crates/snapback4-lang/src/bind/through.rs": "6e62eb8dccba412a7729b397df86826f3e54b92225805dbff586d878c281ccce",
+    "snapback4/crates/snapback4-lang/src/guide/language.rs": "223cc7eb6d70b4e5cd748d892c545908287ee95ed950d30fab8c9d4a0d4dd0fa",
+    "snapback4/crates/snapback4-lang/src/guide/prediction.rs": "463a216d9e035eb44c02ff76577542b2c8308bc74fa42148af3c26a53483e071",
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": "d7545ef60412669e390444cf79ae05c1ab576ef2307ee7383a30bfc1990b7382",
+    "snapback4/crates/snapback4-lang/src/parser.rs": "25eb75d238449e11bc7fe59f6d33014a09b6e88519e6a1f86c2c77d8da727837",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "9a1e1ab9d1572b5cc2fb56432a11938376c5e58920ed01f01d225bcb2b6eff40",
+    "snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json": "7e4d292350520b36949a517b4dc9615089cb67fea6785e79508aa4c8f4d66141",
+    "snapback4/crates/snapback4-lang/tests/guide.rs": "d49f229a231d2ebd3b707b44a585a3dc25ddedaeab9a2ccf70a47d8cb508ddc2",
+    "snapback4/crates/snapback4/tests/check/first_paste.rs": "1b0f839dc6f10de862e427a470758c85778a29737416e231402fcf7c5187dfe6"
+  }
+}

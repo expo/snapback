@@ -1,0 +1,37 @@
+(node:2298900) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ wasm: population growth cannot mint new IDs during prediction replay (893.795376ms)
+✔ native: population growth cannot mint new IDs during prediction replay (445.038236ms)
+✔ every delivery await is explicitly classified (141.903917ms)
+✔ local fallback rejects its manifest when expiry changes before acceptance (1814.727659ms)
+✖ expired server replies: recover, keep=undefined (5475.054918ms)
+✔ expired server replies: recover, keep=false (4846.93758ms)
+✔ expired server replies: recover, keep=true (3257.254055ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13705.319325
+
+✖ failing tests:
+
+test at packages/snapback4/test/expired-server-watch.test.mjs:15:5
+✖ expired server replies: recover, keep=undefined (5475.054918ms)
+  AssertionError [ERR_ASSERTION]: {"state":"failed","id":"01M3SE05VKEMC0Y4KRABAGWBH8","why":{"code":"NOT_FOUND","family":"rule","guide":"programs","message":"the program refused with NOT_FOUND","rule":"NOT_FOUND","site":"stopTyping:1"}}
+  
+  'failed' !== 'sent'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/expired-server-watch.test.mjs:89:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

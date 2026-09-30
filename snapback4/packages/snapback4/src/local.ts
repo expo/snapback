@@ -1,5 +1,6 @@
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
+import { heldQueryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
 import { duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
@@ -895,6 +896,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         checkRead(signal);
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
+        if (!owner && signal) return { ...result, incarnation: revision, authority }; // One-shot owns the bounded rounds.
         if (result.ephemeralStale || (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest))) {
           if (attempt >= 3) return { ...result, retryExhausted: true, read: { loading: true } as Read<R>, incarnation: revision, authority };
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
@@ -1179,16 +1181,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return response.take(); } });
     },
-    async query(op, args) {
-      while (true) {
-        const result = await runLocal(op, args);
-        const denied = unavailable(); // Rule 1: immediately before returning to the caller.
-        if (denied) return { denied };
-        if (answers.blocked(result) !== undefined || "data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) { answers.serverAnswers.forget(`${op.name}:${JSON.stringify(args)}`); return { loading: true }; }
-        if (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest)) continue;
-        if (publishLocal(result, () => true)) return result.read;
-      }
-    },
+    query: settledQuery(async (op, args, signal) => {
+      const result = await runLocal(op, args, undefined, false, undefined, signal);
+      const writes = "data" in result.read ? await queued() : []; checkRead(signal); return () => {
+        if (answers.blocked(result) !== undefined || "data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) { answers.serverAnswers.forget(`${op.name}:${JSON.stringify(args)}`); return; }
+        if ("data" in result.read && writes.some(w => w.observed_seq == null && (!w.predictable || result.served || result.localWakeup))) return;
+        if (publishLocal(result, () => true)) return "loading" in result.read && (link === "offline" || result.heldUnavailable) ? { denied: link === "offline" ? offline() : heldQueryRefusal() } : result.read;
+      };
+    }, () => terminalQueryRefusal({ scope: null, store: null, closed: closed ? unavailable() : null, session: sessionDead ? unavailable() : null, changes: changesStopped, partition: partitionDenied, inherited: null }), aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep;
       const key = observationKey(op, args, options);

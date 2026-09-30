@@ -1,0 +1,46 @@
+{
+  "base": "9d03e946232b4017564f3e7c6aa87bd424ce8d58",
+  "captured": "2026-09-30T15:40:19Z",
+  "excludes": [
+    "reports",
+    "append-only journal"
+  ],
+  "files": {
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "02f5d4870df5f46555a21d14e3544f9f91d0b1f68a86dd77c4001d7a56e14b03",
+    "llp/3000.014-a-child-reads-through-its-parent.rfc.md": "aa16cbb9f7d353be76b9740b478c1406fe1783364f0f7845daf93feb54fb092a",
+    "snapback4/crates/snapback4-core/src/engine/write_target.rs": "5f31af4a878689adc2c17317c148466467d1c38752dad0a6efddfb594052727f",
+    "snapback4/crates/snapback4-device/tests/first_instinct.rs": "d920356918225560ade71d654b57fc22752722796e9e0303f422c3ea2a3d760c",
+    "snapback4/crates/snapback4-device/tests/read_through.rs": "2a99bd04c4252cdc2c2c8d2892f9ba7471d49e5a4fff019f535af2f3ddefd7de",
+    "snapback4/crates/snapback4-device/tests/readauth/census.txt": "8f4150e5345c39c9cc39329899559bfc2468323f5ca0634becd515549dc21be7",
+    "snapback4/crates/snapback4-lang/src/bind/residency.rs": "d723d01c89da0d48d617a3596c907385634c0af964d888d76adaf3cba84f8afe",
+    "snapback4/crates/snapback4-lang/src/bind/schema.rs": "59cc5bc8d0075a6bccdc06eebd2bf4b213fb7618ec115fd9cf92be331b85ba8c",
+    "snapback4/crates/snapback4-lang/src/bind/through.rs": "6e62eb8dccba412a7729b397df86826f3e54b92225805dbff586d878c281ccce",
+    "snapback4/crates/snapback4-lang/src/bind/through/paths.rs": "3861971ac332d871ac14a8fc2f6296bb1f41304cc4c2bbf229e70cdd0f71f853",
+    "snapback4/crates/snapback4-lang/src/guide/language.rs": "50b54106b2d4531a832bf3481319a14810e5903152ddc4c856b9d77a563077bc",
+    "snapback4/crates/snapback4-lang/src/guide/prediction.rs": "463a216d9e035eb44c02ff76577542b2c8308bc74fa42148af3c26a53483e071",
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": "d7545ef60412669e390444cf79ae05c1ab576ef2307ee7383a30bfc1990b7382",
+    "snapback4/crates/snapback4-lang/src/parser.rs": "25eb75d238449e11bc7fe59f6d33014a09b6e88519e6a1f86c2c77d8da727837",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "9a1e1ab9d1572b5cc2fb56432a11938376c5e58920ed01f01d225bcb2b6eff40",
+    "snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json": "75cc8da4ec1ccabe09457d3a98368b238a7c2029a293464e0f8d32c479daf55c",
+    "snapback4/crates/snapback4-lang/tests/guide.rs": "d49f229a231d2ebd3b707b44a585a3dc25ddedaeab9a2ccf70a47d8cb508ddc2",
+    "snapback4/crates/snapback4-lang/tests/membership_paths.rs": "60ade3955d75a77a13afb838a5909326a418303807a83e45a1fedda084c5b150",
+    "snapback4/crates/snapback4-lang/tests/membership_paths/fixture.rs": "8d56089ccbaac6de9175d0078b4c0ec7fd38d1fb8d0d51d376c09bdba83fea63",
+    "snapback4/crates/snapback4/tests/check/first_paste.rs": "1b0f839dc6f10de862e427a470758c85778a29737416e231402fcf7c5187dfe6",
+    "snapback4/packages/snapback4/test/read-through-upsert.test.mjs": "ca3bc5e180290e54162874440bb1880ab5719e85aa5cccab7234809908f4ad08"
+  },
+  "modified_recorded_files_since_full_launch": [
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md",
+    "snapback4/crates/snapback4-core/src/engine/write_target.rs",
+    "snapback4/crates/snapback4-lang/src/guide/language.rs",
+    "snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json"
+  ],
+  "new_files_without_launch_hash": [
+    "snapback4/crates/snapback4-device/tests/first_instinct.rs",
+    "snapback4/crates/snapback4-device/tests/readauth/census.txt",
+    "snapback4/crates/snapback4-lang/src/bind/through/paths.rs",
+    "snapback4/crates/snapback4-lang/tests/membership_paths.rs",
+    "snapback4/crates/snapback4-lang/tests/membership_paths/fixture.rs",
+    "snapback4/packages/snapback4/test/read-through-upsert.test.mjs"
+  ],
+  "launch_manifest_limit": "Launch collection omitted then-untracked files because git ls-files was run from snapback4 and resolved against the repository root. Final collection runs at the repository root."
+}

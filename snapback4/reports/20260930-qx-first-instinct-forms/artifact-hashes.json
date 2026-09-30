@@ -1,0 +1,22 @@
+{
+  "target/debug/snapback4-qx-baseline": {
+    "bytes": 71180224,
+    "sha256": "8fb8c279d211d665d9d9d6fc8958d74ab90de66fd5c52fba453a6a8156fe784e"
+  },
+  "target/debug/snapback4": {
+    "bytes": 71233400,
+    "sha256": "de813261f62f41042621963a5945bf206d4b63974d63cbba2f8df0485dad9aee"
+  },
+  "packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1979433,
+    "sha256": "30e97774e52d983da69a69441754382fee94120b335b4aeae83a6855c87d1e42"
+  },
+  "packages/snapback4/dist/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1979433,
+    "sha256": "30e97774e52d983da69a69441754382fee94120b335b4aeae83a6855c87d1e42"
+  },
+  "reports/20260930-qx-first-instinct-forms/tools/fixture.q": {
+    "bytes": 12083,
+    "sha256": "e2b24a2174d8d681e8742b19865bc2f48ee48498f002dbfd4ff2a622be842f1d"
+  }
+}

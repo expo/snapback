@@ -1,0 +1,29 @@
+{
+  "base": "eb465eec419cc43db6ed67b3132596733ea7cc65",
+  "before": {
+    "snapback4/crates/snapback4-lang/src/bind/mod.rs": "1174fa8b42d495d1f0c911b07db57e47fb5a9cfcfab8818ca5aa48adad173348",
+    "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": "4ef0948563a992a9adc98e3d9c1e0d87514f4e93e75025171470cfd0dda05196",
+    "snapback4/crates/snapback4-lang/src/bind/program/control.rs": "ce3faee75aa86da156ea91ab02a40e543e3abdcfabe7dcb49c5303864022e76b",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.q": "0e2654cde907dfb8b28e1cfec82fdfc6cae85878c1c06e9367847a233b8ae016",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.rs": "0ad66e009a51816b30e6e9c6c21a22c13bcadfd7b27d27a3b294c29a63816c38"
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "declarative_receipts",
+    "round3",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 101,
+  "restored": {
+    "snapback4/crates/snapback4-lang/src/bind/mod.rs": "1174fa8b42d495d1f0c911b07db57e47fb5a9cfcfab8818ca5aa48adad173348",
+    "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": "4ef0948563a992a9adc98e3d9c1e0d87514f4e93e75025171470cfd0dda05196",
+    "snapback4/crates/snapback4-lang/src/bind/program/control.rs": "ce3faee75aa86da156ea91ab02a40e543e3abdcfabe7dcb49c5303864022e76b",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.q": "0e2654cde907dfb8b28e1cfec82fdfc6cae85878c1c06e9367847a233b8ae016",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.rs": "0ad66e009a51816b30e6e9c6c21a22c13bcadfd7b27d27a3b294c29a63816c38"
+  }
+}

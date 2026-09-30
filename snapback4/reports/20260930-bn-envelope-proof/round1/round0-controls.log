@@ -1,0 +1,438 @@
+(node:3774114) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ acquire CLI refuses invalid arguments before connecting (80.59031ms)
+✖ reconnect proof rejects more-then-drop and records every attempted request (1344.258701ms)
+✖ reconnect proof rejects denied and records every attempted request (1315.867091ms)
+✖ reconnect proof rejects malformed-json and records every attempted request (1339.891545ms)
+✖ reconnect proof rejects null and records every attempted request (1646.499893ms)
+✖ reconnect proof rejects missing-fields and records every attempted request (1313.976309ms)
+✖ reconnect proof rejects bad-more and records every attempted request (1307.36026ms)
+✖ reconnect proof rejects behind-server and records every attempted request (1307.320254ms)
+✖ reconnect proof rejects dropped-first and records every attempted request (1288.715445ms)
+✖ reconnect proof rejects truncated-body and records every attempted request (1314.841206ms)
+✖ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (107.113997ms)
+✖ witness family usage advertises both commands and shares input diagnostics (5.059219ms)
+✖ receipt identifies the JSON-line subprocess host (1301.248827ms)
+✖ restart times coverage separately from first answer (1300.388351ms)
+✖ bounds names the known process-device apply defect independently from retention (3.267665ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 0
+ℹ fail 15
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15097.630987
+
+✖ failing tests:
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:66:1
+✖ acquire CLI refuses invalid arguments before connecting (80.59031ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_INPUT/. Input:
+
+  'E_INPUT: --as needs a persona or principal\nsee snapback4 guide bounds\n'
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:72:68)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_INPUT: --as needs a persona or principal\nsee snapback4 guide bounds\n',
+    expected: /E_WITNESS_INPUT/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects more-then-drop and records every attempted request (1344.258701ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects denied and records every attempted request (1315.867091ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects malformed-json and records every attempted request (1339.891545ms)
+  AssertionError [ERR_ASSERTION]: partial failed run must be retained
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:191:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects null and records every attempted request (1646.499893ms)
+  AssertionError [ERR_ASSERTION]: partial failed run must be retained
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:191:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects missing-fields and records every attempted request (1313.976309ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects bad-more and records every attempted request (1307.36026ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects behind-server and records every attempted request (1307.320254ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects dropped-first and records every attempted request (1288.715445ms)
+  AssertionError [ERR_ASSERTION]: partial failed run must be retained
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:191:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:157:3
+✖ reconnect proof rejects truncated-body and records every attempted request (1314.841206ms)
+  AssertionError [ERR_ASSERTION]: partial failed run must be retained
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:191:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:206:1
+✖ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (107.113997ms)
+  AssertionError [ERR_ASSERTION]: stdout leaked a supplied or reflected credential
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:225:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:235:1
+✖ witness family usage advertises both commands and shares input diagnostics (5.059219ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /witness acquire/. Input:
+
+  'E_WITNESS_INPUT: use snapback4 witness ios --smoke --bundle-id <id> --artifacts <dir> [--udid <id>] [--port 4400] [--prime] [--relaunch] [--timeout 120]\n' +
+    'see snapback4 guide witness\n'
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:239:63)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_WITNESS_INPUT: use snapback4 witness ios --smoke --bundle-id <id> --artifacts <dir> [--udid <id>] [--port 4400] [--prime] [--relaunch] [--timeout 120]\nsee snapback4 guide witness\n',
+    expected: /witness acquire/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:243:1
+✖ receipt identifies the JSON-line subprocess host (1301.248827ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /one JSON line per call.*snapback4 device subprocess/. Input:
+
+  'Native process device (SQLite, same module as Expo); web wasm + IndexedDB figures differ. Bytes are SQLite pages, excluding WAL/SHM, not RSS.'
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:248:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Native process device (SQLite, same module as Expo); web wasm + IndexedDB figures differ. Bytes are SQLite pages, excluding WAL/SHM, not RSS.',
+    expected: /one JSON line per call.*snapback4 device subprocess/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:253:1
+✖ restart times coverage separately from first answer (1300.388351ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(r.coverageVerifiedMs > 0)
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:259:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:277:1
+✖ bounds names the known process-device apply defect independently from retention (3.267665ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /known performance defect/. Input:
+
+  '//! The bounds card. Quarry examples are compiled by tests/guide.rs.\n' +
+    '// HV web figures: reports/20260929-hv-heavy-acquisition/REPORT.md, five-run table.\n' +
+    'pub(super) const CARD: &str = r##"# Bounds and the meter\n' +
+    '\n' +
+    'The meter limits the work each read, mutation and job transaction can do.\n' +
+    'Declare product limits; the engine chooses execution bounds within those ceilings.\n' +
+    '\n' +
+    '```quarry\n' +
+    'table scalePosts:\n' +
+    '  body: text <=500\n' +
+    '  public\n' +
+    '  online only\n' +
+    'query scalePage(c: cursor ?):\n' +
+    '  return scalePosts first 20 by .id after c\n' +
+    'query scalePopulation():\n' +
+    '  return count(scalePosts)\n' +
+    '```\n' +
+    '\n' +
+    'Write product limits: a page size, a text length, an asset size or a real\n' +
+    'per-group cap. Do not choose an index, a merge width or a job transaction\n' +
+    'size. Predicate reads and views choose their plans; top-level job `for`\n' +
+    'loops choose their chunks. Removing a written number never removes the meter.\n' +
+    '\n' +
+    "A query's `for row in t where .owner = viewer:` and a merge lane's source may omit `first N`\n" +
+    'when the read rule is uniformly decided by that prefix; they read ascending\n' +
+    'until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`\n' +
+    'and `lanes ≤ meter` when no fitting schema cap supplies a static bound.\n' +
+    'A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.\n' +
+    'A returned or bound page instead needs a schema cap or an explicit page bound.\n' +
+    "Jobs may iterate uncapped domains under the chunk's meter. Top-level job\n" +
+    '`for` sweeps shrink their transaction size after a meter refusal. Mutation loops\n' +
+    'still need a schema-capped group that fits the examined ceiling. Direct\n' +
+    '`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the\n' +
+    'meter without retaining the page. Schema-capped query `count` and `sum` with\n' +
+    'non-uniform read rules keep their bounded page execution and coverage contract.\n' +
+    'Mutations retain their uniform-read and\n' +
+    'plain-prefix admission rules; a cut aborts the transaction, never commits a\n' +
+    'partial total. A streaming query total with a meter cut or unknown device\n' +
+    'coverage leaves the client read `loading`, never a partial count or sum.\n' +
+    'Unknown earlier reads also make a streaming scalar unavailable, including\n' +
+    'inputs saved in locals or used as domain bounds; a fallback cannot establish\n' +
+    'coverage.\n' +
+    '\n' +
+    '## Allocation and completeness\n' +
+    '\n' +
+    'Heap is a cumulative allocation and binding budget. Streaming aggregates\n' +
+    'release each transient row and its key scratch; one cursor allowance remains.\n' +
+    'Inner job domains decode one prepaid row at a time and retain each selected\n' +
+    "row under the heap meter before fetching another. Once decoded, the row's\n" +
+    'retained allowance replaces its decode scratch. Retained rows, their vector\n' +
+    'and the live cursor stay charged; domains do not retain unused result keys.\n' +
+    'Constructed values,\n' +
+    'concatenation and other allocating builtins, local bindings, and owned\n' +
+    "copies count. Inspecting a held value's length or sum borrows it; row and\n" +
+    'map clones share their immutable image. A heap cut stops a query immediately\n' +
+    'with no available value or continuation, since an interrupted scalar or shape\n' +
+    'has no valid partial answer. The client read is `loading`; narrow the query or\n' +
+    'use a maintained view for a total. Its cut site remains internal;\n' +
+    "the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).\n" +
+    'An unfinished maintained lookup or live aggregate uses the same unavailable\n' +
+    'query result, preserving zero only for a completed missing-group lookup.\n' +
+    'A mutation rolls back; Operations below describes the refusal.\n' +
+    'A page whose read rule the prefix does not decide (the deciding fields include a\n' +
+    'column the scan does not pin) is never `complete`: the server cannot tell\n' +
+    '"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the\n' +
+    'partition holds exactly what the viewer may read. `check` says so\n' +
+    '(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor\n' +
+    '(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon\n' +
+    '(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).\n' +
+    '`complete` means the query answered its declared request within known coverage and execution limits.\n' +
+    'Filling `first N` or `last N` is complete, including a composed preview.\n' +
+    'A cursorless page cannot continue; declare `c: cursor ?` and use `after c`\n' +
+    'if the screen pages. Composed fields and pages covering a fitting group cap\n' +
+    'omit `N_NO_CURSOR`.\n' +
+    '\n' +
+    '## Operations\n' +
+    '\n' +
+    'Nothing is priced at check. As a program runs, the meter counts examined\n' +
+    'rows, index entries, rule probes, steps, heap bytes, output bytes and rows\n' +
+    'written against ceilings: 8,192 rows examined, 16,384 index entries, 8,192\n' +
+    'rule probes, 1,000,000 steps, 16 MiB heap, 1 MiB output, 1,024 rows written\n' +
+    "per mutation; a job's chunk may examine 16,384 rows and write 8,192. A\n" +
+    'query past a ceiling returns what it found with `complete: false`; a\n' +
+    'mutation aborts with E_BOUND naming the meter, the ceiling and the site\n' +
+    '(never the count: it would measure rows the viewer may not read).\n' +
+    'Read a smaller page, narrow its predicate, or move the sweep into a job.\n' +
+    'Authorization-dependent scans prepay a fixed logical allowance before row\n' +
+    "discovery. Hidden candidates do not consume the caller's remaining allowance;\n" +
+    'readable rows, filters and output still do. These logical meters exclude private\n' +
+    'scan work: authorization candidates share one physical limit of 8,192\n' +
+    'per request, including nested witnesses and maintained-source walks. A row behind at least 8,192 such candidates is unreachable by paging\n' +
+    'in that direction; an empty page has no cursor into the hidden range. Expiring\n' +
+    'cap checks draw from that same allowance; any authorization that cannot be\n' +
+    'established within it returns generic E_RULE without identifying a cause.\n' +
+    "The device's separate prediction-work budget can instead queue an operation.\n" +
+    "`snapback4 check --cost` prints each site's structural class;\n" +
+    '`snapback4 test` prints the numbers on your data and names query/persona reads\n' +
+    'past half any ceiling without a cut: at most ten lines and a count of the rest.\n' +
+    'Loopback `dev` logs actual meter and word cuts with the operation, principal,\n' +
+    'site, counters and `snapback4 why <op>`. Repeats are suppressed per operation\n' +
+    'and site (at most two lines per minute); the next emitted line includes the\n' +
+    'suppressed count. `serve` neither logs these costs nor returns read meters.\n' +
+    'A loop is bounded\n' +
+    "by a page's `first N`, a schema-capped prefix, a query's meter-bounded prefix, a list's `<=N`, `range`'s int expressions, `walk`'s depth,\n" +
+    "or `tokens`' 64. An accumulated list is bounded by the heap meter and its\n" +
+    'iterations by the step meter. `while` stays refused.\n' +
+    '`range(a, b)` evaluates int expressions once and iterates under the step meter,\n' +
+    'without materializing the range. `check --cost` prints `steps ≤ meter`, a\n' +
+    'filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,\n' +
+    'and a seek as a prefix. Sorting or grouping a page only processes that page.\n' +
+    "`sha256(text)` charges the input's UTF-8 byte length plus one to steps before\n" +
+    'hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step\n' +
+    'cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves\n' +
+    'the client read `loading`, as other query heap cuts do. A mutation rolls\n' +
+    'back on either cut.\n' +
+    '\n' +
+    '### Prove the heaviest account\n' +
+    '\n' +
+    "Prove the envelope's heaviest account, not a typical one: 500 follows and\n" +
+    "1,000 conversations need that account's acquisition and cold restart evidence.\n" +
+    'Against your running backend, replace alice and heldNotes with your heaviest\n' +
+    "persona and a device query; SB4_URL is dev's printed URL, SB4_PROOF a new directory:\n" +
+    '\n' +
+    '```sh\n' +
+    'snapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json\n' +
+    '```\n' +
+    '\n' +
+    'For serve or a real account, use `--as <principal> --token <bearer>`.\n' +
+    'Optional `--args \'{"c":null}\'` supplies query arguments; without `--query` the\n' +
+    'witness selects the first zero-argument device query. `--runs 3` uses three fresh\n' +
+    'stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run.\n' +
+    'The command writes acquire.json even on failure; --json prints it, otherwise\n' +
+    'one summary per run. Receipt excerpt (counts depend on your fixture):\n' +
+    '\n' +
+    '```json\n' +
+    '{"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}\n' +
+    '```\n' +
+    '\n' +
+    'It uses the native process device, the same SQLite module as Expo. Web wasm +\n' +
+    'IndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;\n' +
+    '`firstLocalMs` times the first complete local query after that boundary, both\n' +
+    'from fresh startup including identity checks. Restart firstLocalMs includes cold\n' +
+    'reopen with all HTTP blocked. Retained means identical store/generation/watermark,\n' +
+    'per-group row counts and persisted coverage, and table row/byte counts before\n' +
+    'reconnect; reconnect must then send no row events (an empty snapshot is possible\n' +
+    'at watermark zero). Keep the fixture\n' +
+    'stable: new writes or expiry can invalidate this comparison. No OS-cache flush,\n' +
+    'app UI, media-cache or physical-phone performance is claimed.\n' +
+    'Groups are table/group pairs with rows or recorded coverage (plus implicit public\n' +
+    'and principal groups); inspect groupsByTable.messages for the conversation count.\n' +
+    'residency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row\n' +
+    'payload bytes. requests preserve Server-Timing and parsed serverMs; serverSyncMs\n' +
+    'sums acquisition sync total durations (null on serve). Verification scans follow\n' +
+    'the timed answer. Background polling is suppressed; SDK sync itself is unchanged.\n' +
+    "HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000\n" +
+    'memberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;\n' +
+    'first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are\n' +
+    'historical workload measurements, not a promise or native-device numbers.\n' +
+    '\n' +
+    '### Measuring a growth curve\n' +
+    '\n' +
+    'Use the same backend, query arguments, principal, build and host at each corpus\n' +
+    'check'... 16504 more characters
+
+      at TestContext.<anonymous> (file:///tmp/bn-r1-round0-controls/packages/snapback4/test/witness-acquire.test.mjs:279:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '//! The bounds card. Quarry examples are compiled by tests/guide.rs.\n// HV web figures: reports/20260929-hv-heavy-acquisition/REPORT.md, five-run table.\npub(super) const CARD: &str = r##"# Bounds and the meter\n\nThe meter limits the work each read, mutation and job transaction can do.\nDeclare product limits; the engine chooses execution bounds within those ceilings.\n\n```quarry\ntable scalePosts:\n  body: text <=500\n  public\n  online only\nquery scalePage(c: cursor ?):\n  return scalePosts first 20 by .id after c\nquery scalePopulation():\n  return count(scalePosts)\n```\n\nWrite product limits: a page size, a text length, an asset size or a real\nper-group cap. Do not choose an index, a merge width or a job transaction\nsize. Predicate reads and views choose their plans; top-level job `for`\nloops choose their chunks. Removing a written number never removes the meter.\n\nA query\'s `for row in t where .owner = viewer:` and a merge lane\'s source may omit `first N`\nwhen the read rule is uniformly decided by that prefix; they read ascending\nuntil the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`\nand `lanes ≤ meter` when no fitting schema cap supplies a static bound.\nA loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.\nA returned or bound page instead needs a schema cap or an explicit page bound.\nJobs may iterate uncapped domains under the chunk\'s meter. Top-level job\n`for` sweeps shrink their transaction size after a meter refusal. Mutation loops\nstill need a schema-capped group that fits the examined ceiling. Direct\n`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the\nmeter without retaining the page. Schema-capped query `count` and `sum` with\nnon-uniform read rules keep their bounded page execution and coverage contract.\nMutations retain their uniform-read and\nplain-prefix admission rules; a cut aborts the transaction, never commits a\npartial total. A streaming query total with a meter cut or unknown device\ncoverage leaves the client read `loading`, never a partial count or sum.\nUnknown earlier reads also make a streaming scalar unavailable, including\ninputs saved in locals or used as domain bounds; a fallback cannot establish\ncoverage.\n\n## Allocation and completeness\n\nHeap is a cumulative allocation and binding budget. Streaming aggregates\nrelease each transient row and its key scratch; one cursor allowance remains.\nInner job domains decode one prepaid row at a time and retain each selected\nrow under the heap meter before fetching another. Once decoded, the row\'s\nretained allowance replaces its decode scratch. Retained rows, their vector\nand the live cursor stay charged; domains do not retain unused result keys.\nConstructed values,\nconcatenation and other allocating builtins, local bindings, and owned\ncopies count. Inspecting a held value\'s length or sum borrows it; row and\nmap clones share their immutable image. A heap cut stops a query immediately\nwith no available value or continuation, since an interrupted scalar or shape\nhas no valid partial answer. The client read is `loading`; narrow the query or\nuse a maintained view for a total. Its cut site remains internal;\nthe meter is available only through dev\'s default read inspection (CLIENT-AND-OPERATIONS.md §4).\nAn unfinished maintained lookup or live aggregate uses the same unavailable\nquery result, preserving zero only for a completed missing-group lookup.\nA mutation rolls back; Operations below describes the refusal.\nA page whose read rule the prefix does not decide (the deciding fields include a\ncolumn the scan does not pin) is never `complete`: the server cannot tell\n"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the\npartition holds exactly what the viewer may read. `check` says so\n(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor\n(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon\n(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).\n`complete` means the query answered its declared request within known coverage and execution limits.\nFilling `first N` or `last N` is complete, including a composed preview.\nA cursorless page cannot continue; declare `c: cursor ?` and use `after c`\nif the screen pages. Composed fields and pages covering a fitting group cap\nomit `N_NO_CURSOR`.\n\n## Operations\n\nNothing is priced at check. As a program runs, the meter counts examined\nrows, index entries, rule probes, steps, heap bytes, output bytes and rows\nwritten against ceilings: 8,192 rows examined, 16,384 index entries, 8,192\nrule probes, 1,000,000 steps, 16 MiB heap, 1 MiB output, 1,024 rows written\nper mutation; a job\'s chunk may examine 16,384 rows and write 8,192. A\nquery past a ceiling returns what it found with `complete: false`; a\nmutation aborts with E_BOUND naming the meter, the ceiling and the site\n(never the count: it would measure rows the viewer may not read).\nRead a smaller page, narrow its predicate, or move the sweep into a job.\nAuthorization-dependent scans prepay a fixed logical allowance before row\ndiscovery. Hidden candidates do not consume the caller\'s remaining allowance;\nreadable rows, filters and output still do. These logical meters exclude private\nscan work: authorization candidates share one physical limit of 8,192\nper request, including nested witnesses and maintained-source walks. A row behind at least 8,192 such candidates is unreachable by paging\nin that direction; an empty page has no cursor into the hidden range. Expiring\ncap checks draw from that same allowance; any authorization that cannot be\nestablished within it returns generic E_RULE without identifying a cause.\nThe device\'s separate prediction-work budget can instead queue an operation.\n`snapback4 check --cost` prints each site\'s structural class;\n`snapback4 test` prints the numbers on your data and names query/persona reads\npast half any ceiling without a cut: at most ten lines and a count of the rest.\nLoopback `dev` logs actual meter and word cuts with the operation, principal,\nsite, counters and `snapback4 why <op>`. Repeats are suppressed per operation\nand site (at most two lines per minute); the next emitted line includes the\nsuppressed count. `serve` neither logs these costs nor returns read meters.\nA loop is bounded\nby a page\'s `first N`, a schema-capped prefix, a query\'s meter-bounded prefix, a list\'s `<=N`, `range`\'s int expressions, `walk`\'s depth,\nor `tokens`\' 64. An accumulated list is bounded by the heap meter and its\niterations by the step meter. `while` stays refused.\n`range(a, b)` evaluates int expressions once and iterates under the step meter,\nwithout materializing the range. `check --cost` prints `steps ≤ meter`, a\nfiltered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,\nand a seek as a prefix. Sorting or grouping a page only processes that page.\n`sha256(text)` charges the input\'s UTF-8 byte length plus one to steps before\nhashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step\ncut refuses a scalar query with E_BOUND; a cut on that result allocation leaves\nthe client read `loading`, as other query heap cuts do. A mutation rolls\nback on either cut.\n\n### Prove the heaviest account\n\nProve the envelope\'s heaviest account, not a typical one: 500 follows and\n1,000 conversations need that account\'s acquisition and cold restart evidence.\nAgainst your running backend, replace alice and heldNotes with your heaviest\npersona and a device query; SB4_URL is dev\'s printed URL, SB4_PROOF a new directory:\n\n```sh\nsnapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json\n```\n\nFor serve or a real account, use `--as <principal> --token <bearer>`.\nOptional `--args \'{"c":null}\'` supplies query arguments; without `--query` the\nwitness selects the first zero-argument device query. `--runs 3` uses three fresh\nstores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run.\nThe command writes acquire.json even on failure; --json prints it, otherwise\none summary per run. Receipt excerpt (counts depend on your fixture):\n\n```json\n{"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}\n```\n\nIt uses the native process device, the same SQLite module as Expo. Web wasm +\nIndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;\n`firstLocalMs` times the first complete local query after that boundary, both\nfrom fresh startup including identity checks. Restart firstLocalMs includes cold\nreopen with all HTTP blocked. Retained means identical store/generation/watermark,\nper-group row counts and persisted coverage, and table row/byte counts before\nreconnect; reconnect must then send no row events (an empty snapshot is possible\nat watermark zero). Keep the fixture\nstable: new writes or expiry can invalidate this comparison. No OS-cache flush,\napp UI, media-cache or physical-phone performance is claimed.\nGroups are table/group pairs with rows or recorded coverage (plus implicit public\nand principal groups); inspect groupsByTable.messages for the conversation count.\nresidency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row\npayload bytes. requests preserve Server-Timing and parsed serverMs; serverSyncMs\nsums acquisition sync total durations (null on serve). Verification scans follow\nthe timed answer. Background polling is suppressed; SDK sync itself is unchanged.\nHV\'s measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000\nmemberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;\nfirst inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are\nhistorical workload measurements, not a promise or native-device numbers.\n\n### Measuring a growth curve\n\nUse the same backend, query arguments, principal, build and host at each corpus\ncheck'... 16504 more characters,
+    expected: /known performance defect/,
+    operator: 'match',
+    diff: 'simple'
+  }

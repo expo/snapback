@@ -11,7 +11,7 @@ fn served_query_facts(backend: &Value) -> Result<Value> {
     let mut facts = serde_json::Map::new();
     for p in programs {
         if p.kind != ProgramKind::Query || !p.args.values().all(|a| matches!(a, ArgType::Optional(_))) { continue; }
-        if p.native { return Err(error("E_WITNESS_BACKEND", format!("native query {} requires an application witness; generic smoke cannot classify conditional module availability", p.name))); }
+        if p.native { return Err(error("E_WITNESS_BACKEND", "native query requires an application witness; --smoke cannot classify conditional module availability")); }
         let fact = &backend["schema"]["operations"][&p.name];
         if !matches!(fact["runs"].as_str(), Some("device" | "server")) { return Err(refuse()); }
         let held = match &fact["held"] { Value::Null => false, Value::Bool(b) => *b, _ => return Err(refuse()) };
@@ -29,15 +29,15 @@ impl Run {
         let host = super::super::adoption::request(address(self.options.port), "GET", "/dev/status")
             .ok_or_else(|| error("E_WITNESS_BACKEND", "cannot read the owned backend's generation"))?;
         let db = rusqlite::Connection::open_with_flags(self.manifest["backend"]["store"].as_str().unwrap_or_default(), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .map_err(|e| error("E_WITNESS_BACKEND", e))?;
+            .map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
         let (generation, schema, programs, store_id): (i64, String, String, String) = db.query_row(
             "SELECT generation, schema, programs, (SELECT value FROM _meta WHERE key='store_id') FROM _generations WHERE generation=(SELECT value FROM _meta WHERE key='generation')",
-            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).map_err(|e| error("E_WITNESS_BACKEND", e))?;
+            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
         if host["generation"] != generation || host["storeId"] != store_id || !host["adoption"].is_null() {
             return Err(error("E_WITNESS_BACKEND", "owned backend and committed compiler generation differ"));
         }
-        let schema: Value = serde_json::from_str(&schema).map_err(|e| error("E_WITNESS_BACKEND", e))?;
-        let programs: BTreeMap<String, Value> = serde_json::from_str(&programs).map_err(|e| error("E_WITNESS_BACKEND", e))?;
+        let schema: Value = serde_json::from_str(&schema).map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
+        let programs: BTreeMap<String, Value> = serde_json::from_str(&programs).map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
         let backend = json!({ "generation": generation, "schema": schema, "programs": programs.into_values().collect::<Vec<_>>() });
         let facts = served_query_facts(&backend)?;
         if !self.manifest["queryFacts"].is_null()
@@ -197,7 +197,7 @@ fn validate_receipt(segment: &str, value: &Value, prime: &Value, barrier: Option
 
 fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
     // @ref LLP 3000.019#3.4 — a restart witness writes only while the backend store is unowned.
-    let _owner = crate::store_owner::command(path).map_err(|e| error("E_WITNESS_BACKEND", e))?;
+    let _owner = crate::store_owner::command(path).map_err(|_| error("E_WITNESS_BACKEND", "cannot acquire backend store; stop its owner and check store permissions"))?;
     let append = || -> std::result::Result<u64, snapback4_core::RuntimeError> {
         let mut store = _owner.open_store(std::time::Duration::from_secs(5))?;
         if store.meta("store_id")?.as_deref() != Some(store_id) || store.seq()? < prime {
@@ -209,7 +209,7 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
         tx.commit()?;
         Ok(seq)
     };
-    append().map_err(|e| error("E_WITNESS_BACKEND", e))
+    append().map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))
 }
 
 #[cfg(test)]
@@ -305,7 +305,8 @@ query required(id: heldRows):
             let mut owner = crate::store_owner::command(&path).unwrap();
             crate::store_owner::announce(&mut owner, "127.0.0.1:1234".parse().unwrap()).unwrap();
             let refused = barrier(&path, &identity, before).unwrap_err();
-            assert!(refused.contains("E_STORE_BUSY") && refused.contains("http://127.0.0.1:1234"), "{refused}");
+            assert!(refused.contains("cannot acquire backend store; stop its owner"), "{refused}");
+            assert!(!refused.contains("http://127.0.0.1:1234"), "refusal must not echo the port");
             let store = owner.open_store(std::time::Duration::from_secs(5)).unwrap();
             assert_eq!(store.seq().unwrap(), before);
         }

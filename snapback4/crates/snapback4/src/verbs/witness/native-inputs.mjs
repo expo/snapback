@@ -15,57 +15,57 @@ const scripts = new Set([
   '28943aec3652e14ca57708fd2862210a7694a9f94bfd88245ccf4f331cc835e1',
 ]);
 const generated = new Set(['BUILT_PRODUCTS_DIR', 'PODS_CONFIGURATION_BUILD_DIR', 'PODS_XCFRAMEWORKS_BUILD_DIR', 'DERIVED_FILE_DIR']);
-function reject(value) { fail('E_WITNESS_NATIVE_COMPAT', `native input outside covered roots or unsupported build input: ${value}; use manual preparation and installed-app mode`); }
+function reject(reason) { fail('E_WITNESS_NATIVE_COMPAT', `${reason}; unsupported --build input; use manual preparation and installed-app mode`); }
 export function nativeReferences(root, project, appName) {
   root = fs.realpathSync(root);
   const ios = path.join(root, 'ios'), objects = project.objects, parents = new Map(), visited = new Set();
   for (const [id, object] of Object.entries(objects)) for (const child of object.children ?? []) {
-    if (parents.has(child)) reject(`ambiguous Xcode parent ${child}`);
+    if (parents.has(child)) reject('ambiguous Xcode parent');
     parents.set(child, id);
   }
   const variables = { SRCROOT: ios, PROJECT_DIR: ios, PODS_ROOT: path.join(ios, 'Pods'), PODS_PODFILE_DIR_PATH: ios,
     CONFIGURATION: 'Release', TARGET_NAME: appName, PRODUCT_NAME: appName };
   const inside = (p, base) => p === base || p.startsWith(base + path.sep);
   function input(value, base = ios) {
-    if (typeof value !== 'string' || !value) reject(String(value));
+    if (typeof value !== 'string' || !value) reject('invalid native input');
     if (value === '/usr/lib/swift') return null; // Xcode's system Swift runtime search path
     const first = value.match(/^\$[({]([A-Z_]+)[)}](?:\/|$)/)?.[1];
     if (first && (generated.has(first) || first === 'SDKROOT')) {
-      if (value.split('/').includes('..')) reject(value);
+      if (value.split('/').includes('..')) reject('native input outside covered roots');
       return null; // system SDK or a generated build product, not a source input
     }
-    const resolved = path.resolve(base, value.replace(/\$\((\w+)\)|\$\{(\w+)\}/g, (_, a, b) => variables[a ?? b] ?? reject(value)));
-    if (resolved.includes('$')) reject(value);
+    const resolved = path.resolve(base, value.replace(/\$\((\w+)\)|\$\{(\w+)\}/g, (_, a, b) => variables[a ?? b] ?? reject('native input outside covered roots')));
+    if (resolved.includes('$')) reject('native input outside covered roots');
     // Resolve even missing/generated leaves through their nearest existing parent.
     let ancestor = resolved;
     while (!fs.existsSync(ancestor) && ancestor !== path.dirname(ancestor)) ancestor = path.dirname(ancestor);
     const canonical = path.resolve(fs.realpathSync(ancestor), path.relative(ancestor, resolved));
-    if (!inside(canonical, ios) && !inside(canonical, path.join(root, 'node_modules'))) reject(value);
-    if (inside(canonical, path.join(ios, 'build')) || canonical.includes('/xcuserdata')) reject(value);
+    if (!inside(canonical, ios) && !inside(canonical, path.join(root, 'node_modules'))) reject('native input outside covered roots');
+    if (inside(canonical, path.join(ios, 'build')) || canonical.includes('/xcuserdata')) reject('native input outside covered roots');
     if (inside(canonical, path.join(ios, 'Pods'))) {
       const pod = path.relative(path.join(ios, 'Pods'), canonical);
       const support = `Target Support Files/Pods-${appName}/`;
       const names = [`Pods-${appName}.debug.xcconfig`, `Pods-${appName}.release.xcconfig`,
         `Pods-${appName}-frameworks.sh`, `Pods-${appName}-resources.sh`, 'ExpoModulesProvider.swift', 'expo-configure-project.sh'];
-      if (pod && pod !== 'Manifest.lock' && !(pod.startsWith(support) && names.includes(pod.slice(support.length)))) reject(value);
+      if (pod && pod !== 'Manifest.lock' && !(pod.startsWith(support) && names.includes(pod.slice(support.length)))) reject('native input outside covered roots');
     }
     return canonical;
   }
   const locations = new Map();
   function locate(id, stack = new Set()) {
     if (locations.has(id)) return locations.get(id);
-    if (stack.has(id)) reject(`Xcode group cycle ${id}`);
+    if (stack.has(id)) reject('Xcode group cycle');
     stack.add(id);
-    const obj = objects[id]; if (!obj) reject(`missing Xcode object ${id}`);
+    const obj = objects[id]; if (!obj) reject('missing Xcode object');
     const tree = obj.sourceTree ?? '<group>';
     let location;
     if (generated.has(tree) || tree === 'SDKROOT') {
       input(`$(${tree})/${obj.path ?? ''}`); location = null;
     } else if (tree === '<group>' || tree === 'SOURCE_ROOT' || tree === '<absolute>') {
       const parent = tree === '<group>' && parents.has(id) ? locate(parents.get(id), stack) : ios;
-      if (!parent) reject(`source nested in build products ${id}`);
+      if (!parent) reject('source nested in build products');
       location = input(obj.path ?? '.', parent);
-    } else reject(`Xcode sourceTree ${tree}`);
+    } else reject('Xcode sourceTree');
     locations.set(id, location); return location;
   }
   function textInputs(file, kind = "") {
@@ -89,17 +89,17 @@ export function nativeReferences(root, project, appName) {
     for (const [rawKey, raw] of Object.entries(values)) {
       const key = rawKey.replace(/\[[^\]]+\]/g, '');
       if (outputKey(key) || /(?:FOLDER_PATH|EXECUTABLE_PATH)$/.test(key)
-        || ['INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME'].includes(key)) reject(`custom output ${key}: ${raw}`);
+        || ['INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME'].includes(key)) reject('custom output');
       // Flags can load response files, compiler plug-ins and undeclared inputs.
       // This adapter accepts only the generated template's flag vocabulary.
       if (/^(?:OTHER_.*FLAGS|COMPILER_FLAGS|GCC_PREPROCESSOR_DEFINITIONS)(?:\[|$)/.test(key)) {
         const allowed = new Set(['$(inherited)', '${inherited}', '-DRCT_REMOVE_LEGACY_ARCH=1', '-ObjC', '-lc++',
           '-D', 'EXPO_CONFIGURATION_DEBUG', 'EXPO_CONFIGURATION_RELEASE', 'DEBUG=1', 'FB_SONARKIT_ENABLED=1']);
         const tokens = (Array.isArray(raw) ? raw : [raw]).flatMap(v => String(v).split(/\s+/)).filter(Boolean);
-        if (tokens.some(v => !allowed.has(v))) reject(`${key}: ${tokens.join(' ')}`);
+        if (tokens.some(v => !allowed.has(v))) reject('unsupported compiler flags');
       }
       if (/^(?:CC|CXX|LD|LDPLUSPLUS|SWIFT_EXEC|TOOLCHAINS|SDKROOT)(?:\[|$)/.test(key)
-        && !(key === 'SDKROOT' && ['iphoneos', 'iphonesimulator'].includes(raw))) reject(`custom tool ${key}`);
+        && !(key === 'SDKROOT' && ['iphoneos', 'iphonesimulator'].includes(raw))) reject('custom tool');
       if (['PODFILE_DIR', 'REACT_NATIVE_PATH'].includes(key)) { input(raw); continue; }
       if (!/(?:SEARCH_PATHS|INCLUDE_PATHS|BRIDGING_HEADER|PREFIX_HEADER|MODULEMAP_FILE|INFOPLIST_FILE|ENTITLEMENTS)$/.test(key)) continue;
       for (const v of (Array.isArray(raw) ? raw : [raw])) {
@@ -113,11 +113,11 @@ export function nativeReferences(root, project, appName) {
   }
   for (const [id, object] of Object.entries(objects)) {
     if (object.projectDirPath || object.projectRoot || object.isa?.includes('SwiftPackage')
-      || object.isa === 'PBXReferenceProxy') reject(`unsupported external project/package ${id}`);
+      || object.isa === 'PBXReferenceProxy') reject('unsupported external project/package');
     if (['PBXFileReference', 'PBXGroup', 'PBXVariantGroup'].includes(object.isa)) textInputs(locate(id));
-    if (object.isa?.startsWith('PBXFileSystemSynchronized') || object.isa === 'PBXBuildRule') reject(object.isa);
+    if (object.isa?.startsWith('PBXFileSystemSynchronized') || object.isa === 'PBXBuildRule') reject('unsupported native graph object');
     if (object.isa === 'PBXShellScriptBuildPhase' && (object.shellPath !== '/bin/sh'
-      || !scripts.has(hash(object.shellScript.replaceAll(appName, '${APP_NAME}'))))) reject(`custom shell phase ${object.name ?? id}`);
+      || !scripts.has(hash(object.shellScript.replaceAll(appName, '${APP_NAME}'))))) reject('custom shell phase');
     for (const ref of object.inputPaths ?? []) textInputs(input(ref));
     for (const ref of object.inputFileListPaths ?? []) textInputs(input(ref), 'list');
     if (object.baseConfigurationReference) textInputs(locate(object.baseConfigurationReference), 'config');
@@ -139,7 +139,7 @@ export function nativeReferences(root, project, appName) {
   for (const name of fs.readdirSync(ios).filter(n => n.endsWith('.xcworkspace'))) {
     const file = path.join(ios, name, 'contents.xcworkspacedata');
     if (fs.existsSync(file)) for (const match of fs.readFileSync(file, 'utf8').matchAll(/location\s*=\s*"([^"]+)"/g)) {
-      if (![ `group:${appName}.xcodeproj`, 'group:Pods/Pods.xcodeproj' ].includes(match[1])) reject(match[1]);
+      if (![ `group:${appName}.xcodeproj`, 'group:Pods/Pods.xcodeproj' ].includes(match[1])) reject('unsupported workspace reference');
     }
   }
   function scan(dir) {

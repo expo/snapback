@@ -48,6 +48,7 @@ impl Runner<'_> {
 
     fn insert_attempt(&mut self, table_name: &str, row: Supplied, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
+        self.refuse_receipt_fields(table_name, &row, true)?;
         self.refuse_recorded(table_name, &row)?;
         let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
         // A directly supplied field is a payload error before any lookup;
@@ -207,6 +208,7 @@ impl Runner<'_> {
 
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
+        self.refuse_receipt_fields(table_name, &patch, false)?;
         self.refuse_recorded(table_name, &patch)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &patch)?;
         if patch.as_object()?.contains_key("id") {
@@ -230,6 +232,7 @@ impl Runner<'_> {
 
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
+        self.refuse_receipt_fields(table_name, &row, false)?;
         self.refuse_recorded(table_name, &row)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
         let id = key.as_str()?;
@@ -272,6 +275,7 @@ impl Runner<'_> {
     /// `copy` is the merged image's lawful price, charged again for an engine slot copy.
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value, copy: u64) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
+        self.refuse_receipt_fields(table_name, patch, false)?;
         self.refuse_recorded(table_name, patch)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
         self.authorize_fields(table_name, &old, patch)?;
@@ -327,6 +331,7 @@ impl Runner<'_> {
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
         let table = &self.schema.tables[table_name];
+        self.receipt_member_removed(table_name, &old)?;
         self.refuse_live_children(table_name,old.field("id")?)?;
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
         let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.delete(table_name, table, &old))?;
@@ -411,6 +416,7 @@ impl Runner<'_> {
 
     /// Programs never write a maintained target; the engine does.
     pub(super) fn refuse_engine_owned(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
+        self.refuse_receipt_table(table)?;
         self.refuse_condition_write()?;
         self.refuse_timeline_write(table, effect)?;
         self.schema.refuse_private(table)?;
@@ -433,6 +439,10 @@ impl Runner<'_> {
                 if old.is_some_and(|old| index_values(index, old) == key) { continue; }
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
+                }
+                // @ref LLP 3000.007#20.5 — holding the target does not cover a different unique population.
+                if self.device && effect == Effect::Update && !self.device_work(|runner| runner.upsert_absence_proven(table_name, name, &key))? {
+                    return Err(self.write_miss(table_name, name, &key));
                 }
                 if let Some(existing) = self.collision_lookup(table_name, name, index, &key, Some(&id), effect)
                     .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
@@ -497,6 +507,10 @@ impl Runner<'_> {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
+                    // @ref LLP 3000.007#20.5 — moving a held row needs complete coverage of the destination cap group.
+                    if self.device && effect == Effect::Update && !self.device_work(|runner| runner.upsert_absence_proven(table_name, &index_name, &group))? {
+                        return Err(self.write_miss(table_name, &index_name, &group));
+                    }
                     let private_cap = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
                     let count = self.authorized_scan(&[
                         (MeterKind::IndexEntries, 1),

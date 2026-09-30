@@ -1,0 +1,21 @@
+✔ socket reset: reused=false, reset again=false (25.307041ms)
+✔ socket reset: reused=false, reset again=true (5.230549ms)
+✔ socket reset: reused=true, reset again=false (33.053682ms)
+✔ socket reset: reused=true, reset again=true (26.740039ms)
+✔ retry observation stays with its caller and host fetch sees every attempt (50.893911ms)
+(node:1594397) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1332.499454ms)
+ℹ {"fault":"more-then-drop","observed":5,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":5.985,"totalMs":6.454,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":4.253,"totalMs":4.712,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":4.945,"totalMs":5.216,"outcome":"validated","snapshot":false,"more":true,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.707,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.027,"outcome":"failed","error":"transport failure before headers","cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects dropped-first and records every attempted request (1288.790422ms)
+ℹ {"fault":"dropped-first","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":3.987,"totalMs":4.338,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":3.1,"totalMs":3.383,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.257,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":1.768,"outcome":"failed","error":"transport failure before headers","cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects drop-once and records every attempted request (1311.184447ms)
+ℹ {"fault":"drop-once","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":5.219,"totalMs":5.656,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":3.51,"totalMs":3.764,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.35,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":5.533,"totalMs":5.97,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0,"cause":"transport retry after reused-socket reset"}]}
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4042.97242

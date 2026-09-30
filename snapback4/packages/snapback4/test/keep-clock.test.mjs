@@ -116,7 +116,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
     if (exact) assert.equal(f.clock.estimatedServerNow(), f.serverDeadline);
     f.releaseBody();
     if (exact) {
-      assert.deepEqual(await reading, { loading: true }, "the held body settles at the exact deadline");
+      assert.equal((await reading).denied?.code, 'E_QUERY_RETRY', "blocked recovery reaches the one-shot deadline without restoring the expired body");
       f.clock.sample(f.wall, f.wall, f.wall, "server:2");
       f.release();
     }

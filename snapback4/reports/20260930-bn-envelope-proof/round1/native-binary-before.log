@@ -1,0 +1,34 @@
+(node:6956) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ binary native module installs and survives restart (333.497123ms)
+✔ binary native module digest refusal fails proof (286.923953ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 737.397407
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/witness-acquire.test.mjs:289:36
+✖ binary native module installs and survives restart (333.497123ms)
+  AssertionError [ERR_ASSERTION]: Error: E_WITNESS_BACKEND: HTTP, body or protocol failure during acquire (HTTP 200); check --url and credentials
+  see snapback4 guide bounds
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:312:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

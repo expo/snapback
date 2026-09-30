@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-30T16:38:20.210050+00:00",
+  "fullSuiteTail": [
+    "\u2139 duration_ms 309984.400577",
+    "-- ok: client models (310 s)",
+    "== 1 failure(s) in 1265 s",
+    "   client tests"
+  ],
+  "source": {
+    "llp/3000.030-native-proof-in-minutes.rfc.md": "25a94f5ed08b3edea7a93b8068a00ff318dab9bb8ffba7961dcd0b5e87d8e4a1",
+    "snapback4/crates/snapback4-device/src/device/witness.rs": "d85df1cc06342f6d8f750856554456e864f9c4421ed4344a92c0f97ada152e3f",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "19e2f22df5f93602e131ab8078ed53d2e50b21094596cd6100161f04b07cac93",
+    "snapback4/crates/snapback4-lang/src/guide/witness.md": "61d1236ce7bb1332959bb2d9aa5abcd1cf116c0d47b09680be07d79e24a5a179",
+    "snapback4/crates/snapback4/src/verbs/witness.rs": "6c42881ffbc324bfb5e97c83debde10e12513743dad517fda0fa11c135bcf140",
+    "snapback4/packages/snapback4/bin/witness-acquire.js": "99c17ffc34eea284a32d31ef0703c1213d32d1dcb5f13e66db3bbe7147636e30",
+    "snapback4/packages/snapback4/test/witness-acquire.test.mjs": "777771baf3981f0a0ea03f0a14ccd384ae6dbe4d27e2dde1facc29de88edb288"
+  }
+}

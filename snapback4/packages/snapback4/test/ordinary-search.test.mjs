@@ -229,13 +229,14 @@ test('ordinary mixed search: link change and state reset restart, rejoin exclude
   const joined=await f.client.query(q,{q:'coffee',c:first.next});
   assert.deepEqual(ids(joined),ids(first));assert.equal(joined.fresh,true);
 });
-test('ordinary mixed search: departure during delivery withdraws response without a second invocation',async t=>{
+test('ordinary mixed search: departure during delivery rereads against the current authority',async t=>{
   const f=await setup(t), g=f.hold(), before=f.requests.length;
   const pending=f.client.query(q,{q:'coffee'});await g.arrived.promise;
   assert.equal((await f.owner.mutate(m('leave'),{room:'live'})).state,'sent');await f.client.sync();
   g.release.resolve();const read=await pending;
-  assert.equal(f.requests.length-before,1);assert.deepEqual(read,{loading:true});
+  assert.equal(f.requests.length-before,2);assert.ok(Array.isArray(read.data));
   const after=await f.client.query(q,{q:'coffee'});assert.equal(ids(after).length,20);
+  assert.deepEqual(read.data,after.data,'the settled reread is the same authorized page as the next read');
 });
 
 test('ordinary mixed search: a real server drain cut is never automatically drained', {timeout:120000}, async t=>{
@@ -279,8 +280,9 @@ test('ordinary mixed search: retained edits stay at the delivered image; expiry 
   const g=f.hold(),before=f.requests.length,pending=f.client.query(q,{q:'coffee'});await g.arrived.promise;
   await new Promise(resolve=>setTimeout(resolve,Math.max(0,expires-Date.now()+30)));
   g.release.resolve();const expired=await pending;
-  assert.equal(f.requests.length-before,1);assert.deepEqual(expired,{loading:true});
+  assert.equal(f.requests.length-before,2);assert.ok(!ids(expired).includes('m064'));
   const after=await f.client.query(q,{q:'coffee'});assert.ok(!ids(after).includes('m064'));
+  assert.deepEqual(expired.data,after.data,'expiry reread returns the current permitted page');
 });
 
 test('ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data',async t=>{
@@ -288,7 +290,7 @@ test('ordinary mixed search: an unsynced rejoin cannot union a stale retained im
   assert.equal((await f.admin.mutate(m('join'),{room:'left'})).state,'sent');
   assert.equal((await f.admin.mutate(m('edit'),{id:'m064',text:'tea'})).state,'sent');
   const before=f.requests.length,unknown=await f.client.query(q,{q:'coffee'});
-  assert.equal(f.requests.length-before,1);assert.deepEqual(unknown,{loading:true});
+  assert.equal(f.requests.length-before,4);assert.equal(unknown.denied?.code,'E_QUERY_RETRY');
   await f.client.sync();const joined=await f.client.query(q,{q:'coffee'});
   assert.ok(!ids(joined).includes('m064'));
 });
@@ -383,7 +385,8 @@ for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: a rea
   const g=f.hold(),before=f.requests.length,pending=f.client.query(q,{q:'coffee',c:first.next});
   await g.arrived.promise;
   assert.equal((await f.core().call({op:'clear_rows'})).denied,undefined);
-  g.release.resolve();assert.deepEqual(await pending,{loading:true});assert.equal(f.requests.length-before,1);
+  g.release.resolve();const reset=await pending;assert.equal(f.requests.length-before,2);
+  assert.deepEqual(ids(reset),f.rows.filter(r=>r.room==='live').reverse().slice(0,20).map(r=>r.id));
   await f.client.sync();
   const after=await f.client.query(q,{q:'coffee',c:first.next});
   assert.deepEqual(ids(after),f.rows.filter(r=>r.room==='live').reverse().slice(0,20).map(r=>r.id));

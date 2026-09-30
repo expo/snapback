@@ -1,0 +1,31 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 9.14s
+     Running tests/acquisition_crash.rs (snapback4/target/debug/deps/acquisition_crash-bd71192e0cda91b9)
+
+running 2 tests
+test acquisition_crash_worker ... ok
+sqlite, refresh=false: 12 process kills, 1662 persistence cuts
+sqlite, refresh=true: 12 process kills, 1843 persistence cuts
+memory, refresh=false: 12 process kills, 1228 persistence cuts
+memory, refresh=true: 12 process kills, 1775 persistence cuts
+test random_process_kills_preserve_atomic_acquisition_on_both_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.53s
+
+     Running tests/sqlite_bulk.rs (snapback4/target/debug/deps/sqlite_bulk-5f6e60b599f654ae)
+
+running 1 test
+
+thread 'sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure' (3605697) panicked at crates/snapback4-device/tests/sqlite_bulk.rs:12:75:
+called `Result::unwrap()` on an `Err` value: SqliteFailure(Error { code: Unknown, extended_code: 1 }, Some("no such table: _cap_counts"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure ... FAILED
+
+failures:
+
+failures:
+    sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-device --test sqlite_bulk`

@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { defaultFetch } from '../dist/node-fetch.js';
-import { READ_WORK_LIFETIME } from '../dist/read-work.js';
+import { ReadWork } from '../dist/read-work.js';
 import { ServerClock } from '../dist/clock.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
@@ -51,15 +51,25 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       await client.sync();
       assert.equal((await writer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
       // Finish incarnation discovery before measuring only expiry retries.
-      assert.deepEqual(await client.query(api.typingIn, { room: 'r' }), { loading: true });
+      assert.equal((await client.query(api.typingIn, { room: 'r' })).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
       requests.length = 0; peak = 0; invalidate = true;
       const context = new AsyncLocalStorage();
       const timerContext = {};
       const timers = [];
       const realTimeout = globalThis.setTimeout;
+      const realRetry = ReadWork.prototype.retry;
+      let schedulingRetry = false;
+      t.mock.method(ReadWork.prototype, 'retry', function (...args) {
+        const previous = schedulingRetry;
+        schedulingRetry = context.getStore() === timerContext;
+        try { return realRetry.apply(this, args); }
+        finally { schedulingRetry = previous; }
+      });
       t.mock.method(globalThis, 'setTimeout', (callback, ms, ...args) => {
-        // Queue turns and the independent attempt deadline are not expiry backoff.
-        if (context.getStore() !== timerContext || ms === 0 || ms === READ_WORK_LIFETIME) return realTimeout(callback, ms, ...args);
+        // Only synchronous timer creation by this watch's real ReadWork.retry
+        // belongs to us. Undici inherits the watch's async context too, and its
+        // idle timer can equal the retry cap; neither context nor delay is an owner.
+        if (!schedulingRetry) return realTimeout(callback, ms, ...args);
         // Keep the product's requested delay; this test, not host scheduling,
         // releases its callback after checking the wait and single-flight state.
         const handle = realTimeout(() => {}, ms);
@@ -85,7 +95,11 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       }
       assert.ok(values.every(read => !('data' in read)), 'expired replies never publish');
       if (ending === 'recover') {
-        assert.equal((await writer.mutate(api.stopTyping, { room: 'r' })).state, 'sent');
+        // The priming one-shot now completes its retry rounds. Renew the
+        // four-second fixture row so deletion tests recovery, not wall time.
+        assert.equal((await writer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
+        const stopped = await writer.mutate(api.stopTyping, { room: 'r' });
+        assert.equal(stopped.state, 'sent', JSON.stringify(stopped));
         replay = false; timers.at(-1).fire();
         await until(() => watch.getSnapshot().data?.length === 0, 'recovered authoritative empty answer');
         assert.equal(watch.getSnapshot().complete, true);

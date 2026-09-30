@@ -73,6 +73,9 @@ query searchHeld(q: text <=100, page: cursor ?) held:
 
 `await client.sync()` waits for a round begun after the call (sharing one follow-up if a round is in flight), so a successful sync reflects server commits acknowledged before the call instead of an older response; offline and refusal results still apply.
 
+Prove the envelope's heaviest account with `snapback4 witness acquire --as <persona> --restart`;
+`guide bounds` covers fresh acquisition, native-process timing and retained cold coverage.
+
 The ordinary `history` page uses the horizon's index, with no membership
 `require`. Table rules protect server reads. Before acquisition or beyond
 coverage the local client can ask the server; after leave it keeps the
@@ -151,6 +154,18 @@ audience predicate and cursor. A query on the window's own index, newest first,
 can answer offline within the acquired boundary, including timestamp ties.
 Other orders need the server; a held query stays local with incomplete coverage.
 `online only` currently applies to tables and views, not query headers.
+
+`read <- exists members[.message.conversation, viewer]` with
+`sync to members[.message.conversation]` means `read through .message` and `sync`.
+The child must spell its parent's whole rule, with `immutable message` and
+`immutable conversation`. Links must be required, without defaults. This adopts
+parent authorization, inherited expiry and deletion protection. Three-hop paths
+work through an already inherited parent: the same captures preserve audiences,
+acquisition, withdrawals, prediction and meters. E_READ_THROUGH rejects nullable
+or changing links and different child rules with a declaration repair; use it
+only to inherit the whole parent audience. Mismatched sync audiences get a
+schema-specific repair; see the sync-declaration refusal below.
+See `guide language` for a compiled example and `guide rules` for lifetime details.
 
 An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
@@ -498,6 +513,9 @@ match the read rule's membership probe, declare its unique group/principal
 key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
 column or index; do not make private rows public just to enable sync.
+Mismatched read-through audiences also get E_SYNC, with the schema-specific
+`read through .ref` / `sync` repair.
+
 For a maintained view, E_SYNC names inherited public sync from its source,
 without a horizon, and the conflicting explicit read. Keep the public read
 (or omit it) for the public offline summary, or use `online only` and lose

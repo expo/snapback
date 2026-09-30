@@ -191,6 +191,8 @@ pub struct Envelope {
     pub mutation: String,
     pub args: Vec<String>,
     pub fingerprint: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compact: Option<String>,
     pub rows: Vec<(String, i64)>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub partial: bool,
@@ -476,7 +478,7 @@ impl Runner<'_> {
             let Some(&index) = self.delivery.index.as_ref().unwrap().get(table) else { continue; };
             let binding = &self.schema.delivery[index];
             if !ledger.reserve(1 + binding.table.len() as u64 + binding.mutation.len() as u64
-                + binding.fingerprint.len() as u64 + binding.args.iter().map(|s| 1 + s.len() as u64).sum::<u64>(), 0, 0) { break; }
+                + binding.fingerprint.len() as u64 + binding.compact.as_ref().map_or(0, |s| s.len() as u64) + binding.args.iter().map(|s| 1 + s.len() as u64).sum::<u64>(), 0, 0) { break; }
             let bytes = envelope_bytes(binding) + if bindings.is_empty() { 14 } else { 1 };
             let heap = 256 + bytes * 2
                 + crate::rows::word_heap::vec_growth::<Envelope>(bindings.len() + 1)
@@ -484,7 +486,7 @@ impl Runner<'_> {
             if !ledger.reserve(2, heap, bytes) { break; }
             bindings.push(Envelope {
                 table: binding.table.clone(), mutation: binding.mutation.clone(),
-                args: binding.args.to_vec(), fingerprint: binding.fingerprint.clone(),
+                args: binding.args.to_vec(), fingerprint: binding.fingerprint.clone(), compact: binding.compact.clone(),
                 rows: Vec::new(), partial: true,
             });
             seen.push(BTreeSet::new());
@@ -525,6 +527,7 @@ fn text_bytes(text: &str) -> u64 {
 }
 fn envelope_bytes(binding: &DeliveryBinding) -> u64 {
     br#"{"table":,"mutation":,"args":[,,],"fingerprint":,"rows":[],"partial":true}"#.len() as u64
+        + binding.compact.as_ref().map_or(0, |s| 11 + text_bytes(s))
         + text_bytes(&binding.fingerprint)
         + text_bytes(&binding.table)
         + text_bytes(&binding.mutation)

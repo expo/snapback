@@ -1,0 +1,32 @@
+(node:1833974) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (1643.979036ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2914.314689ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1112.283733ms)
+✔ restart detects wipe before reconnect can repair it (472.049286ms)
+✔ restart detects delete-row before reconnect can repair it (1319.468721ms)
+✖ restart detects change-groups before reconnect can repair it (1583.977875ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9219.532178
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:97:64
+✖ restart detects change-groups before reconnect can repair it (1583.977875ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:99:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

@@ -1,0 +1,22 @@
+{
+  "base": "9d03e946232b4017564f3e7c6aa87bd424ce8d58",
+  "files": {
+    "llp/3000.030-native-proof-in-minutes.rfc.md": "48252b826da2bc328813c56e6030da45df3cdd6469ac220c366dc519bced7d16",
+    "snapback4/crates/snapback4-device/src/call.rs": "a321fbde5643ef45bc51e1ac4020792495eef19e6d08449af62a5a5acf782823",
+    "snapback4/crates/snapback4-device/src/device.rs": "534c8d523bcf9fe62897682a8f480c4d445c0d3480fab8b0e1b8cb4fb005ff73",
+    "snapback4/crates/snapback4-device/src/device/witness.rs": "9bad9578e2e44eb7f9118b2dfaf46943f4ab0af21563c74bc02b3bbc7b52d3f6",
+    "snapback4/crates/snapback4-lang/src/guide.rs": "0b1619c9a0e8c82fe60259e2c6da96de9a2661a512f201e3f998829d21dacb49",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "540b956cbac10829dacada09614d3355338e881de19b6eaeba2a01dde4dd0c62",
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": "41b5b304341ea255c9be05e5c735fefcad89f75577e89125238fe481d22d6129",
+    "snapback4/crates/snapback4-lang/src/guide/witness.md": "759946787ce95631d2dec801065dc759427578e12c709effc6e53e8e2f5de2f5",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "c65564043e62b2b855933368d8b1ca81d1d37e052ed1fa4b122d522982963e66",
+    "snapback4/crates/snapback4-lang/tests/guide/published.rs": "3f593580f94f96bafb561ccc21ca01bbecdf28cb0a1941df4e0096b43171d499",
+    "snapback4/crates/snapback4/src/main.rs": "e7baa788bcd84cb75273ac06774d2c30fe642e2a3b5cb5cefd0d7e0cd80d4924",
+    "snapback4/crates/snapback4/src/serve.rs": "10eb332edfc8c587d15da27d8ade4e378456b772a907b1d42c110fd7408941ff",
+    "snapback4/crates/snapback4/src/verbs/witness.rs": "bb669e58af5778af64173f253b509d6c6833c5fc0aea27bbf199d4e5e1e7d3d0",
+    "snapback4/crates/snapback4/src/verbs/witness/acquire.rs": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+    "snapback4/packages/snapback4/bin/snapback4.js": "dade43d98ac2e66da91863a708a3892df5c66de20cb43a5db19c51216955d980",
+    "snapback4/packages/snapback4/bin/witness-acquire.js": "6f903526e429da4bcb3ea064460476780640df51e692dac161c9e802e559b6b1",
+    "snapback4/packages/snapback4/test/witness-acquire.test.mjs": "f2bdaedf0d9aca36c9a97d27629025ff69c8ee1c44f1d3172f3f53f92629f4e5"
+  }
+}

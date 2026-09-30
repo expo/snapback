@@ -12,6 +12,7 @@ import { episodeDeadline } from "./read-episode.ts";
 import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
 import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
+import { queryAttempt, queryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
@@ -19,6 +20,7 @@ import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
   guardDelivery(raw);
   let active = true;
+  const queries = new AbortController();
   const valid = () => active && validScope();
   const approved = new WeakSet<object>();
   const kept = new ReadApprovals();
@@ -69,14 +71,18 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       return raw.refreshSession();
     },
     assetSource: id => valid() ? raw.assetSource(id) : { uri: "", headers: {} },
-    async query(op, args) {
+    query: settledQuery(async (op, args, signal) => {
       const denied = await refusal();
-      if (denied) return { denied };
-      const read = await raw.query(op, args);
+      if (denied) return () => ({ denied });
+      const publish = await queryAttempt(raw, op, args, signal);
       const after = await refusal();
-      if (after) return { denied: after };
-      return approveDelivery(read) ? read : { loading: true };
-    },
+      return () => {
+        if (after) return { denied: after };
+        const read = publish();
+        return read && approveDelivery(read) ? read : undefined;
+      };
+    }, () => terminalQueryRefusal({ scope: valid() ? null : why(), store: null, closed: null,
+      session: null, changes: null, partition: null, inherited: queryRefusal(raw) }), queries.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       const loading: Read<R> = { loading: true };
@@ -296,6 +302,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   return { client, fence() {
     if (!active) return () => {};
     active = false;
+    queries.abort();
     const deliver = deferReadNotifications(() => kept.close());
     for (const cleanup of cleanups) cleanup();
     cleanups.clear();

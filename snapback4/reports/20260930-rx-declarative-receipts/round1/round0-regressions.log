@@ -1,0 +1,38 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.15s
+     Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-d889afe7ff648456)
+
+running 4 tests
+
+thread 'round1::self_only_membership_cannot_promise_complete_receipts' (464761) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:55:5:
+[Diagnostic { site: Site { file: "schema.q", line: 67, col: 17 }, code: "E_STRUCTURAL_FANOUT", message: "read or declaration on members (conversation, id) at schema.q:19:17 (page bound 50): the mutation page's read rule is not uniformly decided by its prefix", rewrite: "pin .principal in each read's index prefix by iterating the capped group that supplies those values; inside that loop use `members[principal = row.principal]` with an index leading on those columns; or read the page in a query", guide: "programs", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test round1::self_only_membership_cannot_promise_complete_receipts ... FAILED
+
+thread 'round1::compaction_retires_runs_already_behind_prefix' (464759) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:48:34:
+assertion `left == right` failed
+  left: 1
+ right: 0
+test round1::compaction_retires_runs_already_behind_prefix ... FAILED
+
+thread 'round1::service_removal_retires_exact_members_runs_and_rejoin_has_room' (464762) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:23:5:
+assertion failed: format!("{:?}",mutate(&mut e,"service:admin","kick",
+        &[("conversation",id("c")),("principal",id("bob"))],201)).contains("E_BOUND")
+test round1::service_removal_retires_exact_members_runs_and_rejoin_has_room ... FAILED
+delivered bob [("conversation", Id("c")), ("from", Int(131)), ("through", Int(131))]: Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:67:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+
+thread 'round1::saturated_deleted_holes_compact_all_covered_runs_before_cap' (464760) panicked at crates/snapback4-lang/tests/declarative_receipts.rs:28:5:
+Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:67:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+test round1::saturated_deleted_holes_compact_all_covered_runs_before_cap ... FAILED
+
+failures:
+
+failures:
+    round1::compaction_retires_runs_already_behind_prefix
+    round1::saturated_deleted_holes_compact_all_covered_runs_before_cap
+    round1::self_only_membership_cannot_promise_complete_receipts
+    round1::service_removal_retires_exact_members_runs_and_rejoin_has_room
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`

@@ -1,0 +1,28 @@
+(node:3784673) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ reconnect proof rejects bad-ack and records every attempted request (1392.017995ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1502.080497
+
+✖ failing tests:
+
+test at ../../../../tmp/bn-r1-apply-audit.mjs:157:3
+✖ reconnect proof rejects bad-ack and records every attempted request (1392.017995ms)
+  AssertionError [ERR_ASSERTION]: failed reconnect must exit nonzero
+      at TestContext.<anonymous> (file:///tmp/bn-r1-apply-audit.mjs:190:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

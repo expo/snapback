@@ -47,3 +47,6 @@ incomplete below every limit. A full `first 1` page is complete without a cursor
 online-only source or no read sites gets no source-coverage line.
 Sources include reads nested in expressions such as the search text after `matching`.
 For full server history beyond holdings, use the grouped or newest form on the search card.
+
+Proven permanently unavailable local held one-shots refuse non-retryable E_QUERY_HELD.
+Remove held to read online, or sync it.

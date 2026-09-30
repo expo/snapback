@@ -1,0 +1,250 @@
+[
+  {
+    "phase": "before",
+    "condition": "ten-cpu-loaded",
+    "account": "u0001",
+    "samples": [
+      {
+        "acquiredMs": 45784.921,
+        "firstLocalMs": 45809.374,
+        "serverSyncMs": 4568.651999999999,
+        "restartMs": 321.342
+      },
+      {
+        "acquiredMs": 54994.987,
+        "firstLocalMs": 55025.034,
+        "serverSyncMs": 3075.882,
+        "restartMs": 390.555
+      },
+      {
+        "acquiredMs": 54541.967,
+        "firstLocalMs": 54552.533,
+        "serverSyncMs": 4720.9,
+        "restartMs": 380.044
+      }
+    ],
+    "median": {
+      "acquiredMs": 54541.967,
+      "firstLocalMs": 54552.533,
+      "serverSyncMs": 4568.651999999999,
+      "restartMs": 380.044
+    }
+  },
+  {
+    "phase": "before",
+    "condition": "ten-cpu-loaded",
+    "account": "u0500",
+    "samples": [
+      {
+        "acquiredMs": 2074.901,
+        "firstLocalMs": 2089.32,
+        "serverSyncMs": 521.976,
+        "restartMs": 48.007
+      },
+      {
+        "acquiredMs": 1466.371,
+        "firstLocalMs": 1471.816,
+        "serverSyncMs": 518.452,
+        "restartMs": 46.541
+      },
+      {
+        "acquiredMs": 1507.866,
+        "firstLocalMs": 1513.434,
+        "serverSyncMs": 599.491,
+        "restartMs": 42.094
+      }
+    ],
+    "median": {
+      "acquiredMs": 1507.866,
+      "firstLocalMs": 1513.434,
+      "serverSyncMs": 521.976,
+      "restartMs": 46.541
+    }
+  },
+  {
+    "phase": "before",
+    "condition": "unconfined",
+    "account": "u0001",
+    "samples": [
+      {
+        "acquiredMs": 42352.418,
+        "firstLocalMs": 42383.746,
+        "serverSyncMs": 2666.096,
+        "restartMs": 269.515
+      },
+      {
+        "acquiredMs": 42697.762,
+        "firstLocalMs": 42715.164,
+        "serverSyncMs": 2793.4159999999997,
+        "restartMs": 267.315
+      },
+      {
+        "acquiredMs": 41493.983,
+        "firstLocalMs": 41511.435,
+        "serverSyncMs": 2543.5640000000003,
+        "restartMs": 278.29
+      }
+    ],
+    "median": {
+      "acquiredMs": 42352.418,
+      "firstLocalMs": 42383.746,
+      "serverSyncMs": 2666.096,
+      "restartMs": 269.515
+    }
+  },
+  {
+    "phase": "before",
+    "condition": "unconfined",
+    "account": "u0500",
+    "samples": [
+      {
+        "acquiredMs": 2114.446,
+        "firstLocalMs": 2127.064,
+        "serverSyncMs": 390.217,
+        "restartMs": 66.376
+      },
+      {
+        "acquiredMs": 1305.893,
+        "firstLocalMs": 1313.091,
+        "serverSyncMs": 381.476,
+        "restartMs": 43.717
+      },
+      {
+        "acquiredMs": 1195.985,
+        "firstLocalMs": 1203.232,
+        "serverSyncMs": 383.74100000000004,
+        "restartMs": 42.841
+      }
+    ],
+    "median": {
+      "acquiredMs": 1305.893,
+      "firstLocalMs": 1313.091,
+      "serverSyncMs": 383.74100000000004,
+      "restartMs": 43.717
+    }
+  },
+  {
+    "phase": "after",
+    "condition": "ten-cpu-loaded",
+    "account": "u0001",
+    "samples": [
+      {
+        "acquiredMs": 13066.263,
+        "firstLocalMs": 13079.949,
+        "serverSyncMs": 2872.9959999999996,
+        "restartMs": 245.086
+      },
+      {
+        "acquiredMs": 14768.546,
+        "firstLocalMs": 14804.16,
+        "serverSyncMs": 3058.826,
+        "restartMs": 400.009
+      },
+      {
+        "acquiredMs": 14653.956,
+        "firstLocalMs": 14668.158,
+        "serverSyncMs": 3216.424,
+        "restartMs": 251.266
+      }
+    ],
+    "median": {
+      "acquiredMs": 14653.956,
+      "firstLocalMs": 14668.158,
+      "serverSyncMs": 3058.826,
+      "restartMs": 251.266
+    }
+  },
+  {
+    "phase": "after",
+    "condition": "ten-cpu-loaded",
+    "account": "u0500",
+    "samples": [
+      {
+        "acquiredMs": 1041.742,
+        "firstLocalMs": 1051.525,
+        "serverSyncMs": 414.00500000000005,
+        "restartMs": 42.837
+      },
+      {
+        "acquiredMs": 1373.726,
+        "firstLocalMs": 1389.99,
+        "serverSyncMs": 588.611,
+        "restartMs": 72.262
+      },
+      {
+        "acquiredMs": 997.083,
+        "firstLocalMs": 1003.768,
+        "serverSyncMs": 443.757,
+        "restartMs": 58.057
+      }
+    ],
+    "median": {
+      "acquiredMs": 1041.742,
+      "firstLocalMs": 1051.525,
+      "serverSyncMs": 443.757,
+      "restartMs": 58.057
+    }
+  },
+  {
+    "phase": "after",
+    "condition": "unconfined",
+    "account": "u0001",
+    "samples": [
+      {
+        "acquiredMs": 12895.148,
+        "firstLocalMs": 12918.667,
+        "serverSyncMs": 2588.155,
+        "restartMs": 258.163
+      },
+      {
+        "acquiredMs": 12760.167,
+        "firstLocalMs": 12781.59,
+        "serverSyncMs": 2552.7889999999998,
+        "restartMs": 257.369
+      },
+      {
+        "acquiredMs": 13024.635,
+        "firstLocalMs": 13039.043,
+        "serverSyncMs": 2564.2349999999997,
+        "restartMs": 223.683
+      }
+    ],
+    "median": {
+      "acquiredMs": 12895.148,
+      "firstLocalMs": 12918.667,
+      "serverSyncMs": 2564.2349999999997,
+      "restartMs": 257.369
+    }
+  },
+  {
+    "phase": "after",
+    "condition": "unconfined",
+    "account": "u0500",
+    "samples": [
+      {
+        "acquiredMs": 1055.941,
+        "firstLocalMs": 1070.893,
+        "serverSyncMs": 396.31299999999993,
+        "restartMs": 47.47
+      },
+      {
+        "acquiredMs": 1034.217,
+        "firstLocalMs": 1042.171,
+        "serverSyncMs": 387.093,
+        "restartMs": 43.308
+      },
+      {
+        "acquiredMs": 1061.801,
+        "firstLocalMs": 1069.404,
+        "serverSyncMs": 391.78900000000004,
+        "restartMs": 41.499
+      }
+    ],
+    "median": {
+      "acquiredMs": 1055.941,
+      "firstLocalMs": 1069.404,
+      "serverSyncMs": 391.78900000000004,
+      "restartMs": 43.308
+    }
+  }
+]

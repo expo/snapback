@@ -22,25 +22,24 @@ pub mod routes;
 pub mod timeline;
 mod capabilities;
 mod delivery;
+mod receipts;
+pub use receipts::ReceiptFamily;
 pub use delivery::DeliveryBinding;
 pub mod field_authority;
 pub mod own_keys;
 pub use field_authority::FieldAuthority;
 pub use routes::RouteSpec;
-
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
+    pub receipts: Vec<ReceiptFamily>,
     pub tables: BTreeMap<String, Table>,
-    /// SDK delivery reporters, keyed by (table, mutation).
     pub delivery: Vec<DeliveryBinding>,
-    /// Derived server lookup, shared by readers of this installed schema.
     #[cfg(feature = "sqlite")]
     pub delivery_lookup: crate::engine::delivery::Lookup,
     pub timelines: Vec<timeline::Timeline>,
     pub maintains: Vec<Maintain>,
     pub auth: Auth,
     pub effects: Vec<String>,
-    /// The owner's clock: each fires its job once per period.
     pub schedules: Vec<Schedule>,
     /// Compiled execution facts; absent on serialized conformance inputs.
     pub operations: BTreeMap<String, Execution>,
@@ -49,10 +48,8 @@ pub struct Schema {
     /// Server work contracts; kept outside the interpreter/corpus IR.
     pub action_specs: BTreeMap<String, ActionSpec>,
     pub effect_specs: BTreeMap<String, WorkSpec>,
-    /// Only these paths publish application HTTP handlers.
     pub routes: BTreeMap<String, RouteSpec>,
 }
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UniqueRefusal {
     pub code: String,

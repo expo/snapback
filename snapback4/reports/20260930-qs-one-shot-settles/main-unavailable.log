@@ -1,0 +1,98 @@
+✖ wasm: an unavailable held online-only view refuses instead of returning loading (677.930673ms)
+ℹ {"loading":true}
+✖ process: an unavailable held online-only view refuses instead of returning loading (246.116617ms)
+ℹ {"loading":true}
+✖ app-wasm: an unavailable held online-only view refuses instead of returning loading (223.790457ms)
+ℹ {"loading":true}
+✖ app-process: an unavailable held online-only view refuses instead of returning loading (255.597651ms)
+ℹ {"loading":true}
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1564.502292
+
+✖ failing tests:
+
+test at packages/snapback4/test/one-shot.test.mjs:56:3
+✖ wasm: an unavailable held online-only view refuses instead of returning loading (677.930673ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot.test.mjs:59:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot.test.mjs:56:3
+✖ process: an unavailable held online-only view refuses instead of returning loading (246.116617ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot.test.mjs:59:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot.test.mjs:56:3
+✖ app-wasm: an unavailable held online-only view refuses instead of returning loading (223.790457ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot.test.mjs:59:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot.test.mjs:56:3
+✖ app-process: an unavailable held online-only view refuses instead of returning loading (255.597651ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_QUERY_RETRY'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qs/snapback4/packages/snapback4/test/one-shot.test.mjs:59:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_QUERY_RETRY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

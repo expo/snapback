@@ -1,0 +1,48 @@
+[
+  {
+    "name": "retired-sockets-original",
+    "command": [
+      "node",
+      "--import",
+      "/home/ccheever/sb4-intent/lane-tf/snapback4/reports/20260930-tf-expired-watch-timers/retire-warm-sockets.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "test/expired-server-watch.test.mjs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-tf/snapback4/target/tf-controls/original-fixture",
+    "exit": 1,
+    "seconds": 13.104940414428711,
+    "counts": {
+      "tests": 12,
+      "pass": 3,
+      "fail": 9,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "transportTimers": 23
+  },
+  {
+    "name": "retired-sockets-fixed",
+    "command": [
+      "node",
+      "--import",
+      "/home/ccheever/sb4-intent/lane-tf/snapback4/reports/20260930-tf-expired-watch-timers/retire-warm-sockets.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "test/expired-server-watch.test.mjs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-tf/snapback4/packages/snapback4",
+    "exit": 0,
+    "seconds": 25.9439697265625,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "transportTimers": 105
+  }
+]

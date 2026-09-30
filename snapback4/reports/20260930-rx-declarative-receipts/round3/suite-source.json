@@ -1,0 +1,37 @@
+{
+  "head": "e7f07f2bc144efdbd1b20071e092ad4a212473ec",
+  "started": "2026-09-30T16:58:33.965933+00:00",
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "before": {
+    "snapback4/crates/snapback4-lang/src/bind/generated.rs": "3d728d912e18e70eb1ef39f7a3091c7a05fda0f5308a80af5e7004dcc3c23054",
+    "snapback4/crates/snapback4-lang/src/bind/mod.rs": "1174fa8b42d495d1f0c911b07db57e47fb5a9cfcfab8818ca5aa48adad173348",
+    "snapback4/crates/snapback4-lang/src/bind/program/control.rs": "ce3faee75aa86da156ea91ab02a40e543e3abdcfabe7dcb49c5303864022e76b",
+    "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": "2f2a54d9ab515bbb9e133d3201fc20a5ed4c73cd6f16f57a43d506a285964811",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.q": "0e2654cde907dfb8b28e1cfec82fdfc6cae85878c1c06e9367847a233b8ae016",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.rs": "f75d454a91027f6ff0f79e6dd33e28656997664f20dd8caddd87d45466876fef",
+    "snapback4/crates/snapback4-lang/src/guide/receipts.rs": "ee58c124275143265a076950f56782e0fbf64737aba8fdc2813d8e4a1784c9e0",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts.rs": "fee345d7cb096ea9d92cb28911ec12080f6a79a8ded84ae9ea2a82f098a1e18a",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/names.rs": "9130a77eedd1f1f9cfa5d15643330026615ccbda4105524fa6e57a23c31c8478",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/round3.rs": "d25c16e8de55f123160bf8d21ff14248b6ac8456ae22fb562a619219d32f11b5",
+    "snapback4/crates/snapback4-lang/tests/delivery_clause.rs": "54a7d66fc5b3fd5431a6fa0fd034c698a1e642417213552e756b3b03480cbaa6"
+  },
+  "exit": 0,
+  "ended": "2026-09-30T17:20:03.884597+00:00",
+  "after": {
+    "snapback4/crates/snapback4-lang/src/bind/generated.rs": "3d728d912e18e70eb1ef39f7a3091c7a05fda0f5308a80af5e7004dcc3c23054",
+    "snapback4/crates/snapback4-lang/src/bind/mod.rs": "1174fa8b42d495d1f0c911b07db57e47fb5a9cfcfab8818ca5aa48adad173348",
+    "snapback4/crates/snapback4-lang/src/bind/program/control.rs": "ce3faee75aa86da156ea91ab02a40e543e3abdcfabe7dcb49c5303864022e76b",
+    "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": "2f2a54d9ab515bbb9e133d3201fc20a5ed4c73cd6f16f57a43d506a285964811",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.q": "0e2654cde907dfb8b28e1cfec82fdfc6cae85878c1c06e9367847a233b8ae016",
+    "snapback4/crates/snapback4-lang/src/bind/receipts.rs": "f75d454a91027f6ff0f79e6dd33e28656997664f20dd8caddd87d45466876fef",
+    "snapback4/crates/snapback4-lang/src/guide/receipts.rs": "ee58c124275143265a076950f56782e0fbf64737aba8fdc2813d8e4a1784c9e0",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts.rs": "fee345d7cb096ea9d92cb28911ec12080f6a79a8ded84ae9ea2a82f098a1e18a",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/names.rs": "9130a77eedd1f1f9cfa5d15643330026615ccbda4105524fa6e57a23c31c8478",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/round3.rs": "d25c16e8de55f123160bf8d21ff14248b6ac8456ae22fb562a619219d32f11b5",
+    "snapback4/crates/snapback4-lang/tests/delivery_clause.rs": "54a7d66fc5b3fd5431a6fa0fd034c698a1e642417213552e756b3b03480cbaa6"
+  },
+  "unchanged": true
+}

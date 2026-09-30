@@ -85,12 +85,8 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
                 if let Some(parent) = &definition.through {
-                    if kind != "insert" {
-                        // @ref LLP 3000.007#23 — upsert branches are an author choice; give a guide pointer, never generated code.
-                        let mut reason = format!("{kind} on a read-through child queues without a row");
-                        if kind == "upsert" {
-                            reason.push_str("; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits");
-                        }
+                    if kind == "insert-if-absent" {
+                        let reason = format!("{kind} on a read-through child queues without a row; use upsert for a set-state write (guide prediction)");
                         fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: kind.into(), class: SiteClass::Server,
                             reason, rewrite: String::new() });
                     }
@@ -523,7 +519,7 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
 pub fn operation_lines(name: &str, fact: &Execution) -> String {
     let blocked = fact.sites.iter().find(|site| inserts::blocked(site));
     let mut word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => match blocked {
-        Some(site) if site.kind == inserts::UPSERT_BLOCKED => format!("predicts: updates only — inserts into {} queue without a row", site.table),
+        Some(site) if site.kind == inserts::UPSERT_BLOCKED => format!("predicts: conditional updates — inserts into {} queue without a row", site.table),
         Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };

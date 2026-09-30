@@ -1,0 +1,12 @@
+✔ ordinary mixed search: departure during delivery rereads against the current authority (306.395846ms)
+✔ ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it (2175.540769ms)
+✔ review: hidden sync during delivery withdraws the page process (313.526526ms)
+✔ review: hidden sync during delivery withdraws the page wasm (622.505334ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2581.024703

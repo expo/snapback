@@ -1,0 +1,90 @@
+   Compiling snapback4-core v0.4.9 (/tmp/rx-round0-regressions/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/tmp/rx-round0-regressions/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/tmp/rx-round0-regressions/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 30.17s
+     Running tests/declarative_receipts.rs (/home/ccheever/sb4-intent/lane-rx/snapback4/target/debug/deps/declarative_receipts-d889afe7ff648456)
+
+running 20 tests
+test receipts_remains_a_legal_ordinary_column_name ... ok
+
+thread 'round1::family_mappings_operations_and_semantics_are_explicit' (732508) panicked at crates/snapback4-lang/tests/declarative_receipts.rs:14:5:
+[Diagnostic { site: Site { file: "schema.q", line: 33, col: 3 }, code: "E_RECEIPTS_CLAUSE", message: "receipt coordinates need immutable identity, explicit allocation/snapshot fields, a durable non-expiring audience capped at 50, and durable messages", rewrite: "use one receipts by .conversation, .ordinal from .sender to members clause; keep lastOrdinal, joinedOrdinal and recipients explicit; omit deliveredOrdinal, seenOrdinal, runs, receipt, delivered, seen, receiptMember and progress", guide: "receipts", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 60, col: 115 }, code: "E_QUARRY_UNKNOWN", message: "unknown function badge", rewrite: "declared names: at, count, divmod, first, group, join, last, lower, max, min, sha256, share, slice, sort, sorted, sum, tokens, trim", guide: "language", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test round1::family_mappings_operations_and_semantics_are_explicit ... FAILED
+
+thread 'round1::self_only_membership_cannot_promise_complete_receipts' (732511) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:56:5:
+[]
+test round1::self_only_membership_cannot_promise_complete_receipts ... FAILED
+test administrative_removal_drops_requirement_and_runs ... ok
+delivered bob [("conversation", Id("c")), ("from", Int(5)), ("through", Int(5))]: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "steps reached the ceiling 1", detail: None, site: Some("delivered:1"), rewrite: Some("move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+forge bob [("conversation", Id("c"))]: Failed { why: Refusal { code: "E_RECEIPTS_OWNED", family: "schema", message: "E_RECEIPTS_OWNED: receipt progress is engine-owned; call delivered or seen for the signed-in recipient (guide receipts)", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }
+forgeRun bob [("conversation", Id("c"))]: Failed { why: Refusal { code: "E_RECEIPTS_OWNED", family: "schema", message: "E_RECEIPTS_OWNED: receipt progress is engine-owned; call delivered or seen for the signed-in recipient (guide receipts)", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }
+forgeUpsert bob [("conversation", Id("c"))]: Failed { why: Refusal { code: "E_RECEIPTS_OWNED", family: "schema", message: "E_RECEIPTS_OWNED: receipt progress is engine-owned; call delivered or seen for the signed-in recipient (guide receipts)", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }
+delivered outsider [("conversation", Id("c")), ("from", Int(1)), ("through", Int(1))]: Failed { why: Refusal { code: "NOT_MEMBER", family: "rule", message: "the program refused with NOT_MEMBER", detail: None, site: Some("schema.q:42:38"), rewrite: None, guide: Some("programs"), rule: Some("NOT_MEMBER"), retryable: false }, current: None }
+test gaps_skip_only_absent_rows_and_covered_runs_are_noops ... ok
+delivered bob [("conversation", Id("c")), ("from", Int(0)), ("through", Int(1))]: Failed { why: Refusal { code: "NOT_A_RUN", family: "rule", message: "the program refused with NOT_A_RUN", detail: None, site: Some("schema.q:44:3"), rewrite: None, guide: Some("programs"), rule: Some("NOT_A_RUN"), retryable: false }, current: None }
+delivered bob [("conversation", Id("c")), ("from", Int(2)), ("through", Int(1))]: Failed { why: Refusal { code: "NOT_A_RUN", family: "rule", message: "the program refused with NOT_A_RUN", detail: None, site: Some("schema.q:44:3"), rewrite: None, guide: Some("programs"), rule: Some("NOT_A_RUN"), retryable: false }, current: None }
+delivered bob [("conversation", Id("c")), ("from", Int(1)), ("through", Int(2))]: Failed { why: Refusal { code: "PAST_LAST_MESSAGE", family: "rule", message: "the program refused with PAST_LAST_MESSAGE", detail: None, site: Some("schema.q:45:3"), rewrite: None, guide: Some("programs"), rule: Some("PAST_LAST_MESSAGE"), retryable: false }, current: None }
+seen bob [("conversation", Id("c")), ("through", Int(2))]: Failed { why: Refusal { code: "PAST_LAST_MESSAGE", family: "rule", message: "the program refused with PAST_LAST_MESSAGE", detail: None, site: Some("schema.q:76:3"), rewrite: None, guide: Some("programs"), rule: Some("PAST_LAST_MESSAGE"), retryable: false }, current: None }
+test starter_compiles_and_rejects_owned_progress_and_unallocated_reports ... ok
+test device_predictions_keep_owned_progress_and_include_removal_cleanup ... ok
+test declaration_refusals_and_device_delivery_queue ... ok
+
+thread 'round1::compaction_retires_runs_already_behind_prefix' (732507) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:48:34:
+assertion `left == right` failed
+  left: 1
+ right: 0
+test manual_store_adopts_without_losing_receipts ... ok
+test round1::compaction_retires_runs_already_behind_prefix ... FAILED
+test device_round1::partial_acquisition_adoption_and_replay_memory ... ok
+
+thread 'round1::service_removal_retires_exact_members_runs_and_rejoin_has_room' (732512) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:23:5:
+assertion failed: format!("{:?}",mutate(&mut e,"service:admin","kick",
+        &[("conversation",id("c")),("principal",id("bob"))],201)).contains("E_BOUND")
+delivered bob [("conversation"test round1::service_removal_retires_exact_members_runs_and_rejoin_has_room ... , Id(FAILED"
+c")), ("from", Int(131)), ("through", Int(131))]: Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:67:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+
+thread 'round1::saturated_deleted_holes_compact_all_covered_runs_before_cap' (732510) panicked at crates/snapback4-lang/tests/declarative_receipts.rs:28:5:
+Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:67:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+test round1::saturated_deleted_holes_compact_all_covered_runs_before_cap ... FAILED
+test device_round1::partial_acquisition_adoption_and_replay_sqlite ... ok
+
+thread 'round1::unswept_long_expiry_hole_records_coverage_and_resumes_bounded_compaction' (732513) panicked at crates/snapback4-lang/tests/declarative_receipts.rs:28:5:
+Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "examined rows reached the ceiling 8192", detail: None, site: Some("programs.delivered.3"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+test round1::unswept_long_expiry_hole_records_coverage_and_resumes_bounded_compaction ... FAILED
+delivered bob [("conversation", Id("c")), ("from", Int(9131)), ("through", Int(9131))]: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "examined rows reached the ceiling 8192", detail: None, site: Some("programs.delivered.3"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }
+
+thread 'round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input' (732509) panicked at crates/snapback4-lang/tests/declarative_receipts/round1.rs:97:9:
+assertion failed: format!("{state:?}").contains("RUNS_FULL")
+test round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input ... FAILED
+test generated_schedules_sqlite_devices ... ok
+test generated_schedules_memory_devices ... ok
+delivered bob [("conversation", Id("c")), ("from", Int(260)), ("through", Int(260))]: Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:142:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+delivered bob [("conversation", Id("c")), ("from", Int(260)), ("through", Int(260))]: Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:67:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+
+thread 'schedules::full_state_schedules_memory' (732514) panicked at crates/snapback4-lang/tests/declarative_receipts/schedules.rs:54:9:
+assertion failed: e.store().rows("runs").unwrap().is_empty()
+test schedules::full_state_schedules_memory ... FAILED
+delivered bob [("conversation", Id("c")), ("from", Int(260)), ("through", Int(260))]: Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:142:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+delivered bob [("conversation", Id("c")), ("from", Int(260)), ("through", Int(260))]: Failed { why: Refusal { code: "RUNS_FULL", family: "rule", message: "the program refused with RUNS_FULL", detail: None, site: Some("schema.q:67:5"), rewrite: None, guide: Some("programs"), rule: Some("RUNS_FULL"), retryable: false }, current: None }
+
+thread 'schedules::full_state_schedules_sqlite' (732515) panicked at crates/snapback4-lang/tests/declarative_receipts/schedules.rs:54:9:
+assertion failed: e.store().rows("runs").unwrap().is_empty()
+test schedules::full_state_schedules_sqlite ... FAILED
+
+failures:
+
+failures:
+    round1::compaction_retires_runs_already_behind_prefix
+    round1::family_mappings_operations_and_semantics_are_explicit
+    round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input
+    round1::saturated_deleted_holes_compact_all_covered_runs_before_cap
+    round1::self_only_membership_cannot_promise_complete_receipts
+    round1::service_removal_retires_exact_members_runs_and_rejoin_has_room
+    round1::unswept_long_expiry_hole_records_coverage_and_resumes_bounded_compaction
+    schedules::full_state_schedules_memory
+    schedules::full_state_schedules_sqlite
+
+test result: FAILED. 11 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.12s
+
+error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`

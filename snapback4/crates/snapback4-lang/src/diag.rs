@@ -131,7 +131,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 /// The guide card a diagnostic points at; `language` is the language card.
 pub fn guide_for(code: &str) -> &'static str {
     match code {
-        "E_DELIVERY_CLAUSE" | "E_DELIVERY_BINDING" | "RUNS_FULL" => "receipts",
+        "E_RECEIPTS_CLAUSE" | "E_RECEIPTS_OWNED" | "E_DELIVERY_CLAUSE" | "E_DELIVERY_BINDING" | "RUNS_FULL" => "receipts",
         "E_QUARRY_EPHEMERAL" | "E_EPHEMERAL_FULL" | "N_EPHEMERAL_SERVER" => "ephemeral",
         "E_READ_THROUGH" | "E_READ_THROUGH_ADOPT" | "E_PARENT_HAS_CHILDREN" => "rules",
         "E_READ_THROUGH_SCAN" => "maintains",
@@ -176,6 +176,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_AUTH" => "services",
         "E_WORKER_REFRESH" => "effects",
         "E_SERVER_REQUIRED" => "actions",
+        "E_QUERY_RETRY" => "client",
         "E_OFFLINE" => "residency",
         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" => "refusals",
         "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",

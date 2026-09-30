@@ -79,8 +79,9 @@ as do held queries and retained left groups. While this device holds a predictab
 that query asks no server; a write with an unknown predicted footprint blocks
 every query. Writes to unrelated tables do not hold it. A withheld answer
 (a total/extremum over input past the horizon, a point read past it, or another
-speculative answer) stays `loading`; a local partial answer (`complete: false`,
+speculative answer) stays `loading` in observations; a local partial answer (`complete: false`,
 e.g. an order unlike the window's) stays partial.
+For one-shots, see `guide client`.
 Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
 decorations in their own query so the main list never waits on them.
 Keep the screen shell and draft mounted; render current reads.
@@ -170,7 +171,7 @@ do not change read rules, meter bounds or completeness.
 `count(messages where .roomId = roomId)` and `sum(orders where .owner =
 viewer, .amount)` stream their domains. They authorize and filter each row,
 then release it. They do not retain a page of bodies. A meter cut or unknown
-device coverage leaves the client read `loading`, never a partial total.
+device coverage leaves the client observation `loading`, never a partial total.
 Use a maintained view for a total that should be updated with each write.
 `count(page)` still counts only that page.
 An unpaged aggregate keeps enum inequalities and membership predicates as
@@ -187,7 +188,7 @@ admission; rule probes keep exact-key semantics.
 
 A resumable read-meter cut after every required head is known can carry `next`
 after its last fully shaped emitted row, subject to final-answer eligibility.
-Heap exhaustion clears the whole page and leaves the client read `loading`, with no continuation,
+Heap exhaustion clears the whole page and leaves the client observation `loading`, with no continuation,
 even during the drain. Step exhaustion aborts; output exhaustion can refuse.
 A uniform matching scan is always lazy. Opening and word-limit cuts cannot
 supply continuation. A terminal full page need not carry `next`. Following a

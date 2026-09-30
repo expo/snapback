@@ -141,3 +141,14 @@ fn fingerprint_names_every_component_and_is_independent_of_wire_order() {
     let restored: snapback4_core::schema::DeliveryBinding = serde_json::from_value(wire).unwrap();
     assert_eq!(restored.compute_fingerprint(), binding.fingerprint);
 }
+
+#[test]
+fn manual_delivery_accepts_extra_message_and_member_unique_keys_and_caps() {
+    let source = include_str!("delivery/integration.q")
+        .replace("members[.room, viewer]", "members[room = .room, principal = viewer]")
+        .replace("  unique room, principal", "  nonce: int default 0\n  unique room, principal\n  unique byClientNonce: principal, nonce\n  cap 50 by room\n  cap 100 by principal")
+        .replace("  unique room, ordinal", "  nonce: int default 0\n  unique room, ordinal\n  unique byClientNonce: room, nonce\n  cap 100 by room\n  cap 1000");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(bound.schema.delivery.len(), 1);
+}

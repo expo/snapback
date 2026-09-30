@@ -1,0 +1,234 @@
+[
+  {
+    "mode": "unconfined",
+    "account": "u0500",
+    "passed": true,
+    "cpus": 96,
+    "burners": 0,
+    "n": 3,
+    "rows": 11612,
+    "groups": 413,
+    "conversations": 100,
+    "sqlitePagesBytes": 21479424,
+    "allRetained": true,
+    "downloadedRows": 0,
+    "load1mRange": [
+      6.32,
+      71.48
+    ],
+    "acquiredMs": {
+      "median": 1292.92,
+      "min": 1267.572,
+      "max": 1315.963,
+      "samples": [
+        1267.572,
+        1292.92,
+        1315.963
+      ]
+    },
+    "firstLocalMs": {
+      "median": 1300.085,
+      "min": 1282.916,
+      "max": 1323.145,
+      "samples": [
+        1282.916,
+        1300.085,
+        1323.145
+      ]
+    },
+    "serverSyncMs": {
+      "median": 390.53900000000004,
+      "min": 383.05800000000005,
+      "max": 393.396,
+      "samples": [
+        393.396,
+        383.05800000000005,
+        390.53900000000004
+      ]
+    },
+    "restartFirstLocalMs": {
+      "median": 44.533,
+      "min": 42.662,
+      "max": 46.195,
+      "samples": [
+        46.195,
+        44.533,
+        42.662
+      ]
+    }
+  },
+  {
+    "mode": "unconfined",
+    "account": "u0001",
+    "passed": true,
+    "cpus": 96,
+    "burners": 0,
+    "n": 3,
+    "rows": 105034,
+    "groups": 4014,
+    "conversations": 1000,
+    "sqlitePagesBytes": 375209984,
+    "allRetained": true,
+    "downloadedRows": 0,
+    "load1mRange": [
+      6.32,
+      71.48
+    ],
+    "acquiredMs": {
+      "median": 42081.264,
+      "min": 40891.567,
+      "max": 60975.745,
+      "samples": [
+        40891.567,
+        42081.264,
+        60975.745
+      ]
+    },
+    "firstLocalMs": {
+      "median": 42095.929,
+      "min": 40918.034,
+      "max": 61000.949,
+      "samples": [
+        40918.034,
+        42095.929,
+        61000.949
+      ]
+    },
+    "serverSyncMs": {
+      "median": 2563.357,
+      "min": 2546.007,
+      "max": 2632.288,
+      "samples": [
+        2563.357,
+        2546.007,
+        2632.288
+      ]
+    },
+    "restartFirstLocalMs": {
+      "median": 269.695,
+      "min": 245.275,
+      "max": 443.018,
+      "samples": [
+        269.695,
+        245.275,
+        443.018
+      ]
+    }
+  },
+  {
+    "mode": "ten-cpu-loaded",
+    "account": "u0500",
+    "passed": true,
+    "cpus": 10,
+    "burners": 8,
+    "n": 3,
+    "rows": 11612,
+    "groups": 413,
+    "conversations": 100,
+    "sqlitePagesBytes": 21479424,
+    "allRetained": true,
+    "downloadedRows": 0,
+    "load1mRange": [
+      38.77,
+      102.01
+    ],
+    "acquiredMs": {
+      "median": 3804.879,
+      "min": 2853.835,
+      "max": 4391.642,
+      "samples": [
+        4391.642,
+        2853.835,
+        3804.879
+      ]
+    },
+    "firstLocalMs": {
+      "median": 3852.958,
+      "min": 2868.186,
+      "max": 4421.735,
+      "samples": [
+        4421.735,
+        2868.186,
+        3852.958
+      ]
+    },
+    "serverSyncMs": {
+      "median": 927.248,
+      "min": 884.803,
+      "max": 1522.399,
+      "samples": [
+        1522.399,
+        927.248,
+        884.803
+      ]
+    },
+    "restartFirstLocalMs": {
+      "median": 140.813,
+      "min": 122.447,
+      "max": 154.682,
+      "samples": [
+        140.813,
+        154.682,
+        122.447
+      ]
+    }
+  },
+  {
+    "mode": "ten-cpu-loaded",
+    "account": "u0001",
+    "passed": true,
+    "cpus": 10,
+    "burners": 8,
+    "n": 3,
+    "rows": 105034,
+    "groups": 4014,
+    "conversations": 1000,
+    "sqlitePagesBytes": 375209984,
+    "allRetained": true,
+    "downloadedRows": 0,
+    "load1mRange": [
+      38.77,
+      102.01
+    ],
+    "acquiredMs": {
+      "median": 49047.508,
+      "min": 43742.146,
+      "max": 62761.839,
+      "samples": [
+        62761.839,
+        49047.508,
+        43742.146
+      ]
+    },
+    "firstLocalMs": {
+      "median": 49058.5,
+      "min": 43756.571,
+      "max": 62783.957,
+      "samples": [
+        62783.957,
+        49058.5,
+        43756.571
+      ]
+    },
+    "serverSyncMs": {
+      "median": 3187.5110000000004,
+      "min": 2938.34,
+      "max": 6008.866,
+      "samples": [
+        6008.866,
+        2938.34,
+        3187.5110000000004
+      ]
+    },
+    "restartFirstLocalMs": {
+      "median": 393.76,
+      "min": 291.715,
+      "max": 403.043,
+      "samples": [
+        393.76,
+        291.715,
+        403.043
+      ]
+    }
+  }
+]

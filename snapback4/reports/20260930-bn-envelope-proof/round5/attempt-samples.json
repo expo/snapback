@@ -1,0 +1,484 @@
+{
+  "focused": [
+    {
+      "fault": "more-then-drop",
+      "observed": 5,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 5.985,
+          "totalMs": 6.454,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.253,
+          "totalMs": 4.712,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.945,
+          "totalMs": 5.216,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": true,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.707,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.027,
+          "outcome": "failed",
+          "error": "transport failure before headers",
+          "cause": "transport retry after reused-socket reset"
+        }
+      ]
+    },
+    {
+      "fault": "dropped-first",
+      "observed": 4,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.987,
+          "totalMs": 4.338,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.1,
+          "totalMs": 3.383,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.257,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 1.768,
+          "outcome": "failed",
+          "error": "transport failure before headers",
+          "cause": "transport retry after reused-socket reset"
+        }
+      ]
+    },
+    {
+      "fault": "drop-once",
+      "observed": 4,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 5.219,
+          "totalMs": 5.656,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.51,
+          "totalMs": 3.764,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.35,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 5.533,
+          "totalMs": 5.97,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0,
+          "cause": "transport retry after reused-socket reset"
+        }
+      ]
+    }
+  ],
+  "round3-transport-focused": [
+    {
+      "fault": "more-then-drop",
+      "observed": 4,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 5.2,
+          "totalMs": 5.584,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 5.136,
+          "totalMs": 5.423,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.337,
+          "totalMs": 4.579,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": true,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.496,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        }
+      ]
+    },
+    {
+      "fault": "dropped-first",
+      "observed": 3,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.588,
+          "totalMs": 4.999,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.57,
+          "totalMs": 4.876,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.323,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        }
+      ]
+    },
+    {
+      "fault": "drop-once",
+      "observed": 3,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.049,
+          "totalMs": 4.403,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 2.785,
+          "totalMs": 3.1,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.167,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        }
+      ]
+    }
+  ],
+  "witness-node": [
+    {
+      "fault": "more-then-drop",
+      "observed": 5,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.844,
+          "totalMs": 5.236,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.378,
+          "totalMs": 3.684,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 2.665,
+          "totalMs": 2.925,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": true,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.162,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 1.937,
+          "outcome": "failed",
+          "error": "transport failure before headers",
+          "cause": "transport retry after reused-socket reset"
+        }
+      ]
+    },
+    {
+      "fault": "dropped-first",
+      "observed": 4,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 4.609,
+          "totalMs": 4.972,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.201,
+          "totalMs": 3.509,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.209,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 1.701,
+          "outcome": "failed",
+          "error": "transport failure before headers",
+          "cause": "transport retry after reused-socket reset"
+        }
+      ]
+    },
+    {
+      "fault": "drop-once",
+      "observed": 4,
+      "attempts": [
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.99,
+          "totalMs": 4.338,
+          "outcome": "validated",
+          "snapshot": true,
+          "more": false,
+          "applied": false,
+          "putRows": 2,
+          "events": 2
+        },
+        {
+          "phase": "acquire",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.062,
+          "totalMs": 3.331,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "unavailable",
+          "headerMs": null,
+          "totalMs": 2.023,
+          "outcome": "failed",
+          "error": "transport failure before headers"
+        },
+        {
+          "phase": "reconnect",
+          "path": "/sync",
+          "http": "ok",
+          "headerMs": 3.71,
+          "totalMs": 4.115,
+          "outcome": "validated",
+          "snapshot": false,
+          "more": false,
+          "applied": true,
+          "putRows": 0,
+          "events": 0,
+          "cause": "transport retry after reused-socket reset"
+        }
+      ]
+    }
+  ]
+}

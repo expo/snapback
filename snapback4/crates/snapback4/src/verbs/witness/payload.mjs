@@ -4,7 +4,10 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 export const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'";
-export const fail = (code, message) => { throw new Error(`${code}: ${message}`); };
+class WitnessError extends Error {}
+export const fail = (code, message) => { throw new WitnessError(`${code}: ${message}`); };
+export const safeFailure = error => error instanceof WitnessError ? error.message
+  : 'E_WITNESS_BUILD: preparation could not read or process inputs; check --build, --artifacts and installed tools';
 export const readJSON = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 export const seal = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o444 });
 export function inventory(root, omit = () => false, onLink = () => {}) {
@@ -19,7 +22,7 @@ export function inventory(root, omit = () => false, onLink = () => {}) {
       const row = { path: rel, mode: stat.mode & 0o777 };
       if (stat.isSymbolicLink()) {
         const target = fs.readlinkSync(file), resolved = fs.realpathSync(file);
-        if (path.isAbsolute(target) || !resolved.startsWith(root + path.sep)) fail('E_WITNESS_PROOF', `escaping link: ${rel}`);
+        if (path.isAbsolute(target) || !resolved.startsWith(root + path.sep)) fail('E_WITNESS_PROOF', '--build has an escaping link');
         onLink(rel, resolved);
         files.push({ ...row, type: 'symlink', target });
       } else if (stat.isDirectory()) {
@@ -27,7 +30,7 @@ export function inventory(root, omit = () => false, onLink = () => {}) {
       } else if (stat.isFile()) {
         const bytes = fs.readFileSync(file);
         files.push({ ...row, type: 'file', bytes: bytes.length, sha256: hash(bytes) });
-      } else fail('E_WITNESS_PROOF', `unsupported file type: ${rel}`);
+      } else fail('E_WITNESS_PROOF', '--build has an unsupported file type');
     }
   }
   walk('');
@@ -35,7 +38,7 @@ export function inventory(root, omit = () => false, onLink = () => {}) {
 }
 export function hbc(file) {
   const bytes = fs.readFileSync(file);
-  if (bytes.length < 128 || bytes.subarray(0, 8).toString('hex') !== 'c61fbc03c103191f') fail('E_WITNESS_HERMES', `${file} is not Hermes bytecode; use --build`);
+  if (bytes.length < 128 || bytes.subarray(0, 8).toString('hex') !== 'c61fbc03c103191f') fail('E_WITNESS_HERMES', 'bundle is not Hermes bytecode; use --build');
   return { sha256: hash(bytes), bytes: bytes.length, version: bytes.readUInt32LE(8) };
 }
 export function nativeFiles(root, inv) {
@@ -53,7 +56,7 @@ export function installedInventory(expected, actual, native) {
     const a = change.expected, b = change.actual;
     if (!a || !b || !native.some(n => n.path === change.path) || !/^Frameworks\/[^/]+\.framework\/[^/]+$/.test(change.path)
         || a.mode !== 0o755 || b.mode !== 0o644 || JSON.stringify({ ...a, mode: b.mode }) !== JSON.stringify(b)) {
-      fail('E_WITNESS_PROOF', `installed payload differs: ${change.path}`);
+      fail('E_WITNESS_PROOF', 'installed payload differs; rebuild with --build');
     }
   }
   return actual;

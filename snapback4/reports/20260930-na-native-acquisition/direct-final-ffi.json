@@ -1,0 +1,482 @@
+{
+  "wallMs": 9693.2017,
+  "applyMs": 8967.594359,
+  "maxRssKiBIncludingPython": 61284,
+  "samples": [
+    {
+      "seq": 0,
+      "op": "sync_state",
+      "ms": 0.081642,
+      "bytes": 36
+    },
+    {
+      "seq": 1,
+      "op": "state",
+      "ms": 0.011948,
+      "bytes": 15
+    },
+    {
+      "seq": 2,
+      "op": "meta",
+      "ms": 0.008442,
+      "bytes": 35
+    },
+    {
+      "seq": 3,
+      "op": "queued",
+      "ms": 0.022144,
+      "bytes": 43
+    },
+    {
+      "seq": 4,
+      "op": "meta",
+      "ms": 0.007892,
+      "bytes": 41
+    },
+    {
+      "seq": 5,
+      "op": "set_meta",
+      "ms": 0.181432,
+      "bytes": 87
+    },
+    {
+      "seq": 6,
+      "op": "meta",
+      "ms": 0.014942,
+      "bytes": 37
+    },
+    {
+      "seq": 7,
+      "op": "state",
+      "ms": 0.008683,
+      "bytes": 15
+    },
+    {
+      "seq": 8,
+      "op": "next_submission",
+      "ms": 0.025678,
+      "bytes": 25
+    },
+    {
+      "seq": 9,
+      "op": "meta",
+      "ms": 0.007822,
+      "bytes": 38
+    },
+    {
+      "seq": 10,
+      "op": "sync_state",
+      "ms": 0.050075,
+      "bytes": 36
+    },
+    {
+      "seq": 11,
+      "op": "sync_state",
+      "ms": 0.04004,
+      "bytes": 36
+    },
+    {
+      "seq": 12,
+      "op": "queued",
+      "ms": 0.01329,
+      "bytes": 16
+    },
+    {
+      "seq": 13,
+      "op": "queued",
+      "ms": 0.011026,
+      "bytes": 16
+    },
+    {
+      "seq": 14,
+      "op": "meta",
+      "ms": 0.007632,
+      "bytes": 50
+    },
+    {
+      "seq": 15,
+      "op": "state",
+      "ms": 0.007631,
+      "bytes": 15
+    },
+    {
+      "seq": 16,
+      "op": "delivery",
+      "ms": 0.189934,
+      "bytes": 77
+    },
+    {
+      "seq": 17,
+      "op": "set_meta",
+      "ms": 0.148122,
+      "bytes": 54
+    },
+    {
+      "seq": 18,
+      "op": "delivery",
+      "ms": 0.048753,
+      "bytes": 106
+    },
+    {
+      "seq": 19,
+      "op": "delivery",
+      "ms": 0.031106,
+      "bytes": 106
+    },
+    {
+      "seq": 20,
+      "op": "delivery",
+      "ms": 0.02637,
+      "bytes": 106
+    },
+    {
+      "seq": 21,
+      "op": "backend",
+      "ms": 10.458086,
+      "bytes": 17
+    },
+    {
+      "seq": 22,
+      "op": "state",
+      "ms": 0.031136,
+      "bytes": 44
+    },
+    {
+      "seq": 23,
+      "op": "sync_state",
+      "ms": 0.2538,
+      "bytes": 49
+    },
+    {
+      "seq": 24,
+      "op": "observe_store",
+      "ms": 21.579215,
+      "bytes": 3627322
+    },
+    {
+      "seq": 25,
+      "op": "apply",
+      "ms": 98.955196,
+      "bytes": 3627374,
+      "published": false
+    },
+    {
+      "seq": 26,
+      "op": "sync_state",
+      "ms": 0.360691,
+      "bytes": 49
+    },
+    {
+      "seq": 27,
+      "op": "observe_store",
+      "ms": 24.218822,
+      "bytes": 3917568
+    },
+    {
+      "seq": 28,
+      "op": "apply",
+      "ms": 117.144151,
+      "bytes": 3917621,
+      "published": false
+    },
+    {
+      "seq": 29,
+      "op": "sync_state",
+      "ms": 0.362834,
+      "bytes": 49
+    },
+    {
+      "seq": 30,
+      "op": "observe_store",
+      "ms": 20.985125,
+      "bytes": 3916340
+    },
+    {
+      "seq": 31,
+      "op": "apply",
+      "ms": 144.874725,
+      "bytes": 3916393,
+      "published": false
+    },
+    {
+      "seq": 32,
+      "op": "sync_state",
+      "ms": 0.275593,
+      "bytes": 49
+    },
+    {
+      "seq": 33,
+      "op": "observe_store",
+      "ms": 22.097252,
+      "bytes": 3916831
+    },
+    {
+      "seq": 34,
+      "op": "apply",
+      "ms": 169.859075,
+      "bytes": 3916884,
+      "published": false
+    },
+    {
+      "seq": 35,
+      "op": "sync_state",
+      "ms": 1.384936,
+      "bytes": 49
+    },
+    {
+      "seq": 36,
+      "op": "observe_store",
+      "ms": 21.469491,
+      "bytes": 3917193
+    },
+    {
+      "seq": 37,
+      "op": "apply",
+      "ms": 186.227551,
+      "bytes": 3917246,
+      "published": false
+    },
+    {
+      "seq": 38,
+      "op": "sync_state",
+      "ms": 0.302464,
+      "bytes": 49
+    },
+    {
+      "seq": 39,
+      "op": "observe_store",
+      "ms": 20.968731,
+      "bytes": 3916497
+    },
+    {
+      "seq": 40,
+      "op": "apply",
+      "ms": 200.854276,
+      "bytes": 3916550,
+      "published": false
+    },
+    {
+      "seq": 41,
+      "op": "sync_state",
+      "ms": 0.31994,
+      "bytes": 49
+    },
+    {
+      "seq": 42,
+      "op": "observe_store",
+      "ms": 21.850402,
+      "bytes": 3916196
+    },
+    {
+      "seq": 43,
+      "op": "apply",
+      "ms": 208.170411,
+      "bytes": 3916249,
+      "published": false
+    },
+    {
+      "seq": 44,
+      "op": "sync_state",
+      "ms": 0.331106,
+      "bytes": 49
+    },
+    {
+      "seq": 45,
+      "op": "observe_store",
+      "ms": 23.984221,
+      "bytes": 3916152
+    },
+    {
+      "seq": 46,
+      "op": "apply",
+      "ms": 211.669517,
+      "bytes": 3916205,
+      "published": false
+    },
+    {
+      "seq": 47,
+      "op": "sync_state",
+      "ms": 0.335263,
+      "bytes": 49
+    },
+    {
+      "seq": 48,
+      "op": "observe_store",
+      "ms": 20.715441,
+      "bytes": 3916637
+    },
+    {
+      "seq": 49,
+      "op": "apply",
+      "ms": 218.540445,
+      "bytes": 3916690,
+      "published": false
+    },
+    {
+      "seq": 50,
+      "op": "sync_state",
+      "ms": 0.311768,
+      "bytes": 49
+    },
+    {
+      "seq": 51,
+      "op": "observe_store",
+      "ms": 16.11121,
+      "bytes": 3448099
+    },
+    {
+      "seq": 52,
+      "op": "apply",
+      "ms": 187.751205,
+      "bytes": 3448152,
+      "published": false
+    },
+    {
+      "seq": 53,
+      "op": "sync_state",
+      "ms": 0.349183,
+      "bytes": 49
+    },
+    {
+      "seq": 54,
+      "op": "observe_store",
+      "ms": 5.519313,
+      "bytes": 1353136
+    },
+    {
+      "seq": 55,
+      "op": "apply",
+      "ms": 25.669326,
+      "bytes": 1353189,
+      "published": false
+    },
+    {
+      "seq": 56,
+      "op": "sync_state",
+      "ms": 0.20054,
+      "bytes": 49
+    },
+    {
+      "seq": 57,
+      "op": "set_meta",
+      "ms": 0.105939,
+      "bytes": 87
+    },
+    {
+      "seq": 58,
+      "op": "observe_store",
+      "ms": 0.060981,
+      "bytes": 456
+    },
+    {
+      "seq": 59,
+      "op": "apply",
+      "ms": 7197.878481,
+      "bytes": 509,
+      "published": true
+    },
+    {
+      "seq": 60,
+      "op": "sync_state",
+      "ms": 0.148513,
+      "bytes": 65
+    },
+    {
+      "seq": 61,
+      "op": "sync_state",
+      "ms": 0.053951,
+      "bytes": 65
+    },
+    {
+      "seq": 62,
+      "op": "set_meta",
+      "ms": 0.156525,
+      "bytes": 95
+    },
+    {
+      "seq": 63,
+      "op": "sync_state",
+      "ms": 0.065448,
+      "bytes": 65
+    },
+    {
+      "seq": 64,
+      "op": "observe_store",
+      "ms": 0.043946,
+      "bytes": 325
+    },
+    {
+      "seq": 65,
+      "op": "sync_state",
+      "ms": 0.047241,
+      "bytes": 65
+    },
+    {
+      "seq": 66,
+      "op": "queued",
+      "ms": 0.015643,
+      "bytes": 45
+    },
+    {
+      "seq": 67,
+      "op": "query",
+      "ms": 3.17564,
+      "bytes": 145
+    },
+    {
+      "seq": 68,
+      "op": "queued",
+      "ms": 0.033149,
+      "bytes": 45
+    },
+    {
+      "seq": 69,
+      "op": "sync_state",
+      "ms": 0.057126,
+      "bytes": 36
+    },
+    {
+      "seq": 70,
+      "op": "delivery",
+      "ms": 3.907727,
+      "bytes": 106
+    },
+    {
+      "seq": 71,
+      "op": "witness_coverage",
+      "ms": 278.380271,
+      "bytes": 69,
+      "coverageSha256": "6dfb58251031ca7d678d6c24ff214e4edcdbd0b21f56451620f1b2d50ca3d66d"
+    },
+    {
+      "seq": 72,
+      "op": "delivery",
+      "ms": 2.999466,
+      "bytes": 995500
+    },
+    {
+      "seq": 73,
+      "op": "residency",
+      "ms": 0.140841,
+      "bytes": 48
+    },
+    {
+      "seq": 74,
+      "op": "sync_state",
+      "ms": 0.071287,
+      "bytes": 65
+    },
+    {
+      "seq": 75,
+      "op": "delivery",
+      "ms": 3.820486,
+      "bytes": 106
+    },
+    {
+      "seq": 76,
+      "op": "delivery",
+      "ms": 3.558414,
+      "bytes": 106
+    }
+  ]
+}

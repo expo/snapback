@@ -1,0 +1,31 @@
+note: schema.q:1:1 — N_NO_HORIZON: table groups: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+residency (facts)
+  groups: sync public
+  members: sync to members[.group] (from the read rule); cap 50 by group
+  messages: sync to members[.group] last 10 by index (group, id), chosen by the planner (from the read rule)
+  reactions: sync to members[.$parent.group] (from the read rule); cap 50 by parent
+operations (facts)
+  membership: predicts: eligible
+    Held: write target members by index (group, principal), chosen by the planner: held, no horizon (site schema.q:53:5 (delete members))
+    Held: insert if absent into members: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row (site schema.q:51:5 (insert members))
+    Held: rule members by index (group, principal), chosen by the planner: held, no horizon (site schema.q:14:3 (members insert rule: members by index (group, principal), chosen by the planner))
+  move: predicts: eligible except past the horizon at messages by byId (schema.q:56:3)
+    Horizon: write target messages by byId: sync to members[.group] last 10 by index (group, id), chosen by the planner (site schema.q:56:3); may queue without a row past the horizon
+  page: runs: device
+    Held: scan reactions by index (parent, principal), chosen by the planner: held, no horizon; selected index (parent, principal), chosen by the planner (parent = parent); result: page; explicit by (site schema.q:43:10 (reactions where .parent = parent by .principal))
+    Horizon: read through parent messages by byId: sync to members[.group] last 10 by index (group, id), chosen by the planner (site schema.q:43:10 (reactions where .parent = parent by .principal)); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (group, principal), chosen by the planner: held, no horizon (site schema.q:43:10 (reactions where .parent = parent by .principal))
+  react: predicts: eligible except past the horizon at messages by byId (schema.q:47:10), upsert reactions (schema.q:47:10)
+    Held: write target reactions by index (parent, principal), chosen by the planner: held, no horizon (site schema.q:47:10)
+    Horizon: read through parent messages by byId: sync to members[.group] last 10 by index (group, id), chosen by the planner (site schema.q:47:10); may queue without a row past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (group, principal), chosen by the planner: held, no horizon (site schema.q:47:10)
+    Held: rule members by index (group, principal), chosen by the planner: held, no horizon (site schema.q:47:10)
+    Held: upsert insert into reactions: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row (site schema.q:47:10)
+    Horizon: read through capture messages by byId: sync to members[.group] last 10 by index (group, id), chosen by the planner (site schema.q:47:10 (upsert reactions)); may queue without a row past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (group, principal), chosen by the planner: held, no horizon (site schema.q:37:3 (reactions update rule: members by index (group, principal), chosen by the planner))
+residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>

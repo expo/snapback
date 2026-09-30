@@ -264,7 +264,7 @@ for (const mode of ["reset", "install failure"]) {
       await client.sync();
     }
     const before = queryCalls;
-    assert.deepEqual(await client.query(op, input), { loading: true });
+    assert.equal((await client.query(op, input)).denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
     assert.equal(queryCalls, before, "the unavailable guest/partition cannot run locally");
     assert.equal(requests.length, 0);
     assert.ok(snapshots.every(read => !("data" in read) || !read.data.includes("server-without-own")));

@@ -10,6 +10,10 @@ pub struct DeliveryBinding {
     pub mutation: String,
     pub args: Vec<String>,
     pub fingerprint: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compact: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantics: Option<String>,
 }
 
 // This streaming map reader shares the ordinary String/Vec readers with the
@@ -29,7 +33,9 @@ impl<'de> Deserialize<'de> for DeliveryBinding {
                 let mut fields: [String; 5] = Default::default();
                 let mut args = Vec::new();
                 let mut seen = 0_u8;
-                const NAMES: [&str; 6] = ["table", "group", "position", "mutation", "fingerprint", "args"];
+                let mut compact = None;
+                let mut semantics = None;
+                const NAMES: [&str; 8] = ["table", "group", "position", "mutation", "fingerprint", "args", "compact", "semantics"];
                 while let Some(key) = map.next_key::<String>()? {
                     let Some(index) = NAMES.iter().position(|name| *name == key) else {
                         let _ = map.next_value::<serde::de::IgnoredAny>()?;
@@ -38,14 +44,16 @@ impl<'de> Deserialize<'de> for DeliveryBinding {
                     let bit = 1 << index;
                     if seen & bit != 0 { return Err(serde::de::Error::custom("duplicate delivery field")); }
                     seen |= bit;
-                    if index == 5 { args = map.next_value()?; }
+                    if index == 7 { semantics = Some(map.next_value()?); }
+                    else if index == 6 { compact = Some(map.next_value()?); }
+                    else if index == 5 { args = map.next_value()?; }
                     else { fields[index] = map.next_value()?; }
                 }
-                if seen != 63 || args.len() != 3 {
+                if seen & 63 != 63 || args.len() != 3 {
                     return Err(serde::de::Error::custom("delivery needs table, group, position, mutation, fingerprint and three arguments"));
                 }
                 let [table, group, position, mutation, fingerprint] = fields;
-                Ok(DeliveryBinding { table, group, position, mutation, args, fingerprint })
+                Ok(DeliveryBinding { table, group, position, mutation, args, fingerprint, compact, semantics })
             }
         }
         deserializer.deserialize_map(Binding)
@@ -63,6 +71,12 @@ impl DeliveryBinding {
             hash.update((field.len() as u64).to_be_bytes());
             hash.update(field.as_bytes());
         }
+        if let Some(semantics) = &self.semantics {
+            hash.update(b"snapback4.receipts.v2\0");
+            for field in [semantics.as_str(), self.compact.as_deref().unwrap_or("")] {
+                hash.update((field.len() as u64).to_be_bytes()); hash.update(field.as_bytes());
+            }
+        }
         format!("{:x}", hash.finalize())
     }
 }
@@ -70,13 +84,15 @@ impl DeliveryBinding {
 #[cfg(feature = "sqlite")]
 impl super::Schema {
     pub fn check_delivery(&self, mutation: &str, fingerprint: Option<&str>) -> Result<(), crate::RuntimeError> {
-        if let Some(fingerprint) = fingerprint {
-            if !self.delivery.iter().any(|binding| binding.mutation == mutation && binding.fingerprint == fingerprint) {
-                return Err(crate::RuntimeError::Structural {
-                    code: "E_DELIVERY_BINDING",
-                    message: format!("{mutation}'s delivery binding changed or was removed; drop this binding's debt and collect under the current binding"),
-                });
-            }
+        let valid = match fingerprint {
+            Some(fingerprint) => self.delivery.iter().any(|binding| (binding.mutation == mutation || binding.compact.as_deref() == Some(mutation)) && binding.fingerprint == fingerprint),
+            None => !self.delivery.iter().any(|binding| binding.compact.as_deref() == Some(mutation)),
+        };
+        if !valid {
+            return Err(crate::RuntimeError::Structural {
+                code: "E_DELIVERY_BINDING",
+                message: format!("{mutation}'s delivery binding changed, was removed or requires a fingerprint; collect under the current binding"),
+            });
         }
         Ok(())
     }

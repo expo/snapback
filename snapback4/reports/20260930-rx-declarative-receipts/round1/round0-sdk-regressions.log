@@ -1,0 +1,40 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+/tmp/rx-r0-sdk/delivery.ts:53
+  private readonly now: () => number;
+  constructor(private options: Options) { this.now = options.now ?? Date.now; }
+                      ^^^^^^^^^^^^^^^^
+  private track<T>(promise: Promise<T>): Promise<T> {
+
+SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
+    at parseTypeScript (node:internal/modules/typescript:68:40)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)
+    at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:148:26)
+    at defaultGetFormat (node:internal/modules/esm/get_format:211:36)
+    at defaultLoadSync (node:internal/modules/esm/load:158:16)
+    at #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:796:12)
+    at #loadSync (node:internal/modules/esm/loader:816:49)
+    at ModuleLoader.load (node:internal/modules/esm/loader:781:26)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:526:31) {
+  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.13.1
+✖ /tmp/rx-r0-sdk/delivery.test.mjs (73.783861ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 79.667338
+
+✖ failing tests:
+
+test at ../../../../tmp/rx-r0-sdk/delivery.test.mjs:1:1
+✖ /tmp/rx-r0-sdk/delivery.test.mjs (73.783861ms)
+  'test failed'

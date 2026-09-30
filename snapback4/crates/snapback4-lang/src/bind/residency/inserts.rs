@@ -25,7 +25,40 @@ pub(super) fn insert_site(schema: &Schema, location: &str, name: &str, addressed
             _ => format!("{kind} into {name}: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row"),
         };
     }
+    if addressed.is_some() {
+        fact.reason.push_str(&update_constraints(schema, name, row));
+    }
     fact
+}
+
+// @ref LLP 3000.007#20.5 — the update arm proves only populations it enters.
+fn update_constraints(schema: &Schema, name: &str, patch: &Expr) -> String {
+    let table = &schema.tables[name];
+    let unchanged = |columns: &[String]| columns.iter().all(|column|
+        table.constraints.iter().any(|c| matches!(c, Constraint::Immutable { fields } if fields.contains(column)))
+        || matches!(patch, Expr::Object(fields) if !fields.contains_key(column)));
+    let mut explanations = Vec::new();
+    let mut explain = |label: String, index: &str, columns: &[String], cap: bool| {
+        let rule = if unchanged(columns) { "unchanged by this patch; no new coverage needed".to_owned() }
+        else {
+            let key: Vec<_> = columns.iter().map(|column| ir::var(column)).collect();
+            let changed = if cap && table.is_expiring() { "changes queue: expiring cap needs server physical occupancy".to_owned() }
+                else if let Err(reason) = upsert_absence(schema, name, index, &key) { format!("changes queue: {reason}") }
+                else { "changes predict only with complete held, readable population coverage".to_owned() };
+            format!("unchanged{} needs no new coverage; {changed}", if cap { " group" } else { " or null key" })
+        };
+        explanations.push(format!("{label}: {rule}"));
+    };
+    for (index, definition) in &table.indexes {
+        if definition.unique && index != "byId" { let columns = definition.columns(); explain(format!("unique {}", columns.join(", ")), index, &columns, false); }
+    }
+    for constraint in &table.constraints {
+        if let Constraint::Cap { by, max } = constraint
+            && let Some((index, _)) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)) {
+            explain(format!("cap {max} by {}", if by.is_empty() { "(whole table)".into() } else { by.join(", ") }), index, by, true);
+        }
+    }
+    if explanations.is_empty() { String::new() } else { format!("; held updates — {}", explanations.join("; ")) }
 }
 
 fn unpinned(table: &Table, columns: &[String]) -> String {
@@ -84,6 +117,9 @@ fn failure(schema: &Schema, name: &str, addressed: Option<(&str, &[Expr])>, row:
     }
     for constraint in &table.constraints {
         if let Constraint::Cap { by, max } = constraint {
+            if table.is_expiring() {
+                return Some(format!("{name} expiring cap {max} by {} needs server physical occupancy", by.join(", ")));
+            }
             let (index, _) = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by))?;
             let key: Vec<_> = by.iter().map(|column| ir::var(column)).collect();
             if upsert_absence(schema, name, index, &key).is_err() {

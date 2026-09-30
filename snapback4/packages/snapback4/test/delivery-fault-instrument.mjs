@@ -101,6 +101,17 @@ export function instrument(destination) {
 // settles nor observes a write. Failure withholds the read. The causal Following
 // regression covers admission/settlement/apply, including zero-wait retirement;
 // mutation delivery continues through the unchanged classified sites above.
+// RX v2: delivery.ts adds one maintenance transport await after RUNS_FULL.
+// It cannot acknowledge delivery: only the later report records coverage.
+// delivery.test.mjs injects lost/refused/unaccepted maintenance and a stale
+// incarnation reply; delivery-integrated exercises real fingerprint-bound
+// dispatch. The existing outbox delivery matrix sites stay unchanged.
+// QS (LLP 3000.023 §11): query-settlement awaits raw evaluation, facade
+// authority and retry pauses. Local query's new queued() wait reads existing
+// custody; it cannot admit, send or settle a write. Failure refuses the query.
+// Raw publication and delivery acceptance run synchronously after these waits;
+// one-shot/one-shot-bounds and delivery-publication cover stale/expired/closed
+// continuations and ignored abort. No delivery fault site or recipe changed.
 // node-fetch's two new awaits are below the classified doFetch boundaries.
 // keepalive-retry exercises a committed mutation with a lost reply, identical
 // ID/body/authority snapshots, exhausted retry, fresh failures and partial-response failure.

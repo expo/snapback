@@ -1,0 +1,35 @@
+{
+  "mergedMain": "11ddefd88c0c3191be4bc199161e9b4b8452a493",
+  "mergeCommit": "6699793533224c65c116744b6432c527e56266c1",
+  "artifacts": {
+    "snapback4/target/production/snapback4": {
+      "bytes": 18933208,
+      "sha256": "e0e2ae1ac1f5459bc558840d3d9cfc15833f5796502fae40c1ff0a5da60663fa"
+    },
+    "snapback4/target/production/libsnapback4_device.so": {
+      "bytes": 8156608,
+      "sha256": "bd922f75d0f9525b3107c6fd5a82794b2dcba0d333599b7e4e62a3d3b847cee8"
+    },
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+      "bytes": 1990092,
+      "sha256": "34c798b955b9a6148c88c6b4dd0f7aa29a8d2cb72ec6cf155c5d07e2ab253391"
+    },
+    "snapback4/metrics/wasm-budget.json": {
+      "bytes": 33219,
+      "sha256": "9e50a4156a40cc903c824f3a79f2102e14800e8fd4ab001006f2c2790cdbbb67"
+    },
+    "target/na-capture-before/3521818.backend.json": {
+      "bytes": 407080,
+      "sha256": "09c3e06625f86e76be43daa25a71c4d4cbb0c6c526d74d5e0790d37b48a84443"
+    },
+    "target/na-capture-before/3521818.requests.jsonl": {
+      "bytes": 80524166,
+      "sha256": "948b5db7e0531bd4c9766a6102065dd79f3fb4e3b085ac277e756dc4c4c6a1c9"
+    }
+  },
+  "wasm": {
+    "rawBytes": 1990092,
+    "gzipBytes": 597059,
+    "cap": 597247
+  }
+}

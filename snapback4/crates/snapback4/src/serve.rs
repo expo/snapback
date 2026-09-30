@@ -920,8 +920,9 @@ fn handle(mut request: Request, shared: &Shared) {
         if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
         // No engine lock: doctor must remain usable while an adoption waits on SQLite.
         let generation = *lock(&shared.generation);
+        let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now()}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas}));
     }
     if method == Method::Options {
         respond_empty(request, 204);
@@ -1015,10 +1016,10 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, path) if path.starts_with("/effects/") => effects::post(request, shared, path, &body),
         (Method::Get, "/effects") => effects::list(request, shared, &url),
         (Method::Get, "/probe") => match principal_of(&request, shared) {
-            Ok(_) => {
+            Ok(viewer) => {
                 let identity = shared.read_head();
                 match identity {
-                    Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq })),
+                    Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq, "viewer": viewer })),
                     Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error) })),
                 }
             },

@@ -1,0 +1,29 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 1.42s
+     Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-0e2a740c327d15fe)
+
+running 2 tests
+test inherited_expiry_replay_memory ... FAILED
+test inherited_expiry_replay_sqlite ... FAILED
+
+failures:
+
+---- inherited_expiry_replay_memory stdout ----
+
+thread 'inherited_expiry_replay_memory' (2994576) panicked at crates/snapback4-device/tests/row_view_expiry.rs:22:13:
+source: QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Int(0), unavailable: false, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 4, index_entries: 0, rule_probes: 0, steps: 13, heap_bytes: 1168, output_bytes: 9, rows_written: 0 }, tables: ["members", "messages", "rooms", "unread"], next_expiry: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- inherited_expiry_replay_sqlite stdout ----
+
+thread 'inherited_expiry_replay_sqlite' (2994577) panicked at crates/snapback4-device/tests/row_view_expiry.rs:22:13:
+source: QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Int(0), unavailable: false, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 4, index_entries: 0, rule_probes: 0, steps: 13, heap_bytes: 1168, output_bytes: 9, rows_written: 0 }, tables: ["members", "messages", "rooms", "unread"], next_expiry: None }
+
+
+failures:
+    inherited_expiry_replay_memory
+    inherited_expiry_replay_sqlite
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p snapback4-device --test row_view_expiry`

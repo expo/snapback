@@ -1,0 +1,176 @@
+{
+  "started": 1790792408.572563,
+  "seconds": 323.40562534332275,
+  "workers": [
+    {
+      "pid": 1647993,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 32100
+    },
+    {
+      "pid": 1647994,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 31360
+    },
+    {
+      "pid": 1647995,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 30705
+    },
+    {
+      "pid": 1647996,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 30957
+    },
+    {
+      "pid": 1647997,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 32100
+    },
+    {
+      "pid": 1647998,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 31062
+    },
+    {
+      "pid": 1647999,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 30785
+    },
+    {
+      "pid": 1648000,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 32072
+    },
+    {
+      "pid": 1648001,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 30733
+    },
+    {
+      "pid": 1648002,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ticksBefore": 0,
+      "ticksAfter": 31007
+    }
+  ]
+}

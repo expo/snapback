@@ -18,13 +18,12 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`table` declares columns and an implicit `id`.
-`read` and `insert` authorize owners; `sync` brings their rows to the device.
+`table` declares columns and `id`; rules authorize owners, `sync` replicates rows.
 `query` pages newest first; pass `next` as `c`.
 `mutation` inserts atomically, using the default time.
 
-`reports delivery of messages by .conversation, .ordinal` enables SDK reporting
-(`guide receipts`).
+`receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting
+(`guide receipts`; expert recipe: `guide manual-receipts`).
 
 ## Limits
 
@@ -524,13 +523,10 @@ a large mark change reports `complete: false` while its recount settles.
 The complete, compiled Clique recipe is on `guide maintains`.
 
 
-One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
-programs and schedules, in any order; more `.q` files beside it are modules
-(their operations are `<module>.<name>`) sharing one namespace. Schedules use that
-qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
-bare module job gets this rewrite from `check --fix`. Comments
-start with `--`. Blocks indent with two spaces. Everything the compiler
-accepts is below; the suite compiles every block and runs the core program.
+`snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules
+in any order. Other `.q` files share its namespace; their operations and scheduled
+jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name.
+Comments start with `--`; blocks indent two spaces. The suite compiles every block.
 
 Time arithmetic uses durations: `now + 1m` is one minute from now,
 and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
@@ -542,25 +538,19 @@ image against all pending writes. `edit` of retained history after leaving
 the room also predicts, but the edited image is hidden until settlement.
 See `guide prediction`.
 
-Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.
-Named keys select columns explicitly. `t where predicate first 20 by .at
-after c` pages matching rows. `last` reverses the order; id breaks ties.
-Optional filters use `(status = null or .status = status)` to select a plan
-for absent or present inputs; an empty `matching q` needle browses in order.
-`count(t where predicate)`, `sum(t where predicate, .amount)`,
-`min(t where predicate, .col)` and `max(t where predicate, .col)` stream a
-domain. Min/max skip null values, as SQL does, and return null for an empty
-or all-null domain; otherwise they return the value's type. The second argument
-also accepts a scalar row expression, such as `2 if .state = 2 else 1` or
-`.amount + 1`; `.field` binds the aggregate row, and named locals stay in scope.
-Expressions scan the domain (constant under a declared cap, growing otherwise).
-An expression that can bind an enclosing shape's row is ambiguous: put the
-aggregate in a helper and pass enclosing values by name. For literal `.col`, an ordered
-index seeks to the first visible matching non-null value; otherwise the
-engine scans under its meters. `check --cost` names the plan. A cut aggregate
-is unavailable, never a partial answer (even before `?? 2`). A device needs
-complete coverage of the domain. Rules apply before any comparison. `exists` stops
-at a visible match; an unknown domain cannot establish absence.
+`t[id]` reads one row; positional composite keys require an unambiguous declared
+unique key. Named keys select columns. `t where predicate first 20 by .at after c`
+pages ascending; `last` descends, with id breaking ties. Optional filters use
+`(status = null or .status = status)`; empty `matching q` browses in order.
+`count`, `sum`, `min` and `max` stream domains. Min/max skip nulls and return null
+for empty/all-null domains, otherwise the value's type. Their second argument
+accepts scalar row expressions; `.field` binds that row and named locals remain
+in scope. Move ambiguous enclosing-row references into a helper with named inputs.
+Literal `.col` extrema seek the first visible matching non-null indexed value;
+other expressions scan under meters (constant under a cap, growing otherwise). `check --cost` names the plan. A cut aggregate
+is unavailable, including before `??`; devices need complete domain coverage.
+Rules precede comparisons. `exists` stops at a visible match; unknown domains
+cannot prove absence. See `guide reads`.
 
 `ys = xs + [value]`, `[a] + [b]` and `return xs + [value]` concatenate lists;
 item types join and bounds add.
@@ -591,7 +581,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 Cards: `snapback4 guide <keyword>` — app, social, from-sql, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire, ephemeral, sequences,
 assets, client, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, receipts, manual-receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 
 ## An ID belongs to one intent
@@ -603,16 +593,10 @@ or stay online only.
 
 ## Reads and planned views
 
-A predicate states which rows belong in a read. `by .at` orders by a column;
-`first` ascends and `last` descends, with `id` breaking ties in that direction.
-The compiler selects or synthesizes indexes. A positional key must name one
-unambiguous declared unique key; named keys make the intended columns explicit.
-`search` declares searchable text, and unnamed `unique` declares a unique key.
-Duration literals are integer milliseconds in any expression.
-
-## Materialized Following
-
-The public activity union supplies a private delivered feed for each reader.
+The compiler plans predicates, ordering, `search` and unnamed `unique` indexes
+(`guide indexes`). Durations are integer milliseconds in any expression.
+The public activity union below supplies each reader's private
+delivered feed.
 
 ```quarry
 -- Following materializes this public activity view; `guide feeds` has the complete app.
@@ -801,4 +785,43 @@ table typing:
   insert <- .principal = viewer
   ephemeral 4s
 ```
+
+## Membership paths
+
+An immutable required reference can spell its parent's whole membership rule:
+
+```quarry
+table members:
+  conversation: id
+  principal: principal
+  unique conversation, principal
+  cap 50 by conversation
+  read <- exists members[.conversation, viewer]
+  sync
+
+table messages:
+  conversation: id
+  immutable conversation
+  read <- exists members[.conversation, viewer]
+  sync last 500 by .id
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text <=32
+  immutable message
+  unique message, principal
+  cap 50 by message
+  read <- exists members[.message.conversation, viewer]
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync to members[.message.conversation]
+
+mutation react(message: messages, emoji: text <=32) predicts:
+  upsert reactions[message, viewer] { emoji }
+```
+
+This inherits `read through .message` semantics. `guide sync` covers three hops,
+immutable required references, lifetime and E_READ_THROUGH / E_SYNC repairs;
+`guide prediction` covers acquired coverage and rollback.
 "##;

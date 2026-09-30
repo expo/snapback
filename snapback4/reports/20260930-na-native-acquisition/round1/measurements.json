@@ -1,0 +1,138 @@
+[
+  {
+    "condition": "unconfined",
+    "account": "u0500",
+    "memberships": 100,
+    "rows": 11612,
+    "acquiredSeconds": [
+      1.065199,
+      1.046416,
+      1.059561
+    ],
+    "medianSeconds": 1.059561,
+    "minSeconds": 1.046416,
+    "maxSeconds": 1.065199,
+    "firstLocalSeconds": [
+      1.082382,
+      1.0533759999999999,
+      1.067318
+    ],
+    "restartFirstLocalSeconds": [
+      0.050027,
+      0.04819,
+      0.043823
+    ],
+    "restartCoverageVerifiedSeconds": [
+      0.022749,
+      0.02223,
+      0.022836
+    ],
+    "sqliteBytes": [
+      21422080,
+      21422080,
+      21422080
+    ]
+  },
+  {
+    "condition": "unconfined",
+    "account": "u0001",
+    "memberships": 1000,
+    "rows": 105034,
+    "acquiredSeconds": [
+      13.115601,
+      12.948739999999999,
+      12.988882
+    ],
+    "medianSeconds": 12.988882,
+    "minSeconds": 12.948739999999999,
+    "maxSeconds": 13.115601,
+    "firstLocalSeconds": [
+      13.12865,
+      12.969291,
+      13.011619000000001
+    ],
+    "restartFirstLocalSeconds": [
+      0.262464,
+      0.256078,
+      0.265714
+    ],
+    "restartCoverageVerifiedSeconds": [
+      0.286798,
+      0.2927,
+      0.297611
+    ],
+    "sqliteBytes": [
+      373510144,
+      373510144,
+      373510144
+    ]
+  },
+  {
+    "condition": "ten-cpu-loaded",
+    "account": "u0500",
+    "memberships": 100,
+    "rows": 11612,
+    "acquiredSeconds": [
+      1.043635,
+      1.048429,
+      1.0444280000000001
+    ],
+    "medianSeconds": 1.0444280000000001,
+    "minSeconds": 1.043635,
+    "maxSeconds": 1.048429,
+    "firstLocalSeconds": [
+      1.054404,
+      1.054857,
+      1.0504570000000002
+    ],
+    "restartFirstLocalSeconds": [
+      0.047735,
+      0.063772,
+      0.041561
+    ],
+    "restartCoverageVerifiedSeconds": [
+      0.022873,
+      0.022893999999999998,
+      0.022618
+    ],
+    "sqliteBytes": [
+      21422080,
+      21422080,
+      21422080
+    ]
+  },
+  {
+    "condition": "ten-cpu-loaded",
+    "account": "u0001",
+    "memberships": 1000,
+    "rows": 105034,
+    "acquiredSeconds": [
+      14.32642,
+      19.367155999999998,
+      14.691353999999999
+    ],
+    "medianSeconds": 14.691353999999999,
+    "minSeconds": 14.32642,
+    "maxSeconds": 19.367155999999998,
+    "firstLocalSeconds": [
+      14.347722,
+      19.384172,
+      14.711457000000001
+    ],
+    "restartFirstLocalSeconds": [
+      0.364776,
+      0.437894,
+      0.268638
+    ],
+    "restartCoverageVerifiedSeconds": [
+      0.46745299999999995,
+      0.474228,
+      0.44878300000000004
+    ],
+    "sqliteBytes": [
+      373510144,
+      373510144,
+      373510144
+    ]
+  }
+]

@@ -1,0 +1,12 @@
+✔ integrated delivery binding, manifest, report and no-op replay: online (499.935315ms)
+✔ integrated delivery binding, manifest, report and no-op replay: local-fallback (1951.945773ms)
+✔ integrated delivery binding, manifest, report and no-op replay: local-publication (1258.513605ms)
+✔ declarative full runs compact a long deleted hole through the real SDK (1065.668809ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4923.318378
