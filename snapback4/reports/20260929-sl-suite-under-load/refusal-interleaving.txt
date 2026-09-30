@@ -1,0 +1,29 @@
+-- FAIL rust target: snapback4::dev_refusals (24.8 s)
+
+running 20 tests
+.............. 14/20
+shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held --- FAILED
+.....
+failures:
+
+---- shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held stdout ----
+
+thread 'shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held' (311006) panicked at crates/snapback4/tests/dev_refusals/shutdown.rs:49:5:
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576
+snapback4 dev: http://127.0.0.1:33689  (schema: snapback/, types: /tmp/sb4-mp-refusal-302029-30/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="maintenance" reason="shutdown"
+dev refusal: addSNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="worker" reason="shutdown"
+: rows — insert rule at schema.q:5:3; execution site "add:3"; phase "insert rule"; generation 1; store "4be43110764ec21288323433954f45f8"; instance "01M3R3WPP3M3KYQRSBVX6PDQAM"; code "E_RULE"; count 8; window 1s; first request 2; first job null; first time 1790737013472; first response 1; `snapback4 why recent --instance 01M3R3WPP3M3KYQRSBVX6PDQAM`
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held
+
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.83s

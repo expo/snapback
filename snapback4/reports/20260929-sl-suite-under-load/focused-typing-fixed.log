@@ -1,0 +1,12 @@
+✔ useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients (2037.386506ms)
+ℹ expiry 1790718415722; React expiry lateness online=1000 ms local=0 ms; online queries 3
+✔ useQuery expires 4.5 s typing rows aged 3000 ms before mount on both clients (1690.644782ms)
+ℹ expiry 1790718417520; React expiry lateness online=1000 ms local=0 ms; online queries 2
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3837.307311

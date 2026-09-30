@@ -1,0 +1,89 @@
+{
+  "log": "qualified-heavy-2.log",
+  "sha256": "6d75185236ba6691b986cbf8ce6f0ceb6ae0480eea53328314b4828a3af0cf67",
+  "summary": [
+    "== 1 failure(s) in 3705 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (7 s)",
+    "-- ok: wasm build (1 s)",
+    "-- ok: docs budget (5 s)",
+    "-- ok: release guard (8 s)",
+    "-- ok: package typecheck (7 s)",
+    "-- ok: package build (7 s)",
+    "-- ok: chat app check (0 s)",
+    "-- FAIL: cargo test (1746 s)",
+    "-- ok: chat app typecheck (3 s)",
+    "-- ok: expo app typecheck (3 s)",
+    "-- ok: fixture wrapper tests (41 s)",
+    "-- ok: client tests (1242 s)",
+    "-- ok: client models (682 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4340,
+    "failed": 1,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 40705.823402",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5197",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 1241097.558224",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 682107.070754"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 1465,
+      "kind": "rust",
+      "details": [
+        "-- FAIL rust target: snapback4::run_admission (15.8 s)",
+        "",
+        "running 27 tests",
+        "....... 7/27",
+        "identity::device_cannot_clear_a_running_servers_rows --- FAILED",
+        "...................",
+        "failures:",
+        "",
+        "---- identity::device_cannot_clear_a_running_servers_rows stdout ----",
+        "",
+        "thread 'identity::device_cannot_clear_a_running_servers_rows' (3313237) panicked at crates/snapback4/tests/run_admission/identity.rs:280:73:",
+        "called `Result::unwrap()` on an `Err` value: Os { code: 32, kind: BrokenPipe, message: \"Broken pipe\" }",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "",
+        "",
+        "failures:",
+        "    identity::device_cannot_clear_a_running_servers_rows",
+        "",
+        "test result: FAILED. 26 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.80s"
+      ]
+    }
+  ]
+}

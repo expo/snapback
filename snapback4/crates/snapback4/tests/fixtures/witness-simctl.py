@@ -16,7 +16,10 @@ assert a[0] == 'simctl'
 a = a[1:]
 if a[0] == 'list':
     if mode == 'timeout-prepare':
-        time.sleep(6)  # Exceed the fixture's five-second simulator step budget.
+        # This mode withholds readiness until the driver times out and reaps
+        # us; its result must not depend on a finite sleep expiring under load.
+        while True:
+            signal.pause()
     devices = [{'udid': udid, 'state': 'Booted'}]
     if mode == 'ambiguous':
         devices.append({'udid': 'someone-else', 'state': 'Booted'})

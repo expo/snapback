@@ -1,0 +1,21 @@
+{
+  "source": "packages/snapback4/test/admit-before-identity.test.mjs",
+  "files": {
+    "before": {
+      "path": "target/sl-load/controls/route-drain-before.test.mjs",
+      "sha256": "309bacb96d8b72e7e81f89bb06b98ab6dfd42bb3a3f0447146fc991e9b4b303f"
+    },
+    "after": {
+      "path": "target/sl-load/controls/route-drain-after.test.mjs",
+      "sha256": "4f66e34c92d8d1cb2d7e4fcd98df09c1f1ed76bb438a0a5415d22d2cd91b4990"
+    },
+    "original": {
+      "path": "target/sl-load/route-drain-original.mjs",
+      "sha256": "3df723d081cd0e86a4b2f387a3760feb1a8dcc18913b70afb0405f13d09293b4"
+    },
+    "candidate": {
+      "path": "target/sl-load/route-drain-candidate.mjs",
+      "sha256": "ddd3a43f1a7b639d3ed1b33920ca2222120dd15dc6c18acc069aec33d49b4a26"
+    }
+  }
+}

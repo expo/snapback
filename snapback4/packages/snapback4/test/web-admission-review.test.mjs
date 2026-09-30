@@ -8,7 +8,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { launch, devServer, root } from '../../../witness/lib.mjs';
 import { until } from './helpers/app-server.mjs';
 
-test('web admission review: recovery and transport respect the session boundary', { timeout: 180_000 }, async t => {
+// One hang allowance per scenario, plus startup and cleanup, rather than a
+// fixed file-throughput limit. Each of the 54 sequential scenarios is also bounded.
+const scenarioTimeout = 60_000;
+test('web admission review: recovery and transport respect the session boundary', { timeout: (54 + 2) * scenarioTimeout }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-admission-review-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), `use identity password
@@ -41,7 +44,11 @@ query total():
 `);
   t.after(() => rmSync(project, { recursive: true, force: true }));
   const focus = process.env.SNAPBACK4_WEB_ADMISSION_FOCUS;
-  const check = (name, ...args) => !focus || new RegExp(focus).test(name) ? t.test(name, ...args) : Promise.resolve();
+  // Bound each sequential browser scenario, so adding cases or sharing a CPU
+  // cannot consume a later case's allowance. Launch/navigation have their own
+  // bounded readiness waits; this file is not a 180-second throughput test.
+  const check = (name, run) => !focus || new RegExp(focus).test(name)
+    ? t.test(name, { timeout: scenarioTimeout }, run) : Promise.resolve();
   const path = name => join(root, 'packages/snapback4/src', name);
   const mutant = process.env.SNAPBACK4_WEB_ADMISSION_MUTANT ?? process.env.SNAPBACK4_WEB_STARTUP_MUTANT;
   const sourceOverrides = {};
@@ -198,12 +205,28 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
       }
       if (route === '/changes' && holdPoll) {
         window.pollHeld = true; window.pollCount++;
-        const reply = await new Promise((resolve, reject) => {
-          window.releasePoll = resolve;
-          init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true });
-        });
-        window.pollReleased = true;
-        return Response.json(reply);
+        // Hold change evidence, not transport liveness. A silent fake poll
+        // trips the real four-second watchdog and introduces an unplanned
+        // probe during slow setup. Real long polls send whitespace heartbeats.
+        let cancel = () => {};
+        return new Response(new ReadableStream({
+          start(controller) {
+            const bytes = new TextEncoder();
+            let done = false;
+            const heartbeat = setInterval(() => { if (!done) controller.enqueue(bytes.encode(' ')); }, 1000);
+            const clean = () => { clearInterval(heartbeat); init.signal.removeEventListener('abort', abort); };
+            const abort = () => { if (done) return; done = true; clean(); controller.error(init.signal.reason); };
+            cancel = () => { done = true; clean(); };
+            window.releasePoll = reply => {
+              if (done) return;
+              done = true; clean(); window.pollReleased = true;
+              controller.enqueue(bytes.encode(JSON.stringify(reply))); controller.close();
+            };
+            if (init.signal.aborted) abort();
+            else init.signal.addEventListener('abort', abort, { once: true });
+          },
+          cancel() { cancel(); },
+        }), { headers: { 'content-type': 'application/json' } });
       }
       if (route === '/sync' && holdSync) { window.syncHeld = true; await gate; }
       if (route.startsWith('/m/')) {

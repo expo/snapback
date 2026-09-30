@@ -1,0 +1,31 @@
+{
+  "log": "focused-clients.log",
+  "sha256": "accd948ef9ebe04f9cfa7c4693dafe54879c1e71d682132081c9feaf3d804679",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 207",
+    "ℹ suites 0",
+    "ℹ pass 206",
+    "ℹ fail 1",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 223623.853559"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 238,
+      "kind": "client",
+      "details": [
+        "test at packages/snapback4/test/typing-expiry.test.mjs:1:1",
+        "✖ packages/snapback4/test/typing-expiry.test.mjs (219623.79934ms)",
+        "  'test failed'"
+      ]
+    }
+  ]
+}

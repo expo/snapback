@@ -1,0 +1,12 @@
+{
+  "run": "qualified-slow-3",
+  "exit": 0,
+  "trace_sha256": "862b758ab6a5d66fb9375309ca19d550d985c40f838c40a54a8214f7181811cd",
+  "required_delay_ms": 300,
+  "child_exec_events": 14782,
+  "resumed_child_execs": 14776,
+  "ended_before_resume": 6,
+  "min_observed_delay_ms": 300.00001,
+  "max_observed_delay_ms": 305.082237,
+  "root_first_exec_delayed": false
+}

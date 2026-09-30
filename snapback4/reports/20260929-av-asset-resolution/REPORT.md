@@ -196,7 +196,7 @@ passing baseline/candidate controls are in
 [Lane OK round 1](../20260928-ok-owner-key-coverage/ROUND1.md#failure-ledger).
 The underlying timing cause is unconfirmed; these are not newly introduced
 asset failures and are not silently excused as infrastructure. Follow-up:
-[orphan response timeout ticket](../../../issues/20260929-snapback4-orphan-binding-response-timeouts.md).
+[orphan response timeout ticket](../../../issues/closed/20260929-snapback4-orphan-binding-response-timeouts.md).
 
 ## Wasm and scope
 

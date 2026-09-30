@@ -1,0 +1,56 @@
+{
+  "name": "control-token-before",
+  "workers": 0,
+  "mode": "load",
+  "affinity": [
+    "taskset",
+    "-c",
+    "80-95"
+  ],
+  "guard": [
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/confine"
+  ],
+  "wrapper": [],
+  "command": [
+    "strace",
+    "-f",
+    "--seccomp-bpf",
+    "-qq",
+    "-ttt",
+    "-e",
+    "trace=execve,execveat",
+    "-e",
+    "raw=execve,execveat",
+    "-e",
+    "inject=execve,execveat:delay_exit=1500ms",
+    "-o",
+    "/home/ccheever/sb4-intent/lane-sl/snapback4/reports/20260929-sl-suite-under-load/control-token-before-exec.log",
+    "target/sl-load/original-run_admission",
+    "--exact",
+    "release_token_owns_the_resolved_database_before_sqlite_open",
+    "--nocapture"
+  ],
+  "harness_sha256": {
+    "confine": "f75c042ca47551b8bb172d24702a3a2a830fc8eb000429752302b18aff229241",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-09-29T20:38:26.999063+00:00",
+  "head": "38abb89b8e0b206644b9e2619c6f2d159a981d23",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "tested_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1397242,
+  "exit": 101,
+  "elapsed_seconds": 18.664308169391006,
+  "end": "2026-09-29T20:38:45.720314+00:00"
+}

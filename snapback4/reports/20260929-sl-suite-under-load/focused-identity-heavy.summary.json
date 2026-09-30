@@ -1,0 +1,16 @@
+{
+  "log": "focused-identity-heavy.log",
+  "sha256": "dcd2ef675172eb60baa2d9b34d61516c3e1f8ff053809c56f04b6b222a310c16",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  "node_summaries": [],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

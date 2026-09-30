@@ -1,0 +1,14 @@
+{"name": "witness-correct", "command": ["/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/correct/probe", "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/correct"], "exit": 0, "elapsed_seconds": 120.12742649903521}
+correct: driver and simctl reaped: {'simctl': 1011990, 'driver': 1011981}
+warning: unused variable: `end`
+  --> /home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/no-deadline/probe.rs:47:9
+   |
+47 |     let end = Instant::now() + timeout;
+   |         ^^^ help: if this is intentional, prefix it with an underscore: `_end`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: 1 warning emitted
+
+{"name": "witness-no-deadline", "command": ["/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/no-deadline/probe", "/home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-witness-urtn72gs/no-deadline"], "exit": 101, "elapsed_seconds": 150.1362109798938}
+no-deadline: driver and simctl reaped: {'simctl': 1085572, 'driver': 1085571}

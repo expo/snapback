@@ -30,8 +30,11 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 struct Running { child: Child, log: PathBuf, started: Instant }
 impl Running {
     fn start(p: &Project, name: &str, args: &[&str]) -> Self {
+        Self::with_stdout(p, name, args, Stdio::piped())
+    }
+    fn with_stdout(p: &Project, name: &str, args: &[&str], stdout: Stdio) -> Self {
         let log = p.0.join(format!("{name}.log"));
-        let child = Command::new(BIN).current_dir(&p.0).args(args).stdout(Stdio::piped())
+        let child = Command::new(BIN).current_dir(&p.0).args(args).stdout(stdout)
             .stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         Self { child, log, started: Instant::now() }
     }
@@ -284,22 +287,57 @@ fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
 
 #[cfg(unix)]
 #[test]
+// @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 fn release_token_owns_the_resolved_database_before_sqlite_open() {
+    use std::{io::{Read, Write}, os::{fd::OwnedFd, unix::net::UnixStream}};
     let p = Project::new();
     let (a, b, database) = shared_releases(&p);
+    // Keep the command alive at its final stdout write, independently of the
+    // SQLite busy budget. Competitor startup may take arbitrarily longer than
+    // that budget on a shared Mac. Only the first ownership observation below
+    // needs SQLite held; it still proves exclusion precedes opening the store.
+    let (mut output, mut blocked) = UnixStream::pair().unwrap();
+    blocked.set_nonblocking(true).unwrap();
+    let mut padding = 0;
+    loop {
+        match blocked.write(&[0; 4096]) {
+            Ok(n) => { assert!(n > 0); padding += n; }
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+            Err(error) => panic!("fill output barrier: {error}"),
+        }
+    }
+    // A failed large write need not prove that a short token cannot fit.
+    loop {
+        match blocked.write(&[0]) {
+            Ok(1) => padding += 1,
+            Ok(n) => panic!("one-byte output barrier write returned {n}"),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+            Err(error) => panic!("finish output barrier: {error}"),
+        }
+    }
+    blocked.set_nonblocking(false).unwrap();
     let conn = rusqlite::Connection::open(&database).unwrap();
     conn.execute_batch("BEGIN IMMEDIATE").unwrap();
-    let mut token = Running::start(&p, "token-owner", &["token", "--release", a.to_str().unwrap(), "--service", "worker"]);
     let lock = database.parent().unwrap().join("serve.lock");
+    fs::write(&lock, "previous owner\n").unwrap();
+    let mut token = Running::with_stdout(&p, "token-owner", &["token", "--release", a.to_str().unwrap(), "--service", "worker"], Stdio::from(OwnedFd::from(blocked)));
     wait(|| {
         assert!(token.child.try_wait().unwrap().is_none(), "{}", token.logs());
         fs::metadata(&lock).is_ok_and(|metadata| metadata.len() == 0)
     });
+    // @ref LLP 3000.019#3.4 — the sidecar flock grants ownership; the address hint does not.
+    let sidecar = fs::File::open(snapback4_core::private_fs::owner_path(&database)).unwrap();
+    let held = sidecar.try_lock();
+    assert!(matches!(held, Err(fs::TryLockError::WouldBlock)), "ownership must already exclude another writer while SQLite is blocked: {held:?}");
+    drop(sidecar);
+    conn.execute_batch("ROLLBACK").unwrap();
     let b = b.to_str().unwrap();
     for args in [vec!["token", "--release", b, "--service", "other"], vec!["serve", b, "--port", "0"], vec!["deploy", b], vec!["rollback", b]] {
         assert_owner_refusal(&p, &args, "owned by another CLI command or a server starting up (address pending);");
     }
-    conn.execute_batch("ROLLBACK").unwrap();
+    assert!(token.child.try_wait().unwrap().is_none(), "output barrier must retain the owner");
+    output.read_exact(&mut vec![0; padding]).unwrap();
+    token.child.stdout = Some(OwnedFd::from(output).into());
     assert!(token.finish().0.success(), "{}", token.logs());
 }
 

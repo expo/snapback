@@ -1,0 +1,13 @@
+{
+  "crates/snapback4/tests/witness.rs": "95d6fdc2421dbae476a1ac0d549cc0f64cd6208aef4fbbf71d9ce1fe266675d2",
+  "crates/snapback4/tests/fixtures/witness-watchdog.rs": "0f5b3691224b44ea183a6e521f12a1237246580c6f0cfb82170d24d60aec9e2b",
+  "crates/snapback4/src/verbs/witness.rs": "53fcc5adc2b5e014b6232a835f8c5aff5f65aee6a8dd0bdcf931bbf58fce7c50",
+  "packages/snapback4/src/read-expiry.ts": "30391d2b0893223414fa18179e202794171b567d0a62b53d4e729e1af4648ddf",
+  "packages/snapback4/test/typing-expiry.test.mjs": "1a65f077025d72b3d0880f2656ad9f212a9457bff4b27366461273556b16e4a9",
+  "packages/snapback4/test/app-session-model.test.mjs": "8cb9149752502390140a2cf484494f86456dba0628fbcb5c4ee33dd977bc8b5b",
+  "packages/snapback4/test/online-client-model.test.mjs": "fbd405ae75b0f864736aaaa1599151809b2ae4e074aea16af5c914266cc94ab3",
+  "packages/snapback4/test/mixed-evidence-oracle.test.mjs": "d252fe70c4757e90f48f741476b7d0a18b94c8a49387736d0ae6d03388fc4c35",
+  "scripts/test.sh": "941b70845cdd53ddd5e92e704ce53876ebd842ad79605cad4b703679d3880580",
+  "Cargo.lock": "756cba7e0d7556568a99b404717a9d354119cedf7e837e4677bc424a9bc9fd90",
+  "bun.lock": "f7607659f4543ad0fc8342f1b184a9681b25b7b9dc1849c1e72d8fb9b2b67ee5"
+}

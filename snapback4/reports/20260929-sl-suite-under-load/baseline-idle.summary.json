@@ -1,0 +1,102 @@
+{
+  "log": "baseline-idle.log",
+  "sha256": "d59e5be00b5e48e9533d90f9ae467b7a9d68b32d0d8795c2ece8bee0640d2a98",
+  "summary": [
+    "== 1 failure(s) in 2144 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (28 s)",
+    "-- ok: wasm build (40 s)",
+    "-- ok: docs budget (50 s)",
+    "-- ok: release guard (10 s)",
+    "-- ok: package typecheck (3 s)",
+    "-- ok: package build (2 s)",
+    "-- ok: chat app check (0 s)",
+    "-- FAIL: cargo test (834 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- ok: client tests (876 s)",
+    "-- ok: client models (301 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4340,
+    "failed": 1,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 10790.488764",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5197",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 875363.608622",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 301210.557918"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 1088,
+      "kind": "rust",
+      "details": [
+        "-- FAIL rust target: snapback4-lang::clique_03 (0.9 s)",
+        "",
+        "running 3 tests",
+        ".. 2/3",
+        "application_fixture --- FAILED",
+        "",
+        "failures:",
+        "",
+        "---- application_fixture stdout ----",
+        "CLIQUE_SEED {\"elapsed_s\":0.379847702,\"full\":false,\"replay\":{\"additional_equal_time_replies\":45,\"edges\":159,\"operations\":{\"follow\":159,\"like\":9,\"post\":349,\"register\":73,\"reply\":4,\"repost\":5},\"out_of_scope\":{\"dm-create\":901,\"group-create\":101,\"member-add\":49,\"profile-set\":73,\"react\":2000,\"send\":58092,\"send-media\":73},\"pack\":\"0.2.2-m8\",\"posts\":381,\"profiles\":73},\"stored\":{\"follows\":159,\"likes\":31,\"posts\":381,\"profiles\":73,\"replies\":49}}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0005\",\"rows\":30}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":316}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_COLD {\"elapsed_s\":0.029143416,\"generation\":1,\"rows\":1132,\"wire_bytes\":198566}",
+        "CLIQUE_ADOPTION {\"activation_row_events\":0,\"activation_s\":0.013597569,\"device_counts\":{\"implicit_zero_posts\":0,\"likes_checked\":31,\"posts_checked\":381,\"received_like_groups_checked\":8},\"device_queries\":{\"following\":{\"pages\":2,\"rows\":30,\"server_equal\":true},\"thread\":{\"pages\":3,\"rows\":46,\"server_equal\":true},\"trending\":{\"pages\":3,\"rows\":30,\"server_equal\":true}},\"generation\":2,\"old_generation\":1,\"reacquired_rows\":1132,\"reacquired_wire_bytes\":205171,\"reacquisition_s\":0.064285933,\"server_counts\":{\"implicit_zero_posts\":362,\"likes_checked\":31,\"posts_checked\":381,\"received_like_groups_checked\":8}}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0005\",\"rows\":30}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":16,\"reader\":\"u0500\",\"rows\":316}",
+        "CLIQUE_FOLLOWING {\"oracle\":true,\"pages\":2,\"reader\":\"u0901\",\"rows\":30}",
+        "CLIQUE_CORRECT {\"authors_with_four_counts_checked\":73,\"count_values_checked\":2336,\"days\":[20449,20450,20451,20452,20453,20454,20455,20456],\"equal_timestamp_cursor\":true,\"thread_pages\":3,\"thread_rows\":46,\"trending_pages\":3,\"trending_rows\":30}",
+        "CLIQUE_READ {\"metered\":{\"examined\":117,\"heap_bytes\":204950,\"index_entries\":0,\"output_bytes\":10975,\"rows_written\":0,\"rule_probes\":36,\"steps\":1392},\"p95_ms\":0.837044,\"reader\":\"u0005\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "CLIQUE_READ {\"metered\":{\"examined\":121,\"heap_bytes\":211290,\"index_entries\":0,\"output_bytes\":10981,\"rows_written\":0,\"rule_probes\":40,\"steps\":1452},\"p95_ms\":0.865437,\"reader\":\"u0500\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "CLIQUE_READ {\"metered\":{\"examined\":118,\"heap_bytes\":206520,\"index_entries\":0,\"output_bytes\":10975,\"rows_written\":0,\"rule_probes\":37,\"steps\":1407},\"p95_ms\":3.434898,\"reader\":\"u0901\",\"returned\":20,\"samples\":20,\"warmups\":3}",
+        "",
+        "thread 'application_fixture' (3485532) panicked at crates/snapback4-lang/tests/clique_03/measure.rs:38:5:",
+        "reader ratios: 1.0339205585369466, 4.103605067356077",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "",
+        "",
+        "failures:",
+        "    application_fixture",
+        "",
+        "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s"
+      ]
+    }
+  ]
+}

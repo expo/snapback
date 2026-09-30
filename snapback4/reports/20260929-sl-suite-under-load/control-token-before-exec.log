@@ -1,0 +1,19 @@
+1397247 1790714307.061113 execve(0x7ffe32bf0a50, 0x7ffe32bf1fb0, 0x7ffe32bf1fd8) = 0
+1397249 1790714307.067900 execve(0x7cdcb4000f20, 0x617b083bc200, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714308.592172 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397249, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+1397272 1790714308.593273 execve(0x7cdcb4000f70, 0x7cdcb4001200, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714310.101970 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397272, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+1397415 1790714310.103148 execve(0x7cdcb4000f20, 0x617b083baf40, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714311.627698 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397415, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+1397427 1790714311.629166 execve(0x7cdcb4000f70, 0x7cdcb4001310, 0x7ffd98b50170) = 0 (DELAYED)
+1397247 1790714313.138541 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397427, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+1397428 1790714313.143911 execve(0x7cdcb4000f20, 0x7cdcb4026600, 0x7ffd98b50170) = 0 (DELAYED)
+1397445 1790714314.656734 execve(0x7cdcb40264f0, 0x7cdcb4026790, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714316.159748 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397445, si_uid=1000, si_status=2, si_utime=0, si_stime=0} ---
+1397453 1790714316.167200 execve(0x7cdcb4026790, 0x7cdcb4026a90, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714317.669979 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397453, si_uid=1000, si_status=1, si_utime=0, si_stime=0} ---
+1397454 1790714317.676127 execve(0x7cdcb4026600, 0x7cdcb4026d70, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714319.179103 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397454, si_uid=1000, si_status=1, si_utime=0, si_stime=0} ---
+1397455 1790714319.185271 execve(0x7cdcb4026a90, 0x7cdcb4027000, 0x7ffd98b50170) = 0 (DELAYED)
+1397248 1790714319.657721 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397428, si_uid=1000, si_status=2, si_utime=0, si_stime=0} ---
+1397248 1790714325.697884 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1397455, si_uid=1000, si_status=1, si_utime=0, si_stime=0} ---

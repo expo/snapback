@@ -1,0 +1,44 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-sl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 3.66s
+     Running tests/run_admission.rs (target/debug/deps/run_admission-0896b29051f5dde7)
+
+running 27 tests
+test identity::c_abi_open_cannot_initialize_or_clear_a_running_server_store ... ok
+test identity::moved_store_busy_process_probes_leave_old_path_absent ... ok
+test identity::moving_a_live_database_and_its_sidecars_preserves_ownership ... ok
+test adaptive_job_run_and_doctor_report_chunk_size_and_retries ... ok
+test identity::device_cannot_clear_a_running_servers_rows ... ok
+test identity::fresh_init_then_dev_becomes_ready ... ok
+test identity::removing_or_replacing_the_address_record_never_admits_another_owner ... ok
+test identity::multiple_device_processes_share_ownership_and_exclude_backend_writers ... ok
+test cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock ... ok
+test competing_cli_refuses_before_admission_then_can_retry_after_owner_exit ... ok
+test identity::a_run_retry_keeps_database_a_when_its_alias_is_retargeted_to_live_b ... ok
+test identity::sync_refuses_replaced_path_while_changes_keeps_the_owned_database ... ok
+test identity::two_c_abi_opens_share_ownership_until_both_close ... ok
+test unavailable_cli_body_remains_incomplete_for_exit_zero_consumers ... ok
+test invalid_source_and_non_lock_store_errors_keep_their_meaning ... ok
+test interrupting_a_waiter_does_not_admit_a_job ... ok
+test identity::unlinking_sidecar_admits_second_owner_documented_boundary ... ok
+test uncontended_run_keeps_the_short_path ... ok
+test source_edit_while_waiting_refuses_original_intent ... ok
+test startup_adoption_and_run_wait_then_admit_once ... ok
+test release_token_owns_the_resolved_database_before_sqlite_open ... ok
+test identity::owner_sidecar_aliases_and_nonregular_files_are_refused_before_sqlite ... ok
+test identity::address_symlinks_and_nonregular_files_are_refused_without_truncation ... ok
+test live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit ... ok
+test release_database_symlinks_share_one_announced_owner_for_all_writers ... ok
+test changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait ... ok
+test deadline_refuses_before_job_admission_or_activation ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.16s
+

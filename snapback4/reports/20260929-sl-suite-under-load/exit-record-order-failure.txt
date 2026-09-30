@@ -1,0 +1,23 @@
+-- FAIL rust target: snapback4::check (16.6 s)
+
+running 82 tests
+........ 8/82
+changed_default_rechecks_unchanged_cap --- FAILED
+.........................................................................
+failures:
+
+---- changed_default_rechecks_unchanged_cap stdout ----
+dev unique=false: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="E_ADOPT: column messages.flag changes its default; existing rows must fit the new definition\n  rewrite: keep flag's previous type and default, or repair existing values before adopting flag: bool"
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576
+
+
+thread 'changed_default_rechecks_unchanged_cap' (1336675) panicked at crates/snapback4/tests/check.rs:687:93:
+called `Result::unwrap()` on an `Err` value: Error("trailing characters", line: 2, column: 1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    changed_default_rechecks_unchanged_cap
+
+test result: FAILED. 81 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.57s
+

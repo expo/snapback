@@ -1,0 +1,42 @@
+{
+  "log": "control-retry-before.log",
+  "sha256": "1844ed61b9db011e1fea542b69aa290e02d6c638ae611079427381c86d673d67",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 1",
+    "ℹ suites 0",
+    "ℹ pass 0",
+    "ℹ fail 1",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 5576.143767"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 15,
+      "kind": "client",
+      "details": [
+        "test at target/sl-load/controls/retry-installation-before.test.mjs:64:3",
+        "✖ process keep=undefined: a due completion preserves a newer answer and retries (5402.363322ms)",
+        "  AssertionError [ERR_ASSERTION]: paced retry publishes the current answer",
+        "      at pump (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/retry-installation-before.test.mjs:26:10)",
+        "      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sl/snapback4/target/sl-load/controls/retry-installation-before.test.mjs:102:5)",
+        "      at async Test.run (node:internal/test_runner/test:1110:7)",
+        "      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {",
+        "    generatedMessage: false,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: false,",
+        "    expected: true,",
+        "    operator: '==',",
+        "    diff: 'simple'",
+        "  }"
+      ]
+    }
+  ]
+}

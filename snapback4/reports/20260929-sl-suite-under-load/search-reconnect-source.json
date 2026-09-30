@@ -1,0 +1,13 @@
+{
+  "input": "target/sl-load/controls/ordinary-search-trace-v2.test.mjs",
+  "input_sha256": "50d815b21a45aee698d67279afa303e7de18d8294d8b451860985776f5d42128",
+  "output": "target/sl-load/controls/ordinary-search-reconnect.test.mjs",
+  "output_sha256": "8ae469a3cd4c671f47323e384951109a88470fd593ae5e61e8b45416622af793",
+  "seed": 130,
+  "hosts": [
+    "process",
+    "wasm"
+  ],
+  "repetitions_per_host": 5,
+  "injection": "offline sync, online sync before minting the cursor; unchanged normal oracle assertions"
+}

@@ -1,0 +1,154 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.05s
+     Running tests/latency.rs (target/debug/deps/latency-c4e0b1bb8e43b97e)
+
+running 12 tests
+WARNING: listening on 0.0.0.0 over CLEARTEXT HTTP. Passwords, bearer tokens, schema and data have no transport protection. Expose only through a TLS proxy on a trusted private hop; see snapback4/README.md.
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:40989  (schema: snapback/, types: /tmp/sb4-latency-1442079-project-a/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-project-a/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://0.0.0.0:33595  (schema: snapback/, types: /tmp/sb4-latency-1442079-wildcard-timing/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-wildcard-timing/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:45617  (schema: snapback/, types: /tmp/sb4-latency-1442079-guide/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-guide/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:37809  (schema: snapback/, types: /tmp/sb4-latency-1442079-alongside/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-alongside/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+test dev_process_wildcard_listener_omits_timing_for_loopback_and_external_peers ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:45007  (schema: snapback/, types: /tmp/sb4-latency-1442079-project-b/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-project-b/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:39447  (schema: snapback/, types: /tmp/sb4-latency-1442079-alongside/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:44141  (schema: snapback/, types: /tmp/sb4-latency-1442079-idle-cpu/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-idle-cpu/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test doctor_discovers_persisted_host_and_url_selects_a_simultaneous_temporary_host ... ok
+test doctor_idle_cpu_is_empty_before_traffic_and_after_reset ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+test doctor_checks_the_servers_project_before_read_or_reset_for_both_address_sources ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:33353  (schema: snapback/, types: /tmp/sb4-latency-1442079---fresh/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:43287  (schema: snapback/, types: /tmp/sb4-latency-1442079-small/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-small/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:44643  (schema: snapback/, types: /tmp/sb4-latency-1442079-large/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-large/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+test doctor_latency_json_default_summary_all_operations_and_reset ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+test doctor_latency_reads_and_resets_snapshots_above_the_http_chunk_threshold ... ok
+snapback4 dev: http://127.0.0.1:45169  (schema: snapback/, types: /tmp/sb4-latency-1442079---memory/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+test bounds_guide_growth_recipe_runs_verbatim_against_dev ... ok
+snapback4 dev: http://127.0.0.1:44533  (schema: snapback/, types: /tmp/sb4-latency-1442079-stale-store/snapback/generated/api.ts)
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://[::1]:33595  (schema: snapback/, types: /tmp/sb4-latency-1442079-ipv6/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test doctor_inspects_fresh_and_memory_at_the_printed_url_without_records ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+test doctor_url_inspects_and_resets_ipv6_loopback ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:36453  (schema: snapback/, types: /tmp/sb4-latency-1442079-stale-store/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test doctor_rejects_a_stale_serve_lock_store_identity ... ok
+snapback4 dev: http://127.0.0.1:45119  (schema: snapback/, types: /tmp/sb4-latency-1442079-symlink-persisted/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-symlink-persisted/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:35493  (schema: snapback/, types: /tmp/sb4-latency-1442079-url/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-url/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:36849  (schema: snapback/, types: /tmp/sb4-latency-1442079-symlink-persisted/snapback/generated/api.ts)
+store: /tmp/sb4-latency-1442079-symlink-persisted/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test doctor_url_refuses_non_loopback_and_supports_localhost ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:40827  (schema: snapback/, types: /tmp/sb4-latency-1442079-symlink---fresh/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:35691  (schema: snapback/, types: /tmp/sb4-latency-1442079-symlink---memory/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test symlinked_snapback_directory_starts_and_serves_in_every_dev_mode ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/run_admission.rs (target/debug/deps/run_admission-0896b29051f5dde7)
+
+running 27 tests
+test adaptive_job_run_and_doctor_report_chunk_size_and_retries ... ok
+test cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock ... ok
+test competing_cli_refuses_before_admission_then_can_retry_after_owner_exit ... ok
+test identity::address_symlinks_and_nonregular_files_are_refused_without_truncation ... ok
+test identity::a_run_retry_keeps_database_a_when_its_alias_is_retargeted_to_live_b ... ok
+test identity::c_abi_open_cannot_initialize_or_clear_a_running_server_store ... ok
+test identity::device_cannot_clear_a_running_servers_rows ... ok
+test identity::fresh_init_then_dev_becomes_ready ... ok
+test identity::moved_store_busy_process_probes_leave_old_path_absent ... ok
+test identity::moving_a_live_database_and_its_sidecars_preserves_ownership ... ok
+test identity::multiple_device_processes_share_ownership_and_exclude_backend_writers ... ok
+test identity::removing_or_replacing_the_address_record_never_admits_another_owner ... ok
+test identity::owner_sidecar_aliases_and_nonregular_files_are_refused_before_sqlite ... ok
+test identity::two_c_abi_opens_share_ownership_until_both_close ... ok
+test identity::sync_refuses_replaced_path_while_changes_keeps_the_owned_database ... ok
+test interrupting_a_waiter_does_not_admit_a_job ... ok
+test identity::unlinking_sidecar_admits_second_owner_documented_boundary ... ok
+test invalid_source_and_non_lock_store_errors_keep_their_meaning ... ok
+test live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit ... ok
+test release_database_symlinks_share_one_announced_owner_for_all_writers ... ok
+test release_token_owns_the_resolved_database_before_sqlite_open ... ok
+test source_edit_while_waiting_refuses_original_intent ... ok
+test unavailable_cli_body_remains_incomplete_for_exit_zero_consumers ... ok
+test startup_adoption_and_run_wait_then_admit_once ... ok
+test uncontended_run_keeps_the_short_path ... ok
+test changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait ... ok
+test deadline_refuses_before_job_admission_or_activation ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.07s
+

@@ -1,0 +1,13 @@
+{
+  "source": "crates/snapback4/tests/run_admission.rs",
+  "files": {
+    "before": {
+      "path": "target/sl-load/ownership-probe-before.rs",
+      "sha256": "f9b1a3d1ce794c3fdcce93b104720a494872738b81c8d034bd8746621902246a"
+    },
+    "candidate": {
+      "path": "target/sl-load/ownership-probe-candidate.rs",
+      "sha256": "a3cc9c0f27cf743d49bfd2145e28d71e0f4e3ad8bb0180c0592cb8f0c92bbb58"
+    }
+  }
+}

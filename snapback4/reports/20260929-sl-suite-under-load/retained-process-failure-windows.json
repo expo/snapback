@@ -1,0 +1,3791 @@
+[
+  {
+    "failure": 1,
+    "case": "repetition 3: R5 history process: retained history and independent held coverage (588.124733ms)",
+    "empty_index": 85,
+    "leave": [
+      {
+        "ms": 375.2176770000001,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 385.00295099999994,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 393.510499,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 393.655436,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 393.778871,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 393.80518099999995,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 394.0470540000001,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 394.08778499999994,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 398.09052700000007,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 398.402425,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 398.54198399999996,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 398.68018200000006,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 398.75579500000003,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 410.1970920000001,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 410.8824300000001,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 410.9225100000001,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 411.04969099999994,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 411.280577,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 411.51934499999993,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 411.7979230000001,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 411.8151889999999,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 412.26934000000006,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 412.3361,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 412.9449730000001,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 413.0216479999999,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 2,
+    "case": "repetition 6: R5 history process: retained history and independent held coverage (543.559582ms)",
+    "empty_index": 84,
+    "leave": [
+      {
+        "ms": 361.859825,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 372.2754249999998,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 376.60381499999994,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 376.71244799999977,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 376.8007709999997,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 376.81849699999975,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 377.05066499999975,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 377.0808509999997,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 378.3494029999997,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 378.5522169999999,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 378.6568639999996,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 378.8785469999998,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 378.9238439999999,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 384.34051699999964,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 384.92129799999975,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 384.94813799999974,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 385.04710699999987,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 385.23857399999997,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 385.4386139999997,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 385.67698199999995,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 385.6895599999998,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 386.08090699999957,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 386.430351,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 402.7238349999998,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 402.799348,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 3,
+    "case": "repetition 10: R5 history process: retained history and independent held coverage (584.766315ms)",
+    "empty_index": 84,
+    "leave": [
+      {
+        "ms": 372.44972600000074,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 385.84154800000033,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 391.59102000000075,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 394.6396110000005,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 394.6563160000005,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 394.8861510000006,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 394.9196610000008,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 395.8798910000005,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 396.0663910000003,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 396.2430860000004,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 396.35029699999996,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 396.4608930000004,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 396.5082940000002,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 403.17871600000035,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 403.78884199999993,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 403.81429000000026,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 403.91711400000077,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 404.11288800000057,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 404.31906700000036,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 407.60318200000074,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 407.62494400000014,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 411.78340000000026,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 411.840416,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 412.35509700000057,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 412.4208860000008,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 4,
+    "case": "repetition 19: R5 history process: retained history and independent held coverage (525.08179ms)",
+    "empty_index": 85,
+    "leave": [
+      {
+        "ms": 350.2924269999985,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 358.08819799999947,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 364.90993699999854,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 364.9642989999993,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 364.97366299999885,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 365.13689799999884,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 365.15694799999983,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 369.1210719999999,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 372.67488199999934,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 373.10967399999936,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 373.3292729999994,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 373.4186069999996,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 373.47318899999846,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 374.07715499999904,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 374.0983559999986,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 374.2024229999988,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 374.39253800000006,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 374.5935389999995,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 374.85021400000005,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 374.86177099999986,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 375.19488099999944,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 375.23485099999925,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 375.77426000000014,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 375.82780999999886,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 5,
+    "case": "repetition 28: R5 history process: retained history and independent held coverage (517.617776ms)",
+    "empty_index": 84,
+    "leave": [
+      {
+        "ms": 341.2590999999993,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 354.5495499999997,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 361.0419559999991,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 361.1251400000001,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 361.1798629999994,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 361.18954699999995,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 361.3682950000002,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 361.3889159999999,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 362.14321700000073,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 362.30188500000077,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 362.3726910000005,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 362.76408900000024,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 362.8246390000004,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 369.6210310000006,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 370.1526080000003,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 370.19430099999954,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 370.5244359999997,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 370.7472400000006,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 370.94729000000007,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 371.2071990000004,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 371.2199789999995,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 371.54555699999946,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 371.59223700000075,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 372.10464499999944,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 372.15804500000013,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 6,
+    "case": "repetition 34: R5 history process: retained history and independent held coverage (461.908974ms)",
+    "empty_index": 83,
+    "leave": [
+      {
+        "ms": 297.86333399999785,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 299.04928199999995,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 301.8210979999967,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 301.9542479999982,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 302.0444239999997,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 302.05866499999684,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 302.2746989999978,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 302.29940599999827,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 302.9396259999994,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 303.1821299999974,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 303.2932359999977,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 303.39603999999963,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 303.4323349999977,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 312.6594619999996,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 313.253643,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 313.2907979999982,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 313.3632969999999,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 313.5275929999989,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 313.6957859999966,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 313.91126899999654,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 313.9201619999985,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 314.2350449999976,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 314.2762459999976,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 314.55540499999915,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 314.63089799999943,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 7,
+    "case": "repetition 36: R5 history process: retained history and independent held coverage (485.746671ms)",
+    "empty_index": 83,
+    "leave": [
+      {
+        "ms": 321.6864679999999,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 334.9891269999971,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 336.85233099999823,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 336.9506779999974,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 336.9636679999967,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 337.1877539999987,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 337.21210099999735,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 338.0033769999973,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 338.1014039999973,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 338.2717699999994,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 338.3662609999992,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 338.4630259999976,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 338.5026259999977,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 345.2469589999964,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 348.8448349999999,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 348.8698319999967,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 351.86217999999644,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 352.0677779999969,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 352.2723249999981,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 352.5484589999978,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 352.5607769999988,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 352.9017489999969,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 352.9490799999985,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 353.42489299999943,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 353.4856239999972,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 8,
+    "case": "repetition 38: R5 history process: retained history and independent held coverage (479.94421ms)",
+    "empty_index": 83,
+    "leave": [
+      {
+        "ms": 319.57173599999805,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 329.4210759999987,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 331.35157099999924,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 331.439742999999,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 331.4516909999984,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 331.67099999999846,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 331.69523599999957,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 335.22495999999956,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 341.2779069999997,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 348.26743799999895,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 348.4293609999986,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 348.47904500000004,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 348.5499819999968,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 349.05288599999767,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 349.0769819999987,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 349.1567619999987,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 349.32494399999996,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 349.49319599999944,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 349.7086589999999,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 349.71731199999704,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 350.0371019999984,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 350.0858249999983,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 350.3638519999986,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 350.41820299999745,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 9,
+    "case": "repetition 43: R5 history process: retained history and independent held coverage (495.795168ms)",
+    "empty_index": 83,
+    "leave": [
+      {
+        "ms": 289.12031099999876,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 295.8908940000001,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 297.5765519999986,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 297.6864170000008,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 297.77922599999874,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 297.795521,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 298.0115939999996,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 298.035609999999,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 300.529129999999,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 305.2701699999998,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 305.38279799999873,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 305.48264800000106,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 305.5572199999988,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 344.09703399999853,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 351.1701209999992,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 351.2139959999986,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 351.3137859999988,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 351.5101800000011,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 351.7083480000001,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 351.9619879999991,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 351.97483699999793,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 352.32000499999776,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 352.6982319999988,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 352.9315319999987,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 353.30632400000104,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 10,
+    "case": "repetition 47: R5 history process: retained history and independent held coverage (527.337098ms)",
+    "empty_index": 84,
+    "leave": [
+      {
+        "ms": 339.0208019999991,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 352.8318829999989,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 360.767652999999,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 360.89733700000215,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 360.9934119999998,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 361.008593999999,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 361.2286239999994,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 361.2564259999999,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 364.0459090000004,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 364.28575900000214,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 364.3926790000005,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 364.49816700000156,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 364.53989999999976,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 369.6454760000015,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 373.7430710000008,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 373.76684699999896,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 373.8758799999996,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 374.0742879999998,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 374.2723650000007,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 374.5003260000012,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 374.5115530000003,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 374.855689,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 374.9026300000005,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 375.3626089999998,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 375.4247529999993,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 11,
+    "case": "repetition 48: R5 history process: retained history and independent held coverage (529.056026ms)",
+    "empty_index": 84,
+    "leave": [
+      {
+        "ms": 340.27449200000046,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 355.4871140000032,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 371.29721300000165,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 371.3913840000023,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 371.4060160000008,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 371.63026300000274,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 371.6596160000008,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 372.4466270000012,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 372.69520900000134,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 372.845615000002,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 372.9345080000021,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 373.00066700000025,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 373.07380700000067,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 376.2391340000031,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 378.33916300000055,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 378.3622080000023,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 381.23202100000344,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 382.378641000003,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 382.5341040000021,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 382.76173500000004,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 382.7706180000023,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 383.0704680000017,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 383.1081550000017,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 383.39894000000277,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 383.46026300000085,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 12,
+    "case": "repetition 59: R5 history process: retained history and independent held coverage (503.548233ms)",
+    "empty_index": 84,
+    "leave": [
+      {
+        "ms": 336.58808200000203,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 340.63233700000274,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 345.5186140000005,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 345.66045700000177,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 345.7648730000001,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 345.7803660000027,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 346.01449800000046,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 346.04111700000067,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 346.82030600000144,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 347.0376319999996,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 347.13640999999916,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 347.22614500000054,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 347.36981000000014,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 354.0385500000011,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 354.61779899999965,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 354.6438780000026,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 358.5938010000027,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 361.74935299999925,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 361.9235050000025,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 362.17325899999923,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 362.1857479999999,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 362.53441100000055,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 362.604846000002,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 362.90392500000235,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 362.9993979999999,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 13,
+    "case": "repetition 73: R5 history process: retained history and independent held coverage (596.071868ms)",
+    "empty_index": 85,
+    "leave": [
+      {
+        "ms": 334.5345920000036,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 339.5611790000039,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 350.2408740000028,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 350.30151599999954,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 350.31362400000216,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 350.5031280000039,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 350.52895700000226,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 351.2382199999993,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 351.4194620000053,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 351.5595119999998,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 351.62690300000395,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 351.6915399999998,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 351.72471000000223,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 357.53018500000326,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 358.1069800000041,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 358.12867299999925,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 358.2009610000023,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 358.3556230000031,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 358.526969999999,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 358.7415519999995,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 358.74944400000095,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 427.8341120000041,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 431.4720770000058,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 431.744326,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 431.85548199999903,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 14,
+    "case": "repetition 79: R5 history process: retained history and independent held coverage (488.836669ms)",
+    "empty_index": 86,
+    "leave": [
+      {
+        "ms": 313.4959119999985,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 325.9153460000016,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 331.26387599999725,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 331.35458199999994,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 331.3656489999994,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 331.5717280000026,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 331.5958939999982,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 332.2791090000028,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 332.48150200000237,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 332.64405599999736,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 332.76970399999846,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 332.85970899999666,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 332.8952530000024,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 338.0588859999989,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 338.62721800000145,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 338.65559100000246,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 338.76307200000156,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 338.9565419999999,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 343.7962100000004,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 346.84711499999685,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 346.8598140000031,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 347.20230699999956,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 347.244200000001,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 347.70763499999885,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 347.769438000003,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 15,
+    "case": "repetition 81: R5 history process: retained history and independent held coverage (525.979076ms)",
+    "empty_index": 85,
+    "leave": [
+      {
+        "ms": 349.7430779999995,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 355.29401099999814,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 361.7867479999986,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 361.88782899999933,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 361.9021309999953,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 362.1156609999962,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 362.14694800000143,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 364.1985549999954,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 365.3282590000017,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 365.65328600000066,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 365.8670970000021,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 365.95155299999897,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 366.40228899999784,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 373.7519209999955,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 373.7762670000011,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 373.8956160000016,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 374.08699299999716,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 374.2865019999954,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 380.7708859999984,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 380.78307399999903,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 381.1414919999952,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 381.1935499999963,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 381.7533089999997,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 381.8205600000001,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 16,
+    "case": "repetition 82: R5 history process: retained history and independent held coverage (470.997467ms)",
+    "empty_index": 85,
+    "leave": [
+      {
+        "ms": 292.4929459999985,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 296.6368700000021,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 304.84345600000233,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 304.90481799999543,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 304.9127099999969,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 305.08375700000033,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 305.10510899999645,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 305.7340919999988,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 305.91483300000255,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 306.0568359999961,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 306.1227749999962,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 306.17713699999877,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 306.21070699999837,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 318.7213879999981,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 319.31607899999653,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 319.33705100000225,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 319.4058240000013,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 319.56594400000176,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 319.73176299999614,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 319.9381020000001,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 319.9457229999971,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 320.2385520000025,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 320.28508200000215,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 320.5562490000011,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 320.6106609999988,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 17,
+    "case": "repetition 88: R5 history process: retained history and independent held coverage (513.957358ms)",
+    "empty_index": 83,
+    "leave": [
+      {
+        "ms": 342.9905110000036,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 354.9400400000013,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 360.1434420000005,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": true,
+          "retained": false,
+          "complete": false
+        }
+      },
+      {
+        "ms": 360.25670199999877,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 360.3442040000009,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 360.3546590000042,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 360.56660700000066,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 360.591935000004,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 361.886056000003,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 362.11031200000434,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 362.22035699999833,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 362.3164010000037,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 362.3524650000036,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 369.15408500000194,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 369.7497780000049,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 369.7720610000033,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 369.83603700000094,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 369.99280200000067,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 370.1434980000049,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 370.3480649999983,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 370.3553860000029,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 370.6429070000013,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 370.6799929999979,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 370.95428399999946,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 371.0061019999994,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  },
+  {
+    "failure": 18,
+    "case": "repetition 95: R5 history process: retained history and independent held coverage (530.505452ms)",
+    "empty_index": 85,
+    "leave": [
+      {
+        "ms": 362.82417200000054,
+        "event": "leave-begin"
+      },
+      {
+        "ms": 366.1017969999957,
+        "event": "leave-committed"
+      }
+    ],
+    "timeline": [
+      {
+        "ms": 372.28466800000024,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 372.38212499999645,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 372.3948539999983,
+        "event": "publish",
+        "detail": {
+          "rows": 26,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 372.61037699999724,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 4
+        }
+      },
+      {
+        "ms": 372.6374369999976,
+        "event": "request",
+        "detail": {
+          "path": "/q/history",
+          "body": {
+            "args": {
+              "room": "left"
+            }
+          }
+        }
+      },
+      {
+        "ms": 373.40513900000224,
+        "event": "server-query",
+        "detail": {
+          "room": "left",
+          "rows": 0,
+          "seq": 5
+        }
+      },
+      {
+        "ms": 373.5972069999989,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 373.7356939999954,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 373.8106370000023,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 373.8810319999975,
+        "event": "device",
+        "detail": {
+          "op": "queued"
+        }
+      },
+      {
+        "ms": 373.93544400000246,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 374.3120990000025,
+        "event": "device",
+        "detail": {
+          "op": "observe_store"
+        }
+      },
+      {
+        "ms": 380.32651800000167,
+        "event": "device",
+        "detail": {
+          "op": "apply"
+        }
+      },
+      {
+        "ms": 380.35188599999674,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 380.4601879999973,
+        "event": "device",
+        "detail": {
+          "op": "meta"
+        }
+      },
+      {
+        "ms": 380.64206099999865,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 380.8438840000017,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 381.0875890000025,
+        "event": "device",
+        "detail": {
+          "op": "set_meta"
+        }
+      },
+      {
+        "ms": 381.099427000001,
+        "event": "publish",
+        "detail": {
+          "rows": 0,
+          "fresh": true,
+          "complete": true
+        }
+      },
+      {
+        "ms": 381.4464470000021,
+        "event": "device",
+        "detail": {
+          "op": "sync_state",
+          "acquired": true,
+          "watermark": 5
+        }
+      },
+      {
+        "ms": 381.49312700000155,
+        "event": "request",
+        "detail": {
+          "path": "/changes"
+        }
+      },
+      {
+        "ms": 381.97851499999524,
+        "event": "device",
+        "detail": {
+          "op": "query",
+          "name": "history",
+          "room": "left",
+          "rows": 25,
+          "unknown": false,
+          "retained": true,
+          "complete": false
+        }
+      },
+      {
+        "ms": 382.03454899999633,
+        "event": "publish",
+        "detail": {
+          "rows": 25,
+          "fresh": true,
+          "complete": false
+        }
+      }
+    ]
+  }
+]

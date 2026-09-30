@@ -1,0 +1,1 @@
+wasm build: missing locked Binaryen; run bun install --frozen-lockfile in snapback4/

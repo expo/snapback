@@ -1,0 +1,17 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.05s
+     Running tests/run_admission.rs (target/debug/deps/run_admission-0896b29051f5dde7)
+
+running 1 test
+test release_token_owns_the_resolved_database_before_sqlite_open ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 13.65s
+

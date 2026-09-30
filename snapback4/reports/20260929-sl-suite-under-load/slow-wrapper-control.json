@@ -1,0 +1,22 @@
+{
+  "command": [
+    "strace",
+    "-f",
+    "--seccomp-bpf",
+    "-qq",
+    "-e",
+    "trace=execve,execveat",
+    "-e",
+    "raw=execve,execveat",
+    "-e",
+    "inject=execve,execveat:delay_exit=300ms",
+    "-o",
+    "reports/20260929-sl-suite-under-load/slow-wrapper-control-exec.log",
+    "/bin/bash",
+    "-c",
+    "/usr/bin/true; /usr/bin/true"
+  ],
+  "elapsed_seconds": 0.6102846581488848,
+  "exit": 0,
+  "stderr": ""
+}

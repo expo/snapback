@@ -1,0 +1,89 @@
+{
+  "log": "qualified-idle.log",
+  "sha256": "c074f6b082a8915fbbda06356ae150ce14b78fecbe698b5dc3c0e7339b3b4ad9",
+  "summary": [
+    "== 1 failure(s) in 1728 s"
+  ],
+  "stages": [
+    "-- ok: cargo build (2 s)",
+    "-- ok: wasm build (1 s)",
+    "-- ok: docs budget (5 s)",
+    "-- ok: release guard (3 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (2 s)",
+    "-- ok: chat app check (1 s)",
+    "-- FAIL: cargo test (548 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- ok: client tests (864 s)",
+    "-- ok: client models (300 s)"
+  ],
+  "inventory": [
+    "-- rust inventory: 274 test binaries, 987 executions; at most 16 concurrent processes",
+    "-- available CPUs: 16; client file concurrency: 5",
+    "-- client test files: 239; concurrency: 5"
+  ],
+  "rust": {
+    "passed": 4340,
+    "failed": 1,
+    "ignored": 33
+  },
+  "node_summaries": [
+    "ℹ tests 9",
+    "ℹ suites 0",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 11877.654233",
+    "ℹ tests 5207",
+    "ℹ suites 0",
+    "ℹ pass 5197",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "ℹ todo 0",
+    "ℹ duration_ms 863140.542932",
+    "ℹ tests 79",
+    "ℹ suites 0",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 300118.992326"
+  ],
+  "wasm": [
+    "wasm 2040531 B raw, 592979 B gzip (budget 593719: ok)"
+  ],
+  "asynchronous_errors": [],
+  "failures": [
+    {
+      "line": 1079,
+      "kind": "rust",
+      "details": [
+        "-- FAIL rust target: snapback4-lang::guide (2.7 s)",
+        "",
+        "running 99 tests",
+        "................................ 32/99",
+        "familiar::every_moved_fact_has_its_why_or_details_home --- FAILED",
+        "..................................................................",
+        "failures:",
+        "",
+        "---- familiar::every_moved_fact_has_its_why_or_details_home stdout ----",
+        "",
+        "thread 'familiar::every_moved_fact_has_its_why_or_details_home' (1511959) panicked at crates/snapback4-lang/tests/guide/familiar.rs:48:9:",
+        "reads-11 lost its Details home",
+        "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+        "",
+        "",
+        "failures:",
+        "    familiar::every_moved_fact_has_its_why_or_details_home",
+        "",
+        "test result: FAILED. 98 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.71s"
+      ]
+    }
+  ]
+}
