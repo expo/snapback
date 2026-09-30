@@ -25,6 +25,9 @@ export function copyEpisode(from: Read<unknown>, to: Read<unknown>): void {
   // Facade copies share only timing, never answer contents or authority.
   if (source && (!target || deadlineOf(source) < deadlineOf(target))) budgets.set(to, source);
 }
+export function freezeEpisode(read: Read<unknown>, deadline: number): void {
+  budgets.set(read, { deadline, offset: 0 });
+}
 export function beginEpisode(from: Read<unknown>, to: Read<unknown>, bounded: boolean, queue?: EpisodeQueue): void {
   copyEpisode(from, to);
   if (bounded && !budgets.has(to)) budgets.set(to, { deadline: Date.now() + 1000, queue, offset: queue?.time ?? 0 });

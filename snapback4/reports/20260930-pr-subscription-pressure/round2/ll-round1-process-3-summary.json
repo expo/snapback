@@ -1,0 +1,1062 @@
+{
+  "metadata": {
+    "tier": "process",
+    "runs": 20,
+    "retention": "viewed",
+    "cpu": "AMD EPYC 9454 48-Core Processor",
+    "loadWorkers": 3,
+    "cpus": 4,
+    "load": [
+      21.45,
+      13.61,
+      18.37
+    ],
+    "browser": "151.0.7922.34",
+    "node": "v24.13.1",
+    "binary": "/home/ccheever/sb4-intent/lane-pr/snapback4/target/debug/snapback4-ll-measure",
+    "source": "fixture.q",
+    "clock": "UNIX milliseconds; Chromium performance.timeOrigin + performance.now; server post-SQLite-commit SystemTime"
+  },
+  "flows": {
+    "profile": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 8.588,
+        "p95": 17.478,
+        "max": 32.358
+      },
+      "upload": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 5.084,
+        "p95": 11.015,
+        "max": 11.936
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 15.8,
+        "p95": 20.8,
+        "max": 21.9
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 6.2,
+        "p95": 9.1,
+        "max": 9.4
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 2.6,
+        "p95": 6.3,
+        "max": 13.1
+      },
+      "apply": {
+        "n": 20,
+        "p50": 3.1,
+        "p95": 5.6,
+        "max": 10.8
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 8.9,
+        "p95": 11.8,
+        "max": 13.8
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 0.1,
+        "p95": 0.2,
+        "max": 0.3
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 1.6,
+        "p95": 3.2,
+        "max": 5.2
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 42.396,
+        "p95": 52.662,
+        "max": 54.015
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 44.58,
+        "p95": 53.962,
+        "max": 56.415
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToHandle": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToAssetReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 2,
+        "p95": 3,
+        "max": 3
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      }
+    },
+    "reaction-add": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 8.427,
+        "p95": 12.687,
+        "max": 15.928
+      },
+      "upload": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 4.019,
+        "p95": 7.372,
+        "max": 8.14
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 34.1,
+        "p95": 41.7,
+        "max": 52
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 7.8,
+        "p95": 12,
+        "max": 16.1
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 7.9,
+        "p95": 12.5,
+        "max": 39.1
+      },
+      "apply": {
+        "n": 20,
+        "p50": 8.2,
+        "p95": 12.1,
+        "max": 15
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 20.6,
+        "p95": 42.3,
+        "max": 42.4
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0.1,
+        "max": 0.4
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 0.2,
+        "p95": 0.8,
+        "max": 0.8
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 85.719,
+        "p95": 112.472,
+        "max": 121.846
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 86.219,
+        "p95": 113.14,
+        "max": 122.046
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToHandle": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToAssetReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 41,
+        "p95": 48,
+        "max": 49
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 24,
+        "p95": 24,
+        "max": 28
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      }
+    },
+    "reaction-replace": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 15.098,
+        "p95": 20.426,
+        "max": 22.439
+      },
+      "upload": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 5.631,
+        "p95": 7.423,
+        "max": 7.622
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 35.9,
+        "p95": 46.3,
+        "max": 50.8
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 8.9,
+        "p95": 12.9,
+        "max": 19.3
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 8.2,
+        "p95": 12.2,
+        "max": 79.3
+      },
+      "apply": {
+        "n": 20,
+        "p50": 7.6,
+        "p95": 13.9,
+        "max": 16.9
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 18.9,
+        "p95": 56.4,
+        "max": 60.8
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0.1,
+        "max": 0.2
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 0.2,
+        "p95": 2,
+        "max": 20.7
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 96.622,
+        "p95": 144.274,
+        "max": 186.623
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 96.822,
+        "p95": 144.574,
+        "max": 207.323
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToHandle": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToAssetReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 50,
+        "p95": 69,
+        "max": 71
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 33,
+        "p95": 39,
+        "max": 42
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      }
+    },
+    "reaction-remove": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 13.925,
+        "p95": 19.03,
+        "max": 21.148
+      },
+      "upload": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 5.847,
+        "p95": 14.075,
+        "max": 25.575
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 33.4,
+        "p95": 45.4,
+        "max": 48.3
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 8.9,
+        "p95": 11.7,
+        "max": 18.9
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 8.8,
+        "p95": 12.5,
+        "max": 12.5
+      },
+      "apply": {
+        "n": 20,
+        "p50": 9.3,
+        "p95": 13.6,
+        "max": 17
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 25.1,
+        "p95": 58.2,
+        "max": 59.4
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 10.1,
+        "p95": 14.5,
+        "max": 15.2
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 0.1,
+        "p95": 0.5,
+        "max": 3.1
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 107.64,
+        "p95": 144.06,
+        "max": 146.802
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 107.84,
+        "p95": 144.26,
+        "max": 146.802
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToHandle": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToAssetReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 58,
+        "p95": 69,
+        "max": 73
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 32,
+        "p95": 38,
+        "max": 42
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      }
+    },
+    "reply": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 12.426,
+        "p95": 15.129,
+        "max": 27.922
+      },
+      "upload": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 4.442,
+        "p95": 7.693,
+        "max": 8.07
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 36.4,
+        "p95": 49,
+        "max": 56.9
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 10.5,
+        "p95": 18,
+        "max": 20.3
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 10.7,
+        "p95": 16.3,
+        "max": 18
+      },
+      "apply": {
+        "n": 20,
+        "p50": 8.1,
+        "p95": 13.7,
+        "max": 18.1
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 76.7,
+        "p95": 97.1,
+        "max": 105.4
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 28,
+        "p95": 35,
+        "max": 40.2
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 1.7,
+        "p95": 3.9,
+        "max": 3.9
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 180.766,
+        "p95": 203.993,
+        "max": 205.166
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 182.066,
+        "p95": 205.994,
+        "max": 206.566
+      },
+      "commitToQuote": {
+        "n": 20,
+        "p50": 182.806,
+        "p95": 205.894,
+        "max": 206.566
+      },
+      "publicationToAssetFetch": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToHandle": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "assetFetchToReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commitToAssetReady": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 85,
+        "p95": 98,
+        "max": 100
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 26,
+        "p95": 35,
+        "max": 37
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 9,
+        "p95": 18,
+        "max": 19
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 5,
+        "p95": 6,
+        "max": 6
+      }
+    },
+    "photo": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 649.875,
+        "p95": 886.679,
+        "max": 952.941
+      },
+      "upload": {
+        "n": 20,
+        "p50": 636.6,
+        "p95": 856.3,
+        "max": 932
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 4.043,
+        "p95": 6.567,
+        "max": 9.559
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 36.5,
+        "p95": 47,
+        "max": 49.6
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 10.5,
+        "p95": 18.2,
+        "max": 21
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 13.2,
+        "p95": 23.8,
+        "max": 27.8
+      },
+      "apply": {
+        "n": 20,
+        "p50": 10.4,
+        "p95": 15.5,
+        "max": 33.3
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 73.7,
+        "p95": 102.1,
+        "max": 105
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 25.6,
+        "p95": 34,
+        "max": 36.1
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 1.6,
+        "p95": 4.3,
+        "max": 4.8
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 182.151,
+        "p95": 214.621,
+        "max": 258.661
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 183.451,
+        "p95": 216.821,
+        "max": 261.861
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 20,
+        "p50": 109.8,
+        "p95": 172.8,
+        "max": 181.5
+      },
+      "assetFetchToHandle": {
+        "n": 20,
+        "p50": 104.1,
+        "p95": 133.1,
+        "max": 133.6
+      },
+      "assetFetchToReady": {
+        "n": 20,
+        "p50": 109.6,
+        "p95": 136.5,
+        "max": 137
+      },
+      "commitToAssetReady": {
+        "n": 20,
+        "p50": 395.025,
+        "p95": 520.859,
+        "max": 564.461
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 86,
+        "p95": 105,
+        "max": 121
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 21,
+        "p95": 33,
+        "max": 45
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 47,
+        "p95": 92,
+        "max": 97
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 6,
+        "p95": 8,
+        "max": 8
+      }
+    },
+    "feed-image": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 672.141,
+        "p95": 790.253,
+        "max": 887.905
+      },
+      "upload": {
+        "n": 20,
+        "p50": 654.5,
+        "p95": 766.9,
+        "max": 844.7
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 4.497,
+        "p95": 6.929,
+        "max": 11.124
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 17.9,
+        "p95": 25.4,
+        "max": 32
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 5.6,
+        "p95": 9.6,
+        "max": 12
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 3.3,
+        "p95": 6.6,
+        "max": 6.7
+      },
+      "apply": {
+        "n": 20,
+        "p50": 3.7,
+        "p95": 22.4,
+        "max": 23.8
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 33.5,
+        "p95": 60,
+        "max": 69.1
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0.1,
+        "max": 0.1
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 1.6,
+        "p95": 4.3,
+        "max": 4.3
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 67.903,
+        "p95": 129.647,
+        "max": 133.095
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 69.905,
+        "p95": 133.847,
+        "max": 136.995
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 20,
+        "p50": 31.7,
+        "p95": 59.1,
+        "max": 62.2
+      },
+      "assetFetchToHandle": {
+        "n": 20,
+        "p50": 98.7,
+        "p95": 162.2,
+        "max": 190.1
+      },
+      "assetFetchToReady": {
+        "n": 20,
+        "p50": 100.8,
+        "p95": 173.3,
+        "max": 194.1
+      },
+      "commitToAssetReady": {
+        "n": 20,
+        "p50": 196.652,
+        "p95": 345.147,
+        "max": 386.295
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 3,
+        "p95": 4,
+        "max": 5
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 1,
+        "p95": 2,
+        "max": 2
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 49,
+        "p95": 94,
+        "max": 99
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      }
+    },
+    "once-photo": {
+      "runs": 20,
+      "timeouts": 0,
+      "callToCommit": {
+        "n": 20,
+        "p50": 643.562,
+        "p95": 799.894,
+        "max": 818.922
+      },
+      "upload": {
+        "n": 20,
+        "p50": 627.1,
+        "p95": 761.1,
+        "max": 798.3
+      },
+      "commitToChanges": {
+        "n": 20,
+        "p50": 5.45,
+        "p95": 8.006,
+        "max": 8.961
+      },
+      "changesToSyncRequest": {
+        "n": 20,
+        "p50": 39,
+        "p95": 46.2,
+        "max": 55.4
+      },
+      "syncRequestToResponse": {
+        "n": 20,
+        "p50": 14.3,
+        "p95": 21.1,
+        "max": 28.9
+      },
+      "syncResponseToApplyStart": {
+        "n": 20,
+        "p50": 11.3,
+        "p95": 19.8,
+        "max": 20.1
+      },
+      "apply": {
+        "n": 20,
+        "p50": 10.2,
+        "p95": 18.6,
+        "max": 39.9
+      },
+      "applyToEvaluation": {
+        "n": 20,
+        "p50": 73.1,
+        "p95": 100.9,
+        "max": 108.9
+      },
+      "evaluationToPublication": {
+        "n": 20,
+        "p50": 24.9,
+        "p95": 35.8,
+        "max": 42.9
+      },
+      "publicationToReact": {
+        "n": 20,
+        "p50": 1.9,
+        "p95": 3.5,
+        "max": 3.6
+      },
+      "commitToPublication": {
+        "n": 20,
+        "p50": 184.288,
+        "p95": 228.996,
+        "max": 264.906
+      },
+      "commitToReact": {
+        "n": 20,
+        "p50": 186.188,
+        "p95": 230.696,
+        "max": 267.706
+      },
+      "commitToQuote": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "publicationToAssetFetch": {
+        "n": 20,
+        "p50": 116.2,
+        "p95": 169.9,
+        "max": 187.8
+      },
+      "assetFetchToHandle": {
+        "n": 20,
+        "p50": 16.1,
+        "p95": 25.2,
+        "max": 43.4
+      },
+      "assetFetchToReady": {
+        "n": 20,
+        "p50": 21.9,
+        "p95": 27.9,
+        "max": 50.4
+      },
+      "commitToAssetReady": {
+        "n": 20,
+        "p50": 305.677,
+        "p95": 392.819,
+        "max": 503.106
+      },
+      "deviceQueries": {
+        "n": 20,
+        "p50": 84,
+        "p95": 97,
+        "max": 97
+      },
+      "beforeApplyQueries": {
+        "n": 20,
+        "p50": 21,
+        "p95": 27,
+        "max": 29
+      },
+      "assetHomeReads": {
+        "n": 20,
+        "p50": 30,
+        "p95": 57,
+        "max": 60
+      },
+      "serverQueries": {
+        "n": 20,
+        "p50": 6,
+        "p95": 6,
+        "max": 6
+      }
+    }
+  }
+}

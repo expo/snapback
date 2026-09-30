@@ -6,7 +6,7 @@ import { forwardInspection } from "./observation-work.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 import { observationKey, peekObservation, registerObservationPeek } from "./observe-watch.ts";
-import { answerIdentity } from "./read-observation.ts";
+import { closedAnswer, answerIdentity } from "./read-observation.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { episodeDeadline } from "./read-episode.ts";
 import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
@@ -84,6 +84,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       let refused: Read<R> | undefined;
       let held: ApprovedAnswer | undefined, refreshVersion = 0;
       let closedDeadline: number | undefined;
+      let closedSource: Read<R> | undefined;
       const key = observationKey(op, args, options);
       let announced: Read<unknown> | undefined;
       const denied = (): Read<R> => refused ??= { denied: why() };
@@ -182,12 +183,16 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           if ("denied" in snapshot) return snapshot;
           if ("loading" in snapshot) return snapshot;
           if (read && "denied" in read) return snapshot = read;
-          const deadline = episodeDeadline(snapshot);
-          if (deadline !== undefined) closedDeadline = Math.min(closedDeadline ?? Infinity, deadline);
+          const deadline = read && "data" in read && answerIdentity(read) === answerIdentity(snapshot)
+            ? Math.min(episodeDeadline(snapshot) ?? Infinity, episodeDeadline(read) ?? Infinity) : episodeDeadline(snapshot);
+          if (deadline !== undefined && Number.isFinite(deadline)) closedDeadline = Math.min(closedDeadline ?? Infinity, deadline);
           if (!read || !("data" in read) || !("data" in snapshot)
             || answerIdentity(read) !== answerIdentity(snapshot)
             || (closedDeadline !== undefined && Date.now() >= closedDeadline)) snapshot = loading;
-          else snapshot = read;
+          else if (closedDeadline === undefined) snapshot = read;
+          else if (closedSource !== read || episodeDeadline(snapshot) !== closedDeadline) {
+            closedSource = read; snapshot = closedAnswer(read, closedDeadline);
+          }
           return snapshot;
         }
         if (read && ("loading" in read || "denied" in read)) {

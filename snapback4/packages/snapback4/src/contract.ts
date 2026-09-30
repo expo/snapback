@@ -217,9 +217,11 @@ export type Action<Args, Result = unknown> = Op<Args, Result> & { readonly kind:
 export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
 
-/** Omitted: retain during a re-read for one non-renewable second, with revalidating.
- * False: withdraw immediately. True: retain without the time cap and linger 30 s
- * after unmount. Failed reads, expiry, refusals and resets withdraw for all three.
+/** Omitted and true: retain during plain revalidation without a timeout, marked
+ * revalidating. Change evidence bounds both by one non-renewable second;
+ * local capacity wait pauses it, online evidence includes queue wait.
+ * False: withdraw immediately. True also lingers 30 s after unmount.
+ * Failed bounded re-reads, expiry, refusals and resets withdraw for every policy.
  * @ref LLP 3000.023#3.2 — each policy owns a separate live watch. */
 export interface ObserveOptions { readonly keep?: boolean }
 

@@ -52,7 +52,7 @@ Search with `usePage` per scope: render `page.items`, classify `page.read`. Show
 ## Queries in rows
 
 Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paged lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
-At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Unrelated writes preserve memory; clock refresh preserves unexpired answers.
+At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence rereads precede ordinary queued work; occupied slots can still cause sibling withdrawal.
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
@@ -68,9 +68,9 @@ function ConversationList() {
 }
 ```
 
-Keep server-needing decorations separate.
+Server/composed scope metadata preserves unrelated rooms. Unknown selectors use table-wide withdrawal; see [read boundaries](CLIENT-AND-OPERATIONS.md).
 
-If a screen flashes empty, call `inspect(client)` from `snapback4/inspection` to enable collection: compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout` means exhausted budget; online evidence includes capacity wait. Collection starts on first inspection. `latency` reports queue/attempt p50/p95/max for 256 completed attempts; withdrawals keep 64. Counts include linger; direct/presence reads are excluded.
+If a screen flashes empty, call `inspect(client)` from `snapback4/inspection` to enable collection: compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout` means exhausted budget; online evidence includes capacity wait. `latency` reports queue/attempt p50/p95/max for 256 completed attempts; withdrawals keep 64. Counts include linger; direct/presence reads are excluded.
 Development overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled returns null and starts no timer; enabled samples every 250 ms. No arguments/values.
 
 ## Expo and acquisition

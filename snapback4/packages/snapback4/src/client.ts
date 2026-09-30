@@ -688,6 +688,7 @@ export function createClient(options: ClientOptions): Client {
     // Online change evidence may be revocation: its budget includes capacity wait.
     watch.reload(changed, { queued: !changed }); notify(watch);
     acquireRead(watch);
+    if (changed) readWork.prioritize(watch);
   }
   function acquireRead(watch: Watch) {
     if (watch.inFlight) { watch.dirty = true; return; }

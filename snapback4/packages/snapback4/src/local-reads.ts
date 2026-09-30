@@ -18,6 +18,16 @@ export function predictedTables(predicted: readonly string[]): Set<string> {
 }
 
 export type ReadScopes = Record<string, Record<string, unknown>[]>;
+/** A composition depends on both evaluations; missing certification widens. */
+export function mergeReadScopes(left: ReadScopes | undefined, right: ReadScopes | undefined): ReadScopes | undefined {
+  if (!left || !right) return undefined;
+  const scopes: ReadScopes = {};
+  for (const source of [left, right]) for (const [table, groups] of Object.entries(source)) {
+    const values = scopes[table] ??= [];
+    for (const group of groups) if (!values.some(value => JSON.stringify(value) === JSON.stringify(group))) values.push(group);
+  }
+  return scopes;
+}
 type ScopeLoss = { table: string; data: unknown[]; watermark: number };
 function overlapsScope(tables: Set<string>, scopes: ReadScopes | undefined, loss: ScopeLoss): boolean {
   return tables.has(loss.table) && (scopes === undefined || scopes[loss.table]?.some(group =>
@@ -79,6 +89,7 @@ export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<stri
 
 export type ServerAnswer = {
   read: Extract<import("./contract.ts").Read<unknown>, { data: unknown }>;
+  scopes?: ReadScopes | undefined;
   at: number;
   nextExpiry: number | null;
   tables: Set<string>;
@@ -132,6 +143,9 @@ export class RememberedAnswers {
       if (answer.tables.size && !touched.some(table => answer.tables.has(table))) continue;
       this.forget(key);
     }
+  }
+  withdraw(losses: ScopeLoss[]): void {
+    for (const [key, answer] of this.answers) if (losses.some(loss => overlapsScope(answer.tables, answer.scopes, loss))) this.forget(key);
   }
   get size(): number { return this.answers.size; }
   /** The cache as one read attempt writes it: the server's cut, then the attempt's
@@ -244,6 +258,25 @@ export class LocalReads {
     return cut;
   }
 
+  // @ref LLP 3000.023#10 — a detached handle missed commits and hard resets.
+  // Validate before reading or reinserting it, never after its queued attempt.
+  restore(watch: LocalWatch, detached: boolean, incarnation: number, denied: Refusal | null): void {
+    if (denied) {
+      if (!("denied" in watch.snapshot) || watch.snapshot.denied.code !== denied.code) watch.reset({ denied });
+      return;
+    }
+    if (!("data" in watch.snapshot)) return;
+    const cut = this.blocked({ read: watch.snapshot, tables: watch.tables, scopes: watch.scopes });
+    if (cut !== undefined) {
+      this.changed(watch, cut); watch.scopeCut = cut; watch.waitingForSync = true;
+      watch.reset({ loading: true }, false, "membership-removal");
+    } else if (watch.incarnation !== incarnation || detached && watch.answerRevision !== this.revision) {
+      // No listener owned this answer across the revision. A new evaluation
+      // must certify it; this also covers a published removal and generation.
+      watch.reset({ loading: true }, false, "detached-change");
+    }
+  }
+
   current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; tables?: Set<string>; scopes?: ReadScopes | undefined; serverOnly?: boolean; seq?: number | undefined }): boolean {
     // New mounts have no prior footprint: certify their evaluated dependency
     // against every unpublished removal before installing the first answer.
@@ -268,6 +301,7 @@ export class LocalReads {
   withdrawScopes(watches: Iterable<LocalWatch>, page: { watermark: number; events?: { kind?: string; table?: string; data?: unknown }[] }, published: boolean, offline?: Refusal): () => void {
     const lost: ScopeLoss[] = (page.events ?? []).flatMap(event => event.kind === "scope" && event.table && Array.isArray(event.data)
       ? [{ table: event.table, data: event.data, watermark: page.watermark }] : []);
+    this.serverAnswers.withdraw(lost);
     if (!published) for (const loss of lost) {
       const prior = this.scopeCuts.find(cut => cut.table === loss.table && JSON.stringify(cut.data) === JSON.stringify(loss.data));
       if (prior) prior.watermark = Math.max(prior.watermark, loss.watermark); else this.scopeCuts.push(loss);

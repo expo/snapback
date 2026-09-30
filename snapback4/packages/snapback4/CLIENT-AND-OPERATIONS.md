@@ -1247,6 +1247,16 @@ A whole server answer at or after the cut can replace the display while sync
 waits; older replica answers remain ineligible until it catches up. Plain offline
 ephemeral recovery keeps the answer through its original row expiry.
 
+Scope metadata survives server fallback, retained composition and recovery memory.
+Server narrowing uses literal/viewer/unshadowed argument audience prefixes over
+all query branches, never hidden row keys. By-ID points without audience keys,
+data-dependent selectors, recursive/native reads, unmapped derived dependencies,
+ordinary mixed word-search coordination and legacy replies remain conservative
+at the table boundary. Unpinned audience dimensions match every group.
+Online `/changes` still identifies tables only; an authorized sibling can reach
+its one-second bound if all slots are occupied. Evidence rereads jump ordinary
+queued work, within eight starts per turn/eight active, without preemption.
+
 A `/changes` program-generation mismatch withdraws immediately, even at the
 same sequence with no touched tables. Displayed answers, remembered answers
 and pending evaluations belong to the retired program. The old replica stays
@@ -1313,7 +1323,8 @@ authority. For all three policies, a closed facade keeps consulting its detached
 raw handle but never adopts a new identity. While its last identity is still the source's and its own row and episode
 deadlines hold, it returns the source's current copy of that identity, including
 its revalidating mark. It preserves the earliest episode it observed, whether
-before or after close, even if a later copy omits the deadline. After that it returns one stable `loading` snapshot, or its denial, even
+before or after close, even if a later copy omits the deadline. Its returned
+copy fixes that deadline, including during a live peer's later queue pause. After that it returns one stable `loading` snapshot, or its denial, even
 when the replacement has identical data. A closed facade has no listeners and
 never notifies. Loading captured at close is already latched, without another
 getter call. Once its loading snapshot latches, a later source denial does
@@ -1332,8 +1343,11 @@ installation, or client close withdraws the answer immediately. A successful
 server fallback keeps retaining while device composition finishes, subject to
 any existing online-change episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
 Closing the client cancels row deadlines before publishing its stable denial. A
-closed local observation still checks its saved deadlines; resubscribing rearms
-those same absolute row deadlines before its re-read. Observed server expiry also
+closed local observation checks pending scope cuts, refusals, incarnation and
+revision before returning or resubscribing with a saved answer. Missing any
+commit/reset while detached withdraws that answer until re-evaluation, even for
+a disjoint commit. Otherwise resubscription rearms its original row deadlines.
+Lingering handles remain live and keep precise audience matching. Observed server expiry also
 fences remembered answers, so clock rollback cannot recover the expired body,
 while preserving newer answers whose server deadlines have not arrived.
 

@@ -79462,3 +79462,45 @@ Report and complete failure dispositions:
 reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — PR round 2: validate saved answers before reuse
+
+Merged main `cb64e6aa11` first into lane PR (`2a10a83e7a`), preserving both
+journal sides. **Main has the reused-closed-handle revocation defect**: its SDK
+fails all four wasm/process × published/staged controls. Saved local snapshots
+now check pending audience cuts, terminal refusal, incarnation and missed
+revisions before exposure or reinsertion. The audit covers lingering handles,
+peek, createApp, recovery memory without a mounted owner, and one-shot approval
+waits. A detached handle that missed a commit conservatively reevaluates.
+
+Server-backed and composed answers preserve audience dependencies from public
+program/caller inputs across all branches; opaque selectors and absent metadata
+remain documented table-wide exceptions. Closed facade deadlines latch when
+first observed, while their fixed copies follow same-answer existence metadata.
+ObserveOptions now documents unbounded plain retention and bounded change
+retention for both retaining policies. Online evidence rereads precede ordinary
+queued work, preserving eight starts/eight active and the queue-inclusive
+revocation bound; completely occupied slots can still blank an online sibling.
+LLP 3000.023 §10, the client guide and client reference record these boundaries.
+
+Final affected tests: **138 passed**; whole guide: **105 passed**; ref-check:
+**525 LLPs / 10,002 refs, zero errors**. Thirty new regressions include 18
+behavior/doc failures against round 1. Both dual-device tiers converge to 42
+unique messages per history with zero normal-run gaps, peak 116 queued / 8
+active. Forced slow attempts withdraw only while actually in flight. The 16
+complete LL cells (2,560 actions) have zero timeouts; report tables distinguish
+the paired SDK control from historical end-to-end results and shared-host noise.
+Wasm remains **1,983,105 raw / 595,440 gzip bytes**, with no ratchet increase.
+
+Ran `scripts/test.sh` once: **`== 1 failure(s) in 1260 s`**, exit 1. Client tests
+had 5,357 passes, eight failures and ten existing skips; all 79 serial models
+passed. The eight failures were our outdated expectations: four demanded
+cross-handle snapshot object aliases despite separate closed deadlines; four
+explicitly expected revoked rows to reappear until a timeout. Corrected to
+assert answer identity/content/stability and immediate revocation with no stale
+callbacks; all pass in the 138-test follow-up. The full run remains recorded red.
+The last SDK correction was built before its client phase; later edits changed
+test assertions only. Source/artifact hashes and every development failure,
+including our setup mistakes and the isolated/full-passing native timing failure,
+are in [the round-2 report](reports/20260930-pr-subscription-pressure/round2/REPORT.md).
+Nothing pushed or published.

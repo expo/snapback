@@ -208,7 +208,9 @@ for (const keep of [undefined, true]) for (const closeBeforeReload of [false, tr
     if (!closeBeforeReload) watch.close();
     const closedCalls = seen.length, current = watch.getSnapshot();
     assert.equal(answerIdentity(current), answerIdentity(original));
-    assert.equal(current, peer.getSnapshot());
+    assert.equal(answerIdentity(current), answerIdentity(peer.getSnapshot()));
+    assert.deepEqual(current, peer.getSnapshot(), "same answer facts; closed deadlines own their copy");
+    assert.equal(current, watch.getSnapshot(), "the closed handle's snapshot stays stable");
     assert.equal(current.revalidating, true);
     assert.equal(episodeDeadline(current), bounded ? 2000 : undefined);
     host = 2000;

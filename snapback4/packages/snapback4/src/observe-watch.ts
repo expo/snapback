@@ -59,7 +59,7 @@ export function closeWatchAnswers(watches: Map<string, Watch>, denied: Refusal):
 // @ref LLP 3000.019#3.3 — keep leaves the same live observation running for 30 seconds without subscribers.
 export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: string,
   make: () => W, start: (watch: W) => void, stop: (watch: W) => void,
-  denied: () => Refusal | null, resetOnClose = true, idle?: (watch: W) => boolean): Observed<R> {
+  denied: () => Refusal | null, resetOnClose = true, idle?: (watch: W) => boolean, validate?: (watch: W, detached: boolean) => void): Observed<R> {
   const cancelLinger = (watch: W) => {
     if (watch.lingering) clearTimeout(watch.lingering.timer);
     delete watch.lingering;
@@ -105,10 +105,11 @@ export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: s
     watch.lingering = { until: performance.now() + 30_000, timer, close: () => close(watch), ...(resume ? { resume } : {}) };
   };
   return {
-    getSnapshot: () => own.read(denied()) as Read<R>,
+    getSnapshot: () => { validate?.(own, watches.get(key) !== own); return own.read(denied()) as Read<R>; },
     subscribe(notify) {
+      validate?.(own, watches.get(key) !== own);
       if (own.linger) own = acquire();
-      else if (watches.get(key) !== own) { watches.set(key, own); start(own); }
+      else if (watches.get(key) !== own) { if (watches.has(key)) own = acquire(); else { watches.set(key, own); start(own); } }
       mine.add(notify); own.subscribers.add(notify);
       return () => {
         mine.delete(notify); own.subscribers.delete(notify);

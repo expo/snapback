@@ -2,7 +2,7 @@ import { pendingRead, readyRead, readyExistence } from "./read-existence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
-import { beginEpisode, copyEpisode, episodeDeadline, EpisodeQueue, ReadEpisode } from "./read-episode.ts";
+import { freezeEpisode, beginEpisode, copyEpisode, episodeDeadline, EpisodeQueue, ReadEpisode } from "./read-episode.ts";
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
@@ -16,6 +16,13 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
   if (owner) owners.set(to, owner);
   copyEpisode(from, to);
   return to;
+}
+
+/** Closed facades expose a fixed deadline without freezing their live peer. */
+export function closedAnswer<T>(read: Read<T>, deadline: number): Read<T> {
+  const copy = copyAnswer(read, { ...read });
+  freezeEpisode(copy, deadline);
+  return copy;
 }
 
 /** Reclassify a copy without renewing its answer identity or retention episode. */

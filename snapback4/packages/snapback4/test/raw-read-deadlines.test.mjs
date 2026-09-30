@@ -55,7 +55,7 @@ test("closing a raw local handle stops its episode timer but keeps the deadline"
 
 // Exercise the production subscription callback, without manually reloading its owner.
 for (const tier of ["wasm", "process"]) for (const continuing of [false, true]) {
-  test(`${tier}: resubscribing a raw local handle ${continuing ? "rearms its original" : "starts a bounded"} episode`, async t => {
+  test(`${tier}: raw resubscription validates revocation before ${continuing ? "rearming its original" : "starting a bounded"} episode`, async t => {
     const { url, dir } = await server(t, "", `use personas alice, bob
 table rows:
   owner: principal
@@ -103,19 +103,17 @@ mutation edit():
     handle.close(); hold = false;
     await mutate("transfer"); await client.sync();
     assert.equal((await client.query(q, {})).data, null, "the replica has applied the ownership change");
+    assert.deepEqual(handle.getSnapshot(), { loading: true }, "revocation withdraws even before resubscription");
     const before = starts, seen = []; hold = true;
     handle.subscribe(() => seen.push(owner.snapshot));
     await until(() => starts > before);
-    assert.equal(handle.getSnapshot().data?.value, 7);
-    assert.equal(handle.getSnapshot().revalidating, true, "subscription takes the production policy transition");
-    const deadline = episodeDeadline(handle.getSnapshot());
-    assert.ok(Number.isFinite(deadline), "the replacement attempt arms its episode");
-    if (continuing) assert.equal(deadline, originalDeadline, "resubscription never renews an existing episode");
-    await new Promise(resolve => setTimeout(resolve, Math.max(0, deadline - Date.now()) + 20));
-    assert.deepEqual(owner.snapshot, { loading: true }, "the real timer withdraws without a snapshot accessor");
-    assert.ok(seen.some(read => read.loading), "withdrawal notifies the resubscribed handle");
+    assert.deepEqual(handle.getSnapshot(), { loading: true }, "an old episode cannot reauthorize revoked rows");
+    assert.equal(episodeDeadline(handle.getSnapshot()), undefined, "hard withdrawal supersedes either episode");
+    assert.ok(seen.every(read => !("data" in read)), "resubscription never republishes the revoked saved answer");
     hold = false; gate.resolve();
     await until(() => handle.getSnapshot().data === null && !handle.getSnapshot().revalidating);
+    assert.ok(seen.some(read => read.data === null), "the subscriber receives the authorized replacement");
+    assert.ok(seen.every(read => !("data" in read) || read.data === null), "no callback reintroduces the revoked row");
   });
 }
 

@@ -915,7 +915,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work); void work.finally(() => active.delete(work)).catch(() => {}); return work;
   }
   function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
-    return publishDelivery(deliveryQueue, result, () => !unavailable()
+    return publishDelivery(deliveryQueue, result, () => !unavailable() && (!("data" in result.read) || !changesStopped && !partitionDenied && answers.blocked(result) === undefined)
       && result.incarnation === incarnation && result.authority === answers.revision
       && (result.credential === undefined || result.credential === credentialRevision)
       && (!result.controlCurrent || result.controlCurrent())
@@ -939,7 +939,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   function rerunTables(tables: Set<string>) { rerunLocalTables(watches.values(), tables, scheduleRead); }
   function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); }); }
-  // @ref LLP 3000.018#3.2 — background presence checks change versions even when queued snapshots stay identical.
   async function refreshPresence(watch: Watch) {
     if (closed || sessionDead || watches.get(watch.key) !== watch) return;
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
@@ -971,6 +970,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const readWork = new ObservationWork<Watch>(); // @ref LLP 3000.023#10 — changed input retires an older attempt; refresh cadence alone does not.
   function scheduleRead(watch: Watch, changed = false, cut?: number) {
     if (closed || sessionDead) return; if (changed) answers.changed(watch, cut);
+    const denied = changesStopped ?? partitionDenied; if (denied) { watch.reset({ denied }); notify(watch); return; }
     if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); return; }
     watch.reload(changed, { queued: true }); notify(watch); acquireRead(watch);
   }
@@ -1199,8 +1199,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
           void scheduleRead(watch, "data" in watch.snapshot && watch.answerRevision !== answers.revision); },
-        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false,
-        watch => { watch.dirty = false; return readWork.cancel(watch); });
+        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
+        (watch, detached) => answers.restore(watch, detached, incarnation, unavailable() ?? changesStopped ?? partitionDenied));
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;

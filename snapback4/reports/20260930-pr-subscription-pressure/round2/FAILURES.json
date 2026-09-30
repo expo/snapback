@@ -1,0 +1,472 @@
+[
+  {
+    "run": "affected.log",
+    "test": "wasm: 1,000 per-row hooks retain through a relevant write with the real clock",
+    "classification": "ours \u2014 contaminated development run; SDK rebuild overlapped browser acquisition; isolated final run passed"
+  },
+  {
+    "run": "affected.log",
+    "test": "wasm: a dormant local handle checks terminal refusal before reuse",
+    "classification": "ours \u2014 unfinished dormant-refusal fix still reset the refusal to loading in scheduleRead"
+  },
+  {
+    "run": "affected.log",
+    "test": "process: a dormant local handle checks terminal refusal before reuse",
+    "classification": "ours \u2014 unfinished dormant-refusal fix still reset the refusal to loading in scheduleRead"
+  },
+  {
+    "run": "approval-control.log",
+    "test": "wasm: a dormant local handle checks terminal refusal before reuse",
+    "classification": "ours \u2014 deliberate single-fence revert; expected stale-approval rejection"
+  },
+  {
+    "run": "approval-control.log",
+    "test": "process: a dormant local handle checks terminal refusal before reuse",
+    "classification": "ours \u2014 deliberate single-fence revert; expected stale-approval rejection"
+  },
+  {
+    "run": "before.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "before.log",
+    "test": "wasm: reuse closed handle after published revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "before.log",
+    "test": "wasm: reuse closed handle after staged revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "before.log",
+    "test": "process: reuse closed handle after published revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "before.log",
+    "test": "process: reuse closed handle after staged revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "closed-metadata-before.log",
+    "test": "closed deadline copy follows same-identity existence changes",
+    "classification": "ours \u2014 frozen deadline copy missed same-identity existence metadata; source-object tracking fixes it"
+  },
+  {
+    "run": "corrected-affected.log",
+    "test": "wasm: raw resubscription validates revocation before starting a bounded episode",
+    "classification": "ours \u2014 new assertion expected a loading notification before the subscriber was attached; final assertions prove immediate withdrawal and later authorized replacement delivery"
+  },
+  {
+    "run": "corrected-affected.log",
+    "test": "wasm: raw resubscription validates revocation before rearming its original episode",
+    "classification": "ours \u2014 new assertion expected a loading notification before the subscriber was attached; final assertions prove immediate withdrawal and later authorized replacement delivery"
+  },
+  {
+    "run": "corrected-affected.log",
+    "test": "process: raw resubscription validates revocation before starting a bounded episode",
+    "classification": "ours \u2014 new assertion expected a loading notification before the subscriber was attached; final assertions prove immediate withdrawal and later authorized replacement delivery"
+  },
+  {
+    "run": "corrected-affected.log",
+    "test": "process: raw resubscription validates revocation before rearming its original episode",
+    "classification": "ours \u2014 new assertion expected a loading notification before the subscriber was attached; final assertions prove immediate withdrawal and later authorized replacement delivery"
+  },
+  {
+    "run": "focused-final.log",
+    "test": "wasm: a dormant local handle checks terminal refusal before reuse",
+    "classification": "ours \u2014 unfinished dormant-refusal fix still reset the refusal to loading in scheduleRead"
+  },
+  {
+    "run": "focused-final.log",
+    "test": "process: a dormant local handle checks terminal refusal before reuse",
+    "classification": "ours \u2014 unfinished dormant-refusal fix still reset the refusal to loading in scheduleRead"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "wasm: reuse closed handle after published revocation, keep=undefined",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "wasm: reuse closed handle after published revocation, keep=true",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "wasm: reuse closed handle after published revocation, keep=false",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "wasm: reuse closed handle after staged revocation, keep=undefined",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "wasm: reuse closed handle after staged revocation, keep=true",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "wasm: reuse closed handle after staged revocation, keep=false",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "process: reuse closed handle after published revocation, keep=undefined",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "process: reuse closed handle after published revocation, keep=true",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "process: reuse closed handle after published revocation, keep=false",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "process: reuse closed handle after staged revocation, keep=undefined",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "process: reuse closed handle after staged revocation, keep=true",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "focused-qualified.log",
+    "test": "process: reuse closed handle after staged revocation, keep=false",
+    "classification": "ours \u2014 introduced recursive close notification; stable refusal-code comparison fixes it"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "closed facade follows same identity's revalidation (close before=false), keep=undefined, bounded=true",
+    "classification": "ours \u2014 old cross-handle object-alias assertion conflicts with independent closed deadline; replaced by answer identity, equal facts and per-handle stability, 54 affected tests pass"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "closed facade follows same identity's revalidation (close before=true), keep=undefined, bounded=true",
+    "classification": "ours \u2014 old cross-handle object-alias assertion conflicts with independent closed deadline; replaced by answer identity, equal facts and per-handle stability, 54 affected tests pass"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "closed facade follows same identity's revalidation (close before=false), keep=true, bounded=true",
+    "classification": "ours \u2014 old cross-handle object-alias assertion conflicts with independent closed deadline; replaced by answer identity, equal facts and per-handle stability, 54 affected tests pass"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "closed facade follows same identity's revalidation (close before=true), keep=true, bounded=true",
+    "classification": "ours \u2014 old cross-handle object-alias assertion conflicts with independent closed deadline; replaced by answer identity, equal facts and per-handle stability, 54 affected tests pass"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "wasm: resubscribing a raw local handle starts a bounded episode",
+    "classification": "ours \u2014 existing assertion explicitly expected revoked rows until the episode deadline; updated to immediate pre-resubscription withdrawal and no stale callback"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "wasm: resubscribing a raw local handle rearms its original episode",
+    "classification": "ours \u2014 existing assertion explicitly expected revoked rows until the episode deadline; updated to immediate pre-resubscription withdrawal and no stale callback"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "process: resubscribing a raw local handle starts a bounded episode",
+    "classification": "ours \u2014 existing assertion explicitly expected revoked rows until the episode deadline; updated to immediate pre-resubscription withdrawal and no stale callback"
+  },
+  {
+    "run": "full-suite.log",
+    "test": "process: resubscribing a raw local handle rearms its original episode",
+    "classification": "ours \u2014 existing assertion explicitly expected revoked rows until the episode deadline; updated to immediate pre-resubscription withdrawal and no stale callback"
+  },
+  {
+    "run": "guide-final.log",
+    "test": "client::published::published_file_references_resolve_against_package_contents",
+    "classification": "ours \u2014 client guide linked an unshipped reference; changed to packaged relative reference"
+  },
+  {
+    "run": "guide.log",
+    "test": "client::published::published_file_references_resolve_against_package_contents",
+    "classification": "ours \u2014 client guide linked an unshipped reference; changed to packaged relative reference"
+  },
+  {
+    "run": "main-remount-corrected.log",
+    "test": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "classification": "ours \u2014 invalid control build parsed .ts as TSX; corrected before main conclusion"
+  },
+  {
+    "run": "main-remount-final.log",
+    "test": "wasm: reuse closed handle after published revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "main-remount-final.log",
+    "test": "wasm: reuse closed handle after staged revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "main-remount-final.log",
+    "test": "process: reuse closed handle after published revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "main-remount-final.log",
+    "test": "process: reuse closed handle after staged revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=false",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "online authorized sibling re-read jumps ordinary queued work after evidence",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "evidence priority survives an active attempt retiring into the queue",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "ObserveOptions documents plain retention and bounded change evidence for omitted and true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "wasm: reuse closed handle after published revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "wasm: reuse closed handle after staged revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "process: reuse closed handle after published revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "process: reuse closed handle after staged revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "scope loss fences remembered server answers without a mounted owner",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "wasm: a dormant local handle checks terminal refusal before reuse",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "process: a dormant local handle checks terminal refusal before reuse",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "wasm: published removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "wasm: staged removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "process: published removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "process: staged removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "wasm: combined retained/server scopes preserve the authorized room",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-complete.log",
+    "test": "process: combined retained/server scopes preserve the authorized room",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=false",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "online authorized sibling re-read jumps ordinary queued work after evidence",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "evidence priority survives an active attempt retiring into the queue",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "ObserveOptions documents plain retention and bounded change evidence for omitted and true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "wasm: reuse closed handle after published revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "wasm: reuse closed handle after staged revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "process: reuse closed handle after published revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "process: reuse closed handle after staged revocation, keep=undefined",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "scope loss fences remembered server answers without a mounted owner",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "wasm: a dormant local handle checks terminal refusal before reuse",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "process: a dormant local handle checks terminal refusal before reuse",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "wasm: published removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "wasm: staged removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "process: published removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "process: staged removal preserves server-backed sibling",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "wasm: combined retained/server scopes preserve the authorized room",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative-final.log",
+    "test": "process: combined retained/server scopes preserve the authorized room",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=false",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "closed facade deadline cannot follow later queue pauses; closeBeforeReload=true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "online authorized sibling re-read jumps ordinary queued work after evidence",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "ObserveOptions documents plain retention and bounded change evidence for omitted and true",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "wasm: reuse closed handle after published revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "wasm: reuse closed handle after staged revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "process: reuse closed handle after published revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "process: reuse closed handle after staged revocation",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "scope loss fences remembered server answers without a mounted owner",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "wasm: two-room server-result control under capacity pressure",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "process: two-room server-result control under capacity pressure",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "wasm: combined retained/server scopes preserve the authorized room",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "round1-negative.log",
+    "test": "process: combined retained/server scopes preserve the authorized room",
+    "classification": "baseline \u2014 deliberate pre-fix detecting control"
+  },
+  {
+    "run": "server-affected.log",
+    "test": "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not",
+    "classification": "environmental \u2014 wall-clock attribution under concurrent load; isolated rerun passed"
+  }
+]
