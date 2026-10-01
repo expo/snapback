@@ -58,7 +58,7 @@ impl Runner<'_> {
     // ordinals even when the requested suffix currently contains no rows.
     pub(super) fn observe_sequence_selection(&mut self, name: &str, index_name: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
         if !self.device || self.device_allowance.is_none() { return Ok(()); }
-        self.tx.touch_index(name, index_name);
+        self.tx.receipt_selection(name, index_name);
         if self.provisional_sequence_read { return Ok(()); }
         // A stored scalar aggregate can be zero/absent because a provisional
         // source failed its filter, or can hold a provisional sum/group key.
@@ -112,7 +112,7 @@ impl Runner<'_> {
         Ok(())
     }
 
-    // @ref LLP 3000.022#14.3 — receipts use storage-wide refusal custody.
+    // @ref LLP 3000.022#14.3 — receipt values carry their own evaluation taint.
     // Keep precise provenance for ordinary sequence-by fields, whose tables
     // need not carry receipt state and whose unrelated refusals stay terminal.
     pub(super) fn sequence_field_is_assigned(&self, table: &str, field: &str) -> bool {
@@ -122,7 +122,6 @@ impl Runner<'_> {
     }
 
     pub(super) fn sequence_field_is_provisional(&self, row: &Value, field: &str) -> Result<bool, RuntimeError> {
-        self.tx.touch_value_field(row, field);
         if !self.device || row.field("id").and_then(Value::as_str).is_err() { return Ok(false); }
         for name in self.schema.tables.keys() {
             if self.sequence_field_is_assigned(name, field) && self.is_provisional(name, row)? { return Ok(true); }
@@ -134,7 +133,9 @@ impl Runner<'_> {
         let next_provisional = self.device && (effect == Effect::Insert || self.is_provisional(name, next)?);
         let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);
         let viewer = self.context.viewer.clone();
-        super::rules::evaluate(rule, &viewer, old, next, effect == Effect::Insert, &mut SequenceProbe {
+        let old = old.map(|row| self.tx.receipt_fields(name, row.clone()));
+        let next = self.tx.receipt_fields(name, next.clone());
+        super::rules::evaluate(rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, &mut SequenceProbe {
             runner: self, allowance, table: name, old: old_provisional, next: next_provisional,
         })
     }
@@ -326,7 +327,6 @@ struct SequenceProbe<'a, 'b> {
 impl super::rules::Probe for SequenceProbe<'_, '_> {
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, old: bool) {
-        self.runner.tx.touch_field(self.table, field);
         self.runner.provisional_sequence_read |= (if old { self.old } else { self.next })
             && self.runner.sequence_field_is_assigned(self.table, field);
     }

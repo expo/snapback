@@ -25,38 +25,35 @@ impl Authorization {
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { prediction_schema: Option<&'a crate::schema::Schema>, receipt_touched: Cell<bool>, raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
+pub(crate) struct GuardedRows<'a> { prediction_schema: Option<&'a crate::schema::Schema>, receipt_taint: Option<crate::value::ReceiptTaint>, raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { prediction_schema: None, receipt_touched: Cell::new(false), raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
-    // @ref LLP 3000.022#14.3 — one sticky authored-read observation for a prediction.
-    // Authored row, field and index reads share one sticky observation.
-    // Raw storage bookkeeping and allocator probes do not evaluate application reads.
-    pub(super) fn observe_receipts(&mut self, schema: &'a crate::schema::Schema) { self.prediction_schema = (!schema.receipts.is_empty()).then_some(schema); }
-    pub(super) fn receipt_touched(&self) -> bool { self.receipt_touched.get() }
-    pub(super) fn touch(&self, table: &str) {
-        if !self.receipt_touched.get() && self.prediction_schema.is_some_and(|s| s.receipt_state_table(table)) {
-            self.receipt_touched.set(true);
-        }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { prediction_schema: None, receipt_taint: Default::default(), raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
+    // @ref LLP 3000.022#14.3 — marks belong to one prediction, never its stored images.
+    pub(super) fn observe_receipts(&mut self, schema: &'a crate::schema::Schema) { self.prediction_schema = (!schema.receipts.is_empty()).then_some(schema); self.receipt_taint = self.prediction_schema.map(|_| Default::default()); }
+    pub(super) fn receipt_touched(&self) -> bool { self.receipt_taint.as_ref().is_some_and(|t| t.touched()) }
+    pub(super) fn receipt_value(&self, table: &str, value: Value) -> Value {
+        let mark = self.prediction_schema.filter(|s| s.receipt_state_table(table)).and(self.receipt_taint.clone());
+        value.with_receipt_taint(mark)
     }
-    pub(super) fn touch_field(&self, table: &str, field: &str) {
-        if self.prediction_schema.is_some_and(|s| s.receipt_owned_field(table, field)) { self.receipt_touched.set(true); }
+    pub(super) fn receipt_field(&self, table: &str, field: &str, value: Value) -> Value {
+        let mark = self.prediction_schema.filter(|s| s.receipt_owned_field(table, field)).and(self.receipt_taint.clone());
+        value.with_receipt_taint(mark)
     }
-    pub(super) fn touch_index(&self, table: &str, index: &str) {
-        if self.prediction_schema.is_some_and(|s| s.receipt_key(table, index)) { self.receipt_touched.set(true); }
-    }
-    pub(super) fn touch_value_field(&self, row: &Value, field: &str) {
-        if let Value::Row(fields) | Value::Map(fields) = row
-            && let Some(source) = fields.source_identity() { self.touch_field(&source.table, field); }
-    }
-    pub(super) fn touch_value(&self, value: &Value) {
-        if self.prediction_schema.is_none() || self.receipt_touched.get() { return; }
-        match value {
-            Value::Row(fields) | Value::Map(fields) => {
-                if let Some(source) = fields.source_identity() { self.touch(&source.table); }
-                for value in fields.values() { self.touch_value(value); }
+    pub(super) fn receipt_fields(&self, table: &str, mut row: Value) -> Value {
+        if self.prediction_schema.is_some_and(|s| s.receipt_state_table(table))
+            && let Value::Row(fields) | Value::Map(fields) = &mut row {
+            for (name, value) in fields.iter_mut() {
+                if self.prediction_schema.unwrap().receipt_owned_field(table, name) {
+                    *value = std::mem::replace(value, Value::Null).with_receipt_taint(self.receipt_taint.clone());
+                }
             }
-            Value::Array(values) => for value in values { self.touch_value(value); },
-            _ => {}
+        }
+        row
+    }
+    // Index membership/order is itself a value, even for an empty selection.
+    pub(super) fn receipt_selection(&self, table: &str, index: &str) {
+        if self.prediction_schema.is_some_and(|s| s.receipt_key(table, index)) {
+            Value::Null.with_receipt_taint(self.receipt_taint.clone()).consume_receipt_taint();
         }
     }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }

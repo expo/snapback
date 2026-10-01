@@ -159,12 +159,12 @@ impl Runner<'_> {
     }
 
     pub(in crate::engine) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
-        self.tx.touch_index(&target.table, &target.index);
+        self.tx.receipt_selection(&target.table, &target.index);
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
     pub(in crate::engine) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
-        self.tx.touch_index(&target.table, &target.index);
+        self.tx.receipt_selection(&target.table, &target.index);
         self.target_attempt(&target.table, |runner| {
             runner.refuse_engine_owned(&target.table, Effect::Delete)?;
             let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;
@@ -269,8 +269,7 @@ impl Runner<'_> {
         let env = self.env.clone();
         let consts = self.consts.clone();
         let site = self.statement_site.clone();
-        let mut old = old.into_value();
-        if self.device && !self.schema.receipts.is_empty() { self.stamp_source(table, &mut old)?; }
+        let old = self.tx.receipt_fields(table, old.into_value());
         self.env.insert(condition.old.clone(), old);
         let previous = self.evaluating_write_condition;
         self.evaluating_write_condition = true;

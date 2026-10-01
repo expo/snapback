@@ -39,7 +39,7 @@ impl Runner<'_> {
         self.meter.heap(super::write_target::row_copy_ceiling(table))?;
         for path in paths {
             let field = &table.recorded[path];
-            self.tx.touch_field(&field.table, &field.column);
+
             let target = &self.schema.tables[&field.table];
             // Even a null reference has the same declared point-read charge.
             self.meter.charge(MeterKind::Examined, 1)?;
@@ -72,6 +72,7 @@ impl Runner<'_> {
                 self.provisional_sequence_read |= self.is_provisional(&field.table, value)?;
             }
             let value = live.map(|value| self.disclosed_row(target,value.clone()).into_value().field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
+            let value = self.tx.receipt_field(&field.table, &field.column, value).without_receipt_taint();
             self.meter.heap(80 + path.len() as u64 + super::write_target::column_copy_ceiling(&target.columns[&field.column]))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }
         }

@@ -40,13 +40,13 @@ impl Runner<'_> {
     }
 
     fn maintain_one(&mut self, maintain: &Maintain, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        self.tx.touch(&maintain.target);
         let table = self.schema.table(&maintain.source).expect("validated");
         let mut changes: Vec<(Vec<Value>, i128)> = Vec::new();
         for (image, direction) in [(old, -1), (new, 1)] {
             let Some(image) = image else { continue };
             self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps())?;
             let image = crate::schema::row_image(image, table);
+            let image = self.tx.receipt_fields(&maintain.source, image.into_owned());
             if !maintain.selected(&image) { continue; }
             let key = maintain.source_key(&image);
             let change = delta(maintain, &image, direction)?;

@@ -44,7 +44,12 @@ impl Value {
     // iOS device enables `wasm-host` without the server-only `native` jobs.
     #[cfg(feature = "wasm-host")]
     pub(crate) fn native_input(self, _: &crate::engine::native::NativeInput) -> Supplied { Supplied(self) }
-    pub(crate) fn expression_input(self, _: crate::engine::runner::ExpressionAccess) -> Supplied { Supplied(self) }
+    pub(crate) fn expression_input(self, _: crate::engine::runner::ExpressionAccess) -> Supplied { Supplied(self.without_receipt_taint()) }
+    // A compiler projection is still evaluation: keep field marks. The caller
+    // carries the root mark around its image projection; writes erase separately.
+    pub(crate) fn projection_input(self, _: crate::engine::runner::ExpressionAccess) -> Supplied {
+        Supplied(match self { Self::Receipt(marked) => marked.value, value => value })
+    }
     pub(crate) fn timeline_input(self, _: &crate::engine::timeline::TimelineInput) -> Supplied { Supplied(self) }
     /// A read-through child's supplied image plus the parent capture stamped
     /// under reserve_capture's declared allowance (LLP 3000.014 §4).

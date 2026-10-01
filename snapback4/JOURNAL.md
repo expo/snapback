@@ -81152,3 +81152,56 @@ change. The social starter stays 223 lines; no contract.ts change.
 Evidence and every failure classification:
 reports/20260930-ry-receipts-allocation/round4/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-01 — RY round 5: receipt taint travels with values
+
+Read rounds 0–4 and both complete round-4 reviews. Fetched and merged
+origin/main first: already up to date at 91a111cd85, an ancestor of round-4
+HEAD 412a4d23a6. Both histories and the RY/PR/GQ changes remain. The shared
+remote-tracking ref advanced later; this round qualifies the initial merged
+baseline and its own delta. Astra's compound-value escape is covered by
+evaluation-only value taint, replacing per-reader observations and source-
+identity reconstruction. Fields, rows, arrays, operators and builtins retain
+marks through aliases, projections, keys and aggregates. Decision/write
+boundaries consume the shared sticky token, including builtin errors,
+numeric rule terms, compound keys and effect payloads. Empty extrema and
+shapes preserve source marks. Allocator bookkeeping remains internal;
+inserted id/text fields stay clean and ordinary sends still predict.
+The codec is transparent and caller input cannot forge a mark. Updated
+LLP 3000.022 §14.3 and the compiled receipts guide; no contract.ts change.
+
+Final focused checks: core 179 passed / one existing ignore; receipts
+146/146; whole guide 110/110; device delivery/recorded/sequence tests 66/66;
+social starter on final native and wasm builds 10/10. Native workspace and
+client package builds pass. The new matrix has 6,344 scenarios across 61
+expression families, 13 decisions, two source modes, horizons and both
+stores, with durable outbox/reopen/server-settlement assertions. Prior 704
+scenarios and 22 compound review probes pass. Eight evaluator tests include
+62 builtin configurations and every operator. Six tests fail on unchanged
+round-4 product source as expected baseline negative controls. All development
+failures are ours and resolved; every failure is retained and classified.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1436 s`, exit 0.
+All thirteen stages pass: Rust 4,542 passed / 33 existing ignores; clients
+5,727 passed / ten existing skips; fixture wrappers 9/9; serial models 79/79,
+including 5,000 online and 5,000 local sequences. Full-suite failures: ours 0,
+baseline 0, environmental 0. The suite qualifies the earlier 5,856-scenario
+revision: ten source/test files changed afterward for final audit refinements
+and receive the focused checks above, not a claimed second full-suite pass.
+All 2,339 captured source/manifest hashes stayed fixed during each verification
+phase. Ref-check passes with zero errors/unchecked references. The inherited
+nominal 60-second suite target is exceeded without changing any policy.
+
+Initial merged wasm: 2,017,966 B raw / 605,913 B gzip. Final locked artifact:
+2,024,561 B raw / 609,750 B gzip (+6,595 raw / +3,837 gzip, 0.63%). Compared
+with the full-suite artifact, final refinements add 639 raw / nine gzip bytes.
+The final build exceeded the preceding cap by nine bytes (ours); set the
+budget to exactly measured 609,750, with no slack, and checked it independently.
+Value wrappers/propagation, source marks and codec handling replace the old
+observers; these are whole-artifact deltas, not independent feature costs.
+All prior budget reasons remain, with no runtime ceiling or retry changes.
+The social starter remains 223 lines, versus 231 before RY.
+
+Evidence, qualification limits and every failure classification:
+reports/20260930-ry-receipts-allocation/round5/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

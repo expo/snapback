@@ -361,13 +361,15 @@ fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Valu
     }
 }
 
+// Every evaluated rule term enters a decision, including probes that answer
+// from a serialized key and numeric comparisons that unpack scalar variants.
 fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe) -> Result<Value, crate::error::RuntimeError> {
     Ok(match term {
         RuleTerm::Field(field) | RuleTerm::NextField(field) => { probe.field(field, false); next.field(field).cloned().unwrap_or(Value::Null) },
         RuleTerm::OldField(field) => { probe.field(field, true); old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null) },
         RuleTerm::Viewer => Value::Id(viewer.to_owned()),
         RuleTerm::Literal(value) => value.clone(),
-    })
+    }.without_receipt_taint())
 }
 
 /// The schema-derived probe allowance, independent of short-circuit answers.

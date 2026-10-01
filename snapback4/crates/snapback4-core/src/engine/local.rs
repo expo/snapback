@@ -115,7 +115,6 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     if !schema.timelines.is_empty() && crate::ir::write_tables(program).iter().any(|(table, _)| schema.timelines.iter().any(|t| &t.edges[0] == table)) {
         return Err(RuntimeError::Prediction("timeline follow/unfollow/refollow requires online-only slot accounting".into()));
     }
-    context.row_provenance |= !schema.receipts.is_empty();
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
     runner.device_allowance = Some(Meter::new(ceilings, Cut::Abort));

@@ -15,7 +15,7 @@ pub struct CalendarKey {
 
 impl CalendarKey {
     pub fn value(&self, row: &Value) -> Value {
-        if self.column.contains('.') && !matches!(row.field(&self.column), Ok(Value::Int(_))) { return Value::Null; }
+        if self.column.contains('.') && !matches!(row.field(&self.column).map(Value::receipt_read), Ok(Value::Int(_))) { return Value::Null; }
         Value::Int(calendar_ordinal(row.field(&self.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0), self.millis, self.offset))
     }
     pub fn validate(&self, source: &Table) -> Result<(), String> {
@@ -65,7 +65,7 @@ impl Predicate {
     fn matches_with_member(&self, row: &Value, member: Option<&Value>) -> bool {
         match self {
             Self::Bool(value) => *value,
-            Self::Field(field) => matches!(row.field(field), Ok(Value::Bool(true))),
+            Self::Field(field) => row.field(field).and_then(Value::as_bool).unwrap_or(false),
             Self::Not(value) => !value.matches_with_member(row, member),
             Self::And(a, b) => a.matches_with_member(row, member) && b.matches_with_member(row, member),
             Self::Or(a, b) => a.matches_with_member(row, member) || b.matches_with_member(row, member),

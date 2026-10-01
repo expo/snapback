@@ -1,0 +1,130 @@
+{
+  "cwd": "snapback4 (ref-check from repository root)",
+  "source_files": 2339,
+  "changes_during_final_checks": [],
+  "source_changes_after_single_full_suite": [
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/extrema.rs",
+      "suite_sha256": "e5767f701d5e8aeb0109cdb92d9c0295d2cffef33e11855b0d322a4b2eb3c686",
+      "final_sha256": "fb524a57910b5c9e81c2338d28eaa95fd0aa0ba84e1c0b9c1e3c9f47871d8f31"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/read.rs",
+      "suite_sha256": "8235f24d104558b4756442a14e636bc10c6f2c362f8f31379609c019d690600b",
+      "final_sha256": "840650bad3f445b8856e8a9f7e60e07e5e3cc873257d738075b1041f8738f733"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/read_point.rs",
+      "suite_sha256": "28b37cf4da8c6ca01bca62ae7f9c5c306d8ac8e917351260fa7d15e580003d81",
+      "final_sha256": "b5180e59e2e521f72c43248f118822bc9546fadd6ae826e7c4befd2dbd7201d0"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/receipts.rs",
+      "suite_sha256": "f6cc98e4989a97e270d55c07eae28386380fc32d3219c63af3ddbb79e0cd6e13",
+      "final_sha256": "f5791a94cd748cbd27b2c4db8fc34fce7bdf1668e6b1d946fdcf6de55b25d997"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/rules.rs",
+      "suite_sha256": "0e5529e90ce40701caf4a91c29f77ed6368d035c19e5935f1331b4405b2bef4f",
+      "final_sha256": "f38a062b4951ed79602e2e212bbc0825c17432b8468d383d930a968c53308eb4"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/runner.rs",
+      "suite_sha256": "cb0cfcb1b25c4919eda6a50085ad79b7ec13af6255ecb1bfb4f38154e6301764",
+      "final_sha256": "303c8e3a178c1e128c436acb44558fbb220decbdca30cb29f609377b41b0a9c1"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/runner/receipt_taint_tests.rs",
+      "suite_sha256": "154263e4b24ca7c953049c82dd7ccaaa78a8bfe5549c1fb13f1b6048fc4e9927",
+      "final_sha256": "2006af294e1e42e368792eb5a75e939c810c14919316f131044206b1f21e3cce"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/value/receipt_taint.rs",
+      "suite_sha256": "d4fc83f81ec5c7a0d468de698eba06dd958187af7c6c3a5e14372d8048c4c3a5",
+      "final_sha256": "b0ac9b417623d8df21567eeb52550dc9c206cffdfbcd767fa83b29ae99529608"
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/value/supplied.rs",
+      "suite_sha256": "a47fc2d518dd5e2095668ecb2d36087cd8d4928ed7a98299a8b7e70c4f53c1f9",
+      "final_sha256": "9e6abb221394a8f64c34132200f74e5b2737f67baf947d68f4a970feb5413f58"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/declarative_receipts/generated_value_taint.rs",
+      "suite_sha256": "88e612f53f7a39fa48598fedb954eeb6e0db52e8bf627b27589cf23cfa8eadcd",
+      "final_sha256": "8bdbc1d8b50d6cf5333a1b02bdaf5863d9e7cde3b1ed625627b7f94323d5cab2"
+    }
+  ],
+  "checks": [
+    {
+      "scope": "core library",
+      "command": "cargo test -p snapback4-core --lib",
+      "passed": 179,
+      "ignored": 1,
+      "failed": 0,
+      "exit": 0,
+      "log": "final-core.log.gz"
+    },
+    {
+      "scope": "receipts and whole guide",
+      "command": "cargo test -p snapback4-lang --test declarative_receipts --test guide",
+      "receipts_passed": 146,
+      "guide_passed": 110,
+      "failed": 0,
+      "exit": 0,
+      "log": "final-receipts-guide.log.gz"
+    },
+    {
+      "scope": "device delivery, recorded coverage and sequence allocation",
+      "command": "cargo test -p snapback4-device --test delivery --test recorded_coverage --test sequence_by",
+      "passed": 66,
+      "failed": 0,
+      "exit": 0,
+      "log": "final-device.log.gz"
+    },
+    {
+      "scope": "native workspace build",
+      "command": "cargo build --workspace --quiet",
+      "exit": 0,
+      "log": "final-build.log.gz"
+    },
+    {
+      "scope": "client package build",
+      "command": "bun run --cwd packages/snapback4 build",
+      "exit": 0,
+      "log": "final-package.log.gz"
+    },
+    {
+      "scope": "social starter on final native and wasm builds",
+      "command": "node --test packages/snapback4/test/social-starter.test.mjs",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "exit": 0,
+      "log": "final-social.log.gz"
+    },
+    {
+      "scope": "wasm build and exact budget",
+      "build_command": "bash scripts/build-wasm.sh",
+      "build_exit": 1,
+      "build_limit": "Build succeeded; previous 609741 budget exceeded by 9. Budget corrected to measured size without a second build.",
+      "budget": 609750,
+      "budget_check_exit": 0,
+      "log": "final-wasm.log.gz",
+      "budget_log": "final-budget-check.log.gz"
+    },
+    {
+      "scope": "references",
+      "command": "./ref-check --verbose",
+      "exit": 0,
+      "summary": "ref-check: ok \u2014 525 LLP docs, 10060 refs in 31168 files, 0 errors, 0 unchecked",
+      "log": "ref-check-qualified.log.gz"
+    }
+  ],
+  "full_suite_limit": "Single full suite qualifies earlier source snapshot; the ten final source/test refinements above have focused checks only.",
+  "final_test_failures": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  }
+}

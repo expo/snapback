@@ -4,6 +4,9 @@
 //! written against this exact serialization.
 
 mod supplied;
+mod receipt_taint;
+pub use receipt_taint::ReceiptValue;
+pub(crate) use receipt_taint::ReceiptTaint;
 pub(crate) use supplied::Supplied;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -17,8 +20,10 @@ pub use provenance::SourceIdentity;
 pub const I53_MAX: i64 = (1_i64 << 53) - 1;
 pub const I53_MIN: i64 = -I53_MAX;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum Value {
+    #[serde(skip)]
+    Receipt(Box<ReceiptValue>),
     Null,
     Bool(bool),
     Int(i64),
@@ -139,7 +144,8 @@ impl Value {
     }
 
     pub fn kind(&self) -> &'static str {
-        match self {
+        match self.receipt_read() {
+            Self::Receipt(_) => unreachable!(),
             Self::Null => "null",
             Self::Bool(_) => "bool",
             Self::Int(_) => "int",
@@ -153,7 +159,7 @@ impl Value {
     }
 
     pub fn as_bool(&self) -> Result<bool, ValueError> {
-        match self {
+        match self.receipt_read() {
             Self::Bool(value) => Ok(*value),
             other => Err(ValueError::Type {
                 expected: "bool",
@@ -163,7 +169,7 @@ impl Value {
     }
 
     pub fn as_int(&self) -> Result<i64, ValueError> {
-        match self {
+        match self.receipt_read() {
             Self::Int(value) => Ok(*value),
             other => Err(ValueError::Type {
                 expected: "int",
@@ -173,7 +179,7 @@ impl Value {
     }
 
     pub fn as_str(&self) -> Result<&str, ValueError> {
-        match self {
+        match self.receipt_read() {
             Self::String(value) | Self::Id(value) => Ok(value),
             other => Err(ValueError::Type {
                 expected: "string or id",
@@ -183,7 +189,7 @@ impl Value {
     }
 
     pub fn as_array(&self) -> Result<&[Value], ValueError> {
-        match self {
+        match self.receipt_read() {
             Self::Array(value) => Ok(value),
             other => Err(ValueError::Type {
                 expected: "array",
@@ -193,7 +199,7 @@ impl Value {
     }
 
     pub fn as_object(&self) -> Result<&BTreeMap<String, Value>, ValueError> {
-        match self {
+        match self.receipt_read_shallow() {
             Self::Row(value) | Self::Map(value) => Ok(value),
             other => Err(ValueError::Type {
                 expected: "row or map",
@@ -207,6 +213,7 @@ impl Value {
     /// strings, bytes and array slots are owned copies (with tight capacity).
     fn clone_heap(&self) -> u64 {
         match self {
+            Self::Receipt(value) => value.value.clone_heap() + std::mem::size_of::<ReceiptValue>() as u64,
             Self::String(s) | Self::Id(s) => s.len() as u64,
             Self::Bytes(bytes) => bytes.len() as u64,
             Self::Array(values) => {
@@ -228,6 +235,7 @@ impl Value {
 
     fn retained_heap(&self) -> u64 {
         match self {
+            Value::Receipt(value) => value.value.retained_heap() + std::mem::size_of::<ReceiptValue>() as u64,
             Value::String(s) | Value::Id(s) => s.capacity() as u64,
             Value::Bytes(b) => b.capacity() as u64,
             Value::Array(a) => {
@@ -251,7 +259,13 @@ impl Value {
     }
 
     pub fn total_cmp(&self, other: &Self) -> Ordering {
+        let (left, right) = (self.receipt_read(), other.receipt_read());
+        left.total_cmp_plain(right)
+    }
+
+    fn total_cmp_plain(&self, other: &Self) -> Ordering {
         let tag = |v: &Value| match v {
+            Value::Receipt(_) => unreachable!(),
             Value::Null => 0,
             Value::Bool(_) => 1,
             Value::Int(_) => 2,
@@ -292,14 +306,7 @@ impl Value {
 }
 
 mod bytes_hex {
-    use serde::{Deserialize, Deserializer, Serializer, de};
-
-    pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&encode(bytes))
-    }
+    use serde::{Deserialize, Deserializer, de};
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where
@@ -438,6 +445,7 @@ impl InternalPrice {
 fn scalar_copy(value: &Value) -> u64 {
     use crate::rows::word_heap as h;
     match value {
+        Value::Receipt(value) => scalar_copy(&value.value),
         Value::String(s) | Value::Id(s) => h::text(s),
         Value::Bytes(b) => h::allocation(b.len()),
         Value::Array(a) => {

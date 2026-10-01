@@ -56,7 +56,9 @@ impl Runner<'_> {
                 if self.device && self.schema.tables[&m.target].sync.is_none() {
                     continue;
                 }
-                self.tx.touch(&m.target);
+                let old = old.map(|row| self.tx.receipt_fields(table, row.clone()));
+                let new = new.map(|row| self.tx.receipt_fields(table, row.clone()));
+                let (old, new) = (old.as_ref(), new.as_ref());
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
                     self.reserve_row_view(m, 1)?;
@@ -331,6 +333,7 @@ impl Runner<'_> {
                         None if device_live => Value::Null,
                         None => return Err(RuntimeError::Prediction("row-view source authority is not covered".into())),
                     };
+                    let source = self.tx.receipt_fields(&m.source, source);
                     let selected = !matches!(source, Value::Null) && (!live
                         || !self.expired(&self.schema.tables[&m.source], &source))
                         // @ref LLP 3000.020#3.3 — retained copies never contribute to a current-row bound.
@@ -385,6 +388,9 @@ impl Runner<'_> {
         new: Option<&Value>,
     ) -> Result<(), RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
+        let old = old.map(|row| self.tx.receipt_fields(&k.table, row.clone()));
+        let new = new.map(|row| self.tx.receipt_fields(&k.table, row.clone()));
+        let (old, new) = (old.as_ref(), new.as_ref());
         let u = new.or(old).unwrap();
         let id = u.field("id")?.as_str()?;
         let existing = self.view_get(&m.target, id)?;

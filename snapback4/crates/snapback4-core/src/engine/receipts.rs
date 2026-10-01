@@ -110,7 +110,7 @@ impl Runner<'_> {
             .iter()
             .find(|(_, i)| i.unique && i.columns() == [f.group.as_str(), f.principal.as_str()])
             .unwrap();
-        let own = self.get(&crate::ir::Read {
+        let own = self.point_image(&crate::ir::Read {
             site: "receipt membership".into(),
             table: f.members.clone(),
             index: index.clone(),
@@ -228,7 +228,7 @@ impl Runner<'_> {
             })?
             .unwrap_or(Value::Null)
         } else {
-            self.get(&crate::ir::Read {
+            self.point_image(&crate::ir::Read {
                 site: "receipt counter".into(),
                 table: f.scope.clone(),
                 index: "byId".into(),
@@ -242,7 +242,7 @@ impl Runner<'_> {
                 site: None,
             });
         }
-        // get() proves row authority but projects private fields. Preserve the
+        // point_image() proves row authority but projects private fields. Preserve the
         // complete stored image when the engine replaces only its own counter.
         self.metered_scan(|runner, allowance| runner.fetch(allowance, &f.scope, group.as_str()?))?
             .ok_or_else(|| RuntimeError::Require {
@@ -314,9 +314,9 @@ impl Runner<'_> {
                 }
             }
             self.stamp_source(table, &mut row)?;
-            return Ok(row);
+            return Ok(self.tx.receipt_fields(table, row));
         }
-        Ok(row)
+        Ok(self.tx.receipt_fields(table, row))
     }
 
     pub(super) fn refuse_receipt_fields(

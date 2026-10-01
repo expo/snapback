@@ -552,7 +552,7 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Emit { effect, payload, once } => {
-                    let payload = self.expr(payload)?;
+                    let payload = self.expr(payload)?.without_receipt_taint();
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
@@ -691,7 +691,7 @@ impl<'a> Runner<'a> {
         let mut visited = BTreeSet::new();
         let mut rows = Vec::new();
         while let Some((key, depth)) = queue.pop_front() {
-            if depth > recurse.depth || !visited.insert(canonical_json(&key)) {
+            if depth > recurse.depth || !visited.insert(key.key_json()) {
                 continue;
             }
             let read = Read { site: recurse.site.clone(), table: recurse.table.clone(), index: recurse.index.clone(), key: vec![Expr::Literal(key)], provenance: recurse.provenance };
@@ -753,7 +753,7 @@ impl<'a> Runner<'a> {
             }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
-                if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site, &self.tx)? {
+                if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     self.provisional_sequence_read |= self.sequence_field_is_provisional(base, name)?;
@@ -761,7 +761,7 @@ impl<'a> Runner<'a> {
                     { if let Value::Row(fields) | Value::Map(fields) = base { self.delivery.field(fields, name); } }
                     let value = base.field(name)?;
                     self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
-                    return Ok(value.clone());
+                    return Ok(value.clone().with_receipt_taint(base.receipt_root_taint()));
                 }
                 let base = self.expr(base)?;
                 match base {
@@ -772,7 +772,7 @@ impl<'a> Runner<'a> {
                         self.delivery_field(&other, name);
                         let value = other.field(name)?;
                         self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
-                        Ok(value.clone())
+                        Ok(value.clone().with_receipt_taint(other.receipt_root_taint()))
                     }
                 }
             }
@@ -796,7 +796,8 @@ impl<'a> Runner<'a> {
                 // @ref LLP 3000.014#5 — retained history stays marked through projections.
                 // A spread can merge multiple row bases. Application fields named
                 // retained are ordinary data; only the reader creates provenance.
-                let bases = if let Value::Array(bases) = &base { bases.as_slice() } else { std::slice::from_ref(&base) };
+                let bases = if let Value::Array(bases) = base.receipt_plain() { bases.as_slice() } else { std::slice::from_ref(&base) };
+                let taint = base.receipt_root_taint().or_else(|| bases.iter().find_map(Value::receipt_root_taint));
                 fields.inherit_source(bases);
                 #[cfg(feature = "sqlite")]
                 self.project_delivery(&mut fields, origins);
@@ -804,7 +805,7 @@ impl<'a> Runner<'a> {
                     if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                     if matches!(base, Value::Row(base) | Value::Map(base) if base.is_retained()) { fields.mark_retained(); }
                 }
-                let value = Value::Row(fields);
+                let value = Value::Row(fields).with_receipt_taint(taint);
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
@@ -828,32 +829,28 @@ impl<'a> Runner<'a> {
                 #[cfg(not(target_arch = "wasm32"))]
                 let projected = self.effect_presence.absent;
                 if *op == BinaryOp::And && !left.as_bool()? {
-                    return Ok(Value::Bool(false));
+                    return Ok(Value::Bool(false).with_receipt_taint(left.receipt_taint()));
                 }
                 if *op == BinaryOp::Or && left.as_bool()? {
-                    return Ok(Value::Bool(true));
+                    return Ok(Value::Bool(true).with_receipt_taint(left.receipt_taint()));
                 }
                 let right = self.expr(right)?;
-                // Composite comparisons consume their fields too. A null test
-                // checks presence only, and does not inspect a row's accounting.
-                if left != Value::Null && right != Value::Null {
-                    self.tx.touch_value(&left);
-                    self.tx.touch_value(&right);
-                }
                 #[cfg(not(target_arch = "wasm32"))]
                 self.presence_binary(*op, &left, projected, &right);
                 binary(*op, left, right)
             }
             Expr::Unary { op, value } => {
                 let value = self.expr(value)?;
-                match op {
+                let taint = value.receipt_taint();
+                let result = match op {
                     UnaryOp::Not => {
                         #[cfg(not(target_arch = "wasm32"))]
                         { self.effect_presence.absent = match self.effect_presence.absent { Some(super::presence::Scalar::Bool(b)) => Some(super::presence::Scalar::Bool(!b)), _ => None }; }
                         Ok(Value::Bool(!value.as_bool()?))
                     },
                     UnaryOp::Neg => Value::int(-(value.as_int()? as i128)).map_err(Into::into),
-                }
+                };
+                result.map(|value| value.with_receipt_taint(taint))
             }
             Expr::Builtin { builtin, args } => {
                 if let Builtin::Extremum { max, domain, .. } | Builtin::ExtremumOf { max, domain } = builtin {
@@ -876,7 +873,7 @@ impl<'a> Runner<'a> {
                 // Inspect a held value without allocating a copy just to count
                 // it. Reads that need ownership still charge every actual clone.
                 if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
-                    if let Some((value, steps)) = borrowed(&self.env, &args[0], &self.statement_site, &self.tx)? {
+                    if let Some((value, steps)) = borrowed(&self.env, &args[0], &self.statement_site)? {
                         self.meter.step(steps)?;
                         return scalar_builtin(builtin, value);
                     }
@@ -885,13 +882,12 @@ impl<'a> Runner<'a> {
                 self.builtin(builtin, args)
             }
             Expr::Get(read) => {
-                self.tx.touch(&read.table);
                 let value = self.get(read)?;
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Expr::Exists(read) => {
-                let value = self.get(read)?;
+                let value = self.point_image(read)?;
                 // The private null-value aggregate result preserves scalar
                 // denial versus authorized zero; it is not an existing row.
                 Ok(Value::Bool(value != Value::Null && !(self.schema.maintain_for(&read.table).is_some() && value.field("value").ok() == Some(&Value::Null))))
@@ -926,27 +922,39 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
+    fn builtin(&mut self, builtin: &Builtin, args: Vec<Value>) -> Result<Value, RuntimeError> {
+        if matches!(builtin, Builtin::OptionalField { .. } | Builtin::ProjectFields { .. }) {
+            let taint = args[0].receipt_root_taint();
+            return self.builtin_inner(builtin, args).map(|value| value.with_receipt_taint(taint));
+        }
+        let taint = args.iter().find_map(Value::receipt_taint);
+        if let Some(mark) = &taint { mark.consume(); }
+        let args = args.into_iter().map(Value::without_receipt_taint).collect();
+        self.builtin_inner(builtin, args).map(|value| value.with_receipt_taint(taint))
+    }
+
+    fn builtin_inner(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
                 // A pending null is itself receipt state, even with no field read.
-                self.tx.touch(table);
                 let provisional = self.is_provisional(table, &args[0])?;
-                Ok(Value::Bool(!provisional))
+                let value = self.tx.receipt_value(table, Value::Bool(!provisional));
+                value.consume_receipt_taint();
+                Ok(value)
             },
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {
-                    let row = self.with_defaults(table, row.expression_input(ExpressionAccess(())))?.into_value();
-                    self.project_row(table, row).map(|row| super::recorded::public_image(&self.schema.tables[table], row.into_value()))
+                    let row = self.with_defaults(table, row.projection_input(ExpressionAccess(())))?.into_value();
+                    self.project_row(table, row).map(|row| self.tx.receipt_fields(table, super::recorded::public_image(&self.schema.tables[table], row.into_value())))
                 }
             }
             Builtin::OptionalField { field } => {
                 self.provisional_sequence_read |= self.sequence_field_is_provisional(&args[0], field)?;
                 #[cfg(feature = "sqlite")]
                 self.delivery_field(&args[0], field);
-                Ok(args[0].field(field).cloned().unwrap_or(Value::Null))
+                Ok(args[0].receipt_field_value(field).unwrap_or(Value::Null))
             },
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
@@ -1187,6 +1195,12 @@ impl<'a> Runner<'a> {
 }
 
 pub(super) fn binary(op: BinaryOp, left: Value, right: Value) -> Result<Value, RuntimeError> {
+    let taint = left.receipt_taint().or_else(|| right.receipt_taint());
+    let result = binary_inner(op, left, right);
+    result.map(|value| value.with_receipt_taint(taint))
+}
+
+fn binary_inner(op: BinaryOp, left: Value, right: Value) -> Result<Value, RuntimeError> {
     let ordering = || left.total_cmp(&right);
     match op {
         BinaryOp::Eq => Ok(Value::Bool(left == right)),
@@ -1205,7 +1219,7 @@ pub(super) fn binary(op: BinaryOp, left: Value, right: Value) -> Result<Value, R
 }
 
 fn same_value_zero(left: &Value, right: &Value) -> Result<bool, ValueError> {
-    match (left, right) {
+    match (left.receipt_read(), right.receipt_read()) {
         (Value::Null, Value::Null) => Ok(true),
         (Value::Null, _) | (_, Value::Null) => Ok(false),
         (Value::Bool(a), Value::Bool(b)) => Ok(a == b),
@@ -1222,7 +1236,7 @@ fn is_mention_whitespace(character: char) -> bool {
 }
 
 fn concat_text(value: &Value) -> Cow<'_, str> {
-    match value {
+    match value.receipt_read() {
         Value::String(text) | Value::Id(text) => Cow::Borrowed(text),
         Value::Int(int) => Cow::Owned(int.to_string()),
         Value::Bool(value) => Cow::Borrowed(if *value { "true" } else { "false" }),
@@ -1232,7 +1246,12 @@ fn concat_text(value: &Value) -> Cow<'_, str> {
 }
 
 fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
+    let mark = value.receipt_root_taint();
     match value {
+        Value::Receipt(value) => {
+            if let Some(mark) = &mark { mark.consume(); }
+            Ok(into_array(value.value)?.into_iter().map(|value| value.with_receipt_taint(mark.clone())).collect())
+        },
         Value::Array(values) => Ok(values),
         other => Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
     }
@@ -1240,12 +1259,13 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
 
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str, reads: &super::authorized_scan::GuardedRows<'_>) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
         Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| missing_variable(name, site)),
-        Expr::Field { base, name } => match borrowed(env, base, site, reads)? {
-            Some((value, steps)) => { reads.touch_value_field(value, name); Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))) },
+        Expr::Field { base, name } => match borrowed(env, base, site)? {
+            Some((value, _)) if value.receipt_root_taint().is_some() => Ok(None),
+            Some((value, steps)) => { Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))) },
             None => Ok(None),
         },
         _ => Ok(None),
@@ -1253,6 +1273,11 @@ fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str, re
 }
 
 fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeError> {
+    let taint = value.receipt_taint();
+    scalar_builtin_inner(builtin, value.receipt_read()).map(|value| value.with_receipt_taint(taint))
+}
+
+fn scalar_builtin_inner(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeError> {
     let count = match builtin {
         Builtin::Len => match value {
             Value::String(text) | Value::Id(text) => text.chars().count(),
@@ -1272,3 +1297,7 @@ fn missing_variable(name: &str, site: &str) -> RuntimeError {
         RuntimeError::Structural { code: "E_INTERNAL", message: format!("internal compiler error: an undefined temporary was evaluated in operation/site {site}; recompile and report this operation") }
     } else { RuntimeError::Input(format!("unknown variable {name}")) }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+#[path = "runner/receipt_taint_tests.rs"]
+mod receipt_taint_tests;

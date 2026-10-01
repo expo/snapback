@@ -646,3 +646,9 @@ both!(
 
 #[path = "generated_dependencies.rs"]
 mod generated;
+
+#[path = "compound_values.rs"]
+mod compound_values;
+
+#[path = "generated_value_taint.rs"]
+mod generated_value_taint;

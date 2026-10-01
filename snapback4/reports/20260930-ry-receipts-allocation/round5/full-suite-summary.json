@@ -1,0 +1,336 @@
+{
+  "summary": "== 0 failure(s) in 1436 s",
+  "run": {
+    "command": "bash scripts/test.sh",
+    "cwd": "/home/ccheever/sb4-intent/lane-ry/snapback4",
+    "invocations": 1,
+    "started": "2026-10-01T01:56:58.326187+00:00",
+    "base_commit": "412a4d23a60934c87563305d43f97294a03b033b",
+    "toolchain": {
+      "node": "v24.13.1",
+      "bun": "1.3.14",
+      "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+    },
+    "environment_overrides": {},
+    "ended": "2026-10-01T02:20:54.258231+00:00",
+    "exit": 0
+  },
+  "stages": [
+    {
+      "name": "cargo build",
+      "status": "ok",
+      "seconds": 15,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "wasm build",
+      "status": "ok",
+      "seconds": 31,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "docs budget",
+      "status": "ok",
+      "seconds": 3,
+      "rust": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 1
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "release guard",
+      "status": "ok",
+      "seconds": 4,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "package typecheck",
+      "status": "ok",
+      "seconds": 2,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "package build",
+      "status": "ok",
+      "seconds": 2,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "chat app check",
+      "status": "ok",
+      "seconds": 0,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "cargo test",
+      "status": "ok",
+      "seconds": 512,
+      "rust": {
+        "passed": 4542,
+        "failed": 0,
+        "ignored": 33,
+        "executions": 999
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "chat app typecheck",
+      "status": "ok",
+      "seconds": 2,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "expo app typecheck",
+      "status": "ok",
+      "seconds": 3,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [],
+        "suites": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      }
+    },
+    {
+      "name": "fixture wrapper tests",
+      "status": "ok",
+      "seconds": 21,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [
+          9
+        ],
+        "suites": [
+          0
+        ],
+        "pass": [
+          9
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "client tests",
+      "status": "ok",
+      "seconds": 487,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [
+          5737
+        ],
+        "suites": [
+          0
+        ],
+        "pass": [
+          5727
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          10
+        ],
+        "todo": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "client models",
+      "status": "ok",
+      "seconds": 380,
+      "rust": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "executions": 0
+      },
+      "node": {
+        "tests": [
+          79
+        ],
+        "suites": [
+          0
+        ],
+        "pass": [
+          79
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      }
+    }
+  ],
+  "failures": [],
+  "source_files": 2339,
+  "changes_during_run": [],
+  "suite_artifact": {
+    "raw": 2023922,
+    "gzip": 609741,
+    "sha256": "67011a35ef573f8253e6f404da8c6c231675adb1382c1ef169e640f6d25135c9"
+  },
+  "matches_pre_suite_artifact": true,
+  "classification": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  }
+}

@@ -607,13 +607,13 @@ impl Runner<'_> {
         let inserted = std::mem::take(&mut self.inserted);
         for (table_name, row) in &inserted {
             let table = self.schema.table(table_name).expect("validated");
+            let row = self.tx.receipt_fields(table_name, row.clone());
             for constraint in &table.constraints {
                 let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue };
                 let key: Vec<Value> = key
                     .iter()
                     .map(|term| match term {
                         crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
-                            self.tx.touch_field(table_name, field);
                             // This inserted image owns a provisional ordinal even if no expression read it.
                             self.provisional_sequence_read |= self.device && self.sequence_field_is_assigned(table_name, field);
                             row.field(field).cloned().unwrap_or(Value::Null)
