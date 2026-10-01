@@ -13,6 +13,105 @@ import { until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
 const drain = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 
+function installGlobal(t, name, value) {
+  const prior = Object.getOwnPropertyDescriptor(globalThis, name);
+  Object.defineProperty(globalThis, name, { configurable: true, value });
+  t.after(() => { if (prior) Object.defineProperty(globalThis, name, prior); else delete globalThis[name]; });
+}
+
+test('rejected postTask turns recover through host tasks and remain cancellable', async t => {
+  installGlobal(t, 'scheduler', { postTask: () => Promise.reject(Error('host rejected task')) });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const work = new ReadWork(); t.after(() => work.clear());
+  let starts = 0, active = 0, peak = 0;
+  for (let i = 0; i < 24; i++) work.schedule(i, async () => {
+    starts++; peak = Math.max(peak, ++active); await Promise.resolve(); active--;
+  });
+  await drain(); assert.equal(starts, 8, 'a rejection microtask grants no extra starts');
+  for (const expected of [16, 24]) {
+    t.mock.timers.tick(0); await drain();
+    assert.equal(starts, expected, 'a fallback host turn resets and re-arms capacity');
+  }
+  assert.ok(peak <= 8);
+  work.schedule('cancelled', async () => { assert.fail('cleared work ran'); });
+  work.clear(); t.mock.timers.tick(0); await drain();
+  work.schedule('replacement', async () => { starts++; });
+  await drain(); assert.equal(starts, 24, 'clear cannot grant a fresh allowance');
+  t.mock.timers.tick(0); await drain(); assert.equal(starts, 25);
+});
+
+async function readyBatch(t, count, firstListener = () => {}) {
+  let seq = 1, change;
+  const replies = [], seen = [], observations = [];
+  const client = createClient({ url: 'http://ready-listeners.test', persona: 'alice', fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
+    if (path === '/changes') return new Promise((resolve, reject) => {
+      change = () => resolve(Response.json({ seq, generation: 1, tables: ['cards'] }));
+      init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+    });
+    if (path.startsWith('/q/')) {
+      if (seq === 1) return Response.json({ data: 1, seq, tables: ['cards'] });
+      return new Promise((resolve, reject) => {
+        replies.push(() => resolve(Response.json({ data: 2, seq: 2, tables: ['cards'] })));
+        init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+      });
+    }
+    throw Error(path);
+  } });
+  t.after(async () => { observations.forEach(w => w.close()); await client.close(); });
+  const op = { kind: 'query', name: 'row' };
+  await client.query(op, {});
+  for (let id = 0; id < count; id++) {
+    const w = client.observe(op, { id }); observations.push(w);
+    if (id === 0) w.subscribe(() => firstListener(w.getSnapshot()));
+    w.subscribe(() => { seen[id] = w.getSnapshot(); });
+  }
+  await until(() => seen.filter(r => r?.data === 1).length === count && change, 'initial batch');
+  const spin = async predicate => {
+    for (let i = 0; i < 1000 && !predicate(); i++) await new Promise(setImmediate);
+    assert.ok(predicate(), 'fixture reached the requested boundary');
+  };
+  return { seen, observations, async replace() {
+    seq = 2; change(); await spin(() => replies.length === 8);
+    replies.splice(0, 8).forEach(resolve => resolve());
+    await spin(() => observations.slice(0, 8).every(w => w.getSnapshot().data === 2));
+  } };
+}
+
+for (const flush of ['timer', 'drained']) test(`throwing ready subscriber: ${flush} flush delivers every callback and reports the error`, async t => {
+  const failure = Error('subscriber failed'), errors = [];
+  const batch = await readyBatch(t, flush === 'timer' ? 32 : 8, read => { if (read.data === 2) throw failure; });
+  t.mock.method(console, 'error', (...args) => errors.push(args));
+  installGlobal(t, 'window', globalThis); installGlobal(t, 'document', {});
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 });
+  await batch.replace();
+  if (flush === 'timer') {
+    assert.ok(batch.seen.slice(0, 8).every(r => r.data === 1));
+    assert.doesNotThrow(() => t.mock.timers.tick(50), 'raw listener errors cannot escape the host timer');
+  }
+  assert.deepEqual(batch.seen.slice(0, 8).map(r => r.data), Array(8).fill(2), 'same-watch and later-row listeners all receive publication');
+  assert.deepEqual(errors, [['snapback4 client listener:', failure]], 'use the existing facade listener error channel');
+  t.mock.timers.tick(1000); await drain();
+  assert.ok(batch.seen.slice(0, 8).every(r => r.data === 2), 'accepted replacements remain visible after the original deadline');
+});
+
+for (const api of ['postTask', 'MessageChannel', 'timer']) test(`React Native ready notifications use one timer turn with ${api}`, async t => {
+  const batch = await readyBatch(t, 32);
+  installGlobal(t, 'window', globalThis);
+  installGlobal(t, 'navigator', { product: 'ReactNative' });
+  installGlobal(t, 'document', undefined);
+  installGlobal(t, 'scheduler', api === 'postTask' ? { postTask(run) {
+    return new Promise(resolve => setTimeout(() => { run(); resolve(); }, 0));
+  } } : undefined);
+  if (api !== 'MessageChannel') installGlobal(t, 'MessageChannel', undefined);
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 });
+  await batch.replace();
+  assert.ok(batch.seen.slice(0, 8).every(r => r.data === 1), 'callbacks coalesce while a backlog remains');
+  t.mock.timers.tick(0); await drain();
+  assert.deepEqual(batch.seen.slice(0, 8).map(r => r.data), Array(8).fill(2), 'window = global must not add the browser 50 ms window');
+});
+
 for (const host of ['postTask', 'MessageChannel']) test(`${host}: browser turns preserve eight starts and cancel queued service`, async t => {
   const turns = [];
   const install = (name, value) => {
@@ -93,6 +192,7 @@ for (const boundary of ['episode', 'old-row', 'new-row', 'empty', 'null']) test(
   await until(() => seen.filter(r => r?.data === 1).length === 32 && change, 'initial rows');
   const prior = Object.getOwnPropertyDescriptor(globalThis, 'window');
   Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+  installGlobal(t, 'document', {});
   t.after(() => { if (prior) Object.defineProperty(globalThis, 'window', prior); else delete globalThis.window; });
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 });
   seq = 2; change(); await spin(() => replies.length === 8);

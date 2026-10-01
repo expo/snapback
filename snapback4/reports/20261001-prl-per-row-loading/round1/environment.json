@@ -1,0 +1,18 @@
+{
+  "round0": "e3b44a5bc4",
+  "incoming_main": "3572852132",
+  "merge": "ca985cb431bacca47df78e861bd9a8261a4748b0",
+  "round0_runtime_blobs": {
+    "snapback4/packages/snapback4/src/client.ts": "d0998aeb1125c05c8e02909d0fa6b68b8c2cba6e",
+    "snapback4/packages/snapback4/src/read-work.ts": "9de2c95d508b751ea8919d42a4c6a67de547f392"
+  },
+  "merged_runtime_blobs": {
+    "snapback4/packages/snapback4/src/client.ts": "d0998aeb1125c05c8e02909d0fa6b68b8c2cba6e",
+    "snapback4/packages/snapback4/src/read-work.ts": "9de2c95d508b751ea8919d42a4c6a67de547f392"
+  },
+  "regression_control": "raw/regressions-round0.log",
+  "hostname": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+}

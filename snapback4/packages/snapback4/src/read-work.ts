@@ -48,8 +48,13 @@ export class ReadWork<W> {
     const scheduler = (globalThis as { scheduler?: { postTask(run: () => void, options: { signal: AbortSignal }): Promise<void> } }).scheduler;
     if (!this.later && typeof scheduler?.postTask === "function") {
       const controller = new AbortController();
-      void scheduler.postTask(run, { signal: controller.signal }).catch(() => {});
-      return () => controller.abort();
+      let ran = false, fallback: ReturnType<typeof setTimeout> | undefined;
+      void scheduler.postTask(() => { ran = true; run(); }, { signal: controller.signal }).catch(() => {
+        // A rejected task grants no capacity. Recover on a real host turn;
+        // cancellation (or a throw after entry) must not replay the callback.
+        if (!controller.signal.aborted && !ran) fallback = setTimeout(run, 0);
+      });
+      return () => { controller.abort(); clearTimeout(fallback); };
     }
     if (!this.later && typeof window !== "undefined" && typeof MessageChannel !== "undefined") {
       const channel = new MessageChannel();

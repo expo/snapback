@@ -643,7 +643,9 @@ export function createClient(options: ClientOptions): Client {
     const ready = [...readyNotifications]; readyNotifications.clear();
     for (const [watch, subscribers] of ready) {
       if (watches.get(watch.key) !== watch || !("data" in watch.snapshot)) continue;
-      for (const subscriber of subscribers) if (watch.subscribers.has(subscriber)) subscriber();
+      for (const subscriber of subscribers) if (watch.subscribers.has(subscriber)) {
+        try { subscriber(); } catch (error) { console.error("snapback4 client listener:", error); }
+      }
     }
   }
   // @ref LLP 3000.023#10 — coalesce ready notifications under pressure, never authorization or withdrawals.
@@ -653,7 +655,7 @@ export function createClient(options: ClientOptions): Client {
     // Publication retires the old episode timer. Its displayed answer still
     // needs a notification by that same bound, even when other work is held.
     const now = Date.now();
-    const at = Math.min(now + (typeof window === "undefined" ? 0 : 50), previousDeadline ?? Infinity);
+    const at = Math.min(now + (typeof document === "undefined" ? 0 : 50), previousDeadline ?? Infinity);
     if (previousDeadline !== undefined && previousDeadline <= now) { flushReadyNotifications(); return; }
     if (at >= readyNotificationAt) return;
     cancelReadyNotification(); readyNotificationAt = at;

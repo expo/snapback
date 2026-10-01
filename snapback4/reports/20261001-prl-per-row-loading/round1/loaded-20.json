@@ -1,0 +1,924 @@
+{
+  "name": "round1/loaded-20",
+  "workers": 48,
+  "mode": "load",
+  "affinity": [
+    "taskset",
+    "-c",
+    "86-95"
+  ],
+  "guard": [
+    "/home/ccheever/sb4-intent/lane-prl/snapback4/target/prl-load/confine"
+  ],
+  "wrapper": [],
+  "command": [
+    "python3",
+    "reports/20261001-prl-per-row-loading/repeat.py",
+    "../round1/raw/loaded-20",
+    "20",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/per-row-react.test.mjs"
+  ],
+  "harness_sha256": {
+    "confine": "548651537fe6b0d2b4f89cc7c59568bb4434337c35167a9616354d7f271cd8b9",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-10-01T06:50:35.465397+00:00",
+  "head": "ca985cb431bacca47df78e861bd9a8261a4748b0",
+  "diff_sha256": "d03aca4dc9c90e624eab17b3ccaf0e33bfbe69ef5d5b78775260061d897f4839",
+  "tested_diff_sha256": "bacbd915aaf851c0c02ecf79ecf149ec0bf89541af75f4cd090de36ed3635e01",
+  "test_overrides": {
+    "SNAPBACK4_SESSION_SEQUENCES": null,
+    "SNAPBACK4_ONLINE_SEQUENCES": null,
+    "RL_SEEDS": null,
+    "SNAPBACK4_WEB_ADMISSION_FOCUS": null,
+    "SNAPBACK4_CLIQUE_FULL": null,
+    "SB4_SEARCH_SEEDS": null
+  },
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [
+    1081145,
+    1081146,
+    1081147,
+    1081148,
+    1081149,
+    1081150,
+    1081151,
+    1081152,
+    1081153,
+    1081154,
+    1081155,
+    1081156,
+    1081157,
+    1081158,
+    1081159,
+    1081160,
+    1081161,
+    1081162,
+    1081163,
+    1081164,
+    1081165,
+    1081166,
+    1081167,
+    1081168,
+    1081169,
+    1081170,
+    1081171,
+    1081172,
+    1081173,
+    1081174,
+    1081175,
+    1081176,
+    1081177,
+    1081178,
+    1081179,
+    1081180,
+    1081181,
+    1081182,
+    1081183,
+    1081184,
+    1081185,
+    1081186,
+    1081187,
+    1081188,
+    1081189,
+    1081190,
+    1081191,
+    1081192
+  ],
+  "load_affinity": {
+    "1081145": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081146": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081147": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081148": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081149": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081150": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081151": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081152": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081153": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081154": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081155": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081156": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081157": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081158": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081159": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081160": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081161": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081162": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081163": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081164": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081165": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081166": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081167": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081168": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081169": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081170": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081171": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081172": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081173": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081174": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081175": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081176": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081177": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081178": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081179": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081180": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081181": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081182": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081183": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081184": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081185": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081186": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081187": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081188": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081189": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081190": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081191": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "1081192": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ]
+  },
+  "suite_pid": 1081194,
+  "exit": 0,
+  "load_completion": [
+    {
+      "pid": 1081145,
+      "alive_before_stop": true,
+      "cpu_seconds": 172.01
+    },
+    {
+      "pid": 1081146,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.38
+    },
+    {
+      "pid": 1081147,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.5
+    },
+    {
+      "pid": 1081148,
+      "alive_before_stop": true,
+      "cpu_seconds": 173.45
+    },
+    {
+      "pid": 1081149,
+      "alive_before_stop": true,
+      "cpu_seconds": 173.58
+    },
+    {
+      "pid": 1081150,
+      "alive_before_stop": true,
+      "cpu_seconds": 184.03
+    },
+    {
+      "pid": 1081151,
+      "alive_before_stop": true,
+      "cpu_seconds": 294.17
+    },
+    {
+      "pid": 1081152,
+      "alive_before_stop": true,
+      "cpu_seconds": 181.8
+    },
+    {
+      "pid": 1081153,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.88
+    },
+    {
+      "pid": 1081154,
+      "alive_before_stop": true,
+      "cpu_seconds": 175.06
+    },
+    {
+      "pid": 1081155,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.61
+    },
+    {
+      "pid": 1081156,
+      "alive_before_stop": true,
+      "cpu_seconds": 294.88
+    },
+    {
+      "pid": 1081157,
+      "alive_before_stop": true,
+      "cpu_seconds": 176.46
+    },
+    {
+      "pid": 1081158,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.27
+    },
+    {
+      "pid": 1081159,
+      "alive_before_stop": true,
+      "cpu_seconds": 176.88
+    },
+    {
+      "pid": 1081160,
+      "alive_before_stop": true,
+      "cpu_seconds": 294.74
+    },
+    {
+      "pid": 1081161,
+      "alive_before_stop": true,
+      "cpu_seconds": 182.61
+    },
+    {
+      "pid": 1081162,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.0
+    },
+    {
+      "pid": 1081163,
+      "alive_before_stop": true,
+      "cpu_seconds": 184.08
+    },
+    {
+      "pid": 1081164,
+      "alive_before_stop": true,
+      "cpu_seconds": 180.51
+    },
+    {
+      "pid": 1081165,
+      "alive_before_stop": true,
+      "cpu_seconds": 183.12
+    },
+    {
+      "pid": 1081166,
+      "alive_before_stop": true,
+      "cpu_seconds": 178.73
+    },
+    {
+      "pid": 1081167,
+      "alive_before_stop": true,
+      "cpu_seconds": 294.33
+    },
+    {
+      "pid": 1081168,
+      "alive_before_stop": true,
+      "cpu_seconds": 180.4
+    },
+    {
+      "pid": 1081169,
+      "alive_before_stop": true,
+      "cpu_seconds": 181.31
+    },
+    {
+      "pid": 1081170,
+      "alive_before_stop": true,
+      "cpu_seconds": 182.4
+    },
+    {
+      "pid": 1081171,
+      "alive_before_stop": true,
+      "cpu_seconds": 173.39
+    },
+    {
+      "pid": 1081172,
+      "alive_before_stop": true,
+      "cpu_seconds": 180.29
+    },
+    {
+      "pid": 1081173,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.55
+    },
+    {
+      "pid": 1081174,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.29
+    },
+    {
+      "pid": 1081175,
+      "alive_before_stop": true,
+      "cpu_seconds": 178.53
+    },
+    {
+      "pid": 1081176,
+      "alive_before_stop": true,
+      "cpu_seconds": 178.19
+    },
+    {
+      "pid": 1081177,
+      "alive_before_stop": true,
+      "cpu_seconds": 180.75
+    },
+    {
+      "pid": 1081178,
+      "alive_before_stop": true,
+      "cpu_seconds": 296.08
+    },
+    {
+      "pid": 1081179,
+      "alive_before_stop": true,
+      "cpu_seconds": 181.04
+    },
+    {
+      "pid": 1081180,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.67
+    },
+    {
+      "pid": 1081181,
+      "alive_before_stop": true,
+      "cpu_seconds": 282.8
+    },
+    {
+      "pid": 1081182,
+      "alive_before_stop": true,
+      "cpu_seconds": 296.66
+    },
+    {
+      "pid": 1081183,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.08
+    },
+    {
+      "pid": 1081184,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.73
+    },
+    {
+      "pid": 1081185,
+      "alive_before_stop": true,
+      "cpu_seconds": 180.47
+    },
+    {
+      "pid": 1081186,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.79
+    },
+    {
+      "pid": 1081187,
+      "alive_before_stop": true,
+      "cpu_seconds": 183.13
+    },
+    {
+      "pid": 1081188,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.08
+    },
+    {
+      "pid": 1081189,
+      "alive_before_stop": true,
+      "cpu_seconds": 177.91
+    },
+    {
+      "pid": 1081190,
+      "alive_before_stop": true,
+      "cpu_seconds": 185.08
+    },
+    {
+      "pid": 1081191,
+      "alive_before_stop": true,
+      "cpu_seconds": 296.68
+    },
+    {
+      "pid": 1081192,
+      "alive_before_stop": true,
+      "cpu_seconds": 295.13
+    }
+  ],
+  "tested_diff_sha256_after": "bacbd915aaf851c0c02ecf79ecf149ec0bf89541af75f4cd090de36ed3635e01",
+  "elapsed_seconds": 1174.8405539169908,
+  "end": "2026-10-01T07:10:10.380741+00:00"
+}

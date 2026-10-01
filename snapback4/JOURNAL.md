@@ -81380,3 +81380,33 @@ baseline 0, environmental 0. No full suite this round, as requested.
 Report, re-audit, controls, reproduction and retained evidence:
 reports/20261001-wb-wall-clock-budgets/round1/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-01 — PRL round 1: isolated callbacks and reliable host turns
+
+Read both full READY WITH CHANGES reviews and the round-0 prompt/report. Merged
+origin/main 3572852132 first in ca985cb431, retaining both journal histories,
+RY and WB. Ready batches now catch each raw subscriber exception, report it
+through the existing client-listener console channel, and deliver later
+callbacks. DOM document presence selects the browser's 50 ms window; React
+Native's window = global gets one timer turn. A non-cancellation postTask
+rejection before callback entry falls back to a cancellable timer, so a real
+host task still owns the eight-start reset. Publication, authority, immediate
+withdrawals and the accepted late-host-timer paint limitation are unchanged.
+LLP 3000.023 §10 records the corrections.
+
+Six new controls fail round 0's runtime and pass the fix: timer/drained listener
+errors, three React Native scheduling configurations, and rejected-task recovery.
+All 1,529 affected RL/PQ/PR/LL and delivery-audit cases pass; whole guide 110/110.
+The merged per-row-react file passes 20 consecutive times (140 cases) under SL's
+48 busy workers on CPUs 86–95, fixed inputs, no retries. The original real-clock
+online case separately passes 20/20 under those same workers; WB's canonical
+mock-clock change is retained. All workers survived and were reaped. Cargo/SDK
+builds, typecheck and reference checks pass. Wasm measures 2,015,329 B raw /
+605,001 B gzip under main's unchanged 605,225 B cap. No full suite this round:
+the implementation remains within ready notifications and capacity turns.
+
+Closed the inherited per-row loading ticket. Report and every negative control,
+cohort log and qualification scope: reports/20261001-prl-per-row-loading/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
