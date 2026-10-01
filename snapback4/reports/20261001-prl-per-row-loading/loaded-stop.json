@@ -1,0 +1,5 @@
+{
+  "suite_pid_recorded_at_launch": 4052505,
+  "reason": "Stop incomplete preliminary matrix to harden prior-answer deadline and empty-result notification fences",
+  "signal": "SIGTERM"
+}

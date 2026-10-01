@@ -1,0 +1,33 @@
+TAP version 13
+# Subtest: ready per-row completions share a React notification turn; publication does not wait for that turn
+not ok 1 - ready per-row completions share a React notification turn; publication does not wait for that turn
+  ---
+  duration_ms: 866.485488
+  type: 'test'
+  location: '/tmp/prl-bisect/snapback4/packages/snapback4/test/prl-causal.probe.mjs:142:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    one invalidation render; ready rows must not each walk the entire React tree
+    
+    9 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 9
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/prl-causal.probe.mjs:150:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# {"commits":9,"loading":0,"replaced":8}
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 970.600591

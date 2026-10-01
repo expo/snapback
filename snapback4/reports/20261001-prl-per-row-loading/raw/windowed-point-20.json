@@ -1,0 +1,113 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=1,000 per-row useQuery hooks:",
+    "packages/snapback4/test/per-row-react.test.mjs"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 5.578036535996944
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 5.712774228770286
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 5.966825338080525
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "seconds": 5.317576523404568
+    },
+    {
+      "run": 5,
+      "exit": 0,
+      "seconds": 5.483474384061992
+    },
+    {
+      "run": 6,
+      "exit": 0,
+      "seconds": 5.531301103066653
+    },
+    {
+      "run": 7,
+      "exit": 0,
+      "seconds": 5.393021466676146
+    },
+    {
+      "run": 8,
+      "exit": 0,
+      "seconds": 5.276400467846543
+    },
+    {
+      "run": 9,
+      "exit": 0,
+      "seconds": 5.926139711868018
+    },
+    {
+      "run": 10,
+      "exit": 0,
+      "seconds": 4.9114317977800965
+    },
+    {
+      "run": 11,
+      "exit": 0,
+      "seconds": 4.660627951845527
+    },
+    {
+      "run": 12,
+      "exit": 0,
+      "seconds": 5.204185334034264
+    },
+    {
+      "run": 13,
+      "exit": 0,
+      "seconds": 4.611423715017736
+    },
+    {
+      "run": 14,
+      "exit": 0,
+      "seconds": 5.264420719817281
+    },
+    {
+      "run": 15,
+      "exit": 0,
+      "seconds": 5.7768340348266065
+    },
+    {
+      "run": 16,
+      "exit": 0,
+      "seconds": 5.631767059210688
+    },
+    {
+      "run": 17,
+      "exit": 0,
+      "seconds": 5.370148819871247
+    },
+    {
+      "run": 18,
+      "exit": 0,
+      "seconds": 4.339770985767245
+    },
+    {
+      "run": 19,
+      "exit": 0,
+      "seconds": 5.566395400092006
+    },
+    {
+      "run": 20,
+      "exit": 0,
+      "seconds": 5.496138268150389
+    }
+  ],
+  "changedInputs": [],
+  "pass": true
+}

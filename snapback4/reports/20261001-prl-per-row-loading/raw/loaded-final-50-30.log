@@ -1,0 +1,56 @@
+TAP version 13
+# Subtest: useQuery and usePage keep canonical arguments across renders, preserving loaded pages
+ok 1 - useQuery and usePage keep canonical arguments across renders, preserving loaded pages
+  ---
+  duration_ms: 2550.670951
+  type: 'test'
+  ...
+# Subtest: 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+ok 2 - 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+  ---
+  duration_ms: 2022.968107
+  type: 'test'
+  ...
+# Subtest: ready per-row completions share a React notification turn; publication does not wait for that turn
+ok 3 - ready per-row completions share a React notification turn; publication does not wait for that turn
+  ---
+  duration_ms: 1551.761316
+  type: 'test'
+  ...
+# {"commits":1,"loading":0,"replaced":8}
+# Subtest: a terminal refusal bypasses a held ready-notification turn and retires its pending completions
+ok 4 - a terminal refusal bypasses a held ready-notification turn and retires its pending completions
+  ---
+  duration_ms: 1633.687227
+  type: 'test'
+  ...
+# Subtest: wasm: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 5 - wasm: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 8911.414669
+  type: 'test'
+  ...
+# {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790833447162,"lastStart":1790833449719,"wallIsReal":true,"link":"online"}
+# Subtest: worker: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 6 - worker: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 11570.166925
+  type: 'test'
+  ...
+# {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790833458157,"lastStart":1790833461256,"wallIsReal":true,"link":"online"}
+# Subtest: process: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 7 - process: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 13729.585254
+  type: 'test'
+  ...
+# {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790833471759,"lastStart":1790833475013,"wallIsReal":true,"link":"online"}
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 42327.442962

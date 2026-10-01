@@ -1,0 +1,15 @@
+{
+  "command": [
+    "python3",
+    "reports/20261001-prl-per-row-loading/final-clients.py"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "exit": 1,
+      "seconds": 738.5826429389417
+    }
+  ],
+  "changedInputs": [],
+  "pass": false
+}

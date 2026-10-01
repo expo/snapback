@@ -1,0 +1,38 @@
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (953.434725ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (807.984762ms)
+✔ ready per-row completions share a React notification turn; publication does not wait for that turn (585.805192ms)
+ℹ {"commits":1,"loading":0,"replaced":8}
+✔ a terminal refusal bypasses a held ready-notification turn and retires its pending completions (604.525461ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4127.676857ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790832009678,"lastStart":1790832011698,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5507.662841ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790832015030,"lastStart":1790832017196,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (5769.803659ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790832020566,"lastStart":1790832022906,"wallIsReal":true,"link":"online"}
+✔ postTask: browser turns preserve eight starts and cancel queued service (22.602677ms)
+✔ MessageChannel: browser turns preserve eight starts and cancel queued service (12.58291ms)
+✔ ready batching respects episode withdrawal evidence (36.853096ms)
+✔ ready batching respects old-row withdrawal evidence (12.333215ms)
+✔ ready batching respects new-row withdrawal evidence (13.952342ms)
+✔ ready batching respects empty withdrawal evidence (13.598822ms)
+✔ ready batching respects null withdrawal evidence (12.551142ms)
+✔ request abort listeners are removed after success (0.23386ms)
+✔ request abort listeners are removed after rejection (0.433901ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (12.574517ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.039488ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.672929ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (0.708201ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.161201ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (9.022142ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (361.454217ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1235.798782ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (639.499731ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.50754ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18487.802758

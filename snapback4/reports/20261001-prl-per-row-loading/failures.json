@@ -1,0 +1,517 @@
+[
+  {
+    "log": "batch-loaded-probe.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "combined-loaded-probe.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "frame-loaded-probe.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/affected-initial.log",
+    "classification": "ours",
+    "tests": [
+      "online keep=undefined: eight closed active reads cannot starve later observations or publish late"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-01.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-02.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-03.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-04.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-05.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-06.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-07.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-08.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-09.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-causal-10.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/baseline-profile.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/baseline-trace.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-01.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-02.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-03.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-04.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-05.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-06.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-07.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-08.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-09.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-096a1b78ef-10.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-01.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-02.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-03.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-04.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-05.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-07.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-08.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-09.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-88dcf7bd86-10.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-01.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-02.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-03.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-04.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-05.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-06.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-07.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-08.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-09.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-c3c4ed0976-10.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-01.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-02.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-03.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-04.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-05.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-06.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-07.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-08.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-09.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/bisect-d959efe2ed-10.log",
+    "classification": "baseline",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/final-causal-main.log",
+    "classification": "baseline",
+    "tests": [
+      "ready per-row completions share a React notification turn; publication does not wait for that turn"
+    ]
+  },
+  {
+    "log": "raw/final-clients-01.log",
+    "classification": "ours",
+    "tests": [
+      "every delivery await is explicitly classified"
+    ]
+  },
+  {
+    "log": "raw/first-fix.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/loaded-point-10-05.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/loaded-point-10-10.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/pre-hardening-boundaries.log",
+    "classification": "ours",
+    "tests": [
+      "ready batching respects episode withdrawal evidence",
+      "ready batching respects old-row withdrawal evidence",
+      "ready batching respects new-row withdrawal evidence",
+      "ready batching respects empty withdrawal evidence",
+      "ready batching respects null withdrawal evidence"
+    ]
+  },
+  {
+    "log": "raw/quiet-loaded-point-10-01.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/quiet-loaded-point-10-04.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/quiet-loaded-point-10-06.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/quiet-loaded-point-10-09.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/raf-point-10-01.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/raf-point-10-02.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/raf-point-10-03.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/raf-point-10-04.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/raf-point-10-05.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/raf-point-10-06.log",
+    "classification": "ours",
+    "tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ]
+  },
+  {
+    "log": "raw/unconfined-50-02.log",
+    "classification": "ours",
+    "tests": [
+      "worker: 1,000 per-row hooks retain through a relevant write with the real clock"
+    ]
+  },
+  {
+    "log": "raw/unconfined-50-03.log",
+    "classification": "ours",
+    "tests": [
+      "process: 1,000 per-row hooks retain through a relevant write with the real clock"
+    ]
+  }
+]

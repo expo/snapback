@@ -1,0 +1,100 @@
+✖ ready batching respects episode withdrawal evidence (35.146764ms)
+✖ ready batching respects old-row withdrawal evidence (14.883425ms)
+✖ ready batching respects new-row withdrawal evidence (16.0004ms)
+✖ ready batching respects empty withdrawal evidence (13.19793ms)
+✖ ready batching respects null withdrawal evidence (12.280024ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4171.506363
+
+✖ failing tests:
+
+test at ../../../../tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:59:76
+✖ ready batching respects episode withdrawal evidence (35.146764ms)
+  AssertionError [ERR_ASSERTION]: retiring the episode timer cannot extend the displayed old answer
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:103:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:59:76
+✖ ready batching respects old-row withdrawal evidence (14.883425ms)
+  AssertionError [ERR_ASSERTION]: empty results and either side of a row deadline notify without entering a ready batch
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:106:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:59:76
+✖ ready batching respects new-row withdrawal evidence (16.0004ms)
+  AssertionError [ERR_ASSERTION]: empty results and either side of a row deadline notify without entering a ready batch
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:106:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:59:76
+✖ ready batching respects empty withdrawal evidence (13.19793ms)
+  AssertionError [ERR_ASSERTION]: empty results and either side of a row deadline notify without entering a ready batch
+  
+  1 !== []
+  
+      at TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:106:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:59:76
+✖ ready batching respects null withdrawal evidence (12.280024ms)
+  AssertionError [ERR_ASSERTION]: empty results and either side of a row deadline notify without entering a ready batch
+  
+  1 !== null
+  
+      at TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/per-row-work.test.mjs:106:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

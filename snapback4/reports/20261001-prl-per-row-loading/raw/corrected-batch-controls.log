@@ -1,0 +1,12 @@
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (36.335556ms)
+✔ ready per-row completions share a React notification turn; publication does not wait for that turn (881.541891ms)
+ℹ {"commits":1,"loading":0,"replaced":8}
+✔ a terminal refusal bypasses a held ready-notification turn and retires its pending completions (539.119606ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1507.414357

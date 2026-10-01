@@ -1,0 +1,27 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/per-row-react.test.mjs"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 17.421760693192482
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 18.196530682966113
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 18.269697511103004
+    }
+  ],
+  "changedInputs": [],
+  "pass": true
+}

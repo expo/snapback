@@ -40,9 +40,32 @@ export class ReadWork<W> {
   private starts = 0;
   private urgentStarts = 0;
   private queued = false;
-  private timer: ReturnType<typeof setTimeout> | undefined;
-  constructor(private readonly later: (run: () => void) => ReturnType<typeof setTimeout> = run => setTimeout(run, 0),
+  private cancelTurn: (() => void) | undefined;
+  constructor(private readonly later?: (run: () => void) => ReturnType<typeof setTimeout>,
     private readonly changed: (watch: W, state: ReadWorkState) => void = () => {}) {}
+  // @ref LLP 3000.023#10 — yielding capacity must not spend the online bound on nested timer clamps.
+  private nextTurn(run: () => void): () => void {
+    const scheduler = (globalThis as { scheduler?: { postTask(run: () => void, options: { signal: AbortSignal }): Promise<void> } }).scheduler;
+    if (!this.later && typeof scheduler?.postTask === "function") {
+      const controller = new AbortController();
+      let ran = false, fallback: ReturnType<typeof setTimeout> | undefined;
+      void scheduler.postTask(() => { ran = true; run(); }, { signal: controller.signal }).catch(() => {
+        // A rejected task grants no capacity. Recover on a real host turn;
+        // cancellation (or a throw after entry) must not replay the callback.
+        if (!controller.signal.aborted && !ran) fallback = setTimeout(run, 0);
+      });
+      return () => { controller.abort(); clearTimeout(fallback); };
+    }
+    if (!this.later && typeof window !== "undefined" && typeof MessageChannel !== "undefined") {
+      const channel = new MessageChannel();
+      const cancel = () => { channel.port1.onmessage = null; channel.port1.close(); channel.port2.close(); };
+      channel.port1.onmessage = () => { cancel(); run(); };
+      channel.port2.postMessage(null);
+      return cancel;
+    }
+    const timer = this.later ? this.later(run) : setTimeout(run, 0);
+    return () => clearTimeout(timer);
+  }
   schedule(watch: W, run: (signal: AbortSignal) => Promise<void>): void {
     this.stopDelay(watch);
     (this.urgent.has(watch) ? this.priority : this.pending).set(watch, run);
@@ -80,10 +103,11 @@ export class ReadWork<W> {
     for (const watch of this.priority.keys()) if (!this.active.has(watch)) this.changed(watch, "idle");
     this.pending.clear(); this.priority.clear(); this.urgent.clear(); this.urgentStarts = 0;
     for (const attempt of this.active.values()) attempt.abort();
-    if (this.timer !== undefined) clearTimeout(this.timer);
-    this.timer = undefined;
+    this.cancelTurn?.();
+    this.cancelTurn = undefined;
   }
   state(watch: W): ReadWorkState { return this.active.has(watch) ? "in-flight" : this.pending.has(watch) || this.priority.has(watch) || this.delayed.has(watch) ? "queued" : "idle"; }
+  get hasPending(): boolean { return this.pending.size + this.priority.size > 0; }
   private first(queue: Map<W, unknown>): W | undefined {
     // Only active owners (at most eight) can precede the first runnable entry.
     for (const watch of queue.keys()) if (!this.active.has(watch)) return watch;
@@ -99,8 +123,8 @@ export class ReadWork<W> {
   }
   private arm(): void {
     if (this.queued || (!this.pending.size && !this.priority.size) || this.active.size >= 8) return;
-    if (this.timer === undefined) this.timer = this.later(() => {
-      this.timer = undefined; this.starts = 0; this.arm();
+    if (this.cancelTurn === undefined) this.cancelTurn = this.nextTurn(() => {
+      this.cancelTurn = undefined; this.starts = 0; this.arm();
     });
     if (this.starts === 8) return;
     this.queued = true;

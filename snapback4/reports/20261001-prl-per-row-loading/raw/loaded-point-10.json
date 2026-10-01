@@ -1,0 +1,65 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=1,000 per-row useQuery hooks:",
+    "packages/snapback4/test/per-row-react.test.mjs"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 6.942121924832463
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 6.241796889342368
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 5.7496901117265224
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "seconds": 6.792181486263871
+    },
+    {
+      "run": 5,
+      "exit": 1,
+      "seconds": 7.197273851837963
+    },
+    {
+      "run": 6,
+      "exit": 0,
+      "seconds": 7.378693114966154
+    },
+    {
+      "run": 7,
+      "exit": 0,
+      "seconds": 8.529648952651769
+    },
+    {
+      "run": 8,
+      "exit": 0,
+      "seconds": 6.848627648316324
+    },
+    {
+      "run": 9,
+      "exit": 0,
+      "seconds": 6.93812295794487
+    },
+    {
+      "run": 10,
+      "exit": 1,
+      "seconds": 7.49542093090713
+    }
+  ],
+  "changedInputs": [
+    "packages/snapback4/test/per-row-react.test.mjs"
+  ],
+  "pass": false
+}

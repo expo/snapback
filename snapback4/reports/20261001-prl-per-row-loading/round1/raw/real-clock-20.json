@@ -1,0 +1,113 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=^1,000 per-row useQuery hooks:",
+    "packages/snapback4/test/prl-r1-real-clock.probe.mjs"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 4.7153902859427035
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 5.655746059957892
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 4.624622308183461
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "seconds": 4.985427383333445
+    },
+    {
+      "run": 5,
+      "exit": 0,
+      "seconds": 4.436242484021932
+    },
+    {
+      "run": 6,
+      "exit": 0,
+      "seconds": 4.512549165636301
+    },
+    {
+      "run": 7,
+      "exit": 0,
+      "seconds": 4.988780086860061
+    },
+    {
+      "run": 8,
+      "exit": 0,
+      "seconds": 5.828617211896926
+    },
+    {
+      "run": 9,
+      "exit": 0,
+      "seconds": 5.252386493142694
+    },
+    {
+      "run": 10,
+      "exit": 0,
+      "seconds": 4.742034560069442
+    },
+    {
+      "run": 11,
+      "exit": 0,
+      "seconds": 5.725595970638096
+    },
+    {
+      "run": 12,
+      "exit": 0,
+      "seconds": 5.699508330319077
+    },
+    {
+      "run": 13,
+      "exit": 0,
+      "seconds": 5.5918873474001884
+    },
+    {
+      "run": 14,
+      "exit": 0,
+      "seconds": 5.048657692037523
+    },
+    {
+      "run": 15,
+      "exit": 0,
+      "seconds": 4.759808678179979
+    },
+    {
+      "run": 16,
+      "exit": 0,
+      "seconds": 5.320565020665526
+    },
+    {
+      "run": 17,
+      "exit": 0,
+      "seconds": 4.689186894800514
+    },
+    {
+      "run": 18,
+      "exit": 0,
+      "seconds": 4.623215079307556
+    },
+    {
+      "run": 19,
+      "exit": 0,
+      "seconds": 5.967128459829837
+    },
+    {
+      "run": 20,
+      "exit": 0,
+      "seconds": 5.1935082813724875
+    }
+  ],
+  "changedInputs": [],
+  "pass": true
+}

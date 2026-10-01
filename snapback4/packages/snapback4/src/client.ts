@@ -1,4 +1,5 @@
 import { ObservationWork } from "./observation-work.ts";
+import { episodeDeadline } from "./read-episode.ts";
 import { readyRead } from "./read-existence.ts";
 import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
@@ -629,7 +630,39 @@ export function createClient(options: ClientOptions): Client {
     });
   }
 
+  const readyNotifications = new Map<Watch, readonly (() => void)[]>();
+  let readyNotificationTimer: ReturnType<typeof setTimeout> | undefined;
+  let readyNotificationAt = Infinity;
+  function cancelReadyNotification() {
+    if (readyNotificationTimer !== undefined) clearTimeout(readyNotificationTimer);
+    readyNotificationTimer = undefined;
+    readyNotificationAt = Infinity;
+  }
+  function flushReadyNotifications() {
+    cancelReadyNotification();
+    const ready = [...readyNotifications]; readyNotifications.clear();
+    for (const [watch, subscribers] of ready) {
+      if (watches.get(watch.key) !== watch || !("data" in watch.snapshot)) continue;
+      for (const subscriber of subscribers) if (watch.subscribers.has(subscriber)) {
+        try { subscriber(); } catch (error) { console.error("snapback4 client listener:", error); }
+      }
+    }
+  }
+  // @ref LLP 3000.023#10 — coalesce ready notifications under pressure, never authorization or withdrawals.
+  function notifyReady(watch: Watch, previousDeadline: number | undefined) {
+    readyNotifications.set(watch, [...watch.subscribers]);
+    if (!readWork.hasPending) { flushReadyNotifications(); return; }
+    // Publication retires the old episode timer. Its displayed answer still
+    // needs a notification by that same bound, even when other work is held.
+    const now = Date.now();
+    const at = Math.min(now + (typeof document === "undefined" ? 0 : 50), previousDeadline ?? Infinity);
+    if (previousDeadline !== undefined && previousDeadline <= now) { flushReadyNotifications(); return; }
+    if (at >= readyNotificationAt) return;
+    cancelReadyNotification(); readyNotificationAt = at;
+    readyNotificationTimer = setTimeout(flushReadyNotifications, at - now);
+  }
   function notify(watch: Watch) {
+    readyNotifications.delete(watch);
     for (const subscriber of watch.subscribers) subscriber();
   }
 
@@ -705,7 +738,7 @@ export function createClient(options: ClientOptions): Client {
     // @ref LLP 3000.023#3.5 — every option follows the reset fence; retention never renews an episode.
     watch.inFlight = true;
     const resetVersion = watch.resetVersion;
-    let exhausted = false, retryExpired = false;
+    let exhausted = false, retryExpired = false, batchReady = true;
     try {
       const result = await duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, revalidate: watch.kept || !("data" in watch.snapshot), accept: result => {
         if (signal.aborted) return true;
@@ -714,7 +747,11 @@ export function createClient(options: ClientOptions): Client {
         if (result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) return true;
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
-        if (!result.transportOffline) scheduleExpiry(watch, result.nextExpiry);
+        if (!result.transportOffline) {
+          // Do not move either side of a row-expiry boundary into a UI batch.
+          batchReady &&= watch.deadlines?.server == null && result.nextExpiry === null;
+          scheduleExpiry(watch, result.nextExpiry);
+        }
         return true;
       } }), signal);
       checkRead(signal);
@@ -731,9 +768,12 @@ export function createClient(options: ClientOptions): Client {
         notify(watch);
         return;
       }
+      const previousDeadline = episodeDeadline(watch.snapshot);
       if (result.transportOffline || exhausted) watch.failed(result.transportOffline); else watch.publish(result.read);
       acceptDelivery(result, watch.snapshot);
-      notify(watch);
+      if (batchReady && !result.transportOffline && !exhausted && watch.deadlines?.server == null
+        && "data" in watch.snapshot && watch.snapshot.existence === "present") notifyReady(watch, previousDeadline);
+      else notify(watch);
       watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
@@ -1108,6 +1148,7 @@ export function createClient(options: ClientOptions): Client {
     },
     close() {
       readWork.clear();
+      cancelReadyNotification(); readyNotifications.clear();
       if (closing) return closing;
       closed = true;
       void delivery?.stop();

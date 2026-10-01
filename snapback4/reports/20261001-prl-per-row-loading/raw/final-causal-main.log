@@ -1,0 +1,29 @@
+✖ ready per-row completions share a React notification turn; publication does not wait for that turn (910.211947ms)
+ℹ {"commits":9,"loading":0,"replaced":8}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 997.965845
+
+✖ failing tests:
+
+test at packages/snapback4/test/prl-causal.probe.mjs:142:1
+✖ ready per-row completions share a React notification turn; publication does not wait for that turn (910.211947ms)
+  AssertionError [ERR_ASSERTION]: one invalidation render; ready rows must not each walk the entire React tree
+  
+  9 !== 1
+  
+      at TestContext.<anonymous> (file:///tmp/prl-bisect/snapback4/packages/snapback4/test/prl-causal.probe.mjs:150:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 9,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

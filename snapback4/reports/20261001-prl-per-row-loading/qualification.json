@@ -1,0 +1,1000 @@
+{
+  "base": "d959efe2edf405e1270dce35f75703d89a0ccbf7",
+  "cohorts": {
+    "unconfined-final-50": {
+      "runs": 50,
+      "passes": 350,
+      "failures": 0,
+      "logs": [
+        {
+          "path": "raw/unconfined-final-50-01.log",
+          "sha256": "f737e705ba53ffa23c0f8d5badcba5dc771ee641adcb14f8d9748177bff65218",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-02.log",
+          "sha256": "481b314a2d39d1a9a6293e347736c17aff4ca052f83d9b486cd028431d86daf9",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-03.log",
+          "sha256": "8f5b8c5457f210040d43812cfce4e275c61047ec40da7933d34f0a0b741d7a73",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-04.log",
+          "sha256": "b6498909ac4580e98b5ba77be149571eb233f188b38259256b4595707956cc48",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-05.log",
+          "sha256": "d9c26f14a166ccee14b74b2d7c3797688113022cc83d309f9774e547ee721dec",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-06.log",
+          "sha256": "dbc08cece0749db8885afd0e0b6857041754e8ab26131f6333030b53b803025a",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-07.log",
+          "sha256": "225841468ac0dd5898f744994af0ea726fa7fdcc60be9fea6cb93c685721698d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-08.log",
+          "sha256": "c75b09b8e9892aabd99a90ffa2774cf5928cae7a74f0e0015d274988f1af1e9f",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-09.log",
+          "sha256": "b139157cdf8c418959f080acb2909d781634806bd3c58f44c1f021af080dca52",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-10.log",
+          "sha256": "6872ae0d001de86062669be98418d7f5cdd5e15c2f46603401d6b6a2ecd022e3",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-11.log",
+          "sha256": "5304be2d767c4e97af464a47168dbcfb0e922fd1ef2024b6c15d2fce0aa6d767",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-12.log",
+          "sha256": "df736c844745847829ac1ea76fe43977d17c58e01331a6ec73853d7a1b6cf9fc",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-13.log",
+          "sha256": "f4dcd71d6f7edda6e3522513d3bb692c89950a29c20fe3fe68652a75e4161db4",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-14.log",
+          "sha256": "a96029b767a821df613e3f18ada17177027c3de801a95b758c00c842691435a8",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-15.log",
+          "sha256": "bd8ca61216fbf53c7d4888f2bf9fc5fe987a0030a13d0f6b5727fe809236fd1f",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-16.log",
+          "sha256": "a0127223ef139dc0be4e22ce411c621d1b88cadb834640022d543cd346f46dda",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-17.log",
+          "sha256": "b494aaa59b9aed4375671a7fa339fd71933d99927e6e0333bf30ffcfe959ff84",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-18.log",
+          "sha256": "d0b1464ffcb23e138aea013d45a07d18568148f025153aa234c2764195408421",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-19.log",
+          "sha256": "230ca2beaa676c31afece0a79f6ff3457b2cc1697208da89aded410009ca9993",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-20.log",
+          "sha256": "5e646a3c53f73260d99705c0b317ef6e08472e167680182146d08232512f6f90",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-21.log",
+          "sha256": "3bbaff990fe8aee0dcae958b00482746d8e02c24a6c4652e60dfea4d8fdb8281",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-22.log",
+          "sha256": "fe5baa8cb6b44746248079733ca7ba200dd8c3bef77f6a7627f92c19a5e0c630",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-23.log",
+          "sha256": "187f639fbd70715695d0cf7f803e460928c31a2a52eb2169ee74327bda7b4c5d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-24.log",
+          "sha256": "7756303673d001aedbc7fc61ac3c771e268d33d5ff53cf30f8cdd547712b53ef",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-25.log",
+          "sha256": "7bc7948fc11f77a2dc5efe20a79a3be502607cccf4802477d85eda51ee3d653b",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-26.log",
+          "sha256": "31563ea1938d55eb58f6d4c43b3314f5315aef2b8de52f0ddcc6e7d3ec2d1943",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-27.log",
+          "sha256": "9bf5299fee2af8119a34f840df0d8f52f60e69d87f4ac4e59e5b1fa6e0030479",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-28.log",
+          "sha256": "473610d3d2661903ce31fe305930b752535ebb4fd59879b0a0bb21ee5aee75bb",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-29.log",
+          "sha256": "27c4ae03c75195d6e0cf8e4a692ad8b079a95698f71b9e8abe70a93dd87c325c",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-30.log",
+          "sha256": "920c67605e2b4162f54a44d7def38cc1a29140a3cd2c8fc23ad06c079dd59e80",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-31.log",
+          "sha256": "9b9118bbfcd0303ee58331f2131aa62bfcb9bb488eca81de72f24dbcb1c4c350",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-32.log",
+          "sha256": "c649eb6cc379f218dbdd4579cbc490a5434a4b1c5521fc89413866d30043f570",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-33.log",
+          "sha256": "9276fc0d905ddc5ec4f43f49359bf2f6387e623979cf54cb59d7a1de7c1d49d9",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-34.log",
+          "sha256": "f615ee36e0a5ac764811cbacee33bed9e17c8a1b0dbba1a5c09ad4f6f295cd3a",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-35.log",
+          "sha256": "6ca70baa5f528759064de77a214c9e20e39c8c71fb6750005aaff5ad149cf3b6",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-36.log",
+          "sha256": "a543c77ffa77471fcda2716eff28f9e13a53d5e2c4057bb01c0ea5f1748f6346",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-37.log",
+          "sha256": "1cf7688382d3a071367880121b4e686416e323aabee11152fcba900ade345082",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-38.log",
+          "sha256": "fa1e05e5798517a0f0250f920f5eb79a5973b2b95a9be74718a37e446507e536",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-39.log",
+          "sha256": "ffd5f04268e84d5f2190d1eed72134b2f046c5f632c45301b79785f9d6dff643",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-40.log",
+          "sha256": "77887e211ddda65162332c99c176e6a5ef9d8e9b1c1ff4ccfe48287cf41512d5",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-41.log",
+          "sha256": "6bba034f1a941054ba3c3348e501f534c2fb0dc4c12b2ba06511dcb07d2a95ab",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-42.log",
+          "sha256": "942a8fec0204416bde5b7a4355486584af41d84d925d79fa21757debd5920ebf",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-43.log",
+          "sha256": "c318e7c217c1be2883ab42cd3f7fbd336cf1d7c75ace0163bbb503bda0b0947b",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-44.log",
+          "sha256": "3c3eff6e74e871be27affb1ff78197fc76c91ae0e1d1575b6f953951d976d6f2",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-45.log",
+          "sha256": "4a9987253385ecf6ce35d9eb49d323461e5c9ec349efaa3aa8dd2143d44e9910",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-46.log",
+          "sha256": "1dfc22ed8bba9ee12c29665e2c269618d3d71665f7ce0c5b407b487800e94f43",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-47.log",
+          "sha256": "ba78ec33258d62642f16876dee9c2e33d072525bb36aca9279be84cd98f48273",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-48.log",
+          "sha256": "0c9800fe1c2c87ff7163d040fe0286d54c763230657f387a592fdad7d1e38cac",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-49.log",
+          "sha256": "5a5804d9af2d5cdb089d0d76edcf7091abbaa05674d607286de71b268bbc0f10",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/unconfined-final-50-50.log",
+          "sha256": "3e56e264648d169d6fd681fd48ccd3fa58d65e846e8d4bf0afea9e01078d0eac",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      ],
+      "receipt_sha256": "774ac32f8bb0e950423619da7093a969b53c04883cc7c8b651d2731eb6c345a0",
+      "input_inventory_sha256": "0bf306e8f95757989d5378228f27ad40540948f719655d42b9c2466df35fddb9",
+      "after_cohort_changes": [
+        "packages/snapback4/test/delivery-await-boundary.json",
+        "packages/snapback4/test/delivery-fault-instrument.mjs"
+      ],
+      "scope": "Audit manifest hash and classification comment only; runtime, built SDK, wasm and all executed browser tests unchanged."
+    },
+    "loaded-final-50": {
+      "runs": 50,
+      "passes": 350,
+      "failures": 0,
+      "logs": [
+        {
+          "path": "raw/loaded-final-50-01.log",
+          "sha256": "77817422423e5645fa4fd3ac35808c7090187adbf42cfde688d47432c373215d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-02.log",
+          "sha256": "5316bf31175b38fd9adf9fde1a466c4f8b48df6641054ed6077b5d8c34cfc892",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-03.log",
+          "sha256": "5e8d66e87c26867d3f46ac286fa719245b0edfa0eda7d90d618ade7d326ab6f7",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-04.log",
+          "sha256": "27d232c179b86fe323a98412cef5adafb4b7e1a30a874852f958704329e21a99",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-05.log",
+          "sha256": "a7958aa0ba8cfdb6b218adaf36252d25cff19011266e81ff5cdebedfb42bd533",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-06.log",
+          "sha256": "f39321abeb52bb8b95e064d056c64d958013660763f8bc7ed500faf3af97512d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-07.log",
+          "sha256": "149d08e65960c5af4f354ae42422369963589985a506196cc9ff7985ef147d0a",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-08.log",
+          "sha256": "a680a8aec910f3b0a6e458468afb047307f4d4560b3a7e86662997c01e3b559b",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-09.log",
+          "sha256": "c9b238237848653f2fbaa41243415be4c47fa4c0dd1c4cfd679841d01dcc25b0",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-10.log",
+          "sha256": "618e43536e97927dd103e9ca2ef1b5a158951e5d849ec209347fcf45cbaa2ea3",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-11.log",
+          "sha256": "5dd206afa587cfc7796f72b6e58c93ed9563bf96a261036ca28cd63e065261a7",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-12.log",
+          "sha256": "7cd396bc58405d36ab996cbde8932e68eb5ac87bdf07e30af382af2e6eb58c1a",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-13.log",
+          "sha256": "8d075ff8f2b0e8770b807dde566f2fe1c59ed86c05255f4f8d043a65a1670eae",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-14.log",
+          "sha256": "592850d9b6f5aa9e5b8c8a61baddcafd2fbd90238fedfe77a1f406f98e2ebae7",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-15.log",
+          "sha256": "c1f3e01db8f522060f36e9f42d625be90759a78979c7d98b11c2fe79115e8be5",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-16.log",
+          "sha256": "7270afc4aea8791f011798ac5df50f073e49c2eeec6035543a3c073b1e86f84a",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-17.log",
+          "sha256": "cb55b10324f6253e11677b19231422cb602829890a0997719ee3354e1e8007e6",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-18.log",
+          "sha256": "878ff1c880c6b0c2be75e479c55248260d4a5d9a9a07c4bbf9cb5fe95848f71d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-19.log",
+          "sha256": "2c6976df9a09cf87a12b57b839f57887e0ae48fbde351eb86566263e2eafefaf",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-20.log",
+          "sha256": "a8c98ab7e110dd032f772e15aae295aaf8f8eaa297f6949453337ead0a9d41b0",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-21.log",
+          "sha256": "d89a96504f72d2215942cdfe415ce1997109d1d3f85879a5ee734402ceb89e96",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-22.log",
+          "sha256": "393b5bb109aa032c252788e7d03e6ffde3fbbfea2fb03e51b78b693442f0f651",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-23.log",
+          "sha256": "4c74ddda9f53d76a3940ad835267b3a5a42b0c88acbbc8801ccecaa42c335dc4",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-24.log",
+          "sha256": "eb9e0455f92de17fcc477f187a2d005ee917e4b1cc78a59ce534671718c53112",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-25.log",
+          "sha256": "4e32dbfb07ddd864c41b5424815d53ad73585cdf936406208fce2a5858d60112",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-26.log",
+          "sha256": "ebd5acc887694929ab880b63e0c909cf00eaf6de0e8c722ea3593d248c4b385d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-27.log",
+          "sha256": "ae20d113b57f1b1734d7bda158f2c7c495d103d533245de159973b6affc312c5",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-28.log",
+          "sha256": "2ec13dd379c5321ac4ef0b5476ab96f14f9e72d2facb8e5f5dba35733ee5d8e9",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-29.log",
+          "sha256": "b86b526e2a6f2b0402e7204f5430add9fef3ae24079bd1e1847f7c2c40551164",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-30.log",
+          "sha256": "fd9596c118b7b767419fb6360749c33536d8c25d3979285f8404295c3b979f6d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-31.log",
+          "sha256": "76ef2343b4bc8b840dc394cb01b910d1e112b6f2c75cccc07f01df0d5341eee8",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-32.log",
+          "sha256": "61449f4acfb3a91453f676bc230376547c0f1d6e4f761eeea7bf53a247f79a67",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-33.log",
+          "sha256": "bbbb999436a82c0a5637b48c733f9f6d727ea2fd8f8074cfd3bf430886ad0d8c",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-34.log",
+          "sha256": "09dfeedfd8cd7e0fd25b64f9c961681d97de36301230f9e6243a4bd1f68e5d20",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-35.log",
+          "sha256": "cbb270386d21687972bde067bb78b7329fada7ce4044f8aacd47cdd6ba839b2b",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-36.log",
+          "sha256": "ffe39ab75e8e688d181d0be0602741933af7e7e1af0f9c66e9b224be9ef60198",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-37.log",
+          "sha256": "125f2a124e362fd5ae49ec3aa69e73edef314ae98b7683c62b7d783cf2e01413",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-38.log",
+          "sha256": "1aa56de28111a6fb4588c1d6ceb21993ee7f6a6b3fb624d9b8a697efc7b4cc5a",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-39.log",
+          "sha256": "26de3d940ae5e778d12811223993a469f08428eb86761ca3550f43684cbac234",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-40.log",
+          "sha256": "806e4992406f9ba614a468c414e5311069fe5a0ca1ea44bac5ab24c090aef44d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-41.log",
+          "sha256": "fda89f3643e20e4bd805b5c79f1806a01621b919052f7506ee10c889cbc3d3c5",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-42.log",
+          "sha256": "285595152136441fbaa1e691aa6a11ba482b6bd2b9d59c8064b78ca195450999",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-43.log",
+          "sha256": "fc77454c0fe1f4264f25c6b3cce6b8c437f201dc20f7bf0ef414465f3546370b",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-44.log",
+          "sha256": "7f39c03e00149c909f10e1e32105b27da396a51814f8d3fa555235c9cf12e8f1",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-45.log",
+          "sha256": "8d05af508110e6ac8fa7a85c4dd2ce865884494a577274aac3280655532eca2d",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-46.log",
+          "sha256": "dde3577ff8f258b4f29333c63cb5b9603387288d5d29fe8b8042ea2280abb474",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-47.log",
+          "sha256": "78ff0cfd6cac4ba0263f79d82a266b49ec67a2598b29dfc7acbb8584ac9decf3",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-48.log",
+          "sha256": "48e875aa4e021e2db989a3e1af08a5de626f8041c41bab9a7fa18e332fb8543e",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-49.log",
+          "sha256": "71ea6694fc640412b4f705595579be9c98144959abe7ba3f12ecfba350292b57",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "path": "raw/loaded-final-50-50.log",
+          "sha256": "dbdb5c817952660e53127f7412002a1191f93068e062735cc141cad03a72fe03",
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      ],
+      "receipt_sha256": "5bd163aaeb828503230843521b5271c44274eef75ddb8e2566bcbedd8e6e983e",
+      "input_inventory_sha256": "0bf306e8f95757989d5378228f27ad40540948f719655d42b9c2466df35fddb9",
+      "after_cohort_changes": [
+        "packages/snapback4/test/delivery-await-boundary.json",
+        "packages/snapback4/test/delivery-fault-instrument.mjs"
+      ],
+      "scope": "Audit manifest hash and classification comment only; runtime, built SDK, wasm and all executed browser tests unchanged."
+    }
+  },
+  "load": {
+    "metadata_sha256": "bb7d6d6106531f94f66b6fb3007b4a07c5fcff8876d94ed4103e8a2fe66e0eab",
+    "workers": 48,
+    "cpus": [
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "all_workers_survived": true,
+    "elapsed_seconds": 2311.5061727538705,
+    "cpu_seconds": 21130.52
+  },
+  "affected": {
+    "path": "raw/affected-hardened.log",
+    "sha256": "374eb470c7ae3a006e9f5fe7f86520f6ba13016e2fedd83e530353ca1c6bc8c9",
+    "tests": 1202,
+    "pass": 1202,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "delivery_matrix": {
+    "path": "raw/delivery-matrix-final.log",
+    "sha256": "a6014cd19641bef44bf2b6ddf35913b368dd7d4e8af0789917adfcbd2de302f4",
+    "tests": 321,
+    "pass": 321,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "full_suite": {
+    "summary": "== 0 failure(s) in 1385 s",
+    "log_sha256": "abc5e3c11495a59023d56594c132509926804727b0991b04aae3eaf46abf4ee8",
+    "scope": "Single complete run before final callback-boundary hardening; final client/model stages repeated separately."
+  },
+  "final_clients": {
+    "log_sha256": "850e55cb9fd1672b4537ba26320272c858a291deeb09597b3677f027164b2357",
+    "pool": {
+      "tests": 5745,
+      "passed": 5734,
+      "failed": 1,
+      "skipped": 10
+    },
+    "models": {
+      "tests": 79,
+      "passed": 79,
+      "failed": 0
+    },
+    "failure": "Ours: reviewed await census hash; final full delivery matrix passes after repair."
+  },
+  "wasm": {
+    "raw": 1994357,
+    "gzip": 598401,
+    "sha256": "4830b5cc781889759c6dc4f3c595bbb14304b3e2391850a9c9f5a67ea9eb21d0",
+    "budget": 599000
+  },
+  "final_audit_files": {
+    "packages/snapback4/test/delivery-await-boundary.json": "7603f18cddb4a19551c5d6b43c1c259eb37a85eb6fd42cb5efae21a0b9aec328",
+    "packages/snapback4/test/delivery-fault-instrument.mjs": "883ff5c80df8d71b60bff6222f1d383814b900a8883d59c0034282c9fba85177"
+  }
+}

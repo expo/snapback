@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: rejected postTask turns recover through host tasks and remain cancellable
+ok 1 - rejected postTask turns recover through host tasks and remain cancellable
+  ---
+  duration_ms: 6.779862
+  type: 'test'
+  ...
+# Subtest: throwing ready subscriber: timer flush delivers every callback and reports the error
+ok 2 - throwing ready subscriber: timer flush delivers every callback and reports the error
+  ---
+  duration_ms: 33.047405
+  type: 'test'
+  ...
+# Subtest: throwing ready subscriber: drained flush delivers every callback and reports the error
+ok 3 - throwing ready subscriber: drained flush delivers every callback and reports the error
+  ---
+  duration_ms: 14.849558
+  type: 'test'
+  ...
+# Subtest: React Native ready notifications use one timer turn with postTask
+ok 4 - React Native ready notifications use one timer turn with postTask
+  ---
+  duration_ms: 14.280675
+  type: 'test'
+  ...
+# Subtest: React Native ready notifications use one timer turn with MessageChannel
+ok 5 - React Native ready notifications use one timer turn with MessageChannel
+  ---
+  duration_ms: 14.421486
+  type: 'test'
+  ...
+# Subtest: React Native ready notifications use one timer turn with timer
+ok 6 - React Native ready notifications use one timer turn with timer
+  ---
+  duration_ms: 13.103971
+  type: 'test'
+  ...
+# Subtest: postTask: browser turns preserve eight starts and cancel queued service
+ok 7 - postTask: browser turns preserve eight starts and cancel queued service
+  ---
+  duration_ms: 14.33737
+  type: 'test'
+  ...
+# Subtest: MessageChannel: browser turns preserve eight starts and cancel queued service
+ok 8 - MessageChannel: browser turns preserve eight starts and cancel queued service
+  ---
+  duration_ms: 10.612517
+  type: 'test'
+  ...
+# Subtest: ready batching respects episode withdrawal evidence
+ok 9 - ready batching respects episode withdrawal evidence
+  ---
+  duration_ms: 16.915184
+  type: 'test'
+  ...
+# Subtest: ready batching respects old-row withdrawal evidence
+ok 10 - ready batching respects old-row withdrawal evidence
+  ---
+  duration_ms: 12.820687
+  type: 'test'
+  ...
+# Subtest: ready batching respects new-row withdrawal evidence
+ok 11 - ready batching respects new-row withdrawal evidence
+  ---
+  duration_ms: 14.102778
+  type: 'test'
+  ...
+# Subtest: ready batching respects empty withdrawal evidence
+ok 12 - ready batching respects empty withdrawal evidence
+  ---
+  duration_ms: 13.439635
+  type: 'test'
+  ...
+# Subtest: ready batching respects null withdrawal evidence
+ok 13 - ready batching respects null withdrawal evidence
+  ---
+  duration_ms: 12.519685
+  type: 'test'
+  ...
+# Subtest: request abort listeners are removed after success
+ok 14 - request abort listeners are removed after success
+  ---
+  duration_ms: 0.255523
+  type: 'test'
+  ...
+# Subtest: request abort listeners are removed after rejection
+ok 15 - request abort listeners are removed after rejection
+  ---
+  duration_ms: 0.430626
+  type: 'test'
+  ...
+# Subtest: 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces
+ok 16 - 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces
+  ---
+  duration_ms: 12.899595
+  type: 'test'
+  ...
+# Subtest: eight in flight, cancellation, rejection and rescheduling release capacity
+ok 17 - eight in flight, cancellation, rejection and rescheduling release capacity
+  ---
+  duration_ms: 0.681081
+  type: 'test'
+  ...
+# Subtest: queued owners progress under continuing arrivals and repeated invalidation
+ok 18 - queued owners progress under continuing arrivals and repeated invalidation
+  ---
+  duration_ms: 0.561342
+  type: 'test'
+  ...
+# Subtest: active cancellation and expiry release slots without waiting for ignored aborts
+ok 19 - active cancellation and expiry release slots without waiting for ignored aborts
+  ---
+  duration_ms: 0.544726
+  type: 'test'
+  ...
+# Subtest: wire-equivalent arguments share a watch, retention policies stay distinct
+ok 20 - wire-equivalent arguments share a watch, retention policies stay distinct
+  ---
+  duration_ms: 0.165438
+  type: 'test'
+  ...
+# Subtest: 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce
+ok 21 - 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce
+  ---
+  duration_ms: 3.36204
+  type: 'test'
+  ...
+# Subtest: online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests
+ok 22 - online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests
+  ---
+  duration_ms: 358.98125
+  type: 'test'
+  ...
+# Subtest: wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+ok 23 - wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+  ---
+  duration_ms: 1225.321885
+  type: 'test'
+  ...
+# Subtest: process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+ok 24 - process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+  ---
+  duration_ms: 1365.80715
+  type: 'test'
+  ...
+# Subtest: withdrawn server deadlines survive revalidation and held expiry, but real resets clear them
+ok 25 - withdrawn server deadlines survive revalidation and held expiry, but real resets clear them
+  ---
+  duration_ms: 0.903895
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4331.803007

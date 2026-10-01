@@ -81216,6 +81216,43 @@ headroom on a Mac, and every macOS build, the publication's included, would
 have failed. The budget is now 599,000 B with the reason recorded; the
 ratchet still fails new growth past it.
 
+
+## 2026-10-01 — PRL round 0: per-row answers under notification pressure
+
+Bisected the original 1,000-hook online loading regression at nine positions,
+ten runs each. PR landing 096a1b78ef is the first bad listed landing; its
+c3c4ed0976 round-1 commit fails 10/10 while exact parent c586a5904f passes 10/10.
+The required online bound now includes capacity wait, exposing repeated React
+tree walks from individual completions and nested timer cost. The baseline
+trace withdraws with change-timeout; the causal control fails main nine commits
+versus one while eight replacements are already published.
+
+Accepted online answers still publish immediately. Positive notifications
+coalesce under backlog for at most 50 ms in browsers, capped by the retiring
+episode deadline. Empty/null results, old/new row deadlines and withdrawals
+notify immediately. Captured subscriber membership prevents late-join delivery.
+Browser capacity uses postTask or MessageChannel with the same eight starts and
+eight in flight. Local authority, memory, detached handles, replacement owners,
+PQ unrelated-write selection and LL live paths remain unchanged. LLP 3000.023
+§10 records the rule; the report extends PR's full publication audit.
+
+Final per-row-react file: 50 consecutive passes unconfined and 50 consecutive
+passes on CPUs 86–95 under SL's 48 busy workers, seven cases each, fixed runtime
+inputs and no retries. All workers survived and were reaped. Affected tests:
+1,202/1,202; whole guide: 110/110. The single complete scripts/test.sh returned
+exactly `== 0 failure(s) in 1385 s` before the last callback-boundary correction.
+The complete final client stages then passed 5,734 client tests and all 79
+full-count model tests, with ten existing skips and one stale await-census hash
+(ours). Reviewed the unchanged 58-await boundary, updated its hash/classification
+without removing a fault site, and passed the complete 321-case delivery matrix
+in the final lane. The five new deadline/empty controls detect the initial
+batching gap and pass the correction. Build, typecheck and reference checks pass.
+
+Wasm: 1,994,357 B raw / 598,401 B canonical gzip; the 599,000 B budget is unchanged.
+Report: reports/20261001-prl-per-row-loading/REPORT.md, with every failed control,
+rejected candidate, disqualified cohort and final qualification scope retained.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
 ## 2026-10-01 — RY round 6: classify receipt prediction before execution
 
 Merged origin/main d959efe2edf4 first in 077acf1622, preserving both histories.
@@ -81343,3 +81380,33 @@ baseline 0, environmental 0. No full suite this round, as requested.
 Report, re-audit, controls, reproduction and retained evidence:
 reports/20261001-wb-wall-clock-budgets/round1/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-01 — PRL round 1: isolated callbacks and reliable host turns
+
+Read both full READY WITH CHANGES reviews and the round-0 prompt/report. Merged
+origin/main 3572852132 first in ca985cb431, retaining both journal histories,
+RY and WB. Ready batches now catch each raw subscriber exception, report it
+through the existing client-listener console channel, and deliver later
+callbacks. DOM document presence selects the browser's 50 ms window; React
+Native's window = global gets one timer turn. A non-cancellation postTask
+rejection before callback entry falls back to a cancellable timer, so a real
+host task still owns the eight-start reset. Publication, authority, immediate
+withdrawals and the accepted late-host-timer paint limitation are unchanged.
+LLP 3000.023 §10 records the corrections.
+
+Six new controls fail round 0's runtime and pass the fix: timer/drained listener
+errors, three React Native scheduling configurations, and rejected-task recovery.
+All 1,529 affected RL/PQ/PR/LL and delivery-audit cases pass; whole guide 110/110.
+The merged per-row-react file passes 20 consecutive times (140 cases) under SL's
+48 busy workers on CPUs 86–95, fixed inputs, no retries. The original real-clock
+online case separately passes 20/20 under those same workers; WB's canonical
+mock-clock change is retained. All workers survived and were reaped. Cargo/SDK
+builds, typecheck and reference checks pass. Wasm measures 2,015,329 B raw /
+605,001 B gzip under main's unchanged 605,225 B cap. No full suite this round:
+the implementation remains within ready notifications and capacity turns.
+
+Closed the inherited per-row loading ticket. Report and every negative control,
+cohort log and qualification scope: reports/20261001-prl-per-row-loading/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

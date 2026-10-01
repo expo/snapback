@@ -1,0 +1,56 @@
+TAP version 13
+# Subtest: useQuery and usePage keep canonical arguments across renders, preserving loaded pages
+ok 1 - useQuery and usePage keep canonical arguments across renders, preserving loaded pages
+  ---
+  duration_ms: 2739.00156
+  type: 'test'
+  ...
+# Subtest: 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+ok 2 - 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+  ---
+  duration_ms: 2309.753983
+  type: 'test'
+  ...
+# Subtest: ready per-row completions share a React notification turn; publication does not wait for that turn
+ok 3 - ready per-row completions share a React notification turn; publication does not wait for that turn
+  ---
+  duration_ms: 1703.73652
+  type: 'test'
+  ...
+# {"commits":1,"loading":0,"replaced":8}
+# Subtest: a terminal refusal bypasses a held ready-notification turn and retires its pending completions
+ok 4 - a terminal refusal bypasses a held ready-notification turn and retires its pending completions
+  ---
+  duration_ms: 1704.89678
+  type: 'test'
+  ...
+# Subtest: wasm: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 5 - wasm: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 9658.102966
+  type: 'test'
+  ...
+# {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790833841562,"lastStart":1790833844220,"wallIsReal":true,"link":"online"}
+# Subtest: worker: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 6 - worker: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 13903.810821
+  type: 'test'
+  ...
+# {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790833854715,"lastStart":1790833857839,"wallIsReal":true,"link":"online"}
+# Subtest: process: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 7 - process: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 13229.521052
+  type: 'test'
+  ...
+# {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790833868307,"lastStart":1790833871461,"wallIsReal":true,"link":"online"}
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 45627.533968

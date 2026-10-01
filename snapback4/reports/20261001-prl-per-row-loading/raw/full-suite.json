@@ -1,0 +1,15 @@
+{
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 1385.4819304598495
+    }
+  ],
+  "changedInputs": [],
+  "pass": true
+}
