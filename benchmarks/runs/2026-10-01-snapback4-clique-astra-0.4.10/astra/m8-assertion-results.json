@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260930-astra-cal28/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#m8-insights",
+      "note": "On an isolated fresh instance I seeded exactly 3 posts, 4 likes received, 1 repost received, 2 replies received, 2 followers and 1 following; insights returned all six totals exactly. The web Insights screen showed all six labels and 7 day rows."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreography",
+      "note": "Frozen harness m8-a02-insights-like-refresh passed: likes-received went 11 -> 12 on refresh after the other client liked a post (refreshMs 1317.9)."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#m8-insights",
+      "note": "days has exactly 7 entries; days[6].at equals the server's UTC midnight (2026-10-01T00:00:00.000Z) and held all 3 posts created that day."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#m8-insights",
+      "note": "The 6 inactive days were all present with posts=0 and likesReceived=0 and a numeric day key - rendered as zero, not omitted."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#m8-trending",
+      "note": "With the server clock advanced past the old window, the trailing-24 h post with 2 likes ranked first ahead of the two 1-like posts."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#m8-trending",
+      "note": "A post with 3 likes, aged past 24 h by a server clock advance of 25 h, was absent from Trending entirely."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#m8-trending",
+      "note": "The two posts tied at 1 like came back newest-first (tie-later at index 1, tie-earlier at index 2)."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest",
+      "note": "Shortened digest config (120 s period). With every client closed, one seeded period produced exactly one digest for each of the two users with activity. D1 {newFollowers:1, newPostsInFollowing:2, unreadMessages:0, unreadChats:0} and D3 {newFollowers:0, newPostsInFollowing:2, unreadMessages:3, unreadChats:1} both matched the activity I had seeded exactly."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest",
+      "note": "The persona created alongside the others but given no activity received zero digests in that period."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest",
+      "note": "A full following period with no new activity emitted zero digests for any of the five personas."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest-restart",
+      "note": "I SIGTERMed the backend at the exact midpoint of a seeded period and restarted it. The period still produced exactly one digest per active user (R1/R2/R3 one each), with distinct idempotency keys and no duplicates, and the worker effect records across both server logs showed one record per key. The schema emits \"once [principal, periodEnd]\"."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest",
+      "note": "A 5-message group whose only members were two outside personas contributed 0 to the non-member D1 and left D3 at exactly its own 3 DM messages in 1 chat. Only D5, an actual member of that group, received the 5 unread. The job iterates members where .principal = p.principal, so non-member chats are structurally unreachable."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreography",
+      "note": "Frozen harness m8-a13-same-account-message-live passed (visibleMs 2114.3)."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreography",
+      "note": "Frozen harness m8-a14-cross-device-read-state passed (clearVisibleMs 1983.2)."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreography",
+      "note": "Frozen harness m8-a15-dual-offline-convergence passed: both warm-offline clients settled in server-arrival order (firstFlushMs 825.7, secondFlushMs 1370.9) with no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreography",
+      "note": "Frozen harness m8-a16-dual-offline-receipts passed after the dual-offline reconnect."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#m6-native",
+      "note": "No qualifying iOS-simulator artifact exists for the M8 durable-queue restart: artifacts/m8/ios holds a Hermes bundle only (evidence/native-artifacts.json records its hash), and the lane's README states these artifacts \"make no claim of simulator execution\". No screen recording, structured receipts or run manifest was produced, so this observable was never executed on the carrier the assertion names."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#m6-native",
+      "note": "No qualifying iOS-simulator artifact exists for the M8 durable-queue restart: artifacts/m8/ios holds a Hermes bundle only (evidence/native-artifacts.json records its hash), and the lane's README states these artifacts \"make no claim of simulator execution\". No screen recording, structured receipts or run manifest was produced, so this observable was never executed on the carrier the assertion names."
+    }
+  }
+}

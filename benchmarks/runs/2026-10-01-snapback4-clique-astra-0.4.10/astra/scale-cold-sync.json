@@ -1,0 +1,14 @@
+{
+  "pass": true,
+  "acquiredMs": 7197.557833,
+  "conversations": 100,
+  "nodeBaselineRss": 234536960,
+  "nodePeakRss": 292388864,
+  "nativePeakRssKb": 34880,
+  "pids": [
+    73011,
+    73012
+  ],
+  "nativeProof": "published processDevice host, not iOS simulator",
+  "at": 1790837951588
+}

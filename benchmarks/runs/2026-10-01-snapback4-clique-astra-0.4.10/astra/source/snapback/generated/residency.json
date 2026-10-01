@@ -1,0 +1,2559 @@
+{
+  "addMember": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:259:18 (members[conversation = conversation, principal = viewer, role = 'admin'])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:260:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:262:18 (profiles[principal = principal])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = principal); result: exists; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:263:3 (insert members)",
+        "table": "members",
+        "index": "byId",
+        "kind": "insert if absent",
+        "class": "held",
+        "reason": "insert if absent into members: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:160:3 (members insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND",
+      "NOT_GROUP",
+      "USER_NOT_FOUND"
+    ]
+  },
+  "apiHistory": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:432:10 (messages[conversation = conversation])",
+        "table": "messages",
+        "index": "byConversationOrdinal",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConversationOrdinal: sync to members[.conversation] last 500 by byConversationOrdinal; selected byConversationOrdinal (conversation = conversation); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:430:10 (reactionCounts where .message = message.id by .emoji)",
+        "table": "reactions",
+        "index": "byGroup",
+        "kind": "parent-key aggregate source",
+        "class": "horizon",
+        "reason": "reactionCounts: counts current held reactions rows after resolving its parent; parent-key aggregate source reactions by byGroup: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:430:10 (reactionCounts where .message = message.id by .emoji)",
+        "table": "reactions",
+        "index": "byId",
+        "kind": "aggregate source",
+        "class": "horizon",
+        "reason": "aggregate source reactions by byId: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:430:10 (reactionCounts where .message = message.id by .emoji)",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:430:10 (reactionCounts where .message = message.id by .emoji)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:430:100 (reactions[message = message.id, principal = viewer, emoji = .emoji])",
+        "table": "reactions",
+        "index": "$intent:byMessagePrincipal:6a271006272f58a5",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reactions by $intent:byMessagePrincipal:6a271006272f58a5: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab; selected $intent:byMessagePrincipal:6a271006272f58a5 (message = message.id, principal = viewer); result: exists; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:430:100 (reactions[message = message.id, principal = viewer, emoji = .emoji])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:430:100 (reactions[message = message.id, principal = viewer, emoji = .emoji])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:213:17 (members[] where .conversation = m.conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = m.conversation); result: page; synthesized; explicit by; read: members where .conversation = m.conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:217:21 (runs where .conversation = m.conversation and .principal = member.principal and .fromOrdinal <= m.ordinal last 1 by .fromOrdinal)",
+        "table": "runs",
+        "index": "$intent:byConversationPrincipalFromOrdinal:53fef8701f70100a",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan runs by $intent:byConversationPrincipalFromOrdinal:53fef8701f70100a: held, no horizon; selected $intent:byConversationPrincipalFromOrdinal:53fef8701f70100a (conversation = m.conversation, principal = member.principal); result: page; explicit by",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "chatBackground": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:406:18 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:407:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "chatColor": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:402:18 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:404:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "INVALID_COLOR",
+      "NOT_MEMBER"
+    ]
+  },
+  "chatExpiry": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:409:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:410:38 (members[conversation = conversation, principal = viewer, role = 'admin'])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:411:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND"
+    ]
+  },
+  "chatIdentity": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:399:18 (members[conversation = conversation, principal = viewer, role = 'admin'])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:400:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN"
+    ]
+  },
+  "conversationScreen": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:228:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "createGroup": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:253:18 (profiles[principal = other])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = other); result: exists; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:160:3 (members insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NEED_SECOND_MEMBER",
+      "USER_NOT_FOUND"
+    ]
+  },
+  "dailyDigest": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:457:12 (profiles[])",
+        "table": "profiles",
+        "index": "byId",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan profiles by byId: sync public last 2000 by byId; selected byId (); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:458:26 (follows[] where .followed = p.principal and .at >= periodStart and .at < periodEnd)",
+        "table": "follows",
+        "index": "$intent:byFollowedAt:c1ce4354cb562384",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by $intent:byFollowedAt:c1ce4354cb562384: online only; selected $intent:byFollowedAt:c1ce4354cb562384 (followed = p.principal); result: page; synthesized; explicit by; read: follows where .followed = p.principal and .at >= periodStart and .at < periodEnd",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:459:22 (posts[] where .author = p.principal and .parent = null and not .removed and .at >= periodStart and .at < periodEnd)",
+        "table": "posts",
+        "index": "$intent:byAuthorParentRemovedAt:b3faebd09c979869",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by $intent:byAuthorParentRemovedAt:b3faebd09c979869: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byAuthorParentRemovedAt:b3faebd09c979869 (author = p.principal, parent = null, removed = false); result: page; synthesized; explicit by; read: posts where .author = p.principal and .parent = null and not .removed and .at >= periodStart and .at < periodEnd",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:460:17 (follows[] where .follower = p.principal)",
+        "table": "follows",
+        "index": "$intent:byFollower:4bbe7bfcc2748ca1",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by $intent:byFollower:4bbe7bfcc2748ca1: online only; selected $intent:byFollower:4bbe7bfcc2748ca1 (follower = p.principal); result: page; synthesized; explicit by; read: follows where .follower = p.principal",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:461:35 (posts[] where .author = edge.followed and .parent = null and not .removed and .at >= periodStart and .at < periodEnd)",
+        "table": "posts",
+        "index": "$intent:byAuthorParentRemovedAt:b3faebd09c979869",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by $intent:byAuthorParentRemovedAt:b3faebd09c979869: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byAuthorParentRemovedAt:b3faebd09c979869 (author = edge.followed, parent = null, removed = false); result: page; synthesized; explicit by; read: posts where .author = edge.followed and .parent = null and not .removed and .at >= periodStart and .at < periodEnd",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:464:19 (members[] where .principal = p.principal)",
+        "table": "members",
+        "index": "$intent:byPrincipal:0a27093f52d1419b",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byPrincipal:0a27093f52d1419b: held, no horizon; selected $intent:byPrincipal:0a27093f52d1419b (principal = p.principal); result: page; synthesized; explicit by; read: members where .principal = p.principal",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:455:16 (messages[] where .conversation = conversation and .at >= start and .at < end and not .tombstone and .sender != principal and .ordinal > seen)",
+        "table": "messages",
+        "index": "$intent:byConversationTombstoneAt:981bcf7c5768822a",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by $intent:byConversationTombstoneAt:981bcf7c5768822a: sync to members[.conversation] last 500 by byConversationOrdinal; selected $intent:byConversationTombstoneAt:981bcf7c5768822a (conversation = conversation, tombstone = false); result: page; synthesized; explicit by; read: messages where .conversation = conversation and .at >= start and .at < end and not .tombstone and .sender != principal and .ordinal > seen",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "decorations": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:238:10 (messages[conversation = conversation])",
+        "table": "messages",
+        "index": "byConversationOrdinal",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConversationOrdinal: sync to members[.conversation] last 500 by byConversationOrdinal; selected byConversationOrdinal (conversation = conversation); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:213:17 (members[] where .conversation = m.conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = m.conversation); result: page; synthesized; explicit by; read: members where .conversation = m.conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:217:21 (runs where .conversation = m.conversation and .principal = member.principal and .fromOrdinal <= m.ordinal last 1 by .fromOrdinal)",
+        "table": "runs",
+        "index": "$intent:byConversationPrincipalFromOrdinal:53fef8701f70100a",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan runs by $intent:byConversationPrincipalFromOrdinal:53fef8701f70100a: held, no horizon; selected $intent:byConversationPrincipalFromOrdinal:53fef8701f70100a (conversation = m.conversation, principal = member.principal); result: page; explicit by",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:238:130 (profiles[principal = .sender])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .sender); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:238:169 (messages[.quote])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = .quote); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:473:10 (reactions[] where .message = message.id)",
+        "table": "reactions",
+        "index": "$intent:byMessage:2eeab4e953d8e54e",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan reactions by $intent:byMessage:2eeab4e953d8e54e: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab; selected $intent:byMessage:2eeab4e953d8e54e (message = message.id); result: page; synthesized; explicit by; read: reactions where .message = message.id",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:473:10 (reactions[] where .message = message.id)",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:473:10 (reactions[] where .message = message.id)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "deleteMessage": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:393:7 (messages[message])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = message); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:396:3",
+        "table": "messages",
+        "index": "byId",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "DELETE_WINDOW_CLOSED",
+      "NOT_AUTHOR",
+      "NOT_FOUND"
+    ]
+  },
+  "delivered": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:293:8 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:294:12 (messages[conversation = conversation, ordinal = through])",
+        "table": "messages",
+        "index": "byConversationOrdinal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byConversationOrdinal: sync to members[.conversation] last 500 by byConversationOrdinal; selected byConversationOrdinal (conversation = conversation, ordinal = through); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:301:10 (runs[] where .conversation = conversation and .principal = viewer and .fromOrdinal <= through + 1 and .throughOrdinal + 1 >= from)",
+        "table": "runs",
+        "index": "$intent:byConversationPrincipal:883ec38c04b52499",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan runs by $intent:byConversationPrincipal:883ec38c04b52499: held, no horizon; selected $intent:byConversationPrincipal:883ec38c04b52499 (conversation = conversation, principal = viewer); result: page; synthesized; explicit by; read: runs where .conversation = conversation and .principal = viewer and .fromOrdinal <= through + 1 and .throughOrdinal + 1 >= from",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:306:21 (messages where .conversation = conversation and .ordinal > prefix and .ordinal < low first 1 by .ordinal)",
+        "table": "messages",
+        "index": "byConversationOrdinal",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConversationOrdinal: sync to members[.conversation] last 500 by byConversationOrdinal; selected byConversationOrdinal (conversation = conversation); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:313:19 (runs[] where .conversation = conversation and .principal = viewer)",
+        "table": "runs",
+        "index": "$intent:byConversationPrincipal:883ec38c04b52499",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan runs by $intent:byConversationPrincipal:883ec38c04b52499: held, no horizon; selected $intent:byConversationPrincipal:883ec38c04b52499 (conversation = conversation, principal = viewer); result: page; synthesized; explicit by; read: runs where .conversation = conversation and .principal = viewer",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:316:5",
+        "table": "members",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target members by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:174:3 (runs delete rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:173:3 (runs insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:161:3 (members update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:291:1",
+        "table": "server",
+        "index": "",
+        "kind": "dispatch",
+        "class": "server",
+        "reason": "author marked this mutation : server",
+        "rewrite": "remove : server to allow prediction when every site is held"
+      }
+    ],
+    "requires": [
+      "NOT_A_RUN",
+      "NOT_FOUND",
+      "NOT_MEMBER",
+      "RUNS_FULL"
+    ]
+  },
+  "directConversation": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:341:10 (directChats[owner = viewer, peer = other])",
+        "table": "directChats",
+        "index": "$intent:byOwnerPeer:7f917eb5744019a4",
+        "kind": "point",
+        "class": "held",
+        "reason": "point directChats by $intent:byOwnerPeer:7f917eb5744019a4: held, no horizon; selected $intent:byOwnerPeer:7f917eb5744019a4 (owner = viewer, peer = other); result: row or null; named equality columns",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "directPeer": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:226:16 (directChats where .owner = viewer and .conversation = conversation first 1 by .id)",
+        "table": "directChats",
+        "index": "$intent:byConversationOwner:997577dc0330ebed",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan directChats by $intent:byConversationOwner:997577dc0330ebed: held, no horizon; selected $intent:byConversationOwner:997577dc0330ebed (conversation = conversation, owner = viewer); result: page; synthesized; explicit by; read: directChats where .owner = viewer and .conversation = conversation first 1 by .id",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:226:113 (profiles[principal = .peer])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .peer); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "editMessage": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:385:7 (messages[message])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = message); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:391:3",
+        "table": "messages",
+        "index": "byId",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "CAPTION_TOO_LONG",
+      "EDIT_WINDOW_CLOSED",
+      "MESSAGE_DELETED",
+      "NOT_AUTHOR",
+      "NOT_FOUND"
+    ]
+  },
+  "followState": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:104:30 (follows[viewer, principal])",
+        "table": "follows",
+        "index": "$intent:byFollowerFollowed:5656790694399920",
+        "kind": "point",
+        "class": "server",
+        "reason": "point follows by $intent:byFollowerFollowed:5656790694399920: online only; selected $intent:byFollowerFollowed:5656790694399920 (follower = viewer, followed = principal); result: exists; only declared unique key of this arity",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:104:69 (followerCounts[principal])",
+        "table": "followerCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followerCounts by byGroup: online only; selected byGroup (followed = principal); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view followerCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:104:105 (followingCounts[principal])",
+        "table": "followingCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followingCounts by byGroup: online only; selected byGroup (follower = principal); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view followingCounts to inherit its source's sync, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "global": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:94:10 (activity last 20 by .at after c)",
+        "table": "posts",
+        "index": "$intent:byParentRemovedAt:f775821afd30b6e3",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by $intent:byParentRemovedAt:f775821afd30b6e3: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byParentRemovedAt:f775821afd30b6e3 (parent = null, removed = false); result: page; synthesized; explicit by; read: activity last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:94:10 (activity last 20 by .at after c)",
+        "table": "reposts",
+        "index": "$intent:byAt:31b7451344e6727f",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan reposts by $intent:byAt:31b7451344e6727f: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byAt:31b7451344e6727f (); result: page; synthesized; explicit by; read: activity last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:94:53 (posts[.post])",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected byId (id = .post); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:38 (profiles[principal = .author])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .author); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:81 (replyCounts[.id])",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only; selected byGroup (parent = .id); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view replyCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:92:113 (likes[.id, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = .id, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:92:150 (reposts[viewer, .id])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = .id); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:94:90 (profiles[principal = .actor])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .actor); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "groupByTitle": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:230:16 (conversations where .title = title and .kind = 'group' first 1 by .id)",
+        "table": "conversations",
+        "index": "$intent:byKindTitle:e3f07774836edd60",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan conversations by $intent:byKindTitle:e3f07774836edd60: held, no horizon; selected $intent:byKindTitle:e3f07774836edd60 (kind = 'group', title = title); result: page; synthesized; explicit by; read: conversations where .title = title and .kind = 'group' first 1 by .id",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "history": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:236:10 (messages[conversation = conversation])",
+        "table": "messages",
+        "index": "byConversationOrdinal",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConversationOrdinal: sync to members[.conversation] last 500 by byConversationOrdinal; selected byConversationOrdinal (conversation = conversation); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "home": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "timeline.q:2:99 (followingEdges[readerId = viewer, actorId = .actorId, epoch = .epoch])",
+        "table": "followingEdges",
+        "index": "byPair",
+        "kind": "point",
+        "class": "held",
+        "reason": "point followingEdges by byPair: held, no horizon; selected byPair (readerId = viewer, actorId = .actorId); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "timeline.q:2:185 (followingRemovedEvents[eventId = .eventId])",
+        "table": "followingRemovedEvents",
+        "index": "byEvent",
+        "kind": "point",
+        "class": "held",
+        "reason": "point followingRemovedEvents by byEvent: held, no horizon; selected byEvent (eventId = .eventId); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:96:10 (followingFeed[viewer])",
+        "table": "followingFeed",
+        "index": "byReaderPage",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan followingFeed by byReaderPage: sync to .readerId last 1000 by byReaderPage; selected byReaderPage (readerId = viewer); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:96:10 (followingFeed[viewer])",
+        "table": "followingWork",
+        "index": "byReader",
+        "kind": "timeline pending work",
+        "class": "held",
+        "reason": "timeline pending work followingWork by byReader: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:96:54 (posts[.post])",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected byId (id = .post); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:38 (profiles[principal = .author])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .author); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:81 (replyCounts[.id])",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only; selected byGroup (parent = .id); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view replyCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:92:113 (likes[.id, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = .id, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:92:150 (reposts[viewer, .id])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = .id); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:96:91 (profiles[principal = .actor])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .actor); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "inbox": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:224:10 (members where .principal = viewer first 50 by .conversation after c)",
+        "table": "members",
+        "index": "$intent:byPrincipalConversation:704755329aa6ad8c",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byPrincipalConversation:704755329aa6ad8c: held, no horizon; selected $intent:byPrincipalConversation:704755329aa6ad8c (principal = viewer); result: page; synthesized; explicit by; read: members where .principal = viewer first 50 by .conversation after c",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:224:89 (conversations[.conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = .conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:224:127 (unread[.id])",
+        "table": "unread",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point unread by byGroup: held, no horizon; selected byGroup (member = .id); result: scalar; complete maintained group key",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:224:127 (unread[.id])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "aggregate source",
+        "class": "horizon",
+        "reason": "aggregate source messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "insights": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:450:43 (dailyPosts[viewer, key])",
+        "table": "dailyPosts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point dailyPosts by byGroup: online only; selected byGroup (author = viewer, day = key); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view dailyPosts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:450:83 (dailyLikes[viewer, key])",
+        "table": "dailyLikes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point dailyLikes by byGroup: online only; selected byGroup (post.author = viewer, day = key); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view dailyLikes to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:451:19 (originalPostCounts[viewer])",
+        "table": "originalPostCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point originalPostCounts by byGroup: online only; selected byGroup (author = viewer); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view originalPostCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:451:62 (receivedLikes[viewer])",
+        "table": "receivedLikes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point receivedLikes by byGroup: online only; selected byGroup (post.author = viewer); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view receivedLikes to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:451:102 (receivedReposts[viewer])",
+        "table": "receivedReposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point receivedReposts by byGroup: online only; selected byGroup (post.author = viewer); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view receivedReposts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:451:144 (receivedReplies[viewer])",
+        "table": "receivedReplies",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point receivedReplies by byGroup: online only; selected byGroup (parent.author = viewer); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view receivedReplies to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:451:180 (followerCounts[viewer])",
+        "table": "followerCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followerCounts by byGroup: online only; selected byGroup (followed = viewer); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view followerCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:451:215 (followingCounts[viewer])",
+        "table": "followingCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followingCounts by byGroup: online only; selected byGroup (follower = viewer); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view followingCounts to inherit its source's sync, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "me": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:23:10 (profiles[principal = viewer])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "message": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:356:10 (messages[message])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = message); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "messageReactions": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:358:10 (reactions[] where .message = message)",
+        "table": "reactions",
+        "index": "$intent:byMessage:2eeab4e953d8e54e",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan reactions by $intent:byMessage:2eeab4e953d8e54e: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab; selected $intent:byMessage:2eeab4e953d8e54e (message = message); result: page; synthesized; explicit by; read: reactions where .message = message",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:358:10 (reactions[] where .message = message)",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:358:10 (reactions[] where .message = message)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "openDirect": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:241:18 (profiles[principal = other])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = other); result: exists; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:242:10 (directChats[owner = viewer, peer = other])",
+        "table": "directChats",
+        "index": "$intent:byOwnerPeer:7f917eb5744019a4",
+        "kind": "point",
+        "class": "held",
+        "reason": "point directChats by $intent:byOwnerPeer:7f917eb5744019a4: held, no horizon; selected $intent:byOwnerPeer:7f917eb5744019a4 (owner = viewer, peer = other); result: row or null; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:160:3 (members insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "SELF_DM",
+      "USER_NOT_FOUND"
+    ]
+  },
+  "people": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:27:10 (profiles matching q first 20 by .handle after c)",
+        "table": "profiles",
+        "index": "$intent:byWordsDisplayNameHandleHandle:c2897eefbc5f327f",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan profiles by $intent:byWordsDisplayNameHandleHandle:c2897eefbc5f327f: sync public last 2000 by byId; when q present: selected $intent:byWordsDisplayNameHandleHandle:c2897eefbc5f327f (); result: page; synthesized; explicit by; read: profiles matching q first 20 by .handle after c; when q absent: selected $intent:byHandle:f260945a78f076f9 (); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:27:10 (profiles matching q first 20 by .handle after c)",
+        "table": "profiles",
+        "index": "$intent:byHandle:f260945a78f076f9",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan profiles by $intent:byHandle:f260945a78f076f9: sync public last 2000 by byId; when q present: selected $intent:byWordsDisplayNameHandleHandle:c2897eefbc5f327f (); result: page; synthesized; explicit by; read: profiles matching q first 20 by .handle after c; when q absent: selected $intent:byHandle:f260945a78f076f9 (); result: page; explicit by",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "placeAvatar": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:31:3",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "post": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:100:10 (posts[post])",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected byId (id = post); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:38 (profiles[principal = .author])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .author); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:81 (replyCounts[.id])",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only; selected byGroup (parent = .id); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view replyCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:92:113 (likes[.id, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = .id, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:92:150 (reposts[viewer, .id])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = .id); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "profile": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:25:10 (profiles[handle = handle])",
+        "table": "profiles",
+        "index": "$intent:byHandle:f260945a78f076f9",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byHandle:f260945a78f076f9: sync public last 2000 by byId; selected $intent:byHandle:f260945a78f076f9 (handle = handle); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "promoteMember": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:265:18 (members[conversation = conversation, principal = viewer, role = 'admin'])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:266:3",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:161:3 (members update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN"
+    ]
+  },
+  "publish": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:111:20 (posts[parent])",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected byId (id = parent); result: exists; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "insert posts: followingRemovedEvents/byEvent",
+        "table": "followingRemovedEvents",
+        "index": "byEvent",
+        "kind": "timeline transition",
+        "class": "held",
+        "reason": "timeline following implicit input followingRemovedEvents: must be currently held to predict; retained-only coverage queues without rows",
+        "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only"
+      },
+      {
+        "site": "schema.q:112:10 (insert posts)",
+        "table": "posts",
+        "index": "byId",
+        "kind": "recorded attribution",
+        "class": "horizon",
+        "reason": "posts.parent.author implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "EMPTY_POST",
+      "MIXED_MEDIA",
+      "POST_NOT_FOUND",
+      "VIDEO_TOO_LONG"
+    ]
+  },
+  "receiptMember": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:234:10 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "removeMember": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:268:40 (members[conversation = conversation, principal = viewer, role = 'admin'])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; named equality columns",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:269:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:271:14 (runs[] where .conversation = conversation and .principal = principal)",
+        "table": "runs",
+        "index": "$intent:byConversationPrincipal:883ec38c04b52499",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan runs by $intent:byConversationPrincipal:883ec38c04b52499: held, no horizon; selected $intent:byConversationPrincipal:883ec38c04b52499 (conversation = conversation, principal = principal); result: page; synthesized; explicit by; read: runs where .conversation = conversation and .principal = principal",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:273:3 (delete members)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:174:3 (runs delete rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:162:3 (members delete rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND",
+      "NOT_GROUP"
+    ]
+  },
+  "replies": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:102:10 (posts where .parent = post first 20 by .at after c)",
+        "table": "posts",
+        "index": "$intent:byParentAt:35a359a330c102c4",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by $intent:byParentAt:35a359a330c102c4: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byParentAt:35a359a330c102c4 (parent = post); result: page; synthesized; explicit by; read: posts where .parent = post first 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:38 (profiles[principal = .author])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .author); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:81 (replyCounts[.id])",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only; selected byGroup (parent = .id); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view replyCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:92:113 (likes[.id, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = .id, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:92:150 (reposts[viewer, .id])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = .id); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "roster": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:232:10 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:232:67 (profiles[principal = .principal])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .principal); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "saveProfile": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:29:3",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:29:3",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "upsert insert blocked",
+        "class": "horizon",
+        "reason": "profiles has horizon last 2000 by byId (id)",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "searchChat": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:424:10 (messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c)",
+        "table": "messages",
+        "index": "$intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by $intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd: sync to members[.conversation] last 500 by byConversationOrdinal; when q present: selected $intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd (conversation = conversation, tombstone = false); result: page; synthesized; explicit by; read: messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c; when q absent: selected $intent:byConversationTombstoneAt:981bcf7c5768822a (conversation = conversation, tombstone = false); result: page; synthesized; explicit by; read: messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:424:10 (messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c)",
+        "table": "messages",
+        "index": "$intent:byConversationTombstoneAt:981bcf7c5768822a",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by $intent:byConversationTombstoneAt:981bcf7c5768822a: sync to members[.conversation] last 500 by byConversationOrdinal; when q present: selected $intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd (conversation = conversation, tombstone = false); result: page; synthesized; explicit by; read: messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c; when q absent: selected $intent:byConversationTombstoneAt:981bcf7c5768822a (conversation = conversation, tombstone = false); result: page; synthesized; explicit by; read: messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "searchMessages": {
+    "search": {
+      "table": "messages",
+      "index": "$intent:byTombstoneWordsTextAt:16a6a990607440c7",
+      "column": "at",
+      "kind": "Time",
+      "order": "Desc",
+      "limit": 20,
+      "needle": "q",
+      "cursor": "c",
+      "variant": [
+        3079422332,
+        1150116576,
+        4131052370,
+        1856968116
+      ]
+    },
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:426:10 (messages where not .tombstone matching q last 20 by .at after c)",
+        "table": "messages",
+        "index": "$intent:byTombstoneWordsTextAt:16a6a990607440c7",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by $intent:byTombstoneWordsTextAt:16a6a990607440c7: sync to members[.conversation] last 500 by byConversationOrdinal; when q present: selected $intent:byTombstoneWordsTextAt:16a6a990607440c7 (tombstone = false); result: page; synthesized; explicit by; read: messages matching q where not .tombstone last 20 by .at after c; when q absent: selected $intent:byTombstoneAt:0ea93173c2611134 (tombstone = false); result: page; synthesized; explicit by; read: messages matching q where not .tombstone last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:426:10 (messages where not .tombstone matching q last 20 by .at after c)",
+        "table": "messages",
+        "index": "$intent:byTombstoneAt:0ea93173c2611134",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by $intent:byTombstoneAt:0ea93173c2611134: sync to members[.conversation] last 500 by byConversationOrdinal; when q present: selected $intent:byTombstoneWordsTextAt:16a6a990607440c7 (tombstone = false); result: page; synthesized; explicit by; read: messages matching q where not .tombstone last 20 by .at after c; when q absent: selected $intent:byTombstoneAt:0ea93173c2611134 (tombstone = false); result: page; synthesized; explicit by; read: messages matching q where not .tombstone last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "seen": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:319:8 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:320:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:323:5",
+        "table": "members",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target members by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:161:3 (members update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:318:1",
+        "table": "server",
+        "index": "",
+        "kind": "dispatch",
+        "class": "server",
+        "reason": "author marked this mutation : server",
+        "rewrite": "remove : server to allow prediction when every site is held"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND",
+      "NOT_MEMBER",
+      "PAST_LAST_MESSAGE"
+    ]
+  },
+  "send": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:275:18 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:276:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:278:16 (messages[quote])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = quote); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:282:17 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:285:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:287:17 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:195:3 (messages insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:274:1",
+        "table": "server",
+        "index": "",
+        "kind": "dispatch",
+        "class": "server",
+        "reason": "author marked this mutation : server",
+        "rewrite": "remove : server to allow prediction when every site is held"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND",
+      "NOT_MEMBER",
+      "WRONG_CONVERSATION"
+    ],
+    "connected_effects_only": true,
+    "prediction_guards": [
+      "send:22:3"
+    ],
+    "prediction_skips": [
+      "send:22:3:then:1"
+    ],
+    "effect_payload_reads": [
+      {
+        "site": "schema.q:289:92 (profiles[principal = viewer])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "server",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: server-only, feeds an effect; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; named equality columns",
+        "rewrite": ""
+      }
+    ]
+  },
+  "sendMedia": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:360:18 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:364:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:367:17 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:370:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:372:17 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:195:3 (messages insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_FOUND",
+      "NOT_MEMBER",
+      "ONE_MEDIA",
+      "VIDEO_TOO_LONG"
+    ],
+    "connected_effects_only": true,
+    "prediction_guards": [
+      "sendMedia:27:3"
+    ],
+    "prediction_skips": [
+      "sendMedia:27:3:then:1",
+      "sendMedia:27:3:then:2",
+      "sendMedia:27:3:then:3:else:1",
+      "sendMedia:27:3:then:3:then:1",
+      "sendMedia:27:3:then:4"
+    ],
+    "effect_payload_reads": [
+      {
+        "site": "schema.q:374:92 (profiles[principal = viewer])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "server",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: server-only, feeds an effect; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; named equality columns",
+        "rewrite": ""
+      }
+    ]
+  },
+  "sendOnce": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:413:18 (members[conversation, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "point",
+        "class": "held",
+        "reason": "point members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:414:10 (conversations[conversation])",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon; selected byId (id = conversation); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:416:22 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:417:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:419:17 (members[] where .conversation = conversation)",
+        "table": "members",
+        "index": "$intent:byConversation:72fe5aa3c05ebba8",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan members by $intent:byConversation:72fe5aa3c05ebba8: held, no horizon; selected $intent:byConversation:72fe5aa3c05ebba8 (conversation = conversation); result: page; synthesized; explicit by; read: members where .conversation = conversation",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:145:3 (conversations update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:146:3 (conversations after insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:195:3 (messages insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ],
+    "connected_effects_only": true,
+    "prediction_guards": [
+      "sendOnce:20:3"
+    ],
+    "prediction_skips": [
+      "sendOnce:20:3:then:1"
+    ],
+    "effect_payload_reads": [
+      {
+        "site": "schema.q:421:92 (profiles[principal = viewer])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "server",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: server-only, feeds an effect; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; named equality columns",
+        "rewrite": ""
+      }
+    ]
+  },
+  "setFollow": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:115:18 (profiles[principal = principal])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = principal); result: exists; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:118:18 (follows[viewer, principal])",
+        "table": "follows",
+        "index": "$intent:byFollowerFollowed:5656790694399920",
+        "kind": "point",
+        "class": "server",
+        "reason": "point follows by $intent:byFollowerFollowed:5656790694399920: online only; selected $intent:byFollowerFollowed:5656790694399920 (follower = viewer, followed = principal); result: exists; only declared unique key of this arity",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:119:5 (delete follows)",
+        "table": "follows",
+        "index": "$intent:byFollowerFollowed:5656790694399920",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target follows by $intent:byFollowerFollowed:5656790694399920: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:117:5 (insert follows)",
+        "table": "follows",
+        "index": "byId",
+        "kind": "insert if absent blocked",
+        "class": "server",
+        "reason": "follows is online only",
+        "rewrite": ""
+      },
+      {
+        "site": "insert follows: followingWork/byId",
+        "table": "followingWork",
+        "index": "byId",
+        "kind": "timeline transition",
+        "class": "server",
+        "reason": "timeline following implicit input followingWork: server-owned background work",
+        "rewrite": "queue the whole mutation without predicted rows: backfill and cleanup are server-owned"
+      },
+      {
+        "site": "schema.q:117:5 (insert follows)",
+        "table": "follows",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write follows by byId: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "delete follows: followingWork/byId",
+        "table": "followingWork",
+        "index": "byId",
+        "kind": "timeline transition",
+        "class": "server",
+        "reason": "timeline following implicit input followingWork: server-owned background work",
+        "rewrite": "queue the whole mutation without predicted rows: backfill and cleanup are server-owned"
+      },
+      {
+        "site": "schema.q:119:5 (delete follows)",
+        "table": "follows",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write follows by byId: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "SELF_FOLLOW",
+      "USER_NOT_FOUND"
+    ]
+  },
+  "setLike": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:121:18 (posts[post])",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected byId (id = post); result: exists; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:124:18 (likes[post, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = post, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:125:5 (delete likes)",
+        "table": "likes",
+        "index": "$intent:byPostPrincipal:65c8f87906c09688",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target likes by $intent:byPostPrincipal:65c8f87906c09688: sync public last 2000 by $intent:byAt:31b7451344e6727f",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:123:5 (insert likes)",
+        "table": "likes",
+        "index": "byId",
+        "kind": "insert if absent blocked",
+        "class": "horizon",
+        "reason": "likes has horizon last 2000 by $intent:byAt:31b7451344e6727f (at, id)",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:123:5 (insert likes)",
+        "table": "posts",
+        "index": "byId",
+        "kind": "recorded attribution",
+        "class": "horizon",
+        "reason": "likes.post.author implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "POST_NOT_FOUND"
+    ]
+  },
+  "setReaction": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:377:7 (messages[message])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = message); result: row or null; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:380:5",
+        "table": "reactions",
+        "index": "$intent:byMessagePrincipal:6a271006272f58a5",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target reactions by $intent:byMessagePrincipal:6a271006272f58a5: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:380:5",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:380:5",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:380:5",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:381:18 (reactions[message, viewer])",
+        "table": "reactions",
+        "index": "$intent:byMessagePrincipal:6a271006272f58a5",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reactions by $intent:byMessagePrincipal:6a271006272f58a5: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab; selected $intent:byMessagePrincipal:6a271006272f58a5 (message = message, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:381:18 (reactions[message, viewer])",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:381:18 (reactions[message, viewer])",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:382:5 (delete reactions)",
+        "table": "reactions",
+        "index": "$intent:byMessagePrincipal:6a271006272f58a5",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target reactions by $intent:byMessagePrincipal:6a271006272f58a5: sync to members[.$message.conversation] last 1000 by $intent:by$message.conversation:7ac48ff19df578ab",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:382:5 (delete reactions)",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through parent",
+        "class": "horizon",
+        "reason": "read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:382:5 (delete reactions)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:380:5",
+        "table": "reactions",
+        "index": "$intent:byMessagePrincipal:6a271006272f58a5",
+        "kind": "upsert insert blocked",
+        "class": "horizon",
+        "reason": "reactions has horizon last 1000 by $intent:by$message.conversation:7ac48ff19df578ab ($message.conversation, id)",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:380:5 (upsert reactions)",
+        "table": "reactions",
+        "index": "byId",
+        "kind": "upsert",
+        "class": "server",
+        "reason": "upsert on a read-through child queues without a row; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:380:5 (upsert reactions)",
+        "table": "messages",
+        "index": "byId",
+        "kind": "read through capture",
+        "class": "horizon",
+        "reason": "read through capture messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:352:3 (reactions update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "MESSAGE_DELETED",
+      "NOT_FOUND"
+    ]
+  },
+  "setRepost": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:127:18 (posts[post])",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected byId (id = post); result: exists; only declared unique key of this arity",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:130:18 (reposts[viewer, post])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = post); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:131:5 (delete reposts)",
+        "table": "reposts",
+        "index": "$intent:byActorPost:c84e040aca7ddd0e",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target reposts by $intent:byActorPost:c84e040aca7ddd0e: sync public last 1000 by $intent:byAt:31b7451344e6727f",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:129:5 (insert reposts)",
+        "table": "reposts",
+        "index": "byId",
+        "kind": "insert if absent blocked",
+        "class": "horizon",
+        "reason": "reposts has horizon last 1000 by $intent:byAt:31b7451344e6727f (at, id)",
+        "rewrite": ""
+      },
+      {
+        "site": "insert reposts: posts/byId",
+        "table": "posts",
+        "index": "byId",
+        "kind": "timeline transition",
+        "class": "horizon",
+        "reason": "timeline following implicit input posts: a miss past the acquisition floor queues without rows; must be currently held to predict",
+        "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only"
+      },
+      {
+        "site": "insert reposts: followingRemovedEvents/byEvent",
+        "table": "followingRemovedEvents",
+        "index": "byEvent",
+        "kind": "timeline transition",
+        "class": "held",
+        "reason": "timeline following implicit input followingRemovedEvents: must be currently held to predict; retained-only coverage queues without rows",
+        "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only"
+      },
+      {
+        "site": "schema.q:129:5 (insert reposts)",
+        "table": "posts",
+        "index": "byId",
+        "kind": "recorded attribution",
+        "class": "horizon",
+        "reason": "reposts.post.author implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "delete reposts: reposts/byId",
+        "table": "reposts",
+        "index": "byId",
+        "kind": "timeline transition",
+        "class": "horizon",
+        "reason": "timeline following implicit input reposts: a miss past the acquisition floor queues without rows; must be currently held to predict",
+        "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only"
+      }
+    ],
+    "requires": [
+      "POST_NOT_FOUND"
+    ]
+  },
+  "setTyping": {
+    "ephemeral": true,
+    "renews": true,
+    "renewMs": 1000,
+    "runs": "server",
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:335:3",
+        "table": "typing",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target typing by $intent:byConversationPrincipal:4ee87294c2cbfa28: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:335:3",
+        "table": "typing",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "upsert insert blocked",
+        "class": "server",
+        "reason": "typing is online only",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:335:3 (upsert typing)",
+        "table": "typing",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write typing by byId: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:331:3 (typing update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:330:3 (typing insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)",
+        "table": "members",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "stopTyping": {
+    "ephemeral": true,
+    "renewMs": 1000,
+    "runs": "server",
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:337:3 (delete typing)",
+        "table": "typing",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target typing by $intent:byConversationPrincipal:4ee87294c2cbfa28: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:337:3 (delete typing)",
+        "table": "typing",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write typing by byId: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "trending": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:453:10 (posts where .parent = null and not .removed and .at > now - 86400000 and .at <= now last 10 by .likeCount, .at after c)",
+        "table": "posts",
+        "index": "$intent:byParentRemovedHourAtLikeCountAt:0a6f22cb13cf017a",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by $intent:byParentRemovedHourAtLikeCountAt:0a6f22cb13cf017a: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byParentRemovedHourAtLikeCountAt:0a6f22cb13cf017a (parent = null, removed = false, hour = $windowBucket); result: page; synthesized; explicit by; read: posts where .parent = null and not .removed and .at > now - 1d and .at <= now last 10 by .likeCount, .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:38 (profiles[principal = .author])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .author); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:81 (replyCounts[.id])",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only; selected byGroup (parent = .id); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view replyCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:92:113 (likes[.id, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = .id, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:92:150 (reposts[viewer, .id])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = .id); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "typingIn": {
+    "ephemeralReads": [
+      "typing"
+    ],
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:339:10 (typing where .conversation = conversation and .principal != viewer by .principal)",
+        "table": "typing",
+        "index": "$intent:byConversationPrincipal:4ee87294c2cbfa28",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan typing by $intent:byConversationPrincipal:4ee87294c2cbfa28: online only; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation); result: page; explicit by",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "userPosts": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:98:10 (posts where .author = principal and .parent = null last 20 by .at after c)",
+        "table": "posts",
+        "index": "$intent:byAuthorParentAt:8395135e6ab196d8",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by $intent:byAuthorParentAt:8395135e6ab196d8: sync public last 1000 by $intent:byAt:31b7451344e6727f; selected $intent:byAuthorParentAt:8395135e6ab196d8 (author = principal, parent = null); result: page; synthesized; explicit by; read: posts where .author = principal and .parent = null last 20 by .at after c",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:38 (profiles[principal = .author])",
+        "table": "profiles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by $intent:byPrincipal:8097d97fddadb304: sync public last 2000 by byId; selected $intent:byPrincipal:8097d97fddadb304 (principal = .author); result: row or null; named equality columns",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:92:81 (replyCounts[.id])",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only; selected byGroup (parent = .id); result: scalar; complete maintained group key",
+        "rewrite": "remove `online only` from view replyCounts to inherit its source's sync, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:92:113 (likes[.id, viewer])",
+        "table": "$ownKeys:likes",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:likes by byGroup: held, no horizon; selected $intent:byPostPrincipal:65c8f87906c09688 (post = .id, principal = viewer); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:92:150 (reposts[viewer, .id])",
+        "table": "$ownKeys:reposts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "held",
+        "reason": "point $ownKeys:reposts by byGroup: held, no horizon; selected $intent:byActorPost:c84e040aca7ddd0e (actor = viewer, post = .id); result: exists; only declared unique key of this arity",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  }
+}
