@@ -80885,3 +80885,14 @@ are retained and attributed in the report; no assertion or budget was relaxed.
 Report: reports/20260930-gq-guide-start-here/round1/REPORT.md, with every failure
 and rendered-card measurements. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-01 — wasm budget: cross-host headroom
+
+macOS canary 3 on the Apartment mini failed at the wasm build: main at
+91a111cd85 measured 598,528 B gzip there, against a budget of 598,401 B,
+which eb1000 measures exactly on the same tree. Device wasm is not
+byte-reproducible across hosts. The merged lanes (PR, RX, QX, NA, QS, KA,
+GQ) each set the budget to their own Linux measurement, so main had no
+headroom on a Mac, and every macOS build, the publication's included, would
+have failed. The budget is now 599,000 B with the reason recorded; the
+ratchet still fails new growth past it.
