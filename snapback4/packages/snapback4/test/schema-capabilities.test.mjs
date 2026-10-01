@@ -7,14 +7,29 @@ import {once} from 'node:events';
 import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,existsSync,readdirSync,readlinkSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import {homedir,tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {published,loadWasm} from './helpers/published-capabilities.mjs';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
 const binary=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
-const cache=process.env.SNAPBACK4_FENCE_PUBLISHED;
+// The fence runs wherever the published darwin-arm64 binary can: an unset
+// cache used to skip it silently in every lane, so a reply-shape change first
+// surfaced in the 0.4.11 publication dry run. Only `off` opts out explicitly.
+const fenceSetting=process.env.SNAPBACK4_FENCE_PUBLISHED;
+const fenceHost=`${process.platform}-${process.arch}`==='darwin-arm64';
+const cache=fenceSetting==='off'||!fenceHost?undefined:fenceSetting||join(homedir(),'.cache/snapback4/fence-published-0.2.33');
+const fenceSkip=fenceSetting==='off'?'SNAPBACK4_FENCE_PUBLISHED=off':!fenceHost&&'the published 0.2.33 native witness requires darwin-arm64';
+// Same-version device and client ship together, so a published client never
+// reads a current reply: `scopes` (LLP 3000.023 audience dependencies) is the
+// one additive key a current answer may carry. Every other key stays exact.
+function sameAnswer(actual,published,message) {
+  if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
+    const {scopes:_scopes,...rest}=actual.ok;actual={...actual,ok:rest};
+  }
+  assert.deepEqual(actual,published,message);
+}
 const timeline=readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/timeline-capability.q'),'utf8');
 const recorded=`use personas alice
  table posts:
@@ -123,7 +138,7 @@ async function harness(t) {
 }
 
 for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
-  skip:!cache&&'set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory',timeout:hangBudget(8),
+  skip:fenceSkip,timeout:hangBudget(8),
 },async t=>{
   const h=await harness(t),{dir,legacy,current,run,native,app}=h;
   const old=await app('prior',f.plain,f.seed);
@@ -197,14 +212,14 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // It must not create the once-key table. Snapshot that opened store before
   // the separately requested adoption, which must not change any bytes.
   const currentOpen=native(binary,priorPath,null,[query]);
-  assert.equal(currentOpen.status,0,currentOpen.stderr);assert.deepEqual(currentOpen.replies[1],priorAnswer);
+  assert.equal(currentOpen.status,0,currentOpen.stderr);sameAnswer(currentOpen.replies[1],priorAnswer);
   noEffectKeys(priorPath);const beforeBytes=readFileSync(priorPath);
   const denied=native(binary,priorPath,null,[{op:'adopt',backend:future},query]);
   assert.equal(denied.status,0,denied.stdout+denied.stderr);
   assert.equal(dump(priorPath),before,'current adoption refusal preserves the old store');
   noEffectKeys(priorPath);assert.deepEqual(readFileSync(priorPath),beforeBytes,'refused native adoption preserves every SQLite byte');
   assert.deepEqual(native(legacy.binary,priorPath,null,[query]).replies[1],priorAnswer);
-  assert.equal(denied.replies[1].denied.code,'E_SCHEMA_CAPABILITY');assert.deepEqual(denied.replies[2],priorAnswer);
+  assert.equal(denied.replies[1].denied.code,'E_SCHEMA_CAPABILITY');sameAnswer(denied.replies[2],priorAnswer);
   const futurePath=join(dir,'future.sqlite'),futureInstall=native(binary,futurePath,future);
   assert.notEqual(futureInstall.status,0);assert.match(futureInstall.stdout+futureInstall.stderr,/E_SCHEMA_CAPABILITY/);
   assert.equal(existsSync(futurePath),false);
@@ -228,7 +243,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   const futureWeb=new current(undefined,priorKept);futureWeb.drain();
   const webDenial=JSON.parse(futureWeb.call(JSON.stringify({op:'adopt',backend:future})));
   assert.equal(webDenial.denied.code,'E_SCHEMA_CAPABILITY');assert.equal(futureWeb.drain(),'[]');
-  assert.deepEqual(JSON.parse(futureWeb.call(JSON.stringify(query))),webAnswer);futureWeb.free();
+  sameAnswer(JSON.parse(futureWeb.call(JSON.stringify(query))),webAnswer);futureWeb.free();
 
   await next.server.stop();await old.server.stop();
   const store=join(next.cwd,'.snapback4/store.sqlite'),stored=dump(store);
@@ -270,7 +285,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
 });
 
 test('published 0.2.33 control: capability-free bytes and stores stay compatible',{
-  skip:!cache&&'set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory',timeout:hangBudget(9),
+  skip:fenceSkip,timeout:hangBudget(9),
 },async t=>{
   const {dir,legacy,current,run,native,app,start,request}=await harness(t);
   const control='use identity guests\n'+ordinary;

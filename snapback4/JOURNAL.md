@@ -81410,3 +81410,34 @@ Closed the inherited per-row loading ticket. Report and every negative control,
 cohort log and qualification scope: reports/20261001-prl-per-row-loading/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-10-01 — 0.4.11 fence: additive read scopes, and no silent skip
+
+The 0.4.11 publication dry run (black M5, attempt 1, 10:00Z) failed three
+`published 0.2.33 capability fence` cases (timeline-v2, recorded-attribution,
+maintained-column). A current device reply on a 0.2.33 store now carries
+`scopes` (LLP 3000.023 audience dependencies, added by lane PR c3c4ed0976),
+for example `{profiles: [{}]}`; the fence required byte-equal answers. Every
+lane's full suite had skipped the fence because `SNAPBACK4_FENCE_PUBLISHED` was
+unset, so the change first surfaced at publication.
+
+Ruling (Charlie, 2026-10-01): test-only. Device and client ship in one package
+version, so a published client never reads a current reply. Dropping an
+all-wildcard `scopes` on the device would also widen scope-loss invalidation:
+the client treats a missing `scopes` as uncertified (`overlapsScope`,
+`mergeReadScopes`). The fence's three current-vs-published comparisons (native
+open, native refused adoption, current WASM after refused adoption) now permit
+exactly one difference: `scopes` present on the current answer and absent on the
+published one. Every other key stays exact.
+
+The fence now runs by default on darwin-arm64 with cache
+`~/.cache/snapback4/fence-published-0.2.33` (the helper already verifies registry
+integrity on every run). It skips only off darwin-arm64 or with an explicit
+`SNAPBACK4_FENCE_PUBLISHED=off`.
+
+Evidence, on the 0.4.11 cut's built tree (2879c5d021, `target/debug` and wasm):
+the new file passes 4/4 with the publication cache; the original file fails the
+same three cases in the same tree (control); with the variable unset the fence
+downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
+changed.
