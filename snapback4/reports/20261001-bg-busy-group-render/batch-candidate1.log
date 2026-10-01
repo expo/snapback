@@ -1,0 +1,33 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+error[E0599]: no method named `certify_acquisition_group` found for struct `runner::Runner<'a>` in the current scope
+   --> crates/snapback4-core/src/engine/row_views/batch/tests.rs:460:24
+    |
+460 | ...   let result = r.certify_acquisition_group(&schema.maintains[0], &Value::Id("one".into()), &mut [(0, member("mine", "one", "rea...
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates/snapback4-core/src/engine/runner.rs:78:1
+    |
+ 78 | pub struct Runner<'a> {
+    | --------------------- method `certify_acquisition_group` not found for this struct
+    |
+help: there is a method `certify_group` with a similar name
+    |
+460 -         let result = r.certify_acquisition_group(&schema.maintains[0], &Value::Id("one".into()), &mut [(0, member("mine", "one", "reader", 0), 0)]);
+460 +         let result = r.certify_group(&schema.maintains[0], &Value::Id("one".into()), &mut [(0, member("mine", "one", "reader", 0), 0)]);
+    |
+
+error[E0599]: no method named `certify_acquisition_group` found for mutable reference `&mut runner::Runner<'_>` in the current scope
+   --> crates/snapback4-core/src/engine/row_views/batch/tests.rs:514:59
+    |
+514 |                     let mut read = |r: &mut Runner<'_>| r.certify_acquisition_group(&schema.maintains[0], &parent, &mut group);
+    |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: there is a method `certify_group` with a similar name
+    |
+514 -                     let mut read = |r: &mut Runner<'_>| r.certify_acquisition_group(&schema.maintains[0], &parent, &mut group);
+514 +                     let mut read = |r: &mut Runner<'_>| r.certify_group(&schema.maintains[0], &parent, &mut group);
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `snapback4-core` (lib test) due to 2 previous errors

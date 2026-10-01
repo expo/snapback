@@ -126,6 +126,13 @@ export function instrument(destination) {
 // synchronously before the optional subscriber notification batch. Per-row
 // boundary tests cover both row deadlines and the retiring episode; the
 // delivery matrix retains all existing sites, classifications and recipes.
+// BG (LLP 3000.013 §6): app.authorized replaces three authority reads with
+// readScope's one fresh, locked IndexedDB snapshot. Its open/commit awaits
+// remain before facade approval or scoped HTTP dispatch, below the existing
+// classified doFetch boundaries; they admit, settle and persist no delivery.
+// Failure withholds the read/dispatch. web-session-authority covers successful
+// gets followed by transaction abort, peer logout and stale mirror fencing.
+// No outbox fault site, required/optional classification or recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

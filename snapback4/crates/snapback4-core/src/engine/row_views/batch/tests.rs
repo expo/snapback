@@ -392,6 +392,9 @@ struct ObservedRows {
     images: std::cell::RefCell<std::collections::BTreeMap<String, String>>,
 }
 impl Rows for ObservedRows {
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.rows.index_head(table, index, prefix, bounds, dir)
+    }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.rows.get(table, id) }
     fn lookup(&self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.rows.lookup(table, name, index, key) }
     fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
@@ -537,4 +540,59 @@ fn cold_basis_single_candidate_reserves_private_witness_before_storage_access() 
             "control must actually allocate the large private witness: {admitted_allocations:?}");
     }
     assert!(failures.is_empty(), "reserve decoder + witness before storage access:\n{}", failures.join("\n"));
+}
+
+
+#[test]
+fn busy_group_stream_certification_bounds_storage_requests() {
+    let schema = schema(false);
+    let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+    let mut views = Vec::new();
+    for n in 0..50 {
+        let id = format!("member-{n}");
+        rows.put("members", &schema.tables["members"], &member(&id, "busy", &id, if n < 47 { 0 } else { 10000 }), None).unwrap();
+        views.push(view(&id, n % 2 == 0));
+    }
+    for n in 1..=10000 {
+        rows.put("messages", &schema.tables["messages"], &message(&format!("message-{n}"), "busy", n, Value::Null), None).unwrap();
+    }
+    let mut r = runner(&rows, &schema, "reader");
+    let result = r.live_aggregate_batch("unread", &views).unwrap();
+    for (n, row) in result.iter().enumerate() {
+        assert_eq!(row.as_ref().unwrap().field("value"), Ok(&Value::Int(if n < 47 { 10000 } else { 0 })));
+    }
+    assert_eq!(r.rebuilt_source_rows, 10000, "every live source is certified once");
+    let scans = rows.scans.borrow();
+    assert!(scans.len() <= 400, "one bounded head probe plus 32-row source pages; got {} storage requests", scans.len());
+    assert!(scans.iter().all(|(limit, _)| *limit <= 32));
+}
+
+
+#[test]
+fn stream_basis_pages_obey_finite_and_nested_heap_allowances() {
+    let mut schema = schema(false);
+    schema.tables.get_mut("messages").unwrap().columns.insert("payload".into(), crate::schema::ColumnType::Text { max: 262144 });
+    let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+    let member = member("mine", "one", "reader", 0);
+    rows.put("members", &schema.tables["members"], &member, None).unwrap();
+    for n in 1..=96 {
+        let mut row = message(&format!("m{n}"), "one", n, Value::Null);
+        let Value::Row(fields) = &mut row else { unreachable!() };
+        fields.insert("payload".into(), Value::String("x".repeat(262144)));
+        rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
+    }
+    let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
+    for (ceiling, used, limit) in [(decoder * 8, 0, 1), (decoder * 80, decoder * 72, 1), (decoder * 80, 0, 32)] {
+        for nested in [false, true] {
+            rows.scans.borrow_mut().clear();
+            let mut r = runner(&rows, &schema, "reader");
+            r.meter.ceilings.heap_bytes = ceiling; r.meter.heap(used).unwrap();
+            let read = |r: &mut Runner<'_>| r.live_aggregate_batch("unread", &[view("mine", true)]);
+            let result = if nested { r.disclosed_scratch(0, &[], |r, _| read(r)) } else { read(&mut r) }.unwrap();
+            assert_eq!(result[0].as_ref().unwrap().field("value"), Ok(&Value::Int(96)));
+            assert_eq!(r.meter.ceilings.heap_bytes, ceiling);
+            assert!(r.caller_heap_ceiling.is_none());
+            assert!(rows.scans.borrow().iter().all(|(requested, allocation)| *requested == limit && *allocation <= decoder * limit as u64));
+        }
+    }
 }

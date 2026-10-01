@@ -1,0 +1,11 @@
+seeded 10101
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.evaluate: Error: {"state":"failed","id":"01M3WRH0GD5T8CFQGEDCTM0V38","why":{"code":"E_ADMISSION","family":"store","message":"the session store cannot be checked synchronously","site":"app.mutate","rewrite":"use localStorageSessionStore() on the web, then retry with the same id","guide":"writes"}}
+    at window.perform (http://127.0.0.1:39657/page.jsx:206:36)
+    at async <anonymous>:317:30
+    at /home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/measure.mjs:107:30
+
+Node.js v24.13.1
