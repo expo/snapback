@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-01T04:52:33.513460+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.10",
+      "integrity": "sha512-i/8lkMvy/G7Gavid/xSSKkz1tV7fHUiqGEvoxiZFaiCoCRTPLXv+iKvkee+74aIdt/5WjkRFQCnYU2RdsJk8Og=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.10",
+      "integrity": "sha512-iYOSUMQKu2LzP7XFM2fj+rslmrwMqC1AFQve2Zi9bLNUZmsZKo/5sWRNqQC22II/TX5Xy7KxybT7dIHkES44Gw=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.10",
+      "integrity": "sha512-vj1TxJsBdssIxfDeEosnSzZ8r5/++HjQU8umD+D83SqEXQ76z5nS1jlnTzDnrwNdE9vzkkRqwpF7Ip5V47Si3g=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "Second-family calibration: one Grok 4.6 xhigh continuous M1\u2013M6/M8 lane on the apartment M5 Pro mini, independent Opus 5 grade, Grok xhigh holistic score; run beside the Astra-medium lane on the office M1 for the same release; M7 and other builder lanes not run",
+  "runPurpose": "Two-family calibration #28 on the first publication after 0.4.9 (Charlie 2026-09-30: publish 0.4.10 through full qualification, then run the Clique benchmark on it)",
+  "builder": {
+    "model": "grok-4.6",
+    "effort": "xhigh"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "grok-4.6",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-10-01T04:52:33.517049+00:00"
+  },
+  "load": "21:52  up 6 days, 21:39, 14 users, load averages: 5.61 5.49 6.02",
+  "node": "v24.18.0",
+  "host": "MacMini-Apt101-M5-A"
+}
