@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // The real HTTP host: bounded admission, bounded encoding, and slow network
 // clients release the engine. Only this test's recorded child/socket handles
 // are closed. No process discovery, arbitrary port selection, or publication.
@@ -40,7 +41,7 @@ query count():
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test("HTTP admission, encoding, slow readers and idle changes polls", { timeout: 60_000 }, async (t) => {
+test("HTTP admission, encoding, slow readers and idle changes polls", { timeout: hangBudget(73) }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-http-bounds-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -51,7 +52,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
   child.stderr.on("data", (data) => { log += data; });
   const sockets = new Set();
   const headers = { "x-snapback-persona": "alice" };
-  const post = (path, body) => fetch(url + path, { method: "POST", headers, body, signal: AbortSignal.timeout(3000) });
+  const post = (path, body) => fetch(url + path, { method: "POST", headers, body, signal: AbortSignal.timeout(hangBudget()) });
   const ping = async () => {
     const response = await post("/q/ping", "{}");
     assert.equal((await response.json()).data, 1);
@@ -82,14 +83,14 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     return Buffer.concat(chunks);
   }
   try {
-    const deadline = Date.now() + 3000;
-    while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
+    const deadline = performance.now() + hangBudget();
+    while (!url && child.exitCode == null && performance.now() < deadline) await sleep(10);
     assert.ok(url, log || "server did not listen");
     await t.test("the liveness probe requires credentials and has an explicit success body", async () => {
-      const missing = await fetch(url + "/probe", { signal: AbortSignal.timeout(1000) });
+      const missing = await fetch(url + "/probe", { signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(missing.status, 401);
       assert.equal((await missing.json()).denied?.code, "E_AUTH");
-      const admitted = await fetch(url + "/probe", { headers, signal: AbortSignal.timeout(1000) });
+      const admitted = await fetch(url + "/probe", { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(admitted.status, 200);
       const body = await admitted.json();
       assert.deepEqual(body, { ok: true, seq: 0, store_id: body.store_id, viewer: "dev:alice" });
@@ -97,7 +98,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     });
     await t.test("catalog, generated API, native module, and change activity refuse anonymous callers", async () => {
       for (const path of ["/", "/schema", "/api.ts", "/native.wasm", "/changes?since=0&wait=0"]) {
-        const response = await fetch(url + path, { signal: AbortSignal.timeout(500) });
+        const response = await fetch(url + path, { signal: AbortSignal.timeout(hangBudget()) });
         assert.equal(response.status, 401, `${path} must require a principal`);
         assert.equal((await response.json()).denied?.code, "E_AUTH");
       }
@@ -139,7 +140,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const attached = await (await post("/m/attach", JSON.stringify({ args: { photo: { id } } }))).json();
       assert.equal(attached.state, "sent", JSON.stringify(attached));
 
-      const ranged = await fetch(`${url}/assets/${id}`, { headers: { ...headers, range: "bytes=0-0" }, signal: AbortSignal.timeout(3000) });
+      const ranged = await fetch(`${url}/assets/${id}`, { headers: { ...headers, range: "bytes=0-0" }, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(ranged.status, 416);
       assert.equal((await ranged.json()).denied?.code, "E_ASSET_RANGE");
 
@@ -173,22 +174,25 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.equal(pipelined.indexOf(Buffer.from("HTTP/1.1"), 1), -1, "a queued response cannot append bytes after the truncated body");
       writeFileSync(assetPath, png);
 
-      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(5000) });
+      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(complete.status, 200);
       assert.equal((await complete.arrayBuffer()).byteLength, png.length);
-      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(3000) });
+      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(viewed.status, 410);
       assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
     });
     await t.test("eight idle polls leave health/schema/query work free and commits wake subscribers", async () => {
       const controllers = Array.from({ length: 8 }, () => new AbortController());
-      const polls = controllers.map((controller) => fetch(url + "/changes?since=99999999&wait=1", { headers, signal: controller.signal }).then((response) => response.json()).catch(() => null));
+      const initial = await (await fetch(url, { headers })).json();
+      let completed = 0;
+      const responses = controllers.map(controller => fetch(url + `/changes?since=${initial.seq}&wait=25&heartbeat=1`, { headers, signal: controller.signal }));
+      const polls = responses.map(response => response.then(r => r.json()).then(value => { completed++; return value; }).catch(() => null));
       try {
-        await sleep(80);
-        const started = Date.now();
-        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { headers, signal: AbortSignal.timeout(500) })).status, 200);
+        await Promise.all(responses); // A heartbeat proves every request is held.
+        assert.equal(completed, 0);
+        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { headers, signal: AbortSignal.timeout(hangBudget()) })).status, 200);
         await ping();
-        assert.ok(Date.now() - started < 500, "ordinary work must not await the long-poll interval");
+        assert.equal(completed, 0, "ordinary work completes while the eight polls are held");
         const { seq } = await (await fetch(url, { headers })).json();
         const wake = fetch(url + `/changes?since=${seq}&wait=2`, { headers }).then((response) => response.json());
         await sleep(30);
@@ -242,10 +246,11 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       await once(socket, "connect");
       socket.write('POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 12\r\n\r\n{"limit":38}');
       await once(socket, "readable");
+      socket.pause();
       try {
-        const started = Date.now();
         await ping();
-        assert.ok(Date.now() - started < 500, "slow output must not hold the engine lock");
+        assert.equal(socket.readableFlowing, false, "the engine answers while output remains paused");
+        assert.equal(socket.destroyed, false, "the blocked response is still held");
       } finally { socket.destroy(); sockets.delete(socket); }
     });
   } catch (error) {

@@ -1,3 +1,4 @@
+import { withHangGuard, waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -6,7 +7,7 @@ const q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'revoke
 const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const ready = (store_id, seq, data = ['private']) => ({ store_id, seq, data, complete: true, tables: ['secrets'] });
 const head = (store_id, seq) => ({ store_id, seq, generation: 1, tables: ['secrets'] });
-const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('store transition did not settle'); };
+const until = async check => { return awaitState(check); };
 const blocked = signal => new Promise((_, reject) => { if (signal?.aborted) reject(Error('closed')); else signal?.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
 for (const source of ['query', 'mutation', 'changes', 'probe']) for (const replacement of [true, false]) {
@@ -44,7 +45,7 @@ for (const source of ['query', 'mutation', 'changes', 'probe']) for (const repla
     else change.resolve();
     await until(() => watch.getSnapshot().denied?.code === code);
     // These must resolve before the outstanding HTTP body settles.
-    for (const write of await Promise.race([Promise.all(submitted), delay(500).then(() => assert.fail('terminal writes did not settle before the HTTP body'))])) {
+    for (const write of await withHangGuard(() => Promise.all(submitted), 'terminal writes did not settle before the HTTP body')) {
       assert.equal(write.state, 'failed'); assert.equal(write.why.code, code);
       assert.match(write.why.message, /may have executed.*unknown/); assert.ok(write.why.site && write.why.rewrite);
     }

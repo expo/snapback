@@ -1,3 +1,5 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -30,7 +32,7 @@ query totals():
 `;
 
 test('published 0.2.33 rejects F2 stores, serving, backend opening and device adoption', {
-  skip: !legacy && 'set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary', timeout: 90_000,
+  skip: !legacy && 'set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary', timeout: hangBudget(14),
 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-recorded-compatibility-'));
   const children = [];
@@ -40,7 +42,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   });
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), source);
-  const run = (bin, args, input = '', cwd = dir) => spawnSync(bin, args, {cwd, input, encoding:'utf8', timeout:20_000});
+  const run = (bin, args, input = '', cwd = dir) => spawnSync(bin, args, {cwd, input, encoding:'utf8', timeout:hangBudget()});
   const version = run(legacy, ['--version']);
   assert.equal(createHash('sha256').update(readFileSync(legacy)).digest('hex'),'6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6','published darwin-arm64 0.2.33 bytes');
   assert.match(version.stdout, /snapback4 0\.2\.33/);
@@ -49,11 +51,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   let log = '';
   for (const stream of [child.stdout,child.stderr]) stream.on('data', data => {log += data;});
   let url;
-  for (let i=0; i<1500; i++) {
-    url = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
-    if (url) break;
-    assert.equal(child.exitCode,null,log); await delay(20);
-  }
+  url = await awaitState(() => { assert.equal(child.exitCode,null,log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "compatibility server", { diagnostics: () => log });
   assert.ok(url, log);
   const seeded = await fetch(url+'/seed', {method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify([{table:'posts',row:{id:'p',authorId:'dev:alice'}},{table:'likes',row:{id:'l',postId:'p'}}])});
   assert.equal(seeded.status,200,await seeded.text());
@@ -103,12 +101,8 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
     const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']});
     const exited=once(child,'exit'); children.push({child,exited});
     let log=''; for (const stream of [child.stdout,child.stderr]) stream.on('data',data=>{log+=data;});
-    for (let i=0;i<1500;i++) {
-      const url=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
-      if (url) return {child,exited,url};
-      assert.equal(child.exitCode,null,log); await delay(20);
-    }
-    assert.fail(log);
+    const url = await awaitState(() => { assert.equal(child.exitCode,null,log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "compatibility server", { diagnostics: () => log });
+    return {child,exited,url};
   };
   const plainDev=await start(binary,['dev','--no-watch','--port','0'],plain);
   const plainResponse=await fetch(plainDev.url+'/schema',{headers:{'x-snapback-persona':'alice'}});

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018: a live query that reads connected[p] re-runs on the interval
 // its server names. Alice's observed online mark for Bob turns when Bob's
 // client starts polling and when his grace ends, on every client tier, and
@@ -18,9 +19,10 @@ import { memoryPersistence, webDevice } from "../dist/web.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, ms = 5000) {
+async function until(check) {
   const start = Date.now();
-  for (;;) { if (await check()) return Date.now() - start; if (Date.now() - start >= ms) return null; await sleep(20); }
+  await awaitState(check);
+  return Date.now() - start;
 }
 const schema = `use personas alice, bob
 use identity
@@ -35,7 +37,7 @@ query withNotes(p: principal):
   return { online: exists connected[p], notes: count(notes where .owner = viewer) }
 `;
 
-for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mark follows the principal it reads`, { timeout: 60000 }, async t => {
+for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mark follows the principal it reads`, { timeout: hangBudget(14) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-presence-live-"));
   mkdirSync(join(dir, "snapback")); mkdirSync(join(dir, "devices"));
   writeFileSync(join(dir, "snapback/schema.q"), schema);
@@ -46,7 +48,7 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   server.stderr.on("data", data => { log += data; });
   const clients = [];
   t.after(async () => { for (const client of clients) await client.close().catch(() => {}); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });
-  assert.notEqual(await until(() => url, 30000), null, log);
+  assert.notEqual(await until(() => url), null, log);
   const native = processDevice({ binary, dir: join(dir, "devices"), spawn: (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
   const options = persona => ({ url, persona, waitSeconds: 25 });
@@ -67,7 +69,7 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const bob = createClient(options("bob"));
   clients.push(bob);
   const bobWatch = bob.observe(query, { p: "dev:alice" });
-  const cameOnline = await until(() => online() === true, 8000);
+  const cameOnline = await until(() => online() === true);
   assert.notEqual(cameOnline, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob came online`);
   // The count rides along; a client that restarts its poll briefly holds two.
   assert.ok(mark.getSnapshot().data.count >= 1);
@@ -75,7 +77,7 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   // notification carries anything but an answer.
   let loading = 0, refreshes = 0;
   const stop = mark.subscribe(() => { if ("data" in mark.getSnapshot()) refreshes++; else loading++; });
-  await sleep(6000);
+  await awaitState(() => refreshes >= 1 && notes.getSnapshot()?.data?.online === true, "presence refresh after initial answer");
   stop();
   assert.equal(loading, 0, `a presence refresh showed ${loading} snapshots other than an answer`);
   assert.ok(refreshes >= 1 && online() === true, "the mark refreshed and Bob is still online");
@@ -93,8 +95,8 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const started = Date.now();
   const wentAway = await until(async () => {
     assert.equal(await advance(), 200);
-    return await until(() => online() === false, 6500) !== null;
-  }, 20000);
+    return online() === false;
+  });
   assert.notEqual(wentAway, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob's grace ended`);
   t.diagnostic(JSON.stringify({ tier, cameOnlineMs: cameOnline, wentAwayAfterCloseMs: Date.now() - started }));
 });

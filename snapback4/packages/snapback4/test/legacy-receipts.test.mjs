@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Upgrade evidence is read from actual old-format outbox rows. Both stores
 // replay the original ID against a real server's refused idempotency record.
 import test from 'node:test';
@@ -71,7 +72,7 @@ test('an aborted replay receipt retains its original-store proof for persistence
 });
 
 for (const tier of ['memory', 'sqlite']) for (const field of ['observed_seq', 'sent_seq', 'old-page']) for (const prior of ['empty', 'replacement']) {
-  test(`${tier}: legacy ${field} with ${prior} history replays NOT_ADMIN without executing`, { timeout: 30_000 }, async t => {
+  test(`${tier}: legacy ${field} with ${prior} history replays NOT_ADMIN without executing`, { timeout: hangBudget(36) }, async t => {
     const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-receipt-'));
     const sourceDir = join(dir, 'snapback'); mkdirSync(sourceDir); writeFileSync(join(sourceDir, 'schema.q'), source);
     const host = await devServer({ sourceDir, seed: [{ table: 'counters', row: { id: 'audit', admin: false, total: 0 } }] });

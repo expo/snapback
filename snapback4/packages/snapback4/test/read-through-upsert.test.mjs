@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.007#20.5 — the actual wasm and process devices share the absence proof.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +23,7 @@ query reactionsFor(message: messages):
 mutation setReaction(message: messages, emoji: text <=32):
   return upsert reactions[message, viewer] { emoji }
 `;
-for(const tier of ['wasm','process']) for(const coverage of ['whole','horizon','missing']) test(`${tier}: read-through upsert ${coverage==='whole'?'predicts both arms and server refusal rolls back':coverage+' child coverage queues'}`,{timeout:60000},async t=>{
+for(const tier of ['wasm','process']) for(const coverage of ['whole','horizon','missing']) test(`${tier}: read-through upsert ${coverage==='whole'?'predicts both arms and server refusal rolls back':coverage+' child coverage queues'}`,{timeout:hangBudget(21)},async t=>{
  const host=await server(t,tier,starter+(coverage==='horizon'?reactions.replace('  sync\nquery','  sync last 1 by .id\nquery'):reactions.replace('  sync\nquery','  retain delivered-history\n  sync\nquery')));
  assert.equal((await host.post('/seed',[
   {table:'conversations',row:{id:'c',creatorId:'dev:bob',title:'Room'}},
@@ -55,7 +56,7 @@ for(const tier of ['wasm','process']) for(const coverage of ['whole','horizon','
  const missing=await admit('qx-missing','like','unheld');assert.equal(missing.predictable,false);assert.deepEqual(missing.predicted,[]);
 });
 
-for (const tier of ['wasm','process']) for (const constraint of ['unique byEmoji: emoji','cap 1 by emoji']) test(`${tier}: held upsert queues before entering uncovered ${constraint}`,{timeout:60000},async t=>{
+for (const tier of ['wasm','process']) for (const constraint of ['unique byEmoji: emoji','cap 1 by emoji']) test(`${tier}: held upsert queues before entering uncovered ${constraint}`,{timeout:hangBudget(10)},async t=>{
  const host=await server(t,tier,starter+reactions.replace('  cap 50 by message',`  ${constraint}\n  cap 50 by message`));
  const seed=[];
  for (const [c,m,r,emoji] of [['c','m','held','old'],['hidden-c','hidden-m','hidden-r','taken']]) {

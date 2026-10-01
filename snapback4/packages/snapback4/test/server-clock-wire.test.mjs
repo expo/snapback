@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -28,10 +29,11 @@ async function member(url, principal) {
 
 test('wire stamps successes and refusals on sync, changes, query, mutation and session endpoints', async t => {
   const f = await devServer({ seed: [], extraSource, clockOffset: '+25h' }); t.after(() => f.close());
+  const began = Date.now();
   let revision;
   const stamped = response => {
     const at = Number(response.headers.get('x-snapback-time'));
-    assert.ok(Number.isSafeInteger(at) && Math.abs(at - Date.now() - 90_000_000) < 1000, `${response.url}: ${at}`);
+    assert.ok(Number.isSafeInteger(at) && at >= began + 90_000_000 && at <= Date.now() + 90_000_000, `${response.url}: ${at}`);
     revision ??= response.headers.get('x-snapback-clock');
     assert.equal(response.headers.get('x-snapback-clock'), revision);
     assert.match(response.headers.get('access-control-expose-headers'), /X-Snapback-Time/);
@@ -49,7 +51,7 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
   const sent = rows.find(row => row.body === 'server stamp');
   assert.ok(sent, 'read back the committed mutation row');
   assert.notEqual(sent.at, 1, 'the client-supplied mutation now is never authoritative');
-  assert.ok(Math.abs(sent.at - Date.now() - 90_000_000) < 1000);
+  assert.ok(sent.at >= began + 90_000_000 && sent.at <= Date.now() + 90_000_000);
   stamped(await fetch(f.api + '/changes?wait=0', { headers: { authorization: `Bearer ${token}` } }));
   for (const path of ['/sync', '/q/media.latestClock', '/m/media.sendClock', '/auth/refresh', '/auth/logout-all'])
     stamped((await post(f.api, path, {}, 'invalid')).response);
@@ -168,11 +170,10 @@ test('a DeviceCore backfill refusal blocks startup without sending or retiring e
   assert.equal(saved.find(c => c.s === 'm' && c.k === 'client:server-clock-floor')?.v, undefined);
   failBackfill = false;
   client = await createLocalClient(options);
-  for (let n = 0; n < 100; n++) {
+  await awaitState(async () => {
     await client.sync();
-    if (!(await core.call({ op: 'queued' })).ok.length) break;
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
+    return !(await core.call({ op: 'queued' })).ok.length;
+  }, 'queued admission settles');
   assert.equal(requests.length, 1, 'retry sends the preserved admission once');
   assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
   assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, String(entry.now));
@@ -277,7 +278,7 @@ for (const [clockOffset, staleLast] of [['+25h', false], ['-31d', false], ['-31d
       }
       return { ...core, call: (request, ...rest) => {
         if (failClock && request.op === 'set_meta' && request.key === 'server-clock') return Promise.reject(Error('clock storage unavailable'));
-        if (typeof request.now === 'number') observed.push(request);
+        if (typeof request.now === 'number') observed.push({ ...request, observedAt: Date.now() });
         return core.call(request, ...rest);
       }, close: async () => { closedCores++; await core.close(); } };
     } },
@@ -294,7 +295,7 @@ for (const [clockOffset, staleLast] of [['+25h', false], ['-31d', false], ['-31d
   assert.equal((await client.mutate(op, { conversationId: 'room', body: 'native offline' })).state, 'pending');
   const first = await client.query(query, { conversationId: 'room' });
   assert.equal(first.data[0].body, 'native offline'); assert.equal(first.data[0].pending, true);
-  assert.ok(observed.filter(r => ['query', 'admit'].includes(r.op)).every(r => Math.abs(r.now - Date.now() - expected) < 2000));
+  assert.ok(observed.filter(r => ['query', 'admit'].includes(r.op)).every(r => Math.abs(r.now - r.observedAt - expected) < 2000));
   const issued = client.now(); await client.close();
   const { session: _, ...reopen } = options;
   client = await createLocalClient(reopen);

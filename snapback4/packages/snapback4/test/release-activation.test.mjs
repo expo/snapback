@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // CLI activation and inspection over real persisted stores. Test processes
 // and deployment directories are isolated and removed by their owner.
 import test from "node:test";
@@ -35,7 +36,7 @@ function fixture(t) {
   mkdirSync(join(app, "snapback"), { recursive: true });
   const schema = join(app, "snapback/schema.q");
   writeFileSync(schema, source);
-  const invoke = (...args) => spawnSync(binary, args, { cwd: app, encoding: "utf8", timeout: 4000 });
+  const invoke = (...args) => spawnSync(binary, args, { cwd: app, encoding: "utf8", timeout: hangBudget() });
   const run = (...args) => {
     const result = invoke(...args);
     assert.equal(result.error, undefined, result.error?.message);
@@ -64,10 +65,10 @@ async function serve(deployment, inspect) {
   child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   try {
-    const deadline = Date.now() + 3000;
-    while (!url && child.exitCode == null && Date.now() < deadline) await delay(10);
+    const deadline = performance.now() + hangBudget();
+    while (!url && child.exitCode == null && performance.now() < deadline) await delay(10);
     assert.ok(url, log || "release server did not listen");
-    const anonymous = await fetch(url + "/schema", { signal: AbortSignal.timeout(2000) });
+    const anonymous = await fetch(url + "/schema", { signal: AbortSignal.timeout(hangBudget()) });
     assert.equal(anonymous.status, 401);
     assert.equal((await anonymous.json()).denied?.code, "E_AUTH");
     const signedIn = await (await fetch(url + "/auth/guest", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
@@ -79,7 +80,7 @@ async function serve(deployment, inspect) {
   }
 }
 
-test("rollback then deploy keeps immutable source identities and serving only attaches", { timeout: 15000 }, async (t) => {
+test("rollback then deploy keeps immutable source identities and serving only attaches", { timeout: hangBudget(3) }, async (t) => {
   const { app, deployment, schema, run } = fixture(t);
   const database = join(deployment, "store.sqlite");
   run("deploy", deployment);
@@ -106,7 +107,7 @@ test("rollback then deploy keeps immutable source identities and serving only at
   // A crashed pointer-copy update cannot override the database's current release.
   writeFileSync(join(deployment, "current"), "1\n");
   await serve(deployment, async (url, headers) => {
-    const response = await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) });
+    const response = await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(hangBudget()) });
     const backend = await response.json();
     assert.equal(backend.generation, 4);
     assert.deepEqual(backend.programs.map((p) => p.name).sort(), ["add", "q"]);
@@ -115,7 +116,7 @@ test("rollback then deploy keeps immutable source identities and serving only at
   assert.deepEqual(state(database), before, "startup must not activate source or advance generation");
 });
 
-test("a live release refuses deploy and rollback until the server stops", { timeout: 15000 }, async (t) => {
+test("a live release refuses deploy and rollback until the server stops", { timeout: hangBudget(3) }, async (t) => {
   const { deployment, schema, invoke, run } = fixture(t);
   run("deploy", deployment);
   const database = join(deployment, "store.sqlite"), before = state(database);
@@ -128,7 +129,7 @@ test("a live release refuses deploy and rollback until the server stops", { time
       assert.match(blocked.stderr, /store is live/);
       assert.deepEqual(state(database), before, "a refused activation must not move the database");
     }
-    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) })).json();
+    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(hangBudget()) })).json();
     assert.equal(backend.generation, Number(before.metadata.generation));
     assert.deepEqual(backend.programs.find((p) => p.name === "q").body, [{ Return: { Literal: { Int: 1 } } }]);
   });
@@ -136,7 +137,7 @@ test("a live release refuses deploy and rollback until the server stops", { time
   assert.equal(state(database).metadata.release, "2", "activation proceeds after the serving process releases the lock");
 });
 
-test("required pointer and ledger failures happen before database activation", { timeout: 15000 }, (t) => {
+test("required pointer and ledger failures happen before database activation", { timeout: hangBudget(1) }, (t) => {
   const { deployment, schema, invoke, run } = fixture(t);
   run("deploy", deployment);
   const database = join(deployment, "store.sqlite"), before = state(database);
@@ -161,7 +162,7 @@ test("required pointer and ledger failures happen before database activation", {
   assert.equal(readFileSync(pointer, "utf8"), "1\n");
 });
 
-test("data and doctor inspect persisted state despite destructive or broken source edits", { timeout: 15000 }, (t) => {
+test("data and doctor inspect persisted state despite destructive or broken source edits", { timeout: hangBudget(1) }, (t) => {
   const { app, schema, invoke, run } = fixture(t);
   run("run", "add", "--as", "alice");
   const database = join(app, ".snapback4/store.sqlite"), before = state(database);
@@ -179,7 +180,7 @@ test("data and doctor inspect persisted state despite destructive or broken sour
   assert.deepEqual(state(database), before);
 });
 
-test("serving edited release schema or programs refuses without adopting them", { timeout: 15000 }, (t) => {
+test("serving edited release schema or programs refuses without adopting them", { timeout: hangBudget(1) }, (t) => {
   const { deployment, invoke, run } = fixture(t);
   run("deploy", deployment);
   const database = join(deployment, "store.sqlite"), before = state(database);
@@ -194,7 +195,7 @@ test("serving edited release schema or programs refuses without adopting them", 
   }
 });
 
-test("legacy pointer deployments upgrade through deploy, never implicit serving", { timeout: 15000 }, async (t) => {
+test("legacy pointer deployments upgrade through deploy, never implicit serving", { timeout: hangBudget(3) }, async (t) => {
   const { deployment, invoke, run } = fixture(t);
   run("deploy", deployment);
   const database = join(deployment, "store.sqlite");
@@ -208,7 +209,7 @@ test("legacy pointer deployments upgrade through deploy, never implicit serving"
   assert.equal(legacy.status, 1);
   assert.match(legacy.stderr, /deploy its source once before serving/);
   assert.deepEqual(state(database), before);
-  const doctor = spawnSync(binary, ["doctor", "--json"], { cwd: join(deployment, "releases/1"), encoding: "utf8", timeout: 4000 });
+  const doctor = spawnSync(binary, ["doctor", "--json"], { cwd: join(deployment, "releases/1"), encoding: "utf8", timeout: hangBudget() });
   assert.equal(doctor.status, 1, "legacy stores have no persisted backend to attach to yet");
   assert.equal(JSON.parse(doctor.stdout).storage.row_count, 0, "legacy metadata remains inspectable");
   assert.deepEqual(state(database), before);
@@ -217,13 +218,13 @@ test("legacy pointer deployments upgrade through deploy, never implicit serving"
   assert.equal(upgraded.metadata.release, "2");
   assert.equal(upgraded.metadata.generation, "2");
   await serve(deployment, async (url, headers) => {
-    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) })).json();
+    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(hangBudget()) })).json();
     assert.equal(backend.generation, 2);
   });
   assert.deepEqual(state(database), upgraded);
 });
 
-test("local dev and run cannot reactivate source inside a deployed release", { timeout: 15000 }, async (t) => {
+test("local dev and run cannot reactivate source inside a deployed release", { timeout: hangBudget(1) }, async (t) => {
   const { deployment, schema, run } = fixture(t);
   run("deploy", deployment);
   await serve(deployment, async () => {}); // Creates release 1's shared-store link.
@@ -231,7 +232,7 @@ test("local dev and run cannot reactivate source inside a deployed release", { t
   run("deploy", deployment);
   const database = join(deployment, "store.sqlite"), before = state(database);
   for (const args of [["run", "q", "--as", "alice"], ["dev", "--port", "0", "--no-watch"]]) {
-    const result = spawnSync(binary, args, { cwd: join(deployment, "releases/1"), encoding: "utf8", timeout: 4000 });
+    const result = spawnSync(binary, args, { cwd: join(deployment, "releases/1"), encoding: "utf8", timeout: hangBudget() });
     assert.equal(result.error, undefined, "the local verb must refuse before serving or running source");
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /this store belongs to a deployment/);
@@ -276,7 +277,7 @@ test("run says when a job ignores --as and executes as the system", (t) => {
 
 // @ref LLP 3000.008.004#4-operational-completeness-on-the-supported-target — a stopped full-release copy is a new, isolated recovery boundary.
 // @ref LLP 3000.011.005.000#4 — password credentials and session rotation survive the same isolated recovery point.
-test("stopped full-release restore preserves its recovery point and stays separate from the original", { timeout: 20000 }, async (t) => {
+test("stopped full-release restore preserves its recovery point and stays separate from the original", { timeout: hangBudget(25) }, async (t) => {
   const { app, deployment, schema, invoke, run } = fixture(t);
   const recoverySource = `use identity
 effect notify
@@ -309,14 +310,14 @@ schedule checkpointDaily every 1d: checkpoint
     } finally { db.close(); }
   };
   const post = async (url, headers, path, body) => {
-    const response = await fetch(url + path, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(2000) });
+    const response = await fetch(url + path, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(hangBudget()) });
     assert.equal(response.status, 200);
     return response.json();
   };
-  // Advance only the fixture's persisted schedule clock so the real scheduler
-  // produces a parked job promptly; no synthetic job/effect/dedup rows.
+  // Keep the schedule held while identity/upload/mutation setup creates its
+  // input. A slow setup must not let the job run against an empty table.
   let db = new DatabaseSync(database);
-  db.prepare("INSERT INTO _meta(key, value) VALUES ('schedule:checkpointDaily', '0')").run();
+  db.prepare("INSERT INTO _meta(key, value) VALUES ('schedule:checkpointDaily', ?)").run(String(Date.now() + 86400000));
   db.close();
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII=", "base64");
   const account = { email: "recovery@example.test", password: "disposable fixture password" };
@@ -330,8 +331,16 @@ schedule checkpointDaily every 1d: checkpoint
     asset = uploaded.asset.id;
     committed = await post(url, headers, "/m/add", { id: "before-backup", args: { body: "at backup", photo: { id: asset } } });
     assert.equal(committed.state, "sent");
-    const deadline = Date.now() + 4000;
-    while (!recoveryState(deployment).durable._jobs.some((job) => job.state === "parked") && Date.now() < deadline) await delay(25);
+  });
+  // The input now exists and the server is stopped. Advance only the fixture's
+  // persisted schedule clock, then let the real scheduler create/park the job.
+  // No synthetic job/effect/dedup rows and no concurrent external store writer.
+  db = new DatabaseSync(database);
+  db.prepare("UPDATE _meta SET value = '0' WHERE key = 'schedule:checkpointDaily'").run();
+  db.close();
+  await serve(deployment, async () => {
+    const deadline = performance.now() + hangBudget();
+    while (!recoveryState(deployment).durable._jobs.some((job) => job.state === "parked") && performance.now() < deadline) await delay(25);
     assert.equal(recoveryState(deployment).durable._jobs[0]?.state, "parked");
   }); // Owned server (including its scheduler) has exited before any copy.
   // Hold the fixture clock beyond this experiment, so restored startup cannot
@@ -354,7 +363,7 @@ schedule checkpointDaily every 1d: checkpoint
   const backup = join(dirname(app), "backup"), restored = join(dirname(app), "restored");
   const copy = (from, to) => {
     assert.equal(existsSync(to), false, "copy into a new directory, never merge a restore");
-    const copied = spawnSync("cp", ["-a", from, to], { encoding: "utf8", timeout: 4000 });
+    const copied = spawnSync("cp", ["-a", from, to], { encoding: "utf8", timeout: hangBudget() });
     assert.equal(copied.error, undefined);
     assert.equal(copied.status, 0, copied.stderr);
   };
@@ -439,7 +448,7 @@ schedule checkpointDaily every 1d: checkpoint
 });
 
 // @ref LLP 3000.011.005.000#4 — real schedule admission is durable before any chunk, across a killed serving process.
-test("a queued scheduled job survives serving process death and runs once after restart", { timeout: 15000 }, async (t) => {
+test("a queued scheduled job survives serving process death and runs once after restart", { timeout: hangBudget(12) }, async (t) => {
   const { deployment, schema, run } = fixture(t);
   writeFileSync(schema, `use identity guests
 effect notify
@@ -490,8 +499,8 @@ schedule resumeDaily every 1d: resume
   child.stderr.on("data", data => { log += data; });
   let queued;
   try {
-    const deadline = Date.now() + 3000;
-    while (!ready && child.exitCode == null && Date.now() < deadline) await delay(5);
+    const deadline = performance.now() + hangBudget();
+    while (!ready && child.exitCode == null && performance.now() < deadline) await delay(5);
     assert.ok(ready, log || "release server did not listen");
     [queued] = jobs();
     assert.equal(jobs().length, 1);
@@ -505,8 +514,8 @@ schedule resumeDaily every 1d: resume
   }
   assert.equal(jobs()[0].state, "queued");
   await serve(deployment, async (url, headers) => {
-    const deadline = Date.now() + 4000;
-    while (jobs()[0]?.state !== "done" && Date.now() < deadline) await delay(20);
+    const deadline = performance.now() + hangBudget();
+    while (jobs()[0]?.state !== "done" && performance.now() < deadline) await delay(20);
     assert.deepEqual(jobs(), [{ id: queued.id, state: "done", chunks: 1, rows_written: 1 }]);
     const rows = await (await fetch(url + "/q/q", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: '{"args":{}}' })).json();
     assert.deepEqual(rows.data.map(row => row.runs), [1]);
@@ -521,7 +530,7 @@ schedule resumeDaily every 1d: resume
   t.diagnostic("owned serve SIGKILL after durable schedule admission, before first chunk; same job id resumed once; one queued effect; no external worker; WAL synchronous=NORMAL, no power-loss claim");
 });
 
-test("release serving repairs dangling legacy links and refuses an unexpected regular store file", { timeout: 10000 }, async (t) => {
+test("release serving repairs dangling legacy links and refuses an unexpected regular store file", { timeout: hangBudget(2) }, async (t) => {
   const { deployment, invoke, run } = fixture(t);
   run("deploy", deployment);
   await serve(deployment, async () => {});
@@ -542,7 +551,7 @@ test("release serving repairs dangling legacy links and refuses an unexpected re
 });
 
 for (const authority of ["owner", "failed branch", "second witness", "multiple witnesses", "correlated branches"]) {
-  test(`release nextExpiry excludes irrelevant hidden grants: ${authority}`, { timeout: 15000 }, async t => {
+  test(`release nextExpiry excludes irrelevant hidden grants: ${authority}`, { timeout: hangBudget(6) }, async t => {
     const { deployment, schema, run } = fixture(t);
     const witness = "exists grants[parent = .parent, who = viewer, kind = 'admin']";
     const rule = authority === "owner" ? `${witness} or .owner = viewer`

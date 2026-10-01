@@ -1,0 +1,24 @@
+✔ CCP admission boundary: native (5267.826788ms)
+ℹ native: waitSeconds=0 returned pending in 3.959 ms
+ℹ native: default returned pending in 4001.552 ms
+ℹ native: waitSeconds=1.9 returned pending in 1001.661 ms
+✔ CCP admission boundary: web (5710.237045ms)
+ℹ web: waitSeconds=0 returned pending in 9.465 ms
+ℹ web: default returned pending in 4000.761 ms
+ℹ web: waitSeconds=1.9 returned pending in 1001.944 ms
+✔ CCP admission boundary: online (1383.034603ms)
+ℹ online: waitSeconds=0 returned pending in 1.623 ms
+ℹ online: default waited for release, returned sent in 162.122 ms
+ℹ online: waitSeconds=1.9 returned pending in 1001.970 ms
+✔ CCP admission boundary: app-online (1400.775073ms)
+ℹ app-online: waitSeconds=0 returned pending in 2.368 ms
+ℹ app-online: default waited for release, returned sent in 161.286 ms
+ℹ app-online: waitSeconds=1.9 returned pending in 1000.629 ms
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13925.244496

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import { readyRead } from "../dist/read-existence.js";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
@@ -167,6 +168,6 @@ test("signed-out observations settle without a reset retry loop", () => {
     }
     setTimeout(async () => { for (const stop of stops) stop(); await client.close(); }, 0);
   `;
-  const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], { encoding: "utf8", timeout: 5000 });
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], { encoding: "utf8", timeout: hangBudget() });
   assert.equal(result.status, 0, result.error?.message ?? result.stderr);
 });

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP encoding at the unchanged 16 MiB ceiling, SQLite server storage,
 // and the production catch-up loop on both wasm and SQLite process devices.
 import test from "node:test";
@@ -29,11 +30,7 @@ query one(id: items):
 const refusal = "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values";
 const id = i => `row-${String(i).padStart(2, "0")}`;
 const headers = { "x-snapback-persona": "alice" };
-async function until(check, message) {
-  const deadline = Date.now() + 20000;
-  do { if (await check()) return; await delay(20); } while (Date.now() < deadline);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 
 function parkedChanges(signal) {
   let cleanup;
@@ -76,7 +73,7 @@ async function fixture(t, empty = false) {
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
   }
   async function post(path, body) {
-    const response = await fetch(url + path, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+    const response = await fetch(url + path, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(hangBudget()) });
     assert.equal(response.status, 200);
     return response.json();
   }
@@ -137,7 +134,7 @@ async function recovered(f, generation, head) {
   assert.equal(row.fresh, true);
 }
 
-test("oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption", { timeout: 240000 }, async t => {
+test("oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption", { timeout: hangBudget(1024) }, async t => {
   const f = await fixture(t);
   const ordinary = [], wedged = [];
   for (const tier of ["wasm", "process"]) {
@@ -192,7 +189,7 @@ test("oversized sync identity, indivisible-commit snapshot recovery, and wedged 
   });
 });
 
-test("an oversized reply from a replacement store is observed before shrinking even at the same generation", { timeout: 120000 }, async t => {
+test("an oversized reply from a replacement store is observed before shrinking even at the same generation", { timeout: hangBudget(1024) }, async t => {
   const f = await fixture(t);
   const devices = [];
   for (const tier of ["wasm", "process"]) devices.push({ tier, ...await f.open(tier) });
@@ -214,7 +211,7 @@ test("an oversized reply from a replacement store is observed before shrinking e
 
 // Port of R5 D1: request bytes fit, but per-event framing makes the first
 // indivisible stream commit overflow. No synthetic refusal or metadata path.
-for (const tier of ["wasm", "process"]) test(`${tier} a new replica recovers its oversized first commit`, { timeout: 120000 }, async t => {
+for (const tier of ["wasm", "process"]) test(`${tier} a new replica recovers its oversized first commit`, { timeout: hangBudget(1024) }, async t => {
   const f = await fixture(t, true);
   const device = await f.open(tier);
   assert.equal((await device.core.call({ op: "state" })).ok.watermark, 0);
@@ -236,7 +233,7 @@ for (const tier of ["wasm", "process"]) test(`${tier} a new replica recovers its
   t.diagnostic(JSON.stringify({ tier, before: 0, after: state.watermark, pages: device.pages.map(({ request, page }) => ({ from: request.from, stream: request.stream, limit: request.limit, denied: page.denied?.code, snapshot: page.snapshot })) }));
 });
 
-for (const tier of ["wasm", "process"]) test(`${tier} an oversized first commit arriving during zero-head snapshot catch-up restarts inline`, { timeout: 120000 }, async t => {
+for (const tier of ["wasm", "process"]) test(`${tier} an oversized first commit arriving during zero-head snapshot catch-up restarts inline`, { timeout: hangBudget(1024) }, async t => {
   const f = await fixture(t, true);
   let added = false, refusedFromZero = false;
   const device = await f.open(tier, false, async (request, page) => {
@@ -352,7 +349,7 @@ async function enlargedHistory(f) {
   await f.seed(rows);
   for (let i = 0; i < rows.length; i += 4) await f.seed(rows.slice(i, i + 4).map(({ table, row }) => ({ table, row: { ...row, body: 'x'.repeat(400000) } })));
 }
-for (const tier of ['wasm', 'process']) test(`${tier} interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon`, { timeout: 120000 }, async t => {
+for (const tier of ['wasm', 'process']) test(`${tier} interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon`, { timeout: hangBudget(1024) }, async t => {
   const f = await historyFixture(t, tier);
   await enlargedHistory(f);
   const head = (await f.post('/sync', { from: 0, limit: 1 })).watermark;
@@ -378,7 +375,7 @@ for (const tier of ['wasm', 'process']) test(`${tier} interrupted inline recover
   assert.equal((await query('wide-00')).ok.data, null, 'recovery respects the 45-row horizon');
 });
 
-for (const tier of ['wasm', 'process']) test(`${tier}: many ordinary commits recover by halving without snapshot`, { timeout: 120000 }, async t => {
+for (const tier of ['wasm', 'process']) test(`${tier}: many ordinary commits recover by halving without snapshot`, { timeout: hangBudget(1024) }, async t => {
   const f = await historyFixture(t, tier);
   for (let i = 0; i < 48; i++) await f.seed([{ table: 'items', row: { id: `ordinary-${i}`, body: 'x'.repeat(400000) } }]);
   f.online(); await f.client.sync();

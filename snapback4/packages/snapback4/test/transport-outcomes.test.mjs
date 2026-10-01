@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ const transportError = () => Object.assign(Error("setTypeOfService EINVAL"), { c
 // admission reply, as in close-boundary: neither tier executes action bodies.
 for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation", "action"])
   for (const close of [false, true]) for (const phase of ["fetch", "body"])
-    test(`${tier} ${kind}: rejected ${phase} after dispatch is pending; close=${close}`, { timeout: 20_000 }, async t => {
+    test(`${tier} ${kind}: rejected ${phase} after dispatch is pending; close=${close}`, { timeout: hangBudget(18) }, async t => {
       const { url, dir } = await server(t), held = gate(), id = mintId();
       let entered = false, losing = true, rejected = 0;
       const device = tier === "online" ? undefined : tier === "wasm"

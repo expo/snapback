@@ -1,0 +1,29 @@
+{
+  "log": "final-unconfined.log",
+  "sha256": "b209f80b008fdd9e195129c1a90321a497e62397a07e8bea1df232a6c0a1c220",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 4476",
+    "ℹ suites 0",
+    "ℹ pass 4467",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 9",
+    "ℹ todo 0",
+    "ℹ duration_ms 573757.860412",
+    "ℹ tests 52",
+    "ℹ suites 0",
+    "ℹ pass 52",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 275678.349137"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

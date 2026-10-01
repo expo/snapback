@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -15,7 +16,7 @@ function roundtrip(t, scenario = "success") {
   writeFileSync(join(pkg, "package.json"), JSON.stringify({ name: "snapback4", type: "module", exports: { "./client": "./client.mjs" } }));
   writeFileSync(join(pkg, "client.mjs"), 'export { createClient } from "../../mock.mjs";\n');
   const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), join(root, "roundtrip.mjs"), "0.4.5"], {
-    cwd: root, encoding: "utf8", timeout: 10_000,
+    cwd: root, encoding: "utf8", timeout: hangBudget(),
     env: { ROUNDTRIP_SCENARIO: scenario, ...(scenario === "override" ? { SNAPBACK4_BIN: "/host/binary" } : {}) },
   });
   const events = join(root, "events.jsonl");

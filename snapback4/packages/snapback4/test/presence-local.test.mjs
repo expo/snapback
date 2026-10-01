@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018 §3.2 on the local client, over the wasm and process devices: a
 // background presence refresh is quiet when it fails, publishes an accepted
 // loading answer, and a reply that a newer read overtook changes neither the
@@ -17,7 +18,7 @@ import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
-const until = async (check, message, ms = 10_000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await check()) return; await delay(10); } assert.fail(message); };
+const until = async (check, message) => { return awaitState(check, message); };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const query = { kind: "query", name: "presenceOf" };
 const refused = { code: "NOT_HERE", family: "rule", message: "not here" };
@@ -47,7 +48,7 @@ async function bob(t, tier, plan, hold = async () => {}) {
   let log = "", client;
   host.stdout.on("data", b => { log += b; }); host.stderr.on("data", b => { log += b; });
   t.after(async () => { await client?.close(); host.kill("SIGTERM"); await exit; rmSync(directory, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, "server did not listen", 30_000);
+  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, "server did not listen");
   const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
   const reads = [];
   let outage = false, entered = 0;
@@ -69,18 +70,22 @@ async function bob(t, tier, plan, hold = async () => {}) {
 const answer = (body, v, extra = {}) => ({ ...body, data: { ...body.data, v }, refresh: 300, ...extra });
 
 for (const tier of ["wasm", "process"]) {
-  test(`${tier}: a failed background refresh keeps the answer and the link`, { timeout: 60_000 }, async t => {
-    const { client, reads } = await bob(t, tier, (n, body) => n === 2 ? new Response("unavailable", { status: 503 }) : answer(body, n));
+  test(`${tier}: a failed background refresh keeps the answer and the link`, { timeout: hangBudget(5) }, async t => {
+    const resume = deferred(); t.after(() => resume.resolve());
+    const { client, reads } = await bob(t, tier, async (n, body) => {
+      if (n >= 3) await resume.promise;
+      return n === 2 ? new Response("unavailable", { status: 503 }) : answer(body, n);
+    });
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
     await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
     // Offline metadata copies keep the displayed identity; recovery replaces it.
     const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
-    await until(() => reads.length >= 2, "the background refresh ran");
-    await delay(100);
+    await until(() => reads.length >= 3, "the failed refresh scheduled its successor, which stays held");
     assert.equal(mark.getSnapshot().data?.v, 1, "a failed background refresh keeps the answer");
     assert.equal(client.link(), "online", "a failed background refresh says nothing about the link");
+    resume.resolve();
     await until(() => mark.getSnapshot()?.data?.v >= 3, "the refresh retried at its interval");
     stop();
     assert.ok(seen.every(read => "data" in read && read.fresh === true), `the failure published something other than a served answer: ${JSON.stringify(seen)}`);
@@ -89,7 +94,7 @@ for (const tier of ["wasm", "process"]) {
   for (const [kind, reply, shown] of [
     ["loading", body => ({ loading: true, seq: body.seq, tables: body.tables ?? [], refresh: 300 }), read => "loading" in read],
     ["refusal", () => ({ denied: refused, refresh: 300 }), read => read.denied?.code === "NOT_HERE"],
-  ]) test(`${tier}: an accepted ${kind} is published, and recovery never brings back the answer it replaced`, { timeout: 60_000 }, async t => {
+  ]) test(`${tier}: an accepted ${kind} is published, and recovery never brings back the answer it replaced`, { timeout: hangBudget(6) }, async t => {
     const { client, down } = await bob(t, tier, (n, body) => n === 1 ? answer(body, 1) : reply(body));
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
@@ -106,7 +111,7 @@ for (const tier of ["wasm", "process"]) {
     assert.ok(!seen.some(read => read.data?.v === 1), `recovery brought back the answer the ${kind} replaced: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: an overtaken background reply changes neither the answer, the interval, nor what recovery shows`, { timeout: 60_000 }, async t => {
+  test(`${tier}: an overtaken background reply changes neither the answer, the interval, nor what recovery shows`, { timeout: hangBudget(7) }, async t => {
     const held = deferred();
     const { client, reads, down } = await bob(t, tier, async (n, body) => {
       if (n === 1) return answer(body, 1, { nextExpiry: Date.now() + 900 });
@@ -136,7 +141,7 @@ for (const tier of ["wasm", "process"]) {
     assert.ok(!seen.some(read => read.data?.v === 2), `the overtaken reply was published: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: an accepted background reply does not replace a newer answer another read remembered`, { timeout: 60_000 }, async t => {
+  test(`${tier}: an accepted background reply does not replace a newer answer another read remembered`, { timeout: hangBudget(8) }, async t => {
     const held = deferred();
     const { client, reads, down } = await bob(t, tier, async (n, body) => {
       if (n === 1) return answer(body, 1);
@@ -162,7 +167,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 3, `recovery lost the newer answer: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: an accepted background reply is what a later recovery shows`, { timeout: 60_000 }, async t => {
+  test(`${tier}: an accepted background reply is what a later recovery shows`, { timeout: hangBudget(4) }, async t => {
     const { client, down } = await bob(t, tier, (n, body) => n === 1 ? answer(body, 1) : answer(body, n, { refresh: undefined }));
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
@@ -177,7 +182,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 2, `recovery did not show the accepted background answer: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: an accepted background reply replaces an older read's answer that landed while it ran`, { timeout: 60_000 }, async t => {
+  test(`${tier}: an accepted background reply replaces an older read's answer that landed while it ran`, { timeout: hangBudget(9) }, async t => {
     const first = deferred(), second = deferred();
     const { client, reads, down } = await bob(t, tier, async (n, body) => {
       if (n === 1) return answer(body, 1);
@@ -205,7 +210,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 3, `recovery stepped back to the older read's answer: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: an older read's refusal that lands after an accepted background reply does not erase it`, { timeout: 60_000 }, async t => {
+  test(`${tier}: an older read's refusal that lands after an accepted background reply does not erase it`, { timeout: hangBudget(7) }, async t => {
     const first = deferred();
     const { client, reads, down } = await bob(t, tier, async (n, body) => {
       if (n === 1) return answer(body, 1);
@@ -231,7 +236,7 @@ for (const tier of ["wasm", "process"]) {
     assert.ok(reads.length >= 3, "the refresh ran after the one-shot read began");
   });
 
-  test(`${tier}: a refusal read at a later store cut outranks an answer remembered before it landed`, { timeout: 60_000 }, async t => {
+  test(`${tier}: a refusal read at a later store cut outranks an answer remembered before it landed`, { timeout: hangBudget(8) }, async t => {
     const gate = deferred();
     const { client, reads, down } = await bob(t, tier, (n, body) => {
       if (n === 1) return answer(body, 1);
@@ -259,7 +264,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(reads.length, 3);
   });
 
-  test(`${tier}: a read retried after its store changed takes a new place in the order`, { timeout: 60_000 }, async t => {
+  test(`${tier}: a read retried after its store changed takes a new place in the order`, { timeout: hangBudget(11) }, async t => {
     const gate = deferred();
     let refusing = false;
     const { client, down, entries, commit } = await bob(t, tier, (n, body) => refusing
@@ -288,7 +293,7 @@ for (const tier of ["wasm", "process"]) {
     assert.ok(!seen.some(read => read.fresh === false && answerIdentity(read) !== displayed && "data" in read), `recovery showed an answer the retried read's refusal replaced: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: forgetting an expired answer leaves the next server answer free to be remembered`, { timeout: 60_000 }, async t => {
+  test(`${tier}: forgetting an expired answer leaves the next server answer free to be remembered`, { timeout: hangBudget(7) }, async t => {
     const { client, down, up } = await bob(t, tier, (n, body) => n === 1 ? answer(body, 1, { nextExpiry: Date.now() + 2_500, refresh: undefined }) : answer(body, n, { refresh: undefined }));
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
@@ -296,9 +301,9 @@ for (const tier of ["wasm", "process"]) {
     // Offline at the deadline: recovery finds the answer expired, forgets it, and shows loading.
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => "loading" in mark.getSnapshot(), `the expired answer was not withdrawn: ${JSON.stringify(mark.getSnapshot())}`, 10_000);
+    await until(() => "loading" in mark.getSnapshot(), `the expired answer was not withdrawn: ${JSON.stringify(mark.getSnapshot())}`);
     up();
-    await until(() => (mark.getSnapshot()?.data?.v ?? 0) >= 2, `the watch did not read again once online: ${JSON.stringify(mark.getSnapshot())}`, 15_000);
+    await until(() => (mark.getSnapshot()?.data?.v ?? 0) >= 2, `the watch did not read again once online: ${JSON.stringify(mark.getSnapshot())}`);
     // Offline metadata copies keep the displayed identity; recovery replaces it.
     const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
@@ -309,7 +314,7 @@ for (const tier of ["wasm", "process"]) {
     assert.ok(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v >= 2, `recovery lost the answer read after the forgotten one: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: a reply that names no store cut is ordered by when its read began`, { timeout: 60_000 }, async t => {
+  test(`${tier}: a reply that names no store cut is ordered by when its read began`, { timeout: hangBudget(6) }, async t => {
     const { client, down, commit } = await bob(t, tier, (n, body) => {
       if (n === 1) return answer(body, 1);
       const { seq, head, ...rest } = answer(body, n, { refresh: undefined });
@@ -331,7 +336,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 2, `a reply without a cut lost to an older one: ${JSON.stringify(seen)}`);
   });
 
-  test(`${tier}: an accepted background reply does not undo a newer read's deletion of an absent answer`, { timeout: 60_000 }, async t => {
+  test(`${tier}: an accepted background reply does not undo a newer read's deletion of an absent answer`, { timeout: hangBudget(8) }, async t => {
     const held = deferred();
     const { client, reads, down } = await bob(t, tier, async (n, body) => {
       // The watch starts with loading, so nothing is remembered for it.

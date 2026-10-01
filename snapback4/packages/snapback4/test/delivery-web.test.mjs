@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import {setTimeout as delay} from 'node:timers/promises';
 import {localDelivery} from '../dist/local-delivery.js';
 import {deliveryCommit} from '../dist/local-device.js';
@@ -109,7 +110,7 @@ test('local activation resumes a real blocked wasm page after reports free capac
   fetch:async(_,init)=>{reports.push(JSON.parse(init.body).args);if(reports.length===1)await held;return Response.json({state:'sent',head:1,store_id:'S'});},
  });
  t.after(async()=>{release();await q.stop();await core.close();});
- const until=async fn=>{for(let n=0;n<2000;n++){if(fn())return;await delay(5);}assert.fail('activation failed to resume');};
+ const until=async fn=>{ return awaitState(fn); };
  await q.open();await until(()=>reports.length===1);
  assert.ok(pages.some(p=>p.blocked===true));assert.equal(reports[0].from,2);
  release();await until(()=>reports.length===300&&pages.at(-1)?.more===false);

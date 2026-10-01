@@ -1,23 +1,18 @@
+import { waitFor as awaitState } from './wait.mjs';
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { setTimeout as delay } from "node:timers/promises";
 
 export const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../../target/debug/snapback4");
-export const until = async (read, label = "condition") => {
-  for (let n = 0; n < 500; n++) {
-    try { const value = await read(); if (value) return value; }
+export const until = async (read, label = "condition", options) => { return awaitState(async () => {
+    try { return await read(); }
     catch (error) {
-      // Cancellation can leave an aborted pooled socket for the next probe.
-      // Retry only this transport failure; assertions and refusals still fail.
-      if (error.cause?.code !== "UND_ERR_SOCKET") throw error;
+      // Only a cancelled pooled socket is retryable; assertions still fail.
+      if (error.cause?.code !== 'UND_ERR_SOCKET') throw error;
     }
-    await delay(10);
-  }
-  assert.fail(`timed out: ${label}`);
-};
+  }, label, options); };
 export async function server(t, residency = "sync to .owner", source, { watch = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));

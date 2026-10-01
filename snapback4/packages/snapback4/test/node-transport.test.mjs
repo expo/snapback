@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -19,7 +20,7 @@ const probe = transport => spawnSync(process.execPath, ["--input-type=module", "
     const response = await ${transport}('http://127.0.0.1:' + server.address().port);
     console.log(JSON.stringify({ text: await response.text(), markings }));
   } finally { server.closeAllConnections(); server.close(); }
-`], { encoding: "utf8", timeout: 10_000 });
+`], { encoding: "utf8", timeout: hangBudget() });
 
 test("Node default transport does not call unsupported socket QoS on ordinary requests", () => {
   const result = probe("defaultFetch");

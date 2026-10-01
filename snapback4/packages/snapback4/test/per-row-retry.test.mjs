@@ -1,3 +1,4 @@
+import { hangBudget, waitFor as awaitState } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — due-result recovery must preserve newer answers and release slots.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,12 +16,10 @@ import { ServerClock } from '../dist/clock.js';
 import { ReadWork } from '../dist/read-work.js';
 import { server, binary, until } from './helpers/app-server.mjs';
 const parked = signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
-const pause = () => new Promise(resolve => setImmediate(resolve));
 // Mocking setTimeout also holds undici's zero-delay timers on some hosts (macOS),
 // so wait by advancing only zero-delay timers while real I/O completes.
 async function pump(t, predicate, label) {
-  const end = performance.now() + 60_000;
-  while (!predicate() && performance.now() < end) { t.mock.timers.tick(0); await pause(); }
+  await awaitState(predicate, label, { work: 8, poll: async () => { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); } });
   assert.ok(predicate(), label);
 }
 // @ref LLP 3000#publication-suite-under-contention — fake time advances only after the device installs its retry.
@@ -42,9 +41,9 @@ async function closeAfterClockAssertions(t, client, mocked) {
   if (mocked) { t.mock.timers.tick(1000); t.mock.timers.reset(); }
   await closing;
 }
-// Startup, first response, retry/capacity and cleanup each get a minute as a
-// hang guard. The semantic 25 ms retry and every queue/count assertion remain.
-const caseTimeout = 4 * 60_000;
+// The case guard scales with the held attempts and their successor.
+// The semantic 25 ms retry and every queue/count assertion remain.
+const caseTimeout = hangBudget(9); // Eight held attempts and their successor.
 const source = `use personas alice
 table rows:
   value: int

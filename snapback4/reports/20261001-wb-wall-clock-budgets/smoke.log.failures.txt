@@ -1,0 +1,11 @@
+✖ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (461.611967ms)
+✖ wasm keep=false: eight closed active reads cannot starve later observations or publish late (153.955036ms)
+✖ wasm keep=true: eight closed active reads cannot starve later observations or publish late (153.43102ms)
+✖ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (150.613758ms)
+✖ process keep=undefined: eight closed active reads cannot starve later observations or publish late (145.754285ms)
+✖ process keep=false: eight closed active reads cannot starve later observations or publish late (146.956296ms)
+✖ process keep=true: eight closed active reads cannot starve later observations or publish late (148.130497ms)
+✖ process keep=undefined: eight expired active reads cannot starve later observations or publish late (149.621561ms)
+✖ wasm: acquired unknown apply footprint revalidates and refreshes every owner (152.570591ms)
+✖ process: acquired unknown apply footprint revalidates and refreshes every owner (150.345937ms)
+✖ failing tests:

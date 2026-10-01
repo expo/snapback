@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ const wasm = readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm', impor
 const write = { kind: 'mutation', name: 'write' }, args = { hiddenHandle: false, refuse: false };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
-for (const phase of ['first observation', 'after attach']) test(`live orphan time reaches the clock and next admission: ${phase}`, { timeout: 10_000 }, async t => {
+for (const phase of ['first observation', 'after attach']) test(`live orphan time reaches the clock and next admission: ${phase}`, { timeout: hangBudget(19) }, async t => {
   t.mock.method(Date, 'now', () => 1_000_000);
   const values = new Map(), originals = ['window', 'localStorage'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
   Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });

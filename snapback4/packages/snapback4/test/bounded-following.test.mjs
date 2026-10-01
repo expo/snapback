@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.016#5 — the real wasm and native clients never publish a missing card or advance past it.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -17,11 +18,7 @@ const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_devi
 const query = name => ({ kind: "query", name });
 const mutation = name => ({ kind: "mutation", name });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, message, timeout = 15000) {
-  const deadline = Date.now() + timeout;
-  do { if (await check()) return; await sleep(10); } while (Date.now() < deadline);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 function parked(signal) {
   let cleanup;
   return new Response(new ReadableStream({
@@ -119,7 +116,7 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
 }
 
 for (const tier of ["wasm", "native"]) {
-  test(`event slots ${tier}: owned-event fallback waits for the source prediction`, { timeout: 30000 }, async t => {
+  test(`event slots ${tier}: owned-event fallback waits for the source prediction`, { timeout: hangBudget(19) }, async t => {
     const f = await fixture(t, tier, undefined, source => source.replace("sync public\n\ntable follows", "sync public last 3 by .at\n\ntable follows") + `
 query ownedEvent(eventId: id):
   return feedPosts[eventId]
@@ -169,7 +166,7 @@ query conditionalEventsHeld():
     assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
-  test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: 30000 }, async t => {
+  test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: hangBudget(11) }, async t => {
     // Both source kinds are full: the scan must visit held owned rows, then
     // reject them on the unknown filter, rather than withhold a partial table.
     const f = await fixture(t, tier, "sync public", source => source + `
@@ -201,7 +198,7 @@ query filteredEvents():
     assert.ok((await bob.client.query(query("filteredEvents"), {})).data.some(row => row.postId === "own-filtered"));
   });
 
-  test(`bounded Following ${tier}: unrelated held reads cannot validate speculative refusals or empty pages`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: unrelated held reads cannot validate speculative refusals or empty pages`, { timeout: hangBudget(9) }, async t => {
     const f = await fixture(t, tier, undefined, source => source + `
 table notes:
   body: text <=40
@@ -271,7 +268,7 @@ query speculativePage():
     }
   });
 
-  test(`bounded Following ${tier}: unknown conditions preserve static and helper dependencies`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: unknown conditions preserve static and helper dependencies`, { timeout: hangBudget(17) }, async t => {
     const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "online only\n\ntable follows") + `
 table switches:
   enabled: bool
@@ -326,7 +323,7 @@ query conditionalHelper(c: cursor ?):
     assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own/conditional"));
   });
 
-  test(`bounded Following ${tier}: a scalar cut before the feed keeps its possible reads fenced`, { timeout: 90000 }, async t => {
+  test(`bounded Following ${tier}: a scalar cut before the feed keeps its possible reads fenced`, { timeout: hangBudget(5) }, async t => {
     const f = await fixture(t, tier, "sync public", source => source + `
 table events:
   at: time
@@ -349,7 +346,7 @@ query countedFeed(c: cursor ?):
     assert.equal(bob.queries.length, before, "static feed/posts reads fence server fallback despite the executed subset");
   });
 
-  test(`bounded Following ${tier}: a known branch wins over static server routing`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: a known branch wins over static server routing`, { timeout: hangBudget(7) }, async t => {
     const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "online only\n\ntable follows") + `
 table switches:
   enabled: bool
@@ -380,7 +377,7 @@ query conditionalFeed(c: cursor ?):
     assert.equal(bob.queries.length, before, "known local branch always wins, even after narrowing possible reads");
   });
 
-  test(`bounded Following ${tier}: a speculative profile withholds while a non-speculative page keeps predicted rows`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: a speculative profile withholds while a non-speculative page keeps predicted rows`, { timeout: hangBudget(13) }, async t => {
     const f = await fixture(t, tier, undefined, source => source + `
 table profiles:
   name: text <=40
@@ -434,7 +431,7 @@ query remoteProfile():
     assert.equal(offlinePartial.data.rows[0].post.id, "own-profile"); assert.equal(offlinePartial.complete, false);
   });
 
-  test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: hangBudget(6) }, async t => {
     const f = await fixture(t, tier, undefined, source => source.replace("sync public\n\ntable follows", "sync public last 3 by .at\n\ntable follows") + `
 query cappedCard(postId: posts):
   for i in range(0, 8192):
@@ -471,7 +468,7 @@ query oversized(postId: posts, payload: text <=600):
     }
   });
 
-  test(`bounded Following ${tier}: untaken online-only card branches remain answerable when held`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: untaken online-only card branches remain answerable when held`, { timeout: hangBudget(5) }, async t => {
     const f = await fixture(t, tier, "online only", source => source + `
 query conditional(want: bool, postId: posts) held:
   if want:
@@ -496,7 +493,7 @@ query conditionalGet(want: bool, postId: posts) held:
     }
   });
 
-  test(`bounded Following ${tier}: composed reads withhold the entire answer across the prediction fence`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: composed reads withhold the entire answer across the prediction fence`, { timeout: hangBudget(13) }, async t => {
     const f = await fixture(t, tier, undefined, source => source + `
 query composed(c: cursor ?):
   rows = feed last 20 by .at after c { *, post: posts[.post] }
@@ -521,7 +518,7 @@ query composed(c: cursor ?):
     assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
-  test(`bounded Following ${tier}: exact offline pages, original-cursor fallback and quiet authors`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: exact offline pages, original-cursor fallback and quiet authors`, { timeout: hangBudget(18) }, async t => {
     const f = await fixture(t, tier), bob = await f.open("bob");
     const first = await bob.client.query(query("cards"), { c: null });
     assert.equal(first.complete, true);
@@ -556,7 +553,7 @@ query composed(c: cursor ?):
     assert.equal((await reader.client.query(query("cards"), { c: null })).data[0].post.id, "old");
   });
 
-  test(`bounded Following ${tier}: a predicted post fences fallback until observation`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: a predicted post fences fallback until observation`, { timeout: hangBudget(14) }, async t => {
     const f = await fixture(t, tier), bob = await f.open("bob");
     bob.holdWrites = true;
     const write = await bob.client.mutate(mutation("post"), { postId: "own", parentId: null, at: 20 });
@@ -583,7 +580,7 @@ query composed(c: cursor ?):
     assert.deepEqual(answer.data, (await f.request("/q/wide", "bob", { c: null })).data);
   });
 
-  test(`bounded Following ${tier}: online-only cards withhold offline`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: online-only cards withhold offline`, { timeout: hangBudget(8) }, async t => {
     const f = await fixture(t, tier, "online only", source => source + "\nquery globalRows():\n  return posts last 2 by .at\n"), bob = await f.open("bob");
     assert.equal((await bob.client.query(query("cards"), { c: null })).data.length, 2);
     const global = await bob.client.query(query("globalRows"), {});
@@ -595,7 +592,7 @@ query composed(c: cursor ?):
     assert.ok(partial.since > 0, "an empty online-only scan recovers its last server answer");
   });
 
-  test(`bounded Following ${tier}: repost prediction needs a held original`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: repost prediction needs a held original`, { timeout: hangBudget(4) }, async t => {
     const f = await fixture(t, tier), bob = await f.open("bob");
     bob.holdWrites = true;
     for (const [postId, predicts] of [["p0", false], ["p3", true]]) {
@@ -607,7 +604,7 @@ query composed(c: cursor ?):
     }
   });
 
-  test(`bounded Following ${tier}: held cards and transport failures stay withheld`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: held cards and transport failures stay withheld`, { timeout: hangBudget(8) }, async t => {
     const f = await fixture(t, tier, undefined, source => source + "\nquery heldCards(c: cursor ?) held:\n  return feed last 2 by .at after c { *, post: posts[.post] }\n"), bob = await f.open("bob");
     const first = await bob.client.query(query("cards"), { c: null }), input = { c: first.next };
     const before = bob.queries.length;
@@ -620,7 +617,7 @@ query composed(c: cursor ?):
     assert.equal((await bob.client.query(query("cards"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
-  test(`bounded Following ${tier}: online-only repost cards use the prediction fence before server routing`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: online-only repost cards use the prediction fence before server routing`, { timeout: hangBudget(17) }, async t => {
     const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "online only\n\ntable follows") + "\nquery repostCards(c: cursor ?):\n  return feed last 20 by .at after c { *, repostCard: reposts[.actor, .post] }\n"), bob = await f.open("bob");
     const op = query("repostCards"), input = { c: null };
     assert.ok("data" in await bob.client.query(op, input));
@@ -643,7 +640,7 @@ query composed(c: cursor ?):
     assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
-  test(`bounded Following ${tier}: a response racing prediction admission is invalidated`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: a response racing prediction admission is invalidated`, { timeout: hangBudget(6) }, async t => {
     const f = await fixture(t, tier), bob = await f.open("bob");
     bob.holdQueries = true;
     const result = bob.client.query(query("wide"), { c: null });
@@ -655,7 +652,7 @@ query composed(c: cursor ?):
     assert.equal((await bob.client.query(query("wideMetadata"), {})).data[0].post, "racing");
   });
 
-  test(`bounded Following ${tier}: repost horizon misses withhold but full-source nulls remain data`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: repost horizon misses withhold but full-source nulls remain data`, { timeout: hangBudget(6) }, async t => {
     const point = "\nquery repostPoint(actor: principal, postId: posts):\n  return reposts[actor, postId]\nquery optional(postId: posts):\n  return posts[postId]\n";
     const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "sync public last 1 by .at\n\ntable follows") + point), bob = await f.open("bob");
     const input = { actor: "dev:bob", postId: "p3" };
@@ -665,7 +662,7 @@ query composed(c: cursor ?):
     assert.equal((await bob.client.query(query("optional"), { postId: "missing" })).data, null);
   });
 
-  test(`bounded Following ${tier}: inbox floors use all routing branches and preserve meter prefixes`, { timeout: 90000 }, async t => {
+  test(`bounded Following ${tier}: inbox floors use all routing branches and preserve meter prefixes`, { timeout: hangBudget(27) }, async t => {
     const extra = `
 mutation bulk(at: time):
   for n in range(0, 200):
@@ -726,7 +723,7 @@ query cut(c: cursor ?):
   });
 }
 
-test("bounded Following native query module: executed dependencies fence fallback until prediction observation", { timeout: 120000 }, async t => {
+test("bounded Following native query module: executed dependencies fence fallback until prediction observation", { timeout: hangBudget(26) }, async t => {
   const f = await fixture(t, "native", undefined, source => source + `
 query native_cards(postId: posts, c: text <=2000 ?): native
 query native_held(postId: posts, c: text <=2000 ?) held: native

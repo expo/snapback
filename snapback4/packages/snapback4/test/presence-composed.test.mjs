@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018 §3.1: a composed local answer carries the server's refresh. Bob
 // keeps a room's history after leaving it (retained on his device); a query
 // that returns that history beside `exists connected[p]` is answered partly by
@@ -17,7 +18,7 @@ import { memoryPersistence, webDevice } from '../dist/web.js';
 
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
-const until = async (check, message, ms = 10_000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await check()) return; await delay(20); } assert.fail(message); };
+const until = async (check, message) => { return awaitState(check, message); };
 const source = `use personas alice, bob
 table members:
   room: text <=40
@@ -42,7 +43,7 @@ mutation leave(room: text <=40):
 `;
 
 for (const tier of ['wasm', 'process'])
-  test(`composed ${tier}: a retained field beside presence keeps refreshing`, { timeout: 60_000 }, async t => {
+  test(`composed ${tier}: a retained field beside presence keeps refreshing`, { timeout: hangBudget(14) }, async t => {
     const directory = mkdtempSync(join(tmpdir(), 'sb4-presence-composed-'));
     mkdirSync(join(directory, 'snapback'));
     writeFileSync(join(directory, 'snapback/schema.q'), source);
@@ -51,7 +52,7 @@ for (const tier of ['wasm', 'process'])
     let log = '', bob, alice;
     host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
     t.after(async () => { await alice?.close(); await bob?.close(); host.kill('SIGTERM'); await exit; rmSync(directory, { recursive: true, force: true }); });
-    await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, 'server did not listen', 30_000);
+    await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, 'server did not listen');
     const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
     const post = async (path, body, persona = 'alice') => (await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona }, body: JSON.stringify(body) })).json();
     const rows = ['alice', 'bob'].map(person => ({ table: 'members', row: { id: `${person}-left`, room: 'left', principal: `dev:${person}` } }));

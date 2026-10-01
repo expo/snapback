@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -5,7 +6,7 @@ import {localDelivery} from '../dist/local-delivery.js';
 import {acceptManifest,emptyDelivery} from '../dist/delivery-state.js';
 const binding={table:'messages',mutation:'delivered',args:['conversation','from','through'],fingerprint:'fixture:messages'};
 const manifest=rows=>[{...binding,rows}];
-const until=async fn=>{for(let i=0;i<600;i++){if(fn())return;await delay(5);}assert.fail('activation did not settle');};
+const until=async fn=>{ return awaitState(fn); };
 function fixture(t,{enumerate=()=>({more:false}),fetch=async()=>Response.json({state:'sent',head:10,store_id:'S'})}={}){
  const initial=emptyDelivery();acceptManifest(initial,manifest([['persisted',1]]),4096);
  let value=JSON.stringify(initial),ready=false,cursor=0;

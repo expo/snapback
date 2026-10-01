@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // LLP 3000.018 §3: an answer of a query that may read presence asks its client
 // to re-run it. The online client refreshes in the background after the
 // interval its server named, and publishes only an answer nothing replaced
@@ -12,7 +13,7 @@ import { ReadObservation } from "../dist/read-observation.js";
 const query = { kind: "query", name: "presenceOf" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error("closed")); else signal.addEventListener("abort", () => reject(Error("closed")), { once: true }); });
-async function until(check, why, ms = 3000) { const start = Date.now(); while (Date.now() - start < ms) { if (check()) return; await delay(10); } assert.fail(why); }
+async function until(check, why) { return awaitState(check, why); }
 
 function transport(answers, changes = signal => blocked(signal)) {
   const reads = [];
@@ -97,13 +98,13 @@ test("a refresh that fails keeps the interval, and a refused presence query keep
   const mark = client.observe(query, { p: "dev:bob" });
   t.after(async () => { mark.close(); await client.close(); });
   await until(() => mark.getSnapshot().denied?.code === "NOT_HERE", "the first answer is the refusal");
-  await until(() => mark.getSnapshot().data?.online === true, "a refused, then failed, then refused query kept refreshing until it answered", 6000);
+  await until(() => mark.getSnapshot().data?.online === true, "a refused, then failed, then refused query kept refreshing until it answered");
 });
 
 test("an invalidation during a background refresh withdraws at once, and the late refresh is discarded", async t => {
   const held = deferred(), invalidate = deferred();
   let polls = 0;
-  const { client } = transport(async n => {
+  const { client, reads } = transport(async n => {
     if (n === 1) return data("v1");
     // Both later answers are current for the invalidation at seq 2: only the fence can discard v2.
     if (n === 2) { await held.promise; return data("v2", 300, 2); }
@@ -114,7 +115,7 @@ test("an invalidation during a background refresh withdraws at once, and the lat
   await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
   const seen = [];
   const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
-  await delay(400); // the background refresh is now held
+  await until(() => reads.length >= 2, "background refresh entered its hold");
   invalidate.resolve();
   await until(() => mark.getSnapshot().data === "v3", "the invalidation re-ran the watch");
   held.resolve();
@@ -144,12 +145,12 @@ test("a background reply that a newer read overtook leaves the newer interval al
   const mark = client.observe(query, { p: "dev:bob" });
   t.after(async () => { held.resolve(); mark.close(); await client.close(); });
   await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
-  await delay(400); // the background refresh is held
+  await until(() => reads.length >= 2, "background refresh entered its hold");
   invalidate.resolve();
   await until(() => mark.getSnapshot().data === "v3", "the invalidation re-ran the watch");
   held.resolve();
   const settled = reads.length;
-  await until(() => reads.length >= settled + 1, "the newer interval still refreshes after the overtaken reply lands", 2000);
+  await until(() => reads.length >= settled + 1, "the newer interval still refreshes after the overtaken reply lands");
   assert.notEqual(mark.getSnapshot().data, "v2");
 });
 
@@ -159,16 +160,20 @@ test("an accepted loading answer is published, and a background failure keeps th
   await until(() => a.getSnapshot().data === "v1", "the first answer arrived");
   await until(() => "loading" in a.getSnapshot(), "the server's own loading answer is published");
   a.close(); await loading.client.close();
-  const failing = transport(n => n === 1 ? data("v1") : n === 2 ? new Response("unavailable", { status: 503 }) : data("v3"));
+  const resume = deferred(); t.after(() => resume.resolve());
+  const failing = transport(async n => {
+    if (n >= 3) await resume.promise;
+    return n === 1 ? data("v1") : n === 2 ? new Response("unavailable", { status: 503 }) : data("v3");
+  });
   const b = failing.client.observe(query, { p: "dev:bob" });
   t.after(async () => { b.close(); await failing.client.close(); });
   await until(() => b.getSnapshot().data === "v1", "the first answer arrived");
   const seen = [];
   const stop = b.subscribe(() => seen.push(b.getSnapshot()));
-  await until(() => failing.reads.length >= 2, "the background refresh failed");
-  await delay(50);
+  await until(() => failing.reads.length >= 3, "the failed refresh scheduled its held successor");
   assert.equal(b.getSnapshot().data, "v1", "a failed background refresh keeps the answer on screen");
   assert.equal(failing.client.link(), "online", "a failed background refresh says nothing about the link");
+  resume.resolve();
   await until(() => b.getSnapshot().data === "v3", "the refresh retried at its interval");
   stop();
   assert.ok(seen.every(read => "data" in read), `the failure published something other than an answer: ${JSON.stringify(seen)}`);

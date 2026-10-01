@@ -1,0 +1,21 @@
+[
+  "packages/snapback4/test/app-session-model.test.mjs",
+  "packages/snapback4/test/client-seams.test.mjs",
+  "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+  "packages/snapback4/test/helpers/app-session-model.mjs",
+  "packages/snapback4/test/live-propagation-fallback.test.mjs",
+  "packages/snapback4/test/one-shot-bounds.test.mjs",
+  "packages/snapback4/test/one-shot-model.test.mjs",
+  "packages/snapback4/test/one-shot-review.test.mjs",
+  "packages/snapback4/test/online-store-order.test.mjs",
+  "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+  "packages/snapback4/test/per-row-publication.test.mjs",
+  "packages/snapback4/test/per-row-react.test.mjs",
+  "packages/snapback4/test/per-row-retry.test.mjs",
+  "packages/snapback4/test/per-row-work.test.mjs",
+  "packages/snapback4/test/release-activation.test.mjs",
+  "packages/snapback4/test/supervised-workers.test.mjs",
+  "packages/snapback4/test/unread-range.test.mjs",
+  "packages/snapback4/test/web-admission-review.test.mjs",
+  "packages/snapback4/test/web-navigation.test.mjs"
+]

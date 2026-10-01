@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // The worker's door on the real wire: a service token from the CLI, a
 // session minted for an account the application authenticated itself,
 // presence read by the mutation that emits, and the worker loop claiming
@@ -58,7 +59,7 @@ query online(p: principal):
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test("a service mints sessions, the mutation reads presence, the worker settles what was emitted", { timeout: 30_000 }, async () => {
+test("a service mints sessions, the mutation reads presence, the worker settles what was emitted", { timeout: hangBudget(24) }, async () => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-worker-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -76,8 +77,8 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
   child.stderr.on("data", (data) => { log += data; });
   const stop = new AbortController();
   try {
-    const deadline = Date.now() + 10_000;
-    while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
+    const deadline = performance.now() + hangBudget();
+    while (!url && child.exitCode == null && performance.now() < deadline) await sleep(10);
     assert.ok(url, log || "server did not listen");
     // A user token is not a worker's seat.
     const asUser = await fetch(`${url}/effects/claim`, { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: "{}" });
@@ -94,8 +95,8 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
     for (const session of [bob, carol]) assert.equal((await mutate(session, "join", { conversationId: "c1" })).state, "sent");
     // Bob holds a poll open: connected. Carol does not.
     const poll = fetch(`${url}/changes?since=0&wait=5`, { headers: as(bob) });
-    await sleep(150);
     const online = async (p) => (await (await fetch(`${url}/q/online`, { method: "POST", headers: as(bob), body: JSON.stringify({ args: { p } }) })).json()).data;
+    await awaitState(async () => await online("member:bob") === 1, "Bob's held poll establishes presence");
     assert.equal(await online("member:bob"), 1);
     assert.equal(await online("member:carol"), 0);
     // Bob sends while carol has no connection: one effect, for carol.
@@ -122,13 +123,13 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
         },
       },
     });
-    const until = Date.now() + 15_000;
-    while (delivered.length === 0 && Date.now() < until) await sleep(50);
+    const until = performance.now() + hangBudget();
+    while (delivered.length === 0 && performance.now() < until) await sleep(50);
     assert.equal(delivered.length, 1, "the retry delivered it");
     assert.equal(delivered[0].attempt, 2);
     assert.equal(delivered[0].payload.chatId, "c1");
     let sent = [];
-    while (sent.length === 0 && Date.now() < until) { sent = await listEffects(url, serviceToken, "sent"); if (sent.length === 0) await sleep(50); }
+    while (sent.length === 0 && performance.now() < until) { sent = await listEffects(url, serviceToken, "sent"); if (sent.length === 0) await sleep(50); }
     assert.equal(sent.length, 1);
     assert.equal(sent[0].result.providerId, `apns-${sent[0].id}`);
     assert.equal(sent[0].attempt, 2);
@@ -171,10 +172,7 @@ mutation save(body: text <=200):
 query mine():
   return notes[viewer] first 10 by byOwner
 `;
-async function until(check, timeout = 10_000) {
-  const deadline = Date.now() + timeout;
-  for (;;) { const value = await check(); if (value) return value; if (Date.now() >= deadline) throw Error("timed out waiting"); await sleep(20); }
-}
+async function until(check) { return awaitState(check); }
 async function actionFixture(t, { worker, source = actionSource, flags = [] } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-actions-"));
   mkdirSync(join(directory, "snapback"));
@@ -218,7 +216,7 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
 }
 
 // @ref LLP 3000.011.005.000#4 — provider acceptance and local settlement are separate; a lost outcome reconciles or parks.
-for (const resolvable of [true, false]) test(`provider test double: killed accepted worker ${resolvable ? "reconciles one delivery" : "parks an unknown outcome"}`, { timeout: 20000 }, async t => {
+for (const resolvable of [true, false]) test(`provider test double: killed accepted worker ${resolvable ? "reconciles one delivery" : "parks an unknown outcome"}`, { timeout: hangBudget(25) }, async t => {
   const f = await actionFixture(t, { source: `${actionSource}\nmutation notify():\n  emit notify { message: 'disposable provider fixture' }\n` });
   // Labeled loopback double, owned by this test. Its state survives only the
   // worker crash tested here; this is no claim about a real provider/device.
@@ -315,7 +313,7 @@ for (const resolvable of [true, false]) test(`provider test double: killed accep
   t.diagnostic(`loopback provider double only: requests=${requests}, accepted=1, worker=SIGKILL before settlement, outcome=${resolvable ? "reconciled/sent" : "unknown/parked"}, stale claim refused; real provider and device receipt untested`);
 });
 
-test("dev injects a usable service token and redacts both child log streams", { timeout: 20_000 }, async t => {
+test("dev injects a usable service token and redacts both child log streams", { timeout: hangBudget(2) }, async t => {
   const f = await actionFixture(t, { worker: { ext: "mjs", text: `
 const token = process.env.SNAPBACK_SERVICE_TOKEN;
 console.log('stdout-token:' + token); console.error('stderr-token:' + token);
@@ -334,7 +332,7 @@ setInterval(() => {}, 1000);
   assert.equal(f.log().includes("printed once"), false);
 });
 
-test("actions run as the requesting viewer; client done/failed and replay reach both client tiers", { timeout: 30_000 }, async t => {
+test("actions run as the requesting viewer; client done/failed and replay reach both client tiers", { timeout: hangBudget(14) }, async t => {
   const f = await actionFixture(t);
   let invocations = 0;
   const sessions = [];
@@ -381,7 +379,7 @@ test("actions run as the requesting viewer; client done/failed and replay reach 
   assert.deepEqual((await f.post("/q/mine", { args: {} }, f.token)).data, [], "the service cannot read the viewer's rows");
 });
 
-test("actions pending then settled on retry, lease expiry, fencing, admission and worker authentication", { timeout: 20_000 }, async t => {
+test("actions pending then settled on retry, lease expiry, fencing, admission and worker authentication", { timeout: hangBudget(23) }, async t => {
   const f = await actionFixture(t);
   const alice = await mintSession(f.url, f.token, "member:alice");
   for (const path of ["/actions/claim", "/actions/id/done", "/actions/id/failed"]) {
@@ -420,7 +418,7 @@ test("actions pending then settled on retry, lease expiry, fencing, admission an
   assert.equal((await f.post("/actions/claim", {}, serviceClaim.session.token)).status, 401);
 });
 
-test("actions retry a throwing handler and reauthenticate a waiting caller and worker", { timeout: 20_000 }, async t => {
+test("actions retry a throwing handler and reauthenticate a waiting caller and worker", { timeout: hangBudget(10) }, async t => {
   const f = await actionFixture(t);
   let attempts = 0;
   f.launch({ actions: { retry: (_, meta) => { attempts++; if (attempts === 1) throw Error("transient"); return { attempt: meta.attempt }; } } });
@@ -441,7 +439,7 @@ test("actions retry a throwing handler and reauthenticate a waiting caller and w
   assert.equal((await claim).status, 401);
 });
 
-test("actions are denied offline on both tiers without entering the device queue", { timeout: 20_000 }, async t => {
+test("actions are denied offline on both tiers without entering the device queue", { timeout: hangBudget(10) }, async t => {
   const f = await actionFixture(t);
   let offline = false, actionPosts = 0;
   const network = (...args) => { if (String(args[0]).includes("/a/")) actionPosts++; return offline ? Promise.reject(new TypeError("offline")) : fetch(...args); };
@@ -469,7 +467,7 @@ test("actions are denied offline on both tiers without entering the device queue
   assert.equal(done.state, "done"); assert.equal(done.result, "ready");
 });
 
-test("chat's real TypeScript invite worker is supervised by dev, restarts and stops with it", { timeout: 20_000 }, async t => {
+test("chat's real TypeScript invite worker is supervised by dev, restarts and stops with it", { timeout: hangBudget(6) }, async t => {
   const reference = readFileSync(join(root, "apps/chat/snapback/worker.ts"), "utf8");
   const source = readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8");
   // The reference worker keeps its production 60 s lease / 25 s poll: dev
@@ -502,7 +500,7 @@ test("chat's real TypeScript invite worker is supervised by dev, restarts and st
   assert.throws(() => process.kill(lastPid, 0), { code: "ESRCH" });
 });
 
-for (const ext of ["mjs", "mts"]) test(`dev also starts a worker.${ext}`, { timeout: 15_000 }, async t => {
+for (const ext of ["mjs", "mts"]) test(`dev also starts a worker.${ext}`, { timeout: hangBudget(2) }, async t => {
   const text = `import { runWorker } from 'snapback4/worker';
 const stop = new AbortController(); process.once('SIGTERM', () => stop.abort());
 await runWorker({ url: process.env.SNAPBACK_URL, token: process.env.SNAPBACK_SERVICE_TOKEN, signal: stop.signal, actions: { slow: () => 'mjs' } }).done;`;
@@ -511,7 +509,7 @@ await runWorker({ url: process.env.SNAPBACK_URL, token: process.env.SNAPBACK_SER
   assert.equal((await client.act(action("slow"), {})).result, "mjs");
 });
 
-test("a lost action settlement retries its lease; a non-JSON result fails once", { timeout: 15_000 }, async t => {
+test("a lost action settlement retries its lease; a non-JSON result fails once", { timeout: hangBudget(4) }, async t => {
   const f = await actionFixture(t);
   let dropped = false, invalidCalls = 0;
   const errors = [], ids = [];
@@ -537,7 +535,7 @@ test("a lost action settlement retries its lease; a non-JSON result fails once",
   assert.deepEqual(await client.act(action("fail"), {}, { id: invalid.id }), invalid);
 });
 
-for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect lease on the wire reports ${state}`, { timeout: 30_000 }, async t => {
+for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect lease on the wire reports ${state}`, { timeout: hangBudget(13) }, async t => {
   const f = await actionFixture(t, { source: `${actionSource}\nmutation notify():\n  emit notify { message: 'hello' }\n` });
   const info = t.mock.method(console, "info", () => {}), errors = [];
   const other = f.otherToken;
@@ -629,7 +627,7 @@ test("effect settlement still reports a refusal other than lease loss", async ()
 });
 
 
-for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${replay ? "suppressed" : "deferred"} presence effects`, { timeout: 30_000 }, async t => {
+for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${replay ? "suppressed" : "deferred"} presence effects`, { timeout: hangBudget(13) }, async t => {
   const settlementReply = Promise.withResolvers();
   t.after(() => settlementReply.resolve());
   const f = await actionFixture(t, { flags: replay ? ["--replay"] : [], source: `use personas alice
@@ -714,7 +712,7 @@ test("admission binds logout-all, single logout and refresh families over HTTP",
   }
 });
 
-test("serve supervises a worker with an explicit environment, restart backoff and shutdown", { timeout: 20_000 }, async t => {
+test("serve supervises a worker with an explicit environment, restart backoff and shutdown", { timeout: hangBudget(8) }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-serve-worker-"));
   mkdirSync(join(directory, "snapback")); mkdirSync(join(directory, "node_modules"));
   symlinkSync(join(root, "packages/snapback4"), join(directory, "node_modules/snapback4"));
@@ -810,7 +808,7 @@ test("dev replaces its supervised worker when the one-day session window ends", 
   assert.throws(() => process.kill(first, 0), { code: "ESRCH" });
 });
 
-test("real HTTP redelivery after a lost settlement acknowledgement replays the durable ledger", { timeout: 15_000 }, async t => {
+test("real HTTP redelivery after a lost settlement acknowledgement replays the durable ledger", { timeout: hangBudget(7) }, async t => {
   const f = await actionFixture(t, { source: actionSource + "\nmutation sendNotification():\n  emit notify { message: 'hello' }\n  return true\n" });
   assert.equal((await f.post("/m/sendNotification", { args: {} })).state, "sent");
   const ledger = join(f.directory, "effects.sqlite");

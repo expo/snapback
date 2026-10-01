@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,7 +10,7 @@ const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import
 const device = () => webDevice({ wasm, persist: memoryPersistence() });
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 
-test("a failed local rotation save is not silently repeated by its notification", { timeout: 20_000 }, async t => {
+test("a failed local rotation save is not silently repeated by its notification", { timeout: hangBudget(12) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let fail = false, failures = 0, successor;
   const store = { ...memory, async set(k, value) {
@@ -32,7 +33,7 @@ test("a failed local rotation save is not silently repeated by its notification"
   assert.equal(reopened.auth.state, "signed-in"); assert.equal(reopened.client.session().token, successor.token);
 });
 
-test("a local query retries its consumed predecessor after the owned rotation arrives", { timeout: 20_000 }, async t => {
+test("a local query retries its consumed predecessor after the owned rotation arrives", { timeout: hangBudget(12) }, async t => {
   const { url } = await server(t, "online only"), store = memorySessionStore(), held = gate(); let successor, denied = false;
   const app = createApp({ url, device: device(), sessionStore: store, fetch: async (input, init) => {
     const path = new URL(input).pathname;

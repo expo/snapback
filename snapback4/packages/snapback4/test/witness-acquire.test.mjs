@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -53,8 +54,8 @@ async function fixture(t, release = false) {
   server.stdout.on('data', bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   server.stderr.on('data', bytes => { log += bytes; });
   t.after(async () => { if (server.exitCode === null) server.kill(); await exit; await rm(dir, { recursive: true, force: true }); });
-  const end = Date.now() + 30000;
-  while (!url) { assert.equal(server.exitCode, null, log); assert.ok(Date.now() < end, log); await new Promise(r => setTimeout(r, 10)); }
+  const end = performance.now() + hangBudget();
+  while (!url) { assert.equal(server.exitCode, null, log); assert.ok(performance.now() < end, log); await new Promise(r => setTimeout(r, 10)); }
   if (!release) {
   const response = await fetch(`${url}/seed`, { method: 'POST', body: JSON.stringify([
     { table: 'notes', row: { id: 'n1', owner: 'dev:alice', body: 'held one' } },
@@ -63,7 +64,7 @@ async function fixture(t, release = false) {
   ]) });
   assert.equal((await response.json()).seeded, 3);
   }
-  return { url, dir, args: ['--as', 'alice', '--url', url, '--restart', '--timeout', '15'] };
+  return { url, dir, args: ['--as', 'alice', '--url', url, '--restart', '--timeout', String(hangBudget(2) / 1000)] };
 }
 
 test('acquire CLI refuses invalid arguments before connecting', async () => {
@@ -104,7 +105,7 @@ test('acquire refuses unknown personas, mismatched bearer identity, unreachable 
     ['--as', 'alice', '--url', f.url, '--query', 'byOwner'],
     ['--as', 'alice', '--url', f.url, '--query', 'byOwner', '--args', '{"owner":7}'],
   ]) {
-    const reply = await cli([...args, '--timeout', '2'], f.dir);
+    const reply = await cli([...args, '--timeout', String(hangBudget(2) / 1000)], f.dir);
     assert.notEqual(reply.status, 0); assert.match(reply.stderr, /E_AUTH|E_WITNESS_BACKEND|E_WITNESS_INPUT/);
   }
 });
@@ -189,7 +190,7 @@ for (const fault of ['more-then-drop', 'denied', 'malformed-json', 'null', 'miss
     t.after(() => { proxy.closeAllConnections(); proxy.close(); });
     const artifacts = join(f.dir, fault);
     const reply = await cli(['--as', 'alice', '--url', `http://127.0.0.1:${proxy.address().port}`,
-      '--restart', '--json', '--timeout', '15', '--artifacts', artifacts], f.dir);
+      '--restart', '--json', '--timeout', String(hangBudget(2) / 1000), '--artifacts', artifacts], f.dir);
     const receipt = JSON.parse(reply.stdout);
     assert.notEqual(reply.status, 0, 'failed reconnect must exit nonzero');
     assert.equal(receipt.passed, false);
@@ -329,7 +330,7 @@ for (const valid of [true, false]) test(`binary native module ${valid ? 'install
   });
   proxy.listen(0, '127.0.0.1'); await once(proxy, 'listening');
   t.after(() => { proxy.closeAllConnections(); proxy.close(); });
-  const reply = await cli(['--as', 'alice', '--url', `http://127.0.0.1:${proxy.address().port}`, '--restart', '--json', '--timeout', '15'], f.dir);
+  const reply = await cli(['--as', 'alice', '--url', `http://127.0.0.1:${proxy.address().port}`, '--restart', '--json', '--timeout', String(hangBudget(2) / 1000)], f.dir);
   const receipt = JSON.parse(reply.stdout);
   if (valid) {
     assert.equal(reply.status, 0, reply.stderr); assert.equal(receipt.passed, true);
@@ -408,7 +409,7 @@ for (const form of Object.keys(tokenForms('synthetic'))) test(`server allowlist 
     for (const json of [true, false]) {
       const artifacts = join(f.dir, `${scenario.replaceAll('/', '-')}-${json}`);
       const reply = await cli(['--as', session.principal, '--token', session.token,
-        '--url', `http://127.0.0.1:${proxy.address().port}`, '--timeout', '3', '--restart', '--artifacts', artifacts,
+        '--url', `http://127.0.0.1:${proxy.address().port}`, '--timeout', String(hangBudget(2) / 1000), '--restart', '--artifacts', artifacts,
         ...(scenario === 'missing-arg' ? ['--query', 'byOwner'] : []), ...(json ? ['--json'] : [])], f.dir);
       const file = await readFile(join(artifacts, 'acquire.json'), 'utf8');
       assertNoCredentials(variants, { stdout: reply.stdout, stderr: reply.stderr, file });

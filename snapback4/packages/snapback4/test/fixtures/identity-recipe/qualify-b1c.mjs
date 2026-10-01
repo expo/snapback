@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from '../../helpers/wait.mjs';
 // Prepared B1c qualification. This file intentionally runs only when an
 // executor supplies a private scratch parent, an exact binary digest and the
 // fixed Keycloak credential file. It emits no credential or bearer value.
@@ -145,7 +146,7 @@ async function prepareProject(scratch, name, paths, mode) {
 
 function safeCommand(binary, cwd, args, env = {}) {
   const result = spawnSync(binary, args, {
-    cwd, encoding: "utf8", timeout: 30_000,
+    cwd, encoding: "utf8", timeout: hangBudget(),
     env: { ...process.env, SNAPBACK_NODE: process.execPath, ...env },
   });
   if (result.status !== 0) fail(`command-${args[0]}`);
@@ -167,9 +168,9 @@ async function startEngine(binary, project, env = {}) {
   await until(async () => {
     if (spawnFailed) fail("engine-spawn");
     if (child.exitCode !== null) fail("engine-exited");
-    try { const response = await fetch(`${engineUrl}/auth/guest`, { method: "POST", signal: AbortSignal.timeout(500) }); return response.status < 500; }
+    try { const response = await fetch(`${engineUrl}/auth/guest`, { method: "POST", signal: AbortSignal.timeout(hangBudget()) }); return response.status < 500; }
     catch { return false; }
-  }, 20_000, "engine-start");
+  }, "engine-start");
   return {
     child, identity,
     workerPids: () => new Set([...output.matchAll(/snapback4 worker: .* \(pid (\d+)\)/g)].map(match => Number(match[1]))),
@@ -182,23 +183,18 @@ async function stopChild(child) {
   catch { fail("child-stop-timeout"); }
 }
 
-async function until(check, milliseconds, code) {
-  const deadline = Date.now() + milliseconds;
-  while (Date.now() < deadline) {
+async function until(check, code) {
+  return awaitState(async () => {
     if (instrumentFailureCode) fail(instrumentFailureCode);
-    const value = await check();
-    if (value) return value;
-    await delay(40);
-  }
-  if (instrumentFailureCode) fail(instrumentFailureCode);
-  fail(`timeout-${code}`);
+    return check();
+  }, `qualification-${code}`);
 }
 
 async function http(path, body = {}, token, headers = {}) {
   let response;
   try {
     response = await fetch(`${engineUrl}${path}`, {
-      method: "POST", signal: AbortSignal.timeout(15_000),
+      method: "POST", signal: AbortSignal.timeout(hangBudget()),
       headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
       body: JSON.stringify(body),
     });
@@ -218,7 +214,7 @@ async function collect(name, id, args, token) {
   return until(async () => {
     const value = await action(name, id, args, token, 25);
     return value.state === "pending" ? null : value;
-  }, 120_000, `collect-${name}`);
+  }, `collect-${name}`);
 }
 
 async function guest() {
@@ -257,7 +253,7 @@ async function startFaultProxy(engine, mode, project, invocation) {
     return registered;
   };
   const cutWorker = async (pid, registered, cut) => {
-    await until(() => engine.workerPids().has(pid), 5_000, "worker-pid-registration");
+    await until(() => engine.workerPids().has(pid), "worker-pid-registration");
     try { await verifyWorkerCustody(registered, engine.identity(), runtimeUid); }
     catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-revalidation" }); }
     try { process.kill(pid, "SIGKILL"); }
@@ -389,12 +385,12 @@ async function startFaultProxy(engine, mode, project, invocation) {
     state,
     async closeExpected() {
       const failure = await closeExpectedProxy({ server, lifecycle, exchanges,
-        currentFailure: () => instrumentFailureCode, drainMilliseconds: 30_000, closeMilliseconds: 2_000 });
+        currentFailure: () => instrumentFailureCode, drainMilliseconds: hangBudget(), closeMilliseconds: hangBudget() });
       if (failure) fail(failure);
     },
     async closeAbort() {
       lifecycle.beginExpectedTeardown();
-      await abortProxyServer(server, exchanges, 2_000);
+      await abortProxyServer(server, exchanges, hangBudget());
       lifecycle.close();
     },
   };
@@ -564,7 +560,7 @@ async function rawAuthorityWitness(paths, scratch) {
     const found = requests[0];
     if (found?.session?.token) { secrets.add(found.session.token); return found; }
     return null;
-  }, 8_000, "claim-current-invocation");
+  }, "claim-current-invocation");
   const admit = async (actionName = "qualificationMint") => {
     const owner = await guest(); const id = `b1c-raw-${randomUUID()}`;
     const result = await action(actionName, id, {}, owner.token, 0);

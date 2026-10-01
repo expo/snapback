@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -25,7 +26,7 @@ function device(state, apply, extra = () => undefined) {
   } };
 }
 
-test("private commits keep the published image without adopting the staged identity", { timeout: 5000 }, async t => {
+test("private commits keep the published image without adopting the staged identity", { timeout: hangBudget(7) }, async t => {
   const { createLocalClient } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   let mode = "initial", publishedStore = "A", watermark = 5, transfer = 5, value = 1;
   let stage = 0, localReads = 0, observations = 0, adoptions = 0, client, watch;
@@ -64,12 +65,12 @@ test("private commits keep the published image without adopting the staged ident
   t.after(async () => { watch?.close(); await client.close(); });
   watch = client.observe(query, {});
   watch.subscribe(() => watched.push(watch.getSnapshot()));
-  for (let i = 0; i < 20 && watch.getSnapshot().data !== 1; i++) await pause();
+  await awaitState(async () => !(watch.getSnapshot().data !== 1), "repair-b-round7.test.mjs: watch.getSnapshot().data !== 1", { poll: async () => { await pause(); } });
   assert.equal(watch.getSnapshot().data, 1);
   priorReads = localReads; priorNotifications = watched.length;
   mode = "private";
   await client.sync();
-  for (let i = 0; i < 20 && watch.getSnapshot().data !== 2; i++) await pause();
+  await awaitState(async () => !(watch.getSnapshot().data !== 2), "repair-b-round7.test.mjs: watch.getSnapshot().data !== 2", { poll: async () => { await pause(); } });
   assert.equal(stage, 2, "private transfer reached publication");
   assert.equal(duringPrivate.snapshot.data, 1, "a rerun still reads the published image");
   assert.equal(duringPrivate.reads, priorReads, "an empty private staging apply does no known-query work");
@@ -81,7 +82,7 @@ test("private commits keep the published image without adopting the staged ident
   assert.deepEqual(requests.slice(1).map(r => [r.store_id, r.from]), [["B", 5], ["B", 6]]);
 });
 
-test("ordinary publication keeps stream mode through false snapshot mode and an interrupted round", { timeout: 5000 }, async t => {
+test("ordinary publication keeps stream mode through false snapshot mode and an interrupted round", { timeout: hangBudget(3) }, async t => {
   const { createLocalClient } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   let watermark = 0, transfer = 0, applied = 0, interrupted = false;
   const requests = [], ownership = [];
@@ -112,7 +113,7 @@ test("ordinary publication keeps stream mode through false snapshot mode and an 
   assert.deepEqual(ownership, [false, false, false], "ordinary deferral must never claim a snapshot owner");
 });
 
-test("change polling takes published native progress after another owner advances", { timeout: 5000 }, async t => {
+test("change polling takes published native progress after another owner advances", { timeout: hangBudget(5) }, async t => {
   const { createLocalClient } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   let watermark = 5, advancing = false, releasePoll;
   const polls = [];
@@ -140,11 +141,11 @@ test("change polling takes published native progress after another owner advance
     },
   });
   t.after(() => client.close());
-  for (let i = 0; i < 20 && !polls.length; i++) await pause();
+  await awaitState(async () => !(!polls.length), "repair-b-round7.test.mjs: !polls.length", { poll: async () => { await pause(); } });
   assert.deepEqual(polls, [["5", "S"]]);
   advancing = true;
   await client.sync();
   releasePoll();
-  for (let i = 0; i < 300 && polls.length < 2; i++) await new Promise(resolve => setTimeout(resolve, 10));
+  await awaitState(async () => !(polls.length < 2), "repair-b-round7.test.mjs: polls.length < 2", { poll: async () => { await new Promise(resolve => setTimeout(resolve, 10)); } });
   assert.deepEqual(polls, [["5", "S"], ["9", "S"]]);
 });

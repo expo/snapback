@@ -1,0 +1,43 @@
+✔ online: four retired publications refuse with a retryable code (391.523104ms)
+✔ online: ignored transport abort still settles and fences the late answer (173.784813ms)
+✔ online: close settles an outstanding one-shot without waiting for transport (152.299365ms)
+✔ online: signOut settles an outstanding one-shot without waiting for transport (142.777461ms)
+✔ wasm: four retired publications refuse with a retryable code (865.146582ms)
+✔ wasm: ignored transport abort still settles and fences the late answer (273.106281ms)
+✔ wasm: close settles an outstanding one-shot without waiting for transport (159.136625ms)
+✔ wasm: signOut settles an outstanding one-shot without waiting for transport (160.135032ms)
+✔ process: four retired publications refuse with a retryable code (472.06436ms)
+✔ process: ignored transport abort still settles and fences the late answer (234.209083ms)
+✔ process: close settles an outstanding one-shot without waiting for transport (226.442049ms)
+✔ process: signOut settles an outstanding one-shot without waiting for transport (398.180094ms)
+✔ app-online: four retired publications refuse with a retryable code (520.107479ms)
+✔ app-online: ignored transport abort still settles and fences the late answer (170.78794ms)
+✔ app-online: close settles an outstanding one-shot without waiting for transport (138.975802ms)
+✔ app-online: signOut settles an outstanding one-shot without waiting for transport (151.591774ms)
+✔ app-wasm: four retired publications refuse with a retryable code (448.922018ms)
+✔ app-wasm: ignored transport abort still settles and fences the late answer (196.129899ms)
+✔ app-wasm: close settles an outstanding one-shot without waiting for transport (179.705499ms)
+✔ app-wasm: signOut settles an outstanding one-shot without waiting for transport (217.915066ms)
+✔ app-process: four retired publications refuse with a retryable code (434.725497ms)
+✔ app-process: ignored transport abort still settles and fences the late answer (207.772372ms)
+✔ app-process: close settles an outstanding one-shot without waiting for transport (206.980054ms)
+✔ app-process: signOut settles an outstanding one-shot without waiting for transport (198.440452ms)
+✔ wasm: device queue wait behind observations is inside the one-shot deadline (158.338668ms)
+✔ wasm: an unexpired permitted remembered answer still serves offline (166.276787ms)
+✔ process: device queue wait behind observations is inside the one-shot deadline (195.839103ms)
+✔ process: an unexpired permitted remembered answer still serves offline (528.941913ms)
+✔ app-wasm: device queue wait behind observations is inside the one-shot deadline (164.659914ms)
+✔ app-wasm: an unexpired permitted remembered answer still serves offline (170.126719ms)
+✔ app-process: device queue wait behind observations is inside the one-shot deadline (207.211421ms)
+✔ app-process: an unexpired permitted remembered answer still serves offline (225.979606ms)
+✔ app-online: blocked facade authority shares the same deadline (141.989019ms)
+✔ app-wasm: blocked facade authority shares the same deadline (188.081054ms)
+✔ app-process: blocked facade authority shares the same deadline (213.94843ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9283.720789

@@ -1,0 +1,33 @@
+
+ℹ tests 456
+ℹ suites 0
+ℹ pass 454
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1364468.382747
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-seams.test.mjs:1:1
+✖ packages/snapback4/test/client-seams.test.mjs (258981.178424ms)
+  'test failed'
+
+test at packages/snapback4/test/ordinary-search-oracle.test.mjs:359:5
+✖ ordinary search generated oracle process: 300 seeds (704199.49427ms)
+  AssertionError [ERR_ASSERTION]: [{"seed":69,"message":"one invocation per publication round, bounded at four for a retired page"}]
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:393:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

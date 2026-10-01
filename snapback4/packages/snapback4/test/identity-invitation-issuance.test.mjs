@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import { readyRead } from "../dist/read-existence.js";
 // Protocol doubles for the authored optional B1d.3 invitation-handler source.
 // These are not engine, crash-process, authentication or provider qualification.
@@ -376,7 +377,7 @@ test("provider uncertainty, 409 and historical 4xx never become false done; erro
 
   let redirect;
   const redirectError = await sendResendEmail({ apiKey: "key", idempotencyKey: "redirect", body: "{}",
-    signal: AbortSignal.timeout(1000), fetch: async (_url, init) => {
+    signal: AbortSignal.timeout(hangBudget()), fetch: async (_url, init) => {
       redirect = init.redirect;
       throw new TypeError("redirect refused with private provider detail");
     } }).then(() => assert.fail("unexpected redirect completion"), error => error);
@@ -385,7 +386,7 @@ test("provider uncertainty, 409 and historical 4xx never become false done; erro
   assert.doesNotMatch(redirectError.message, /redirect|provider detail/);
 
   await assert.rejects(sendResendEmail({ apiKey: "key", idempotencyKey: "same", body: "changed",
-    signal: AbortSignal.timeout(1000), fetch: async () => new Response("conflict", { status: 409 }) }), ResendUnresolved);
+    signal: AbortSignal.timeout(hangBudget()), fetch: async () => new Response("conflict", { status: 409 }) }), ResendUnresolved);
 });
 
 test("successful provider JSON is byte-bounded before accumulation and remains uncertain on body faults", async t => {
@@ -394,7 +395,7 @@ test("successful provider JSON is byte-bounded before accumulation and remains u
     const json = prefix + " ".repeat(64 * 1024 - Buffer.byteLength(prefix));
     assert.equal(Buffer.byteLength(json), 64 * 1024);
     const result = await sendResendEmail({ apiKey: "key", idempotencyKey: "boundary", body: "{}",
-      signal: AbortSignal.timeout(1000), fetch: async () => readerResponse([
+      signal: AbortSignal.timeout(hangBudget()), fetch: async () => readerResponse([
         Buffer.from(json.slice(0, 32000)), Buffer.from(json.slice(32000)),
       ]) });
     assert.equal(result.kind, "accepted");
@@ -407,7 +408,7 @@ test("successful provider JSON is byte-bounded before accumulation and remains u
       assert.ok(valid.byteLength > 64 * 1024);
       let cancelled = 0, reads = 0, observedLength;
       const error = await sendResendEmail({ apiKey: "key", idempotencyKey: name, body: "{}",
-        signal: AbortSignal.timeout(1000), fetch: async () => {
+        signal: AbortSignal.timeout(hangBudget()), fetch: async () => {
           const response = readerResponse([valid.subarray(0, 65_000), valid.subarray(65_000), new Uint8Array(0)],
             { headers, cancel: () => { cancelled++; }, onRead: () => { reads++; } });
           observedLength = response.headers.get("content-length");
@@ -428,7 +429,7 @@ test("successful provider JSON is byte-bounded before accumulation and remains u
     ];
     for (const body of bodies) {
       const error = await sendResendEmail({ apiKey: "key", idempotencyKey: "bad-body", body: "{}",
-        signal: AbortSignal.timeout(1000), fetch: async () => new Response(body, { status: 200 })
+        signal: AbortSignal.timeout(hangBudget()), fetch: async () => new Response(body, { status: 200 })
       }).then(() => assert.fail("bad body became accepted"), value => value);
       assert.ok(error instanceof Retry);
       assert.doesNotMatch(error.message, /private|read|parse/);
@@ -436,10 +437,10 @@ test("successful provider JSON is byte-bounded before accumulation and remains u
   });
 });
 
-test("non-success bodies are cancelled without awaiting hostile cancellation", { timeout: 2000 }, async () => {
+test("non-success bodies are cancelled without awaiting hostile cancellation", { timeout: hangBudget(4) }, async () => {
   let conflictCancelled = 0;
   await assert.rejects(sendResendEmail({ apiKey: "key", idempotencyKey: "conflict", body: "{}",
-    signal: AbortSignal.timeout(1000), fetch: async () => new Response(byteStream(["conflict"], () => { conflictCancelled++; }), { status: 409 })
+    signal: AbortSignal.timeout(hangBudget()), fetch: async () => new Response(byteStream(["conflict"], () => { conflictCancelled++; }), { status: 409 })
   }), ResendUnresolved);
   assert.equal(conflictCancelled, 1);
 
@@ -448,20 +449,20 @@ test("non-success bodies are cancelled without awaiting hostile cancellation", {
   process.on("unhandledRejection", onUnhandled);
   try {
     const rejected = await sendResendEmail({ apiKey: "key", idempotencyKey: "rejected-cancel", body: "{}",
-      signal: AbortSignal.timeout(1000), fetch: async () => new Response(byteStream(["no"], () => Promise.reject(new Error("cancel detail"))), { status: 400 }) });
+      signal: AbortSignal.timeout(hangBudget()), fetch: async () => new Response(byteStream(["no"], () => Promise.reject(new Error("cancel detail"))), { status: 400 }) });
     assert.equal(rejected.kind, "rejected");
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(unhandled, []);
   } finally { process.removeListener("unhandledRejection", onUnhandled); }
 
   const never = sendResendEmail({ apiKey: "key", idempotencyKey: "never-cancel", body: "{}",
-    signal: AbortSignal.timeout(1000), fetch: async () => new Response(byteStream(["no"], () => new Promise(() => {})), { status: 400 }) });
+    signal: AbortSignal.timeout(hangBudget()), fetch: async () => new Response(byteStream(["no"], () => new Promise(() => {})), { status: 400 }) });
   const bounded = await Promise.race([never, new Promise(resolve => setImmediate(() => resolve("cancel was awaited")))]);
   assert.notEqual(bounded, "cancel was awaited");
   assert.equal(bounded.kind, "rejected");
 });
 
-test("HTTP and response consumption settle on abort after the ignoring transport has entered", { timeout: 2000 }, async () => {
+test("HTTP and response consumption settle on abort after the ignoring transport has entered", { timeout: hangBudget(6) }, async () => {
   const fetchAbort = new AbortController();
   const fetchEntered = deferred(), fetchLate = deferred();
   const fetchPending = sendResendEmail({ apiKey: "key", idempotencyKey: "key", body: "{}", signal: fetchAbort.signal,

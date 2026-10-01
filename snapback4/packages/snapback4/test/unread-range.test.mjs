@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.020#6 — the same replica cases run on wasm and both native stores.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { initSync, WebDevice } from '../src/wasm/snapback4_device.js';
 import { createLocalClient } from '../dist/local.js';
+import { defaultFetch as fetch } from '../dist/node-fetch.js';
 import { memoryPersistence, webDevice } from '../dist/web.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -34,7 +36,7 @@ async function serverFor(t, c) {
   let log = '';
   child.stderr.on('data', b => { log += b; });
   const url = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(Error(log)), 60000);
+    const timer = setTimeout(() => reject(Error(log)), hangBudget());
     child.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
     child.stdout.on('data', b => { log += b; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
@@ -67,7 +69,7 @@ function check(call, c) {
   const rows = call({ op: 'query', name: 'badgeRows', viewer, now: c.now ?? 1 });
   assert.equal(rows.ok?.data?.[0]?.recountPending, !c.complete, JSON.stringify(rows));
 }
-for (const c of cases) test(`unread range wasm: ${c.name}`, { timeout: 120000 }, async t => {
+for (const c of cases) test(`unread range wasm: ${c.name}`, { timeout: hangBudget(9 + Math.ceil((c.n ?? 6) / 512) + (c.actions?.length ?? 0)) }, async t => {
   const s = await serverFor(t, c);
   let device = new WebDevice(JSON.stringify(s.backend), '[]'), kept = [];
   t.after(() => device.free());
@@ -88,6 +90,9 @@ for (const c of cases) test(`unread range wasm: ${c.name}`, { timeout: 120000 },
       fetch: async (input, init) => { if (new URL(input).pathname.startsWith('/q/')) requests++; return fetch(input, init); },
     });
     try {
+      // The meter assertion requires the acquired replica. Bulk catch-up is
+      // setup work, independent of query's product waitSeconds allowance.
+      await client.sync();
       const partial = await client.query({ kind: 'query', name: 'badge' }, { member: 'b' });
       assert.ok(partial.data > 0 && partial.data < 8300); assert.equal(partial.complete, false); assert.equal(requests, 0);
     } finally { await client.close(); }
@@ -137,7 +142,7 @@ for (const c of cases) test(`unread range wasm: ${c.name}`, { timeout: 120000 },
   }
 });
 
-test('unread range check names the chosen predicates, index and horizon', { timeout: 120000 }, async t => {
+test('unread range check names the chosen predicates, index and horizon', { timeout: hangBudget(1) }, async t => {
   const s = await serverFor(t, cases[0]);
   const checked = JSON.parse(execFileSync(binary, ['check', '--json', '--cost'], { cwd: s.dir, encoding: 'utf8' }));
   const range = checked.rowViews[0].range;
@@ -153,7 +158,7 @@ test('unread range check names the chosen predicates, index and horizon', { time
   assert.ok(!badge.growth_sites.some(g => g.reason.includes('unswept expired messages contributions')));
 });
 
-test('unread badge uses server fallback online and keeps its bound after cold offline reopen', { timeout: 120000 }, async t => {
+test('unread badge uses server fallback online and keeps its bound after cold offline reopen', { timeout: hangBudget(8) }, async t => {
   const s = await serverFor(t, { mark: 0 });
   const persistence = memoryPersistence(); let offline = false, requests = 0; const observed = [];
   const open = async () => {
@@ -181,7 +186,7 @@ test('unread badge uses server fallback online and keeps its bound after cold of
 });
 
 
-test('the guide Clique program certifies and expires on wasm after reopen', { timeout: 120000 }, async t => {
+test('the guide Clique program certifies and expires on wasm after reopen', { timeout: hangBudget(3) }, async t => {
   const guide = readFileSync(join(root, 'crates/snapback4-lang/src/guide/maintains.md'), 'utf8');
   const program = guide.split('## A value per member: Clique unread')[1].split('```quarry\n')[1].split('```')[0];
   const s = await serverFor(t, { program, n: 0, rows: [
@@ -201,7 +206,7 @@ test('the guide Clique program certifies and expires on wasm after reopen', { ti
   const expired = read(q.nextExpiry + 1000); assert.equal(expired.data, 0); assert.equal(expired.complete, true);
 });
 
-for (const fence of ['held', 'prediction']) test(`unread fallback respects ${fence}`, { timeout: 120000 }, async t => {
+for (const fence of ['held', 'prediction']) test(`unread fallback respects ${fence}`, { timeout: hangBudget(6) }, async t => {
   const s = await serverFor(t, { mark: 0,
     replace: fence === 'held' ? [['query badge(member: members):', 'query badge(member: members) held:']] : [],
     rows: [
@@ -241,7 +246,7 @@ for (const fence of ['held', 'prediction']) test(`unread fallback respects ${fen
   assert.equal(q.data, 3); assert.equal(q.complete, false); assert.equal(requests, 0);
 });
 
-test('several wasm badges share one request allowance', { timeout: 120000 }, async t => {
+test('several wasm badges share one request allowance', { timeout: hangBudget(2 + Math.ceil(20000 / 512)) }, async t => {
   const s = await serverFor(t, { n: 20000, mark: 16000,
     replace: [['last 3 by .ordinal', 'last 19999 by .ordinal']],
     program: source + '\nquery many(member: members):\n  a = unread[member]\n  b = unread[member]\n  c = unread[member]\n  return { a, b, c }\n',
@@ -255,7 +260,7 @@ test('several wasm badges share one request allowance', { timeout: 120000 }, asy
   assert.deepEqual(q.data, { a: 4000, b: 4000, c: 168 });
 });
 
-test('check enumerates every range candidate and its fallback in text and JSON', { timeout: 120000 }, async t => {
+test('check enumerates every range candidate and its fallback in text and JSON', { timeout: hangBudget(1) }, async t => {
   const s = await serverFor(t, cases.find(c => c.name === 'strongest-bound'));
   const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: s.dir, encoding: 'utf8' }));
   const r = checked.rowViews[0].range;
@@ -269,7 +274,7 @@ test('check enumerates every range candidate and its fallback in text and JSON',
   for (const part of [r.index, r.horizon.index, r.selection, r.fallback, '.ordinal > member.joinedAt']) assert.ok(text.includes(part), part);
 });
 
-test('check omits the device range for a stored non-expiring count', { timeout: 120000 }, async t => {
+test('check omits the device range for a stored non-expiring count', { timeout: hangBudget(1) }, async t => {
   const s = await serverFor(t, { replace: [['  expire at .until\n', '']] });
   const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: s.dir, encoding: 'utf8' }));
   assert.equal(checked.rowViews[0].range, null);

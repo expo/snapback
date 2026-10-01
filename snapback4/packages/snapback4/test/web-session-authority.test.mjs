@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Real Chromium, real app logout, and deterministic renderer-cache faults.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import { join } from 'node:path';
 import { launch, root } from '../../../witness/lib.mjs';
 import { until } from './helpers/app-server.mjs';
 
-test('browser session authority commits through IndexedDB before releasing the session lock', { timeout: 120_000 }, async t => {
+test('browser session authority commits through IndexedDB before releasing the session lock', { timeout: hangBudget(164) }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-session-authority-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), `use identity password
@@ -145,6 +146,7 @@ window.capture = () => {
     assert.equal(await page.evaluate(() => old.acquired), true);
     const mirror = await page.evaluate(url => localStorage.getItem(sessionKey(url)), url);
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
       await peer.evaluate(options => boot(options), { url });
@@ -172,7 +174,7 @@ window.capture = () => {
       assert.equal(await page.evaluate(({ store, id }) => indexedDbPersistence().read(store, 'o', id), captured), null);
       assert.deepEqual(await page.evaluate(() => sent), []);
       assert.equal(await total(session), before);
-      await page.waitForFunction(() => app.auth.state === 'signed-out', null, { timeout: 3000 });
+      await page.waitForFunction(() => app.auth.state === 'signed-out', null, { timeout: hangBudget() });
       const fenced = await page.evaluate(() => ({ auth: app.auth.viewer, viewer: old.viewer(), acquired: old.acquired, observed: observed.getSnapshot() }));
       assert.equal(fenced.auth, null); assert.equal(fenced.viewer, null); assert.equal(fenced.acquired, false);
       assert.equal(fenced.observed.data, undefined); assert.ok(fenced.observed.denied);

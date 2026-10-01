@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // The native tier against the real module — `snapback4 device`, the same
 // Rust the Expo module and the Exact2 host link, as a process — and a live
 // `snapback4 dev`: two devices converge through the stream, a send is
@@ -20,17 +21,9 @@ const port = 4550 + (process.pid % 20);
 const url = `http://127.0.0.1:${port}`;
 const api = { thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" }, send: { kind: "mutation", name: "send" } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function until(check, ms = 10_000) {
-  const deadline = Date.now() + ms;
-  for (;;) {
-    const value = await check();
-    if (value) return value;
-    if (Date.now() > deadline) throw new Error("timed out waiting");
-    await sleep(25);
-  }
-}
+async function until(check) { return awaitState(check); }
 
-test("the native module follows the server, predicts, queues, and starts cold offline", { timeout: 90_000 }, async (t) => {
+test("the native module follows the server, predicts, queues, and starts cold offline", { timeout: hangBudget(26) }, async (t) => {
   const previousBinary = process.env.SNAPBACK4_BIN;
   process.env.SNAPBACK4_BIN = binary;
   t.after(() => { if (previousBinary === undefined) delete process.env.SNAPBACK4_BIN; else process.env.SNAPBACK4_BIN = previousBinary; });
@@ -81,8 +74,7 @@ test("the native module follows the server, predicts, queues, and starts cold of
     const local = await alice.query(api.thread, { conversationId: "c1", c: null });
     assert.ok(isReady(local) && local.fresh === false && local.data.filter((m) => m.pending === true).length >= 5, JSON.stringify(local).slice(0, 300));
     offline = false;
-    const reconnectDeadline = Date.now() + 20_000;
-    const landed = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.filter((m) => /^q\d$/.test(m.body)).length === 5 ? r : null; }, Math.max(0, reconnectDeadline - Date.now()));
+    const landed = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.filter((m) => /^q\d$/.test(m.body)).length === 5 ? r : null; });
     assert.deepEqual(landed.data.filter((m) => /^q\d$/.test(m.body)).map((m) => m.body).reverse(), ["q0", "q1", "q2", "q3", "q4"]);
     // A complete online query can come from the server. Wait for Bob's
     // own committed rows before close aborts the follower's next request.
@@ -90,7 +82,7 @@ test("the native module follows the server, predicts, queues, and starts cold of
       const result = await bobCore.call({ op: "query", name: "thread", viewer: "dev:bob", args: { conversationId: "c1", c: null }, now: Date.now() });
       const rows = result.ok?.data;
       return Array.isArray(rows) && rows.length === 37 && rows.filter((row) => /^q\d$/.test(row.body)).length === 5;
-    }, Math.max(0, reconnectDeadline - Date.now()));
+    });
     await alice.close();
     await bob.close();
     // A cold start with the server unreachable: the device opens on the backend it kept.

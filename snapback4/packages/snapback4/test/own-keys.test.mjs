@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.028#7.3 — sign-out keeps same-principal proof; a caller change cannot borrow it.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -34,7 +35,7 @@ query note(id: notes):
 const own = { kind: "query", name: "own" };
 
 for (const tier of ["native", "web"]) {
-  test(`${tier}: sign-out preserves own-key proof for an offline same-store reopen, never another caller`, { timeout: 20000 }, async t => {
+  test(`${tier}: sign-out preserves own-key proof for an offline same-store reopen, never another caller`, { timeout: hangBudget(25) }, async t => {
     const { url, dir } = await server(t, undefined, source);
     const signup = async email => {
       const result = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({ email, password: "a-test-password-long-enough" }) }).then(r => r.json());

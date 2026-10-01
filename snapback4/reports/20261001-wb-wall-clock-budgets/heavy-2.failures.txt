@@ -1,0 +1,100 @@
+
+ℹ tests 4476
+ℹ suites 0
+ℹ pass 4461
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 9
+ℹ todo 0
+ℹ duration_ms 4399327.698364
+
+✖ failing tests:
+
+test at packages/snapback4/test/live-propagation-fallback.test.mjs:39:3
+✖ wasm: pending cut preserves transition before sync publication (2174.912955ms)
+  AssertionError [ERR_ASSERTION]: initial answer is local
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/online-store-order.test.mjs:126:1
+✖ closing the last owner during backoff cancels the next stale-response request (281.608505ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/online-store-order.test.mjs:140:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-react.test.mjs:100:1
+✖ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (128912.126242ms)
+  page.waitForFunction: Timeout 122000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/per-row-react.test.mjs:104:14) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/per-row-work.test.mjs:176:41
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (9540.951615ms)
+  AssertionError [ERR_ASSERTION]: one reevaluation per distinct table-dependent observation
+  
+  2755 !== 1000
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/per-row-work.test.mjs:213:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2755,
+    expected: 1000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/release-activation.test.mjs:280:1
+✖ stopped full-release restore preserves its recovery point and stays separate from the original (123999.815772ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'done' !== 'parked'
+  
+      at file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/release-activation.test.mjs:336:12
+      at async serve (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/release-activation.test.mjs:76:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/release-activation.test.mjs:325:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'done',
+    expected: 'parked',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/unread-range.test.mjs:71:24
+✖ unread range wasm: meter-cut (54483.108116ms)
+  Error: E_OFFLINE: the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying
+      at file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/dist/local-backend.js:25:33
+      at async loadBackend (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/dist/local-backend.js:24:32)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/dist/local.js:122:19)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-2/snapback4/packages/snapback4/test/unread-range.test.mjs:88:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    denied: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying', retryable: true }
+  }

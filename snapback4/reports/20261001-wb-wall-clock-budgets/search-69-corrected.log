@@ -1,0 +1,14 @@
+ORACLE_PASS host=process seed=69
+ORACLE_SUMMARY {"host":"process","seeds":1,"failed":[],"ms":1457,"coverage":{"projection":1,"reset":1,"generation":1,"sync":1,"link":1,"terminal:none":1}}
+✔ ordinary search generated oracle process: 1 seeds (1457.294931ms)
+ORACLE_PASS host=wasm seed=69
+ORACLE_SUMMARY {"host":"wasm","seeds":1,"failed":[],"ms":1994,"coverage":{"projection":1,"reset":1,"generation":1,"sync":1,"link":1,"terminal:none":1}}
+✔ ordinary search generated oracle wasm: 1 seeds (1993.937112ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3993.73281

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.019#3.3 — read rules also depend on the protected row's fields.
 // Revision 3's probe-table set is exact and empty for this non-opaque query.
 import test from "node:test";
@@ -17,10 +18,7 @@ const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const query = { kind: "query", name: "secret" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check, message) {
-  for (let n = 0; n < 1000; n++) { if (check()) return; await delay(10); }
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 const source = `use personas alice, bob
 table secrets:
   owner: principal
@@ -61,7 +59,7 @@ async function fixture(t) {
 }
 
 for (const tier of ["wasm", "process"]) for (const kind of ["apply", "admit", "remount"]) {
-  test(`${tier}: ${kind} withdraws an owner-only answer despite having no rule probes`, { timeout: 60_000 }, async t => {
+  test(`${tier}: ${kind} withdraws an owner-only answer despite having no rule probes`, { timeout: hangBudget(14) }, async t => {
     const { directory, url, transfer } = await fixture(t);
     const opened = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const blocked = deferred();
@@ -122,7 +120,7 @@ for (const tier of ["wasm", "process"]) for (const kind of ["apply", "admit", "r
   });
 }
 
-test("online: remount after owner transfer cannot restore an answer with no rule-probe dependencies", { timeout: 60_000 }, async t => {
+test("online: remount after owner transfer cannot restore an answer with no rule-probe dependencies", { timeout: hangBudget(11) }, async t => {
   const { url, transfer } = await fixture(t);
   const blocked = deferred();
   let armed = false, observedChange = 0, watch;

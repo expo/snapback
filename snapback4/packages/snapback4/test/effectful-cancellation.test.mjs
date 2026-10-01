@@ -1,3 +1,4 @@
+import { withHangGuard, waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -8,8 +9,8 @@ import { keepSession, memorySessionStore, restoreSession } from '../dist/auth.js
 
 const q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'charge' }, a = { kind: 'action', name: 'charge' };
 const session = token => ({ token, principal: 'alice', kind: 'user', expiresAt: Date.now() + 30 * 86400_000 });
-const until = async check => { for (let i = 0; i < 400; i++) { if (await check()) return; await delay(5); } assert.fail('effect custody did not settle'); };
-const promptly = promise => Promise.race([promise, delay(500).then(() => assert.fail('caller stayed behind an effectful response'))]);
+const until = async check => { return awaitState(check); };
+const promptly = promise => withHangGuard(() => promise, 'caller stayed behind an effectful response');
 
 // Real fetch transport: headers arrive after the effect commits, but its body
 // stays unread. Aborting loses the body, never the effect in this ledger.

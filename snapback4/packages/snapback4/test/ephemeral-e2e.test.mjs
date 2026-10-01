@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -7,7 +8,7 @@ import { ServerClock } from '../dist/clock.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
 // @ref LLP 3000.017#47-tests — isolated phases keep durable commits from masking a lost ephemeral wake.
-test('ephemeral typing: five real-server trials beside a durable typing control', { timeout: 90_000 }, async t => {
+test('ephemeral typing: five real-server trials beside a durable typing control', { timeout: hangBudget(16) }, async t => {
   const measurements = Array.from({ length: 5 }, (_, n) => ({ trial: n + 1 }));
   for (const phase of ['ephemeral', 'durable']) {
     const { url } = await ephemeralServer(t), polls = [];

@@ -1,3 +1,4 @@
+import { withHangGuard, hangBudget } from './helpers/wait.mjs';
 import { readyRead } from "../dist/read-existence.js";
 // Protocol doubles: the core/CLI suite separately proves durable HTTP behavior.
 import test from "node:test";
@@ -45,10 +46,9 @@ async function invoke(handler, options = {}) {
       throw Error(`unexpected wire request: ${path}`);
     },
   });
-  const timeout = new AbortController();
   try {
-    await Promise.race([worker.done, delay(2_000, undefined, { signal: timeout.signal }).then(() => { throw Error("runtime did not finish"); })]);
-  } finally { timeout.abort(); stop.abort(); }
+    await withHangGuard(() => worker.done, "runtime worker finishes");
+  } finally { stop.abort(); }
   return { settled, requests, errors, context: ctx };
 }
 
@@ -366,7 +366,7 @@ test("an actual Node worker stays alive when its handler awaits only cancellatio
     // Deliberately no parent-test timeout/keepalive inside this process.
     await worker.done;
     process.stdout.write("cancelled and settled");
-  `], { encoding: "utf8", timeout: 3000 });
+  `], { encoding: "utf8", timeout: hangBudget() });
   assert.equal(child.status, 0, child.stderr || String(child.error));
   assert.equal(child.stdout, "cancelled and settled");
 });
@@ -543,7 +543,7 @@ for (const size of [128, 129, 513]) test(`generated ${size}-action registry open
   assert.deepEqual(errors, []);
 });
 
-test("registry action chunks rotate across own handlers and preserve per-name session durations", {timeout:3000}, async () => {
+test("registry action chunks rotate across own handlers and preserve per-name session durations", {timeout:hangBudget(1)}, async () => {
   const short = Array.from({length:130}, (_, i) => `short-${i}`), long = Array.from({length:129}, (_, i) => `long-${i}`);
   const names = short.flatMap((name, i) => long[i] ? [name, long[i]] : [name]).concat(["__proto__", "constructor"]);
   const sessions = Object.fromEntries([...long.map(name => [name, 120]), ["__proto__", 900], ["constructor", 900], [short[0], 60]]);
@@ -592,7 +592,7 @@ test("single registry chunk retains configured long-poll wait and an empty regis
   }
 });
 
-test("registry action execution waits for its bounded batch, including callbacks that ignore shutdown", {timeout:3000}, async () => {
+test("registry action execution waits for its bounded batch, including callbacks that ignore shutdown", {timeout:hangBudget(4)}, async () => {
   let release, enter, active = 0, polls = 0, done = false;
   const gate = new Promise(resolve => { release = resolve; }), entered = new Promise(resolve => { enter = resolve; });
   const stop = new AbortController(), errors = [];
@@ -611,7 +611,7 @@ test("registry action execution waits for its bounded batch, including callbacks
   void worker.done.then(() => { done = true; });
   let timer;
   try {
-    await Promise.race([entered, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("batch did not enter")), 1000); })]);
+    await withHangGuard(() => entered, "batch did not enter");
     assert.equal(active, 2); assert.equal(polls, 1);
     stop.abort(); await Promise.resolve(); assert.equal(done, false);
     assert.equal(active, 2); assert.equal(polls, 1);

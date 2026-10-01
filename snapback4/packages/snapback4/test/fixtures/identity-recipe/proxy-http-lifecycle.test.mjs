@@ -1,3 +1,4 @@
+import { hangBudget } from '../../helpers/wait.mjs';
 import assert from "node:assert/strict";
 import { createServer, get } from "node:http";
 import test from "node:test";
@@ -35,7 +36,7 @@ async function harness(proofHandler, initialFailure = null) {
     });
     outgoing.once("error", () => resolve({ error: true }));
   });
-  const close = (drainMilliseconds = 50, closeMilliseconds = 50) => closeExpectedProxy({
+  const close = (drainMilliseconds = hangBudget(), closeMilliseconds = hangBudget()) => closeExpectedProxy({
     server, lifecycle, exchanges, currentFailure: () => failure, drainMilliseconds, closeMilliseconds,
   });
   return { close, exchanges, failure: () => failure, lifecycle, request, server };
@@ -55,13 +56,13 @@ test("proof stays active after handler return until the response finishes", asyn
   assert.equal(await run.lifecycle.waitForProofDrain(5), false);
   response.end();
   assert.deepEqual(await received, { status: 200, body: "buffered" });
-  assert.equal(await run.lifecycle.waitForProofDrain(20), true);
+  assert.equal(await run.lifecycle.waitForProofDrain(hangBudget()), true);
   assert.equal(await run.close(), null);
 });
 
 test("premature proof response close without an error event is fatal", async () => {
   const run = await harness((_request, response) => { response.destroy(); });
-  assert.equal(await settlesWithin(run.request("/cut"), 50), true);
+  assert.equal(await settlesWithin(run.request("/cut"), hangBudget()), true);
   assert.equal(run.failure(), "proxy-proof-request");
   assert.equal(await run.close(), "proxy-proof-request");
 });
@@ -71,7 +72,7 @@ test("the registered intentional committed-mint cut is the only close exemption"
     exchange.intentionalCut();
     response.destroy();
   });
-  assert.equal(await settlesWithin(run.request("/intentional-cut"), 50), true);
+  assert.equal(await settlesWithin(run.request("/intentional-cut"), hangBudget()), true);
   assert.equal(run.failure(), null);
   assert.equal(await run.close(), null);
 });
@@ -88,7 +89,7 @@ test("teardown serves 503 while a proof response is still draining", async () =>
   });
   const proof = run.request("/proof");
   await started;
-  const closing = run.close(200, 50);
+  const closing = run.close();
   const teardown = await run.request("/during-teardown");
   assert.deepEqual(teardown, { status: 503, body: "" });
   proofResponse.end();
@@ -102,8 +103,8 @@ test("drain timeout aborts pending work and closes the owned server", async () =
   const run = await harness((_request, response) => { response.write("held"); markStarted(); });
   const pending = run.request("/held");
   await started;
-  assert.equal(await run.close(5, 50), "proxy-proof-drain-timeout");
-  assert.equal(await settlesWithin(pending, 50), true);
+  assert.equal(await run.close(5, hangBudget()), "proxy-proof-drain-timeout");
+  assert.equal(await settlesWithin(pending, hangBudget()), true);
   assert.equal(run.server.listening, false);
   assert.equal(run.exchanges.size, 0);
 });
@@ -114,8 +115,8 @@ test("preexisting failure survives bounded abort cleanup unchanged", async () =>
   const run = await harness((_request, response) => { response.write("held"); markStarted(); }, "engine-spawn");
   const pending = run.request("/held");
   await started;
-  assert.equal(await run.close(5, 50), "engine-spawn");
-  assert.equal(await settlesWithin(pending, 50), true);
+  assert.equal(await run.close(5, hangBudget()), "engine-spawn");
+  assert.equal(await settlesWithin(pending, hangBudget()), true);
   assert.equal(run.server.listening, false);
   assert.equal(run.failure(), "engine-spawn");
 });

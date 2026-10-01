@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import { readyRead } from "../dist/read-existence.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import {webDevice,memoryPersistence} from '../dist/web.js';
 import {backend,wasm,snapshot} from './helpers/delivery-fixture.mjs';
 const binding=backend.schema.delivery[0];
 const result={read:readyRead({data:[{body:'accepted'}],fresh:true,complete:true,cut:null}),delivery:[{...binding,rows:[['c1',43]]}]};
-const until=async fn=>{for(let i=0;i<200;i++){if(await fn())return;await delay(5);}assert.fail('collection did not settle');};
+const until=async fn=>{ return awaitState(fn); };
 function environment(call,collect){return {viewer:'dev:alice',url:'http://x',call,collect,backend:()=>backend,ready:()=>false,current:()=>true,
  credentials:()=>({headers:{},revision:0}),refresh:()=>null,capture:async()=>undefined,witness:async()=>false,restored:()=>false,replaced:()=>{},auth:async()=>{},now:()=>100,fetch:()=>{throw Error('dispatch is disabled');}};}
 for(const fence of ['authority','credential','incarnation'])test(`every losing collection CAS rechecks ${fence} without unaccepting the answer`,async t=>{

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
@@ -9,7 +10,7 @@ const list = { kind: "query", name: "list" }, add = { kind: "mutation", name: "a
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 const probe = async (url, token) => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code;
 
-for (const tier of ["online", "local"]) test(`${tier}: refused bearer cannot reopen offline or disclose its replica`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier}: refused bearer cannot reopen offline or disclose its replica`, { timeout: hangBudget(14) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const device = tier === "local" ? processDevice({ dir: join(dir, "refused-replica"), binary }) : undefined;
   const app = createApp({ url, sessionStore: store, device }); t.after(() => app.close());
@@ -31,7 +32,7 @@ for (const tier of ["online", "local"]) test(`${tier}: refused bearer cannot reo
   assert.equal((await offline.client.query(list, {})).denied.code, "E_AUTH");
 });
 
-test("rollback cannot publish Alice after observing Charlie's held replacement", { timeout: 20_000 }, async t => {
+test("rollback cannot publish Alice after observing Charlie's held replacement", { timeout: hangBudget(17) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   const charlieGate = gate(), bobGate = gate(); let charlieHeld = false, bobIssued = false, bobJournalHeld = false, charlieToken, alice;
   const aStore = { ...memory, async get(k) {
@@ -65,7 +66,7 @@ test("rollback cannot publish Alice after observing Charlie's held replacement",
   assert.equal((await restoreSession(url, memory)).token, charlieToken);
 });
 
-for (const tier of ["online", "local"]) for (const restart of [false, true]) test(`${tier}: global logout waits for rotation and retains failed retry custody${restart ? " across restart" : " in this app"}`, { timeout: 30_000 }, async t => {
+for (const tier of ["online", "local"]) for (const restart of [false, true]) test(`${tier}: global logout waits for rotation and retains failed retry custody${restart ? " across restart" : " in this app"}`, { timeout: hangBudget(24) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore(), held = gate();
   let successor, offline = false; const requests = [];
   const options = { url, sessionStore: store,
@@ -100,7 +101,7 @@ for (const tier of ["online", "local"]) for (const restart of [false, true]) tes
   assert.equal(await probe(url, successor.token), "E_AUTH");
 });
 
-test("a refusal during schema restoration also prevents the next offline replica open", { timeout: 20_000 }, async t => {
+test("a refusal during schema restoration also prevents the next offline replica open", { timeout: hangBudget(12) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const device = processDevice({ dir: join(dir, "schema-refusal"), binary });
   const initial = createApp({ url, sessionStore: store, device });
@@ -119,7 +120,7 @@ test("a refusal during schema restoration also prevents the next offline replica
   assert.equal((await offline.ready).ok, true); assert.equal(offline.auth.state, "signed-out"); assert.equal(opens, 0);
 });
 
-test("global logout owns a successor whose session save failed", { timeout: 20_000 }, async t => {
+test("global logout owns a successor whose session save failed", { timeout: hangBudget(14) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let rejectBearer = false;
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -149,7 +150,7 @@ test("foreign global retirement credentials never reach this backend", async t =
   assert.deepEqual(sent, []); assert.equal(await store.get(sessionKey(url)), bytes);
 });
 
-for (const tier of ["online", "local"]) test(`${tier}: client notifications cannot publish a signed-in view after credential loss`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier}: client notifications cannot publish a signed-in view after credential loss`, { timeout: hangBudget(10) }, async t => {
   const { url, dir } = await server(t), memory = memorySessionStore(), held = gate();
   let hold = false, writing = false;
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -168,7 +169,7 @@ for (const tier of ["online", "local"]) test(`${tier}: client notifications cann
   held.release(); await refused; await until(() => app.auth.state === "signed-out");
 });
 
-for (const tier of ["online", "local"]) test(`${tier}: closing the current public client closes its app view`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier}: closing the current public client closes its app view`, { timeout: hangBudget(5) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const app = createApp({ url, sessionStore: store, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "public-close"), binary }) } : {}) });
   t.after(() => app.close()); await app.ready; await app.auth.guest();

@@ -1,3 +1,4 @@
+import { withHangGuard } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -18,10 +19,7 @@ function deadline(t) {
   return () => { assert.ok(fire); fire(); };
 }
 async function bounded(work) {
-  const controller = new AbortController();
-  try {
-    return await Promise.race([work, delay(2000, undefined, { signal: controller.signal }).then(() => assert.fail('independent query watchdog'))]);
-  } finally { controller.abort(); }
+  return withHangGuard(() => work, 'independent query watchdog');
 }
 
 for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
@@ -223,12 +221,16 @@ for (const tier of ['online', 'app-online']) for (const stage of ['transport', '
 
 for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
   test(`${tier}: a time-dependent held miss rereads across its cutoff`, async t => {
+    // Capture a controlled wall reader when the client creates its clock, then
+    // cross the cutoff only once its first held miss reaches the boundary.
+    let wall = Date.now();
+    t.mock.method(Date, 'now', () => wall);
     const f = await setup(t, tier); let rounds = 0;
-    const cutoff = Date.now() + 1000;
+    const cutoff = wall + 3_600_000;
     f.controls.boundary = async result => {
       if (++rounds === 1) {
         assert.equal(result.read.loading, true);
-        await delay(Math.max(0, cutoff - Date.now() + 30));
+        wall = cutoff + 1;
       }
     };
     const current = await bounded(f.client.query(q('heldTime'), { cutoff }));

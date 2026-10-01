@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -8,7 +9,7 @@ const url = 'https://terminal.invalid', q = { kind: 'query', name: 'page' }, a =
 const session = token => ({ principal: 'alice', token, kind: 'user', expiresAt: Date.now() + 30 * 86400_000 });
 const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const ready = (store_id = 'A', seq = 10) => ({ data: [], store_id, seq, complete: true });
-const until = async check => { for (let n = 0; n < 400; n++) { if (await check()) return; await delay(5); } assert.fail('terminal operation did not settle'); };
+const until = async check => { return awaitState(check); };
 
 for (const replacement of [true, false]) test(`terminal ${replacement ? 'replacement' : 'regression'} refuses every active entry point`, async t => {
   const code = replacement ? 'E_STORE_REPLACED' : 'E_STORE_RESTORE', links = []; let requests = 0;

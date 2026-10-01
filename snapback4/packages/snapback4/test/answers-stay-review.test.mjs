@@ -163,7 +163,7 @@ for (const host of ['process', 'wasm']) test(`${host}: plain offline server watc
   t.after(() => client.close()); await client.sync();
   const watch = client.observe(q('profile'), {}); await until(() => watch.getSnapshot().fresh);
   const before = watch.getSnapshot(), owner = answerObservation(before), confirmed = owner.since;
-  offline = true; await client.sync(); await delay(20);
+  offline = true; await client.sync(); await until(() => watch.getSnapshot().revalidating && watch.getSnapshot().fresh === false, 'offline answer is marked revalidating');
   const read = watch.getSnapshot();
   assert.equal(read.data.name, 'Bob'); assert.equal(read.revalidating, true);
   assert.equal(read.fresh, false); assert.equal(read.since, confirmed);

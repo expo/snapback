@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // The local-first client against a live `snapback4 dev`, on the wasm device
 // in Node: two devices on one conversation, a send that renders pending then
 // sent, a device that goes offline and comes back, and the other device
@@ -24,15 +25,7 @@ const device = (persist = memoryPersistence()) => webDevice({ wasm, persist });
 const api = { thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" }, send: { kind: "mutation", name: "send" }, addMember: { kind: "mutation", name: "addMember" } };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function until(check, ms = 8000) {
-  const deadline = Date.now() + ms;
-  for (;;) {
-    const value = await check();
-    if (value) return value;
-    if (Date.now() > deadline) throw new Error("timed out waiting");
-    await sleep(25);
-  }
-}
+async function until(check) { return awaitState(check); }
 
 // Readiness comes from this child, never another listener on a guessed port.
 const ready = (server, output, log) => until(() => {
@@ -47,7 +40,7 @@ async function stop(server, closed) {
   } finally { clearTimeout(timer); }
 }
 
-test("two devices converge through the partition stream", { timeout: 60_000 }, async () => {
+test("two devices converge through the partition stream", { timeout: hangBudget(18) }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
@@ -107,8 +100,8 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
 
     // Back online: the queued write lands on the server and reaches bob.
     offline = false;
-    await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data.length === 4 ? r : null; }, 15_000);
-    const confirmed = await until(() => { const r = aliceThread.getSnapshot(); return isReady(r) && r.data.every((m) => !m.pending) ? r : null; }, 15_000);
+    await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data.length === 4 ? r : null; });
+    const confirmed = await until(() => { const r = aliceThread.getSnapshot(); return isReady(r) && r.data.every((m) => !m.pending) ? r : null; });
     assert.equal(confirmed.data.length, 4);
     assert.equal(alice.link(), "online");
 
@@ -126,7 +119,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
   }
 });
 
-test("queued writes flush in the order they were submitted", { timeout: 60_000 }, async () => {
+test("queued writes flush in the order they were submitted", { timeout: hangBudget(12) }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-fifo-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
@@ -153,7 +146,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
     const writes = await Promise.all(Array.from({ length: 20 }, (_, n) => alice.mutate(api.send, { conversationId: "c1", body: `q${String(n).padStart(2, "0")}` })));
     assert.ok(writes.every((w) => w.state === "pending"));
     offline = false;
-    const thread = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.length === 21 ? r : null; }, 20_000);
+    const thread = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.length === 21 ? r : null; });
     const bodies = thread.data.map((m) => m.body).filter((b) => b !== "probe").reverse();
     try {
       assert.deepEqual(bodies, Array.from({ length: 20 }, (_, n) => `q${String(n).padStart(2, "0")}`));
@@ -169,7 +162,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
   }
 });
 
-test("a device restores its session on its own", { timeout: 60_000 }, async () => {
+test("a device restores its session on its own", { timeout: hangBudget(19) }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
@@ -236,7 +229,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
   }
 });
 
-test("sign-out revokes a server-committed rotation whose reply arrives after local completion", { timeout: 30_000 }, async () => {
+test("sign-out revokes a server-committed rotation whose reply arrives after local completion", { timeout: hangBudget(19) }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-signout-rotation-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: path => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
@@ -271,7 +264,7 @@ test("sign-out revokes a server-committed rotation whose reply arrives after loc
     assert.ok(Array.isArray((await queryWith(successor.token)).data), "the successor is live before sign-out");
     let locallyEnded = false;
     const ending = client.signOut().then(() => { locallyEnded = true; });
-    await until(() => locallyEnded, 2000);
+    await until(() => locallyEnded);
     await ending;
     assert.equal((await rotating).ok, false);
     assert.equal(await restoreSession(url, sessions), null);
@@ -294,7 +287,7 @@ test("sign-out revokes a server-committed rotation whose reply arrives after loc
   }
 });
 
-test("an upload is placed once and served by the home row's read rule", { timeout: 60_000 }, async () => {
+test("an upload is placed once and served by the home row's read rule", { timeout: hangBudget(22) }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-assets-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -13,7 +14,7 @@ const gate = () => { let release; const promise = new Promise(resolve => { relea
 const why = { code: "E_MODEL_REFUSED", family: "input", message: "authoritative terminal refusal", site: "write", rewrite: "submit an allowed body" };
 
 for (const tier of ["wasm", "native"]) for (const operation of ["mutation-sent", "mutation-failed", "action-done", "action-failed", "query"]) {
-  test(`local ${tier}: ${operation} held across app.close keeps its outcome unknown`, { timeout: 20_000 }, async t => {
+  test(`local ${tier}: ${operation} held across app.close keeps its outcome unknown`, { timeout: hangBudget(18) }, async t => {
     const { url, dir } = await server(t, operation === "query" ? "online only" : "sync to .owner"), held = gate(), id = mintId(); let received;
     const device = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
     const sessionStore = memorySessionStore();
@@ -58,7 +59,7 @@ for (const tier of ["wasm", "native"]) for (const operation of ["mutation-sent",
 }
 
 for (const tier of ["wasm", "native"]) for (const operation of ["mutation-sent", "mutation-failed", "action-done", "action-failed"]) {
-  test(`local ${tier}: ${operation} arriving during close cleanup remains known`, { timeout: 20_000 }, async t => {
+  test(`local ${tier}: ${operation} arriving during close cleanup remains known`, { timeout: hangBudget(16) }, async t => {
     const { url, dir } = await server(t), held = gate(), cleanup = gate(), id = mintId();
     let received, delivered = false, cleaning = false, armClose = false;
     const underlying = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });

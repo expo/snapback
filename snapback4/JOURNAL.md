@@ -80885,3 +80885,46 @@ are retained and attributed in the report; no assertion or budget was relaxed.
 Report: reports/20260930-gq-guide-start-here/round1/REPORT.md, with every failure
 and rendered-card measurements. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-01 — WB round 0: state barriers for publication-suite waits
+
+Replaced the fallback test's five-second turns budget with an actual state
+barrier and an independent 124-second hang guard. Its initial branch cutoff
+now crosses through the dev clock after local readiness, preserving every
+answer/ordering assertion and explicitly proving sync is still held. Audited
+353 JS/TS/TSX sources and all 584 original explicit timeout options. Incidental
+polls, races, browser/child waits and test guards use observable completion with
+120 seconds of scheduling slack plus two seconds per declared work unit.
+Bulk guards count rows, operations or histories. Genuine expiry, heartbeat,
+admission, backoff and other timing assertions retain their bounds. No product
+source changed; witness/lib.mjs is shared browser-test infrastructure.
+
+All 235 affected files have five passing final-source executions on eb1000,
+each confined to ten CPUs with 48 SL busy workers. This is source-bound
+composite coverage: unchanged passing initial files, five complete reruns of
+18 corrected scopes, then five full client-seams/search repairs. Earlier
+failures and the intentional cancellation of superseded model runs remain in
+the report; these are not claimed as five clean whole invocations. All final
+models keep both 5,000-sequence tiers and the original logical progress bound;
+search keeps 300 seeds per host. One unconfined affected-file run passed 4,519
+tests with nine existing skips, zero failures and zero cancellations.
+
+The whole guide passed 110/110. Ran scripts/test.sh exactly once:
+`== 0 failure(s) in 1404 s` (exit 0). It passed 4,442 Rust tests (33 ignored),
+5,726 client tests (ten existing skips), nine fixture tests and 79 models;
+all build, typecheck, docs and release guards passed. Wasm remains 1,994,357 B
+raw / 598,401 B gzip at the unchanged budget. Final failures: ours 0, baseline 0,
+environmental 0. Earlier implementation mistakes, baseline fixture races and
+idle-socket transport failures are individually attributed in the report.
+
+A scratch-only fallback publication delayed by 15 real seconds passed. Holding
+that same publication until cleanup failed with the named TEST_HANG at its
+124-second guard. Both controls bind the final test/helper and unchanged
+product hashes. Linux qualification retains the Darwin skips; the external
+identity-provider manual qualifier was audited but not executed without its
+credentials. No publication claim is made.
+
+Report, complete timing census, every failure, source manifests, load custody,
+commands and raw logs: reports/20261001-wb-wall-clock-budgets/REPORT.md.
+Nothing pushed or published.

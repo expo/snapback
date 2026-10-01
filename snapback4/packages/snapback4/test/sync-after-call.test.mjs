@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000#explicit-sync-after-call — explicit callers share a newer round.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -49,7 +50,7 @@ async function fixture(t) {
     fail(fn) { fail = fn; }, apply(fn) { applying = fn; } };
 }
 
-test("ten explicit calls during one round share exactly one follow-up", { timeout: 5000 }, async t => {
+test("ten explicit calls during one round share exactly one follow-up", { timeout: hangBudget(7) }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   const old = f.control.hold(), first = f.client.sync(); await old.ready;
   f.commit();
@@ -65,7 +66,7 @@ test("ten explicit calls during one round share exactly one follow-up", { timeou
   assert.equal(f.control.attempts - before, 2, "the burst costs only one extra round");
 });
 
-test("a call during the follow-up waits for its own newer round", { timeout: 5000 }, async t => {
+test("a call during the follow-up waits for its own newer round", { timeout: hangBudget(6) }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   const old = f.control.hold(), first = f.client.sync(); await old.ready;
   const next = f.control.hold(), second = f.client.sync(); old.release(); await first;
@@ -76,7 +77,7 @@ test("a call during the follow-up waits for its own newer round", { timeout: 500
   assert.equal(f.control.attempts - before, 3);
 });
 
-test("a wake-driven round is not doubled", { timeout: 5000 }, async t => {
+test("a wake-driven round is not doubled", { timeout: hangBudget(4) }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   f.commit(); const wake = f.control.hold(); f.wake(); await wake.ready;
   wake.release(); await turn(); await turn();
@@ -84,7 +85,7 @@ test("a wake-driven round is not doubled", { timeout: 5000 }, async t => {
   assert.equal(f.control.attempts - before, 1);
 });
 
-test("explicit sync during a held wake-driven round observes the newer head", { timeout: 5000 }, async t => {
+test("explicit sync during a held wake-driven round observes the newer head", { timeout: hangBudget(5) }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   f.commit(); const old = f.control.hold(); f.wake(); await old.ready;
   f.commit();
@@ -104,14 +105,14 @@ test("explicit sync during a held wake-driven round observes the newer head", { 
   assert.equal(f.control.attempts - before, 2);
 });
 
-test("a wake during an explicit round coalesces without an extra round", { timeout: 5000 }, async t => {
+test("a wake during an explicit round coalesces without an extra round", { timeout: hangBudget(5) }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   f.commit(); const old = f.control.hold(), first = f.client.sync(); await old.ready;
   f.wake(); await turn(); old.release(); await first; await turn();
   assert.equal(f.control.attempts - before, 1);
 });
 
-for (const failure of ["offline fetch", "device rejection"]) test(`explicit sync waits for the follow-up's ${failure}`, { timeout: 5000 }, async t => {
+for (const failure of ["offline fetch", "device rejection"]) test(`explicit sync waits for the follow-up's ${failure}`, { timeout: hangBudget(9) }, async t => {
   const entered = Promise.withResolvers(), release = Promise.withResolvers();
   t.after(() => release.resolve());
   const f = await fixture(t), before = f.control.attempts;
@@ -133,7 +134,7 @@ for (const failure of ["offline fetch", "device rejection"]) test(`explicit sync
   } else await assert.rejects(explicit, /device unavailable/);
 });
 
-for (const failure of ["network error", "HTTP 500"]) test(`an older round returning false after ${failure} cannot skip the explicit follow-up`, { timeout: 5000 }, async t => {
+for (const failure of ["network error", "HTTP 500"]) test(`an older round returning false after ${failure} cannot skip the explicit follow-up`, { timeout: hangBudget(7) }, async t => {
   const entered = Promise.withResolvers(), release = Promise.withResolvers();
   t.after(() => release.resolve());
   const f = await fixture(t), before = f.control.attempts;
@@ -164,7 +165,7 @@ for (const failure of ["network error", "HTTP 500"]) test(`an older round return
   assert.equal(f.control.attempts - before, 2);
 });
 
-test("a failed older round cannot skip the explicit follow-up attempt", { timeout: 5000 }, async t => {
+test("a failed older round cannot skip the explicit follow-up attempt", { timeout: hangBudget(4) }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   const old = f.control.hold(), first = f.client.sync(); await old.ready;
   const failure = assert.rejects(first, /old device failure/);

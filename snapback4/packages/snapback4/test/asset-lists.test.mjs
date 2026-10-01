@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.019#3.5 — real HTTP serving and ordinary list bytes offline on both devices.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -68,8 +69,8 @@ async function fixture(t, schema = source, shape = assets => assets.map(a => ({ 
     server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
     exited = once(server, "exit");
     for (const stream of [server.stdout, server.stderr]) stream.on("data", b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
-    const deadline = Date.now() + 15000;
-    while (!url) { if (server.exitCode != null || Date.now() > deadline) throw Error(log); await new Promise(r => setTimeout(r, 20)); }
+    const deadline = performance.now() + hangBudget();
+    while (!url) { if (server.exitCode != null || performance.now() > deadline) throw Error(log); await new Promise(r => setTimeout(r, 20)); }
     return url;
   };
   t.after(async () => { for (const c of clients) await c.close(); await stop(); rmSync(dir, { recursive:true, force:true }); });
@@ -99,7 +100,7 @@ async function served(url, id, persona, status) {
   else assert.equal((await response.json()).denied.code, "E_ASSET_UNKNOWN");
   return response;
 }
-test("a follower GETs every placed element; reorder, drop and deletion keep one home", { timeout: 30000 }, async t => {
+test("a follower GETs every placed element; reorder, drop and deletion keep one home", { timeout: hangBudget(13) }, async t => {
   const f = await fixture(t);
   for (const asset of [f.a, f.b]) { await served(f.url, asset.id, "bob", 200); await served(f.url, asset.id, "stranger", 404); }
   const rows = await f.bob.query(query, {}); assert.deepEqual(rows.data[0].images, [f.a, f.b]);
@@ -112,7 +113,7 @@ test("a follower GETs every placed element; reorder, drop and deletion keep one 
   assert.equal((await f.alice.mutate(mutation("remove"), { id: f.id })).state, "sent");
   for (const a of [f.a, f.b]) await served(f.url, a.id, "bob", 404);
 });
-for (const tier of ["native", "wasm"]) test(`${tier}: synced list elements survive offline reopen and drop revokes only that element`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) test(`${tier}: synced list elements survive offline reopen and drop revokes only that element`, { timeout: hangBudget(28) }, async t => {
   const f = await fixture(t); let offline = false;
   const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
     : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
@@ -149,7 +150,7 @@ for (const tier of ["native", "wasm"]) test(`${tier}: synced list elements survi
   await local.sync(); offline = true; assert.equal((await local.asset(f.b.id)).denied?.code, "E_OFFLINE");
 });
 
-test("reopening a legacy Alice list cannot publish Bob's upload or take his placement", { timeout: 30000 }, async t => {
+test("reopening a legacy Alice list cannot publish Bob's upload or take his placement", { timeout: hangBudget(13) }, async t => {
   const f = await fixture(t);
   const uploaded = await f.bob.upload(png); assert.equal(uploaded.ok, true);
   const asset = uploaded.asset;
@@ -184,7 +185,7 @@ test("reopening a legacy Alice list cannot publish Bob's upload or take his plac
 });
 
 for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (const ending of ["revoke", "clear", "delete"]) for (const controlled of !copied && ending === "revoke" ? [false, true] : [false]) {
-  test(`${tier}: legacy ${copied ? "copied facts" : "bare id"} cannot retain bytes after real home ${ending}${controlled ? " (older sync held across revoke)" : ""}`, { timeout: 40000 }, async t => {
+  test(`${tier}: legacy ${copied ? "copied facts" : "bare id"} cannot retain bytes after real home ${ending}${controlled ? " (older sync held across revoke)" : ""}`, { timeout: hangBudget(31) }, async t => {
     const f = await fixture(t);
     const legacy = await f.bob.mutate(mutation("createPost"), { images: [] });
     assert.equal(legacy.state, "sent");
@@ -254,7 +255,7 @@ for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (
   });
 }
 
-for (const tier of ["native", "wasm"]) for (const [placed, fromOnce] of [[false, false], [true, false], [true, true]]) test(`${tier}: a ${fromOnce ? "once " : ""}download delayed across store replacement ${placed ? "preserves the newer download" : "cannot retain legacy bytes"}, even after reopen`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) for (const [placed, fromOnce] of [[false, false], [true, false], [true, true]]) test(`${tier}: a ${fromOnce ? "once " : ""}download delayed across store replacement ${placed ? "preserves the newer download" : "cannot retain legacy bytes"}, even after reopen`, { timeout: hangBudget(34) }, async t => {
   const held = Promise.withResolvers(), release = Promise.withResolvers();
   t.after(() => release.resolve());
   const f = await fixture(t, fromOnce ? source.replace("return insert posts { owner: viewer, images, secrets }", "return insert posts { owner: viewer, images: null, secrets: images }") : source);
@@ -343,7 +344,7 @@ for (const tier of ["native", "wasm"]) for (const [placed, fromOnce] of [[false,
 });
 
 for (const tier of ["native", "wasm"]) for (const ending of ["expiry", "generation"]) {
-  test(`${tier}: list cache retires on ${ending} and stays retired after offline reopen`, { timeout: 40000 }, async t => {
+  test(`${tier}: list cache retires on ${ending} and stays retired after offline reopen`, { timeout: hangBudget(17) }, async t => {
     const f = await fixture(t);
     let url = f.url, offline = false, wall = Date.now();
     const clock = new ServerClock(() => wall);
@@ -384,7 +385,7 @@ for (const tier of ["native", "wasm"]) for (const ending of ["expiry", "generati
 }
 
 for (const tier of ["native", "wasm"]) for (const scalar of [false, true]) {
-  test(`${tier}: persisted old ${scalar ? "scalar" : "list"} media index reacquires unchanged rows once`, { timeout: 40000 }, async t => {
+  test(`${tier}: persisted old ${scalar ? "scalar" : "list"} media index reacquires unchanged rows once`, { timeout: hangBudget(35) }, async t => {
     const schema = scalar ? source.replaceAll("images: [image <=10000] <=4 ?", "images: image <=10000 ?") : source;
     const f = await fixture(t, schema, assets => scalar ? { id: assets[0].id } : assets.map(a => ({ id: a.id })));
     let offline = false, core, storeName, interrupt = false, terminal = false;
@@ -470,7 +471,7 @@ for (const tier of ["native", "wasm"]) for (const scalar of [false, true]) {
   });
 }
 
-for (const tier of ["native", "wasm"]) test(`${tier}: nested placed elements cross inner lists and survive an empty first list offline`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) test(`${tier}: nested placed elements cross inner lists and survive an empty first list offline`, { timeout: hangBudget(13) }, async t => {
   const f = await fixture(t, source.replaceAll("images: [image <=10000] <=4 ?", "images: [[image <=10000] <=2] <=2 ?"), assets => assets.map(a => [{ id: a.id }]));
   let offline = false;
   const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
@@ -492,7 +493,7 @@ for (const tier of ["native", "wasm"]) test(`${tier}: nested placed elements cro
   }
 });
 
-for (const tier of ["native", "wasm"]) test(`${tier}: a legacy copy in refs cannot replace the same row's released photo home`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) test(`${tier}: a legacy copy in refs cannot replace the same row's released photo home`, { timeout: hangBudget(21) }, async t => {
   const schema = source.replace("  images: [image <=10000] <=4 ?", "  photo: image <=10000 ?\n  refs: [image <=10000] <=4 ?\n  images: [image <=10000] <=4 ?") + `
 mutation placePhoto(photo: image <=10000):
   return insert posts { owner: viewer, photo, refs: [] }
@@ -532,7 +533,7 @@ mutation clearPhoto(id: posts):
   assert.equal((await local.asset(asset.id)).denied?.code, "E_OFFLINE");
 });
 
-for (const tier of ["native", "wasm"]) test(`${tier}: a paged upgrade restore halts follow and flush`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) test(`${tier}: a paged upgrade restore halts follow and flush`, { timeout: hangBudget(22) }, async t => {
   const f = await fixture(t);
   let offline = false, restoring = false, allowSend = false, core, storeName, syncs = 0, sends = 0, store;
   const persist = memoryPersistence();
@@ -603,7 +604,7 @@ for (const tier of ["native", "wasm"]) test(`${tier}: a paged upgrade restore ha
 
 // A stays open while B acquires through the same native store. The continuation
 // is requested only after A captures B's staged or published progress.
-for (const staged of [false, true]) for (const terminal of [false, true]) test(`native: initial acquisition rejects an overtaken ${terminal ? "terminal" : "nonterminal"} snapshot continuation after B ${staged ? "stages" : "publishes"}`, { timeout: 40000 }, async t => {
+for (const staged of [false, true]) for (const terminal of [false, true]) test(`native: initial acquisition rejects an overtaken ${terminal ? "terminal" : "nonterminal"} snapshot continuation after B ${staged ? "stages" : "publishes"}`, { timeout: hangBudget(19) }, async t => {
   const f = await fixture(t);
   const device = processDevice({ binary, dir: join(f.dir, "shared-device") });
   let core, overtaken = false, continuation, observed, published, advanced, offline = false;

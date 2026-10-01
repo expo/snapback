@@ -49,6 +49,7 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
         await client.sync();
         // Beyond the withdrawal bound: a retained old answer cannot disguise missing work.
         await delay(1500);
+        await until(() => queries > before, "invalidated owner dispatches replacement");
         const pressure = inspect(client);
         t.diagnostic(JSON.stringify({ tier, keep, footprint, round, before, queries, read: watch.getSnapshot(), pressure }));
         assert.ok(queries > before, 'every invalidated owner dispatches replacement work');

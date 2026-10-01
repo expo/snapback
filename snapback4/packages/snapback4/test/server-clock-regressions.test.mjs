@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -75,7 +76,7 @@ function fixture(t, tier) {
   return f;
 }
 
-for (const tier of ['online', 'fallback', 'composition']) test(`${tier}: a deadline behind the issued floor does not loop server refetches`, { timeout: 10_000 }, async t => {
+for (const tier of ['online', 'fallback', 'composition']) test(`${tier}: a deadline behind the issued floor does not loop server refetches`, { timeout: hangBudget(6) }, async t => {
   const f = fixture(t, tier), client = await f.open();
   t.after(() => close(client, t));
   await client.query(read, {});

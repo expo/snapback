@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real process devices: server-run watches are live, and never read an empty
 // device page as an offline server answer (LLP 3000.007 §6.5).
 import test from "node:test";
@@ -68,11 +69,7 @@ query connections(p: principal):
 mutation add(text: text <=100):
   return insert audit { text, at: now }
 `;
-async function until(check, message, timeout = 8000) {
-  const end = Date.now() + timeout;
-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 function project(t) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-residency-"));
   mkdirSync(join(directory, "snapback"));
@@ -119,7 +116,7 @@ async function fixture(t, watchSources = false, tier = "native") {
   return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers, gateQueries: gate => { queryGate = gate; } };
 }
 
-test("server-class watches run locally first and recover remembered server data offline", { timeout: 20000 }, async (t) => {
+test("server-class watches run locally first and recover remembered server data offline", { timeout: hangBudget(12) }, async (t) => {
   const f = await fixture(t);
   const client = await f.open(); await client.sync();
   const backend = await fetch(`${f.url}/schema`, { headers: { "x-snapback-persona": "alice" } }).then((r) => r.json());
@@ -136,7 +133,7 @@ test("server-class watches run locally first and recover remembered server data 
   assert.ok(watch.getSnapshot().since > 0);
   watch.close();
   watch = client.observe(query("audits"), { c: null });
-  await sleep(20);
+  await awaitState(() => watch.getSnapshot().data?.[0]?.id === "a2" && watch.getSnapshot().fresh === false, "recreated watch recovers the server answer");
   assert.equal(watch.getSnapshot().data[0].id, "a2", "recreated watch recovers the last server answer");
   assert.equal(watch.getSnapshot().fresh, false);
   assert.ok(f.deviceReads.includes("audits"), "static server classes must run locally first");
@@ -145,7 +142,7 @@ test("server-class watches run locally first and recover remembered server data 
   watch.close();
 });
 
-test("offline cold watches withhold placeholders, persisted local reads still work", { timeout: 20000 }, async (t) => {
+test("offline cold watches withhold placeholders, persisted local reads still work", { timeout: hangBudget(12) }, async (t) => {
   const f = await fixture(t);
   let client = await f.open(); await client.sync();
   assert.equal((await client.query(query("auditById"), { id: "a1" })).data.text, "server answer");
@@ -166,7 +163,7 @@ test("offline cold watches withhold placeholders, persisted local reads still wo
   assert.ok(f.deviceReads.includes("auditById"));
 });
 
-test("connected recovers a server false offline instead of the device presence assumption", { timeout: 15000 }, async (t) => {
+test("connected recovers a server false offline instead of the device presence assumption", { timeout: hangBudget(7) }, async (t) => {
   const f = await fixture(t), client = await f.open(); await client.sync();
   const online = await client.query(query("presence"), { p: "dev:bob" });
   assert.equal(online.data, false);
@@ -177,7 +174,7 @@ test("connected recovers a server false offline instead of the device presence a
   assert.ok(f.deviceReads.includes("presence"));
 });
 
-test("clock advance expires presence on the server and a device", { timeout: 15000 }, async (t) => {
+test("clock advance expires presence on the server and a device", { timeout: hangBudget(12) }, async (t) => {
   const f = await fixture(t), client = await f.open(); await client.sync();
   const headers = { "x-snapback-persona": "bob", "content-type": "application/json" };
   await fetch(`${f.url}/changes?wait=0`, { headers }).then(r => r.json());
@@ -220,7 +217,7 @@ test("presence effects residency is additive in check, why and generated artifac
   assert.doesNotMatch(run("check"), /N_NOT_PREDICTABLE|N_NOW_SERVER/);
 });
 
-test("check sidecar, why and test residency print facts, changes and measured cold rows", { timeout: 15000 }, async (t) => {
+test("check sidecar, why and test residency print facts, changes and measured cold rows", { timeout: hangBudget(1) }, async (t) => {
   const directory = project(t);
   const run = (...args) => { const result = spawnSync(binary, args, { cwd: directory, encoding: "utf8" }); assert.equal(result.status, 0, result.stdout + result.stderr); return result.stdout; };
   const first = run("check", "--residency");
@@ -245,7 +242,7 @@ test("check sidecar, why and test residency print facts, changes and measured co
 });
 
 
-test("dev compares residency with the served generation even when check advanced its sidecar", { timeout: 15000 }, async (t) => {
+test("dev compares residency with the served generation even when check advanced its sidecar", { timeout: hangBudget(3) }, async (t) => {
   const f = await fixture(t, true);
   writeFileSync(join(f.directory, "snapback/schema.q"), schema.replace("  sync last 2 by byTime", "  online only"));
   const checked = spawnSync(binary, ["check"], { cwd: f.directory, encoding: "utf8" });
@@ -257,7 +254,7 @@ test("dev compares residency with the served generation even when check advanced
 });
 
 for (const tier of ["wasm", "native"]) {
-  test(`provenance ${tier}: wrapped presence recovers false, shaped rows without ids stay partial`, { timeout: 20000 }, async t => {
+  test(`provenance ${tier}: wrapped presence recovers false, shaped rows without ids stay partial`, { timeout: hangBudget(8) }, async t => {
     const f = await fixture(t, false, tier);
     // Seed before acquisition: live delivery correctly retains older held rows.
     await f.seed([{ table: "notes", row: { id: "n3", text: "local three", at: 3, owner: "dev:alice" } }]);
@@ -281,7 +278,7 @@ for (const tier of ["wasm", "native"]) {
     assert.equal(Object.hasOwn(raw, "speculative"), false); assert.equal(raw.unknown, true);
   });
 }
-test("rule 5: a real process device never recovers private memory after its permit expiry", { timeout: 20000 }, async t => {
+test("rule 5: a real process device never recovers private memory after its permit expiry", { timeout: hangBudget(14) }, async t => {
   const f = await fixture(t), client = await f.open(); await client.sync();
   const expiresAt = Date.now() + 2500;
   await f.seed([

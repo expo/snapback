@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.019#3.3 — watches stay live while the partition is still private.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -97,7 +98,7 @@ async function fixture(t) {
     } };
 }
 
-test('live fallback receives consecutive sends and deletion while snapshot publication is blocked', { timeout: 20000 }, async t => {
+test('live fallback receives consecutive sends and deletion while snapshot publication is blocked', { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t);
   for (let n = 1; n <= 3; n++) {
     const id = await f.send(n);
@@ -122,7 +123,7 @@ test('live fallback receives consecutive sends and deletion while snapshot publi
   assert.equal(f.counts().queries, queries);
 });
 
-for (const fault of ['503', 'prediction', 'expiry']) test(`an unpublished ${fault} refresh keeps acquisition polling alive`, { timeout: 15000 }, async t => {
+for (const fault of ['503', 'prediction', 'expiry']) test(`an unpublished ${fault} refresh keeps acquisition polling alive`, { timeout: hangBudget(10) }, async t => {
   const f = await fixture(t);
   const first = await f.send(1);
   await until(() => f.observed.getSnapshot().data?.some(row => row.id === first), 'first published server message');
@@ -142,7 +143,7 @@ for (const fault of ['503', 'prediction', 'expiry']) test(`an unpublished ${faul
   assert.equal(f.counts().catchups, 1);
 });
 
-test('removing the watch stops cold-acquisition refreshes', { timeout: 10000 }, async t => {
+test('removing the watch stops cold-acquisition refreshes', { timeout: hangBudget(6) }, async t => {
   const f = await fixture(t);
   const id = await f.send(1);
   await until(() => f.observed.getSnapshot().data?.some(row => row.id === id), 'live fallback');

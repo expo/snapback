@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -272,7 +273,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
       const out = path.join(root, name); fs.mkdirSync(out);
       const result = spawnSync(process.execPath, ['--import', new URL('./witness-preparation-fixture.mjs', import.meta.url).href,
         prepare.pathname, mode, project, out, 'udid', 'http://127.0.0.1:4400', receipt], {
-        env: { ...process.env, NP_FIXTURE_ROOT: root, NP_FIXTURE_FAULT: fault }, encoding: 'utf8', timeout: 20000,
+        env: { ...process.env, NP_FIXTURE_ROOT: root, NP_FIXTURE_FAULT: fault }, encoding: 'utf8', timeout: hangBudget(),
       });
       return { ...result, out };
     };

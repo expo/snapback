@@ -1,8 +1,9 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { launch, root } from "../../../witness/lib.mjs";
 
-test("Chromium SDK reads survive a blocked renderer across the server idle timeout", { timeout: 45_000 }, async t => {
+test("Chromium SDK reads survive a blocked renderer across the server idle timeout", { timeout: hangBudget(6) }, async t => {
   const f = await launch({ seed: [], extraSource: "query keepalivePing():\n  return 1\n",
     entrySource: `import { createClient } from ${JSON.stringify(root + "/packages/snapback4/src/client.ts")}; window.kaClient = createClient;` });
   t.after(() => f.close());

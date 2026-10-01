@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ mutation add(n: int):
   insert messages { room: 'c', ordinal: n }
 `;
 
-test('real local outbox keeps submission order ahead of delivery load', {timeout:20000},async t=>{
+test('real local outbox keeps submission order ahead of delivery load', {timeout:hangBudget(8)},async t=>{
  const {url}=await server(t,'sync public',source);
  let offline=false;const writes=[],reports=[];
  const client=await createLocalClient({url,persona:'alice',waitSeconds:1,device:webDevice({wasm,persist:memoryPersistence()}),fetch:async(input,init)=>{

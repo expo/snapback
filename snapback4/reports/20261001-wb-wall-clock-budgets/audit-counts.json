@@ -1,0 +1,13 @@
+{
+  "incidental-guard": 3209,
+  "data-or-order-assertion": 13512,
+  "semantic-schedule-or-observation-window": 334,
+  "clock-data-instrumentation-or-source-text": 621,
+  "logical-work-or-state-loop": 258,
+  "work-scaled-guard": 3,
+  "product-timing": 48,
+  "intentional-timeout": 7,
+  "cleanup-only": 7,
+  "data-contract": 7,
+  "synchronous-control": 3
+}

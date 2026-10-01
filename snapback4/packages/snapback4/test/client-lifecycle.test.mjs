@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real clients, real authored programs, and owned server/device processes.
 // The transport gates only control ordering or inject a transient link failure.
 import test from "node:test";
@@ -24,11 +25,7 @@ const thread = query("thread"), inbox = query("inbox"), send = mutation("send");
 const args = { conversationId: "c1", c: null };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; };
-async function until(check, message, timeout = 5000) {
-  const end = Date.now() + timeout;
-  do { const value = await check(); if (value) return value; await sleep(10); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 async function held(gate, signal) {
   signal?.throwIfAborted();
   let abort;
@@ -71,7 +68,7 @@ function emptyDevice(overrides = {}) {
   return { opener: { open: async () => core }, core, closed: () => closed };
 }
 
-test("online reconnect requires the authenticated GET /probe contract", { timeout: 10_000 }, async (t) => {
+test("online reconnect requires the authenticated GET /probe contract", { timeout: hangBudget(8) }, async (t) => {
   const probes = [];
   const recoveredChanges = deferred();
   let recovered = false;
@@ -106,7 +103,7 @@ test("online reconnect requires the authenticated GET /probe contract", { timeou
   unsubscribe(); observed.close(); await client.close();
 });
 
-test("online pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
+test("online pending writes emit their terminal outcome exactly once", { timeout: hangBudget(4) }, async (t) => {
   let attempts = 0;
   const terminal = [];
   const client = createClient({ url: "http://write.invalid", persona: "alice", fetch: async (input) => {
@@ -125,7 +122,7 @@ test("online pending writes emit their terminal outcome exactly once", { timeout
   unsubscribe(); await client.close();
 });
 
-test("online auth refusal settles writes that were queued behind the refused request", { timeout: 5000 }, async (t) => {
+test("online auth refusal settles writes that were queued behind the refused request", { timeout: hangBudget(3) }, async (t) => {
   const reply = deferred();
   const terminal = [];
   let requests = 0;
@@ -149,7 +146,7 @@ test("online auth refusal settles writes that were queued behind the refused req
   await client.close();
 });
 
-for (const originalStore of [undefined, "original-store"]) test(`local pending writes emit once with ${originalStore ? "their original binding ahead of a newer device identity" : "the kept device identity"}`, { timeout: 5000 }, async (t) => {
+for (const originalStore of [undefined, "original-store"]) test(`local pending writes emit once with ${originalStore ? "their original binding ahead of a newer device identity" : "the kept device identity"}`, { timeout: hangBudget(8) }, async (t) => {
   const queued = [], requests = [], reply = deferred(), probe = deferred();
   const device = emptyDevice({ storeId: "kept-store", call: async (request) => {
     if (request.op === "backend") return { ok: emptyBackend };
@@ -184,7 +181,7 @@ for (const originalStore of [undefined, "original-store"]) test(`local pending w
   unsubscribe(); await client.close();
 });
 
-test("local reconnect requires the authenticated GET /probe contract", { timeout: 12_000 }, async (t) => {
+test("local reconnect requires the authenticated GET /probe contract", { timeout: hangBudget(10) }, async (t) => {
   const device = emptyDevice();
   const probes = [], firstChange = deferred(), laterChange = deferred();
   let changes = 0;
@@ -211,12 +208,12 @@ test("local reconnect requires the authenticated GET /probe contract", { timeout
   t.after(() => client.close());
   firstChange.resolve(Promise.reject(new TypeError("offline")));
   await until(() => client.link() === "offline", "failed changes request must take the local client offline");
-  await until(() => probes.length === 1, "local client did not probe", 5000);
+  await until(() => probes.length === 1, "local client did not probe");
   probes[0].resolve(Response.json({}, { status: 404 }));
-  await until(() => probes.length === 2, "local client did not retry after a 404 probe", 5000);
+  await until(() => probes.length === 2, "local client did not retry after a 404 probe");
   assert.equal(client.link(), "offline");
   probes[1].resolve(Response.json({ ok: "yes" }));
-  await until(() => probes.length === 3, "local client did not retry after an invalid 200 probe", 5000);
+  await until(() => probes.length === 3, "local client did not retry after an invalid 200 probe");
   assert.equal(client.link(), "offline");
   probes[2].resolve(Response.json({ ok: true, seq: 0 }));
   await until(() => client.link() === "online", "valid local probe did not restore the link");
@@ -264,7 +261,7 @@ test("local sync shrinks response-bound pages at one cursor and exposes an indiv
   }
 });
 
-test("local observations skip idle polls and rerun after a committed page", { timeout: 5000 }, async (t) => {
+test("local observations skip idle polls and rerun after a committed page", { timeout: hangBudget(7) }, async (t) => {
   const changes = [], log = [];
   let syncs = 0, watermark = 0;
   const device = emptyDevice({ call: async (request) => {
@@ -300,7 +297,7 @@ test("local observations skip idle polls and rerun after a committed page", { ti
   unsubscribe(); observed.close(); await client.close();
 });
 
-test("local generation adoption reruns observations whose dependencies changed", { timeout: 5000 }, async (t) => {
+test("local generation adoption reruns observations whose dependencies changed", { timeout: hangBudget(7) }, async (t) => {
   const backend = (generation, table) => ({
     generation,
     schema: { tables: { [table]: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
@@ -345,7 +342,7 @@ test("local generation adoption reruns observations whose dependencies changed",
   unsubscribe(); observed.close(); await client.close();
 });
 
-test("closing a pending watch prevents its response from scheduling expiry or rerunning dirty work", { timeout: 5000 }, async (t) => {
+test("closing a pending watch prevents its response from scheduling expiry or rerunning dirty work", { timeout: hangBudget(11) }, async (t) => {
   const realSetTimeout = globalThis.setTimeout;
   const realClearTimeout = globalThis.clearTimeout;
   const longTimers = [];
@@ -415,7 +412,7 @@ test("closing a pending watch prevents its response from scheduling expiry or re
   }
 });
 
-test("local auth invalidation notifies viewer listeners before session deletion can fail", { timeout: 5000 }, async (t) => {
+test("local auth invalidation notifies viewer listeners before session deletion can fail", { timeout: hangBudget(4) }, async (t) => {
   const change = deferred();
   const session = { principal: "user:1", kind: "user", token: "token", expiresAt: Date.now() + 100_000 };
   const sessionStore = {
@@ -447,7 +444,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
   await client.close();
 });
 
-test("local observations rerun when the device-reported visible lifetime expires", { timeout: 5000 }, async (t) => {
+test("local observations rerun when the device-reported visible lifetime expires", { timeout: hangBudget(7) }, async (t) => {
   let now = Date.now();
   t.mock.method(Date, "now", () => now);
   const change = deferred();
@@ -473,7 +470,7 @@ test("local observations rerun when the device-reported visible lifetime expires
   now = expiresAt - 1;
   assert.deepEqual(observed.getSnapshot().data, ["alive"]);
   now = expiresAt;
-  await until(() => queries >= 2 && observed.getSnapshot().data?.length === 0, "expiry did not rerun the observation", 1000);
+  await until(() => queries >= 2 && observed.getSnapshot().data?.length === 0, "expiry did not rerun the observation");
   unsubscribe(); observed.close();
   expiresAt = Date.now() + 80;
   const before = queries;
@@ -487,7 +484,7 @@ test("local observations rerun when the device-reported visible lifetime expires
   await client.close();
 });
 
-test("a refused device adopt keeps the previous backend active in JavaScript", { timeout: 5000 }, async (t) => {
+test("a refused device adopt keeps the previous backend active in JavaScript", { timeout: hangBudget(6) }, async (t) => {
   const oldBackend = {
     generation: 1,
     schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
@@ -517,7 +514,7 @@ test("a refused device adopt keeps the previous backend active in JavaScript", {
   assert.equal((await write).state, "pending");
 });
 
-test("a failed native replacement falls back without a stale local answer and is retried", { timeout: 5000 }, async (t) => {
+test("a failed native replacement falls back without a stale local answer and is retried", { timeout: hangBudget(6) }, async (t) => {
   const oldBackend = {
     generation: 1,
     schema: { tables: {} },
@@ -571,7 +568,7 @@ test("a failed native replacement falls back without a stale local answer and is
   await client.close();
 });
 
-test("every local prediction invalidates observations, including unrelated tables", { timeout: 5000 }, async (t) => {
+test("every local prediction invalidates observations, including unrelated tables", { timeout: hangBudget(6) }, async (t) => {
   const backend = {
     generation: 1,
     schema: { tables: {
@@ -742,7 +739,7 @@ async function fixture(t, additions = "", releases = []) {
   return { url, server, open, seed, clients };
 }
 
-test("online watches retain their changes watermark; bare tokens clear on refusal", { timeout: 15_000 }, async (t) => {
+test("online watches retain their changes watermark; bare tokens clear on refusal", { timeout: hangBudget(11) }, async (t) => {
   const f = await fixture(t);
   const changes = deferred();
   const online = await f.open("online", { fetch: async (input, init) => {
@@ -769,7 +766,7 @@ test("online watches retain their changes watermark; bare tokens clear on refusa
 });
 
 for (const tier of ["wasm", "native"]) {
-  test(`${tier}: pending metadata survives repeated profile/vote updates and offline replay`, { timeout: 20_000 }, async (t) => {
+  test(`${tier}: pending metadata survives repeated profile/vote updates and offline replay`, { timeout: hangBudget(25) }, async (t) => {
     const source = readFileSync(join(root, "crates/snapback4-device/tests/fixtures/pending-metadata.q"), "utf8");
     const f = await fixture(t, source);
     await f.seed([
@@ -829,7 +826,7 @@ for (const tier of ["wasm", "native"]) {
     await until(async () => (await queuedIds()).length === 0, "all durable outbox entries settle");
   });
 
-  test(`${tier}: no-op and nosync writes retire when the partition stream is empty`, { timeout: 12_000 }, async (t) => {
+  test(`${tier}: no-op and nosync writes retire when the partition stream is empty`, { timeout: hangBudget(10) }, async (t) => {
     const f = await fixture(t);
     let deviceCore;
     const client = await f.open(tier, { wrapNative: (core) => { deviceCore = core; return core; } });
@@ -843,7 +840,7 @@ for (const tier of ["wasm", "native"]) {
     assert.equal((await client.query(query("secret"), { secretId: "secret" })).data.body, "updated without sync");
   });
 
-  test(`${tier}: a write already sending when a snapshot starts is correlated after catch-up`, { timeout: 12_000 }, async (t) => {
+  test(`${tier}: a write already sending when a snapshot starts is correlated after catch-up`, { timeout: hangBudget(17) }, async (t) => {
     const f = await fixture(t);
     await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
     const sending = deferred(), releaseSend = deferred(), committed = deferred(), reply = deferred();
@@ -897,7 +894,7 @@ for (const tier of ["wasm", "native"]) {
 
   // Two clients over one store is a native host's case (two processes on
   // one phone): on the web a tab is a device and a second tab opens its own.
-  if (tier === "native") test(`${tier}: another client sending after sync capture cannot publish an uncorrelated page`, { timeout: 12_000 }, async (t) => {
+  if (tier === "native") test(`${tier}: another client sending after sync capture cannot publish an uncorrelated page`, { timeout: hangBudget(19) }, async (t) => {
     const f = await fixture(t);
     await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
     const entered = deferred(), release = deferred(), committed = deferred();
@@ -960,7 +957,7 @@ for (const tier of ["wasm", "native"]) {
     assert.equal(outcome.replayed, true); assert.ok(outcome.seq > 0);
   });
 
-  test(`${tier}: a sync started before admission finishes before that write can be sent`, { timeout: 12_000 }, async (t) => {
+  test(`${tier}: a sync started before admission finishes before that write can be sent`, { timeout: hangBudget(15) }, async (t) => {
     const f = await fixture(t);
     await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
     const syncEntered = deferred(), releaseSync = deferred(), committed = deferred();
@@ -996,7 +993,7 @@ for (const tier of ["wasm", "native"]) {
   });
 
   for (const loseReply of [false, true]) {
-    test(`${tier}: sync before a ${loseReply ? "lost" : "delayed"} write reply does not apply an increment twice`, { timeout: 12_000 }, async (t) => {
+    test(`${tier}: sync before a ${loseReply ? "lost" : "delayed"} write reply does not apply an increment twice`, { timeout: hangBudget(26) }, async (t) => {
       const f = await fixture(t);
       await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
       const reply = deferred(), entered = deferred(), laterPost = deferred();
@@ -1059,7 +1056,7 @@ for (const tier of ["wasm", "native"]) {
     });
   }
 
-  test(`${tier}: background sync timestamps survive reconnect and unwraps beyond the horizon use the server`, { timeout: 12_000 }, async (t) => {
+  test(`${tier}: background sync timestamps survive reconnect and unwraps beyond the horizon use the server`, { timeout: hangBudget(15) }, async (t) => {
     const f = await fixture(t);
     await f.seed(Array.from({ length: 500 }, (_, n) => ({ table: "messages", row: { id: `horizon-${n}`, conversationId: "c1", authorId: "dev:alice", body: `horizon-${n}`, at: n + 3 } })));
     let offline = false;
@@ -1086,7 +1083,7 @@ for (const tier of ["wasm", "native"]) {
     assert.ok(restored.since >= changedAt, "the sync timestamp survives an offline reopen");
   });
 
-  test(`${tier}: population growth cannot mint new IDs during prediction replay`, { timeout: 12_000 }, async (t) => {
+  test(`${tier}: population growth cannot mint new IDs during prediction replay`, { timeout: hangBudget(19) }, async (t) => {
     const entered = deferred(), release = deferred(), syncEntered = deferred(), syncRelease = deferred();
     const sendRelease = deferred(), observations = deferred();
     const f = await fixture(t, "", [release, syncRelease, sendRelease, observations]);
@@ -1142,7 +1139,7 @@ for (const tier of ["wasm", "native"]) {
     await until(async () => (await client.query(query("copied"), {})).data?.length === 2, "authority provides both final rows");
   });
 
-  test(`${tier}: retry without observers, online-only routing and denied-watch recovery`, { timeout: 20_000 }, async (t) => {
+  test(`${tier}: retry without observers, online-only routing and denied-watch recovery`, { timeout: hangBudget(17) }, async (t) => {
     const f = await fixture(t);
     let failures = 1, offline = false, tries = 0;
     const deviceRefusals = [];
@@ -1184,7 +1181,7 @@ for (const tier of ["wasm", "native"]) {
   });
 
   for (const operation of ["guardedEdit", "guardedDelete"]) {
-    test(`${tier}: a rejected ${operation} restores confirmed and maintained rows under a later prediction`, { timeout: 15_000 }, async (t) => {
+    test(`${tier}: a rejected ${operation} restores confirmed and maintained rows under a later prediction`, { timeout: hangBudget(15) }, async (t) => {
       const f = await fixture(t);
       const first = deferred(), second = deferred(), sync = deferred(), reached = deferred();
       let holdSync = false;
@@ -1217,7 +1214,7 @@ for (const tier of ["wasm", "native"]) {
   }
 }
 
-test("close cancels online write callers without aborting committed delivery", { timeout: 10_000 }, async (t) => {
+test("close cancels online write callers without aborting committed delivery", { timeout: hangBudget(12) }, async (t) => {
   const f = await fixture(t);
   const entered = deferred(), release = deferred(); let consumed = false;
   t.after(() => release.resolve());
@@ -1242,7 +1239,7 @@ test("close cancels online write callers without aborting committed delivery", {
   assert.equal((await f.server.query(thread, args)).data.length, 3);
 });
 
-test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async (t) => {
+test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: hangBudget(5) }, async (t) => {
   const opener = (script) => processDevice({ binary: process.execPath, dir: "unused", spawn: (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async () => {} });
   await assert.rejects(opener("process.exit(4)").open("unused", null), /exited/);
   const core = await opener('process.stdout.write(JSON.stringify({ok:true}) + "\\n"); process.stdin.once("data", () => process.exit(5));').open("unused", null);
@@ -1298,7 +1295,7 @@ test("device compatibility closes the core and preserves operational startup err
   }
 });
 
-test("device compatibility accepts the current core online and on an offline reopen", { timeout: 12_000 }, async (t) => {
+test("device compatibility accepts the current core online and on an offline reopen", { timeout: hangBudget(6) }, async (t) => {
   const f = await fixture(t), calls = [];
   const wrapNative = (core) => ({
     call: async (request) => { calls.push(request.op); return core.call(request); },
@@ -1331,7 +1328,7 @@ test("online serialization failures retain the minted id without scheduling netw
 });
 
 for (const tier of ["wasm", "native"]) {
-  test(`${tier}: close waits for an applying acknowledgment and aborts sync`, { timeout: 10_000 }, async (t) => {
+  test(`${tier}: close waits for an applying acknowledgment and aborts sync`, { timeout: hangBudget(14) }, async (t) => {
     const entered = deferred(), release = deferred();
     const f = await fixture(t, "", [release]);
     let storeClosed = false;

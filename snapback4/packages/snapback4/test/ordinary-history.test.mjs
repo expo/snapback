@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.021#3.1 — the comparative's history works through one ordinary query.
 // @ref LLP 3000.021#3.4 — guide screen/history survive leave, remount and reopen on real devices.
 import test from "node:test";
@@ -67,7 +68,7 @@ async function sent(client, name, args) {
 }
 
 for (const tier of ["wasm", "process"]) {
-  test(`${tier}: comparative history preserves stored fields, edits and view-once assets`, { timeout: 30000 }, async t => {
+  test(`${tier}: comparative history preserves stored fields, edits and view-once assets`, { timeout: hangBudget(21) }, async t => {
     const f = await fixture(t, tier, comparative), alice = f.online("alice"), bobHttp = f.online("bob");
     for (const [client, name] of [[alice, "alice"], [bobHttp, "bob"]]) {
       await sent(client, "saveProfile", { displayName: name, handle: name, bio: null, location: null, link: null });
@@ -128,7 +129,7 @@ for (const tier of ["wasm", "process"]) {
     assert.match(renderToStaticMarkup(createElement(History, { history: { data: [deleted] }, pending: [], conversation })), /This message was deleted/);
   });
 
-  test(`${tier}: comparative DM before acquisition, HTTP decorations, and unpredicted offline send`, { timeout: 30000 }, async t => {
+  test(`${tier}: comparative DM before acquisition, HTTP decorations, and unpredicted offline send`, { timeout: hangBudget(29) }, async t => {
     const f = await fixture(t, tier, comparative), alice = f.online("alice"), bobHttp = f.online("bob");
     for (const [client, name] of [[alice, "alice"], [bobHttp, "bob"]]) {
       await sent(client, "saveProfile", { displayName: name, handle: name, bio: null, location: null, link: null });
@@ -197,7 +198,7 @@ const guides = [
   { name: "comparative", source: comparative, history: "history", screen: "conversationById", argument: "conversation", members: "members", body: "text", leave: "removeMember" },
 ];
 for (const tier of ["wasm", "process"]) for (const g of guides) for (const controlled of g.name === "receipts" ? [false, true] : [false]) {
-  test(`${tier}: ${g.name} screen and history after leave, remount and offline/online reopen${controlled ? " (older sync held across leave)" : ""}`, { timeout: 30000 }, async t => {
+  test(`${tier}: ${g.name} screen and history after leave, remount and offline/online reopen${controlled ? " (older sync held across leave)" : ""}`, { timeout: hangBudget(27) }, async t => {
     const f = await fixture(t, tier, g.source, controlled), alice = f.online("alice"), bobHttp = f.online("bob");
     const args = { [g.argument]: "chat" }, groupKey = g.argument;
     const chat = { id: "chat", title: "Retained conversation", creatorId: "dev:alice" };

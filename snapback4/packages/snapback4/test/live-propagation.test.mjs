@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — change evidence wakes dependent observations without a sampling timer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,8 +22,7 @@ const q = name => ({ kind: 'query', name });
 // tick(0) pumps host zero-delay I/O and queue yields, never elapsed time, retries,
 // retention deadlines, presence sampling or network watchdogs.
 async function eventTurns(t, predicate, label) {
-  const limit = performance.now() + 10000;
-  while (!predicate() && performance.now() < limit) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+  await awaitState(predicate, label, { work: 8, poll: async () => { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); } });
   assert.ok(predicate(), label);
 }
 const cases = ['child-add', 'child-replace', 'child-remove', 'parent', 'joined-profile', 'authorization', 'unknown-footprint'].map(scenario => ({ scenario }));

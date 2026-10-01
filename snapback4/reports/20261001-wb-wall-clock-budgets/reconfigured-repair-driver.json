@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-01T03:53:47.142501+00:00",
+  "stopped": [
+    {
+      "pid": 2899914,
+      "command": [
+        "python3",
+        "snapback4/reports/20261001-wb-wall-clock-budgets/repair.py"
+      ]
+    }
+  ],
+  "reason": "No repair tests launched. Include complete search oracle alongside client-seams in all five repairs."
+}

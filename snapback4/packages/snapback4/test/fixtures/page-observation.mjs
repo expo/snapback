@@ -1,10 +1,8 @@
+import { waitFor as awaitState } from '../helpers/wait.mjs';
 // Shared real-client journey: the writer and reader have independent devices.
 export async function exercise({ url, createApp, memorySessionStore, deviceFactory, durableSessions = false, mount = async () => null }) {
   const check = (ok, message) => { if (!ok) throw Error(message); };
-  const until = async (read, label) => {
-    for (let n = 0; n < 1000; n++) { const value = await read(); if (value) return value; await new Promise(r => setTimeout(r, 10)); }
-    throw Error(`timed out: ${label}`);
-  };
+  const until = async (read, label) => { return awaitState(read, label); };
   const q = name => ({ kind: "query", name }), m = name => ({ kind: "mutation", name });
   const apps = [], watches = [], replies = [], requests = [];
   const expiryArmed = new Map();

@@ -1,0 +1,46 @@
+{
+  "name": "pilot-unconfined",
+  "workers": 0,
+  "mode": "unconfined",
+  "affinity": [],
+  "guard": [],
+  "wrapper": [],
+  "command": [
+    "python3",
+    "reports/20261001-wb-wall-clock-budgets/converted.py"
+  ],
+  "harness_sha256": {
+    "confine": "548651537fe6b0d2b4f89cc7c59568bb4434337c35167a9616354d7f271cd8b9",
+    "busy": "dfdd71599e72d67e57b145f8833cc9cdf2289f8089cc3c0ac8c2078522fdb778"
+  },
+  "start": "2026-10-01T01:50:43.261246+00:00",
+  "head": "91a111cd85044176ebcc7200449e16e968d276f5",
+  "diff_sha256": "f058c0bd643d356e835aa43f2623c856fdf96f95de94f0b09d201afed650ec3f",
+  "tested_diff_sha256": "f058c0bd643d356e835aa43f2623c856fdf96f95de94f0b09d201afed650ec3f",
+  "test_overrides": {
+    "SNAPBACK4_SESSION_SEQUENCES": null,
+    "SNAPBACK4_ONLINE_SEQUENCES": null,
+    "RL_SEEDS": null,
+    "SNAPBACK4_WEB_ADMISSION_FOCUS": null,
+    "SNAPBACK4_CLIQUE_FULL": null,
+    "SB4_SEARCH_SEEDS": null
+  },
+  "inputs": {
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_JOBS": null,
+    "RUSTFLAGS": null,
+    "RUSTUP_TOOLCHAIN": null,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "load_pids": [],
+  "load_affinity": {},
+  "suite_pid": 1227076,
+  "exit": 1,
+  "load_completion": [],
+  "tested_diff_sha256_after": "21e87f73653e64155ad40febb2720342196275bf7a3ae0ed57bcb54b563deade",
+  "source_changed_during_run": true,
+  "elapsed_seconds": 833.9090798720717,
+  "end": "2026-10-01T02:04:37.334557+00:00"
+}

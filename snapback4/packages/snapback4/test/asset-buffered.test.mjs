@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.002.000#6 — opaque transports must allow healthy bodies to finish without replaying a view.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +12,7 @@ import { chromiumExecutable } from '../../../witness/lib.mjs';
 const root = resolve(import.meta.dirname, '../../..');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6V9sAAAAASUVORK5CYII=', 'base64');
 
-test('real buffered HTTP downloads over five seconds reach ready and paint, ordinary and once', { timeout: 25000 }, async t => {
+test('real buffered HTTP downloads over five seconds reach ready and paint, ordinary and once', { timeout: hangBudget(12) }, async t => {
   const require = createRequire(join(root, 'packages/snapback4/package.json'));
   const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
   const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
@@ -78,8 +79,9 @@ test('real buffered HTTP downloads over five seconds reach ready and paint, ordi
       });
     } }] });
   await server.listen();
-  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(() => Object.keys(window.states ?? {}).length === 4 && Object.values(window.states).every(s => s.status !== 'loading'));
   const states = await page.evaluate(() => window.states);

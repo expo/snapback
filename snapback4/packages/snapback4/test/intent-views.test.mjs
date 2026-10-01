@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -32,7 +33,7 @@ mutation repost(id: id):
   return insert reposts { id, at: 2 }
 `;
 
-test("a planned union subscription reruns for either source table", { timeout: 60000 }, async t => {
+test("a planned union subscription reruns for either source table", { timeout: hangBudget(9) }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-intent-live-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -42,9 +43,7 @@ test("a planned union subscription reruns for either source table", { timeout: 6
   for (const stream of [server.stdout, server.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   t.after(async () => { watch?.close(); await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const until = async predicate => {
-    const end = Date.now() + 15000;
-    do { if (predicate()) return; assert.equal(server.exitCode, null, log); await delay(20); } while (Date.now() < end);
-    throw Error(`subscription did not update: ${JSON.stringify(watch?.getSnapshot())}; ${log}`);
+    return awaitState(() => { assert.equal(server.exitCode, null, log); return predicate(); }, 'subscription update', { diagnostics: () => `${JSON.stringify(watch?.getSnapshot())}; ${log}` });
   };
   await until(() => url);
   client = await createLocalClient({ url, persona: "alice", waitSeconds: 1, device: processDevice({ binary, dir: join(directory, "device") }) });

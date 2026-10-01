@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -8,7 +9,7 @@ import {acceptManifest,deliveryKey} from '../dist/delivery-state.js';
 const binding={fingerprint:'fixture:messages',table:'messages',mutation:'delivered',args:['conversation','from','through']};
 const manifest=rows=>[{...binding,rows}];
 const blocked=signal=>new Promise((_,reject)=>{if(signal.aborted)reject(Error('closed'));else signal.addEventListener('abort',()=>reject(Error('closed')),{once:true});});
-const until=async fn=>{for(let i=0;i<300;i++){if(fn())return;await delay(5);}assert.fail('delivery did not settle');};
+const until=async fn=>{ return awaitState(fn); };
 test('online home-screen manifest sends exact positions without an application mutate',async t=>{
  const calls=[];const client=createClient({url:'http://delivery.test',persona:'bob',fetch:async(url,init)=>{
   if(url.includes('/changes'))return blocked(init.signal);
@@ -23,7 +24,7 @@ test('online calls judge out-of-order heads against their own dispatch floors',a
  const responses=[];let floor=10,current=true;const observations=[];
  const q=onlineDelivery({url:'http://x',fetch:async()=>new Promise(resolve=>responses.push(resolve)),mint:()=>String(responses.length),ready:()=>current,current:()=>current,headers:()=>({}),revision:()=>0,floor:()=>floor,store:()=> 'S',refresh:()=>null,obsolete:async()=>false,
   observe:(json,at)=>{observations.push(at);if(json.head<at)current=false;floor=Math.max(floor,json.head);}});t.after(()=>q.stop());
- await q.accept(manifest([['a',1],['b',1]]));await q.pump();responses[1](Response.json({state:'sent',head:20,seq:20,store_id:'S'}));await delay(5);responses[0](Response.json({state:'sent',head:10,seq:10,store_id:'S'}));await delay(5);assert.equal(current,true);assert.deepEqual(observations,[10,10]);
+ await q.accept(manifest([['a',1],['b',1]]));await q.pump();responses[1](Response.json({state:'sent',head:20,seq:20,store_id:'S'}));await until(()=>observations.length===1);responses[0](Response.json({state:'sent',head:10,seq:10,store_id:'S'}));await until(()=>observations.length===2);assert.equal(current,true);assert.deepEqual(observations,[10,10]);
 });
 test('local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore',async t=>{
  let value=JSON.stringify({serial:0,groups:{},retired:{}}),witness=false,busy=true,restored=false;const calls=[];

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -13,7 +14,7 @@ import { processDevice } from '../dist/native.js';
 import { memoryPersistence, webDevice } from '../dist/web.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
-const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('existence integration did not settle'); };
+const until = async check => { return awaitState(check); };
 const source = `use personas alice, bob
 table rows:
   owner: principal
@@ -28,7 +29,7 @@ query point(owner: principal, label: text <=40):
 mutation add(label: text <=40):
   return insert rows {owner: viewer, label}
 `;
-for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads match and an admitted insert demotes retained absence`, { timeout: 60_000 }, async t => {
+for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads match and an admitted insert demotes retained absence`, { timeout: hangBudget(27) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-proven-existence-'));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source);
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -87,7 +88,7 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
 
 // @ref LLP 3000.023#10 — same-key completed replacements always replace data.
 // @ref LLP 3000.031#1.1 — each replacement classifies its own disclosed value.
-for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row arrival and delete replace absent/present existence`, { timeout: 60_000 }, async t => {
+for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row arrival and delete replace absent/present existence`, { timeout: hangBudget(11) }, async t => {
   const { fixture, open, q, until } = await import('./helpers/answers-stay.mjs');
   const f = await fixture(t);
   assert.equal((await f.post('/m/erase', {})).state, 'sent');

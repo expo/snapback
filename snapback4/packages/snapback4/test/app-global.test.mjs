@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ const probe = async (url, token) => {
 };
 const login = async (url, email) => (await (await fetch(url + "/auth/login", { method: "POST", body: JSON.stringify({ email, password: "password-a" }) })).json()).session;
 
-for (const tier of ["online", "local"]) for (const heldResponse of [false, true]) test(`${tier}: global logout follows another tab's ${heldResponse ? "held" : "persisted"} rotation and revokes external siblings`, { timeout: 30_000 }, async t => {
+for (const tier of ["online", "local"]) for (const heldResponse of [false, true]) test(`${tier}: global logout follows another tab's ${heldResponse ? "held" : "persisted"} rotation and revokes external siblings`, { timeout: hangBudget(27) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore(), held = gate(), requests = [];
   let successor;
   const options = name => ({ url, sessionStore: store,
@@ -56,7 +57,7 @@ for (const tier of ["online", "local"]) for (const heldResponse of [false, true]
   });
 });
 
-test("global logout never selects another principal's stored bearer", { timeout: 20_000 }, async t => {
+test("global logout never selects another principal's stored bearer", { timeout: hangBudget(9) }, async t => {
   const { url } = await server(t), store = memorySessionStore(), sent = [];
   const a = createApp({ url, sessionStore: store, fetch(input, init) {
     if (new URL(input).pathname === "/auth/logout-all") sent.push(new Headers(init.headers).get("authorization"));
@@ -69,7 +70,7 @@ test("global logout never selects another principal's stored bearer", { timeout:
   assert.equal(await store.get(sessionKey(url)), before); assert.equal(await probe(url, bob.token), undefined);
 });
 
-for (const completed of [false, true]) test(`a ${completed ? "completed" : "pending"} global fence survives replacement before a late rotation returns`, { timeout: 20_000 }, async t => {
+for (const completed of [false, true]) test(`a ${completed ? "completed" : "pending"} global fence survives replacement before a late rotation returns`, { timeout: hangBudget(21) }, async t => {
   const { url } = await server(t), store = memorySessionStore(), held = gate(), sent = []; let successor;
   const a = createApp({ url, sessionStore: store, fetch: async (input, init) => {
     const path = new URL(input).pathname;

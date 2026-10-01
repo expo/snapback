@@ -1,0 +1,5 @@
+heavy-4-final: exit=1 elapsed=2234.2s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-4-final.log
+heavy-5-final: exit=1 elapsed=2370.4s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-5-final.log
+heavy-2-final: exit=1 elapsed=2400.4s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-2-final.log
+heavy-3-final: exit=1 elapsed=2404.0s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-3-final.log
+heavy-1-final: exit=1 elapsed=2423.3s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-1-final.log
