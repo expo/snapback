@@ -1,0 +1,18 @@
+✔ a presence answer re-runs in the background after its server's interval, never showing loading (4321.763338ms)
+✔ unguarded background refresh reports a newly accepted delivery coordinate with changes held (513.713787ms)
+✔ an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops (2725.079112ms)
+✔ a refresh that fails keeps the interval, and a refused presence query keeps refreshing (905.901322ms)
+✔ an invalidation during a background refresh withdraws at once, and the late refresh is discarded (418.974035ms)
+✔ an interval a timer cannot hold is clamped, not wrapped to an immediate refresh (100.582592ms)
+✔ a background reply that a newer read overtook leaves the newer interval alone (559.379694ms)
+✔ an accepted loading answer is published, and a background failure keeps the answer and the link (925.588097ms)
+✔ a background reply older than a commit the client observed is not published (712.508068ms)
+✔ a read that settles after the credentials end arms no refresh timer (73.552878ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11347.299284

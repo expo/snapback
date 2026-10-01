@@ -1,4 +1,4 @@
-import { hangBudget } from './helpers/wait.mjs';
+import { hangBudget, waitFor } from './helpers/wait.mjs';
 // The real HTTP host: bounded admission, bounded encoding, and slow network
 // clients release the engine. Only this test's recorded child/socket handles
 // are closed. No process discovery, arbitrary port selection, or publication.
@@ -186,7 +186,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const initial = await (await fetch(url, { headers })).json();
       let completed = 0;
       const responses = controllers.map(controller => fetch(url + `/changes?since=${initial.seq}&wait=25&heartbeat=1`, { headers, signal: controller.signal }));
-      const polls = responses.map(response => response.then(r => r.json()).then(value => { completed++; return value; }).catch(() => null));
+      const polls = responses.map(response => response.then(r => r.json()).catch(() => null).finally(() => { completed++; }));
       try {
         await Promise.all(responses); // A heartbeat proves every request is held.
         assert.equal(completed, 0);
@@ -241,6 +241,16 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       }
     });
     await t.test("a paused large response releases the engine before network progress", async () => {
+      // @ref LLP 3000.019#3.7 — counts include completed response writes,
+      // including timeouts. A paused client socket alone cannot prove this.
+      const latency = async () => {
+        const response = await fetch(url + "/dev/latency", { headers, signal: AbortSignal.timeout(hangBudget()) });
+        assert.equal(response.status, 200);
+        return (await response.json()).operations;
+      };
+      const reset = await post("/dev/latency/reset", "{}");
+      assert.equal(reset.status, 200);
+      assert.equal((await reset.json()).operations["/sync"].n, 0);
       const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port), readableHighWaterMark: 1024 });
       sockets.add(socket);
       await once(socket, "connect");
@@ -249,9 +259,19 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       socket.pause();
       try {
         await ping();
+        const completed = await waitFor(async () => {
+          const operations = await latency();
+          return operations["/q/ping"].n === 1 && operations;
+        }, "the server records the completed probe");
+        assert.equal(completed["/sync"].n, 0,
+          `the server response must still be unfinished after the probe: ${JSON.stringify(completed["/sync"])}`);
         assert.equal(socket.readableFlowing, false, "the engine answers while output remains paused");
-        assert.equal(socket.destroyed, false, "the blocked response is still held");
-      } finally { socket.destroy(); sockets.delete(socket); }
+        assert.equal(socket.destroyed, false, "the client has not destroyed the socket");
+      } finally {
+        socket.destroy(); sockets.delete(socket);
+        await waitFor(async () => (await latency())["/sync"].n === 1,
+          "the server records the response completion after releasing the slow reader");
+      }
     });
   } catch (error) {
     console.error(log);

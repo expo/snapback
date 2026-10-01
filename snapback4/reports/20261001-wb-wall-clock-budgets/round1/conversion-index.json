@@ -1,0 +1,1335 @@
+[
+  {
+    "file": "snapback4/packages/snapback4/test/acquisition.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "0a70dcd7eebd08704fa7afdd074adda2cb534aa24b135e3623d52ba6e86d3575"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/admit-before-identity.test.mjs",
+    "removed_assertions": [
+      "assert.ok(performance.now() - start < 90_000, log);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "05359ed74aaef8b075965e95e0b0e074de95e25e8dfb7cdf4109723b473a8490"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/answer-row-authority.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "710b758798c29e1ad554a2e9bbabab7596551103959bc310f3cb2ca767608f36"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/answer-withdrawal.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "847356cadab84ec739ccfafae6b10502235b1c191fa69041cff1dceb59fc2cd3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/answers-stay-react.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "90c36d45f3b68e59e45e1b563164f48a44ebc1cb5e0c05d4c02a8be672664767"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/answers-stay-review.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "0a08012d2f91e3444bd253404dfc613bca4d29bb29a021446546a9bd93843d2e"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/answers-stay-round2.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "45cf0613c15b10e14a8ce51bdae7260ecdd28ca242fafcfa5c9cee83012063eb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-global-attempts.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "06ead86aa9e7b9e2411276fdfa4578490d3a580a3beec3e874f8eb0bdfa0bd99"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-global.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "13dec97715e6a5cef9680ad44444cee4b0ec56310ff4bcec0eda03cf6836d139"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-handles.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "8d824d328f689e3bfb70fdf21a8d8388c8ab5c837ef0691dc52fb900e86db806"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-local-outcomes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3d3c3d21568afb1c10b2117724e41e03a25a9a248cda68a5d10392e7d3e108c1"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-local-receipts.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "5d04fab2097627ccaf72cce70c0aa58d8138595d14f9a7ad6c3c9b66e8bface6"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-local-session.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "2e8584fb0cf1cf5d5be8819cb9baa73faec9551fb427d6bc42b87c81d70b0963"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-online.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "5d63459ffb75f9da15e4322e088e5a283138e5361ba7880013e567b355874305"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-outcomes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "82b26bac11a21c534a0f7b2f6be30706e7a755e78a7e4bbef5a98f21bd775614"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-receipts.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "43bb6751b86f4a9a303e6164af06e1c988b7a624b87fb4c4210a2bc70180498d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-session-model.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "8ca38c78ee31c821a1fd100bfa4372b900caa74d2a384fb2f736a6c6a764b549"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-state.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "eef8968416a708c37be2213c63f9b8f5e16f578f43949a82b181fe9c03153491"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-storage.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "d4c0f3aaf5ca4330ab19ae31fc99a6dc546ff5ad53cac2122982517a4a928c97"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app-store-replacement.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "await Promise.race([end === 'logout' ? app.auth.logout() : end === 'login' ? app.auth.login('bob@example.com', 'password') : app.close(),"
+    ],
+    "round0_sha256": "0dcb66a7fee24a2aaef32862056edac5fd46adb00f79fc68d45d3fc76ccd13c2"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/app.test.mjs",
+    "removed_assertions": [
+      "assert.equal((await Promise.race([ending, delay(500).then(() => ({ ok: false }))])).ok, true, \"local logout is independent of both held requests\");"
+    ],
+    "removed_races": [
+      "assert.equal((await Promise.race([ending, delay(500).then(() => ({ ok: false }))])).ok, true, \"local logout is independent of both held requests\");",
+      "assert.equal((await Promise.race([refreshing, delay(500).then(() => assert.fail('caller still waits for the refresh body'))])).ok, false);",
+      "await Promise.race([app.close(), delay(500).then(() => assert.fail('close waited for an effect body'))]);"
+    ],
+    "round0_sha256": "79f5a3b9a7486e73b996b982aadc88c5fe6a0f8f9c2bb87e9f34959d4925c8eb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/asset-avatars.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "f635529bf70c4f38f9a9db758a308d74f6ef2c0a4fa2ed3b8bfbe49740bd70f8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/asset-buffered.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "fb4a4f61c0c5cdf493600679f7a59e327aef3be4819bd3f7f5490a7cd60881e3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/asset-lists.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "1f3428de27d800157f232693df78cb5a3677c457d5487faae8b4da854918f11f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/asset-pressure.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "c15db3e85de38c29a40adebbb74e0767c319c11f560015614e655346b51c8641"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/asset-retry.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "dee83d1630f1e4021ea99e2877b648a81da1aaac886b882181c8a3f534a6567c"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/astra-invalid-input.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "21dee04afb553e23d9a4f1a4c1d8fc66f96ab0dcadbcb5341a66afe9262992ce"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/bounded-following.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "6f254e64c5288479c3435735f9aced0bf9c19d14038aa548b5af591da3620b62"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b4f9b989123880df5ec1935d539af6fe39362d66140310a8163efde7cd636229"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/client-seams.test.mjs",
+    "removed_assertions": [
+      "assert.equal(admitted.state, \"pending\"); assert.ok(elapsed < 1000);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "2fc938524705c3fc45135ce96b55ff47e5319e2cef3bdfcda61c67f3b3c28a70"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/close-boundary.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "007f968c1862a59b9d48d7fe2846ce05fb5c375b0d21d98486ee9ca81bc530b0"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/column-stream-recovery.test.mjs",
+    "removed_assertions": [
+      "while(!url){assert.equal(child.exitCode,null,log);assert.ok(Date.now()<deadline,log);await delay(20)}"
+    ],
+    "removed_races": [],
+    "round0_sha256": "843842b576b22f661c65cb0cfa56d7ceb9d1e04f2f6038910a101a412c592fda"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/composed-authority.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "73d50569b6e680f08e52152f8d9c301916b43bcaf4c0c74da0c187f1e5f2dd57"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-activation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3854c5815fd4f6265d736ac79ea1f4cfc7421bba1284c0c63a4defe7f0fc9995"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-cas.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "0a266fd959f549cf5e1004da986e2e1b675a253d73d75fc684170d8a19e64ce5"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-clients.test.mjs",
+    "removed_assertions": [
+      "await q.accept(manifest([['a',1],['b',1]]));await q.pump();responses[1](Response.json({state:'sent',head:20,seq:20,store_id:'S'}));await delay(5);responses[0](Response.json({state:'sent',head:10,seq:10,store_id:'S'}));await delay(5);assert.equal(current,true);assert.deepEqual(observations,[10,10]);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "2cf4bd650c4de81f3ec77ed4852668610b6b357a8e4b223c1c65a2e079b7c3d7"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-crash.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "6eca8bd9a8a58a8cdc407b1971512d0aa64291907fb4f5f91b9e537cef616298"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-fault-fixture.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "f406dbbb8f6ae93b03d22cefd30167d83531b99bfdcec7c02675df590222e773"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-integrated.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "625cc9894f68f549a2443d96215d29261089ae18b23c534ab6421b6229e8f8ec"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-outbox.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "c51ffd2bae5859e482c43b2d1c84124502d31be853ef140ecb19802d2a55a6cd"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/delivery-web.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3deb00cf22d130314f823afade880faaa64b67ffc76a91d81da7b4f446c234ff"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/effectful-cancellation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "const promptly = promise => Promise.race([promise, delay(500).then(() => assert.fail('caller stayed behind an effectful response'))]);"
+    ],
+    "round0_sha256": "2a370cfc8ca03d4985281272ea9fc937460735129be9fe96e8a93331b84efffb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ephemeral-capability.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3c77b8ef14d57658ac4eaaa53a9594bd8f0abb956791e0c2fff3822780bef639"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3016346c37b7119033ec8b8b0593b71aeee991ad52916d430f90df0a1b16109d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ephemeral-keep.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "77d1402de929d2836547e2c8dd874907632e275f2a7128908c0a8f50fac83eef"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "9372351b32ec0d3c7634445852a98b4e395e3f5df233b39efd068a71e345266c"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/event-slots.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b3ccfd7332ca5432c59fb1dbd578581f762a0a38a4f6d2c45d182cebd73a27e6"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "44ec01244c9e9e9e42e46bc04507182aa438b9f1b0a45d32710af857106028e7"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/expo-media-storage.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "8ce52b5dd92f5630fc1a0ec405decc22d1d09979a91c57ec4ee98e5c767bc050"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/familiar-forms.test.mjs",
+    "removed_assertions": [
+      "assert.ok(Date.now() < deadline, log);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "40d6a8add567192749f66bf87d7d86b242376c6dd4f758c5250af0e5f0e549fd"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/first-account.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "34871a4d256aa63d2f28766466369dc96a08a9cf0cf304fea1b2f892c742cd55"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+    "removed_assertions": [
+      "assert.equal(await run.lifecycle.waitForProofDrain(20), true);",
+      "assert.equal(await settlesWithin(run.request(\"/cut\"), 50), true);",
+      "assert.equal(await settlesWithin(run.request(\"/intentional-cut\"), 50), true);",
+      "assert.equal(await run.close(5, 50), \"proxy-proof-drain-timeout\");",
+      "assert.equal(await settlesWithin(pending, 50), true);",
+      "assert.equal(await run.close(5, 50), \"engine-spawn\");",
+      "assert.equal(await settlesWithin(pending, 50), true);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "e612d39b2fdc472a5fc86f02629778719091c1e8156a3a9b8bbd61bd0e8927b3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-phase.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "57758826c867eabadce6054cb8f9759fa7d7fa6aad76c3ffd521058cc7cc0327"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "2b06a9327cdb5a0db8e7d0696a5bc44f4bbff8f624e8c3125ad0f6735dea5a0c"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/identity-recipe/snapback/qualification-fetch.ts",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "47fb9e518d53ac52c7fd5c536096c64270db1de9f0f3c84fc81a2845689e5e6f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/page-observation.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b0d5ce9ae98abfcd9662447f36bc556ea2b69d53fb081db7307de6f2dfdc5a42"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/routes.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "dbe1eb1872bf63a3df1c5cab0c576169f1895670f42486431296ea2c302e4ef9"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/fixtures/workroom-routes.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "0ba6122033a0e75329a07131ce8556ae46a0e303c866ac56bf3043938f413864"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/following-unfollow.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "aa2409c376e9a464bbf1eaa906e7c7527ebdd06944a0696f8a9b40ed4dc58a53"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/generated-effect-context.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "fca5fbc0d58a98d15a6b078e6095637a0b28102f986e8221c0d894cd1ca0f044"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/generated-effect-opt-in.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "85db5fec4ed685bbb515259a76a5d803961f11d078e35d07728e48ffaf6c1391"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/app-server.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a046f7b08ec77d5562acff976c9eb6d8e05c664fbd02494779274221bcc5e187"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/published-capabilities.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "157396f1de571e3dff67da71ab69d307063ad629ec2fb51b6717ef9fe156e9b3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/react-harness.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "60e6b08284045f7c99f26fb5b78c94e58c16be61978a1e7ca3e790084d78e185"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/react-pending-peer.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b7142974a4d4732571d51dd06ae0d346a70769ed51640bda42426fde0f7fef47"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/read-through-server.mjs",
+    "removed_assertions": [
+      "for(let i=0;!url&&i<750;i++){assert.equal(child.exitCode,null,log);await sleep(20);}assert.ok(url,log);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "c9a5df96a05b4c67c04de84e9ac3a1780966c160ed18d1978b6c18bb0d3d3f84"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/subscription-pressure-driver.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "1b54bac55d2c659f1101ccfb2ae4a421363f9312dc5dc500b9065d8f963f244d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "311c0c64219e364547ed709bf966d8c976b8a38a453148a4f56f1f84209e6333"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/helpers/wait.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/horizon-boundary.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "0fefc54ba7f2976978877d6b97b23b95ea9c7d0194e0247919169d7c7db678cc"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/http-bounds.test.mjs",
+    "removed_assertions": [
+      "for (const path of [\"/\", \"/schema\"]) assert.equal((await fetch(url + path, { headers, signal: AbortSignal.timeout(500) })).status, 200);",
+      "assert.ok(Date.now() - started < 500, \"ordinary work must not await the long-poll interval\");",
+      "assert.ok(Date.now() - started < 500, \"slow output must not hold the engine lock\");"
+    ],
+    "removed_races": [],
+    "round0_sha256": "12402224256667ff12118f52cd9ff6a1749b6c68ae0d634a058f5458098d1027"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "be9ead803d972fb9688ea16790c03c3e5a4fd50b8c10216d36f68aa0cada4aeb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/identity-organizations.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3e07f0c9a4ae86f446f9260b30b9d695e5e96c7e884fe031c282077d94a917c3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/identity-profile.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3f305ee908e9e22acbdafd3734d6157f5fb6790b3964493fd051fd75a81b3b55"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/identity.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "7ff80c1521e974d84f63f2340113877abb829270f3dca6a86e7fb75ac55fc6c7"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/intent-views.test.mjs",
+    "removed_assertions": [
+      "do { if (predicate()) return; assert.equal(server.exitCode, null, log); await delay(20); } while (Date.now() < end);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "4402b2224e49e18bf2853c1ff15fb7a586d2d4c4957041e2dcc0deb8d54f3ea3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-app-model.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "2a985a7db11b988779b7ac0f7d8d39b8be1944a9dc59638b4e06d114c348038f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-authority-react.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "5c416c9621315f4e989bbbadfc11a150460d0699dc86f2939626dbd7c1e54ef8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-authority.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "cbb12828e88aed7a979b3d3a4ac95e2b4a6a8865c74e8caf6ad43147061daf2f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-clock.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "40fbaa8f77996d3d393c7e728028b7b29ebbdfd6492685fac1d832243232fcd5"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-device.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "12efe7c2ac8ff09b1ca89cdaaf6994edeba7f3dceb45e8a6ce14a4a679e2d7c8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-incarnation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a86f9a6b93f008bf72ae7a2f3312760341a86ed7ea646972eefeb27e73401003"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-observation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b31146cc923c7f379094b0cd9be5c9e9ff3ee96b631e614d916e6a7c8a664067"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keep-reset.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "26dd083778b481665505f7a43ca8f0cfee8b0b3bb2e4dd4162a471d1f2d8120d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keepalive-browser.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "bf12b87020fbb6950ab157061fe18d64f0a1893a761e5a55b457be541e0a3364"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keepalive-headers.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "315ed46ae7da43b7d34a4d9dc667fa7ed6cdb05ec4d3b91ed61055a98d820fcb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/keepalive-reuse.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a0f3e0ff36a67856bf1fb1a38a59b83348fccf957642d4405fea390ca6190021"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/legacy-receipts.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "41475e993dd7c78e118258ed61f0508ec7d8d027ca9da8f84840c4374a9c15ae"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "7bdca0eca4bda037714c4085ec2fae8a18400cb921036cfd6d555685c8768d87"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/live-propagation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "ee89f41947ca4783a58d46652dba64bf26045a8dada490f60820e33f3ae99d01"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/local-e2e.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a5af1bf5d0758d75a5856e9be402d8b07c5ae7827334dd95742d0e7d0a6485d1"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/local-signout.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "try { return await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => reject(Error(\"local sign-out waited for the network\")), 1000); })]); }"
+    ],
+    "round0_sha256": "925f7443d05e1c2c6aa23ae7f1c5e4febb43704fa82dfec994e8244d096964ef"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "d1d21df422787b5441c0458c7706c7d05a8565a52e59ba13bc45b1dc5d0f1f8f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/maintained-columns.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "c1609ad15e7f39c69248aa66c37267f4cb6c380540608aa582cb2a13a8bda93b"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/maintains.test.mjs",
+    "removed_assertions": [
+      "for (let i=0; !url && i<750; i++) { assert.equal(child.exitCode, null, log); await sleep(20); }"
+    ],
+    "removed_races": [],
+    "round0_sha256": "230e51ac5ed16e2ab4548e38772b7f2c45eaa686cca74d1098b9ed2d0cc003e9"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/measure-launch.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "2c187b44e3304dbce35907df84369561b7c597971bf7ab0b0187ed31accf1ee1"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/native-e2e.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "c615df7122ca782aa09ae2b8f3ba0cfcc4f7cd4e01745b7f61ce9d1dd1d19f22"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/native-opening.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "6066c7f89ccfe3c50d914e7fecd5ff105071ccda7bf44f1e38cc3e3000ff0f79"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/navigation-model.test.mjs",
+    "removed_assertions": [
+      "assert.ok(await until(async () => (await client.write(id))?.state === \"sent\", 15000));",
+      "assert.ok(await until(() => !f.persist.stores.has(source), 5000), \"the busy candidate remains a background responsibility\");",
+      "assert.ok(await until(async () => (await f.audit())?.total === 1, 5000));",
+      "assert.ok(await until(() => !f.persist.stores.has(source), 5000));",
+      "assert.ok(await until(async () => (await replacement.write(a.id))?.state === \"sent\" && (await replacement.write(b.id))?.state === \"sent\", 5000));",
+      "assert.ok(await until(async () => (await first.write(id))?.state === \"sent\" && (await second.write(id))?.state === \"sent\", 15000));",
+      "assert.ok(await until(async () => (await recovered.write(id))?.state === \"sent\", 15000));"
+    ],
+    "removed_races": [],
+    "round0_sha256": "cfdb4c27303bc3d4a438d2e4e743a6849c23a8139e050dd194343d85a69b157c"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/node-transport.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "f789eb0776590f7ae79febe3d1cc0a2cdd8b8621713ba0ee602d06ec570864b3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/one-shot-bounds.test.mjs",
+    "removed_assertions": [
+      "assert.ok(started); assert.equal(timers(), 1, 'facade and raw client share one timer');",
+      "assert.equal(read.denied?.code, 'E_QUERY_RETRY'); assert.equal(timers(), 1);"
+    ],
+    "removed_races": [
+      "return await Promise.race([work, delay(2000, undefined, { signal: controller.signal }).then(() => { throw Error('independent one-shot watchdog'); })]);"
+    ],
+    "round0_sha256": "131da8373dd870288f4bd65aab64ddd8de826ca84d9b956ebf3c3022c3c4b7c8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/one-shot-model.test.mjs",
+    "removed_assertions": [
+      "assert.ok(performance.now() - started < 30_000, trace.join(' / '));"
+    ],
+    "removed_races": [
+      "const read = await Promise.race([final, delay(2000, undefined, { signal: watchdog.signal }).then(() => { throw Error(`close did not settle: ${trace.join(' / ')}`); })]);"
+    ],
+    "round0_sha256": "2c92130c03f529864e7f9743d44e6216eb2c9b65b0b4fd7844ca8414af629b67"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/one-shot-review.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "return await Promise.race([work, delay(2000, undefined, { signal: controller.signal }).then(() => assert.fail('independent query watchdog'))]);"
+    ],
+    "round0_sha256": "25079e2f3501ff6fb28c42be98d73b6a9c3f3d263206c0281a5678b616be27a7"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/online-intent-store.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "3b806d715b3d302fcb43fa41e1eb68d8b1c9cca6de23aba182c4fc3715a9898b"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/online-read-order.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "288d8ab5c2efa6b5fd11665b009d19f54fd2b1375d0070c41b34758b438ae263"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/online-session.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "171fdada0c235529d84721f390ab43a7205b7707ad6e709fd7da26f5411fff05"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/online-store-order.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "else assert.equal((await Promise.race([result, delay(500).then(() => assert.fail('retry round did not settle'))])).denied?.code, 'E_QUERY_RETRY');"
+    ],
+    "round0_sha256": "93343be969353d7fcdf980b8636aa00345f517457f8e641210188804dfafe7cf"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/online-store-terminal.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "for (const write of await Promise.race([Promise.all(submitted), delay(500).then(() => assert.fail('terminal writes did not settle before the HTTP body'))])) {"
+    ],
+    "round0_sha256": "7a83f5da8be93d82749d13b69a061d3e05abc94260d447269d70acaaf06e30be"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "2f8827701644d7392a946f1d7e8aeb153a4d45540c54aa7f15efc0d25680134e"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ordinary-history.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "255fa20f491e0c41ded624d59b15aae2ceed477b76ac95947a9803fa1cd86ea2"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "76eeeb3c02009b7ac1728e773ebdced8cb1fc001093691e6e60e0212f3fb20c9"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/ordinary-search.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "aa841919ad59dad29907dd28e651867596747f3f67a3314e48652c7e3ef69b44"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/overload-browser.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "583264ed31f40484ed29ef1d9fcbafca24eda073e27aae4ea4a763b2a3f5d9f0"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/overload.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "09ec569d20959896ef2f88866660cfe2ad38039c07e0a0120e79bc85ef39999e"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/own-keys.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "59fbf9bbdbd4b59fc5dab65bc9f8c624093c68c2509b33ace9ecea68246b8382"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/page-authority.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "393d425c30df0d556b16f29f812752a0a6e15c10da09ca70f4fb617602a38977"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/page-observation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "770726608aa0ca1f23dd21dd35fbe23ef12b0a968ed7b294b8525fc612575206"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/page-ready.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "e0c5818eb2068c83aacd8ccac42247918bfa8d6fae2d368b6e325c3deccf13dc"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/pending-writes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "e0d2468fb840b869458418a04956ca49ab4a627b560a6b67a996080bba266564"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/per-row-liveness.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "77d055799b5645d089adb5336fc22427f2a83c5c9db578230f90ac5340bcdd3b"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/per-row-publication.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a1c3633f9ca6950ba3dbc794f2b388c037ad06eaa8c627cf5ba8955fecb01110"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/per-row-react.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "891c093c8dd39b584528d4adc9dfd6e13ce22b1060cbadfccf73aaad49a022b8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/per-row-retry.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "4f84287a6b9a838fcb62565928e0f2865e4f2e8ef5a0c86cd3ef77a593a4e630"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/per-row-work.test.mjs",
+    "removed_assertions": [
+      "await until(ready, 'mount 1000', 15000); assert.equal(calls, 1000);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "e5b1e6ed7f61ec4b4bf46bae247b82cef9a90bcf6d66e1809e573788beb3eeaf"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/periphery.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "54d0819553dda0f6dff0d4799e22c480b59c19bfa308ae8e4d5b93298ad0f641"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/presence-composed.test.mjs",
+    "removed_assertions": [
+      "await until(() => { assert.equal(host.exitCode, null, log); return /http:\\/\\/127\\.0\\.0\\.1:\\d+/.test(log); }, 'server did not listen', 30_000);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "861f0da180cf9a98d4c486a824f6acafd0496bd5d966d604bf5821f9d75f3b7d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/presence-live.test.mjs",
+    "removed_assertions": [
+      "assert.notEqual(await until(() => url, 30000), null, log);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "969acfe4d5ce3366f620ce3cee9e3628a6eefd735e123ecfdc51ce911ae1f54d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/presence-local.test.mjs",
+    "removed_assertions": [
+      "await until(() => { assert.equal(host.exitCode, null, log); return /http:\\/\\/127\\.0\\.0\\.1:\\d+/.test(log); }, \"server did not listen\", 30_000);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "9d83e37353ec3287693606d6d217cd7a0e9b81198ba0d2930299034ec55fdb0d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/presence-refresh.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a522b625d8d241664605eb2b4480a177afa83bd97d7ba5d37c832ac56ec367a9"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/publication-roundtrip.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "ded2b6f3b830af6b0a1d10b48d0526005a30844b61c651bf8db69ee450b4321e"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/query-publication-session.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "dd5b68742ac9a3a94fa3f3bdb2619e2d8541bf6c88e2ba7bdf281fd7631abeac"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/react.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "1cdc2019c39a455a85054b961d043af91195e60d028fc7227f747bcf782823bf"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/read-admission-insert.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "d4c06171b6fefd84ad52a767a3fe04277724b8067829123571a180cf2bdcdb12"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/read-existence-integration.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "4928da33cf70955ca6402440f02559f0f2ae233c387f6b702f7bd8b4e69368b5"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/read-through-provenance.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "e80e1ec809c0f9cd19c431a659159a55f99dea9b185594a5718b3b735d2acea2"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/read-through-upsert.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "c29f2bde33cd7511a1242124af178a7e42300cb861ca1edeff393e6e9656fc88"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/read-through.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "e965e005e28c42fc15ece3467fbae868acd6f2a033043dda67b87b99d63194dd"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/readauth.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "94d12e7050d97df981ee4646b05690d8db7609373ffd5628edb799b7759f52c3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/recorded-compatibility.test.mjs",
+    "removed_assertions": [
+      "assert.equal(child.exitCode,null,log); await delay(20);",
+      "assert.equal(child.exitCode,null,log); await delay(20);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "14e91b9dd745f8e3f4e747592909e64889732642bdd50dae326226ad08e66168"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/refresh-behavior.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "15ec8be41cdc2612f0daa6ea1f3531debca0e7aeaec5b708b46e785ba0fe17a8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/release-activation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b3b284f5530e9629be2301ba2ab4ad3e268d2c6a2d49f1d9ccd0532e950f9a43"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/repair-b-overflow.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a8b1fc07f51542972bdbc39af3a18443d0c68b3f91d6e70b4a222ed83f021cfb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/repair-b-round16.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a2d7b7b8b7cd6e08c88690947b45d2aa43f3e35fa57986059010793320e56af0"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/repair-b-round7.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "5e2ed495165dd9e6ac4eb50554aeb06c838f18b763fdac13e5b7b709323b0990"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/repair-b-round8.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "96acd7bb30977d5f7933fa7c5d13de81c6412d66b22576c88ed7b5c30a0ccc03"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/repair-b-round9.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "await Promise.race([observed, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error(\"head observation not delivered\")), 4000); timer.unref(); })]);"
+    ],
+    "round0_sha256": "e8c87a4b83fbf738fb15f5f545d6d6cba7443735f9916bc0f804cd3577f40792"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/repair-b.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "e79e99662bfdc216730fb44d0c0884f7f02361f21df502e5562a169365b5b148"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/residency.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b13946421c40b833ba4d5a938e91f3036e572a1393c47e9a24c57f89e7f90199"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/retained-history.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "8c8986ccaa4d6005bc82dd9d27726e017fddc1bed29b2805c02ee876ec5feb8a"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/retention-episode.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "4464b85e77dc35b7a4077d4f0ed502fc2af5d3524060c40affc7ba4f3db73e89"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/retention-lifecycle.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "7f8a5719931c7bf0edbb86afd1cc3ab8775e1e7ac3467595dd84c10c9ac2c1e5"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "ece5b331660ef42c16a90362ee83df175de105d8be144c63fc3baa1a1c42d5c6"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "474cfa0f9e9ddfd10df8c044c099a14dbe27999013dbdbe34fb208ca64fde74a"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/routes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "d2eda54def1702ff1e19a5974a3aad1f73ba37d5ca95c02dce7a1fc19cfaf8a1"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/row-keyed-view.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "1113f9cf6d95483109e30efe2fc24a6e4931e71612a662bc7961c4422f1d2eb3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/schema-capabilities.test.mjs",
+    "removed_assertions": [
+      "const assertAlive=()=>{assert.equal(child.exitCode,null,log);assert.equal(child.signalCode,null,log);};"
+    ],
+    "removed_races": [],
+    "round0_sha256": "d97452720fdad6614d7c81c33de61b6e0637d83d00d075ef1cc094511a30d093"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-check.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "7a664018ff8d28c909c2d39719f701e7bb36f8364a2406f9b7738cf310b894fb"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-clock-browser.test.mjs",
+    "removed_assertions": [
+      "assert.ok(delays.every(ms => ms >= 0 && ms <= 1000), JSON.stringify(delays));",
+      "assert.ok(Date.now() - before < 3000, 'must not wait two minutes of device time');"
+    ],
+    "removed_races": [],
+    "round0_sha256": "f7740bc236bd27b8b6e4a0e1d0ecc0e1b0d392233fc9e9e17d65677581f6a02b"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-clock-live.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b2ed4e6b9b174149b7e9d6311d11de969b4fb2f68e13c9a06c1cc41a4f9dd34a"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-clock-recovery.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "d9052a11a5d5ae09272010210fc27eb29af23edc8e3a7d00408ed22880263442"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-clock-regressions.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "87c540f6a9c15ab59d1b3452f456a82e042d76e8a75441fdcaf565a7c5cd0d40"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-clock-wire.test.mjs",
+    "removed_assertions": [
+      "assert.ok(Number.isSafeInteger(at) && Math.abs(at - Date.now() - 90_000_000) < 1000, `${response.url}: ${at}`);",
+      "assert.ok(Math.abs(sent.at - Date.now() - 90_000_000) < 1000);",
+      "assert.ok(observed.filter(r => ['query', 'admit'].includes(r.op)).every(r => Math.abs(r.now - Date.now() - expected) < 2000));"
+    ],
+    "removed_races": [],
+    "round0_sha256": "38af29015c98b6544e6d0c3b525ef3ebb906467b0b89074218f209e80986afc4"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-e2e.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "55dc33eebe61100f9fe62d129a704c9125f9e6d0b03223b51da4c03b8cea962c"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-routes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "try { await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(Error(\"handler did not enter\")), 1000); })]); }",
+      "try { await Promise.race([worker.done, new Promise((_, reject) => { timer = setTimeout(() => reject(Error(\"server did not stop\")), 2000); })]); }"
+    ],
+    "round0_sha256": "754e43485516911395e50200028d20f99fbeb938872e33329db550126759a68c"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/server-runtime.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "await Promise.race([worker.done, delay(2_000, undefined, { signal: timeout.signal }).then(() => { throw Error(\"runtime did not finish\"); })]);",
+      "await Promise.race([entered, new Promise((_, reject) => { timer = setTimeout(() => reject(Error(\"batch did not enter\")), 1000); })]);"
+    ],
+    "round0_sha256": "3219e64868f3bf89b4c7c73b8499e26035bb5fa3ca3ae8a0e0dee7dd58e9c076"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/session-security.test.mjs",
+    "removed_assertions": [
+      "assert.ok(predicate(), message);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "c37f1fe6cb09a125dc86d19fed1ecf790e34a6422eeef9af039023cec169a792"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/social-browser.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "d70e7da7d8000dcfbfe6c59ac9988ea745b5a9d6755fd54b8cae8c09f9702e1d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/social-starter.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "09fb857e15b5a7f9cc8d0a46418618bba0a416521a001667ba17df4f439a4aca"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "8c17470a474d87577067d8e4fd30fc4b15427b9ace05777baeb06ebeecad29f4"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/store-reset-review.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "af1413bfd7ac21237c319500dba969c018d51c1fea2e4ff5b70bfa5f901126ba"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/store-reset.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "379438b88557cc14dd72104be9ce6163e67e8aec8a547a0e87ae0aab8c078580"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/subscription-pressure-device.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "4f12b19a09ecae86af51847bb13abdad1fbff0cb77de7903e3cf8b722510d73d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "5a5dbb684d3cd005fbb55ae7ad2d079c4be4cd3b57dd68d47db70393d8ca8cb5"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/subscription-pressure-noop.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "2201e6360942fb44fdbd793aa24d532b7b06322be9d35590f2189ce289aad0ca"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/subscription-pressure-round1.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a7b08c2ad8b76d242032d3d8a7b6daf265c19fd322f24bb9851389bdd837616f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "f48376daedf2bb8d1dab070b3e3dfc6651a3ba2475f5ce0ad6abf4e9dac2f99b"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b77a1903fd4f05f045680354b5594c3a5cd0bd208ea47765e1c1a37de91a4a74"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/supervised-workers.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "628811f0b4e38b4cbf53c57f6b13fe1afce06a3e19950b83f39bf8ebec490945"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/sync-after-call.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "1d334f7b83edd73c804cd9d273fd2679188e86dcb7ae4cbd4cc49f2aba2bd474"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/sync-generation.test.mjs",
+    "removed_assertions": [
+      "while (!ready && Date.now() < deadline) { assert.equal(child.exitCode, null, log); await delay(20); }"
+    ],
+    "removed_races": [],
+    "round0_sha256": "0d3d9cb33fcf8a975d8781ae738550c074076253a25d1365bc1a85eaa55588d3"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/sync-overflow.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "7618879870a15a68e6e26840fde1eea189124b0b41d9f0224a56a76b9facc2fa"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/sync-scale.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "ed04cf407b7b3a3a8bd1945838bdfad4806636364c0da97a793031bf1b8f27dd"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/timeline-delivery.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "4e5c8469e283061c9734dc232fda96aa4775c7be718751c0b0aa9b28fd7489bd"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/transport-http.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "259e1f961ca45e21b2c81e20f6c9671934b90eccbeabae2b4e3d8050094339d7"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/transport-outcomes.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "b2cdb0a38525041046ac837ac647f65e504e14a7d9305b380615e2f00ec8a1e0"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/typing-expiry.test.mjs",
+    "removed_assertions": [
+      "assert.ok(performance.now() < end, `browser state did not settle: ${predicate}`);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "9e12c53a000773d3b2ee5cdffb8060663f1cfd0eb3344967f6ee48eb62fbcd41"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/unread-range.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "70048ac2ef4575304650d2188c623e92c2bd8c374e2a8bb25e5fb7d5d530ee01"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/upload-lifetime.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "1036ed126be8d40cd617e32bf3dcf168eba59c702083705b6c42f9ee318fd659"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/upload-retry.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "4897ef2ae565ec92a01ed120dc0d1e15c24561d81dfc6b27b0f3e2b0dd9a309d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-admission-review.test.mjs",
+    "removed_assertions": [
+      "assert.equal(await total(session), before);"
+    ],
+    "removed_races": [],
+    "round0_sha256": "c24d7fc226fca424596fcd511859c67c9e2f42ed0e0975afbe73cc05a1fa3e0f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-navigation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [
+      "try { return await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })]); }"
+    ],
+    "round0_sha256": "ffd40e4bdd32f1ea2a657049eb0c69ecbf619c4668802b6b83f22b9f1b6a6938"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-pages.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "622720469585e8cbff648fa47799a6c523f1ada3ef646fccafb316feb27a097f"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "74c54ec7d2bb856be6f41f14260b3a2549810b79dbb450138d99078245b56926"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-review.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "bc3defe8bc55aab44dd836d1bdd98702cd7a7df8d27c65098bde30827846d684"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-session-authority.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "8d775726d1cfeb6b406e90eef6750dc22e2e4ab5e8a0e67f2a55b0192ca0b9e8"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/web-start.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "25e770f58cfd227367c7bdef0558d5c3f745ea33e5bfd00f6553f0775db72a17"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/witness-acquire.test.mjs",
+    "removed_assertions": [
+      "while (!url) { assert.equal(server.exitCode, null, log); assert.ok(Date.now() < end, log); await new Promise(r => setTimeout(r, 10)); }"
+    ],
+    "removed_races": [],
+    "round0_sha256": "de873637697cd73be706eeef639baac83f0d6596ce802981ea4a9a2c22431544"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/witness-preparation.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "823406baf28e788212f613b13665c69deee03c2e3cecae135fbbed3880447235"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/witness.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "7106501c4f5d99641abbfc6c87219396602bd1f5e6dfb082802ca9b11838ea21"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/worker-ledger-contention.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "bfd08fd8d71dbcb50d8478cea153c5c89c65c650eee4e95cce495cb041313e56"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "54589e25dfa62df37e492fa8147aa3942dcf08418e1d1becbd7e1939771d7fce"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/worker.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "6c5abc153dd3f4760bdec8452b8bf451dbdbe366f35b3d073643b4eaecabf54d"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/write-authority.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "6804da136e08c95366f0b0e13e53f7efe7150f30ea37c6c9bebeb4ba1139642a"
+  },
+  {
+    "file": "snapback4/packages/snapback4/test/write-ids.test.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "a78dc525e49ea4776b2b2bcfc1253743ad46e9419f5c711b6f4c9d01cc736d75"
+  },
+  {
+    "file": "snapback4/witness/lib.mjs",
+    "removed_assertions": [],
+    "removed_races": [],
+    "round0_sha256": "100b0b82de67f0cc576b64b6d447f1469f612d45370fa3e0318bd47b56251c35"
+  }
+]

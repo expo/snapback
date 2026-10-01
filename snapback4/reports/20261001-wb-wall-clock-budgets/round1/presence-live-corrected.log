@@ -1,0 +1,14 @@
+✔ online: a live online mark follows the principal it reads (4218.423693ms)
+ℹ {"tier":"online","cameOnlineMs":9,"wentAwayAfterCloseMs":3682}
+✔ native: a live online mark follows the principal it reads (4250.858804ms)
+ℹ {"tier":"native","cameOnlineMs":11,"wentAwayAfterCloseMs":3687}
+✔ web: a live online mark follows the principal it reads (4660.671942ms)
+ℹ {"tier":"web","cameOnlineMs":10,"wentAwayAfterCloseMs":3681}
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13288.849758

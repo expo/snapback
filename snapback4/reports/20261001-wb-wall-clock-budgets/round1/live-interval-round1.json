@@ -1,0 +1,22 @@
+{
+  "control": "live-interval",
+  "revision": "round1",
+  "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+  "scratch": "/tmp/wb-r1-controls-gzncxajy/live-interval-round1/snapback4",
+  "command": [
+    "node",
+    "--test",
+    "packages/snapback4/test/presence-live.test.mjs"
+  ],
+  "exit": 1,
+  "elapsed_seconds": 1.2341066282242537,
+  "inputs": {
+    "packages/snapback4/test/presence-live.test.mjs": "6e152e6e0f523e3535a84f4817bf1a84b254cff068912d79cfd6f6333a7949ec",
+    "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+    "packages/snapback4/dist/presence-refresh.js": "96324557dc7369380ada4243089d21e3f29c1d16e5c1e11a8a4813ba7e659b51",
+    "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+  },
+  "original_test_sha256": "6e152e6e0f523e3535a84f4817bf1a84b254cff068912d79cfd6f6333a7949ec",
+  "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+  "log_sha256": "680f5450ae05cc3ef50ca280e71da93976edc9935f52eb8149fb17ee417226d8"
+}

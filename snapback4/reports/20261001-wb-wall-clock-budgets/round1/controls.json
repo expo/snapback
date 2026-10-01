@@ -1,0 +1,134 @@
+[
+  {
+    "control": "refresh",
+    "revision": "round0",
+    "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+    "scratch": "/tmp/wb-r1-controls-gzncxajy/refresh-round0/snapback4",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/presence-refresh.test.mjs"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 11.3811449483037,
+    "inputs": {
+      "packages/snapback4/test/presence-refresh.test.mjs": "a522b625d8d241664605eb2b4480a177afa83bd97d7ba5d37c832ac56ec367a9",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/dist/presence-refresh.js": "048faa47b74b2f6d7e95d1e391708257e35b6607f17ef45f46a32a26bc8b8bd8",
+      "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+    },
+    "original_test_sha256": "a522b625d8d241664605eb2b4480a177afa83bd97d7ba5d37c832ac56ec367a9",
+    "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+    "log_sha256": "5a15e0aa79e5f65d683e652517e92c8e17431f3511c48260f1a3ba31e6e65f3b"
+  },
+  {
+    "control": "refresh",
+    "revision": "round1",
+    "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+    "scratch": "/tmp/wb-r1-controls-gzncxajy/refresh-round1/snapback4",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/presence-refresh.test.mjs"
+    ],
+    "exit": 1,
+    "elapsed_seconds": 7.097510093823075,
+    "inputs": {
+      "packages/snapback4/test/presence-refresh.test.mjs": "1f5da18e3bc5ce7dae6fe775c05789abf45d7c561612605a0e8c4f75427dd676",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/dist/presence-refresh.js": "048faa47b74b2f6d7e95d1e391708257e35b6607f17ef45f46a32a26bc8b8bd8",
+      "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+    },
+    "original_test_sha256": "1f5da18e3bc5ce7dae6fe775c05789abf45d7c561612605a0e8c4f75427dd676",
+    "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+    "log_sha256": "7aab3e28b6dd8ad77cf67edf75c3933db1850274af435c8c2c79a0bc1f3de2ac"
+  },
+  {
+    "control": "slow-reader",
+    "revision": "round0",
+    "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+    "scratch": "/tmp/wb-r1-controls-gzncxajy/slow-reader-round0/snapback4",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/http-bounds.test.mjs"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 10.332326241768897,
+    "inputs": {
+      "packages/snapback4/test/http-bounds.test.mjs": "c3e20131455c7f991c30a968f604d25f3602a5ca74ee0d3237d077a47477f058",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/dist/presence-refresh.js": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+      "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+    },
+    "original_test_sha256": "12402224256667ff12118f52cd9ff6a1749b6c68ae0d634a058f5458098d1027",
+    "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+    "log_sha256": "7c06801f2fbc19e15cf9d93b11e1bc12b1c0dd57b1d9d3b2b37466463892275a"
+  },
+  {
+    "control": "slow-reader",
+    "revision": "round1",
+    "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+    "scratch": "/tmp/wb-r1-controls-gzncxajy/slow-reader-round1/snapback4",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/http-bounds.test.mjs"
+    ],
+    "exit": 1,
+    "elapsed_seconds": 10.36186624597758,
+    "inputs": {
+      "packages/snapback4/test/http-bounds.test.mjs": "cfdab704717565cc905d16c1baf24d9ff6b55a6710aa6dbe687e1e101c3de402",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/dist/presence-refresh.js": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+      "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+    },
+    "original_test_sha256": "ddf37719d3927b1d81857d283e0fd03eda118d601cfe3c20ab08bbc6466865da",
+    "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+    "log_sha256": "b5cab36ef2f1b65e2e47b57c04989b39427b7214a912aabdf053cab6e6fd98a7"
+  },
+  {
+    "control": "live-interval",
+    "revision": "round0",
+    "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+    "scratch": "/tmp/wb-r1-controls-gzncxajy/live-interval-round0/snapback4",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/presence-live.test.mjs"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 82.24891167273745,
+    "inputs": {
+      "packages/snapback4/test/presence-live.test.mjs": "969acfe4d5ce3366f620ce3cee9e3628a6eefd735e123ecfdc51ce911ae1f54d",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/dist/presence-refresh.js": "96324557dc7369380ada4243089d21e3f29c1d16e5c1e11a8a4813ba7e659b51",
+      "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+    },
+    "original_test_sha256": "969acfe4d5ce3366f620ce3cee9e3628a6eefd735e123ecfdc51ce911ae1f54d",
+    "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+    "log_sha256": "36c4b6cb998aa32bd9bbbcee0580c98c2c095deb0181a61d179cfe8bfd0f544a"
+  },
+  {
+    "control": "live-interval",
+    "revision": "round1",
+    "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+    "scratch": "/tmp/wb-r1-controls-gzncxajy/live-interval-round1/snapback4",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/presence-live.test.mjs"
+    ],
+    "exit": 1,
+    "elapsed_seconds": 1.2341066282242537,
+    "inputs": {
+      "packages/snapback4/test/presence-live.test.mjs": "6e152e6e0f523e3535a84f4817bf1a84b254cff068912d79cfd6f6333a7949ec",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/dist/presence-refresh.js": "96324557dc7369380ada4243089d21e3f29c1d16e5c1e11a8a4813ba7e659b51",
+      "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+    },
+    "original_test_sha256": "6e152e6e0f523e3535a84f4817bf1a84b254cff068912d79cfd6f6333a7949ec",
+    "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+    "log_sha256": "680f5450ae05cc3ef50ca280e71da93976edc9935f52eb8149fb17ee417226d8"
+  }
+]

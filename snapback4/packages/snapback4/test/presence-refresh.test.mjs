@@ -1,11 +1,11 @@
-import { waitFor as awaitState } from './helpers/wait.mjs';
+import { waitFor as awaitState, withHangGuard } from './helpers/wait.mjs';
 // LLP 3000.018 §3: an answer of a query that may read presence asks its client
 // to re-run it. The online client refreshes in the background after the
 // interval its server named, and publishes only an answer nothing replaced
 // meanwhile; an answer that reads no presence, or a closed watch, never re-runs.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setTimeout as delay } from "node:timers/promises";
+import { setTimeout as delay, setImmediate as turn } from "node:timers/promises";
 import { createClient } from "../dist/client.js";
 import { PRESENCE_REFRESH_FLOOR_MS, presenceRefresh } from "../dist/presence-refresh.js";
 import { ReadObservation } from "../dist/read-observation.js";
@@ -28,18 +28,31 @@ function transport(answers, changes = signal => blocked(signal)) {
 }
 const data = (value, refresh = 300, seq = 1) => ({ data: value, complete: true, seq, tables: [], ...(refresh ? { refresh } : {}) });
 
-test("a presence answer re-runs in the background after its server's interval, never showing loading", async t => {
+test("a presence answer re-runs in the background after its server's interval, never showing loading", t => withHangGuard(async () => {
+  // @ref LLP 3000.018#3.3 — measure the interval after the answer settles,
+  // independently of host scheduling and the real fixture-completion guard.
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 10_000 });
   const { client, reads } = transport(n => data({ online: n > 1 }));
   const mark = client.observe(query, { p: "dev:bob" });
   t.after(async () => { mark.close(); await client.close(); });
   await until(() => mark.getSnapshot().data?.online === false, "the first answer arrived");
+  await turn(); // Drain the in-memory response's continuations without advancing time.
+  const answeredAt = Date.now();
   const seen = [];
   const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+  t.mock.timers.tick(299);
+  await turn();
+  assert.equal(reads.length, 1, "no refresh before the supplied 300 ms interval");
+  t.mock.timers.tick(2);
+  await turn();
+  assert.equal(reads.length, 2, "refresh starts within [300, 301] ms after the answer");
+  assert.ok(reads[1] - answeredAt >= 300 && reads[1] - answeredAt <= 301,
+    `refresh started after ${reads[1] - answeredAt} ms`);
   await until(() => mark.getSnapshot().data?.online === true, "the refresh turned the mark");
   stop();
   assert.ok(reads[1] - reads[0] >= 280, `re-ran after ${reads[1] - reads[0]} ms, before the interval`);
   assert.ok(seen.length > 0 && seen.every(read => "data" in read), `the refresh published something other than an answer: ${JSON.stringify(seen)}`);
-});
+}, "presence interval fixture", 2));
 
 test("unguarded background refresh reports a newly accepted delivery coordinate with changes held", async t => {
   const reports = [];

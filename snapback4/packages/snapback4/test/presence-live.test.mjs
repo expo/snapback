@@ -11,10 +11,53 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createClient } from "../dist/client.js";
-import { createLocalClient } from "../dist/local.js";
+import { registerHooks } from "node:module";
 import { processDevice } from "../dist/native.js";
-import { memoryPersistence, webDevice } from "../dist/web.js";
+
+// Only the presence scheduler uses controlled time. Real HTTP, device I/O and
+// change-feed watchdogs keep their native timers. No answer or client branch is replaced.
+const clockKey = Symbol.for("snapback4.test.presenceClock");
+let controlledModules = 0;
+const hooks = registerHooks({ load(url, context, next) {
+  const loaded = next(url, context);
+  if (!url.endsWith("/dist/presence-refresh.js")) return loaded;
+  controlledModules++;
+  return { ...loaded, source: `
+    const setTimeout = (...args) => globalThis[Symbol.for("snapback4.test.presenceClock")].schedule(...args);
+    const clearTimeout = timer => globalThis[Symbol.for("snapback4.test.presenceClock")].cancel(timer);
+  ` + loaded.source };
+} });
+const { createClient } = await import("../dist/client.js");
+const { createLocalClient } = await import("../dist/local.js");
+const { memoryPersistence, webDevice } = await import("../dist/web.js");
+hooks.deregister();
+assert.equal(controlledModules, 1, "the presence timer module must load under the controlled clock");
+
+function presenceClock() {
+  let now = 0;
+  const timers = new Map();
+  const clock = {
+    schedule(callback, ms) {
+      const timer = { unref() {} };
+      timers.set(timer, { at: now + ms, ms, callback });
+      return timer;
+    },
+    cancel(timer) { timers.delete(timer); },
+    pending: () => [...timers.values()],
+    tick(ms) {
+      const through = now + ms;
+      for (;;) {
+        const due = [...timers].filter(([, entry]) => entry.at <= through).sort((a, b) => a[1].at - b[1].at)[0];
+        if (!due) break;
+        const [timer, entry] = due;
+        timers.delete(timer); now = entry.at; entry.callback();
+      }
+      now = through;
+    },
+  };
+  globalThis[clockKey] = clock;
+  return clock;
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -38,6 +81,7 @@ query withNotes(p: principal):
 `;
 
 for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mark follows the principal it reads`, { timeout: hangBudget(14) }, async t => {
+  const clock = presenceClock();
   const dir = mkdtempSync(join(tmpdir(), "sb4-presence-live-"));
   mkdirSync(join(dir, "snapback")); mkdirSync(join(dir, "devices"));
   writeFileSync(join(dir, "snapback/schema.q"), schema);
@@ -47,7 +91,7 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   server.stderr.on("data", data => { log += data; });
   const clients = [];
-  t.after(async () => { for (const client of clients) await client.close().catch(() => {}); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });
+  t.after(async () => { for (const client of clients) await client.close().catch(() => {}); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); delete globalThis[clockKey]; });
   assert.notEqual(await until(() => url), null, log);
   const native = processDevice({ binary, dir: join(dir, "devices"), spawn: (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
@@ -69,7 +113,19 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const bob = createClient(options("bob"));
   clients.push(bob);
   const bobWatch = bob.observe(query, { p: "dev:alice" });
-  const cameOnline = await until(() => online() === true);
+  const servedPresence = async () => {
+    const response = await fetch(url + "/q/presenceOf", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { p: "dev:bob" } }) });
+    const answer = await response.json();
+    assert.equal(answer.refresh, 5000, "the real server supplies the five-second interval");
+    return answer.data.online;
+  };
+  await until(async () => await servedPresence() === true);
+  await until(() => clock.pending().length >= 3); // Both Alice watches and Bob's watch settled.
+  assert.ok(clock.pending().every(timer => timer.ms === 5000), "every presence watch uses the supplied interval");
+  clock.tick(4999);
+  assert.equal(online(), false, "the mark does not refresh before the supplied interval");
+  clock.tick(2); // The refresh window is [5000, 5001] ms, independent of host speed.
+  const cameOnline = await until(() => online() === true && notes.getSnapshot()?.data?.online === true);
   assert.notEqual(cameOnline, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob came online`);
   // The count rides along; a client that restarts its poll briefly holds two.
   assert.ok(mark.getSnapshot().data.count >= 1);
@@ -77,6 +133,9 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   // notification carries anything but an answer.
   let loading = 0, refreshes = 0;
   const stop = mark.subscribe(() => { if ("data" in mark.getSnapshot()) refreshes++; else loading++; });
+  await until(() => clock.pending().length >= 3);
+  assert.ok(clock.pending().every(timer => timer.ms === 5000), "success keeps the supplied interval");
+  clock.tick(5000);
   await awaitState(() => refreshes >= 1 && notes.getSnapshot()?.data?.online === true, "presence refresh after initial answer");
   stop();
   assert.equal(loading, 0, `a presence refresh showed ${loading} snapshots other than an answer`);
@@ -93,10 +152,15 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   // starts then. Advance past the grace until that has happened.
   const advance = async () => (await fetch(`${url}/dev/clock/advance`, { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ duration: "36s" }) })).status;
   const started = Date.now();
-  const wentAway = await until(async () => {
+  await until(async () => {
     assert.equal(await advance(), 200);
-    return online() === false;
+    return await servedPresence() === false;
   });
+  await until(() => clock.pending().length >= 2);
+  assert.ok(clock.pending().every(timer => timer.ms === 5000), "departure keeps the supplied interval");
+  assert.equal(online(), true, "no refresh before advancing the client interval");
+  clock.tick(5000);
+  const wentAway = await until(() => online() === false && notes.getSnapshot()?.data?.online === false);
   assert.notEqual(wentAway, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob's grace ended`);
   t.diagnostic(JSON.stringify({ tier, cameOnlineMs: cameOnline, wentAwayAfterCloseMs: Date.now() - started }));
 });

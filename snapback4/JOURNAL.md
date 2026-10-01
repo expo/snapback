@@ -80928,3 +80928,37 @@ credentials. No publication claim is made.
 Report, complete timing census, every failure, source manifests, load custody,
 commands and raw logs: reports/20261001-wb-wall-clock-budgets/REPORT.md.
 Nothing pushed or published.
+
+## 2026-10-01 — WB round 1: preserve refresh intervals and blocked output
+
+Read WB's round-0 prompt/report and Astra's full READY WITH CHANGES review.
+The first presence refresh now checks no query before 300 ms and a query within
+300–301 ms after its answer on controlled timers, with an independent real
+fixture hang guard. The slow-reader test requires the server's completed probe
+record while the sync response remains unfinished, then observes its completion
+only after releasing the socket. Client socket flags carry no server claim.
+
+Re-audited all 205 edited round-0 test/infrastructure files against the two
+failure modes. Also restored the lost interval in presence-live on online,
+native and web: the real server supplies 5000 ms, only the presence scheduler
+advances, and real marks/composed answers follow arrival and departure. Rejected
+idle-poll bodies now count as completed. No product files, budgets, seeds, samples
+or skips changed; the fallback, one-second episode and PQ work assertions remain.
+
+Both requested scratch mutations pass round 0 and fail round 1: first refresh
++4000 ms, and slow-reader probe +6500 ms. Server records show the latter sync
+already refused after about 5.4 s despite round 0 passing. An additional
++4000 ms recurring-refresh mutation passes all three round-0 live tiers and
+fails all three corrected tiers. Product mutations stay in disposable copies.
+
+Five complete loaded invocations on eb1000, each ten CPUs with 48 SL workers,
+and one unconfined invocation pass 23/23 apiece; no failures, skips or
+cancellations. All 235 captured test/artifact hashes stay fixed. Whole guide
+passes 110/110; refs and source/doc whitespace pass. An initial timer-hook import
+ordering mistake produced three named TEST_HANG failures; its log and correction
+are retained, with the two command setup errors. Final failures: ours 0,
+baseline 0, environmental 0. No full suite this round, as requested.
+
+Report, re-audit, controls, reproduction and retained evidence:
+reports/20261001-wb-wall-clock-budgets/round1/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
