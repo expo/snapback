@@ -25,37 +25,9 @@ impl Authorization {
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { prediction_schema: Option<&'a crate::schema::Schema>, receipt_taint: Option<crate::value::ReceiptTaint>, raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
+pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { prediction_schema: None, receipt_taint: Default::default(), raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
-    // @ref LLP 3000.022#14.3 — marks belong to one prediction, never its stored images.
-    pub(super) fn observe_receipts(&mut self, schema: &'a crate::schema::Schema) { self.prediction_schema = (!schema.receipts.is_empty()).then_some(schema); self.receipt_taint = self.prediction_schema.map(|_| Default::default()); }
-    pub(super) fn receipt_touched(&self) -> bool { self.receipt_taint.as_ref().is_some_and(|t| t.touched()) }
-    pub(super) fn receipt_value(&self, table: &str, value: Value) -> Value {
-        let mark = self.prediction_schema.filter(|s| s.receipt_state_table(table)).and(self.receipt_taint.clone());
-        value.with_receipt_taint(mark)
-    }
-    pub(super) fn receipt_field(&self, table: &str, field: &str, value: Value) -> Value {
-        let mark = self.prediction_schema.filter(|s| s.receipt_owned_field(table, field)).and(self.receipt_taint.clone());
-        value.with_receipt_taint(mark)
-    }
-    pub(super) fn receipt_fields(&self, table: &str, mut row: Value) -> Value {
-        if self.prediction_schema.is_some_and(|s| s.receipt_state_table(table))
-            && let Value::Row(fields) | Value::Map(fields) = &mut row {
-            for (name, value) in fields.iter_mut() {
-                if self.prediction_schema.unwrap().receipt_owned_field(table, name) {
-                    *value = std::mem::replace(value, Value::Null).with_receipt_taint(self.receipt_taint.clone());
-                }
-            }
-        }
-        row
-    }
-    // Index membership/order is itself a value, even for an empty selection.
-    pub(super) fn receipt_selection(&self, table: &str, index: &str) {
-        if self.prediction_schema.is_some_and(|s| s.receipt_key(table, index)) {
-            Value::Null.with_receipt_taint(self.receipt_taint.clone()).consume_receipt_taint();
-        }
-    }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
     pub(super) fn remaining(&self) -> usize { self.remaining.get() }
     fn limit(&self, table: &str, requested: usize) -> Result<usize, RuntimeError> {
@@ -67,7 +39,6 @@ impl<'a> GuardedRows<'a> {
         if self.authorizing.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
     }
     pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
-
         self.limit(table, 1)?;
         let row = self.raw.get(table, id)?;
         self.charge(usize::from(row.is_some()));
@@ -75,14 +46,12 @@ impl<'a> GuardedRows<'a> {
     }
     /// A key-only witness still consumes the shared physical authorization allowance.
     pub(crate) fn index_head(&self, _authorization: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
-
         self.limit(table, 1)?;
         let key = self.raw.index_head(table, index, prefix, bounds, dir)?;
         self.charge(usize::from(key.is_some()));
         Ok(key)
     }
     pub(crate) fn lookup(&self, _authorization: &Authorization, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
-
         // @ref LLP 3000.015#2 — repeated unchanged points share decoded storage,
         // while every logical read still prepays its complete rule.
         if let Some((cached_table, cached_index, cached_key, row)) = &*self.lookup_cache.borrow()
@@ -94,7 +63,6 @@ impl<'a> GuardedRows<'a> {
         Ok(row)
     }
     pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-
         let permitted = self.limit(table, limit)?;
         let rows = self.raw.scan(table, name, prefix, bounds, dir, permitted)?;
         self.charge(rows.len());
@@ -103,14 +71,12 @@ impl<'a> GuardedRows<'a> {
     }
     #[cfg(feature = "server-search")]
     pub(crate) fn scan_selected(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-
         self.limit(table, 1)?;
         let rows = self.raw.scan_selected(table, name, prefix, bounds, dir, fields)?;
         self.charge(rows.len());
         Ok(rows)
     }
     pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-
         let permitted = self.limit(table, limit)?;
         let rows = InternalLedger::with_meter(meter, |meter, _| self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter))?;
         self.charge(rows.len());
@@ -118,7 +84,6 @@ impl<'a> GuardedRows<'a> {
         Ok(rows)
     }
     pub(crate) fn count_prefix(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
-
         // This scalar adapter is used only by non-expiring, non-private
         // caps. It fetches no candidate rows and keeps its declared cap bound.
         self.raw.count_prefix(table, name, prefix, limit)
@@ -144,7 +109,7 @@ impl<'a> GuardedRows<'a> {
     /// Device acquisition facts carry no row payload, like retained_row.
     pub(crate) fn current_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.current_row(table, row) }
     pub(crate) fn current_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.current_group(table, index, prefix) }
-    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> {  InternalLedger::with_meter(meter, |meter, _| self.raw.recording_covered(table, row, viewer, now, scope, meter)) }
+    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { InternalLedger::with_meter(meter, |meter, _| self.raw.recording_covered(table, row, viewer, now, scope, meter)) }
     pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.raw.acquired_boundary(table, index, prefix) }
     pub(crate) fn prefetch_enabled(&self) -> bool { self.raw.prefetch_enabled() }
     #[allow(dead_code)] // Used by the native prefetch planner; absent on web.

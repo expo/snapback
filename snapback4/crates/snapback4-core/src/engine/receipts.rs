@@ -55,6 +55,7 @@ impl Runner<'_> {
             let group = row
                 .field(if sending { &f.message_group } else { &f.group })?
                 .clone();
+            self.receipt_allocation |= self.device;
             let scope = self.receipt_scope(f, &group)?;
             let mut high = scope.field(&f.counter)?.as_int()?;
             if sending {
@@ -110,7 +111,7 @@ impl Runner<'_> {
             .iter()
             .find(|(_, i)| i.unique && i.columns() == [f.group.as_str(), f.principal.as_str()])
             .unwrap();
-        let own = self.point_image(&crate::ir::Read {
+        let own = self.get(&crate::ir::Read {
             site: "receipt membership".into(),
             table: f.members.clone(),
             index: index.clone(),
@@ -158,6 +159,7 @@ impl Runner<'_> {
             let group = row
                 .field(if sending { &f.message_group } else { &f.group })?
                 .clone();
+            self.receipt_allocation |= self.device;
             let scope = self.receipt_scope(f, &group)?;
             let high = scope.field(&f.counter)?.as_int()?;
             if high < 0 || high > crate::value::I53_MAX {
@@ -228,7 +230,7 @@ impl Runner<'_> {
             })?
             .unwrap_or(Value::Null)
         } else {
-            self.point_image(&crate::ir::Read {
+            self.get(&crate::ir::Read {
                 site: "receipt counter".into(),
                 table: f.scope.clone(),
                 index: "byId".into(),
@@ -314,9 +316,9 @@ impl Runner<'_> {
                 }
             }
             self.stamp_source(table, &mut row)?;
-            return Ok(self.tx.receipt_fields(table, row));
+            return Ok(row);
         }
-        Ok(self.tx.receipt_fields(table, row))
+        Ok(row)
     }
 
     pub(super) fn refuse_receipt_fields(

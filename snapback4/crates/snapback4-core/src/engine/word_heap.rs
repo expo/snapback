@@ -182,7 +182,7 @@ pub fn key_decode(components: usize, bytes: usize) -> u64 {
 }
 
 fn encoded(v: &Value) -> usize {
-    match v.receipt_read() {
+    match v {
         Value::Null | Value::Bool(_) => 1, Value::Int(_) => 9,
         Value::String(s) | Value::Id(s) => 3 + s.len() + s.bytes().filter(|b| *b == 0).count(),
         Value::Bytes(s) => 3 + s.len() + s.iter().filter(|b| **b == 0).count(),

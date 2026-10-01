@@ -146,7 +146,6 @@ impl Probe for RuleProbe<'_, '_> {
 
 impl<'r> Runner<'r> {
     pub(super) fn created(&self, table: &str, index: &str, key: &[Value]) -> bool {
-        self.tx.receipt_selection(table, index);
         self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
     }
 
@@ -825,7 +824,7 @@ impl<'r> Runner<'r> {
         }
         // @ref LLP 3000.013#5.1 — a domain total has no partial scalar answer, including on a device with unknown coverage.
         self.meter.require_uncapped()?;
-        aggregate.finish().map(|value| self.tx.receipt_value(&scan.table, value))
+        aggregate.finish()
     }
 
     /// The caller prepays the page before entering. Hidden candidates never
@@ -857,7 +856,6 @@ impl<'r> Runner<'r> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<&mut super::extrema::Aggregate<'_>>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
-        self.tx.receipt_value(&scan.table, Value::Null).consume_receipt_taint();
         self.observe_sequence_selection(&scan.table, &scan.index, &prefix)?;
         self.event_read_unknown(&scan.table, &scan.index, &prefix, &scan.site);
         let page_expiry = self.next_expiry.scope();
@@ -1088,7 +1086,6 @@ impl<'r> Runner<'r> {
                     let disclosed_bytes = disclosed.heap_bytes();
                     let mut row = super::recorded::public_image(table, self.sequence_read_result(&scan.table, disclosed.into_value())?);
                     self.stamp_source(&scan.table, &mut row)?;
-                    let row = self.tx.receipt_value(&scan.table, row);
                     let pending = candidate_expiry.defer();
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
@@ -1433,7 +1430,7 @@ impl<'r> Runner<'r> {
             self.env.insert(lane.binding.clone(), value.clone());
             let key = self.expr(distinct)?;
             if key == Value::Null { continue; }
-            let key = key.key_json();
+            let key = canonical_json(&key);
             self.meter.heap(key.len() as u64 + 64)?;
             if seen.insert(key) { self.meter.heap(self.environment_value_heap(&lane.binding) + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
         }

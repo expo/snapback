@@ -32,7 +32,6 @@ pub struct Plain<'a>(pub &'a Value);
 impl serde::Serialize for Plain<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self.0 {
-            Value::Receipt(v) => { Plain(&v.value).serialize(serializer) },
             Value::Null => serializer.serialize_unit(),
             Value::Bool(value) => serializer.serialize_bool(*value),
             Value::Int(value) => serializer.serialize_i64(*value),
@@ -46,7 +45,6 @@ impl serde::Serialize for Plain<'_> {
 
 pub fn to_json(value: &Value) -> Json {
     match value {
-        Value::Receipt(v) => { to_json(&v.value) },
         Value::Null => Json::Null,
         Value::Bool(b) => Json::Bool(*b),
         Value::Int(n) => Json::Number((*n).into()),

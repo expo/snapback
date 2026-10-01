@@ -81215,3 +81215,55 @@ GQ) each set the budget to their own Linux measurement, so main had no
 headroom on a Mac, and every macOS build, the publication's included, would
 have failed. The budget is now 599,000 B with the reason recorded; the
 ratchet still fails new growth past it.
+
+## 2026-10-01 — RY round 6: classify receipt prediction before execution
+
+Merged origin/main d959efe2edf4 first in 077acf1622, preserving both histories.
+Replaced runtime receipt taint and read observers with a compiler analysis of
+expanded mutations: owned/derived fields, receipt primitives, dependent keys,
+loops/aliases/branches, whole-row consumers and helper returns imply
+`predicts: never`. Check emits one located N_RECEIPT_PREDICTION note; why carries
+the reason; explicit predicts assertions refuse E_NOT_PREDICTABLE. Ordinary
+sends/creates/joins, stable-id edits, reaction upserts and clean inserted fields
+still predict pending rows excluded from accounting. LLP 3000.022 §14.3 and the
+receipts guide explain the rule and why runtime taint was removed.
+
+Deleted per-value wrappers, propagation and count traversal. One allocation
+flag preserves custody for any subsequent refusal; missing or unrecognized
+compiler classification queues conservatively. Native mutations and dynamic
+field names are unavailable. Ordinary sequence refusal ordering stays main's.
+Astra's heap reproduction queues before evaluation and the server accepts it
+at 8,215,208 heap bytes. All earlier 704 scenarios, 6,344 expression/sink cases
+and 22 compound probes remain, with static and runtime assertions.
+
+Final checks: receipts 152/152, whole guide 110/110, core 171 passed / one
+existing ignore, sequences/device 16/16, static/heap/backstop 6/6, social starter
+on final native/wasm builds 10/10. Ran scripts/test.sh exactly once:
+`== 1 failure(s) in 1625 s` (exit 1). Rust 4,545 passed / 33 existing ignores;
+clients 5,726 passed / one baseline failure / ten existing skips; fixture
+wrappers 9/9; serial models 79/79 (5,000 online session, 5,000 local session and
+3,000 online-client sequences). The sole failure is the mocked 1,000-row React
+hook revalidation test: 87 loading renders versus zero expected, reproduced
+on pinned main with 61 and isolated candidate with 106. All 112 SDK/test files
+are identical to main. Filed issues/20261001-snapback4-per-row-react-revalidation-loading.md.
+Failure attribution: ours 0, baseline 1, environmental 0 in the full suite.
+Development failures are ours and resolved; every failure and log is retained.
+The complete suite's 60-second nominal target is exceeded without policy changes.
+
+The full suite began before two final admission refinements and their metadata
+witness/cap update. Exactly three of 2,082 captured input paths changed;
+final affected checks and rebuilt artifacts qualify those refinements. No second
+full-suite claim. Final count/query comparisons use pinned CPU 95 after workers
+drain: exact-review native count(1000) 0.4379 ms main / 0.4353 ms candidate;
+ordinary 100-row query 0.1664 / 0.1674 ms native and 1.4494 / 1.4438 ms wasm.
+Results, classification fixtures and meters match main; no linear count traversal.
+
+Final locked wasm: 2,015,329 B raw / 604,725 B gzip, versus rebuilt main
+1,994,357 / 598,401 (+20,972 raw / +6,324 gzip). Gzip falls 5,025 B from round 5
+and 1,188 B below round 4. User-authorized cap: measured + 500 B cross-host
+headroom = 605,225 B, retaining both budget histories and all runtime ceilings.
+Whole-artifact deltas; source/measurement hashes are in round6. The starter
+remains 223 lines versus 231 before RY. Evidence and exact qualification limits:
+reports/20260930-ry-receipts-allocation/round6/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

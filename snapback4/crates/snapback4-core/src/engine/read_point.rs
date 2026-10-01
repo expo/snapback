@@ -12,15 +12,7 @@ fn unavailable_aggregate() -> Value { crate::value::object([("value", Value::Nul
 impl Runner<'_> {
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
-    // @ref LLP 3000.022#14.3 — all authored point values share the source boundary.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
-        let value = self.point_image(read)?;
-        Ok(self.tx.receipt_value(&read.table, value))
-    }
-
-    // Allocation and existence checks need an authorized image without reading
-    // all of its fields. Authored rule terms and key decisions still consume taint.
-    pub(super) fn point_image(&mut self, read: &Read) -> Result<Value, RuntimeError> {
         let expiry = self.next_expiry.scope();
         let mut emitted = false;
         self.schema.refuse_private(&read.table)?;

@@ -46,7 +46,6 @@ impl Runner<'_> {
             let Some(image) = image else { continue };
             self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps())?;
             let image = crate::schema::row_image(image, table);
-            let image = self.tx.receipt_fields(&maintain.source, image.into_owned());
             if !maintain.selected(&image) { continue; }
             let key = maintain.source_key(&image);
             let change = delta(maintain, &image, direction)?;

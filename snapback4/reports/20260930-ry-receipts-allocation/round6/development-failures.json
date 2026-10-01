@@ -1,0 +1,275 @@
+[
+  {
+    "log": "bench-candidate-build.log.gz",
+    "classification": "ours",
+    "failed_tests": [],
+    "errors": [
+      "type annotations needed for `Vec<(std::string::String, &str, _)>`",
+      "could not compile `ry-r6-bench` (bin \"ry-r6-bench\") due to 1 previous error"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "bench-main-build.log.gz",
+    "classification": "ours",
+    "failed_tests": [],
+    "errors": [
+      "type annotations needed for `Vec<(std::string::String, &str, _)>`",
+      "could not compile `ry-r6-bench` (bin \"ry-r6-bench\") due to 1 previous error"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "candidate-per-row.log.gz",
+    "classification": "baseline",
+    "failed_tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ],
+    "errors": [
+      "Expected zero loading renders; observed 106"
+    ],
+    "summaries": [
+      "\u2139 tests 1",
+      "\u2139 pass 0",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ]
+  },
+  {
+    "log": "check-first.log.gz",
+    "classification": "ours",
+    "failed_tests": [],
+    "errors": [
+      "no method named `point_image` found for mutable reference `&mut runner::Runner<'_>` in the current scope",
+      "no method named `point_image` found for mutable reference `&mut runner::Runner<'_>` in the current scope",
+      "non-exhaustive patterns: `&ir::Builtin::ReceiptSettled { .. }` not covered",
+      "could not compile `snapback4-core` (lib) due to 3 previous errors"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "columns.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::generated::round4::generated_columns_memory",
+      "allocation::dependencies::generated::round4::generated_columns_sqlite"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 150 filtered out; finished in 0.10s"
+    ]
+  },
+  {
+    "log": "composites.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::compound_values::review_composites_memory"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.09s"
+    ]
+  },
+  {
+    "log": "location.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::static_prediction::first_reason_location_assertions_and_transitive_helpers"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.31s"
+    ]
+  },
+  {
+    "log": "main-per-row.log.gz",
+    "classification": "baseline",
+    "failed_tests": [
+      "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders"
+    ],
+    "errors": [
+      "Expected zero loading renders; observed 61"
+    ],
+    "summaries": [
+      "\u2139 tests 1",
+      "\u2139 pass 0",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ]
+  },
+  {
+    "log": "metadata-guard-final.log.gz",
+    "classification": "ours",
+    "failed_tests": [],
+    "errors": [
+      "cannot borrow `d` as mutable, as it is not declared as mutable",
+      "could not compile `snapback4-lang` (test \"declarative_receipts\") due to 1 previous error"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "ordinary.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::generated::round4::ordinary_controls_memory",
+      "allocation::dependencies::generated::round4::ordinary_controls_sqlite"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 150 filtered out; finished in 0.10s"
+    ]
+  },
+  {
+    "log": "owned-targets.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::generated::other_owned_targets_memory",
+      "allocation::dependencies::generated::other_owned_targets_sqlite"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 150 filtered out; finished in 0.03s"
+    ]
+  },
+  {
+    "log": "receipts-first.log.gz",
+    "classification": "ours",
+    "failed_tests": [],
+    "errors": [
+      "no method named `point_image` found for mutable reference `&mut runner::Runner<'_>` in the current scope",
+      "no method named `point_image` found for mutable reference `&mut runner::Runner<'_>` in the current scope",
+      "non-exhaustive patterns: `&ir::Builtin::ReceiptSettled { .. }` not covered",
+      "could not compile `snapback4-core` (lib) due to 3 previous errors"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "receipts-fourth.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::static_prediction::first_reason_location_assertions_and_transitive_helpers",
+      "allocation::dependencies::compound_values::review_composites_memory",
+      "allocation::dependencies::compound_values::review_composites_sqlite"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 149 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 251.96s"
+    ]
+  },
+  {
+    "log": "receipts-second.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::generated::round4::generated_columns_memory",
+      "allocation::dependencies::generated::round4::ordinary_controls_memory",
+      "allocation::ownership_initialization_results_and_scope_authority",
+      "allocation::dependencies::same_transaction_memory",
+      "allocation::dependencies::terminal_control_memory",
+      "allocation::runtime_prediction_guard_memory",
+      "allocation::dependencies::compound_values::review_share_consumer_memory",
+      "allocation::dependencies::generated::round4::generated_columns_sqlite",
+      "allocation::dependencies::generated::round4::ordinary_controls_sqlite",
+      "allocation::runtime_prediction_guard_sqlite",
+      "allocation::dependencies::terminal_control_sqlite",
+      "allocation::dependencies::same_transaction_sqlite",
+      "allocation::dependencies::compound_values::review_share_consumer_sqlite",
+      "allocation::dependencies::generated::generated_reads_memory",
+      "allocation::dependencies::generated::generated_reads_sqlite"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 131 passed; 15 failed; 0 ignored; 0 measured; 0 filtered out; finished in 223.35s"
+    ]
+  },
+  {
+    "log": "receipts-third.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::generated::other_owned_targets_sqlite",
+      "allocation::dependencies::generated::other_owned_targets_memory",
+      "allocation::dependencies::generated::round4::generated_columns_memory",
+      "allocation::dependencies::generated::round4::ordinary_controls_memory",
+      "round2::app_cannot_update_runs_even_when_the_generated_fold_can",
+      "allocation::dependencies::generated::round4::generated_columns_sqlite",
+      "allocation::dependencies::generated::round4::ordinary_controls_sqlite"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 139 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 237.84s"
+    ]
+  },
+  {
+    "log": "runs.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "round2::app_cannot_update_runs_even_when_the_generated_fold_can"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.03s"
+    ]
+  },
+  {
+    "log": "sequences-final.log.gz",
+    "classification": "ours",
+    "failed_tests": [],
+    "errors": [
+      "no test target named `sequences` in `snapback4-device` package"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "static-second.log.gz",
+    "classification": "ours",
+    "failed_tests": [
+      "allocation::dependencies::static_prediction::first_reason_location_assertions_and_transitive_helpers"
+    ],
+    "errors": [
+      "test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 146 filtered out; finished in 0.27s"
+    ]
+  },
+  {
+    "log": "full-suite.log.gz",
+    "classification": "baseline",
+    "failed_tests": [
+      "packages/snapback4/test/per-row-react.test.mjs:98 \u2014 zero loading renders; actual 87"
+    ],
+    "summary": "== 1 failure(s) in 1625 s",
+    "exit": 1
+  },
+  {
+    "log": "cli-check.json",
+    "classification": "ours",
+    "errors": [
+      "Initial CLI setup ran from the wrong directory; exit 2. Corrected check/why pass."
+    ]
+  },
+  {
+    "log": "static-first.log.gz",
+    "classification": "ours",
+    "errors": [
+      "Initial module setup used the wrong directory; zero matching tests, not validation. Corrected module ran six tests."
+    ]
+  }
+]

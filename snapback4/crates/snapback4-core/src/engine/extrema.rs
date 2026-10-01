@@ -7,14 +7,14 @@ pub(in crate::engine) enum Aggregate<'a> {
     Keys { values: &'a mut Vec<Value>, field: &'a str },
     #[cfg(feature = "server-search")]
     Head { value: &'a mut Option<Vec<Value>>, index: &'a crate::schema::Index, prefix: usize },
-    Total { taint: Option<crate::value::ReceiptTaint>, value: i128, projection: Option<&'a Expr> },
-    Extremum { taint: Option<crate::value::ReceiptTaint>, value: Value, retained: u64, field: &'a str, projection: Option<&'a Expr>, max: bool, seek: bool },
+    Total { value: i128, projection: Option<&'a Expr> },
+    Extremum { value: Value, retained: u64, field: &'a str, projection: Option<&'a Expr>, max: bool, seek: bool },
 }
 impl<'a> Aggregate<'a> {
-    pub(in crate::engine) fn total(projection: Option<&'a Expr>) -> Self { Self::Total { taint: None, value: 0, projection } }
+    pub(in crate::engine) fn total(projection: Option<&'a Expr>) -> Self { Self::Total { value: 0, projection } }
     pub(in crate::engine) fn is_zero(&self) -> bool { matches!(self, Self::Total { value: 0, .. }) }
     pub(in crate::engine) fn finish(self) -> Result<Value, RuntimeError> {
-        match self { #[cfg(feature = "server-search")] Self::Keys { .. } | Self::Head { .. } => Ok(Value::Null), Self::Total { value, taint, .. } => Value::int(value).map(|value| value.with_receipt_taint(taint)).map_err(Into::into), Self::Extremum { value, taint, .. } => Ok(value.with_receipt_taint(taint)) }
+        match self { #[cfg(feature = "server-search")] Self::Keys { .. } | Self::Head { .. } => Ok(Value::Null), Self::Total { value, .. } => Value::int(value).map_err(Into::into), Self::Extremum { value, .. } => Ok(value) }
     }
     pub(in crate::engine) fn push(&mut self, runner: &mut Runner<'_>, row: &Value) -> Result<bool, RuntimeError> {
         match self {
@@ -44,20 +44,14 @@ impl<'a> Aggregate<'a> {
                 **value = Some(key);
                 Ok(true)
             }
-            Self::Total { taint, value, projection } => {
+            Self::Total { value, projection } => {
                 let amount = if let Some(projection) = projection {
-                    let projected = runner.aggregate_projection(row, projection)?;
-                    *taint = taint.take().or_else(|| projected.receipt_taint());
-                    i128::from(projected.as_int()?)
-                } else {
-                    *taint = taint.take().or_else(|| row.receipt_taint());
-                    row.consume_receipt_taint();
-                    1
-                };
+                    i128::from(runner.aggregate_projection(row, projection)?.as_int()?)
+                } else { 1 };
                 *value += amount;
                 Ok(false)
             }
-            Self::Extremum { taint, value, retained, field, projection, max, seek } => {
+            Self::Extremum { value, retained, field, projection, max, seek } => {
                 runner.meter.step(1)?;
                 // @ref LLP 3000.019#3.2 — evaluate only after source authorization;
                 // expression allocations and setup remain metered, just as in sum.
@@ -66,12 +60,7 @@ impl<'a> Aggregate<'a> {
                     runner.meter.heap(row.expression_copy(ExpressionAccess(())))?;
                     projected = runner.aggregate_projection(row, projection)?;
                     &projected
-                } else if *row == Value::Null { row } else {
-                    runner.provisional_sequence_read |= runner.sequence_field_is_provisional(row, field)?;
-                    row.field(field)?
-                };
-                *taint = taint.take().or_else(|| row.receipt_root_taint()).or_else(|| next.receipt_taint());
-                next.consume_receipt_taint();
+                } else if *row == Value::Null { row } else { row.field(field)? };
                 if *next == Value::Null { return Ok(false); }
                 let replace = *value == Value::Null || if *max { next.total_cmp(value).is_gt() } else { next.total_cmp(value).is_lt() };
                 if replace {
@@ -114,7 +103,7 @@ impl Runner<'_> {
     // @ref LLP 3000.013#5.1 — an extremum is unavailable on a cut or unknown
     // domain; one locally held endpoint never proves domain completeness.
     pub(in crate::engine) fn extremum(&mut self, source: &Expr, field: &str, projection: Option<&Expr>, max: bool, domain: bool) -> Result<Value, RuntimeError> {
-        let fold = |seek| Aggregate::Extremum { taint: None, value: Value::Null, retained: 0, field, projection, max, seek };
+        let fold = |seek| Aggregate::Extremum { value: Value::Null, retained: 0, field, projection, max, seek };
         let result = if domain {
             let Expr::Scan(scan) = source else { return Err(RuntimeError::Input("an extremum domain must be a scan".into())); };
             let seek = projection.is_none() && scan.orders_field(self.schema, field) && scan.order == if max { Order::Desc } else { Order::Asc };
@@ -128,11 +117,10 @@ impl Runner<'_> {
             let outer = self.components.scalar.replace(inputs);
             let result = (|| {
                 let rows = self.expr(source)?;
-                let taint = rows.receipt_taint();
                 let mut aggregate = fold(false);
                 for row in rows.as_array()? { aggregate.push(self, row)?; }
                 self.meter.require_uncapped()?;
-                aggregate.finish().map(|value| value.with_receipt_taint(taint))
+                aggregate.finish()
             })();
             let mut coverage = self.components.scalar.take().expect("extremum coverage");
             // A bounded page intentionally selects just its requested rows.

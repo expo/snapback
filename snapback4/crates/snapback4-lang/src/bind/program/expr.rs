@@ -63,6 +63,16 @@ impl Binder<'_> {
     }
 
     pub(super) fn expr(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        let result = self.expr_inner(expr, out)?;
+        if !self.schema.receipts.is_empty() {
+            let site = self.call_chain.iter().find(|(name, _)| self.catalog.documents.iter().flat_map(|d| &d.tables).filter_map(|t| t.receipts.as_ref()).any(|clause| &clause.operations[0] == name))
+                .map(|(_, site)| site).unwrap_or_else(|| expr.site());
+            self.receipt_sources.push((result.0.clone(), site.clone()));
+        }
+        Ok(result)
+    }
+
+    fn expr_inner(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let site = expr.site();
         match expr {
             A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {

@@ -1,4 +1,4 @@
-//! Composition, not named-reader dispatch: values cross every authored sink.
+//! Round-five compositions now prove static classification before admission.
 // @ref LLP 3000.022#14.3 — ordinary fields of a new row remain clean.
 use super::*;
 
@@ -234,6 +234,19 @@ fn generated<H: Host>(host: &mut H) {
                     }
                     assert_eq!(replaced, 1, "{name}");
                 }
+            }
+        }
+        for (i, (name, _)) in expressions().iter().enumerate() {
+            for j in 0..sinks.len() {
+                let operation = format!("taint{i}_{j}");
+                if internal_expression(name, "unused").is_some() {
+                    let p = compiled.programs.iter().find(|p| p.program.name == operation).unwrap();
+                    let fact = snapback4_lang::bind::residency::execution(&compiled.schema, &p.program);
+                    compiled.schema.operations.insert(operation.clone(), fact);
+                }
+                let fact = &compiled.schema.operations[&operation];
+                assert_eq!(fact.predicts.as_deref(), Some("never"), "{operation}: {fact:?}");
+                assert!(fact.sites.iter().any(|s| s.kind == "receipt dependency"));
             }
         }
         for (i, (name, _)) in expressions().iter().enumerate() {

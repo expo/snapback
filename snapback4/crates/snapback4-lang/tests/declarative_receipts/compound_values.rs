@@ -52,11 +52,16 @@ fn composites<H: Host>(host: &mut H) {
         seed(&mut e);
         let mut d = host.open(name, Some(b)).unwrap();
         publish(&mut e, &mut d, "alice");
-        let q = d.admit(request("compositeSend", json!({"conversation":"c"}), 1));
-        eprintln!("COMPOSITE {} {name} => {q:?}", host.label());
-        if !matches!(q,Ok(q) if !q.predictable) {
-            failures.push(name);
-        }
+        assert_eq!(d.schema().operations["compositeSend"].predicts.as_deref(), Some("never"));
+        let q = d.admit(request("compositeSend", json!({"conversation":"c"}), 1)).unwrap();
+        if q.predictable || !q.predicted.is_empty() { failures.push(name); }
+        assert_eq!(d.queued().unwrap().len(), 1);
+        let remote = e.mutate(&q.op, Some(&q.id), Context::new("alice", args(&[("conversation", id("c"))])).at(q.now).with_ids(q.new_ids.clone())).unwrap();
+        assert!(matches!(&remote.state, WriteState::Failed { why, .. } if why.code == "ACCOUNTING" || why.code == "E_INPUT"), "{name}: {remote:?}");
+        d.settle(&q.id, None).unwrap();
+        publish(&mut e, &mut d, "alice");
+        assert_eq!(d.store().raw_rows("messages"), e.store().rows("messages").unwrap());
+        assert!(d.queued().unwrap().is_empty());
     }
     assert!(
         failures.is_empty(),
@@ -92,6 +97,7 @@ mutation shareSend(conversation: conversations):
             publish(&mut e, &mut d, "alice");
             let mut q = request("shareSend", json!({"conversation":"c"}), 1);
             q.new_ids = vec!["new-message".into()];
+            assert_eq!(d.schema().operations["shareSend"].predicts.as_deref(), Some("never"));
             let local = d.admit(q.clone());
             let remote = e
                 .mutate(

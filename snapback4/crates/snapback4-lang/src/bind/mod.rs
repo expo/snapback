@@ -141,9 +141,19 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     routes::bind(&catalog, &mut schema, &mut diagnostics);
     if diagnostics.is_empty() { intent_search::provision(&mut catalog, &mut schema, &programs); }
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
+    let mut receipt_notes = Vec::new();
     schema.operations = programs.iter().map(|bound| {
         let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());
         residency::locate_sites(&catalog, bound, &mut fact);
+        if let Some((site, location)) = residency::receipts::located(&schema, bound, &catalog) {
+            fact.predicts = Some("never".into());
+            fact.sites.retain(|s| s.kind != "receipt dependency");
+            let generated = schema.receipts.iter().any(|f| [f.delivered.as_str(), f.seen.as_str(), f.compact.as_str()].contains(&bound.program.name.as_str()));
+            if !generated {
+                receipt_notes.push(Diagnostic::new(&location, "N_RECEIPT_PREDICTION", format!("mutation {} predicts: never; queued without a row: {}", bound.program.name, site.reason), &site.rewrite).guide("receipts"));
+            }
+            fact.sites.insert(0, site);
+        }
         (bound.program.name.clone(), fact)
     }).collect();
     for doc in &catalog.documents {
@@ -211,6 +221,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
     schema.action_specs.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name && bound.program.kind == snapback4_core::ir::ProgramKind::Action));
     let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).chain(catalog.planner_notes.clone()).collect();
+    notes.extend(receipt_notes);
     notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));

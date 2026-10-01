@@ -77,6 +77,7 @@ pub(crate) struct PagePosition {
 
 pub struct Runner<'a> {
     pub(super) receipt_operation: String,
+    pub(super) receipt_allocation: bool,
     #[cfg(feature = "sqlite")]
     pub(super) delivery: super::delivery::Tracking,
     pub(crate) tx: super::authorized_scan::GuardedRows<'a>,
@@ -249,6 +250,7 @@ impl<'a> Runner<'a> {
         }
         Self {
             receipt_operation: String::new(),
+            receipt_allocation: false,
             #[cfg(feature = "sqlite")]
             delivery: Default::default(),
             tx: super::authorized_scan::GuardedRows::new(tx),
@@ -552,7 +554,7 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Emit { effect, payload, once } => {
-                    let payload = self.expr(payload)?.without_receipt_taint();
+                    let payload = self.expr(payload)?;
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
@@ -691,7 +693,7 @@ impl<'a> Runner<'a> {
         let mut visited = BTreeSet::new();
         let mut rows = Vec::new();
         while let Some((key, depth)) = queue.pop_front() {
-            if depth > recurse.depth || !visited.insert(key.key_json()) {
+            if depth > recurse.depth || !visited.insert(canonical_json(&key)) {
                 continue;
             }
             let read = Read { site: recurse.site.clone(), table: recurse.table.clone(), index: recurse.index.clone(), key: vec![Expr::Literal(key)], provenance: recurse.provenance };
@@ -761,7 +763,7 @@ impl<'a> Runner<'a> {
                     { if let Value::Row(fields) | Value::Map(fields) = base { self.delivery.field(fields, name); } }
                     let value = base.field(name)?;
                     self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
-                    return Ok(value.clone().with_receipt_taint(base.receipt_root_taint()));
+                    return Ok(value.clone());
                 }
                 let base = self.expr(base)?;
                 match base {
@@ -772,7 +774,7 @@ impl<'a> Runner<'a> {
                         self.delivery_field(&other, name);
                         let value = other.field(name)?;
                         self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
-                        Ok(value.clone().with_receipt_taint(other.receipt_root_taint()))
+                        Ok(value.clone())
                     }
                 }
             }
@@ -796,8 +798,7 @@ impl<'a> Runner<'a> {
                 // @ref LLP 3000.014#5 — retained history stays marked through projections.
                 // A spread can merge multiple row bases. Application fields named
                 // retained are ordinary data; only the reader creates provenance.
-                let bases = if let Value::Array(bases) = base.receipt_plain() { bases.as_slice() } else { std::slice::from_ref(&base) };
-                let taint = base.receipt_root_taint().or_else(|| bases.iter().find_map(Value::receipt_root_taint));
+                let bases = if let Value::Array(bases) = &base { bases.as_slice() } else { std::slice::from_ref(&base) };
                 fields.inherit_source(bases);
                 #[cfg(feature = "sqlite")]
                 self.project_delivery(&mut fields, origins);
@@ -805,7 +806,7 @@ impl<'a> Runner<'a> {
                     if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                     if matches!(base, Value::Row(base) | Value::Map(base) if base.is_retained()) { fields.mark_retained(); }
                 }
-                let value = Value::Row(fields).with_receipt_taint(taint);
+                let value = Value::Row(fields);
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
@@ -829,10 +830,10 @@ impl<'a> Runner<'a> {
                 #[cfg(not(target_arch = "wasm32"))]
                 let projected = self.effect_presence.absent;
                 if *op == BinaryOp::And && !left.as_bool()? {
-                    return Ok(Value::Bool(false).with_receipt_taint(left.receipt_taint()));
+                    return Ok(Value::Bool(false));
                 }
                 if *op == BinaryOp::Or && left.as_bool()? {
-                    return Ok(Value::Bool(true).with_receipt_taint(left.receipt_taint()));
+                    return Ok(Value::Bool(true));
                 }
                 let right = self.expr(right)?;
                 #[cfg(not(target_arch = "wasm32"))]
@@ -841,16 +842,14 @@ impl<'a> Runner<'a> {
             }
             Expr::Unary { op, value } => {
                 let value = self.expr(value)?;
-                let taint = value.receipt_taint();
-                let result = match op {
+                match op {
                     UnaryOp::Not => {
                         #[cfg(not(target_arch = "wasm32"))]
                         { self.effect_presence.absent = match self.effect_presence.absent { Some(super::presence::Scalar::Bool(b)) => Some(super::presence::Scalar::Bool(!b)), _ => None }; }
                         Ok(Value::Bool(!value.as_bool()?))
                     },
                     UnaryOp::Neg => Value::int(-(value.as_int()? as i128)).map_err(Into::into),
-                };
-                result.map(|value| value.with_receipt_taint(taint))
+                }
             }
             Expr::Builtin { builtin, args } => {
                 if let Builtin::Extremum { max, domain, .. } | Builtin::ExtremumOf { max, domain } = builtin {
@@ -887,7 +886,7 @@ impl<'a> Runner<'a> {
                 Ok(value)
             }
             Expr::Exists(read) => {
-                let value = self.point_image(read)?;
+                let value = self.get(read)?;
                 // The private null-value aggregate result preserves scalar
                 // denial versus authorized zero; it is not an existing row.
                 Ok(Value::Bool(value != Value::Null && !(self.schema.maintain_for(&read.table).is_some() && value.field("value").ok() == Some(&Value::Null))))
@@ -922,39 +921,28 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn builtin(&mut self, builtin: &Builtin, args: Vec<Value>) -> Result<Value, RuntimeError> {
-        if matches!(builtin, Builtin::OptionalField { .. } | Builtin::ProjectFields { .. }) {
-            let taint = args[0].receipt_root_taint();
-            return self.builtin_inner(builtin, args).map(|value| value.with_receipt_taint(taint));
-        }
-        let taint = args.iter().find_map(Value::receipt_taint);
-        if let Some(mark) = &taint { mark.consume(); }
-        let args = args.into_iter().map(Value::without_receipt_taint).collect();
-        self.builtin_inner(builtin, args).map(|value| value.with_receipt_taint(taint))
-    }
-
-    fn builtin_inner(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
+    fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
-                // A pending null is itself receipt state, even with no field read.
-                let provisional = self.is_provisional(table, &args[0])?;
-                let value = self.tx.receipt_value(table, Value::Bool(!provisional));
-                value.consume_receipt_taint();
-                Ok(value)
+                // This primitive remains for settled-only query accounting.
+                // Raw IR invoking it during prediction must keep queue custody.
+                if self.device_allowance.is_some() {
+                    return Err(RuntimeError::Prediction("receipt state needs server settlement".into()));
+                }
+                Ok(Value::Bool(!self.is_provisional(table, &args[0])?))
             },
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {
-                    let row = self.with_defaults(table, row.projection_input(ExpressionAccess(())))?.into_value();
-                    self.project_row(table, row).map(|row| self.tx.receipt_fields(table, super::recorded::public_image(&self.schema.tables[table], row.into_value())))
+                    let row = self.with_defaults(table, row.expression_input(ExpressionAccess(())))?.into_value();
+                    self.project_row(table, row).map(|row| super::recorded::public_image(&self.schema.tables[table], row.into_value()))
                 }
             }
             Builtin::OptionalField { field } => {
-                self.provisional_sequence_read |= self.sequence_field_is_provisional(&args[0], field)?;
                 #[cfg(feature = "sqlite")]
                 self.delivery_field(&args[0], field);
-                Ok(args[0].receipt_field_value(field).unwrap_or(Value::Null))
+                Ok(args[0].field(field).cloned().unwrap_or(Value::Null))
             },
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
@@ -988,7 +976,6 @@ impl<'a> Runner<'a> {
                 let mut groups: Vec<(Value, Vec<Value>)> = Vec::new();
                 for value in values {
                     self.meter.step(1)?;
-                    self.provisional_sequence_read |= self.sequence_field_is_provisional(&value, field)?;
                     let key = if *optional { value.field(field).unwrap_or(&Value::Null) } else { value.field(field)? }.clone();
                     let encoded = canonical_json(&key);
                     self.meter.heap(encoded.len() as u64 + key.expression_copy(ExpressionAccess(())))?;
@@ -1065,7 +1052,6 @@ impl<'a> Runner<'a> {
                 let mut values = into_array(args.remove(0))?;
                 for value in &values {
                     for key in keys {
-                        self.provisional_sequence_read |= self.sequence_field_is_provisional(value, &key.field)?;
                         if !key.optional { value.field(&key.field)?; }
                     }
                 }
@@ -1195,12 +1181,6 @@ impl<'a> Runner<'a> {
 }
 
 pub(super) fn binary(op: BinaryOp, left: Value, right: Value) -> Result<Value, RuntimeError> {
-    let taint = left.receipt_taint().or_else(|| right.receipt_taint());
-    let result = binary_inner(op, left, right);
-    result.map(|value| value.with_receipt_taint(taint))
-}
-
-fn binary_inner(op: BinaryOp, left: Value, right: Value) -> Result<Value, RuntimeError> {
     let ordering = || left.total_cmp(&right);
     match op {
         BinaryOp::Eq => Ok(Value::Bool(left == right)),
@@ -1219,7 +1199,7 @@ fn binary_inner(op: BinaryOp, left: Value, right: Value) -> Result<Value, Runtim
 }
 
 fn same_value_zero(left: &Value, right: &Value) -> Result<bool, ValueError> {
-    match (left.receipt_read(), right.receipt_read()) {
+    match (left, right) {
         (Value::Null, Value::Null) => Ok(true),
         (Value::Null, _) | (_, Value::Null) => Ok(false),
         (Value::Bool(a), Value::Bool(b)) => Ok(a == b),
@@ -1236,7 +1216,7 @@ fn is_mention_whitespace(character: char) -> bool {
 }
 
 fn concat_text(value: &Value) -> Cow<'_, str> {
-    match value.receipt_read() {
+    match value {
         Value::String(text) | Value::Id(text) => Cow::Borrowed(text),
         Value::Int(int) => Cow::Owned(int.to_string()),
         Value::Bool(value) => Cow::Borrowed(if *value { "true" } else { "false" }),
@@ -1246,12 +1226,7 @@ fn concat_text(value: &Value) -> Cow<'_, str> {
 }
 
 fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
-    let mark = value.receipt_root_taint();
     match value {
-        Value::Receipt(value) => {
-            if let Some(mark) = &mark { mark.consume(); }
-            Ok(into_array(value.value)?.into_iter().map(|value| value.with_receipt_taint(mark.clone())).collect())
-        },
         Value::Array(values) => Ok(values),
         other => Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
     }
@@ -1264,8 +1239,7 @@ fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str) ->
         Expr::Literal(value) => Ok(Some((value, 1))),
         Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| missing_variable(name, site)),
         Expr::Field { base, name } => match borrowed(env, base, site)? {
-            Some((value, _)) if value.receipt_root_taint().is_some() => Ok(None),
-            Some((value, steps)) => { Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))) },
+            Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
             None => Ok(None),
         },
         _ => Ok(None),
@@ -1273,11 +1247,6 @@ fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str) ->
 }
 
 fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeError> {
-    let taint = value.receipt_taint();
-    scalar_builtin_inner(builtin, value.receipt_read()).map(|value| value.with_receipt_taint(taint))
-}
-
-fn scalar_builtin_inner(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeError> {
     let count = match builtin {
         Builtin::Len => match value {
             Value::String(text) | Value::Id(text) => text.chars().count(),
@@ -1297,7 +1266,3 @@ fn missing_variable(name: &str, site: &str) -> RuntimeError {
         RuntimeError::Structural { code: "E_INTERNAL", message: format!("internal compiler error: an undefined temporary was evaluated in operation/site {site}; recompile and report this operation") }
     } else { RuntimeError::Input(format!("unknown variable {name}")) }
 }
-
-#[cfg(all(test, feature = "sqlite"))]
-#[path = "runner/receipt_taint_tests.rs"]
-mod receipt_taint_tests;

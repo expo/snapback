@@ -11,8 +11,6 @@ impl Runner<'_> {
 
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(in crate::engine) fn probe_witness(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
-        self.tx.receipt_selection(table, index);
-        for (field, value) in equalities { self.tx.receipt_field(table, field, value.clone()).consume_receipt_taint(); }
         if self.device_work_active { return self.probe_witness_uncached(allowance, table, index, key, equalities, current); }
         let cached_key = WitnessKey { revision: self.tx.revision(), table: table.into(), index: index.into(), key: key.to_vec(), equalities: equalities.to_vec(), current };
         if let Some((previous, (live, known, expiry))) = &self.witness_cache && previous == &cached_key {
@@ -92,13 +90,6 @@ impl Runner<'_> {
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, definition)?;
                 bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
-                // A total unique key can leave assigned fields as residual
-                // equalities; those consume provisional values too.
-                for (field, _) in equalities {
-                    if self.sequence_field_is_assigned(table, field) {
-                        self.provisional_sequence_read |= self.is_provisional(table, &row)?;
-                    }
-                }
                 if self.expired(definition, &row) || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
                 // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced is no witness.
                 if self.device && !crate::schema::timeline::holds_event(self.schema, table, &row) {

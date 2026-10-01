@@ -498,15 +498,12 @@ mutation ownEdit(conversation: conversations):
         condition.predictable,
         "an ordinary text condition consumes no accounting"
     );
-    let refusal = d.admit(request("failedSend", json!({"conversation":"c"}), 6));
-    assert!(
-        matches!(refusal, Err(snapback4_core::RuntimeError::Require { code, .. }) if code == "ROLLBACK")
-    );
-    assert_eq!(
-        d.queued().unwrap().len(),
-        count + 1,
-        "allocator reads alone cannot hide an ordinary refusal"
-    );
+    let refusal = d.admit(request("failedSend", json!({"conversation":"c"}), 6)).unwrap();
+    assert!(!refusal.predictable && refusal.predicted.is_empty());
+    assert_eq!(d.queued().unwrap().len(), count + 2, "allocator backstop retains refusals after reading provisional state");
+    let outcome = e.mutate(&refusal.op, Some(&refusal.id), queued_context(&e, &refusal)).unwrap();
+    assert!(matches!(outcome.state, WriteState::Failed { .. }));
+    d.settle(&refusal.id, None).unwrap();
     let queue = d.queued().unwrap();
     for q in queue {
         settle(&mut e, &mut d, &q);

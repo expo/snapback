@@ -276,6 +276,9 @@ impl Binder<'_> {
                 }
                 if completes && self.kind != ProgramKind::Job {
                     let (expr, ty) = self.value_of(value, out)?;
+                    if self.depth == 0 && self.kind == ProgramKind::Mutation && matches!(value, A::Write { .. }) {
+                        self.implicit_write_results.push(expr.clone());
+                    }
                     self.returns.push((ty, value.clone()));
                     out.push(Stmt::Return(expr));
                     return Ok(());
@@ -569,6 +572,11 @@ impl Binder<'_> {
                 })
             }
         };
+        if let Ok((_, ty)) = &result
+            && let Ty::Row(table) | Ty::WriteRow(table) | Ty::Page(table, _) = ty.required()
+            && self.schema.receipt_dependencies.contains_key(&table) {
+            self.receipt_returns.push((table, function.site.clone()));
+        }
         if let Ok((value, _)) = &result {
             self.pure_functions.insert(function.name.clone(), pure_calls::statements(&out[start..]) && pure_calls::expression(value));
         }

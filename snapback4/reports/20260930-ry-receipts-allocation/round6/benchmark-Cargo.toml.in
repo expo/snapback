@@ -1,0 +1,10 @@
+[package]
+name = "ry-r6-bench"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+serde_json = "1"
+snapback4-core = { path = "REPO/snapback4/crates/snapback4-core" }
+snapback4-lang = { path = "REPO/snapback4/crates/snapback4-lang" }
+[profile.release]
+debug = false

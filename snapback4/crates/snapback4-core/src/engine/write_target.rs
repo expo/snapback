@@ -159,12 +159,10 @@ impl Runner<'_> {
     }
 
     pub(in crate::engine) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
-        self.tx.receipt_selection(&target.table, &target.index);
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
     pub(in crate::engine) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
-        self.tx.receipt_selection(&target.table, &target.index);
         self.target_attempt(&target.table, |runner| {
             runner.refuse_engine_owned(&target.table, Effect::Delete)?;
             let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;
@@ -222,7 +220,7 @@ impl Runner<'_> {
             if let Some(condition) = condition {
                 self.require_readable_condition(&target.table, readable)?;
                 let projected_old = self.project_row(&target.table, old.clone())?;
-                let passed = self.write_condition(&target.table, condition, projected_old);
+                let passed = self.write_condition(condition, projected_old);
                 match passed {
                     Ok(true) => {}
                     Ok(false) => return Err(RuntimeError::Conflict { current: Read { key: vec![Expr::Literal(id)], index: "byId".into(), ..target.clone() } }),
@@ -263,14 +261,13 @@ impl Runner<'_> {
         if self.evaluating_write_condition { Err(RuntimeError::Input("an update condition cannot write".into())) } else { Ok(()) }
     }
 
-    fn write_condition(&mut self, table: &str, condition: &WriteCondition, old: crate::engine::authorized_point::AuthorizedRow<'_>) -> Result<bool, RuntimeError> {
+    fn write_condition(&mut self, condition: &WriteCondition, old: crate::engine::authorized_point::AuthorizedRow<'_>) -> Result<bool, RuntimeError> {
         validate_condition(condition)?;
         self.meter.heap(self.environment_heap() + old.heap_bytes())?;
         let env = self.env.clone();
         let consts = self.consts.clone();
         let site = self.statement_site.clone();
-        let old = self.tx.receipt_fields(table, old.into_value());
-        self.env.insert(condition.old.clone(), old);
+        self.env.insert(condition.old.clone(), old.into_value());
         let previous = self.evaluating_write_condition;
         self.evaluating_write_condition = true;
         let result = (|| {
@@ -334,8 +331,8 @@ fn pure_expr(expr: &Expr) -> bool {
 
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
-        Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected | Builtin::ReceiptSettled { .. } => false,
-        Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
+        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }

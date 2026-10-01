@@ -72,7 +72,6 @@ pub fn validate_column(table_name: &str, name: &str, kind: &ColumnType, value: O
 
 fn describe(value: &Value) -> String {
     match value {
-        Value::Receipt(v) => describe(&v.value),
         Value::String(text) if text.chars().count() > 24 => format!("{} characters of text", text.chars().count()),
         Value::String(text) => format!("the text '{text}'"),
         Value::Id(id) => format!("the id '{id}'"),

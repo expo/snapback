@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("N_RECEIPT_PREDICTION", "a mutation reads receipt-owned or derived state and queues without prediction. Use only clean fields and stable ids to predict; remove an incompatible predicts: assertion. guide receipts."),
     ("EMPTY_READ", "optional local evidence of an empty query answer, not proof of denial. Use dev --trace-empty and why recent; inspect why TABLE and check --residency. guide rules."),
     ("RUNS_FULL", "the receipts reporter cannot record another disjoint run: 64 are already held for this member. Keep the owed interval and retry after a merge frees a slot. A successful delivered call always records coverage. guide receipts."),
     ("E_DELIVERY_BINDING", "the report names a changed or removed delivery binding. Drop that binding’s debt and collect under the current fingerprint; do not retry the old report. guide receipts."),

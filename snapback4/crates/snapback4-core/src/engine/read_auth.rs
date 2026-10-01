@@ -67,7 +67,6 @@ impl Runner<'_> {
         let rule = definition.rules.read.clone();
         if self.device_work_active { self.authorized_scratch(0,&[],|runner, scope| { let image = runner.disclosed_row(definition,row.clone()); super::authorized_scan::InternalLedger::with_meter(&mut runner.meter, |meter,_| image.charge_materialization_internal(meter,scope)) })?; }
         let row = self.disclosed_row(definition, row.clone()).into_value();
-        let row = self.tx.receipt_fields(table, row);
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
         let verdict = rules::evaluate_verdict(&rule, &viewer, None, &row, false, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;
@@ -108,7 +107,7 @@ impl Probe for ReadProbe<'_, '_> {
     fn take_unknown(&mut self) -> bool { std::mem::take(&mut self.unknown) }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, _old: bool) {
-        self.runner.provisional_sequence_read |= self.provisional && self.runner.sequence_field_is_assigned(self.table, field);
+        self.runner.provisional_sequence_read |= self.provisional && self.runner.schema.tables[self.table].sequences.contains_key(field);
     }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.prepaid && !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }

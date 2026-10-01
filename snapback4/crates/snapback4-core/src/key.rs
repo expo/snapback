@@ -30,7 +30,7 @@ pub fn encode(values: &[Value]) -> Vec<u8> {
 }
 
 fn encode_one(value: &Value, out: &mut Vec<u8>) {
-    match value.receipt_read() {
+    match value {
         Value::Null => out.push(T_NULL),
         Value::Bool(false) => out.push(T_FALSE),
         Value::Bool(true) => out.push(T_TRUE),

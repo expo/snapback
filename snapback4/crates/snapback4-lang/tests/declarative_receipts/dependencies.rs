@@ -9,6 +9,9 @@ fn request(op: &str, args: serde_json::Value, n: u64) -> Queued {
     q
 }
 fn deferred<S: DeviceStore>(d: &mut Device<S>, q: Queued) -> Queued {
+    let fact = &d.schema().operations[&q.op];
+    assert_eq!(fact.predicts.as_deref(), Some("never"), "{}: {fact:?}", q.op);
+    assert!(fact.sites.iter().any(|s| s.kind == "receipt dependency"), "{}: {fact:?}", q.op);
     let result = d.admit(q);
     assert!(
         result.is_ok(),
@@ -167,6 +170,9 @@ fn pending_membership<H: Host>(host: &mut H, expression: &str) {
     followup.name = "memberFollowup".into();
     followup.kind = ProgramKind::Mutation;
     require_return(&mut followup.body);
+    let fact = snapback4_lang::bind::residency::execution(&b.schema, &followup);
+    assert_eq!(fact.predicts.as_deref(), Some("never"));
+    b.schema.operations.insert(followup.name.clone(), fact);
     b.programs.push(followup);
     let mut e = Engine::memory(b.schema.clone(), b.programs.clone()).unwrap();
     seed(&mut e);
@@ -538,11 +544,13 @@ mutation terminal(message: messages):
     let mut d = host.open("dependencies", Some(b)).unwrap();
     publish(&mut e, &mut d, "alice");
     let send = d.admit(queued("alice", 1)).unwrap();
-    let result = d.admit(request("terminal", json!({"message":send.new_ids[0]}), 2));
-    assert!(
-        matches!(result, Err(snapback4_core::RuntimeError::Require { code, .. }) if code == "TERMINAL")
-    );
-    assert_eq!(d.queued().unwrap().len(), 1);
+    let q = deferred(&mut d, request("terminal", json!({"message":send.new_ids[0]}), 2));
+    assert_eq!(d.queued().unwrap().len(), 2, "static analysis includes untaken code");
+    settle(&mut e, &mut d, &send);
+    let outcome = e.mutate(&q.op, Some(&q.id), Context::new("alice", args(&[("message", id(&send.new_ids[0]))])).at(q.now)).unwrap();
+    assert!(matches!(outcome.state, WriteState::Failed { .. }));
+    d.settle(&q.id, None).unwrap();
+    assert!(d.queued().unwrap().is_empty());
 }
 both!(terminal_control_memory, terminal_control_sqlite, terminal);
 
@@ -652,3 +660,6 @@ mod compound_values;
 
 #[path = "generated_value_taint.rs"]
 mod generated_value_taint;
+
+#[path = "static_prediction.rs"]
+mod static_prediction;

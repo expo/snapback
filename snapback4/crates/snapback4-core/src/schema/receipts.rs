@@ -209,23 +209,6 @@ impl super::Schema {
         self.receipt_dependencies = fields;
     }
 
-    pub(crate) fn receipt_state_table(&self, table: &str) -> bool {
-        self.receipt_dependencies.contains_key(table)
-    }
-    pub(crate) fn receipt_owned_field(&self, table: &str, field: &str) -> bool {
-        self.receipt_dependencies
-            .get(table)
-            .is_some_and(|fields| fields.contains(field))
-    }
-    pub(crate) fn receipt_key(&self, table: &str, index: &str) -> bool {
-        self.receipt_dependencies.get(table).is_some_and(|fields| {
-            self.tables
-                .get(table)
-                .and_then(|t| t.index(index))
-                .is_some_and(|index| fields.iter().any(|field| index.uses_column(field)))
-        })
-    }
-
     pub fn receipt_assigned(&self, table: &str, field: &str) -> bool {
         self.receipts
             .iter()

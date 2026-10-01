@@ -682,20 +682,31 @@ fn unsafe_accounting_declarations_refuse_at_the_clause() {
 }
 
 fn runtime_guard<H: Host>(host: &mut H) {
-    let (mut e, mut b) = compile(&source());
-    seed(&mut e);
-    b.schema.operations.clear();
-    let mut d = host.open("guard", Some(b)).unwrap();
-    publish(&mut e, &mut d, "alice");
-    let q = d.admit(queued("alice", 1)).unwrap();
-    assert!(q.predictable, "{q:?}");
-    assert_eq!(q.predicted.len(), 1);
-    let mut report = queued("alice", 2);
-    report.op = "seen".into();
-    report.args = json!({"conversation":"c","through":1});
-    assert!(!d.admit(report).unwrap().predictable);
-    assert_eq!(d.query("receiptMember", "alice", &json!({"conversation":"c"}), NOW).unwrap().data.field("seenOrdinal"), Ok(&Value::Int(0)));
-
+    for missing in ["entry", "classification", "unknown classification"] {
+        let (mut e, mut b) = compile(&source());
+        seed(&mut e);
+        b.schema.operations.clear();
+        if missing != "entry" {
+            let mut fact = snapback4_core::schema::Execution::default();
+            if missing == "unknown classification" { fact.predicts = Some("future".into()); }
+            b.schema.operations.insert("send".into(), fact);
+        }
+        let label = format!("guard-{missing}");
+        let mut d = host.open(&label, Some(b)).unwrap();
+        publish(&mut e, &mut d, "alice");
+        let q = d.admit(queued("alice", 1)).unwrap();
+        assert!(!q.predictable, "missing {missing} must queue: {q:?}");
+        assert!(q.predicted.is_empty());
+        let mut report = queued("alice", 2);
+        report.op = "seen".into();
+        report.args = json!({"conversation":"c","through":1});
+        assert!(!d.admit(report).unwrap().predictable);
+        assert_eq!(d.query("receiptMember", "alice", &json!({"conversation":"c"}), NOW).unwrap().data.field("seenOrdinal"), Ok(&Value::Int(0)));
+        host.close(&label, d);
+        let mut d = host.open(&label, None).unwrap();
+        assert_eq!(d.queued().unwrap().len(), 2);
+        assert!(d.store().raw_rows("messages").is_empty());
+    }
 }
 #[test]
 fn runtime_prediction_guard_memory() {
