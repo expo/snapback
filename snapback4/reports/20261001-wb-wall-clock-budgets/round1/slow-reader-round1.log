@@ -1,0 +1,42 @@
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (27.878738ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (6.886174ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (21.862909ms)
+  ✔ seed and upload retain their separate larger request ceilings (40.491178ms)
+  ✔ one-view assets finalize only after a complete non-range response (84.403926ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (78.108868ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (509.799239ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (2646.794561ms)
+CONTROL_COMPLETION {"cpu":{"max":54.270816,"p50":53.1638585,"p95":53.1638585,"p99":53.1638585},"cpu_n":1,"engine":{"max":30.083933,"p50":30.0096145,"p95":30.0096145,"p99":30.0096145},"n":1,"refused":1,"total":{"max":5439.252294,"p50":5439.252294,"p95":5439.252294,"p99":5439.252294},"wait":{"max":0.006551,"p50":0.006551,"p95":0.006551,"p99":0.006551}}
+  ✖ a paused large response releases the engine before network progress (6571.070252ms)
+✖ HTTP admission, encoding, slow readers and idle changes polls (10181.294276ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10326.661904
+
+✖ failing tests:
+
+test at packages/snapback4/test/http-bounds.test.mjs:243:13
+✖ a paused large response releases the engine before network progress (6571.070252ms)
+  AssertionError [ERR_ASSERTION]: the server response must still be unfinished after the probe: {"cpu":{"max":54.270816,"p50":53.1638585,"p95":53.1638585,"p99":53.1638585},"cpu_n":1,"engine":{"max":30.083933,"p50":30.0096145,"p95":30.0096145,"p99":30.0096145},"n":1,"refused":1,"total":{"max":5439.252294,"p50":5439.252294,"p95":5439.252294,"p99":5439.252294},"wait":{"max":0.006551,"p50":0.006551,"p95":0.006551,"p99":0.006551}}
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///tmp/wb-r1-controls-gzncxajy/slow-reader-round1/snapback4/packages/snapback4/test/http-bounds.test.mjs:268:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///tmp/wb-r1-controls-gzncxajy/slow-reader-round1/snapback4/packages/snapback4/test/http-bounds.test.mjs:243:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

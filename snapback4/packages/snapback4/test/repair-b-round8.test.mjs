@@ -1,7 +1,8 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 
-test("publication notifies watches even when its following state read fails; retry uses durable progress", { timeout: 5000 }, async t => {
+test("publication notifies watches even when its following state read fails; retry uses durable progress", { timeout: hangBudget(8) }, async t => {
   const { createLocalClient } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   const backend = { generation: 1, schema: { tables: {}, operations: { counter: { runs: "device", held: true } } }, programs: [{ name: "counter", kind: "Query", args: {}, body: [{ table: "counters" }], held: true }] };
   let value = 1, watermark = 5, advance = false, denyRead = false, denials = 0;
@@ -49,7 +50,7 @@ test("publication notifies watches even when its following state read fails; ret
   t.after(async () => { watch.close(); await client.close(); });
   const notifications = [];
   watch.subscribe(() => notifications.push(watch.getSnapshot().data));
-  const waitFor = async value => { for (let i = 0; i < 50 && watch.getSnapshot().data !== value; i++) await new Promise(resolve => setTimeout(resolve, 0)); };
+  const waitFor = async value => { await awaitState(async () => !(watch.getSnapshot().data !== value), "repair-b-round8.test.mjs: watch.getSnapshot().data !== value", { poll: async () => { await new Promise(resolve => setTimeout(resolve, 0)); } }); };
   await waitFor(1);
   assert.equal(watch.getSnapshot().data, 1);
   advance = true;

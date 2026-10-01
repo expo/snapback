@@ -1,0 +1,27 @@
+[
+  {
+    "name": "heavy-1",
+    "root": "/home/ccheever/sb4-intent/wb-proof-1/snapback4",
+    "cpus": "0-9"
+  },
+  {
+    "name": "heavy-2",
+    "root": "/home/ccheever/sb4-intent/wb-proof-2/snapback4",
+    "cpus": "10-19"
+  },
+  {
+    "name": "heavy-3",
+    "root": "/home/ccheever/sb4-intent/wb-proof-3/snapback4",
+    "cpus": "20-29"
+  },
+  {
+    "name": "heavy-4",
+    "root": "/home/ccheever/sb4-intent/wb-proof-4/snapback4",
+    "cpus": "30-39"
+  },
+  {
+    "name": "heavy-5",
+    "root": "/home/ccheever/sb4-intent/wb-proof-5/snapback4",
+    "cpus": "86-95"
+  }
+]

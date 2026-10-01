@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.019 §3.3: a same-store commit can withdraw read authority.
 // Explicit false withdraws at commit; all change evidence bounds retained answers.
 import test from "node:test";
@@ -19,10 +20,7 @@ const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const query = { kind: "query", name: "secret" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check, message) {
-  for (let n = 0; n < 1000; n++) { if (check()) return; await delay(10); }
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 const source = `use personas alice, bob
 table members:
   room: text <=40
@@ -85,7 +83,7 @@ table pulses:
 }
 
 for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) for (const mode of keep === false ? ["held"] : ["held", "throw", "unavailable", "retryExhausted"]) for (const kind of ["apply", "admit", "transfer", ...(mode === "held" ? ["remount"] : [])]) {
-  test(`${tier}: ${kind} revocation, keep=${keep}, ${mode}`, { timeout: 60_000 }, async t => {
+  test(`${tier}: ${kind} revocation, keep=${keep}, ${mode}`, { timeout: hangBudget(21) }, async t => {
     const { directory, url, kick, transfer } = await fixture(t, mode === "retryExhausted");
     const body = read => mode === "retryExhausted" ? read.data?.secret?.body : read.data?.body;
     let exhaustedReplies = 0;
@@ -204,7 +202,7 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
   });
 }
 
-for (const keep of [undefined, false]) for (const mode of ["held", "retryExhausted", "unavailable", "throw"]) test(`online: revoked data, keep=${keep}, ${mode}`, { timeout: 60_000 }, async t => {
+for (const keep of [undefined, false]) for (const mode of ["held", "retryExhausted", "unavailable", "throw"]) test(`online: revoked data, keep=${keep}, ${mode}`, { timeout: hangBudget(9) }, async t => {
   const { url, kick } = await fixture(t);
   const readOp = query;
   const blocked = deferred(), entered = deferred(), changes = deferred();

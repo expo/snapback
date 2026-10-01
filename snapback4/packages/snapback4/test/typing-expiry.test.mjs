@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 // Real React subscriptions over the server and the wasm/IndexedDB web device.
 // Holding /changes excludes server sweeps as a source of invalidation.
@@ -25,7 +26,7 @@ query typingNow(conversationId: conversations):
 
 // One minute each for startup, mount, expiry delivery and cleanup. The 4.5 s
 // row lifetime below uses the controlled browser clock, not this hang guard.
-for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age} ms before mount on both clients`, { timeout: 4 * 60_000 }, async t => {
+for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age} ms before mount on both clients`, { timeout: hangBudget(28) }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
@@ -67,8 +68,9 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
       ] },
     });
     await server.listen();
-    browser = await chromium.launch({ executablePath, headless: true });
+    browser = await chromium.launch({ timeout: hangBudget(), executablePath, headless: true });
     const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     // Separate process/browser startup from the 4.5-second semantic deadline.
@@ -80,14 +82,10 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     await page.waitForFunction(() => typeof window.openClients === "function");
     await page.clock.pauseAt(start);
     const until = async predicate => {
-      const end = performance.now() + 60_000;
-      while (true) {
+      return awaitState(async () => {
         await page.clock.runFor(0);
-        const value = await page.evaluate(predicate);
-        if (value) return value;
-        assert.ok(performance.now() < end, `browser state did not settle: ${predicate}`);
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
+        return page.evaluate(predicate);
+      }, `browser state did not settle: ${predicate}`);
     };
     await page.evaluate(url => window.openClients(url), dev.api);
     const expiresAt = start + 4500;

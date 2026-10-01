@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — counts pin scheduling and dependency work at 1,000 rows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,6 +10,7 @@ import { ReadObservation } from '../dist/read-observation.js';
 import { ServerClock } from '../dist/clock.js';
 import { createClient } from '../dist/client.js';
 import { until } from './helpers/app-server.mjs';
+import { parkedChanges } from './helpers/sync-control.mjs';
 const drain = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 
 for (const outcome of ['success', 'rejection']) test(`request abort listeners are removed after ${outcome}`, async () => {
@@ -156,7 +158,7 @@ test('online 1,000 rows: N relevant evaluations, zero unrelated, eight concurren
   watches.forEach(w => w.subscribe(() => {}));
   t.after(async () => { watches.forEach(w => w.close()); await client.close(); });
   const ready = () => watches.every(w => w.getSnapshot().data?.seq === seq && !w.getSnapshot().revalidating);
-  await until(ready, 'initial rows', 15000);
+  await until(ready, 'initial rows', { work: 1000 });
   assert.equal(calls, 1000); assert.ok(peak <= 8);
   calls = 0;
   let withdrawals = 0;
@@ -164,7 +166,7 @@ test('online 1,000 rows: N relevant evaluations, zero unrelated, eight concurren
   const change = release; change(['cards']);
   await until(() => release !== change, 'next poll');
   assert.equal(withdrawals, 0, 'queued revalidation preserves every old answer');
-  await until(ready, 'replacement rows', 15000);
+  await until(ready, 'replacement rows', { work: 1000 });
   assert.equal(calls, 1000); assert.ok(peak <= 8);
   calls = 0; const unrelated = release; unrelated(['notes']);
   await until(() => release !== unrelated, 'unrelated change processed');
@@ -172,7 +174,7 @@ test('online 1,000 rows: N relevant evaluations, zero unrelated, eight concurren
   assert.equal(calls, 0); assert.ok(watches.every(w => w.getSnapshot().data));
 });
 
-for (const tier of ['wasm', 'process']) test(`${tier} 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks`, { timeout: 30000 }, async t => {
+for (const tier of ['wasm', 'process']) test(`${tier} 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks`, { timeout: hangBudget(1000) }, async t => {
   const { readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { server, binary } = await import('./helpers/app-server.mjs');
@@ -188,10 +190,9 @@ for (const tier of ['wasm', 'process']) test(`${tier} 1,000 rows: known apply, e
     const core = await underlying.open(...args);
     return { ...core, call(request, committed) { if (request.op === 'query') calls++; return core.call(request, committed); } };
   } }, fetch: async (input, init) => {
-    if (new URL(input).pathname === '/changes') return new Promise((_, reject) => {
-      if (init.signal.aborted) reject(Error('closed'));
-      else init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
-    });
+    // This test owns sync explicitly. Keep its parked feed healthy while
+    // 1,000 real device calls run, independent of host scheduling.
+    if (new URL(input).pathname === '/changes') return parkedChanges(init.signal);
     return fetch(input, init);
   } });
   t.after(() => client.close());
@@ -200,7 +201,7 @@ for (const tier of ['wasm', 'process']) test(`${tier} 1,000 rows: known apply, e
   const watches = Array.from({ length: 1000 }, (_, i) => client.observe(op, { id: 'c' + i }));
   watches.forEach(w => w.subscribe(() => {})); t.after(() => watches.forEach(w => w.close()));
   const ready = () => watches.every(w => w.getSnapshot().data && !w.getSnapshot().revalidating);
-  await until(ready, 'mount 1000', 15000); assert.equal(calls, 1000);
+  await until(ready, 'mount 1000', { work: 1000 }); assert.equal(calls, 1000);
   calls = 0; await client.sync(); await new Promise(resolve => setTimeout(resolve, 30));
   assert.equal(calls, 0, 'empty apply does no query work');
   const write = (name, args) => fetch(url + '/m/' + name, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify({ id: crypto.randomUUID(), args }) }).then(r => r.json());
@@ -208,7 +209,7 @@ for (const tier of ['wasm', 'process']) test(`${tier} 1,000 rows: known apply, e
   await client.sync(); await new Promise(resolve => setTimeout(resolve, 30));
   assert.equal(calls, 0, 'known unrelated write does no query work');
   assert.equal((await write('edit', { id: 'c0', label: 'changed' })).state, 'sent');
-  await client.sync(); await until(() => ready() && watches[0].getSnapshot().data.label === 'changed', 'relevant apply', 15000);
+  await client.sync(); await until(() => ready() && watches[0].getSnapshot().data.label === 'changed', 'relevant apply', { work: 1000 });
   assert.equal(calls, 1000, 'one reevaluation per distinct table-dependent observation');
   calls = 0;
   const duplicates = Array.from({ length: 1000 }, () => client.observe(op, { id: 'c0' }));

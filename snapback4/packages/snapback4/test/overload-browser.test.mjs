@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request } from 'node:http';
@@ -8,7 +9,7 @@ import { chromium } from 'playwright-core';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { server } from './helpers/app-server.mjs';
 
-test('Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times', { timeout: 20000 }, async t => {
+test('Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times', { timeout: hangBudget(16) }, async t => {
   const { url } = await server(t, undefined, `use personas alice
 table photos:
   photo: image <=10000
@@ -37,9 +38,10 @@ table photos:
   });
   front.listen(0, '127.0.0.1'); await once(front, 'listening');
   t.after(() => { front.closeAllConnections(); front.close(); });
-  const browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   t.after(() => browser.close());
-  const page = await browser.newPage(); await page.goto(`http://127.0.0.1:${front.address().port}`);
+  const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget()); await page.goto(`http://127.0.0.1:${front.address().port}`);
   const png = Buffer.alloc(2081); Buffer.from('89504e470d0a1a0a0000000d494844520000000100000001', 'hex').copy(png);
   const warm = await page.evaluate(async ({ url, png }) => {
     window.sdk = await import('/assets.js'); window.png = new Uint8Array(png);

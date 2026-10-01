@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — real commits retire a real history attempt behind held device slots.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ import { fixture, open, opener, source, q, until, parked, sdk } from './helpers/
 const { answerObservation } = await import(new URL('read-observation.js', sdk));
 const { ReadWork } = await import(new URL('read-work.js', sdk));
 
-for (const tier of ['wasm','process']) for (const boundary of ['replacement','membership removal']) test(`${tier}: queued history ${boundary}`, {timeout:20000}, async t => {
+for (const tier of ['wasm','process']) for (const boundary of ['replacement','membership removal']) test(`${tier}: queued history ${boundary}`, {timeout:hangBudget(18)}, async t => {
   const f = await fixture(t, source + '\nquery decoration(id: int):\n  return messages[\'item\']\n');
   const raw = opener(tier, join(f.dir, 'pressure'));
   let hold = false, first = true, historyReached = false;

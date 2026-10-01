@@ -1,26 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setTimeout as delay } from 'node:timers/promises';
+import { withHangGuard } from './helpers/wait.mjs';
 import { setup, q, m, until } from './helpers/one-shot.mjs';
 import { QUERY_LIFETIME, QUERY_ROUNDS } from '../dist/query-settlement.js';
 
 const tiers = ['online', 'wasm', 'process', 'app-online', 'app-wasm', 'app-process'];
-// Exercise the actual deadline callback quickly, asserting its production delay.
-// The independent 2s watchdog never calls the SDK's timer or resolves its query.
-function accelerate(t) {
+// Exercise the actual deadline callback after the contested work has entered,
+// asserting its production delay without giving startup an 80 ms deadline.
+// The independent watchdog never calls the SDK's timer or resolves its query.
+function deadline(t) {
   assert.equal(QUERY_LIFETIME, 30_000); assert.equal(QUERY_ROUNDS, 4);
-  const set = globalThis.setTimeout; let count = 0;
+  const set = globalThis.setTimeout, callbacks = [];
   t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
-    if (ms === QUERY_LIFETIME) { count++; return set(fn, 80, ...args); }
+    if (ms === QUERY_LIFETIME) {
+      callbacks.push(() => fn(...args));
+      return set(() => {}, ms);
+    }
     return set(fn, ms, ...args);
   });
-  return () => count;
+  return { count: () => callbacks.length, fire() {
+    assert.equal(callbacks.length, 1, 'one production query deadline is armed');
+    callbacks[0]();
+  } };
 }
 async function bounded(work) {
-  const controller = new AbortController();
-  try {
-    return await Promise.race([work, delay(2000, undefined, { signal: controller.signal }).then(() => { throw Error('independent one-shot watchdog'); })]);
-  } finally { controller.abort(); }
+  return withHangGuard(() => work, 'independent one-shot watchdog');
 }
 
 for (const tier of tiers) {
@@ -35,21 +39,23 @@ for (const tier of tiers) {
     assert.equal(read.denied.retryable, true);
   });
   test(`${tier}: ignored transport abort still settles and fences the late answer`, async t => {
-    const gate = Promise.withResolvers(); let block = false, started = false, signal;
+    const gate = Promise.withResolvers(); let block = false, started = false, held = false, returned = false, signal;
     t.after(() => gate.resolve());
     const f = await setup(t, tier, { fetch: async (path, init, send) => {
       if (block && path === '/q/profile') {
         started = true; signal = init.signal;
-        const response = await send(); await gate.promise; return response;
+        const response = await send(); held = true; await gate.promise; returned = true; return response;
       }
       return send();
     } });
-    const timers = accelerate(t); block = true;
-    const read = await bounded(f.client.query(q('profile'), {}));
-    assert.ok(started); assert.equal(timers(), 1, 'facade and raw client share one timer');
+    const timers = deadline(t); block = true;
+    const pending = f.client.query(q('profile'), {});
+    await until(() => held); timers.fire();
+    const read = await bounded(pending);
+    assert.ok(started); assert.equal(timers.count(), 1, 'facade and raw client share one timer');
     assert.equal(read.denied?.code, 'E_QUERY_RETRY'); assert.equal(read.denied.retryable, true);
     assert.equal(signal.aborted, true);
-    gate.resolve(); block = false; await delay(20);
+    gate.resolve(); block = false; await until(() => returned);
     assert.equal((await f.client.query(q('profile'), {})).data?.name, 'Bob');
   });
   for (const end of ['close', 'signOut']) test(`${tier}: ${end} settles an outstanding one-shot without waiting for transport`, async t => {
@@ -81,8 +87,9 @@ for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
     blocked = true;
     for (let n = 0; n < 32; n++) { const w = f.client.observe(q('keyed'), { tag: n }); w.subscribe(() => {}); watches.push(w); }
     await until(() => starts >= 8);
-    accelerate(t);
-    const read = await bounded(f.client.query(q('item'), {}));
+    const timers = deadline(t), pending = f.client.query(q('item'), {});
+    await until(() => starts >= 9); timers.fire();
+    const read = await bounded(pending);
     assert.equal(read.denied?.code, 'E_QUERY_RETRY');
     assert.equal(starts, 9, 'one-shot uses the same host while the observation slots remain occupied');
     blocked = false; gate.resolve();
@@ -99,9 +106,11 @@ for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
 for (const tier of ['app-online', 'app-wasm', 'app-process']) test(`${tier}: blocked facade authority shares the same deadline`, async t => {
   const f = await setup(t, tier), gate = Promise.withResolvers();
   t.after(() => gate.resolve());
-  const timers = accelerate(t);
-  f.controls.authority = () => gate.promise;
-  const read = await bounded(f.client.query(q('item'), {}));
-  assert.equal(read.denied?.code, 'E_QUERY_RETRY'); assert.equal(timers(), 1);
+  const timers = deadline(t); let entered = false;
+  f.controls.authority = () => { entered = true; return gate.promise; };
+  const pending = f.client.query(q('item'), {});
+  await until(() => entered); timers.fire();
+  const read = await bounded(pending);
+  assert.equal(read.denied?.code, 'E_QUERY_RETRY'); assert.equal(timers.count(), 1);
   gate.resolve(); delete f.controls.authority;
 });

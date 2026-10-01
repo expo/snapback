@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
@@ -8,7 +9,7 @@ import { binary, until, server } from "./helpers/app-server.mjs";
 const list = { kind: "query", name: "list" }, add = { kind: "mutation", name: "add" };
 const probe = async (url, token) => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code;
 
-test("refusal tombstones an unpersisted rotation's consumed predecessor", { timeout: 20_000 }, async t => {
+test("refusal tombstones an unpersisted rotation's consumed predecessor", { timeout: hangBudget(14) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let failNextSave = false, failures = 0;
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -28,7 +29,7 @@ test("refusal tombstones an unpersisted rotation's consumed predecessor", { time
   assert.equal((await offline.ready).ok, true); assert.equal(offline.auth.state, "signed-out");
 });
 
-for (const tier of ["online", "local"]) test(`${tier}: global logout keeps the public view until its fence commits, then fences captured handles`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier}: global logout keeps the public view until its fence commits, then fences captured handles`, { timeout: hangBudget(24) }, async t => {
   const { url, dir } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let failFence = false; const dispatched = [];
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -66,7 +67,7 @@ for (const tier of ["online", "local"]) test(`${tier}: global logout keeps the p
   await until(async () => await probe(url, sibling.token) === "E_AUTH");
 });
 
-test("rollback publishes a new facade and never revives captured handles", { timeout: 20_000 }, async t => {
+test("rollback publishes a new facade and never revives captured handles", { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let failNext = false;
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -86,7 +87,7 @@ test("rollback publishes a new facade and never revives captured handles", { tim
   assert.equal((await app.client.query(list, {})).data.length, 1);
 });
 
-test("refusal of an unpersisted successor preserves an unrelated replacement", { timeout: 20_000 }, async t => {
+test("refusal of an unpersisted successor preserves an unrelated replacement", { timeout: hangBudget(18) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let failNext = false, holdRefusal = false, held = false, release;
   const gate = new Promise(resolve => { release = resolve; });

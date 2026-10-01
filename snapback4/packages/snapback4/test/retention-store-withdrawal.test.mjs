@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // @ref LLP 3000.023#3.4 — discovery, store boundaries and link loss end every retained answer.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -65,7 +66,4 @@ for (const mode of ["guard", "app", "lingering guard"]) for (const replacement o
     });
   }
 }
-async function until(check) {
-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
-  assert.fail("online boundary did not settle");
-}
+async function until(check) { return awaitState(check); }

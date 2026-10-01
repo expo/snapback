@@ -1,3 +1,5 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fork} from 'node:child_process';
@@ -10,7 +12,7 @@ import {DatabaseSync} from 'node:sqlite';
 const moduleURL = process.env.SNAPBACK4_TEST_WORKER_LEDGER ?? new URL('../dist/worker-ledger.js', import.meta.url).href;
 const {WorkerLedger} = await import(moduleURL);
 
-for (const abort of [false, true]) test(`two processes retain a completed receipt across a real busy COMMIT${abort ? ' after cancellation' : ''}`, {timeout:10_000}, async t => {
+for (const abort of [false, true]) test(`two processes retain a completed receipt across a real busy COMMIT${abort ? ' after cancellation' : ''}`, {timeout:hangBudget(11)}, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-commit-'));
   const children = [];
   t.after(async () => {
@@ -49,8 +51,7 @@ ledger.close();process.disconnect();
     child.stderr.on('data', bytes => {s.log += bytes;}); children.push(s); return s;
   };
   const wait = async (s, predicate) => {
-    for (let n=0;n<1000;n++) {const found=s.events.find(predicate);if(found)return found;await sleep(5);}
-    assert.fail(JSON.stringify(s.events)+' '+s.log);
+    return awaitState(() => s.events.find(predicate), 'ledger event', { diagnostics: () => JSON.stringify(s.events)+' '+s.log });
   };
   const first=start('first'), second=start('second');
   await Promise.all([first,second].map(s=>wait(s,e=>e.event==='ready')));
@@ -107,7 +108,7 @@ test('aborting a waiter blocked on SQLITE_BUSY prevents its handler after the lo
   } finally {holder.close();ledger.close();}
 });
 
-test('aborting initialization blocked on SQLITE_BUSY rejects after the writer lock is released', {timeout:5_000}, async t => {
+test('aborting initialization blocked on SQLITE_BUSY rejects after the writer lock is released', {timeout:hangBudget(2)}, async t => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-ledger-open-abort-'));
   t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const path=join(dir,'ledger.sqlite'), stop=new AbortController(), holder=new DatabaseSync(path);

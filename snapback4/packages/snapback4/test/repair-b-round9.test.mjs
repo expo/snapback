@@ -1,3 +1,5 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
+import { withHangGuard, hangBudget } from './helpers/wait.mjs';
 // Compiled client and production openers over SQLite and wasm memory; HTTP history is controlled.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -62,7 +64,7 @@ function held(signal) {
   });
 }
 
-test("round 9-12 client head observations and startup installation", { timeout: 60_000 }, async t => {
+test("round 9-12 client head observations and startup installation", { timeout: hangBudget(63) }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-r9-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -72,7 +74,7 @@ test("round 9-12 client head observations and startup installation", { timeout: 
   server.stderr.on("data", chunk => { log += chunk; });
   t.after(async () => { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(log)), 15_000);
+    const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
     server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
   });
@@ -200,11 +202,8 @@ test("round 9-12 client head observations and startup installation", { timeout: 
         },
       });
       if (polling) {
-        await Promise.race([observed, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error("head observation not delivered")), 4000); timer.unref(); })]);
-        for (let i = 0; i < 100; i++) {
-          if ((await ok(core, { op: "sync_state", capture: false })).restore_refusal) break;
-          await new Promise(resolve => setTimeout(resolve, 5));
-        }
+        await withHangGuard(() => observed, "head observation not delivered");
+        await awaitState(async () => (await ok(core, { op: "sync_state", capture: false })).restore_refusal, "restore refusal");
       }
       if (mode === "fresh") {
         const state = await ok(core, { op: "sync_state", capture: false });

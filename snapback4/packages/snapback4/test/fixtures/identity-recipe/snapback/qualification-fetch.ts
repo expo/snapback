@@ -31,11 +31,12 @@ export const qualificationFetch: typeof fetch = async (input, init) => {
     return throughControl(input, init, new URL(`${url.pathname}${url.search}`, controlOrigin));
   }
 
+  // One provider gate, with scheduling slack; the response decides success.
   const gate = await globalThis.fetch(`${controlOrigin}/__qualification/provider-attempt`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ method: new Request(input, init).method, path: url.pathname, pid: process.pid }),
-    signal: AbortSignal.timeout(5_000),
+    signal: AbortSignal.timeout(120_000 + 2_000),
   });
   if (!gate.ok) throw new Error("qualification provider access is closed after the committed mint cut");
   return globalThis.fetch(input, init);

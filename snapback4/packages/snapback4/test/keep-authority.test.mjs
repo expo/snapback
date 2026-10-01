@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import { readyRead } from "../dist/read-existence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -13,10 +14,7 @@ import { deferReadNotifications } from "../dist/read-notifications.js";
 const q = { kind: "query", name: "read" }, options = { keep: true };
 const ready = data => (readyRead({ data, complete: true, fresh: true, next: null, cut: null }));
 const why = { code: "E_AUTH", family: "auth", message: "session ended" };
-async function until(check) {
-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
-  assert.fail("authority did not settle");
-}
+async function until(check) { return awaitState(check); }
 
 import { fixture } from "./helpers/authority-fixture.mjs";
 

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -20,12 +21,7 @@ const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import
 const op = name => ({ kind: "mutation", name });
 const deferred = () => { let resolve, reject; const promise = new Promise((r, j) => { resolve = r; reject = j; }); return { promise, resolve, reject }; };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, message) {
-  for (const end = Date.now() + 15000; Date.now() < end; await sleep(5)) {
-    const value = await check(); if (value) return value;
-  }
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 const source = `use personas alice, bob
 table records:
   n: int
@@ -175,7 +171,7 @@ for (const tier of ["online", "wasm", "process"]) for (const end of ["signOut", 
 }
 
 for (const tier of ["online", "app-online", "wasm", "process"]) for (const status of [409, 503]) {
-  test(`${tier} HTTP ${status}: pending list keeps FIFO, args, prediction names, held state and terminal notifications`, { timeout: 30000 }, async t => {
+  test(`${tier} HTTP ${status}: pending list keeps FIFO, args, prediction names, held state and terminal notifications`, { timeout: hangBudget(24) }, async t => {
     const f = await fixture(t, tier), { client } = await f.open();
     // Deliberately submit in the opposite order from the ids' lexical order.
     const secondId = mintId(), firstId = mintId(), events = [], changed = [];
@@ -227,7 +223,7 @@ for (const tier of ["online", "app-online", "wasm", "process"]) for (const statu
 }
 
 for (const tier of ["online", "app-online", "wasm", "process"]) {
-  test(`${tier}: custody waits and dropped connections preserve sent until settlement`, { timeout: 30000 }, async t => {
+  test(`${tier}: custody waits and dropped connections preserve sent until settlement`, { timeout: hangBudget(19) }, async t => {
     const f = await fixture(t, tier), { client } = await f.open();
     const firstId = mintId(), secondId = mintId(), events = [];
     client.onWrite(write => events.push(write));
@@ -260,7 +256,7 @@ for (const tier of ["online", "app-online", "wasm", "process"]) {
 }
 
 for (const tier of ["app-online", "wasm", "process"]) for (const state of ["held", "sent"]) {
-  test(`${tier}: reload preserves ${state} head and queued tail, then settles the same ids once`, { timeout: 30000 }, async t => {
+  test(`${tier}: reload preserves ${state} head and queued tail, then settles the same ids once`, { timeout: hangBudget(20) }, async t => {
     const f = await fixture(t, tier), { client } = await f.open();
     const ids = [mintId(), mintId()], first = client.mutate(op("record"), { n: 10 }, { id: ids[0] });
     await until(() => f.gates.length === 1, "first dispatch");

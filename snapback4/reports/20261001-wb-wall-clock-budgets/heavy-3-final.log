@@ -1,0 +1,1362 @@
+✔ W7c dev exposes meters by default and explicitly for a real account (3252.386315ms)
+ℹ meter={"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":195,"probes":0,"rowsWritten":0,"steps":5}
+✔ W7c serve ignores meters by default and explicitly for a real account (1713.062142ms)
+✔ W6d online: caller id retries share pending writes and retained receipts (552.297741ms)
+ℹ tier=online posts=1 applied=1 terminal_events=1
+✔ W6d online: malformed caller ids fail locally (315.768129ms)
+✔ W6d online: input key order is immaterial and an evicted receipt never readmits on the same client (3566.756564ms)
+ℹ tier=online retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d online: two client POSTs with the caller id apply once after a lost reply (750.050137ms)
+ℹ tier=online retry_posts=2 applied=1 historical_results=0
+✔ W6d web: caller id retries share pending writes and retained receipts (1877.533108ms)
+ℹ tier=web posts=1 applied=1 terminal_events=1
+✔ W6d web: malformed caller ids fail locally (562.849436ms)
+✔ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (8730.470518ms)
+ℹ tier=web retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d web: two client POSTs with the caller id apply once after a lost reply (1703.786295ms)
+ℹ tier=web retry_posts=2 applied=1 historical_results=0
+✔ W6d web: one client POST recovers the caller id from sync after a lost reply (701.490095ms)
+ℹ tier=web recovery_posts=1 applied=1 terminal_events=1 replayed=true
+✔ W6d web: reopen deduplicates the queued caller id before prediction (1500.088132ms)
+ℹ tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6d native: caller id retries share pending writes and retained receipts (1043.407133ms)
+ℹ tier=native posts=1 applied=1 terminal_events=1
+✔ W6d native: malformed caller ids fail locally (770.879539ms)
+✔ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (17341.055159ms)
+ℹ tier=native retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d native: two client POSTs with the caller id apply once after a lost reply (1868.395257ms)
+ℹ tier=native retry_posts=2 applied=1 historical_results=0
+✔ W6d native: one client POST recovers the caller id from sync after a lost reply (1002.05612ms)
+ℹ tier=native recovery_posts=1 applied=1 terminal_events=1 replayed=true
+✔ W6d native: reopen deduplicates the queued caller id before prediction (1796.457871ms)
+ℹ tier=native reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6b password character minimum and byte maximum through HTTP (14629.520002ms)
+ℹ HTTP: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b password character minimum and byte maximum through client (15930.504408ms)
+ℹ client: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b identity forms advertise and enforce the guest choice (5118.734187ms)
+✔ sent results reach online, process-device and queued-write callers (1695.545059ms)
+✔ online: immediate lost first acknowledgement preserves the same-id replay receipt (932.048162ms)
+ℹ wire={"head":3,"id":"01M3TRHSY3FT8YHK1V0QQB2JNZ","replayed":true,"seq":3,"state":"sent","store_id":"d65e2c67f4190b75077ea1501beafeaa"}; client={"state":"sent","id":"01M3TRHSY3FT8YHK1V0QQB2JNZ","seq":3,"replayed":true}; result key=false
+✔ online: queued lost first acknowledgement preserves the same-id replay receipt (1373.684724ms)
+ℹ wire={"head":3,"id":"01M3TRHTS0TTJSMZ7WS0AF0FFY","replayed":true,"seq":3,"state":"sent","store_id":"c9092966ad87e422b21bef7f1611271f"}; client={"state":"sent","id":"01M3TRHTS0TTJSMZ7WS0AF0FFY","seq":3,"replayed":true}; result key=false
+✔ process-device: immediate lost first acknowledgement preserves the same-id replay receipt (1855.556575ms)
+ℹ wire={"head":3,"id":"01M3TRHWEKDA6ED4W7KJK06TCC","replayed":true,"seq":3,"state":"sent","store_id":"a15646972a8aed43bc1c5a5aa6886bd7"}; client={"state":"sent","id":"01M3TRHWEKDA6ED4W7KJK06TCC","seq":3,"replayed":true}; result key=false
+✔ process-device: queued lost first acknowledgement preserves the same-id replay receipt (1577.553579ms)
+ℹ wire={"head":3,"id":"01M3TRHY2N77VJHZ9RC932JGDS","replayed":true,"seq":3,"state":"sent","store_id":"55f1c98495b36172ec5a8b526b602c77"}; client={"state":"sent","id":"01M3TRHY2N77VJHZ9RC932JGDS","seq":3,"replayed":true}; result key=false
+✔ write types require replay narrowing through mutate, onWrite and useMutation (5109.768365ms)
+✔ createApp forwards asset retention (viewed, 68 bytes) through a real offline reopen (2013.772002ms)
+✔ createApp forwards asset retention (viewed, 67 bytes) through a real offline reopen (1118.045203ms)
+✔ createApp forwards asset retention (none, 68 bytes) through a real offline reopen (1049.757815ms)
+✔ createApp forwards local waitSeconds while retaining app-owned identity (1054.939767ms)
+✔ online createApp ignores settings that apply only with a device (517.671693ms)
+✔ ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes (2390.373031ms)
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+✔ dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits (4664.615067ms)
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 4313 ms
+✔ id-only video predicts after offline reopen and its ordinary bytes are retained (2833.902426ms)
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+✔ W7r1 hidden versus absent non-uniform reads under dev (802.386989ms)
+ℹ absent={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2} hidden={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2}
+✔ W7r1 hidden versus absent non-uniform reads under serve (873.607304ms)
+✔ W8R1a dev withholds hidden population cuts (11413.986ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a serve withholds hidden population cuts (10615.14079ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a online server-run observations keep explicit withdrawal during a replacing fetch (7017.31444ms)
+✔ W8R1a native server-run observations keep explicit withdrawal during a replacing fetch (7049.556877ms)
+✔ W8R1a web server-run observations keep explicit withdrawal during a replacing fetch (7512.543536ms)
+✔ W8a online uniform words continue while nonuniform words and meter cuts remain bounded (7250.1168ms)
+✔ W8a native uniform words continue while nonuniform words and meter cuts remain bounded (11695.928201ms)
+✔ W8a web uniform words continue while nonuniform words and meter cuts remain bounded (7205.69714ms)
+✔ W8a dev refuses held queries with a rewrite (455.842108ms)
+✔ W8a serve refuses held queries with a rewrite (213.407898ms)
+✔ W8a native held horizon stays local online, including observe (414.547682ms)
+✔ W8a web held horizon stays local online, including observe (477.925616ms)
+✔ W13b native cursorless read stays local online (527.55829ms)
+ℹ native cursorless: rows=1 complete=true /q/=0
+✔ W13b native meter read stays local online (12982.205965ms)
+ℹ native meter: rows=0 complete=false /q/=0
+✔ W13b native horizon and presence use server knowledge only online (806.495377ms)
+✔ W13b web cursorless read stays local online (539.159855ms)
+ℹ web cursorless: rows=1 complete=true /q/=0
+✔ W13b web meter read stays local online (9920.842746ms)
+ℹ web meter: rows=0 complete=false /q/=0
+✔ W13b web horizon and presence use server knowledge only online (549.431306ms)
+✔ W13b dev logs a measured cut (14096.097327ms)
+ℹ snapback4 dev: read filtered (guest:01M3TRNKPBCC1EYWJ5BHRQ9VV3) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered
+ℹ snapback4 dev: read filtered (dev:alice) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered; suppressed 5 repeated read cuts
+✔ W13b serve hides a measured cut (15188.547194ms)
+✔ CCP admission boundary: native (5884.13883ms)
+ℹ native: waitSeconds=0 returned pending in 3.227 ms
+ℹ native: default returned pending in 4001.627 ms
+ℹ native: waitSeconds=1.9 returned pending in 1003.694 ms
+✔ CCP admission boundary: web (5321.294741ms)
+ℹ web: waitSeconds=0 returned pending in 6.896 ms
+ℹ web: default returned pending in 3999.945 ms
+ℹ web: waitSeconds=1.9 returned pending in 1000.736 ms
+✔ CCP admission boundary: online (1871.13503ms)
+ℹ online: waitSeconds=0 returned pending in 1.336 ms
+ℹ online: default waited for release, returned sent in 173.945 ms
+ℹ online: waitSeconds=1.9 returned pending in 1000.704 ms
+✔ CCP admission boundary: app-online (1815.254013ms)
+ℹ app-online: waitSeconds=0 returned pending in 5.870 ms
+ℹ app-online: default waited for release, returned sent in 197.372 ms
+ℹ app-online: waitSeconds=1.9 returned pending in 1001.937 ms
+✔ CCP zero-wait native admit reject fails before dispatch (932.47924ms)
+ℹ native reject: 1 admission, 0 dispatches, outcome=failed
+✔ CCP zero-wait native admit deny fails before dispatch (939.402614ms)
+ℹ native deny: 1 admission, 0 dispatches, outcome=failed
+✔ CCP zero-wait web admit reject fails before dispatch (524.980633ms)
+ℹ web reject: 1 admission, 0 dispatches, outcome=failed
+✔ CCP zero-wait web admit deny fails before dispatch (355.791642ms)
+ℹ web deny: 1 admission, 0 dispatches, outcome=failed
+ℹ Error: Test "CCP admission boundary: app-online" at packages/snapback4/test/client-seams.test.mjs:1083:63 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot destructure property 'socket' of 'parser.deref(...)' as it is undefined." and would have caused the test to fail, but instead triggered an uncaughtException event.
+✖ packages/snapback4/test/client-seams.test.mjs (258981.178424ms)
+✔ proof stays active after handler return until the response finishes (103.18666ms)
+✔ premature proof response close without an error event is fatal (28.257557ms)
+✔ the registered intentional committed-mint cut is the only close exemption (24.103544ms)
+✔ teardown serves 503 while a proof response is still draining (20.298645ms)
+✔ drain timeout aborts pending work and closes the owned server (30.760452ms)
+✔ preexisting failure survives bounded abort cleanup unchanged (1.764908ms)
+✔ process: pending cut preserves transition before sync publication (1565.888025ms)
+✔ process: pending cut preserves emptyTransition before sync publication (958.558959ms)
+✔ process: pending cut preserves presentTransition before sync publication (1089.99406ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (812.055646ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (808.683245ms)
+✔ wasm: pending cut preserves transition before sync publication (1326.504347ms)
+✔ wasm: pending cut preserves emptyTransition before sync publication (650.188593ms)
+✔ wasm: pending cut preserves presentTransition before sync publication (871.4599ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (960.22617ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (531.403619ms)
+✔ online: four retired publications refuse with a retryable code (674.014928ms)
+✔ online: ignored transport abort still settles and fences the late answer (435.115478ms)
+✔ online: close settles an outstanding one-shot without waiting for transport (365.570534ms)
+✔ online: signOut settles an outstanding one-shot without waiting for transport (284.664474ms)
+✔ wasm: four retired publications refuse with a retryable code (2652.30557ms)
+✔ wasm: ignored transport abort still settles and fences the late answer (465.453003ms)
+✔ wasm: close settles an outstanding one-shot without waiting for transport (444.676049ms)
+✔ wasm: signOut settles an outstanding one-shot without waiting for transport (507.655702ms)
+✔ process: four retired publications refuse with a retryable code (1291.011202ms)
+✔ process: ignored transport abort still settles and fences the late answer (709.205308ms)
+✔ process: close settles an outstanding one-shot without waiting for transport (671.908539ms)
+✔ process: signOut settles an outstanding one-shot without waiting for transport (706.035461ms)
+✔ app-online: four retired publications refuse with a retryable code (722.763888ms)
+✔ app-online: ignored transport abort still settles and fences the late answer (262.109339ms)
+✔ app-online: close settles an outstanding one-shot without waiting for transport (255.987875ms)
+✔ app-online: signOut settles an outstanding one-shot without waiting for transport (328.793499ms)
+✔ app-wasm: four retired publications refuse with a retryable code (822.368519ms)
+✔ app-wasm: ignored transport abort still settles and fences the late answer (589.837569ms)
+✔ app-wasm: close settles an outstanding one-shot without waiting for transport (420.283807ms)
+✔ app-wasm: signOut settles an outstanding one-shot without waiting for transport (457.856789ms)
+✔ app-process: four retired publications refuse with a retryable code (1160.439724ms)
+✔ app-process: ignored transport abort still settles and fences the late answer (820.375935ms)
+✔ app-process: close settles an outstanding one-shot without waiting for transport (755.253026ms)
+✔ app-process: signOut settles an outstanding one-shot without waiting for transport (764.477366ms)
+✔ wasm: device queue wait behind observations is inside the one-shot deadline (383.034937ms)
+✔ wasm: an unexpired permitted remembered answer still serves offline (333.077323ms)
+✔ process: device queue wait behind observations is inside the one-shot deadline (625.557956ms)
+✔ process: an unexpired permitted remembered answer still serves offline (448.86192ms)
+✔ app-wasm: device queue wait behind observations is inside the one-shot deadline (339.943574ms)
+✔ app-wasm: an unexpired permitted remembered answer still serves offline (362.682981ms)
+✔ app-process: device queue wait behind observations is inside the one-shot deadline (540.655411ms)
+✔ app-process: an unexpired permitted remembered answer still serves offline (572.968492ms)
+✔ app-online: blocked facade authority shares the same deadline (277.383491ms)
+✔ app-wasm: blocked facade authority shares the same deadline (466.109866ms)
+✔ app-process: blocked facade authority shares the same deadline (776.27533ms)
+▶ wasm: seeded one-shot/write/link/deadline/close model
+  ✔ session 0 (2932.829113ms)
+  ✔ session 1 (909.577635ms)
+  ✔ session 2 (745.21896ms)
+  ✔ session 3 (667.861345ms)
+  ✔ session 4 (881.912335ms)
+  ✔ session 5 (843.037207ms)
+  ✔ session 6 (1002.816991ms)
+  ✔ session 7 (662.667399ms)
+  ✔ session 8 (938.689285ms)
+  ✔ session 9 (778.821788ms)
+  ✔ session 10 (983.954376ms)
+  ✔ session 11 (762.34805ms)
+✔ wasm: seeded one-shot/write/link/deadline/close model (12116.206954ms)
+▶ process: seeded one-shot/write/link/deadline/close model
+  ✔ session 0 (1503.118143ms)
+  ✔ session 1 (1395.834487ms)
+  ✔ session 2 (1411.371275ms)
+  ✔ session 3 (1383.560917ms)
+  ✔ session 4 (1408.273351ms)
+  ✔ session 5 (1466.153096ms)
+  ✔ session 6 (1653.33108ms)
+  ✔ session 7 (1467.548622ms)
+  ✔ session 8 (1228.370226ms)
+  ✔ session 9 (1114.579462ms)
+  ✔ session 10 (1549.94227ms)
+  ✔ session 11 (1422.394606ms)
+✔ process: seeded one-shot/write/link/deadline/close model (17005.879549ms)
+✔ wasm: a terminal change-stream refusal wins a blocked query deadline (1766.436979ms)
+✔ wasm: restore refusal wins a blocked query deadline (508.357839ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ wasm: partition refusal wins a blocked query deadline (725.332294ms)
+✔ wasm: impossible held count refuses in one evaluation and never contacts the server (453.811881ms)
+✔ wasm: a held query retries a concurrent prediction and can answer its other branch (602.317539ms)
+✔ process: a terminal change-stream refusal wins a blocked query deadline (625.329534ms)
+✔ process: restore refusal wins a blocked query deadline (795.68263ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ process: partition refusal wins a blocked query deadline (762.029238ms)
+✔ process: impossible held count refuses in one evaluation and never contacts the server (691.098368ms)
+✔ process: a held query retries a concurrent prediction and can answer its other branch (753.901282ms)
+✔ app-wasm: a terminal change-stream refusal wins a blocked query deadline (586.721546ms)
+✔ app-wasm: restore refusal wins a blocked query deadline (477.113938ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-wasm: partition refusal wins a blocked query deadline (478.198445ms)
+✔ app-wasm: impossible held count refuses in one evaluation and never contacts the server (418.18201ms)
+✔ app-wasm: a held query retries a concurrent prediction and can answer its other branch (325.660417ms)
+✔ app-process: a terminal change-stream refusal wins a blocked query deadline (566.046204ms)
+✔ app-process: restore refusal wins a blocked query deadline (622.866552ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-process: partition refusal wins a blocked query deadline (721.288096ms)
+✔ app-process: impossible held count refuses in one evaluation and never contacts the server (665.386375ms)
+✔ app-process: a held query retries a concurrent prediction and can answer its other branch (687.441494ms)
+✔ online: restore wins the transport deadline (7.734204ms)
+✔ online: reset wins the transport deadline (13.561897ms)
+✔ facade: restore wins the transport deadline (50.037872ms)
+✔ facade: restore wins the authority deadline (0.831157ms)
+✔ facade: reset wins the transport deadline (13.758342ms)
+✔ facade: reset wins the authority deadline (0.708473ms)
+✔ app-online: logout scope change wins a blocked authority deadline (402.398046ms)
+✔ app-online: viewer scope change wins a blocked authority deadline (295.459134ms)
+ℹ {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791689735005}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+✔ app-wasm: logout scope change wins a blocked authority deadline (379.747503ms)
+✔ app-wasm: viewer scope change wins a blocked authority deadline (525.042382ms)
+ℹ {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791689735799}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+✔ app-process: logout scope change wins a blocked authority deadline (596.050405ms)
+✔ app-process: viewer scope change wins a blocked authority deadline (750.007941ms)
+ℹ {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791689736992}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+✔ online: held queries retain the terminal server refusal (330.112743ms)
+✔ app-online: held queries retain the terminal server refusal (290.184499ms)
+✔ mock: a retired one-shot rereads instead of returning the old value (32.281152ms)
+✔ mock: genuine publication exhaustion uses the shared retryable refusal (180.102631ms)
+✔ mock: closed and signed-out clients preserve terminal refusals (0.512679ms)
+✔ mock: a throwing evaluator settles with the shared client refusal (0.301933ms)
+✔ guide: stale one-shot continuations refuse and retain the first-page recovery (0.569434ms)
+✔ guide: server-needing decorations remain separate (3.158219ms)
+✔ online: terminal changes refusal at transport deadline (315.450676ms)
+ℹ {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+✔ app-online: terminal changes refusal at transport deadline (368.187417ms)
+ℹ {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+✔ app-online: terminal changes refusal at authority deadline (360.629808ms)
+ℹ {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+✔ wasm: a time-dependent held miss rereads across its cutoff (484.460413ms)
+✔ wasm: a held miss dependent on arguments remains retryable (629.953708ms)
+✔ wasm: a held miss dependent on coverage remains retryable (773.954523ms)
+✔ wasm: a held miss dependent on membership remains retryable (591.308357ms)
+✔ process: a time-dependent held miss rereads across its cutoff (661.67652ms)
+✔ process: a held miss dependent on arguments remains retryable (811.970146ms)
+✔ process: a held miss dependent on coverage remains retryable (885.594585ms)
+✔ process: a held miss dependent on membership remains retryable (870.397914ms)
+✔ app-wasm: a time-dependent held miss rereads across its cutoff (759.074733ms)
+✔ app-wasm: a held miss dependent on arguments remains retryable (800.84439ms)
+✔ app-wasm: a held miss dependent on coverage remains retryable (656.736223ms)
+✔ app-wasm: a held miss dependent on membership remains retryable (629.121812ms)
+✔ app-process: a time-dependent held miss rereads across its cutoff (604.245469ms)
+✔ app-process: a held miss dependent on arguments remains retryable (895.991906ms)
+✔ app-process: a held miss dependent on coverage remains retryable (1093.002129ms)
+✔ app-process: a held miss dependent on membership remains retryable (1059.873325ms)
+✔ guide: the client contract names only proven permanent held refusals (0.455673ms)
+✔ app-wasm: changes wins a blocked opening authority deadline (478.391198ms)
+✔ app-wasm: changes wins a blocked final authority deadline (467.51496ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-wasm: partition wins a blocked opening authority deadline (447.547383ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-wasm: partition wins a blocked final authority deadline (531.058744ms)
+✔ app-wasm: restore wins a blocked opening authority deadline (546.77328ms)
+✔ app-wasm: restore wins a blocked final authority deadline (372.644786ms)
+✔ app-process: changes wins a blocked opening authority deadline (705.327777ms)
+✔ app-process: changes wins a blocked final authority deadline (728.899731ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-process: partition wins a blocked opening authority deadline (844.96427ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-process: partition wins a blocked final authority deadline (867.824867ms)
+✔ app-process: restore wins a blocked opening authority deadline (922.023809ms)
+✔ app-process: restore wins a blocked final authority deadline (873.982333ms)
+✔ replayed mutation cannot lower the query floor (135.875536ms)
+✔ replayed mutation cannot lower the observation floor (68.305319ms)
+✔ closing while a stale HTTP body is in flight prevents publication and refetch (267.829827ms)
+✔ same-store head regression reports E_STORE_RESTORE and stops polling and reading (148.54997ms)
+✔ a change response captured before a write is not evidence of a same-store restore (30.783135ms)
+✔ direct stale-sequence reads back off and stop after four requests (454.084447ms)
+✔ observed stale-sequence reads back off and stop after four requests (449.484846ms)
+✔ closing the last owner during backoff cancels the next stale-response request (276.164953ms)
+✔ closing one of two subscribed owners does not cancel their shared fetch (36.618899ms)
+✔ a buffered first identity reply cannot lower a newer write floor (55.794989ms)
+✔ first poll after a completed write refuses a lower head (new identity) (101.069135ms)
+✔ first poll after a completed write refuses a lower head (known identity) (74.201425ms)
+✔ first identity discovery remembers the acknowledged receipt for later heads (28.523514ms)
+ORACLE_PASS host=process seed=1
+ORACLE_PASS host=process seed=2
+ORACLE_PASS host=process seed=3
+ORACLE_PASS host=process seed=4
+ORACLE_PASS host=process seed=5
+ORACLE_PASS host=process seed=6
+ORACLE_PASS host=process seed=7
+ORACLE_PASS host=process seed=8
+ORACLE_PASS host=process seed=9
+ORACLE_PASS host=process seed=10
+ORACLE_PASS host=process seed=11
+ORACLE_PASS host=process seed=12
+ORACLE_PASS host=process seed=13
+ORACLE_PASS host=process seed=14
+ORACLE_PASS host=process seed=15
+ORACLE_PASS host=process seed=16
+ORACLE_PASS host=process seed=17
+ORACLE_PASS host=process seed=18
+ORACLE_PASS host=process seed=19
+ORACLE_PASS host=process seed=20
+ORACLE_PASS host=process seed=21
+ORACLE_PASS host=process seed=22
+ORACLE_PASS host=process seed=23
+ORACLE_PASS host=process seed=24
+ORACLE_PASS host=process seed=25
+ORACLE_PASS host=process seed=26
+ORACLE_PASS host=process seed=27
+ORACLE_PASS host=process seed=28
+ORACLE_PASS host=process seed=29
+ORACLE_PASS host=process seed=30
+ORACLE_PASS host=process seed=31
+ORACLE_PASS host=process seed=32
+ORACLE_PASS host=process seed=33
+ORACLE_PASS host=process seed=34
+ORACLE_PASS host=process seed=35
+ORACLE_PASS host=process seed=36
+ORACLE_PASS host=process seed=37
+ORACLE_PASS host=process seed=38
+ORACLE_PASS host=process seed=39
+ORACLE_PASS host=process seed=40
+ORACLE_PASS host=process seed=41
+ORACLE_PASS host=process seed=42
+ORACLE_PASS host=process seed=43
+ORACLE_PASS host=process seed=44
+ORACLE_PASS host=process seed=45
+ORACLE_PASS host=process seed=46
+ORACLE_PASS host=process seed=47
+ORACLE_PASS host=process seed=48
+ORACLE_PASS host=process seed=49
+ORACLE_PASS host=process seed=50
+ORACLE_PASS host=process seed=51
+ORACLE_PASS host=process seed=52
+ORACLE_PASS host=process seed=53
+ORACLE_PASS host=process seed=54
+ORACLE_PASS host=process seed=55
+ORACLE_PASS host=process seed=56
+ORACLE_PASS host=process seed=57
+ORACLE_PASS host=process seed=58
+ORACLE_PASS host=process seed=59
+ORACLE_PASS host=process seed=60
+ORACLE_PASS host=process seed=61
+ORACLE_PASS host=process seed=62
+ORACLE_PASS host=process seed=63
+ORACLE_PASS host=process seed=64
+ORACLE_PASS host=process seed=65
+ORACLE_PASS host=process seed=66
+ORACLE_PASS host=process seed=67
+ORACLE_PASS host=process seed=68
+ORACLE_FAIL host=process seed=69
+one invocation per publication round, bounded at four for a retired page
+
+1 !== 4
+
+ORACLE [{"seed":69,"host":"process","direction":"first","limit":3,"mutable":false,"cut":null,"currentOnly":false},{"page":0,"c":false,"ids":["00000","𐀀00001","m00002"],"cut":null,"complete":true,"next":true,"calls":1},{"action":8,"shouldSync":true},{"page":1,"c":true,"ids":["00000","m00002","m00004"],"cut":null,"complete":true,"next":true,"calls":1},{"action":7,"shouldSync":false},{"page":2,"c":true,"denied":"E_OP","next":false,"calls":1}]
+AssertionError [ERR_ASSERTION]: one invocation per publication round, bounded at four for a retired page
+
+1 !== 4
+
+    at scenario (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:104:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:363:27)
+    at async Test.run (node:internal/test_runner/test:1110:7)
+    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+ORACLE_PASS host=process seed=70
+ORACLE_PASS host=process seed=71
+ORACLE_PASS host=process seed=72
+ORACLE_PASS host=process seed=73
+ORACLE_PASS host=process seed=74
+ORACLE_PASS host=process seed=75
+ORACLE_PASS host=process seed=76
+ORACLE_PASS host=process seed=77
+ORACLE_PASS host=process seed=78
+ORACLE_PASS host=process seed=79
+ORACLE_PASS host=process seed=80
+ORACLE_PASS host=process seed=81
+ORACLE_PASS host=process seed=82
+ORACLE_PASS host=process seed=83
+ORACLE_PASS host=process seed=84
+ORACLE_PASS host=process seed=85
+ORACLE_PASS host=process seed=86
+ORACLE_PASS host=process seed=87
+ORACLE_PASS host=process seed=88
+ORACLE_PASS host=process seed=89
+ORACLE_PASS host=process seed=90
+ORACLE_PASS host=process seed=91
+ORACLE_PASS host=process seed=92
+ORACLE_PASS host=process seed=93
+ORACLE_PASS host=process seed=94
+ORACLE_PASS host=process seed=95
+ORACLE_PASS host=process seed=96
+ORACLE_PASS host=process seed=97
+ORACLE_PASS host=process seed=98
+ORACLE_PASS host=process seed=99
+ORACLE_PASS host=process seed=100
+ORACLE_PASS host=process seed=101
+ORACLE_PASS host=process seed=102
+ORACLE_PASS host=process seed=103
+ORACLE_PASS host=process seed=104
+ORACLE_PASS host=process seed=105
+ORACLE_PASS host=process seed=106
+ORACLE_PASS host=process seed=107
+ORACLE_PASS host=process seed=108
+ORACLE_PASS host=process seed=109
+ORACLE_PASS host=process seed=110
+ORACLE_PASS host=process seed=111
+ORACLE_PASS host=process seed=112
+ORACLE_PASS host=process seed=113
+ORACLE_PASS host=process seed=114
+ORACLE_PASS host=process seed=115
+ORACLE_PASS host=process seed=116
+ORACLE_PASS host=process seed=117
+ORACLE_PASS host=process seed=118
+ORACLE_PASS host=process seed=119
+ORACLE_PASS host=process seed=120
+ORACLE_PASS host=process seed=121
+ORACLE_PASS host=process seed=122
+ORACLE_PASS host=process seed=123
+ORACLE_PASS host=process seed=124
+ORACLE_PASS host=process seed=125
+ORACLE_PASS host=process seed=126
+ORACLE_PASS host=process seed=127
+ORACLE_PASS host=process seed=128
+ORACLE_PASS host=process seed=129
+ORACLE_PASS host=process seed=130
+ORACLE_PASS host=process seed=131
+ORACLE_PASS host=process seed=132
+ORACLE_PASS host=process seed=133
+ORACLE_PASS host=process seed=134
+ORACLE_PASS host=process seed=135
+ORACLE_PASS host=process seed=136
+ORACLE_PASS host=process seed=137
+ORACLE_PASS host=process seed=138
+ORACLE_PASS host=process seed=139
+ORACLE_PASS host=process seed=140
+ORACLE_PASS host=process seed=141
+ORACLE_PASS host=process seed=142
+ORACLE_PASS host=process seed=143
+ORACLE_PASS host=process seed=144
+ORACLE_PASS host=process seed=145
+ORACLE_PASS host=process seed=146
+ORACLE_PASS host=process seed=147
+ORACLE_PASS host=process seed=148
+ORACLE_PASS host=process seed=149
+ORACLE_PASS host=process seed=150
+ORACLE_PASS host=process seed=151
+ORACLE_PASS host=process seed=152
+ORACLE_PASS host=process seed=153
+ORACLE_PASS host=process seed=154
+ORACLE_PASS host=process seed=155
+ORACLE_PASS host=process seed=156
+ORACLE_PASS host=process seed=157
+ORACLE_PASS host=process seed=158
+ORACLE_PASS host=process seed=159
+ORACLE_PASS host=process seed=160
+ORACLE_PASS host=process seed=161
+ORACLE_PASS host=process seed=162
+ORACLE_PASS host=process seed=163
+ORACLE_PASS host=process seed=164
+ORACLE_PASS host=process seed=165
+ORACLE_PASS host=process seed=166
+ORACLE_PASS host=process seed=167
+ORACLE_PASS host=process seed=168
+ORACLE_PASS host=process seed=169
+ORACLE_PASS host=process seed=170
+ORACLE_PASS host=process seed=171
+ORACLE_PASS host=process seed=172
+ORACLE_PASS host=process seed=173
+ORACLE_PASS host=process seed=174
+ORACLE_PASS host=process seed=175
+ORACLE_PASS host=process seed=176
+ORACLE_PASS host=process seed=177
+ORACLE_PASS host=process seed=178
+ORACLE_PASS host=process seed=179
+ORACLE_PASS host=process seed=180
+ORACLE_PASS host=process seed=181
+ORACLE_PASS host=process seed=182
+ORACLE_PASS host=process seed=183
+ORACLE_PASS host=process seed=184
+ORACLE_PASS host=process seed=185
+ORACLE_PASS host=process seed=186
+ORACLE_PASS host=process seed=187
+ORACLE_PASS host=process seed=188
+ORACLE_PASS host=process seed=189
+ORACLE_PASS host=process seed=190
+ORACLE_PASS host=process seed=191
+ORACLE_PASS host=process seed=192
+ORACLE_PASS host=process seed=193
+ORACLE_PASS host=process seed=194
+ORACLE_PASS host=process seed=195
+ORACLE_PASS host=process seed=196
+ORACLE_PASS host=process seed=197
+ORACLE_PASS host=process seed=198
+ORACLE_PASS host=process seed=199
+ORACLE_PASS host=process seed=200
+ORACLE_PASS host=process seed=201
+ORACLE_PASS host=process seed=202
+ORACLE_PASS host=process seed=203
+ORACLE_PASS host=process seed=204
+ORACLE_PASS host=process seed=205
+ORACLE_PASS host=process seed=206
+ORACLE_PASS host=process seed=207
+ORACLE_PASS host=process seed=208
+ORACLE_PASS host=process seed=209
+ORACLE_PASS host=process seed=210
+ORACLE_PASS host=process seed=211
+ORACLE_PASS host=process seed=212
+ORACLE_PASS host=process seed=213
+ORACLE_PASS host=process seed=214
+ORACLE_PASS host=process seed=215
+ORACLE_PASS host=process seed=216
+ORACLE_PASS host=process seed=217
+ORACLE_PASS host=process seed=218
+ORACLE_PASS host=process seed=219
+ORACLE_PASS host=process seed=220
+ORACLE_PASS host=process seed=221
+ORACLE_PASS host=process seed=222
+ORACLE_PASS host=process seed=223
+ORACLE_PASS host=process seed=224
+ORACLE_PASS host=process seed=225
+ORACLE_PASS host=process seed=226
+ORACLE_PASS host=process seed=227
+ORACLE_PASS host=process seed=228
+ORACLE_PASS host=process seed=229
+ORACLE_PASS host=process seed=230
+ORACLE_PASS host=process seed=231
+ORACLE_PASS host=process seed=232
+ORACLE_PASS host=process seed=233
+ORACLE_PASS host=process seed=234
+ORACLE_PASS host=process seed=235
+ORACLE_PASS host=process seed=236
+ORACLE_PASS host=process seed=237
+ORACLE_PASS host=process seed=238
+ORACLE_PASS host=process seed=239
+ORACLE_PASS host=process seed=240
+ORACLE_PASS host=process seed=241
+ORACLE_PASS host=process seed=242
+ORACLE_PASS host=process seed=243
+ORACLE_PASS host=process seed=244
+ORACLE_PASS host=process seed=245
+ORACLE_PASS host=process seed=246
+ORACLE_PASS host=process seed=247
+ORACLE_PASS host=process seed=248
+ORACLE_PASS host=process seed=249
+ORACLE_PASS host=process seed=250
+ORACLE_PASS host=process seed=251
+ORACLE_PASS host=process seed=252
+ORACLE_PASS host=process seed=253
+ORACLE_PASS host=process seed=254
+ORACLE_PASS host=process seed=255
+ORACLE_PASS host=process seed=256
+ORACLE_PASS host=process seed=257
+ORACLE_PASS host=process seed=258
+ORACLE_PASS host=process seed=259
+ORACLE_PASS host=process seed=260
+ORACLE_PASS host=process seed=261
+ORACLE_PASS host=process seed=262
+ORACLE_PASS host=process seed=263
+ORACLE_PASS host=process seed=264
+ORACLE_PASS host=process seed=265
+ORACLE_PASS host=process seed=266
+ORACLE_PASS host=process seed=267
+ORACLE_PASS host=process seed=268
+ORACLE_PASS host=process seed=269
+ORACLE_PASS host=process seed=270
+ORACLE_PASS host=process seed=271
+ORACLE_PASS host=process seed=272
+ORACLE_PASS host=process seed=273
+ORACLE_PASS host=process seed=274
+ORACLE_PASS host=process seed=275
+ORACLE_PASS host=process seed=276
+ORACLE_PASS host=process seed=277
+ORACLE_PASS host=process seed=278
+ORACLE_PASS host=process seed=279
+ORACLE_PASS host=process seed=280
+ORACLE_PASS host=process seed=281
+ORACLE_PASS host=process seed=282
+ORACLE_PASS host=process seed=283
+ORACLE_PASS host=process seed=284
+ORACLE_PASS host=process seed=285
+ORACLE_PASS host=process seed=286
+ORACLE_PASS host=process seed=287
+ORACLE_PASS host=process seed=288
+ORACLE_PASS host=process seed=289
+ORACLE_PASS host=process seed=290
+ORACLE_PASS host=process seed=291
+ORACLE_PASS host=process seed=292
+ORACLE_PASS host=process seed=293
+ORACLE_PASS host=process seed=294
+ORACLE_PASS host=process seed=295
+ORACLE_PASS host=process seed=296
+ORACLE_PASS host=process seed=297
+ORACLE_PASS host=process seed=298
+ORACLE_PASS host=process seed=299
+ORACLE_PASS host=process seed=300
+ORACLE_SUMMARY {"host":"process","seeds":300,"failed":[69],"ms":704197,"coverage":{"projection":73,"at":105,"sync":134,"membership":263,"terminal:none":303,"invalid-input":74,"reset":70,"link":101,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":35,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+✖ ordinary search generated oracle process: 300 seeds (704199.49427ms)
+ORACLE_PASS host=wasm seed=1
+ORACLE_PASS host=wasm seed=2
+ORACLE_PASS host=wasm seed=3
+ORACLE_PASS host=wasm seed=4
+ORACLE_PASS host=wasm seed=5
+ORACLE_PASS host=wasm seed=6
+ORACLE_PASS host=wasm seed=7
+ORACLE_PASS host=wasm seed=8
+ORACLE_PASS host=wasm seed=9
+ORACLE_PASS host=wasm seed=10
+ORACLE_PASS host=wasm seed=11
+ORACLE_PASS host=wasm seed=12
+ORACLE_PASS host=wasm seed=13
+ORACLE_PASS host=wasm seed=14
+ORACLE_PASS host=wasm seed=15
+ORACLE_PASS host=wasm seed=16
+ORACLE_PASS host=wasm seed=17
+ORACLE_PASS host=wasm seed=18
+ORACLE_PASS host=wasm seed=19
+ORACLE_PASS host=wasm seed=20
+ORACLE_PASS host=wasm seed=21
+ORACLE_PASS host=wasm seed=22
+ORACLE_PASS host=wasm seed=23
+ORACLE_PASS host=wasm seed=24
+ORACLE_PASS host=wasm seed=25
+ORACLE_PASS host=wasm seed=26
+ORACLE_PASS host=wasm seed=27
+ORACLE_PASS host=wasm seed=28
+ORACLE_PASS host=wasm seed=29
+ORACLE_PASS host=wasm seed=30
+ORACLE_PASS host=wasm seed=31
+ORACLE_PASS host=wasm seed=32
+ORACLE_PASS host=wasm seed=33
+ORACLE_PASS host=wasm seed=34
+ORACLE_PASS host=wasm seed=35
+ORACLE_PASS host=wasm seed=36
+ORACLE_PASS host=wasm seed=37
+ORACLE_PASS host=wasm seed=38
+ORACLE_PASS host=wasm seed=39
+ORACLE_PASS host=wasm seed=40
+ORACLE_PASS host=wasm seed=41
+ORACLE_PASS host=wasm seed=42
+ORACLE_PASS host=wasm seed=43
+ORACLE_PASS host=wasm seed=44
+ORACLE_PASS host=wasm seed=45
+ORACLE_PASS host=wasm seed=46
+ORACLE_PASS host=wasm seed=47
+ORACLE_PASS host=wasm seed=48
+ORACLE_PASS host=wasm seed=49
+ORACLE_PASS host=wasm seed=50
+ORACLE_PASS host=wasm seed=51
+ORACLE_PASS host=wasm seed=52
+ORACLE_PASS host=wasm seed=53
+ORACLE_PASS host=wasm seed=54
+ORACLE_PASS host=wasm seed=55
+ORACLE_PASS host=wasm seed=56
+ORACLE_PASS host=wasm seed=57
+ORACLE_PASS host=wasm seed=58
+ORACLE_PASS host=wasm seed=59
+ORACLE_PASS host=wasm seed=60
+ORACLE_PASS host=wasm seed=61
+ORACLE_PASS host=wasm seed=62
+ORACLE_PASS host=wasm seed=63
+ORACLE_PASS host=wasm seed=64
+ORACLE_PASS host=wasm seed=65
+ORACLE_PASS host=wasm seed=66
+ORACLE_PASS host=wasm seed=67
+ORACLE_PASS host=wasm seed=68
+ORACLE_PASS host=wasm seed=69
+ORACLE_PASS host=wasm seed=70
+ORACLE_PASS host=wasm seed=71
+ORACLE_PASS host=wasm seed=72
+ORACLE_PASS host=wasm seed=73
+ORACLE_PASS host=wasm seed=74
+ORACLE_PASS host=wasm seed=75
+ORACLE_PASS host=wasm seed=76
+ORACLE_PASS host=wasm seed=77
+ORACLE_PASS host=wasm seed=78
+ORACLE_PASS host=wasm seed=79
+ORACLE_PASS host=wasm seed=80
+ORACLE_PASS host=wasm seed=81
+ORACLE_PASS host=wasm seed=82
+ORACLE_PASS host=wasm seed=83
+ORACLE_PASS host=wasm seed=84
+ORACLE_PASS host=wasm seed=85
+ORACLE_PASS host=wasm seed=86
+ORACLE_PASS host=wasm seed=87
+ORACLE_PASS host=wasm seed=88
+ORACLE_PASS host=wasm seed=89
+ORACLE_PASS host=wasm seed=90
+ORACLE_PASS host=wasm seed=91
+ORACLE_PASS host=wasm seed=92
+ORACLE_PASS host=wasm seed=93
+ORACLE_PASS host=wasm seed=94
+ORACLE_PASS host=wasm seed=95
+ORACLE_PASS host=wasm seed=96
+ORACLE_PASS host=wasm seed=97
+ORACLE_PASS host=wasm seed=98
+ORACLE_PASS host=wasm seed=99
+ORACLE_PASS host=wasm seed=100
+ORACLE_PASS host=wasm seed=101
+ORACLE_PASS host=wasm seed=102
+ORACLE_PASS host=wasm seed=103
+ORACLE_PASS host=wasm seed=104
+ORACLE_PASS host=wasm seed=105
+ORACLE_PASS host=wasm seed=106
+ORACLE_PASS host=wasm seed=107
+ORACLE_PASS host=wasm seed=108
+ORACLE_PASS host=wasm seed=109
+ORACLE_PASS host=wasm seed=110
+ORACLE_PASS host=wasm seed=111
+ORACLE_PASS host=wasm seed=112
+ORACLE_PASS host=wasm seed=113
+ORACLE_PASS host=wasm seed=114
+ORACLE_PASS host=wasm seed=115
+ORACLE_PASS host=wasm seed=116
+ORACLE_PASS host=wasm seed=117
+ORACLE_PASS host=wasm seed=118
+ORACLE_PASS host=wasm seed=119
+ORACLE_PASS host=wasm seed=120
+ORACLE_PASS host=wasm seed=121
+ORACLE_PASS host=wasm seed=122
+ORACLE_PASS host=wasm seed=123
+ORACLE_PASS host=wasm seed=124
+ORACLE_PASS host=wasm seed=125
+ORACLE_PASS host=wasm seed=126
+ORACLE_PASS host=wasm seed=127
+ORACLE_PASS host=wasm seed=128
+ORACLE_PASS host=wasm seed=129
+ORACLE_PASS host=wasm seed=130
+ORACLE_PASS host=wasm seed=131
+ORACLE_PASS host=wasm seed=132
+ORACLE_PASS host=wasm seed=133
+ORACLE_PASS host=wasm seed=134
+ORACLE_PASS host=wasm seed=135
+ORACLE_PASS host=wasm seed=136
+ORACLE_PASS host=wasm seed=137
+ORACLE_PASS host=wasm seed=138
+ORACLE_PASS host=wasm seed=139
+ORACLE_PASS host=wasm seed=140
+ORACLE_PASS host=wasm seed=141
+ORACLE_PASS host=wasm seed=142
+ORACLE_PASS host=wasm seed=143
+ORACLE_PASS host=wasm seed=144
+ORACLE_PASS host=wasm seed=145
+ORACLE_PASS host=wasm seed=146
+ORACLE_PASS host=wasm seed=147
+ORACLE_PASS host=wasm seed=148
+ORACLE_PASS host=wasm seed=149
+ORACLE_PASS host=wasm seed=150
+ORACLE_PASS host=wasm seed=151
+ORACLE_PASS host=wasm seed=152
+ORACLE_PASS host=wasm seed=153
+ORACLE_PASS host=wasm seed=154
+ORACLE_PASS host=wasm seed=155
+ORACLE_PASS host=wasm seed=156
+ORACLE_PASS host=wasm seed=157
+ORACLE_PASS host=wasm seed=158
+ORACLE_PASS host=wasm seed=159
+ORACLE_PASS host=wasm seed=160
+ORACLE_PASS host=wasm seed=161
+ORACLE_PASS host=wasm seed=162
+ORACLE_PASS host=wasm seed=163
+ORACLE_PASS host=wasm seed=164
+ORACLE_PASS host=wasm seed=165
+ORACLE_PASS host=wasm seed=166
+ORACLE_PASS host=wasm seed=167
+ORACLE_PASS host=wasm seed=168
+ORACLE_PASS host=wasm seed=169
+ORACLE_PASS host=wasm seed=170
+ORACLE_PASS host=wasm seed=171
+ORACLE_PASS host=wasm seed=172
+ORACLE_PASS host=wasm seed=173
+ORACLE_PASS host=wasm seed=174
+ORACLE_PASS host=wasm seed=175
+ORACLE_PASS host=wasm seed=176
+ORACLE_PASS host=wasm seed=177
+ORACLE_PASS host=wasm seed=178
+ORACLE_PASS host=wasm seed=179
+ORACLE_PASS host=wasm seed=180
+ORACLE_PASS host=wasm seed=181
+ORACLE_PASS host=wasm seed=182
+ORACLE_PASS host=wasm seed=183
+ORACLE_PASS host=wasm seed=184
+ORACLE_PASS host=wasm seed=185
+ORACLE_PASS host=wasm seed=186
+ORACLE_PASS host=wasm seed=187
+ORACLE_PASS host=wasm seed=188
+ORACLE_PASS host=wasm seed=189
+ORACLE_PASS host=wasm seed=190
+ORACLE_PASS host=wasm seed=191
+ORACLE_PASS host=wasm seed=192
+ORACLE_PASS host=wasm seed=193
+ORACLE_PASS host=wasm seed=194
+ORACLE_PASS host=wasm seed=195
+ORACLE_PASS host=wasm seed=196
+ORACLE_PASS host=wasm seed=197
+ORACLE_PASS host=wasm seed=198
+ORACLE_PASS host=wasm seed=199
+ORACLE_PASS host=wasm seed=200
+ORACLE_PASS host=wasm seed=201
+ORACLE_PASS host=wasm seed=202
+ORACLE_PASS host=wasm seed=203
+ORACLE_PASS host=wasm seed=204
+ORACLE_PASS host=wasm seed=205
+ORACLE_PASS host=wasm seed=206
+ORACLE_PASS host=wasm seed=207
+ORACLE_PASS host=wasm seed=208
+ORACLE_PASS host=wasm seed=209
+ORACLE_PASS host=wasm seed=210
+ORACLE_PASS host=wasm seed=211
+ORACLE_PASS host=wasm seed=212
+ORACLE_PASS host=wasm seed=213
+ORACLE_PASS host=wasm seed=214
+ORACLE_PASS host=wasm seed=215
+ORACLE_PASS host=wasm seed=216
+ORACLE_PASS host=wasm seed=217
+ORACLE_PASS host=wasm seed=218
+ORACLE_PASS host=wasm seed=219
+ORACLE_PASS host=wasm seed=220
+ORACLE_PASS host=wasm seed=221
+ORACLE_PASS host=wasm seed=222
+ORACLE_PASS host=wasm seed=223
+ORACLE_PASS host=wasm seed=224
+ORACLE_PASS host=wasm seed=225
+ORACLE_PASS host=wasm seed=226
+ORACLE_PASS host=wasm seed=227
+ORACLE_PASS host=wasm seed=228
+ORACLE_PASS host=wasm seed=229
+ORACLE_PASS host=wasm seed=230
+ORACLE_PASS host=wasm seed=231
+ORACLE_PASS host=wasm seed=232
+ORACLE_PASS host=wasm seed=233
+ORACLE_PASS host=wasm seed=234
+ORACLE_PASS host=wasm seed=235
+ORACLE_PASS host=wasm seed=236
+ORACLE_PASS host=wasm seed=237
+ORACLE_PASS host=wasm seed=238
+ORACLE_PASS host=wasm seed=239
+ORACLE_PASS host=wasm seed=240
+ORACLE_PASS host=wasm seed=241
+ORACLE_PASS host=wasm seed=242
+ORACLE_PASS host=wasm seed=243
+ORACLE_PASS host=wasm seed=244
+ORACLE_PASS host=wasm seed=245
+ORACLE_PASS host=wasm seed=246
+ORACLE_PASS host=wasm seed=247
+ORACLE_PASS host=wasm seed=248
+ORACLE_PASS host=wasm seed=249
+ORACLE_PASS host=wasm seed=250
+ORACLE_PASS host=wasm seed=251
+ORACLE_PASS host=wasm seed=252
+ORACLE_PASS host=wasm seed=253
+ORACLE_PASS host=wasm seed=254
+ORACLE_PASS host=wasm seed=255
+ORACLE_PASS host=wasm seed=256
+ORACLE_PASS host=wasm seed=257
+ORACLE_PASS host=wasm seed=258
+ORACLE_PASS host=wasm seed=259
+ORACLE_PASS host=wasm seed=260
+ORACLE_PASS host=wasm seed=261
+ORACLE_PASS host=wasm seed=262
+ORACLE_PASS host=wasm seed=263
+ORACLE_PASS host=wasm seed=264
+ORACLE_PASS host=wasm seed=265
+ORACLE_PASS host=wasm seed=266
+ORACLE_PASS host=wasm seed=267
+ORACLE_PASS host=wasm seed=268
+ORACLE_PASS host=wasm seed=269
+ORACLE_PASS host=wasm seed=270
+ORACLE_PASS host=wasm seed=271
+ORACLE_PASS host=wasm seed=272
+ORACLE_PASS host=wasm seed=273
+ORACLE_PASS host=wasm seed=274
+ORACLE_PASS host=wasm seed=275
+ORACLE_PASS host=wasm seed=276
+ORACLE_PASS host=wasm seed=277
+ORACLE_PASS host=wasm seed=278
+ORACLE_PASS host=wasm seed=279
+ORACLE_PASS host=wasm seed=280
+ORACLE_PASS host=wasm seed=281
+ORACLE_PASS host=wasm seed=282
+ORACLE_PASS host=wasm seed=283
+ORACLE_PASS host=wasm seed=284
+ORACLE_PASS host=wasm seed=285
+ORACLE_PASS host=wasm seed=286
+ORACLE_PASS host=wasm seed=287
+ORACLE_PASS host=wasm seed=288
+ORACLE_PASS host=wasm seed=289
+ORACLE_PASS host=wasm seed=290
+ORACLE_PASS host=wasm seed=291
+ORACLE_PASS host=wasm seed=292
+ORACLE_PASS host=wasm seed=293
+ORACLE_PASS host=wasm seed=294
+ORACLE_PASS host=wasm seed=295
+ORACLE_PASS host=wasm seed=296
+ORACLE_PASS host=wasm seed=297
+ORACLE_PASS host=wasm seed=298
+ORACLE_PASS host=wasm seed=299
+ORACLE_PASS host=wasm seed=300
+ORACLE_SUMMARY {"host":"wasm","seeds":300,"failed":[],"ms":599719,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+✔ ordinary search generated oracle wasm: 300 seeds (599737.76622ms)
+✔ ordinary search full last 86 overlaps process (2694.631484ms)
+✔ ordinary search full last 100 overlaps process (2493.282142ms)
+✔ ordinary search full last 86 overlaps wasm (2172.332781ms)
+✔ ordinary search full last 100 overlaps wasm (2525.750199ms)
+✔ expired current replacement keeps retained history process (1389.133324ms)
+✔ expired current replacement keeps retained history wasm (2062.406595ms)
+✔ wasm: unknown apply refresh drains after the watermark (2323.217991ms)
+✔ process: unknown apply refresh drains after the watermark (635.684223ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (339.133355ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (362.105498ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (381.183952ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (438.340382ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (401.663406ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (453.554847ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (687.568091ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (578.553899ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (731.221732ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (294.544496ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (313.210721ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (324.650554ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (468.319065ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (450.426822ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (358.286797ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (622.205165ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (529.879031ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (548.071674ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (4159.27103ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (13509.637879ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (14139.734969ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790825798925,"lastStart":1790825802950,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (21241.452929ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790825819054,"lastStart":1790825824164,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (20876.022143ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790825841369,"lastStart":1790825845092,"wallIsReal":true,"link":"online"}
+✔ online keep=undefined: a due completion preserves a newer answer and retries (472.06853ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (431.921413ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (269.819844ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (1690.729711ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (521.719874ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (373.414312ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (578.784069ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (857.084303ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (903.867775ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (513.229955ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (656.725131ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (10.907403ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (10.047182ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (14.182526ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (3.589755ms)
+✔ request abort listeners are removed after success (16.18461ms)
+✔ request abort listeners are removed after rejection (0.610326ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (104.185865ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (24.710279ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (5.131428ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (5.495815ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.327381ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (6.256926ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (1762.233874ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (5727.102102ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (5070.471715ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.451868ms)
+(node:2797828) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ rollback then deploy keeps immutable source identities and serving only attaches (633.848471ms)
+✔ a live release refuses deploy and rollback until the server stops (454.966903ms)
+✔ required pointer and ledger failures happen before database activation (353.162222ms)
+✔ data and doctor inspect persisted state despite destructive or broken source edits (257.288228ms)
+✔ serving edited release schema or programs refuses without adopting them (240.546873ms)
+✔ legacy pointer deployments upgrade through deploy, never implicit serving (457.434935ms)
+✔ local dev and run cannot reactivate source inside a deployed release (461.41803ms)
+✔ inspection of a new project does not initialize a store (44.218544ms)
+✔ check reports generated-type write failures and data refuses malformed limits (211.452457ms)
+✔ run says when a job ignores --as and executes as the system (204.587469ms)
+✔ stopped full-release restore preserves its recovery point and stays separate from the original (7066.033701ms)
+ℹ recovery point: release 1, generation 1, sequence 1; password login and rotation passed; fresh process device only; post-backup original writes excluded; queued effects never delivered; process/stopped-copy recovery, WAL synchronous=NORMAL, no power-loss claim
+✔ a queued scheduled job survives serving process death and runs once after restart (2758.345616ms)
+ℹ owned serve SIGKILL after durable schedule admission, before first chunk; same job id resumed once; one queued effect; no external worker; WAL synchronous=NORMAL, no power-loss claim
+✔ release serving repairs dangling legacy links and refuses an unexpected regular store file (408.650456ms)
+✔ release nextExpiry excludes irrelevant hidden grants: owner (378.155029ms)
+✔ release nextExpiry excludes irrelevant hidden grants: failed branch (262.589086ms)
+✔ release nextExpiry excludes irrelevant hidden grants: second witness (327.60635ms)
+✔ release nextExpiry excludes irrelevant hidden grants: multiple witnesses (502.186351ms)
+✔ release nextExpiry excludes irrelevant hidden grants: correlated branches (312.591996ms)
+(node:2804673) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dev declares two workers, injects usable secret seats, restarts independently and stops both (1487.886248ms)
+✔ serve declares two workers, injects usable secret seats, restarts independently and stops both (1479.878984ms)
+✔ standalone runWorker replays a durable completion after losing acknowledgement and restarting (114.163499ms)
+✔ ledger rolls back a failed handler and never treats failure as completion (40.32989ms)
+✔ two standalone processes sharing a ledger perform one action, then replay after both exit (819.13552ms)
+✔ unread range wasm: covered-strict (638.965522ms)
+✔ unread range wasm: inclusive-floor-tie (341.456294ms)
+✔ unread range wasm: strict-floor-tie (452.70563ms)
+✔ unread range wasm: inclusive-above-floor (364.342386ms)
+✔ unread range wasm: reversed (364.904068ms)
+✔ unread range wasm: strongest-bound (357.569585ms)
+✔ unread range wasm: strict-wins-equal-bound (397.160937ms)
+✔ unread range wasm: strict-wins-equal-bound-first (359.916635ms)
+✔ unread range wasm: null-bound (387.755406ms)
+✔ unread range wasm: null-sibling-is-weakest (375.776747ms)
+✔ unread range wasm: upper-bound (314.449068ms)
+✔ unread range wasm: wrong-order (287.720653ms)
+✔ unread range wasm: composite-wrong-order (339.045656ms)
+✔ unread range wasm: composite-leading-ordinal (352.717455ms)
+✔ unread range wasm: public-parent-mismatch (298.657289ms)
+✔ unread range wasm: below-floor (365.39321ms)
+✔ unread range wasm: empty-whole (232.539965ms)
+✔ unread range wasm: whole (284.748564ms)
+✔ unread range wasm: missing-acquisition (217.335957ms)
+✔ unread range wasm: own-and-tombstone (331.393536ms)
+✔ unread range wasm: offline-expiry (314.399774ms)
+✔ unread range wasm: floor-expiry (298.564238ms)
+✔ unread range wasm: floor-deletion (530.612306ms)
+✔ unread range wasm: physical-deletion (461.286639ms)
+✔ unread range wasm: backdated-delivery (410.602728ms)
+✔ unread range wasm: backward-watermark (436.3429ms)
+✔ unread range wasm: prediction-covered (540.46904ms)
+✔ unread range wasm: prediction-uncovered (398.400392ms)
+✔ unread range wasm: prediction-empty (319.125301ms)
+✔ unread range wasm: meter-cut (31062.523683ms)
+✔ unread range wasm: retained-rejoin (310.960592ms)
+✔ unread range wasm: short-range-large-window (60805.713426ms)
+✔ unread range wasm: null-whole-semantics (281.255355ms)
+✔ unread range wasm: upper-whole-semantics (256.027343ms)
+✔ unread range wasm: sequence-empty-prediction (223.303087ms)
+✔ unread range wasm: interrupted-acquisition (388.67793ms)
+✔ unread range wasm: provisional-empty-range-refusal (393.964169ms)
+✔ unread range wasm: nonexpiring-pending-keeps-settled (399.007143ms)
+✔ unread range wasm: source-authority-lost (298.455064ms)
+✔ unread range wasm: prediction-uncovered-empty (275.520713ms)
+✔ unread range wasm: null-no-other-column (264.884538ms)
+✔ unread range wasm: other-column-only (297.356927ms)
+✔ unread range wasm: public-whole (339.847773ms)
+✔ unread range wasm: whole-expired-backlog (22543.66685ms)
+✔ unread range wasm: lower-bound-expiry (395.705672ms)
+✔ unread range wasm: prediction-1024 (3939.59859ms)
+✔ unread range wasm: prediction-1025 (3473.618266ms)
+✔ unread range wasm: provisional-nonempty-range-refusal (388.585509ms)
+✔ unread range wasm: null-source-authority-lost (445.058928ms)
+✔ unread range wasm: strongest-bound-first (359.619531ms)
+✔ unread range wasm: null-sibling-last (345.295806ms)
+✔ unread range wasm: sequence-short-range-large-window (58874.218165ms)
+✔ unread range wasm: provisional-residual-sequence-refusal (37508.948716ms)
+✔ unread range wasm: provisional-member-sequence-refusal (630.331403ms)
+  query badge:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.badge.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+  query badgeRows:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.badgeRows.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    scan unread.$intent:byPrincipal:0a27093f52d1419b first 100 — rule decided by the prefix: no probes
+      selected $intent:byPrincipal:0a27093f52d1419b (principal = viewer); result: page; synthesized; explicit by; read: unread where .principal = viewer first 100
+      sort/group/sum/count consume this page, not the whole population
+  mutation mark:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.mark.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    write target members.byId — engine-private lookup; the update rule decides
+    point unread.byGroup — one row, one rule check
+    update members, fans out to .principal
+  mutation depend:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.depend.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+  mutation send:
+    scale: constant — at most 8196 rows examined, 8197 probes, 0 lanes; per write: `unread`: at most 2 derived writes per source transition (old/new groups)
+    no explicit reads
+    insert messages, fans out to the members in members
+  mutation countThenRefuse:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.countThenRefuse.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+✔ unread range check names the chosen predicates, index and horizon (599.105387ms)
+✔ unread badge uses server fallback online and keeps its bound after cold offline reopen (1583.262492ms)
+✔ the guide Clique program certifies and expires on wasm after reopen (10184.312383ms)
+✔ unread fallback respects held (1747.331444ms)
+✔ unread fallback respects prediction (4874.226648ms)
+✔ several wasm badges share one request allowance (50809.887987ms)
+✔ check enumerates every range candidate and its fallback in text and JSON (397.108884ms)
+✔ check omits the device range for a stored non-expiring count (580.510208ms)
+(node:2820572) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (3464.190996ms)
+  ✔ exit notification waits for a session turn queued after strict admission (1251.378492ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (2144.239491ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (5431.255544ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (5715.029042ms)
+  ✔ a hide during the startup probe waits for its accepted decision (8127.435054ms)
+  ✔ a hide during the startup probe waits for its refused decision (6246.468929ms)
+  ✔ a hide during the startup probe waits for its restore decision (6745.217997ms)
+  ✔ a hide during the startup probe waits for its replacement decision (7865.873602ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (8632.681356ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (7716.686597ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (7599.226998ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (5156.327469ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (6191.91566ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (5976.328756ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (7459.801854ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (8017.312984ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (8242.670104ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (11744.916934ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (12285.477784ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (7616.096298ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (5754.05404ms)
+  ✔ a successful reconnect enables exit after startup 503s (6911.542548ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (14206.669036ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (15178.898121ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (11150.817608ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (12352.548659ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (5834.483477ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (5486.085206ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (5668.419281ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (6456.247466ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (6795.817293ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (7032.322063ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (6566.811433ms)
+  ✔ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (5167.415453ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (6620.874631ms)
+  ✔ a legacy refused observation with no history remains pending until same-id replay (8555.789203ms)
+  ✔ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (3275.921411ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (10928.9598ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (4792.786754ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (7851.305003ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (7892.64444ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (9789.867244ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (10111.597292ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (10314.968072ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (10188.013673ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (10555.609272ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (9252.642702ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (7943.03131ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (9204.18023ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (12018.244168ms)
+  ✔ same-epoch logout tombstone refuses live admission (3219.997948ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (12500.722983ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (5062.708326ms)
+✔ web admission review: recovery and transport respect the session boundary (421209.792217ms)
+ℹ {"mode":"held-sync","id":"01M3TRQ9B7EF823HGB1AKBKHG8","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3TRQDNGYRC4G5E56NW216AY","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3TRQVAXQ9EQXVWQTVQW1Q07","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"refused","originalId":"01M3TRR25Q3BWH76V0KSFEKEQR","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"restore","originalId":"01M3TRR7W09878HJ0QZTZGN0N9","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"replacement","originalId":"01M3TRREV543TCEJDR4ETJG4EC","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3TRRNWT86FVEDAGHK6RJ1TW","sendsWhileProbeHeld":0,"originalAudit":5,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3TS18FX5M9X622H0YGZ7P81","originalStore":"333e1a59f4b8a0e0dd12f70aacd61c1d","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3TS1HZC81N1XY8QPN5M50XK","originalStore":"333e1a59f4b8a0e0dd12f70aacd61c1d","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+ℹ {"orphan":"01M3TS1X9J9XJAEVCRE7VMEHN1","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3TS26DGYAHSA43KAT018SNT","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3TS2GKHSB7QY4F6XRYRNNHP","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3TS2RV7GGM1EP3TVPBRF10Q","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1216 ms
+✔ stalled exit body recovers in order (not applied) (4020.708764ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 1 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1060 ms
+✔ stalled exit body recovers in order (already applied acknowledgement) (1489.371649ms)
+stalled exit close: 974 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1303.572949ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.535914ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1518.411773ms)
+✔ pagehide dispatch and retryable hold invalidate the pending-write list (1361.76844ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1472.465017ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1323.826982ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=false) (1509.737097ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=true) (1359.677389ms)
+✔ a second exit before its status commit supersedes the first acknowledged exit and later hold (1358.874144ms)
+✔ first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available) (1341.805513ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available) (1345.677689ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws) (1585.259722ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1423.285125ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available) (1456.149134ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws) (1392.200932ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1435.940232ms)
+✔ pagehide dispatch subscriber signOut prevents keepalive and POST (1606.44505ms)
+✔ pagehide dispatch subscriber close prevents keepalive and POST (1575.205975ms)
+✔ IndexedDB save resolves on transaction completion, not request success (5.342022ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1484.203875ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1492.48911ms)
+keepalive: 64179 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (1.521552ms)
+✔ exit ordering survives reversed server processing (0.56031ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (24.033716ms)
+✔ exit overlaps only the same ordinary in-flight head (1494.905383ms)
+✔ ordinary flush waits for the exit request before replaying its head (1229.911456ms)
+ℹ tests 456
+ℹ suites 0
+ℹ pass 454
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1364468.382747
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-seams.test.mjs:1:1
+✖ packages/snapback4/test/client-seams.test.mjs (258981.178424ms)
+  'test failed'
+
+test at packages/snapback4/test/ordinary-search-oracle.test.mjs:359:5
+✖ ordinary search generated oracle process: 300 seeds (704199.49427ms)
+  AssertionError [ERR_ASSERTION]: [{"seed":69,"message":"one invocation per publication round, bounded at four for a retired page"}]
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:393:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✔ online session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (344101.952141ms)
+ℹ tier=online sequences=5000 seed=1..5000 coverage={"open.online":33124,"storage.get.epoch":151096,"storage.get.session":559751,"storage.get.retirement":242795,"op.guest":9709,"wire./auth/guest":8525,"storage.get.writes":31018,"storage.set.session":49148,"op.reopen":9838,"op.readObservation":4932,"handle.captured":15909,"op.release":5988,"op.sibling":4806,"server.externalSibling":2683,"op.handleMutate":5977,"wire./probe":2003,"storage.set.writes":11421,"wire./m/write":1806,"wire.handleWrite":1791,"write.failed":885,"consistent.onWrite.failed":842,"handle.resultSettled":14171,"write.outcome":1775,"write.outcome.failed":876,"write.knownAtDelivery":1700,"consistent.mutate.failed":839,"op.handleWrite":7227,"consistent.write.failed":1456,"op.handleQuery":4794,"wire./q/viewer":3091,"op.query":4891,"op.close":4772,"handle.hidden":6529,"handle.sessionNotification":7448,"handle.viewerNotification":6529,"storage.set.retirement":32086,"fault.set":327,"fault.set.1":159,"op.retireOffline":4890,"op.logout":4873,"wire./auth/logout":31874,"wire.retirementOffline":2776,"op.reopenOffline":4957,"wire.offline":5532,"storage.delete.retirement":14896,"retirement.removed":23017,"op.refreshFault":4771,"op.signup":4743,"wire./auth/signup":3575,"op.handleRefresh":4847,"op.capture":4726,"op.refresh":4737,"op.closeClient":4728,"wire./auth/refresh":3962,"held./auth/refresh":390,"op.logoutEverywhere":4786,"op.revokeCurrent":4726,"held./auth/guest":505,"held./auth/logout":1641,"op.holdStore":4786,"op.observeHandle":4792,"observation.created":4792,"observation.notification":6284,"held.storage.set":2650,"interleaving.storage.peer":17826,"op.retireOnline":4799,"op.revoke":4842,"server.revoke":4085,"op.login":4790,"op.receiptOffline":1250,"write.sent":906,"fault.receiptSave":3750,"consistent.onWrite.sent":855,"write.outcome.sent":899,"consistent.mutate.sent":853,"consistent.write.sent":1446,"consistent.writeDuringReceiptFailure":1250,"op.receiptOnline":1250,"wire./auth/login":3647,"wire./changes":727,"fault.get":2895,"fault.get.9":189,"fault.set.3":46,"handle.hidden.handleQuery":1007,"fault.get.5":269,"held./q/viewer":411,"fault.get.3":282,"wire./auth/logout-all":5677,"global.attempt":4847,"global.acknowledged":819,"fault.set.5":12,"global.publicAcknowledgement":618,"fault.rotationSave":539,"handle.hidden.handleRefresh":993,"held.dispatch/auth/guest":435,"held./auth/signup":470,"observation.data":6111,"observation.hidden":475,"fault.get.7":253,"global.externalSiblingRevoked":166,"fault.get.2":342,"held./m/write":522,"fault.set.2":93,"global.attemptRefused":4028,"fault.get.8":191,"handle.hidden.handleMutate":999,"handle.hidden.handleWrite":1345,"held.dispatch/auth/login":469,"global.peerHeldRotation":30,"global.rotatedBearer":178,"fault.get.10":193,"held./auth/logout-all":126,"fault.get.6":223,"fault.get.12":146,"fault.get.4":290,"fault.get.1":350,"held.dispatch/auth/signup":417,"fault.get.11":167,"held./auth/login":47,"global.peerPersistedRotation":79,"write.outcomeAfterFence":83,"write.outcomeAfterFence.failed":37,"write.unknownAtClose":75,"write.outcomeAfterFence.sent":46,"fault.delete":65,"fault.delete.1":65,"fault.set.4":15,"global.newerAccountEpoch":7,"global.ackWithLaterToken":2,"fault.set.8":1,"fault.set.9":1}
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+✔ local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (684977.234208ms)
+ℹ tier=local sequences=5000 seed=1..5000 coverage={"open.local":33025,"storage.get.epoch":256774,"storage.get.session":672770,"storage.get.retirement":236001,"op.guest":9709,"wire./auth/guest":8518,"wire./schema":18470,"storage.set.session":49581,"wire./sync":41530,"wire./changes":21707,"op.reopen":9838,"op.readObservation":4932,"handle.captured":15909,"op.release":5988,"op.sibling":4806,"server.externalSibling":2611,"wire./probe":8077,"op.handleMutate":5977,"wire./m/write":2107,"wire.handleWrite":1863,"write.failed":922,"consistent.onWrite.failed":872,"handle.resultSettled":13544,"write.outcome":1731,"write.outcome.failed":842,"write.knownAtDelivery":1658,"consistent.mutate.failed":799,"op.handleWrite":7227,"consistent.write.failed":1485,"op.handleQuery":4794,"op.query":4891,"op.close":4772,"handle.hidden":5724,"handle.sessionNotification":6563,"handle.viewerNotification":5724,"storage.set.retirement":31674,"fault.set":305,"fault.set.1":156,"op.retireOffline":4890,"op.logout":4873,"wire./auth/logout":30401,"wire.retirementOffline":2506,"op.reopenOffline":4957,"wire.offline":10939,"storage.delete.retirement":16443,"retirement.removed":23681,"op.refreshFault":4771,"op.signup":4743,"wire./auth/signup":3570,"op.handleRefresh":4847,"op.capture":4726,"op.refresh":4737,"op.closeClient":4728,"wire./auth/refresh":3530,"held./auth/refresh":387,"op.logoutEverywhere":4786,"op.revokeCurrent":4726,"held./auth/logout":1279,"held./auth/guest":495,"op.holdStore":4786,"op.observeHandle":4792,"observation.created":4792,"observation.notification":7580,"held./m/write":545,"held.storage.set":2551,"interleaving.storage.peer":17173,"op.retireOnline":4799,"op.revoke":4842,"server.revoke":3751,"op.login":4790,"op.receiptOffline":1250,"write.sent":941,"fault.receiptSave":9168,"consistent.onWrite.sent":889,"write.outcome.sent":889,"consistent.mutate.sent":844,"consistent.write.sent":1488,"consistent.writeDuringReceiptFailure":1250,"op.receiptOnline":1250,"wire./auth/login":3635,"fault.get":2903,"fault.get.6":199,"wire./q/viewer":1973,"fault.set.3":42,"handle.hidden.handleQuery":929,"fault.get.5":256,"held./q/viewer":243,"fault.get.3":283,"wire./auth/logout-all":3824,"global.attempt":3344,"global.acknowledged":762,"fault.set.5":8,"global.publicAcknowledgement":598,"fault.rotationSave":533,"handle.hidden.handleRefresh":948,"held.dispatch/auth/guest":426,"held./auth/signup":475,"observation.data":7822,"observation.hidden":508,"fault.get.9":187,"global.externalSiblingRevoked":149,"fault.get.11":168,"write.outcomeAfterFence":88,"write.outcomeAfterFence.failed":43,"write.unknownAtClose":73,"fault.set.2":87,"global.attemptRefused":2582,"fault.get.7":227,"fault.get.8":184,"held.dispatch/auth/login":462,"global.peerHeldRotation":24,"wire.obsoleteAuth":58,"handle.hidden.handleWrite":1163,"global.rotatedBearer":137,"fault.get.10":193,"held./auth/logout-all":113,"handle.hidden.handleMutate":943,"fault.get.12":159,"fault.get.4":298,"fault.get.1":372,"held.dispatch/auth/signup":415,"held./auth/login":46,"fault.get.2":377,"fault.delete":78,"fault.delete.1":69,"global.peerPersistedRotation":71,"fault.delete.2":9,"write.outcomeAfterFence.sent":45,"fault.set.4":11,"global.newerAccountEpoch":6,"global.ackWithLaterToken":1,"fault.set.8":1}
+✔ I13 online: sent stays known through receipt-store failure and repair (26.309322ms)
+✔ I13 online: failed stays known through receipt-store failure and repair (23.717535ms)
+✔ I13 local: sent stays known through receipt-store failure and repair (51.975799ms)
+✔ I13 local: failed stays known through receipt-store failure and repair (37.681584ms)
+✔ model regression: a peer-fenced provisional local opener cannot leave auth restoring (198.153467ms)
+✔ model regression: online held commit remains pending with its id across close (16.953552ms)
+✔ model regression: online held commit remains pending with its id across logout (23.128161ms)
+✔ model regression: online held refusal remains pending with its id across close (13.902076ms)
+✔ model regression: online held refusal remains pending with its id across logout (13.67069ms)
+✔ model regression: local held commit remains pending with its id across close (38.780162ms)
+✔ model regression: local held commit remains pending with its id across logout (25.598486ms)
+✔ model regression: local held refusal remains pending with its id across close (35.486843ms)
+✔ model regression: local held refusal remains pending with its id across logout (32.047427ms)
+✔ model regression: failed local rotation persistence cannot be committed by a second notification save (35.260574ms)
+snapback4: the server refused the partition: E_AUTH: refused
+✔ model regression: obsolete predecessor refusal waits for the held local rotation (65.397576ms)
+✔ model regression: a global caller waiting for rotation cannot select an intervening replacement (23.632197ms)
+✔ model regression: receipt storage failure retains custody without replacing a dispatched outcome (25.985867ms)
+✔ model regression: an undelivered write remains pending with its id across logout (13.36419ms)
+✔ model regression: a facade hidden after dispatch preserves the raw rotation outcome (21.032028ms)
+✔ model regression: a refresh result fulfilled before hiding is not a new disclosure by its later handler (124.782925ms)
+✔ model regression: storage observation follows delivery, not entry into the backing adapter (27.70209ms)
+✔ model regression: an acknowledgement cannot retire a login minted after its attempt (38.831078ms)
+✔ model regression: a dormant global caller cannot adopt a later login's account epoch (28.881078ms)
+✔ model regression: a queued login cannot suppress the committed global logout's publication (13.383859ms)
+✔ model regression: a stale global retry does not recreate an acknowledged retirement (17.39899ms)
+✔ model regression: global logout selects a peer's persisted successor (23.341762ms)
+✔ model regression: a late successor inherits a closed peer's global fence (27.797102ms)
+✔ model regression: offline reopening starts after close commits the owned rotation (22.53402ms)
+✔ model regression: refusal after a failed rotation save also excludes its consumed predecessor (17.67899ms)
+✔ model regression: failed global fencing keeps retained handles and observations usable (32.395088ms)
+✔ model regression: a failed read during signup cannot revoke the saved session (6.354248ms)
+✔ model regression: close retains custody of a late guest response (10.201648ms)
+✔ model regression: replacement retires a rotation whose persistence read failed (23.128381ms)
+✔ model regression: a closed runtime cannot return to restoring after a peer's replacement (24.811286ms)
+✔ model regression: refusal fencing retries a transient tombstone failure before offline reopen (20.099721ms)
+✔ model regression: refusal cleanup cannot wait behind a held sign-in (273.340342ms)
+✔ model regression: an older queued global logout cannot suppress a newer logout's completion (3.40144ms)
+✔ model regression: closed auth actions cannot leave a held logout restoring (21.849894ms)
+✔ model regression: a queued global retry completes the signed-out public view (21.365979ms)
+✔ model regression: late refusal cannot republish restoring after close (19.128815ms)
+✔ model regression: acknowledged global revocation retries cleanup after a failed deletion (10.546275ms)
+✔ model regression: epoch fencing hides the public client before retirement notifications (25.149693ms)
+✔ model regression: a retiring runtime clears its acknowledged global tombstone after a read failure (22.80726ms)
+✔ session model sweeps 120 failure points after an unpersisted rotation (2767.414213ms)
+✔ I12 local close retains a body delivered while cleanup awaits another runtime (56.025552ms)
+✔ I12 online: the full terminal oracle catches an in-memory refusal-message corruption (25.678034ms)
+✔ I12 local: the full terminal oracle catches an in-memory refusal-message corruption (67.999317ms)
+✔ I12 online: full refusal equality also holds after the caller is fenced (38.898098ms)
+✔ I12 local: full refusal equality also holds after the caller is fenced (211.905448ms)
+✔ publication seed 11: fair recovery waits for overlapping model work before owning its clock (4007.245423ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1039017.254279

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Node model of document teardown: the wasm device and server are real;
 // ordinary fetch loses its reply on pagehide, while keepalive survives.
 import test from "node:test";
@@ -16,10 +17,9 @@ const seed = [
 ];
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check, ms = 2000) {
-  const end = performance.now() + ms;
-  do { if (await check()) return true; await new Promise(r => setTimeout(r, 10)); } while (performance.now() < end);
-  return false;
+async function until(check) {
+  await awaitState(check);
+  return true;
 }
 async function fixture(t, { exclusive = true } = {}) {
   if (exclusive) locks(t);
@@ -115,7 +115,7 @@ test("W6d: caller id reservations preserve synchronous journal custody without d
   assert.equal((await conflict).why.code, "E_WRITE_ID_REUSE");
   assert.equal(f.durable().length, 1);
   offline = false; await client.sync();
-  assert.ok(await until(async () => (await client.write(id))?.state === "sent", 15000));
+  assert.ok(await until(async () => (await client.write(id))?.state === "sent"));
   assert.equal((await f.audit()).total, 1); assert.equal((await f.rows()).length, 1);
   t.diagnostic("caller_id_journal_records=1 durable_entries=1 applied=1");
 });
@@ -833,7 +833,7 @@ test("W11R1a: lock release after foreground retries recovers without a backend w
   // The foreground open (all eleven attempts on the old implementation) has
   // finished. Release only now; no sync, mutation or change reply follows.
   release.resolve(); await holding;
-  assert.ok(await until(() => !f.persist.stores.has(source), 5000), "the busy candidate remains a background responsibility");
+  assert.ok(await until(() => !f.persist.stores.has(source)), "the busy candidate remains a background responsibility");
   assert.equal((await replacement.write(sent.id))?.state, "sent");
   assert.equal((await f.audit()).total, 1);
   t.diagnostic(`foreground_lock_misses=${foregroundMisses} post_release_backend_writes=0 applications=1`);
@@ -857,13 +857,13 @@ test("W11R1a: background outbox adoption keeps one sender and never takes a live
   assert.ok((await f.persist.load(source)).some(c => c.s === "o" && c.k === pending.id));
   await secondary.close();
   // No backend change or explicit sync wakes the adopters after the close.
-  const arrived = await until(() => posts.length > 0, 5000);
+  const arrived = await until(() => posts.length > 0);
   if (!arrived) t.diagnostic(JSON.stringify({ pending: await primary.pendingWrites(), replacement: await replacement.pendingWrites(), stores: [...f.persist.stores.keys()], durable: f.durable() }));
   assert.ok(arrived); await sending.promise;
   assert.equal(posts.length, 1); assert.equal(f.durable().length, 1);
   assert.ok(!f.persist.stores.has(source));
   release.resolve();
-  assert.ok(await until(async () => (await f.audit())?.total === 1, 5000));
+  assert.ok(await until(async () => (await f.audit())?.total === 1));
   await primary.sync(); await replacement.sync();
   assert.equal(posts.length, 1); assert.equal((await f.audit()).total, 1);
   t.diagnostic("live_owner_adoptions=0 adopted_outbox_owners=1 posts=1 applications=1");
@@ -880,7 +880,7 @@ test("W11R1a: shared persistence failure leaves the source recoverable", async t
   assert.ok(f.persist.stores.has(source));
   assert.ok((await f.persist.load(source)).some(c => c.k === "client:write-history" && JSON.parse(c.v).some(w => w.id === sent.id)));
   blocked = false;
-  assert.ok(await until(() => !f.persist.stores.has(source), 5000));
+  assert.ok(await until(() => !f.persist.stores.has(source)));
   const replacement = await f.open(quietChanges);
   assert.equal((await replacement.write(sent.id))?.state, "sent");
   assert.equal((await f.audit()).total, 1);
@@ -929,7 +929,7 @@ test("W11R1a: competing adopters serialize shared receipts without holding up an
   const replacement = await f.open(quietChanges);
   assert.equal((await f.persist.others(`${storeName(f)}:tab-`)).length, 3, "two sources stay intact while the receipt transaction is busy");
   release.resolve(); await adopting;
-  assert.ok(await until(async () => (await replacement.write(a.id))?.state === "sent" && (await replacement.write(b.id))?.state === "sent", 5000));
+  assert.ok(await until(async () => (await replacement.write(a.id))?.state === "sent" && (await replacement.write(b.id))?.state === "sent"));
   assert.equal((await f.audit()).total, 2);
   t.diagnostic("competing_adopters=2 shared_receipts=2 applications=2");
 });
@@ -950,7 +950,7 @@ test("W6R1 web: two live tabs admit the same new caller ID and apply once", asyn
   assert.equal((await a).state, "pending"); assert.equal((await b).state, "pending");
   assert.equal(f.durable().length, 2); assert.ok(f.durable().every(e => e.id === id));
   offline = false; await Promise.all([first.sync(), second.sync()]);
-  assert.ok(await until(async () => (await first.write(id))?.state === "sent" && (await second.write(id))?.state === "sent", 15000));
+  assert.ok(await until(async () => (await first.write(id))?.state === "sent" && (await second.write(id))?.state === "sent"));
   assert.equal((await f.audit()).total, 1); assert.equal((await f.rows()).length, 1);
   assert.deepEqual(await first.write(id), await second.write(id));
   assert.equal(sends.length, 2); assert.ok(sends.every(e => e.id === id));
@@ -1003,14 +1003,14 @@ test("W6R1 journal: an evicted guarded caller ID survives failed admission persi
   assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id);
   assert.equal(f.durable()[0].predictable, false); assert.deepEqual(f.durable()[0].predicted, []);
   offline = false; await recovered.sync();
-  assert.ok(await until(async () => (await recovered.write(id))?.state === "sent", 15000));
+  assert.ok(await until(async () => (await recovered.write(id))?.state === "sent"));
   assert.deepEqual(await recovered.write(id), { state: "sent", id, seq: original.seq, replayed: true });
   assert.equal(posts.length, 0, "sync already correlated the original id; its known terminal receipt is settled without replay");
   assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
   t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 correlated_receipts=1 replay_posts=0 duplicate_rows=0");
 });
 
-test("device close model: cancelled callers retain their ids across offline and online reopen", { timeout: 60000 }, async t => {
+test("device close model: cancelled callers retain their ids across offline and online reopen", { timeout: hangBudget(25) }, async t => {
   const f = await fixture(t), coverage = { unreached: 0, committed: 0, delivered: 0, late: 0, early: 0 };
   let random = 0x14c105e;
   const choose = n => { random ^= random << 13; random ^= random >>> 17; random ^= random << 5; return (random >>> 0) % n; };

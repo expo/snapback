@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -16,11 +17,7 @@ import { listEffects, mintSession, revokeSessions, runWorker } from "../dist/wor
 const session = (token, expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000) => ({ principal: "user:alice", kind: "user", token, expiresAt });
 const auth = (init) => new Headers(init?.headers).get("authorization");
 const deferred = () => { let resolve; const promise = new Promise((done) => { resolve = done; }); return { promise, resolve }; };
-const until = async (predicate, message) => {
-  const deadline = Date.now() + 2_000;
-  while (!predicate() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
-  assert.ok(predicate(), message);
-};
+const until = async (predicate, message) => { return awaitState(predicate, message); };
 
 test("the default session store stays in memory and browser persistence is explicit", async () => {
   const calls = [];

@@ -1,0 +1,80 @@
+✔ online: four retired publications refuse with a retryable code (460.636404ms)
+✖ online: ignored transport abort still settles and fences the late answer (122135.014784ms)
+✔ online: close settles an outstanding one-shot without waiting for transport (140.239707ms)
+✔ online: signOut settles an outstanding one-shot without waiting for transport (137.642313ms)
+✔ wasm: four retired publications refuse with a retryable code (867.199768ms)
+✔ wasm: ignored transport abort still settles and fences the late answer (185.442077ms)
+✔ wasm: close settles an outstanding one-shot without waiting for transport (200.489935ms)
+✔ wasm: signOut settles an outstanding one-shot without waiting for transport (165.429678ms)
+✔ process: four retired publications refuse with a retryable code (506.087021ms)
+✔ process: ignored transport abort still settles and fences the late answer (365.235077ms)
+✔ process: close settles an outstanding one-shot without waiting for transport (199.743206ms)
+✔ process: signOut settles an outstanding one-shot without waiting for transport (205.844281ms)
+✔ app-online: four retired publications refuse with a retryable code (354.786523ms)
+✔ app-online: ignored transport abort still settles and fences the late answer (154.518521ms)
+✔ app-online: close settles an outstanding one-shot without waiting for transport (139.611365ms)
+✔ app-online: signOut settles an outstanding one-shot without waiting for transport (140.470673ms)
+✔ app-wasm: four retired publications refuse with a retryable code (382.026658ms)
+✔ app-wasm: ignored transport abort still settles and fences the late answer (191.96779ms)
+✔ app-wasm: close settles an outstanding one-shot without waiting for transport (184.994366ms)
+✔ app-wasm: signOut settles an outstanding one-shot without waiting for transport (166.683758ms)
+✔ app-process: four retired publications refuse with a retryable code (454.157966ms)
+✔ app-process: ignored transport abort still settles and fences the late answer (264.836323ms)
+✔ app-process: close settles an outstanding one-shot without waiting for transport (229.318ms)
+✔ app-process: signOut settles an outstanding one-shot without waiting for transport (247.287377ms)
+✔ wasm: device queue wait behind observations is inside the one-shot deadline (181.142522ms)
+✔ wasm: an unexpired permitted remembered answer still serves offline (176.610939ms)
+✔ process: device queue wait behind observations is inside the one-shot deadline (247.566085ms)
+✔ process: an unexpired permitted remembered answer still serves offline (227.392353ms)
+✔ app-wasm: device queue wait behind observations is inside the one-shot deadline (176.101926ms)
+✔ app-wasm: an unexpired permitted remembered answer still serves offline (206.096009ms)
+✔ app-process: device queue wait behind observations is inside the one-shot deadline (372.455199ms)
+✔ app-process: an unexpired permitted remembered answer still serves offline (303.407644ms)
+✔ app-online: blocked facade authority shares the same deadline (256.82876ms)
+✔ app-wasm: blocked facade authority shares the same deadline (288.750352ms)
+✔ app-process: blocked facade authority shares the same deadline (214.781188ms)
+▶ wasm: seeded one-shot/write/link/deadline/close model
+  ✔ session 0 (1018.445636ms)
+  ✔ session 1 (430.747999ms)
+  ✔ session 2 (353.205258ms)
+  ✔ session 3 (400.712224ms)
+  ✔ session 4 (311.313388ms)
+  ✔ session 5 (471.898596ms)
+  ✔ session 6 (435.430549ms)
+  ✔ session 7 (401.800305ms)
+  ✔ session 8 (478.422767ms)
+  ✔ session 9 (346.810932ms)
+  ✔ session 10 (730.47603ms)
+  ✔ session 11 (302.759135ms)
+✔ wasm: seeded one-shot/write/link/deadline/close model (5685.610395ms)
+▶ process: seeded one-shot/write/link/deadline/close model
+  ✔ session 0 (450.659998ms)
+  ✔ session 1 (408.496753ms)
+  ✔ session 2 (425.912279ms)
+  ✔ session 3 (458.68007ms)
+  ✔ session 4 (406.742684ms)
+  ✔ session 5 (445.723638ms)
+  ✔ session 6 (480.734041ms)
+  ✔ session 7 (362.757386ms)
+  ✔ session 8 (446.943978ms)
+  ✔ session 9 (351.502144ms)
+  ✔ session 10 (485.392764ms)
+  ✔ session 11 (336.347496ms)
+✔ process: seeded one-shot/write/link/deadline/close model (5061.561823ms)
+ℹ tests 61
+ℹ suites 0
+ℹ pass 60
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 131313.299165
+
+✖ failing tests:
+
+test at packages/snapback4/test/one-shot-bounds.test.mjs:41:3
+✖ online: ignored transport abort still settles and fences the late answer (122135.014784ms)
+  Error: TEST_HANG: condition; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

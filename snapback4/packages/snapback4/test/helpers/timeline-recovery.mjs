@@ -1,3 +1,4 @@
+import { hangBudget, waitFor as awaitState } from './wait.mjs';
 // Revision 7: the original historical-image counterexample, driven through
 // the production SDK on both device stores, is a positive recovery regression.
 import assert from 'node:assert/strict';
@@ -13,11 +14,7 @@ import {createLocalClient} from '../../dist/local.js';
 import {memoryPersistence, webDevice} from '../../dist/web.js';
 import {processDevice} from '../../dist/native.js';
 
-async function until(check, message) {
-  const deadline=Date.now()+30000;
-  while(Date.now()<deadline) { if(await check())return; await new Promise(r=>setTimeout(r,20)); }
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 function parkedChanges(signal) {
   let cleanup;
   return new Response(new ReadableStream({
@@ -44,7 +41,7 @@ export async function recoverTimeline() {
   try {
     await until(()=>{assert.equal(server.exitCode,null,log);return url;},'server startup');
     const request=async(path,body)=>{
-      const response=await fetch(url+path,{method:body===undefined?'GET':'POST',headers:{'x-snapback-persona':'author','content-type':'application/json'},signal:AbortSignal.timeout(30000),...(body===undefined?{}:{body:JSON.stringify(body)})});
+      const response=await fetch(url+path,{method:body===undefined?'GET':'POST',headers:{'x-snapback-persona':'author','content-type':'application/json'},signal:AbortSignal.timeout(hangBudget()),...(body===undefined?{}:{body:JSON.stringify(body)})});
       const text=await response.text();assert.equal(response.status,200,text);return {data:JSON.parse(text),bytes:Buffer.byteLength(text)};
     };
     const mutate=async(op,args={})=>{const {data}=await request('/m/'+op,{args});assert.equal(data.state,'sent',JSON.stringify(data));return data;};

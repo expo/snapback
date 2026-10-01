@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -20,7 +21,7 @@ function fingerprint(binding) {
   return hash.digest('hex');
 }
 for (const mode of ['online', 'local-fallback', 'local-publication']) {
-  test(`integrated delivery binding, manifest, report and no-op replay: ${mode}`, { timeout: 20000 }, async t => {
+  test(`integrated delivery binding, manifest, report and no-op replay: ${mode}`, { timeout: hangBudget(21) }, async t => {
     let source = `use personas alice\n${fixture}`
       .replace('  public\n', '  public\n  insert <- allow\n')
       .replace('  require low <= high else NOT_A_RUN\n  return null',
@@ -116,7 +117,7 @@ query coverage():
 
 // @ref LLP 3000.022#14 — a real manifest must carry maintenance custody all
 // the way through the online reporter and the server fingerprint check.
-test('declarative full runs compact a long deleted hole through the real SDK', {timeout:20000}, async t=>{
+test('declarative full runs compact a long deleted hole through the real SDK', {timeout:hangBudget(15)}, async t=>{
  const source=`use personas alice, bob
 table conversations:
   creator: principal

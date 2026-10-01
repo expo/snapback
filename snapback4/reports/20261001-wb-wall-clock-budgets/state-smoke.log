@@ -1,0 +1,171 @@
+✔ proof stays active after handler return until the response finishes (18.53437ms)
+✔ premature proof response close without an error event is fatal (4.067827ms)
+✔ the registered intentional committed-mint cut is the only close exemption (1.481321ms)
+✔ teardown serves 503 while a proof response is still draining (2.684704ms)
+✔ drain timeout aborts pending work and closes the owned server (6.919641ms)
+✔ preexisting failure survives bounded abort cleanup unchanged (1.572747ms)
+✔ an active proof request failure is fatal with a fixed code (1.55441ms)
+✔ new traffic during explicit teardown is refused without latching a failure (0.155744ms)
+✔ a preexisting failure cannot be erased by teardown (0.130225ms)
+✔ a request begun in proof remains fatal when it fails after transition (0.161643ms)
+✔ drain wait times out while a proof request never finishes (4.579845ms)
+✔ unknown error text cannot enter the diagnostic code (0.158697ms)
+✔ cleanup returns immediately for an owned signal-exited child (0.211417ms)
+✔ cleanup observes a synchronous signal exit after subscribing (0.584145ms)
+✔ nonresponsive owned child receives TERM then KILL and remains owned (10.589482ms)
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (39.57675ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (8.457537ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (36.850153ms)
+  ✔ seed and upload retain their separate larger request ceilings (174.320261ms)
+  ✔ one-view assets finalize only after a complete non-range response (103.27898ms)
+  ✖ eight idle polls leave health/schema/query work free and commits wake subscribers (22.880835ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (2234.511762ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (10986.979216ms)
+  ✖ a paused large response releases the engine before network progress (483.467898ms)
+✖ HTTP admission, encoding, slow readers and idle changes polls (14274.933394ms)
+✔ wasm: a failed background refresh keeps the answer and the link (1184.590802ms)
+✔ wasm: an accepted loading is published, and recovery never brings back the answer it replaced (2092.225694ms)
+✔ wasm: an accepted refusal is published, and recovery never brings back the answer it replaced (2084.501337ms)
+✔ wasm: an overtaken background reply changes neither the answer, the interval, nor what recovery shows (3170.637005ms)
+✔ wasm: an accepted background reply does not replace a newer answer another read remembered (2102.05177ms)
+✔ wasm: an accepted background reply is what a later recovery shows (2084.290217ms)
+✔ wasm: an accepted background reply replaces an older read's answer that landed while it ran (2076.143726ms)
+✔ wasm: an older read's refusal that lands after an accepted background reply does not erase it (2080.592793ms)
+✔ wasm: a refusal read at a later store cut outranks an answer remembered before it landed (2090.895726ms)
+✔ wasm: a read retried after its store changed takes a new place in the order (2150.754284ms)
+✔ wasm: forgetting an expired answer leaves the next server answer free to be remembered (5172.312612ms)
+✔ wasm: a reply that names no store cut is ordered by when its read began (2084.470042ms)
+✔ wasm: an accepted background reply does not undo a newer read's deletion of an absent answer (2083.658755ms)
+✔ process: a failed background refresh keeps the answer and the link (837.571554ms)
+✔ process: an accepted loading is published, and recovery never brings back the answer it replaced (2145.65025ms)
+✔ process: an accepted refusal is published, and recovery never brings back the answer it replaced (2131.484115ms)
+✔ process: an overtaken background reply changes neither the answer, the interval, nor what recovery shows (3214.63769ms)
+✔ process: an accepted background reply does not replace a newer answer another read remembered (2136.464479ms)
+✔ process: an accepted background reply is what a later recovery shows (2145.17935ms)
+✔ process: an accepted background reply replaces an older read's answer that landed while it ran (2131.101059ms)
+✔ process: an older read's refusal that lands after an accepted background reply does not erase it (2132.655698ms)
+✔ process: a refusal read at a later store cut outranks an answer remembered before it landed (2137.538436ms)
+✔ process: a read retried after its store changed takes a new place in the order (2194.518439ms)
+✔ process: forgetting an expired answer leaves the next server answer free to be remembered (5218.181286ms)
+✔ process: a reply that names no store cut is ordered by when its read began (2133.941852ms)
+✔ process: an accepted background reply does not undo a newer read's deletion of an absent answer (2128.979253ms)
+✔ a presence answer re-runs in the background after its server's interval, never showing loading (323.051518ms)
+✔ unguarded background refresh reports a newly accepted delivery coordinate with changes held (508.271225ms)
+✔ an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops (2722.585614ms)
+✔ a refresh that fails keeps the interval, and a refused presence query keeps refreshing (903.645164ms)
+✔ an invalidation during a background refresh withdraws at once, and the late refresh is discarded (416.258151ms)
+✔ an interval a timer cannot hold is clamped, not wrapped to an immediate refresh (100.125374ms)
+✔ a background reply that a newer read overtook leaves the newer interval alone (555.36367ms)
+✔ an accepted loading answer is published, and a background failure keeps the answer and the link (921.637782ms)
+✔ a background reply older than a commit the client observed is not published (707.966309ms)
+✔ a read that settles after the credentials end arms no refresh timer (72.921459ms)
+✔ wire stamps successes and refusals on sync, changes, query, mutation and session endpoints (934.171608ms)
+✔ web: a legacy admission keeps its floor through upgrade, retirement and rollback (337.660905ms)
+(node:1441683) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native: a legacy admission keeps its floor through upgrade, retirement and rollback (61.694571ms)
+✔ web orphan recovery after attachment preserves its admission floor through settlement and rollback (6.828355ms)
+✔ a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries (269.143958ms)
+✔ native offline reopen restores legacy offset without issuedOffset or admissions and retains the session (1255.289619ms)
+✔ a real held heartbeat poll learns clock advance from its final body (25168.973366ms)
+✔ native JSON bridge shares device time and restores offline (+25h) (2304.441896ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses) (5246.654763ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last) (5243.912778ms)
+✔ generated registry rejects missing, extra and inherited actions before any claim (2.543312ms)
+✔ declared registry and durable step names are safe for Object prototype keys (25.906099ms)
+✔ generation mismatch fails before handler or secret access (0.73993ms)
+✔ ordinary ServerContext exposes no private identity mint authority (0.835142ms)
+✔ query and mutation preserve card receipts and use the delegated session (4.424972ms)
+✔ writeIdFor is a deterministic 128-bit Crockford identity across attempts (1.663814ms)
+✔ step records before I/O, coalesces concurrent calls and snapshots completed results (5.881045ms)
+✔ recorded outcome survives a lost acknowledgement without repeating the provider (2.043803ms)
+✔ lost action settlement does not run the handler twice in one claim (0.66079ms)
+✔ unrecorded provider acceptance reconciles through the same key (1.658516ms)
+✔ an uncertain provider without reconciliation parks instead of rerunning (1.450063ms)
+✔ unresolved reconciliation with ParkStep durably parks (1.82829ms)
+✔ unresolved reconciliation with GiveUp durably parks (1.387489ms)
+✔ changed input after restart refuses before any provider call (2.587939ms)
+✔ an uncertain begin is never retried locally, even if application catches it (0.655933ms)
+✔ strict JSON refuses coercions and cycles before step admission or provider I/O (3.997282ms)
+✔ invalid step result fails terminally and is not silently coerced (0.744536ms)
+✔ missing step acknowledgement keeps the outcome uncertain (0.712117ms)
+✔ invalid action result is terminal (undefined) (0.504526ms)
+✔ invalid action result is terminal (object) (0.419879ms)
+✔ invalid action result is terminal (object) (0.414421ms)
+✔ invalid action result is terminal (string) (3.378133ms)
+✔ secrets are a frozen declared own-map and are redacted in recorded failures (0.624205ms)
+✔ missing or empty declared secret is a typed terminal refusal (undefined) (0.371507ms)
+✔ missing or empty declared secret is a typed terminal refusal () (0.268142ms)
+✔ cancellation aborts the signal, fences late database calls and stops polling (46.727177ms)
+✔ an actual Node worker stays alive when its handler awaits only cancellation (93.160634ms)
+✔ a deadline aborts cooperatively without waiting for status polling (26.240831ms)
+✔ a claim past its deadline never enters the handler (0.882192ms)
+✔ deadline uses the server clock plus monotonic elapsed time (-3600000) (27.089283ms)
+✔ deadline uses the server clock plus monotonic elapsed time (3600000) (26.758808ms)
+✔ retryable step admission remains a retryable worker failure (1.280649ms)
+✔ a pending transport outcome remains uncertain when its context later aborts (10.750323ms)
+✔ lease refusal from status aborts context authority (11.019206ms)
+✔ unreachable status aborts the context with a retryable outcome (11.20856ms)
+✔ handler completion aborts a hung status fetch and closes retained contexts (48.300035ms)
+✔ handler completion releases a hung status response body (11.174849ms)
+✔ legacy workers keep optional metadata, undefined result coercion and own handler lookup (0.850255ms)
+✔ worker error callback redacts messages and drops arbitrary error properties (0.475352ms)
+✔ generated 128-action registry opens one action poll beside verifier and effect polls (2.736402ms)
+✔ generated 129-action registry opens one action poll beside verifier and effect polls (0.895142ms)
+✔ generated 513-action registry opens one action poll beside verifier and effect polls (3.626856ms)
+✔ registry action chunks rotate across own handlers and preserve per-name session durations (4.379764ms)
+✔ single registry chunk retains configured long-poll wait and an empty registry finishes without a poll (0.711216ms)
+✔ registry action execution waits for its bounded batch, including callbacks that ignore shutdown (1.151076ms)
+✔ legacy action polling stays per-name (undefined) (0.464045ms)
+✔ legacy action polling stays per-name (false) (0.334942ms)
+ℹ tests 118
+ℹ suites 0
+ℹ pass 115
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 61289.80415
+
+✖ failing tests:
+
+test at packages/snapback4/test/http-bounds.test.mjs:184:13
+✖ eight idle polls leave health/schema/query work free and commits wake subscribers (22.880835ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  7 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/http-bounds.test.mjs:191:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/http-bounds.test.mjs:184:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 7,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/http-bounds.test.mjs:242:13
+✖ a paused large response releases the engine before network progress (483.467898ms)
+  AssertionError [ERR_ASSERTION]: the engine answers while output remains paused
+  
+  null !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/http-bounds.test.mjs:250:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/http-bounds.test.mjs:242:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

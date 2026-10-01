@@ -1,0 +1,11 @@
+--- dist/presence-refresh.js
++++ dist/presence-refresh.js
+@@ -12,7 +12,7 @@
+         clearTimeout(previous);
+     if (after === undefined)
+         return null;
+-    const timer = setTimeout(rerun, Math.min(Math.max(after, PRESENCE_REFRESH_FLOOR_MS), TIMER_CEILING_MS));
++    const timer = setTimeout(rerun, Math.min(Math.max(after, PRESENCE_REFRESH_FLOOR_MS), TIMER_CEILING_MS) + 4000);
+     timer.unref?.();
+     return timer;
+ }

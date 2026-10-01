@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -51,7 +52,7 @@ async function fixture(t, tier, cleanupAt = "device") {
 }
 
 for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation", "action"]) for (const different of [false, true]) {
-  test(`${tier} ${kind}: concurrent same-id calls with ${different ? "different" : "identical"} arguments keep their own cleanup outcomes`, { timeout: 20_000 }, async t => {
+  test(`${tier} ${kind}: concurrent same-id calls with ${different ? "different" : "identical"} arguments keep their own cleanup outcomes`, { timeout: hangBudget(12) }, async t => {
     const f = await fixture(t, tier, tier === "online" ? "session" : "device"), id = mintId(), args = { body: "first" };
     const call = args => kind === "mutation" ? f.app.mutate(mutation, args, { id }) : f.app.client.act(action, args, { id });
     const first = call(args); await until(() => f.replies.length === 1);
@@ -80,7 +81,7 @@ for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation",
 }
 
 for (const tier of ["online", "wasm", "native"]) for (const known of [false, true]) {
-  test(`${tier}: overlapping mutation callers share ${known ? "a refusal" : "pending"} across close`, { timeout: 20_000 }, async t => {
+  test(`${tier}: overlapping mutation callers share ${known ? "a refusal" : "pending"} across close`, { timeout: hangBudget(9) }, async t => {
     const f = await fixture(t, tier, "session"), id = mintId(), args = { body: "same" };
     const first = f.app.mutate(mutation, args, { id }); await until(() => f.replies.length === 1);
     const second = f.app.mutate(mutation, args, { id });
@@ -99,7 +100,7 @@ for (const tier of ["online", "wasm", "native"]) for (const known of [false, tru
 }
 
 for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation", "action"]) for (const failed of [false, true]) {
-  test(`${tier} ${kind}: ${failed ? "refusal" : "success"} arriving during app session cleanup reaches its caller`, { timeout: 20_000 }, async t => {
+  test(`${tier} ${kind}: ${failed ? "refusal" : "success"} arriving during app session cleanup reaches its caller`, { timeout: hangBudget(6) }, async t => {
     const f = await fixture(t, tier, "session"), id = mintId();
     const pending = kind === "mutation" ? f.app.mutate(mutation, { body: "one" }, { id }) : f.app.client.act(action, {}, { id });
     await until(() => f.replies.length === 1);
@@ -112,7 +113,7 @@ for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation",
   });
 }
 
-for (const tier of ["online", "wasm", "native"]) for (const queuedGlobal of [false, true]) test(`${tier}: public close detaches a held refresh and retires its late successor; queued global logout=${queuedGlobal}`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "wasm", "native"]) for (const queuedGlobal of [false, true]) test(`${tier}: public close detaches a held refresh and retires its late successor; queued global logout=${queuedGlobal}`, { timeout: hangBudget(18) }, async t => {
   const { url, dir } = await server(t), held = gate(); let successor, consumed = false;
   const device = tier === "online" ? undefined : tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
   const app = createApp({ url, device, sessionStore: memorySessionStore(), fetch: async (input, init) => {
@@ -141,7 +142,7 @@ for (const tier of ["online", "wasm", "native"]) for (const queuedGlobal of [fal
   }, "the late unkept successor is rejected by the server");
 });
 
-for (const tier of ["wasm", "native"]) test(`${tier}: raw close finishes already-started rotation persistence and keeps that successor`, { timeout: 20_000 }, async t => {
+for (const tier of ["wasm", "native"]) test(`${tier}: raw close finishes already-started rotation persistence and keeps that successor`, { timeout: hangBudget(14) }, async t => {
   const { url, dir } = await server(t), held = gate(), memory = memorySessionStore();
   let armed = false, saving = false, deviceClosed = false;
   const underlying = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
@@ -167,7 +168,7 @@ for (const tier of ["wasm", "native"]) test(`${tier}: raw close finishes already
   assert.deepEqual((await response.json()).data, [], "close keeps the successor whose persistence had already started");
 });
 
-for (const tier of ["online", "wasm", "native"]) test(`${tier}: public close detaches held global revocation but keeps its acknowledgement custody`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "wasm", "native"]) test(`${tier}: public close detaches held global revocation but keeps its acknowledgement custody`, { timeout: hangBudget(16) }, async t => {
   const { url, dir } = await server(t), held = gate(), sessions = memorySessionStore();
   let received, consumed = false, attempts = 0;
   const device = tier === "online" ? undefined : tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -35,7 +36,7 @@ async function open(door, f, fetcher) {
   await app.ready;
   return { app, client: app.client, close: () => app.close() };
 }
-for (const door of ['app-online', 'app-web', 'local']) for (const renewal of ['explicit', 'scheduled', 'peer']) test(`${door}: a proven unsent automatic refresh can renew later (${renewal})`, { timeout: 15000 }, async t => {
+for (const door of ['app-online', 'app-web', 'local']) for (const renewal of ['explicit', 'scheduled', 'peer']) test(`${door}: a proven unsent automatic refresh can renew later (${renewal})`, { timeout: hangBudget(8) }, async t => {
   const f = await fixture(t); let attempts = 0;
   const timers = new Map(), timeout = globalThis.setTimeout, clear = globalThis.clearTimeout;
   t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {

@@ -152,7 +152,7 @@ for (const host of ['process', 'wasm']) for (const outcome of ['offline', 'loadi
       assert.equal(read.data.length, 1); assert.equal(read.revalidating, true); assert.equal(read.fresh, false);
       assert.equal(read.since, confirmed); assert.equal(answerIdentity(read), answerIdentity(before));
       assert.equal(owner.deadlines.server, deadline);
-      await until(() => watch.getSnapshot().loading, 'original four-second row expiry still withdraws', 6000);
+      await until(() => watch.getSnapshot().loading, 'original four-second row expiry still withdraws');
     } else {
       // Reacquire the same handle to request an explicit observation result.
       watch.close(); watch.subscribe(() => {});

@@ -1,3 +1,4 @@
+import { withHangGuard, waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -6,7 +7,7 @@ const q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'change
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const ready = (data, seq) => ({ data, seq, complete: true, tables: ['secrets'] });
 const head = (store_id, seq) => ({ store_id, seq, generation: 1, tables: ['secrets'] });
-const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
+const until = async check => { return awaitState(check); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
 for (const observation of [false, true]) test(`replayed mutation cannot lower the ${observation ? 'observation' : 'query'} floor`, async t => {
@@ -114,7 +115,7 @@ for (const observe of [false, true]) test(`${observe ? 'observed' : 'direct'} st
   assert.equal(times.length, 4, 'exhaustion must not rearm an expired timer or a dirty rerun');
   for (let n = 1; n < times.length; n++) assert.ok(times[n] - times[n - 1] >= 15 * 2 ** (n - 1), 'retries back off');
   if (observe) assert.deepEqual(watch.getSnapshot(), { loading: true });
-  else assert.equal((await Promise.race([result, delay(500).then(() => assert.fail('retry round did not settle'))])).denied?.code, 'E_QUERY_RETRY');
+  else assert.equal((await withHangGuard(() => result, 'retry round did not settle')).denied?.code, 'E_QUERY_RETRY');
   if (observe) {
     current = true; changed.resolve({ seq: 3, tables: ['secrets'] });
     await until(() => watch.getSnapshot().data);
@@ -131,10 +132,24 @@ test('closing the last owner during backoff cancels the next stale-response requ
   } });
   t.after(() => client.close());
   await client.mutate(m, {});
+  // Freeze the product timer until the first rejected response has actually
+  // entered backoff; a slow polling turn must not consume its 25 ms window.
+  let backoff;
+  const schedule = globalThis.setTimeout;
+  t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
+    if (ms === 25) {
+      const timer = schedule(() => {}, 0); // Normal handle; the real callback is held below.
+      backoff = () => { clearTimeout(timer); fn(...args); };
+      t.after(() => clearTimeout(timer));
+      return timer;
+    }
+    return schedule(fn, ms, ...args);
+  });
   const watch = client.observe(q, {}); watch.subscribe(() => {});
-  await until(() => reads === 1);
-  await delay(0); // Let the first response be rejected and enter its backoff.
+  await awaitState(() => backoff, 'first stale response entered backoff');
+  assert.equal(reads, 1);
   watch.close();
+  backoff();
   await delay(250);
   assert.equal(reads, 1); assert.deepEqual(watch.getSnapshot(), { loading: true });
 });

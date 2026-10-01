@@ -1,0 +1,83 @@
+TAP version 13
+# Subtest: closing the last owner during backoff cancels the next stale-response request
+ok 1 - closing the last owner during backoff cancels the next stale-response request
+  ---
+  duration_ms: 150.661672
+  type: 'test'
+  ...
+# Subtest: wasm: unknown apply refresh drains after the watermark
+ok 2 - wasm: unknown apply refresh drains after the watermark
+  ---
+  duration_ms: 4055.869686
+  type: 'test'
+  ...
+# Subtest: process: unknown apply refresh drains after the watermark
+ok 3 - process: unknown apply refresh drains after the watermark
+  ---
+  duration_ms: 733.663609
+  type: 'test'
+  ...
+# Subtest: 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+not ok 4 - 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+  ---
+  duration_ms: 38329.41744
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-react.test.mjs:100:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        calls: 2000,
+    +   loading: 694,
+    -   loading: 0,
+        rows: 1000
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    loading: 0
+    calls: 2000
+    rows: 1000
+  actual:
+    loading: 694
+    calls: 2000
+    rows: 1000
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-react.test.mjs:105:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+ok 5 - wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+  ---
+  duration_ms: 8558.470766
+  type: 'test'
+  ...
+# Subtest: process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+ok 6 - process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks
+  ---
+  duration_ms: 9524.970213
+  type: 'test'
+  ...
+# (node:2469871) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: stopped full-release restore preserves its recovery point and stays separate from the original
+ok 7 - stopped full-release restore preserves its recovery point and stays separate from the original
+  ---
+  duration_ms: 4892.265983
+  type: 'test'
+  ...
+# recovery point: release 1, generation 1, sequence 1; password login and rotation passed; fresh process device only; post-backup original writes excluded; queued effects never delivered; process/stopped-copy recovery, WAL synchronous=NORMAL, no power-loss claim
+1..7
+# tests 7
+# suites 0
+# pass 6
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 39115.938579

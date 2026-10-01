@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Calibration #19: a restored account opens a server-created chat while the
 // shell's inbox and the conversation's history observe the real device.
 import test from "node:test";
@@ -16,10 +17,7 @@ import { processDevice } from "../dist/native.js";
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
 const query = name => ({ kind: "query", name });
 const mutation = name => ({ kind: "mutation", name });
-const until = async (read, label) => {
-  for (let n = 0; n < 500; n++) { const value = await read(); if (value) return value; await delay(10); }
-  assert.fail(`timed out: ${label}`);
-};
+const until = async (read, label) => { return awaitState(read, label); };
 const listRead = read => {
   if ("data" in read) assert.ok(Array.isArray(read.data), `ready list: ${JSON.stringify(read)}`);
   else assert.ok(read.loading || read.denied, JSON.stringify(read));
@@ -28,7 +26,7 @@ const listRead = read => {
 
 const source = readFileSync(new URL("./fixtures/page-ready.q", import.meta.url), "utf8");
 
-test("ready list reads survive account restoration, new chat acquisition and pending unread counts", { timeout: 45_000 }, async t => {
+test("ready list reads survive account restoration, new chat acquisition and pending unread counts", { timeout: hangBudget(36) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-page-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source);
@@ -140,7 +138,7 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   finally { await online.close(); }
 });
 
-test("unavailable server list responses end retention in both clients", { timeout: 30_000 }, async t => {
+test("unavailable server list responses end retention in both clients", { timeout: hangBudget(24) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-page-server-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source);

@@ -1,0 +1,11 @@
+[
+  {
+    "pid": 2172747,
+    "cmd": [
+      "python3",
+      "snapback4/reports/20261001-wb-wall-clock-budgets/followup.py",
+      ""
+    ],
+    "reason": "Replace queued fixed scope list with manifest-derived final scopes; no tests launched."
+  }
+]

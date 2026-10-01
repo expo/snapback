@@ -1,0 +1,14 @@
+✔ proof stays active after handler return until the response finishes (21.170968ms)
+✔ premature proof response close without an error event is fatal (4.891773ms)
+✔ the registered intentional committed-mint cut is the only close exemption (2.378856ms)
+✔ teardown serves 503 while a proof response is still draining (3.063533ms)
+✔ drain timeout aborts pending work and closes the owned server (7.192042ms)
+✔ preexisting failure survives bounded abort cleanup unchanged (1.909302ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 115.564441

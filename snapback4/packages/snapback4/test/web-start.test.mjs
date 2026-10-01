@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Real Chromium navigation: admission is asserted in the click's own stack,
 // then a new document recovers the original ID through IndexedDB and /m.
 import test from 'node:test';
@@ -39,7 +40,7 @@ query total():
 `;
 const require = createRequire(join(root, 'apps/chat/package.json'));
 
-test('web startup: immediate admin navigation, synchronous refusals and acquisition hook', { timeout: 120_000 }, async t => {
+test('web startup: immediate admin navigation, synchronous refusals and acquisition hook', { timeout: hangBudget(120) }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-web-start-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), source);
@@ -247,6 +248,7 @@ window.mountProgress = (app) => {
     await fetch(api + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'members', row: { id: 'authority-' + change, room: 'room3', principal: session.principal, admin: true } }]) });
     await witness.reload(); await prepare();
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     await peer.goto(page.url()); await peer.waitForFunction(() => !!window.sessionKey);
     try {
       await peer.evaluate(api => new Promise(resolve => {

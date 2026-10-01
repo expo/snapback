@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.001#2-three-facts-to-distinguish — a compiled device capability is not an acquired partition.
 import nodeTest from "node:test";
 import assert from "node:assert/strict";
@@ -49,11 +50,7 @@ mutation add(body: text <=100):
   return insert notes { body }
 `;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-async function until(check, message) {
-  const end = Date.now() + 15000;
-  do { if (await check()) return; await sleep(20); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 const query = (name) => ({ kind: "query", name });
 
 async function fixture(t, tier, empty = false, schemaSource = source) {
@@ -151,7 +148,7 @@ test("W5R1x: terminal history is bounded independently of unresolved writes", as
 });
 
 for (const tier of ["wasm", "process"]) {
-  test(`W5R1x ${tier}: durable receipts evict beyond 256 without growing metadata`, { timeout: 60000 }, async t => {
+  test(`W5R1x ${tier}: durable receipts evict beyond 256 without growing metadata`, { timeout: hangBudget(600) }, async t => {
     const f = await fixture(t, tier);
     f.mode("online"); let client = await f.open();
     const ids = [], events = [];
@@ -183,7 +180,7 @@ for (const tier of ["wasm", "process"]) {
     t.diagnostic(`writes=270 terminal=256 evicted=14 receipt_rows=${receipts.length} receipt_bytes=${Buffer.byteLength(receipts[0][1])} unresolved=1`);
   });
 
-  test(`W5R1x ${tier}: opener returns an offline unacquired client on network loss`, { timeout: 30000 }, async t => {
+  test(`W5R1x ${tier}: opener returns an offline unacquired client on network loss`, { timeout: hangBudget(600) }, async t => {
     const f = await fixture(t, tier);
     let client = await f.open(); await client.close();
     f.mode("busy"); client = await f.open();
@@ -202,7 +199,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal((await writing).state, "sent");
   });
 
-  test(`W5R1x ${tier}: replacement stays unacquired until the new catch-up completes`, { timeout: 30000 }, async t => {
+  test(`W5R1x ${tier}: replacement stays unacquired until the new catch-up completes`, { timeout: hangBudget(600) }, async t => {
     const f = await fixture(t, tier); f.mode("online");
     const client = await f.open(), changes = [];
     assert.equal(client.acquired, true); client.onAcquired(value => changes.push(value));
@@ -217,7 +214,7 @@ for (const tier of ["wasm", "process"]) {
     assert.deepEqual((await client.query(query("all"), {})).data, []);
   });
 
-  test(`W5R1x ${tier}: a restore halt keeps acquisition false across retries and reopen`, { timeout: 30000 }, async t => {
+  test(`W5R1x ${tier}: a restore halt keeps acquisition false across retries and reopen`, { timeout: hangBudget(600) }, async t => {
     const f = await fixture(t, tier); f.mode("online");
     let client = await f.open(); assert.equal(client.acquired, true);
     f.mode("offline"); await client.sync(); f.restore(); f.mode("online");
@@ -245,7 +242,7 @@ function assertUnknown(answers) {
 async function unknown(client, t) { assert.equal(client.acquired, false); assertUnknown(await observations(client, t)); }
 
 for (const tier of ["wasm", "process"]) {
-  test(`${tier}: schema alone is not acquisition; unadmitted writes disappear on close`, { timeout: 30000 }, async (t) => {
+  test(`${tier}: schema alone is not acquisition; unadmitted writes disappear on close`, { timeout: hangBudget(600) }, async (t) => {
     const f = await fixture(t, tier);
     let client = await f.open();
     const first = await observations(client, t);
@@ -268,7 +265,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(f.counts().posts, 1, "only the new admitted attempt was submitted");
   });
 
-  test(`${tier}: snapshot and catch-up publish readiness together; later failures preserve acquired rows`, { timeout: 30000 }, async (t) => {
+  test(`${tier}: snapshot and catch-up publish readiness together; later failures preserve acquired rows`, { timeout: hangBudget(600) }, async (t) => {
     const f = await fixture(t, tier);
     f.mode("after-page"); let client = await f.open();
     assert.equal(f.counts().snapshots, 1); await unknown(client, t);
@@ -318,7 +315,7 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(reacquired.complete, true); assert.equal(reacquired.data.length, 7);
   });
 
-  test(`${tier}: a genuinely empty partition at sequence zero is acquired durably`, { timeout: 20000 }, async (t) => {
+  test(`${tier}: a genuinely empty partition at sequence zero is acquired durably`, { timeout: hangBudget(600) }, async (t) => {
     const f = await fixture(t, tier, true);
     f.mode("online"); let client = await f.open();
     assert.equal(client.acquired, true, "an empty partition is acquired too");
@@ -332,7 +329,7 @@ for (const tier of ["wasm", "process"]) {
 }
 
 for (const tier of ["wasm", "process"]) {
-  test(`W5c ${tier}: online reopen reports acquisition and a missing-row reason, then predicts`, { timeout: 30000 }, async (t) => {
+  test(`W5c ${tier}: online reopen reports acquisition and a missing-row reason, then predicts`, { timeout: hangBudget(600) }, async (t) => {
     const f = await fixture(t, tier);
     let client = await f.open();
     await client.close();
@@ -364,7 +361,7 @@ for (const tier of ["wasm", "process"]) {
     t.diagnostic(`acquisition changes: ${JSON.stringify(changes)}; before: 0 predicted rows; after: 1 predicted row`);
   });
 
-  test(`W5c ${tier}: pending writes recover by id through sent and failed, including settlement before reopen returns`, { timeout: 30000 }, async (t) => {
+  test(`W5c ${tier}: pending writes recover by id through sent and failed, including settlement before reopen returns`, { timeout: hangBudget(600) }, async (t) => {
     const f = await fixture(t, tier);
     // This recovery case starts with identified, unacquired ordinary custody.
     f.mode("online");
@@ -458,7 +455,7 @@ function receiptLocks(t) {
   t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
 }
 
-test("W5R2a: two native owners recover 600 completions without stale pending memory", { timeout: 60000 }, async t => {
+test("W5R2a: two native owners recover 600 completions without stale pending memory", { timeout: hangBudget(600) }, async t => {
   const f = await fixture(t, "process"); f.mode("online");
   // This test injects server receipts into the ordinary outbox, after identity.
   const client = await f.open(), a = f.core();
@@ -488,7 +485,7 @@ test("W5R2a: two native owners recover 600 completions without stale pending mem
   for (const id of ids.slice(-256)) assert.equal((await client.write(id)).state, "sent");
 });
 
-for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id emits once beyond 256 other emissions`, { timeout: 60000 }, async t => {
+for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id emits once beyond 256 other emissions`, { timeout: hangBudget(600) }, async t => {
   const f = await fixture(t, tier); f.mode("online");
   const client = await f.open(), events = [];
   client.onWrite(write => events.push(write)); f.mode("sent-queued");
@@ -514,7 +511,7 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
   assert.equal((await client.write(next.id)).state, "sent");
 });
 
-test("W5 confirmation N3: another owner's durable receipt still notifies this client once", { timeout: 60000 }, async t => {
+test("W5 confirmation N3: another owner's durable receipt still notifies this client once", { timeout: hangBudget(600) }, async t => {
   const f = await fixture(t, "process"); f.mode("online");
   // This test injects server receipts into the ordinary outbox, after identity.
   const client = await f.open(), a = f.core();
@@ -528,7 +525,7 @@ test("W5 confirmation N3: another owner's durable receipt still notifies this cl
   f.mode("sent-queued");
   // Only /sync is refused, so catch-up leaves the shared entry queued while flushes run.
   await client.mutate({ kind: "mutation", name: "add" }, { body: "first flush" });
-  for (let n = 0; n < 60 && !events.some(write => write.id === pending.id); n++) await new Promise(r => setTimeout(r, 50));
+  await awaitState(async () => !(!events.some(write => write.id === pending.id)), "acquisition.test.mjs: !events.some(write => write.id === pending.id)", { poll: async () => { await new Promise(r => setTimeout(r, 50)); } });
   await client.mutate({ kind: "mutation", name: "add" }, { body: "second flush" });
   await new Promise(r => setTimeout(r, 200));
   const count = events.filter(write => write.id === pending.id).length;
@@ -537,7 +534,7 @@ test("W5 confirmation N3: another owner's durable receipt still notifies this cl
   assert.equal((await client.write(pending.id)).state, "sent");
 });
 
-for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts preserves ${size} destination receipts`, { timeout: 30000 }, async t => {
+for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts preserves ${size} destination receipts`, { timeout: hangBudget(600) }, async t => {
   receiptLocks(t);
   const f = await fixture(t, "wasm"); f.mode("online");
   const client = await f.open(), destination = f.core();
@@ -569,7 +566,7 @@ for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts pre
 
 
 for (const tier of ["wasm", "process"]) {
-  test(`sequence by ${tier}: two offline Write results remain pending until settled`, { timeout: 30000 }, async t => {
+  test(`sequence by ${tier}: two offline Write results remain pending until settled`, { timeout: hangBudget(600) }, async t => {
     const sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
     const f = await fixture(t, tier, true, `use personas alice\n${sequence}`);
     f.mode("online"); const client = await f.open();
@@ -598,7 +595,7 @@ for (const tier of ["wasm", "process"]) {
 }
 
 for (const form of ["rule", "require", "constraint", "named constraint", "postcondition", "sequence key", "old", "empty index", "cap group", "upsert index", "postcondition index"]) {
-  test(`sequence by wasm: provisional ${form} refusal queues for the server`, { timeout: 30000 }, async t => {
+  test(`sequence by wasm: provisional ${form} refusal queues for the server`, { timeout: hangBudget(600) }, async t => {
     let sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
     if (form === "rule") sequence = sequence.replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .ordinal != 1");
     else if (form === "require") sequence = sequence.replace("  return row\nmutation join", "  ordinal = row.ordinal\n  require ordinal != 1 else FIRST\n  return row\nmutation join");
@@ -647,7 +644,7 @@ for (const form of ["rule", "require", "constraint", "named constraint", "postco
 }
 
 for (const form of ["point", "page", "short circuit", "unique independent", "cap independent"]) {
-  test(`sequence by wasm: ${form} preserves prediction metadata and authority`, { timeout: 30000 }, async t => {
+  test(`sequence by wasm: ${form} preserves prediction metadata and authority`, { timeout: hangBudget(600) }, async t => {
     let sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
     if (form === "short circuit") sequence = sequence.replace("  body: text <=40", "  authorId: principal default 'bob'\n  body: text <=40")
       .replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .authorId = viewer and .ordinal != 0");

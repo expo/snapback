@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.023#3.4 — lifecycle withdrawals finish across peers before application callbacks.
 import test from "node:test";
@@ -20,10 +21,7 @@ const parked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(signal.reason);
   else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
 });
-async function until(check) {
-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
-  assert.fail("lifecycle boundary did not settle");
-}
+async function until(check) { return awaitState(check); }
 async function fixture(t, tier, appFacade = false) {
   let wall = 1000, failing = false, held = false, holdDevice = false, queries = 0, discovering = false;
   let data = "private A", nextExpiry = 5000, seq = 1, replacementDelivered = false;

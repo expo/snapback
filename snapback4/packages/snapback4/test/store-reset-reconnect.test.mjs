@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Review round 2: production polls and paging through real backend restarts.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -28,11 +29,7 @@ query all():
 const op = { kind: "query", name: "all" }, headers = { "x-snapback-persona": "alice" };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check, message, ms = 15000) {
-  const end = Date.now() + ms;
-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 const oldFresh = read => read.fresh && read.complete && Array.isArray(read.data) && read.data.some(row => row.body === "A");
 const current = read => read.fresh && read.complete && read.data?.length === 3 && read.data.every(row => row.body === "B");
 
@@ -91,23 +88,23 @@ async function fixture(t, kind = "wasm", waitSeconds = 25, watch = false) {
   };
 }
 
-test("R2 item 1: changes with a foreign identity returns before its production wait", { timeout: 30000 }, async t => {
+test("R2 item 1: changes with a foreign identity returns before its production wait", { timeout: hangBudget(10) }, async t => {
   const f = await fixture(t); await f.seed("A", 3);
   const a = await f.post("/sync", { from: 0 });
   await f.start(); await f.seed("B", 3);
   const started = performance.now();
-  const response = await fetch(`${f.url}/changes?since=${a.watermark}&wait=25&store_id=${a.store_id}`, { headers, signal: AbortSignal.timeout(3000) });
+  const response = await fetch(`${f.url}/changes?since=${a.watermark}&wait=25&store_id=${a.store_id}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
   const b = await response.json();
   t.diagnostic(`foreign identity wait=25: ${Math.round(performance.now() - started)} ms`);
   assert.notEqual(b.store_id, a.store_id); assert.equal(b.seq, a.watermark);
   // A matching identity still holds the poll until a commit, without sync.
   let finished = false;
-  const poll = fetch(`${f.url}/changes?since=${b.seq}&wait=20&store_id=${b.store_id}`, { headers, signal: AbortSignal.timeout(3000) }).then(r => r.json()).then(json => { finished = true; return json; });
+  const poll = fetch(`${f.url}/changes?since=${b.seq}&wait=20&store_id=${b.store_id}`, { headers, signal: AbortSignal.timeout(hangBudget()) }).then(r => r.json()).then(json => { finished = true; return json; });
   await sleep(100); assert.equal(finished, false);
   await f.seed("extra", 1); assert.equal((await poll).seq, b.seq + 1);
 });
 
-for (const [kind, wait] of [["wasm", 25], ["process", 20]]) test(`R2 item 1/4: ${kind} reconnect at equal head never republishes A as fresh (wait=${wait})`, { timeout: 45000 }, async t => {
+for (const [kind, wait] of [["wasm", 25], ["process", 20]]) test(`R2 item 1/4: ${kind} reconnect at equal head never republishes A as fresh (wait=${wait})`, { timeout: hangBudget(17) }, async t => {
   const f = await fixture(t, kind, wait); await f.seed("A", 3);
   const client = await f.open(), watch = client.observe(op, {});
   await until(() => oldFresh(watch.getSnapshot()), "A never acquired");
@@ -131,7 +128,7 @@ for (const [kind, wait] of [["wasm", 25], ["process", 20]]) test(`R2 item 1/4: $
     const read = await client.query(op, {}); notices.push(read, watch.getSnapshot());
     assert.ok(!notices.some(oldFresh), "A was published fresh and complete after B was listening");
     return current(read) && current(watch.getSnapshot());
-  }, "B did not converge before the production poll deadline", 10000);
+  }, "B did not converge before the production poll deadline");
   // Server fallback may answer B before its paged device acquisition ends.
   // Count idle sync only after the client resumes B's long poll.
   await until(() => f.polls.at(-1).searchParams.get("store_id") && f.polls.at(-1).searchParams.get("store_id") !== a.store_id, "B's acquisition never reached the next poll");
@@ -142,7 +139,7 @@ for (const [kind, wait] of [["wasm", 25], ["process", 20]]) test(`R2 item 1/4: $
   t.diagnostic(`${kind}: wait=${wait}, replacement=${Math.round(performance.now() - started)} ms, stale fresh snapshots=${notices.filter(oldFresh).length}, idle syncs=${f.pages.length - syncs}`);
 });
 
-for (const kind of ["wasm", "process"]) test(`R2 item 4: ${kind} replacement while a snapshot after request is in flight`, { timeout: 45000 }, async t => {
+for (const kind of ["wasm", "process"]) test(`R2 item 4: ${kind} replacement while a snapshot after request is in flight`, { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t, kind); await f.seed("A", 5);
   const barrier = f.holdPage(), opening = f.open();
   const request = await barrier.entered;
@@ -156,7 +153,7 @@ for (const kind of ["wasm", "process"]) test(`R2 item 4: ${kind} replacement whi
   t.diagnostic(`${kind}: A staged rows=2/5, B final rows=${read.data.length}, old rows=${read.data.filter(row => row.body === "A").length}`);
 });
 
-test("R2 item 3: restoring the same store at a lower head halts reads and retries", { timeout: 45000 }, async t => {
+test("R2 item 3: restoring the same store at a lower head halts reads and retries", { timeout: hangBudget(28) }, async t => {
   const f = await fixture(t); await f.seed("A", 1); await f.stop();
   const path = join(f.dir, ".snapback4"), backup = join(f.dir, "backup"); cpSync(path, backup, { recursive: true });
   await f.start(false); await f.seed("later", 2);
@@ -171,7 +168,7 @@ test("R2 item 3: restoring the same store at a lower head halts reads and retrie
   assert.equal(a.store_id, b.store_id); assert.equal(a.watermark, 3); assert.equal(b.watermark, 1);
   const probe = await fetch(`${f.url}/probe`, { headers }).then(r => r.json());
   assert.equal(probe.store_id, a.store_id); assert.equal(probe.seq, 1);
-  const change = await fetch(`${f.url}/changes?since=3&wait=25&store_id=${a.store_id}`, { headers, signal: AbortSignal.timeout(3000) }).then(r => r.json());
+  const change = await fetch(`${f.url}/changes?since=3&wait=25&store_id=${a.store_id}`, { headers, signal: AbortSignal.timeout(hangBudget()) }).then(r => r.json());
   assert.equal(change.seq, 1); assert.equal(change.store_id, a.store_id);
   t.diagnostic(`restore before/after heads=${a.watermark}/${b.watermark}, read=${JSON.stringify(read)}`);
   assert.equal(read.denied?.code, "E_STORE_RESTORE", "restored same-id partition must refuse, never return old complete rows");
@@ -193,7 +190,7 @@ test("R2 item 3: restoring the same store at a lower head halts reads and retrie
   t.diagnostic(`restore: old watermark preserved=${state.watermark}, retry syncs=0, offline reopen refuses=true, fresh device rows=${freshRead.data.length}`);
 });
 
-for (const kind of ["server", "wasm", "process"]) test(`R3 finding 5: ${kind} idle poll after populated maintain adoption stays healthy`, { timeout: 30000 }, async t => {
+for (const kind of ["server", "wasm", "process"]) test(`R3 finding 5: ${kind} idle poll after populated maintain adoption stays healthy`, { timeout: hangBudget(12) }, async t => {
   const f = await fixture(t, kind, 0, true); await f.seed("A", 3);
   const before = await f.post("/sync", { from: 0 });
   writeFileSync(join(f.dir, "snapback/schema.q"), `${source}
@@ -221,7 +218,7 @@ maintain counts: count notes by body
   }
 });
 
-for (const kind of ["wasm", "process"]) test(`R4: ${kind} a same-identity head below acquisition halts as a restore`, { timeout: 30000 }, async t => {
+for (const kind of ["wasm", "process"]) test(`R4: ${kind} a same-identity head below acquisition halts as a restore`, { timeout: hangBudget(13) }, async t => {
   // /changes and /probe report the committed head, so on a healthy store a
   // reply to a request made after acquiring N never reports less than N
   // (the maintain-adoption regression above covers the healthy case).
@@ -243,7 +240,7 @@ for (const kind of ["wasm", "process"]) test(`R4: ${kind} a same-identity head b
   assert.equal(retained[0].id, write.id);
   t.diagnostic(`${kind}: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved`);
 });
-test("R3 finding 5: concurrent commits and an older receipt retry keep the actual head", { timeout: 30000 }, async t => {
+test("R3 finding 5: concurrent commits and an older receipt retry keep the actual head", { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t, "server", 0, true);
   writeFileSync(join(f.dir, "snapback/schema.q"), `${source}
 mutation add(body: text <=100):

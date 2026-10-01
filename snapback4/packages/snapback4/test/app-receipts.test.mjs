@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../dist/app.js";
@@ -5,7 +6,7 @@ import { memorySessionStore } from "../dist/auth.js";
 import { server, until } from "./helpers/app-server.mjs";
 const add = { kind: "mutation", name: "add" }, list = { kind: "query", name: "list" };
 
-for (const refuse of [false, true]) test(`known online ${refuse ? "refusal" : "commit"} survives failed receipt saves and same-id restart recovery`, { timeout: 20_000 }, async t => {
+for (const refuse of [false, true]) test(`known online ${refuse ? "refusal" : "commit"} survives failed receipt saves and same-id restart recovery`, { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), sends = [], events = [];
   let failReceipt = true, key, failures = 0;
   const store = { ...memory, async set(k, text) {

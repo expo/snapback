@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fork} from 'node:child_process';
@@ -6,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {once} from 'node:events';
 
-test('killed wasm host retains publication debt and the uncertain attempt id', {timeout:15000},async t=>{
+test('killed wasm host retains publication debt and the uncertain attempt id', {timeout:hangBudget(6)},async t=>{
  const directory=await mkdtemp(join(tmpdir(),'sb4-delivery-crash-'));
  t.after(()=>rm(directory,{recursive:true,force:true}));
  async function capture(mode){

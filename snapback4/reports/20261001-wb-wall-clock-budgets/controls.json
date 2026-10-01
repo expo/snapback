@@ -1,0 +1,34 @@
+[
+  {
+    "name": "delayed-publication",
+    "exit": 0,
+    "expected": true,
+    "seconds": 15.939343877136707,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=^wasm: pending cut preserves presentTransition before sync publication$",
+      "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+    ],
+    "original": "9bdf17887304020feccb5f68bc347856f7dc84cc2dc00da71a215d2e3daa96a7",
+    "mutant": "98630465e8a4a3b83c68253be56440ab31d5632c0364a773b2ee4e2c2c92eba8",
+    "test_sha256": "7bdca0eca4bda037714c4085ec2fae8a18400cb921036cfd6d555685c8768d87",
+    "wait_sha256": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935"
+  },
+  {
+    "name": "missing-publication",
+    "exit": 1,
+    "expected": true,
+    "seconds": 125.06050038896501,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=^wasm: pending cut preserves presentTransition before sync publication$",
+      "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+    ],
+    "original": "9bdf17887304020feccb5f68bc347856f7dc84cc2dc00da71a215d2e3daa96a7",
+    "mutant": "72d72a859c141f51ebc4152deddedf813658130e43c529ba0c597e73a23d6efc",
+    "test_sha256": "7bdca0eca4bda037714c4085ec2fae8a18400cb921036cfd6d555685c8768d87",
+    "wait_sha256": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935"
+  }
+]

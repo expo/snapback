@@ -1,0 +1,30 @@
+[
+  {
+    "name": "delayed-publication",
+    "exit": 0,
+    "expected": true,
+    "seconds": 16.356383986305445,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=^wasm: pending cut preserves presentTransition before sync publication$",
+      "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+    ],
+    "original": "9bdf17887304020feccb5f68bc347856f7dc84cc2dc00da71a215d2e3daa96a7",
+    "mutant": "98630465e8a4a3b83c68253be56440ab31d5632c0364a773b2ee4e2c2c92eba8"
+  },
+  {
+    "name": "missing-publication",
+    "exit": 1,
+    "expected": true,
+    "seconds": 127.41291553759947,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=^wasm: pending cut preserves presentTransition before sync publication$",
+      "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+    ],
+    "original": "9bdf17887304020feccb5f68bc347856f7dc84cc2dc00da71a215d2e3daa96a7",
+    "mutant": "72d72a859c141f51ebc4152deddedf813658130e43c529ba0c597e73a23d6efc"
+  }
+]

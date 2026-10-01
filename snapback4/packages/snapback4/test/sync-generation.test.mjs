@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -77,8 +78,8 @@ async function fixture(t, tier = "process", serverBinary = binary) {
       const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
       if (address) { url = address; ready = true; }
     });
-    const deadline = Date.now() + 30000;
-    while (!ready && Date.now() < deadline) { assert.equal(child.exitCode, null, log); await delay(20); }
+    const deadline = performance.now() + hangBudget();
+    while (!ready && performance.now() < deadline) { assert.equal(child.exitCode, null, log); await delay(20); }
     assert.ok(ready, log);
   }
   const rawPost = (path, input) => fetch(url + path, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify(input) });
@@ -119,7 +120,7 @@ async function fixture(t, tier = "process", serverBinary = binary) {
   return { client, ok, start, post, rawPost, trace, calls, intercept: fn => { intercept = fn; } };
 }
 
-for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption preserves unsent writes, known and lost acknowledgements`, { timeout: 90000 }, async t => {
+for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption preserves unsent writes, known and lost acknowledgements`, { timeout: hangBudget(20) }, async t => {
   const f = await fixture(t, tier);
   const ids = ["known", "lost", "unsent"];
   let known;
@@ -353,7 +354,7 @@ for (const base of ["document", "location", "none"]) for (const url of ["/api/sy
 }
 
 test("new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract", {
-  timeout: 90000,
+  timeout: hangBudget(8),
   skip: !process.env.SNAPBACK4_LEGACY_BIN && "set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary",
 }, async t => {
   const f = await fixture(t, "process", process.env.SNAPBACK4_LEGACY_BIN);
@@ -408,7 +409,7 @@ async function retainEvidence(f, transfer) {
 }
 
 for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream", "staged snapshot"]) {
-  test(`${tier}: early generation head preserves restore evidence from ${transfer}`, { timeout: 90000 }, async t => {
+  test(`${tier}: early generation head preserves restore evidence from ${transfer}`, { timeout: hangBudget(8) }, async t => {
     const f = await fixture(t, tier);
     const { storeId, queued } = await retainEvidence(f, transfer);
     await f.start(source.replace("n: int", "n: int\n  added: int default 0"));
@@ -438,7 +439,7 @@ for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream
 }
 
 for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream", "staged snapshot"]) {
-  for (const head of [20, 25]) test(`${tier}: early head ${head} and ordinary page decide ${transfer} evidence identically`, { timeout: 90000 }, async t => {
+  for (const head of [20, 25]) test(`${tier}: early head ${head} and ordinary page decide ${transfer} evidence identically`, { timeout: hangBudget(7) }, async t => {
     const outcomes = [];
     for (const early of [false, true]) {
       const f = await fixture(t, tier);
@@ -471,7 +472,7 @@ for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream
     assert.equal(outcomes[1].seq, 20);
   });
 
-  test(`${tier}: missing early watermark preserves ${transfer} evidence until a headed retry`, { timeout: 90000 }, async t => {
+  test(`${tier}: missing early watermark preserves ${transfer} evidence until a headed retry`, { timeout: hangBudget(12) }, async t => {
     const f = await fixture(t, tier);
     const { before, queued } = await retainEvidence(f, transfer);
     // Advance the real server's head past the retained evidence, then change generation.

@@ -1,8 +1,9 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {recoverTimeline} from './helpers/timeline-recovery.mjs';
 
-test('oversized historical timeline commit recovers by snapshot with pending writes on both hosts', {timeout:240000}, async t=>{
+test('oversized historical timeline commit recovers by snapshot with pending writes on both hosts', {timeout:hangBudget(1020)}, async t=>{
   const report=await recoverTimeline();
   assert.equal(report.ceiling,16_777_216);
   assert.equal(report.sameGeneration,true);

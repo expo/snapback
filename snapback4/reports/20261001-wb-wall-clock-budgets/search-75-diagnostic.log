@@ -1,0 +1,11 @@
+ORACLE_PASS host=wasm seed=75
+ORACLE_SUMMARY {"host":"wasm","seeds":1,"failed":[],"ms":42848,"coverage":{"membership":2,"expiry":1,"at":1,"terminal:meter":1,"large:86:first":1,"large:coffee:after":1}}
+✔ ordinary search generated oracle wasm: 1 seeds (42848.834679ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44523.974108

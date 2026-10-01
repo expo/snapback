@@ -1,0 +1,12 @@
+--- http-bounds.test.mjs
++++ http-bounds.test.mjs
+@@ -258,7 +258,9 @@
+       await once(socket, "readable");
+       socket.pause();
+       try {
++        await sleep(6500); // scratch control: outlive the write timeout
+         await ping();
++        console.log("CONTROL_COMPLETION", JSON.stringify((await (await fetch(url + "/dev/latency", { headers })).json()).operations["/sync"]));
+         const completed = await waitFor(async () => {
+           const operations = await latency();
+           return operations["/q/ping"].n === 1 && operations;

@@ -2,6 +2,7 @@ import { assetRecoveryHarness } from "./react-asset-recovery.mjs";
 import { pendingPeerHarness } from "./react-pending-peer.mjs";
 
 export const reactHarness = (expiryRecipe, receiptsRecipe) => `
+import { waitFor as awaitState } from '/@fs/${new URL('./wait.mjs', import.meta.url).pathname}';
 import { Activity, StrictMode, act, useEffect, useLayoutEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
@@ -377,12 +378,12 @@ const cases = {
       await act(async () => { await auth.signup("alice", "password"); });
       const alice = client;
       await act(async () => { setDraft("alice draft"); await write.run({ body: "alice write" }); });
-      for (let n = 0; n < 200 && read.data !== "Bearer alice"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      await awaitState(async () => !(read.data !== "Bearer alice"), 'helpers/react-harness.mjs: read.data !== "Bearer alice"', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); }); } });
       equal(read.data, "Bearer alice", "query hook uses Alice");
       await act(async () => { await auth.signup("bob", "password"); });
       check(client !== alice && auth.viewer === "bob", "provider switched clients");
       check(host.textContent.endsWith(":empty"), "account-owned draft was reset");
-      for (let n = 0; n < 200 && read.data !== "Bearer bob"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      await awaitState(async () => !(read.data !== "Bearer bob"), 'helpers/react-harness.mjs: read.data !== "Bearer bob"', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); }); } });
       equal(read.data, "Bearer bob", "query hook uses Bob: " + JSON.stringify(read));
       await act(async () => { await write.run({ body: "bob write" }); });
       equal(write.last?.state, "failed", "the current browser client refuses unsafe admission");
@@ -416,15 +417,15 @@ const cases = {
       const writing = app.mutate(mutation, { body: "one row" }, { id }).then(value => { settled = true; return value; });
       // Store discovery now precedes fresh admission. This receipt-recovery
       // witness mounts against an admitted intent, with its response held.
-      for (let n = 0; n < 100 && !sends; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      await awaitState(async () => !(!sends), 'helpers/react-harness.mjs: !sends', { poll: async () => { await new Promise(resolve => setTimeout(resolve, 5)); } });
       equal(sends, 1, "the intent was admitted before mounting its receipt lookup");
       await mount(h(SnapbackProvider, { client: app.client }, h(Pending)));
-      for (let n = 0; n < 100 && latest.last?.state !== "pending"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      await awaitState(async () => !(latest.last?.state !== "pending"), 'helpers/react-harness.mjs: latest.last?.state !== "pending"', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
       equal(latest.last?.state, "pending", "hook observed the admitted intent");
       await act(async () => { held.resolve(); await writing; });
       check(settled && !latest.pending && latest.last?.state === "sent", "known outcome must notify without durable receipt");
       await mount(h(SnapbackProvider, { client: app.client }, h(Pending)));
-      for (let n = 0; n < 100 && !latest.last; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      await awaitState(async () => !(!latest.last), 'helpers/react-harness.mjs: !latest.last', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
       equal(latest.last?.state, "sent", "remount looks up the same confirmed id while disk still fails");
       check(!latest.pending && failures >= 2, "persistent fault cannot turn sent back into pending");
       equal(sends, 1, "remount did not submit a new id");
@@ -444,8 +445,7 @@ const cases = {
       return h("p", { id: "owner-" + index }, write.last?.state ?? "unknown");
     }
     const until = async (check, message) => {
-      for (let n = 0; n < 200; n++) { if (check()) return; await new Promise(resolve => setTimeout(resolve, 10)); }
-      throw Error(message);
+      return awaitState(check, message);
     };
     try {
       for (let index = 0; index < 2; index++) {
@@ -464,7 +464,7 @@ const cases = {
       equal((await a.mutate(mutation, { body: "shared" }, { id })).state, "pending", "A queued");
       equal((await b.mutate(mutation, { body: "shared" }, { id })).state, "pending", "B queued same ID");
       await mount(h("div", null, ...owners.map((app, index) => h(SnapbackProvider, { client: app.client, key: index }, h(Pending, { index })))));
-      for (let n = 0; n < 100 && ![...host.querySelectorAll("p")].every(p => p.textContent === "pending"); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      await awaitState(async () => !(![...host.querySelectorAll("p")].every(p => p.textContent === "pending")), 'helpers/react-harness.mjs: ![...host.querySelectorAll("p")].every(p => p.textContent === "pending")', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); }); } });
       equal([...host.querySelectorAll("p")].map(p => p.textContent), ["pending", "pending"], "both hooks pending");
       await until(() => entered.every(Boolean), "both retry requests held");
       await act(async () => { waits[0].resolve(); await until(() => events[0].length === 1, "A terminal notification"); });
@@ -891,11 +891,9 @@ ${assetRecoveryHarness}
         : latest.query.denied || latest.page.read.denied ? h("span", null, "Refused") : h("input", { defaultValue: "draft" });
     }
     const settle = async condition => {
-      for (let n = 0; n < 200; n++) {
-        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
-        if (condition()) return;
-      }
-      throw Error("kept hooks did not settle: " + JSON.stringify({ phase, latest, held: held.length, reading }));
+      // Flush React once even when the requested state is already true.
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      return awaitState(condition, "kept hooks did not settle: " + JSON.stringify({ phase, latest, held: held.length, reading }), { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
     };
     try {
       await mount(h(Probe), raw); await settle(() => latest.page.hasMore);
@@ -949,11 +947,9 @@ ${assetRecoveryHarness}
     } });
     function Probe() { latest = { query: useQuery(query, {}, { keep: false }), page: usePage(query, {}, { keep: false }) }; return null; }
     const settle = async condition => {
-      for (let n = 0; n < 100; n++) {
-        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
-        if (condition()) return;
-      }
-      throw Error("observation did not settle");
+      // Flush React once even when the requested state is already true.
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      return awaitState(condition, "observation did not settle", { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
     };
     const rerun = async value => {
       phase = value;
@@ -1121,7 +1117,7 @@ for (const hook of ["useQuery", "usePage"]) for (const guarded of [false, true])
     }
     try {
       await mount(h(Probe), client);
-      for (let n = 0; n < 200 && !latest.data; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      await awaitState(async () => !(!latest.data), 'helpers/react-harness.mjs: !latest.data', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
       equal(latest.data, ["secret"], "initial query settled");
       performance.now = () => monotonic;
       await unmount();
@@ -1163,11 +1159,9 @@ for (const hook of ["useQuery", "usePage"]) {
       throw Error(path);
     } });
     const settle = async condition => {
-      for (let n = 0; n < 200; n++) {
-        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
-        if (condition()) return;
-      }
-      throw Error("lingering re-read did not settle: " + JSON.stringify({ latest, queries }));
+      // Flush React once even when the requested state is already true.
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      return awaitState(condition, "lingering re-read did not settle: " + JSON.stringify({ latest, queries }), { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
     };
     function Probe() {
       latest = hook === "useQuery" ? useQuery(query, {}, { keep: true }) : usePage(query, {}, { keep: true }).read;

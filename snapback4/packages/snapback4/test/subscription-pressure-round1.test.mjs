@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — group-specific withdrawal and staged-publication fences.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -72,7 +73,7 @@ query constant():
 query decoration(id: int):
   return messages['item']
 `;
-for (const tier of ['wasm','process']) for (const staging of ['published','staged','offline','offline-before']) test(`${tier}: ${staging} removal only withdraws its room and resumes`, {timeout:30000}, async t => {
+for (const tier of ['wasm','process']) for (const staging of ['published','staged','offline','offline-before']) test(`${tier}: ${staging} removal only withdraws its room and resumes`, {timeout:hangBudget(24)}, async t => {
   const f=await fixture(t,twoRooms);
   assert.equal((await f.post('/seed',[
     ...['alice','bob'].map(p=>({table:'members',row:{id:p+'2',room:'room2',principal:'dev:'+p}})),
@@ -150,7 +151,7 @@ for (const tier of ['wasm','process']) for (const staging of ['published','stage
   assert.ok(two.every(w=>'data' in w.getSnapshot()));
 });
 
-for (const tier of ['wasm','process']) test(`${tier}: terminal change-feed refusal bypasses eight occupied slots`, {timeout:20000},async t=>{
+for (const tier of ['wasm','process']) test(`${tier}: terminal change-feed refusal bypasses eight occupied slots`, {timeout:hangBudget(8)},async t=>{
   const f=await fixture(t), feed=Promise.withResolvers(), slots=Promise.withResolvers();
   let armed=false, seen=false;
   const raw=opener(tier,join(f.dir,'terminal'));
@@ -176,7 +177,7 @@ for (const tier of ['wasm','process']) test(`${tier}: terminal change-feed refus
   assert.equal(history.getSnapshot().denied?.code,'E_TEST_TERMINAL','old queued work cannot restore data');
 });
 
-test('online scope-ambiguous change evidence expires while waiting for capacity', {timeout:15000},async t=>{
+test('online scope-ambiguous change evidence expires while waiting for capacity', {timeout:hangBudget(8)},async t=>{
   const f=await fixture(t), feed=Promise.withResolvers(), slots=Promise.withResolvers(); let changed=false;
   t.after(()=>{feed.resolve();slots.resolve();});
   const client=await open(t,f,'online',{fetch:async(input,init)=>{

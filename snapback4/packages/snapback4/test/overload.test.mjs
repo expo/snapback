@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runWorker, runGeneratedEffects } from '../dist/worker.js';
@@ -5,7 +6,7 @@ import { uploadAsset, fetchAsset } from '../dist/assets.js';
 
 const refusal = { code: 'E_RATE_LIMIT', family: 'limit', message: 'busy', retryable: true };
 for (const generated of [false, true]) for (const family of ['auth', 'limit']) {
-  test(`${generated ? 'generated' : 'ordinary'} worker retries overload (${family}) without ending authentication`, { timeout: 5000 }, async t => {
+  test(`${generated ? 'generated' : 'ordinary'} worker retries overload (${family}) without ending authentication`, { timeout: hangBudget(1) }, async t => {
     const stop = new AbortController(); t.after(() => stop.abort());
     let attempts = 0, auth = 0; const times = [];
     const options = { url: 'http://worker.invalid', token: 'test', signal: stop.signal, effects: { notify() {} }, onError() {}, onAuthFailure() { auth++; }, fetch: async () => {
@@ -59,7 +60,7 @@ mutation add(body: text <=100):
 query live():
   return connected[viewer]
 `;
-for (const tier of ['online', 'web']) test(`${tier}: refusals remain HTTP, reads back off, same-ID writes recover`, { timeout: 20000 }, async t => {
+for (const tier of ['online', 'web']) test(`${tier}: refusals remain HTTP, reads back off, same-ID writes recover`, { timeout: hangBudget(11) }, async t => {
   const { url } = await server(t, undefined, source);
   let fault = false, queryMode = 'overload'; const reads = [], writes = [], syncs = [];
   const options = { url, persona: 'alice', fetch: async (input, init) => {
@@ -113,7 +114,7 @@ for (const tier of ['online', 'web']) test(`${tier}: refusals remain HTTP, reads
 });
 
 import { runVerifiers } from '../dist/server-verify.js';
-test('route verifier retries legacy auth-family overload without stopping startServer', { timeout: 5000 }, async t => {
+test('route verifier retries legacy auth-family overload without stopping startServer', { timeout: hangBudget(1) }, async t => {
   const stop = new AbortController(); t.after(() => stop.abort()); let attempts = 0, ended = 0;
   const times = [];
   const worker = runVerifiers({ url: 'http://verify.invalid', token: 'test', signal: stop.signal, stop() { ended++; stop.abort(); }, onError() {}, redact: value => value, secrets: () => ({}), routes: { hook: { declaration: { contract: 'test' } } }, fetch: async () => {
@@ -291,7 +292,7 @@ for (const [name, invoke] of [
   if (mode === 'reset' || mode === 'unreachable') assert.match(result.why.message, new RegExp(mode === 'reset' ? 'ECONNRESET' : 'ECONNREFUSED'));
 });
 
-for (const tier of ['online', 'web']) for (const mode of ['overload', 'refusal', 'reset', 'unreachable']) test(`${tier}: public changes ${mode} classifies delivered refusals separately`, { timeout: 10000 }, async t => {
+for (const tier of ['online', 'web']) for (const mode of ['overload', 'refusal', 'reset', 'unreachable']) test(`${tier}: public changes ${mode} classifies delivered refusals separately`, { timeout: hangBudget(3) }, async t => {
   const { url } = await server(t, undefined, source); const times = [];
   const options = { url, persona: 'alice', fetch: async (input, init) => {
     if (new URL(input).pathname === '/changes') {
@@ -376,7 +377,7 @@ for (const rotating of [false, true]) for (const mode of ['overload', 'reset', '
 
 for (const tier of ['online', 'web']) for (const door of ['probe', 'sync']) {
   if (tier === 'online' && door === 'sync') continue;
-  test(`${tier}: public ${door} overload recovers an offline link without adopting identity`, { timeout: 15000 }, async t => {
+  test(`${tier}: public ${door} overload recovers an offline link without adopting identity`, { timeout: hangBudget(8) }, async t => {
     let client;
     const events = new EventTarget(), oldAdd = globalThis.addEventListener, oldRemove = globalThis.removeEventListener;
     globalThis.addEventListener = events.addEventListener.bind(events); globalThis.removeEventListener = events.removeEventListener.bind(events);
@@ -422,7 +423,7 @@ test('public transfers jitter beyond Retry-After and stop within their cumulativ
   assert.deepEqual(delays.filter(ms => ms > 0), [1125, 1125, 1125]);
 });
 
-for (const tier of ['online', 'web']) for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public ${tier} probe recovery paces ${mode} and respects Retry-After`, { timeout: 10000 }, async t => {
+for (const tier of ['online', 'web']) for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public ${tier} probe recovery paces ${mode} and respects Retry-After`, { timeout: hangBudget(6) }, async t => {
   const { url } = await server(t, undefined, source), entered = deferred(), release = deferred(), probes = [], waits = [];
   const timeout = globalThis.setTimeout;
   t.mock.method(Math, 'random', () => 0.5);
@@ -453,7 +454,7 @@ for (const tier of ['online', 'web']) for (const mode of ['retryable', 'nonretry
   }
 });
 
-for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'query', 'mutation']) test(`${tier}: concurrent public ${kind} retries vary beyond Retry-After`, { timeout: 15000 }, async t => {
+for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'query', 'mutation']) test(`${tier}: concurrent public ${kind} retries vary beyond Retry-After`, { timeout: hangBudget(4) }, async t => {
   const { url } = await server(t, undefined, source), clients = [], timers = [], calls = new Map();
   let fault = false;
   const path = { upload: '/assets', asset: '/assets/once', query: '/q/live', mutation: '/m/add' }[kind];
@@ -491,7 +492,7 @@ for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'qu
   assert.deepEqual([...calls.values()], [2, 2, 2, 2]);
 });
 
-for (const retryable of [false, undefined]) for (const tier of ['online', 'web']) test(`${tier}: nonretryable changes (${retryable}) is visible and stops polling`, { timeout: 10000 }, async t => {
+for (const retryable of [false, undefined]) for (const tier of ['online', 'web']) test(`${tier}: nonretryable changes (${retryable}) is visible and stops polling`, { timeout: hangBudget(8) }, async t => {
   const { url } = await server(t), signed = await guest(url), entered = deferred(), release = deferred(); let polls = 0;
   const why = { code: 'E_STORE', family: 'store', message: 'the partition is gone', ...(retryable === false ? { retryable } : {}) };
   const options = { url, session: signed.session, sessionStore: memorySessionStore(), fetch: async (input, init) => {

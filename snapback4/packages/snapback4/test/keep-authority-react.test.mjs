@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -28,8 +29,9 @@ for (const keep of [undefined, true]) test(`createApp keep=${keep}: useQuery and
       ...["app", "auth", "react"].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === "react" ? "tsx" : "ts"}`) })),
     ] } });
   await server.listen();
-  browser = await chromium.launch({ executablePath, headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath, headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   const errors = [];
   page.on("pageerror", error => errors.push(String(error)));
   await page.goto(server.resolvedUrls.local[0]);

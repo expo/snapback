@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
@@ -14,13 +15,9 @@ import {processDevice} from '../dist/native.js';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = resolve(process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4'));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, message) {
-  const end = Date.now() + 15000;
-  while (Date.now() < end) { if (await check()) return; await pause(10); }
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 
-for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats in one ${host} session`, {timeout: 60000}, async () => {
+for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats in one ${host} session`, {timeout: hangBudget(48)}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'sb4-unfollow-'));
   await mkdir(join(directory, 'snapback'));
   const source = readFileSync(join(root, 'crates/snapback4-lang/tests/fixtures/following-view.q'), 'utf8');

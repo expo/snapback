@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Browser review regressions: session custody, offline startup, and page exit.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +11,7 @@ import { until } from './helpers/app-server.mjs';
 
 // One hang allowance per scenario, plus startup and cleanup, rather than a
 // fixed file-throughput limit. Each of the 54 sequential scenarios is also bounded.
-const scenarioTimeout = 60_000;
+const scenarioTimeout = hangBudget();
 test('web admission review: recovery and transport respect the session boundary', { timeout: (54 + 2) * scenarioTimeout }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-admission-review-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
@@ -294,7 +295,11 @@ window.abortReceipts = (store, limit = Infinity) => {
     assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json())).seeded, 2);
     return { credentials: credentials_, session };
   };
-  const total = async (session, backend = url) => (await fetch(backend + '/q/total', { method: 'POST', headers: { authorization: `Bearer ${session.token}` }, body: '{}' }).then(r => r.json())).data;
+  const total = async (session, backend = url) => {
+    const result = await fetch(backend + '/q/total', { method: 'POST', headers: { authorization: `Bearer ${session.token}` }, body: '{}' }).then(r => r.json());
+    assert.equal(result.denied, undefined, JSON.stringify(result));
+    return result.data;
+  };
   const navigate = async suffix => {
     await page.evaluate(suffix => location.assign('/?' + suffix), suffix);
     await page.waitForURL('**/?' + suffix); await page.waitForFunction(() => !!window.boot);
@@ -326,6 +331,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     const { session } = await fresh();
     await page.evaluate(options => boot(options), { url, session, holdAdmission: true });
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
       await peer.evaluate(options => boot(options), { url });
@@ -336,7 +342,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       await until(() => peer.evaluate(async url => (await navigator.locks.query()).pending.some(lock => lock.name === sessionKey(url)), url), 'peer logout queued on the session lock');
       assert.deepEqual(await page.evaluate(() => exitLocks), [], 'the hide must wait for the pending commit');
       await page.evaluate(() => releaseAdmission());
-      await peer.waitForFunction(() => window.loggedOut, null, { timeout: 5000 });
+      await peer.waitForFunction(() => window.loggedOut, null, { timeout: hangBudget() });
       await page.waitForFunction(() => window.exitLocks.length > 0);
       assert.ok((await page.evaluate(() => exitLocks)).every(depth => depth === 0), 'transport entered under the session lock');
       assert.equal(await peer.evaluate(() => app.auth.state), 'signed-out');
@@ -382,11 +388,11 @@ window.abortReceipts = (store, limit = Infinity) => {
     assert.equal(recovered.write?.state, 'pending', 'recovery must not depend on /sync');
     assert.equal(JSON.parse(recovered.outbox).id, captured.id);
     const delivered = mode === 'held-sync' ? page.waitForResponse(response => response.url().endsWith('/m/removeMember')
-      && JSON.parse(response.request().postData()).id === captured.id, { timeout: 5000 }) : undefined;
+      && JSON.parse(response.request().postData()).id === captured.id, { timeout: hangBudget() }) : undefined;
     // Avoid a late unhandled rejection when a deliberately broken mutant never sends.
     void delivered?.catch(() => {});
     await hide();
-    await page.waitForFunction(id => window.sent.some(send => send.id === id && send.keepalive), captured.id, { timeout: 3000 });
+    await page.waitForFunction(id => window.sent.some(send => send.id === id && send.keepalive), captured.id, { timeout: hangBudget() });
     if (delivered) {
       assert.equal((await delivered).status(), 200);
       assert.equal(await total(session), before + 1, 'the hide keepalive must reach the real server before /sync is released');
@@ -420,7 +426,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     assert.equal(await page.evaluate(() => exitRegistrations), 0);
     assert.deepEqual(await page.evaluate(() => sent), []);
     const delivered = page.waitForResponse(response => response.url().endsWith('/m/removeMember')
-      && JSON.parse(response.request().postData()).id === captured.id, { timeout: 3000 });
+      && JSON.parse(response.request().postData()).id === captured.id, { timeout: hangBudget() });
     void delivered.catch(() => {});
     try {
       await page.evaluate(async () => { releaseSync(); await app.ready; });
@@ -459,7 +465,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       const backendUrl = replacement?.api ?? url;
       await page.evaluate(options => boot(options), { url, holdProbe: true, holdSync: true,
         probeMode: mode, backendUrl, blockMutations: 'retry' });
-      await page.waitForFunction(() => window.probeHeld, null, { timeout: 5000 });
+      await page.waitForFunction(() => window.probeHeld, null, { timeout: hangBudget() });
       const recovered = await page.evaluate(async ({ id, store }) => ({
         write: await app.client.write(id), outbox: await indexedDbPersistence().read(store, 'o', id),
         state: (await core.call({ op: 'sync_state', capture: false })).ok,
@@ -478,7 +484,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       assert.equal(held.registrations, 0, 'exit transport must wait for the probe decision');
       assert.deepEqual(held.sends, [], 'a held probe must not send its recovered head');
       const delivered = mode === 'accepted' ? page.waitForResponse(response => response.url().endsWith('/m/removeMember')
-        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 3000 }) : undefined;
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: hangBudget() }) : undefined;
       void delivered?.catch(() => {});
       await page.evaluate(() => releaseProbe());
       if (mode === 'accepted') {
@@ -567,7 +573,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       } else await page.waitForFunction(() => window.mutationHeld);
       assert.equal(await page.evaluate(() => exitRegistrations), 1);
       const delivered = page.waitForResponse(response => response.url().endsWith('/m/removeMember')
-        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 3000 });
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: hangBudget() });
       void delivered.catch(() => {});
       await hide();
       assert.equal((await delivered).status(), 200);
@@ -586,7 +592,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     const replacement = mode === 'replacement' ? await replacementFor(session) : undefined;
     await page.evaluate(options => boot(options), { url, holdProbe: true, holdSync: true, probeMode: mode, backendUrl: replacement?.api ?? url });
     try {
-      await page.waitForFunction(() => window.probeHeld, null, { timeout: 5000 });
+      await page.waitForFunction(() => window.probeHeld, null, { timeout: hangBudget() });
       assert.deepEqual(await page.evaluate(async () => (await core.call({ op: 'queued' })).ok), []);
       const captured = await page.evaluate(() => captureClick());
       assert.ok(captured.record, 'the new click is synchronously journaled');
@@ -598,7 +604,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       assert.deepEqual(held.sent, []); assert.equal(held.exitRegistrations, 0);
       assert.equal(await total(observer), before);
       const delivered = mode === 'accepted' ? page.waitForResponse(response => response.url().endsWith('/m/removeMember')
-        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 5000 }) : undefined;
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: hangBudget() }) : undefined;
       void delivered?.catch(() => {});
       await page.evaluate(() => releaseProbe());
       if (delivered) {
@@ -1122,6 +1128,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     const { session } = await fresh(), before = await total(session);
     await page.evaluate(options => boot(options), { url, session, holdPoll: true, blockMutations: hidden });
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     let replacement;
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
@@ -1137,7 +1144,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       await page.evaluate(destination => { window.backendUrl = destination; window.sent = []; }, replacement.api);
       if (hidden) await hide();
       const response = page.waitForResponse(response => response.url() === replacement.api + '/m/removeMember'
-        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 5000 });
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: hangBudget() });
       void response.catch(() => {});
       await peer.evaluate(() => app.close()); await peer.close();
       const rejected = await response;
@@ -1174,6 +1181,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     const { session } = await fresh(), before = await total(session);
     await page.evaluate(options => boot(options), { url, session, holdPoll: true });
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     let replacement;
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
@@ -1232,6 +1240,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     const { session } = await fresh(), before = await total(session);
     await page.evaluate(options => boot(options), { url, session, holdPoll: true });
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
       await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true });
@@ -1269,10 +1278,14 @@ window.abortReceipts = (store, limit = Infinity) => {
   });
 
   for (const retainFields of [false, true]) await check(`same-epoch logout tombstone refuses live admission${retainFields ? ' even with retained session fields' : ''}`, async () => {
-    const { session } = await fresh();
-    const before = await total(session);
+    const { session, credentials } = await fresh();
+    // Observe the durable audit through an independent login family: the
+    // tombstoned client's retired token may already be revoked on a slow host.
+    const auditSession = await auth('login', credentials);
+    const before = await total(auditSession);
     await page.evaluate(options => boot(options), { url, session });
     const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.sessionKey);
       await peer.evaluate(url => new Promise(resolve => {
@@ -1288,7 +1301,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       const write = await page.evaluate(() => window.write);
       assert.equal(write.state, 'failed'); assert.equal(write.why.code, 'E_AUTH');
       assert.equal(await page.evaluate(({ store, id }) => indexedDbPersistence().read(store, 'o', id), captured), null);
-      assert.equal(await total(session), before);
+      assert.equal(await total(auditSession), before);
       await page.evaluate(() => app.close());
     } finally { await peer.evaluate(() => window.releaseSession?.()); await peer.close(); }
   });
@@ -1306,7 +1319,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       return { state: write.state, code: write.why?.code };
     }, url);
     assert.deepEqual(result, { state: 'failed', code: 'E_AUTH' });
-    await page.waitForFunction(() => app.auth.state !== 'signed-in', null, { timeout: 3000 });
+    await page.waitForFunction(() => app.auth.state !== 'signed-in', null, { timeout: hangBudget() });
     const state = await page.evaluate(() => ({ viewer: old.viewer(), acquired: old.acquired, observed: observed.getSnapshot() }));
     assert.equal(state.viewer, null); assert.equal(state.acquired, false);
     assert.equal(state.observed.data, undefined); assert.ok(state.observed.denied);

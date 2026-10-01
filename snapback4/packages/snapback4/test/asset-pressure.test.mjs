@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Actual HTTP connection pressure against an unmodified 128-connection host.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ const { processDevice } = await import(pathToFileURL(join(dist, 'native.js')));
 const { webDevice, memoryPersistence } = await import(pathToFileURL(join(dist, 'web.js')));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-test('forty asset calls recover after actual connection admission pressure', { timeout: 30000 }, async t => {
+test('forty asset calls recover after actual connection admission pressure', { timeout: hangBudget(7) }, async t => {
   const f = await avatarFixture(t);
   for (const tier of ['online', 'process', 'wasm']) await t.test(tier, async t => {
     let attempts = 0, resets = 0, limited = 0;

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
@@ -15,11 +16,7 @@ const pkg = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const binary = process.env.SNAPBACK4_BIN ?? resolve(pkg, "../../target/debug/snapback4");
 const readme = readFileSync(join(pkg, "README.md"), "utf8");
 const blocks = [...readme.matchAll(/^```(quarry|tsx?)\n([\s\S]*?)^```/gm)];
-const until = async (read, label) => {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) { const value = await read(); if (value) return value; await delay(20); }
-  assert.fail(`timed out: ${label}`);
-};
+const until = async (read, label) => { return awaitState(read, label); };
 
 test("README first-account package imports execute through public exports", async () => {
   const imports = blocks.filter(block => block[1] !== "quarry").flatMap(block =>
@@ -48,7 +45,7 @@ test("README Following reader matches the feeds card", () => {
 
 // The only application inputs are README blocks and the named init --expo starter.
 // No handwritten Query/Mutation declarations or alternate account schema can mask a broken path.
-for (const tier of ["online", "local"]) test(`README first account: ${tier}, generated API, password, avatar, reopen and denied read`, { timeout: 120_000 }, async t => {
+for (const tier of ["online", "local"]) test(`README first account: ${tier}, generated API, password, avatar, reopen and denied read`, { timeout: hangBudget(27) }, async t => {
   const schema = blocks.find(b => b[1] === "quarry" && b[2].includes("table profiles:"))?.[2];
   assert.ok(schema, "README must contain its password profile schema");
   const examples = blocks.filter(b => b[1] !== "quarry" && b[2].startsWith("// ")).map(b => ({ text: b[2], file: b[2].match(/^\/\/ (src\/\w+\.ts|App\.tsx)\n/)?.[1] }));
@@ -61,7 +58,7 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
     rmSync(dir, { recursive: true, force: true });
   });
   const run = args => {
-    const result = spawnSync(binary, args, { cwd: dir, encoding: "utf8", timeout: 30_000 });
+    const result = spawnSync(binary, args, { cwd: dir, encoding: "utf8", timeout: hangBudget() });
     assert.equal(result.status, 0, `${args.join(" ")}\n${result.stdout}\n${result.stderr}`);
     return result.stdout;
   };

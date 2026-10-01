@@ -1,3 +1,5 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
@@ -90,7 +92,7 @@ async function harness(t) {
   t.after(async()=>{for(const {child,exited} of children){if(child.exitCode===null&&child.signalCode===null)child.kill();await exited;}rmSync(dir,{recursive:true,force:true});});
   const legacy=await published(cache,join(dir,'published'),text=>t.diagnostic(text));
   const current=await loadWasm(join(root,'packages/snapback4/src/wasm'));
-  const run=(bin,args,input='',cwd=dir)=>spawnSync(bin,args,{cwd,input,encoding:'utf8',timeout:20_000});
+  const run=(bin,args,input='',cwd=dir)=>spawnSync(bin,args,{cwd,input,encoding:'utf8',timeout:hangBudget()});
   assert.match(run(legacy.binary,['--version']).stdout,/snapback4 0\.2\.33/);
   function native(bin,path,backend,requests=[]) {
     const file=join(dir,'backend.json');if(backend)writeFileSync(file,JSON.stringify(backend));
@@ -103,16 +105,12 @@ async function harness(t) {
   async function start(bin,cwd,args=['dev','--no-watch','--port','0']) {
     const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']}),exited=once(child,'exit');children.push({child,exited});
     let log='',stopped=false;for(const stream of [child.stdout,child.stderr])stream.on('data',d=>{log+=d;});
-    for(let n=0;n<1000;n++) {
-      const url=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
-      const assertAlive=()=>{assert.equal(child.exitCode,null,log);assert.equal(child.signalCode,null,log);};
-      assertAlive();
-      if(url)return {url,assertAlive,stop:async()=>{if(stopped)return;assertAlive();stopped=true;child.kill();await exited;}};
-      await delay(20);
-    }assert.fail(log);
+    const assertAlive=()=>{assert.equal(child.exitCode,null,log);assert.equal(child.signalCode,null,log);};
+    const url = await awaitState(() => { assertAlive(); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "capability server", { diagnostics: () => log });
+    return {url,assertAlive,stop:async()=>{if(stopped)return;assertAlive();stopped=true;child.kill();await exited;}};
   }
   const request=async(server,path,body,auth={'x-snapback-persona':'alice'})=>{
-    const r=await fetch(server.url+path,{method:body?'POST':'GET',headers:{...auth,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20_000)});
+    const r=await fetch(server.url+path,{method:body?'POST':'GET',headers:{...auth,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(hangBudget())});
     const text=await r.text();assert.equal(r.status,200,text);return {text,json:JSON.parse(text)};
   };
   async function app(name,source,seed=[],bin=binary) {
@@ -125,7 +123,7 @@ async function harness(t) {
 }
 
 for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
-  skip:!cache&&'set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory',timeout:120_000,
+  skip:!cache&&'set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory',timeout:hangBudget(8),
 },async t=>{
   const h=await harness(t),{dir,legacy,current,run,native,app}=h;
   const old=await app('prior',f.plain,f.seed);
@@ -272,7 +270,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
 });
 
 test('published 0.2.33 control: capability-free bytes and stores stay compatible',{
-  skip:!cache&&'set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory',timeout:120_000,
+  skip:!cache&&'set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory',timeout:hangBudget(9),
 },async t=>{
   const {dir,legacy,current,run,native,app,start,request}=await harness(t);
   const control='use identity guests\n'+ordinary;

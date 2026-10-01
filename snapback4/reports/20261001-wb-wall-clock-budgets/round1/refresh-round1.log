@@ -1,0 +1,38 @@
+✖ a presence answer re-runs in the background after its server's interval, never showing loading (25.928254ms)
+✔ unguarded background refresh reports a newly accepted delivery coordinate with changes held (509.374361ms)
+✔ an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops (2727.144467ms)
+✔ a refresh that fails keeps the interval, and a refused presence query keeps refreshing (916.13242ms)
+✔ an invalidation during a background refresh withdraws at once, and the late refresh is discarded (417.055458ms)
+✔ an interval a timer cannot hold is clamped, not wrapped to an immediate refresh (100.430445ms)
+✔ a background reply that a newer read overtook leaves the newer interval alone (561.795436ms)
+✔ an accepted loading answer is published, and a background failure keeps the answer and the link (927.376158ms)
+✔ a background reply older than a commit the client observed is not published (713.777722ms)
+✔ a read that settles after the credentials end arms no refresh timer (73.7876ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7063.583689
+
+✖ failing tests:
+
+test at packages/snapback4/test/presence-refresh.test.mjs:31:1
+✖ a presence answer re-runs in the background after its server's interval, never showing loading (25.928254ms)
+  AssertionError [ERR_ASSERTION]: refresh starts within [300, 301] ms after the answer
+  
+  1 !== 2
+  
+      at file:///tmp/wb-r1-controls-gzncxajy/refresh-round1/snapback4/packages/snapback4/test/presence-refresh.test.mjs:48:10
+      at async withHangGuard (file:///tmp/wb-r1-controls-gzncxajy/refresh-round1/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -35,7 +36,7 @@ async function raw(url, version, connection, path = "/probe", method = "GET") {
   const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port) });
   socket.setEncoding("utf8"); let answer = "";
   const headers = new Promise((resolve, reject) => {
-    socket.setTimeout(5000, () => reject(Error("no response headers before deadline")));
+    socket.setTimeout(hangBudget(), () => reject(Error("no response headers before deadline")));
     socket.on("data", bytes => { answer += bytes; if (answer.includes("\r\n\r\n")) resolve(answer.split("\r\n\r\n")[0]); });
     socket.on("error", reject);
     socket.on("end", () => { if (!answer.includes("\r\n\r\n")) reject(Error(answer || "no headers")); });
@@ -101,12 +102,12 @@ test("serve through a trusted TLS terminator retains SDK keep-alive", async t =>
   const [code] = await once(child, "exit"); assert.equal(code, 0, log);
 });
 
-test("held and heartbeat /changes responses exceed idle timeout and remain reusable", { timeout: 25_000 }, async t => {
+test("held and heartbeat /changes responses exceed idle timeout and remain reusable", { timeout: hangBudget(5) }, async t => {
   const { url } = await host(t, false);
   const headers = { "x-snapback-persona": "alice" };
   for (const heartbeat of [0, 1]) {
     const start = performance.now();
-    const response = await defaultFetch(url + `/changes?since=0&wait=6&heartbeat=${heartbeat}`, { headers, signal: AbortSignal.timeout(12_000) });
+    const response = await defaultFetch(url + `/changes?since=0&wait=6&heartbeat=${heartbeat}`, { headers, signal: AbortSignal.timeout(hangBudget()) });
     assert.equal(response.headers.get("keep-alive"), "timeout=5");
     const body = await response.json();
     assert.equal(body.seq, 0, JSON.stringify(body));

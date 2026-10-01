@@ -1,0 +1,35 @@
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (208.301925ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (71.890285ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (242.335371ms)
+  ✔ seed and upload retain their separate larger request ceilings (340.871445ms)
+  ✔ one-view assets finalize only after a complete non-range response (681.364793ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (243.493086ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (3489.705298ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (19116.398486ms)
+  ✔ a paused large response releases the engine before network progress (673.981615ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (25611.672571ms)
+✔ online: a live online mark follows the principal it reads (4668.333061ms)
+ℹ {"tier":"online","cameOnlineMs":52,"wentAwayAfterCloseMs":3610}
+✔ native: a live online mark follows the principal it reads (5011.156103ms)
+ℹ {"tier":"native","cameOnlineMs":92,"wentAwayAfterCloseMs":3635}
+✔ web: a live online mark follows the principal it reads (7136.664069ms)
+ℹ {"tier":"web","cameOnlineMs":54,"wentAwayAfterCloseMs":3663}
+✔ a presence answer re-runs in the background after its server's interval, never showing loading (213.013659ms)
+✔ unguarded background refresh reports a newly accepted delivery coordinate with changes held (520.495353ms)
+✔ an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops (2760.498505ms)
+✔ a refresh that fails keeps the interval, and a refused presence query keeps refreshing (911.403357ms)
+✔ an invalidation during a background refresh withdraws at once, and the late refresh is discarded (428.208268ms)
+✔ an interval a timer cannot hold is clamped, not wrapped to an immediate refresh (112.051197ms)
+✔ a background reply that a newer read overtook leaves the newer interval alone (569.090011ms)
+✔ an accepted loading answer is published, and a background failure keeps the answer and the link (928.044127ms)
+✔ a background reply older than a commit the client observed is not published (715.184739ms)
+✔ a read that settles after the credentials end arms no refresh timer (82.577488ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26889.29044

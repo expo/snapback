@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fetch } from 'undici';
 import { createLocalClient } from '../dist/local.js';
 import { answerObservation } from '../dist/read-observation.js';
+import { hangBudget, waitFor } from './helpers/wait.mjs';
 import { fixture, source, opener, q, parked, until } from './helpers/answers-stay.mjs';
 
 const program = source + `
@@ -26,18 +27,21 @@ query heldItem() held:
   return messages['item']
 `;
 async function turns(t, predicate, label) {
-  const end = performance.now() + 5000;
-  while (!predicate() && performance.now() < end) {
+  await waitFor(predicate, label, { work: 2, poll: async () => {
+    // Real device IPC and fallback HTTP must finish while semantic time stays
+    // frozen. Pump only zero-delay transport callbacks, never expiry or sync.
     t.mock.timers.tick(0);
     await new Promise(resolve => setImmediate(resolve));
-  }
+  } });
   assert.ok(predicate(), label);
 }
 for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'emptyTransition', 'presentTransition', 'refusal', 'held-refusal']) {
-  test(`${host}: pending cut preserves ${scenario} before sync publication`, async t => {
+  test(`${host}: pending cut preserves ${scenario} before sync publication`, { timeout: hangBudget(16) }, async t => {
     const f = await fixture(t, program), device = opener(host, join(f.dir, host));
     const transition = ['transition', 'emptyTransition', 'presentTransition'].includes(scenario);
-    const cutoff = Date.now() + 1000;
+    // Keep startup on the initial branch beyond the case watchdog. Cross the
+    // cutoff explicitly below, after proving that the initial answer is local.
+    const cutoff = Date.now() + 86_400_000;
     let frozen = false, afterCutoff = false, deliver, holdSync = false, syncEntered = false, serverRequests = 0, localQueries = 0;
     const sync = Promise.withResolvers();
     const client = await createLocalClient({ url: f.url, persona: 'bob', device: { async open(...args) {
@@ -83,7 +87,10 @@ for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'e
     assert.equal(owner.serverRead, false, 'initial answer is local');
     assert.equal(serverRequests, 0);
     const head = await fetch(f.url + '/changes?since=0&wait=0', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
-    if (transition) await new Promise(resolve => setTimeout(resolve, Math.max(0, cutoff - Date.now() + 1)));
+    if (transition) {
+      const advanced = await f.post('/dev/clock/advance', { duration: '2d' });
+      assert.ok(advanced.now >= cutoff, 'the server has crossed the branch cutoff');
+    }
     const committed = await f.post('/m/edit', { id: crypto.randomUUID(), args: { body: 'image-2' } });
     assert.equal(committed.state, 'sent');
     const change = await fetch(f.url + '/changes?since=' + head.seq + '&wait=0', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
@@ -101,6 +108,7 @@ for (const host of ['process', 'wasm']) for (const scenario of ['transition', 'e
         'fallback classifies its own value rather than the previous local answer');
       for (const read of publications) if ('data' in read) assert.equal(read.existence, read.data === null ? 'absent' : 'present');
       assert.ok(serverRequests > 0);
+      assert.equal(holdSync, true, 'the current server answer precedes sync publication');
       assert.equal(owner.serverOnly, true);
       assert.equal(owner.changeCut, change.seq, 'server replacement does not erase the replica fence');
     } else {

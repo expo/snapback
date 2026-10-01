@@ -1,0 +1,111 @@
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3059.988882ms)
+  ✔ offline transport (36.30798ms)
+  ✔ retry exhaustion (222.900531ms)
+  ✔ reconnect (64.270571ms)
+✔ process keep=undefined: profile route gate (4365.134948ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (50.076867ms)
+  ✔ own send and settlement (49.695074ms)
+  ✔ edit (32.740532ms)
+  ✔ delete (34.237456ms)
+  ✔ membership removal (32.116517ms)
+✔ process keep=undefined: chat history and membership removal (1769.772984ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3050.565115ms)
+  ✔ offline transport (32.940562ms)
+  ✔ retry exhaustion (206.642051ms)
+  ✔ reconnect (57.27775ms)
+✔ process keep=true: profile route gate (4095.491274ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (36.053508ms)
+  ✔ own send and settlement (35.450344ms)
+  ✔ edit (33.388584ms)
+  ✔ delete (29.700636ms)
+  ✔ membership removal (28.119467ms)
+✔ process keep=true: chat history and membership removal (1710.043658ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3052.818881ms)
+  ✔ offline transport (20.832104ms)
+  ✔ retry exhaustion (201.362439ms)
+  ✔ reconnect (43.737866ms)
+✔ wasm keep=undefined: profile route gate (4380.083908ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (47.736789ms)
+  ✔ own send and settlement (46.399125ms)
+  ✔ edit (23.706742ms)
+  ✔ delete (22.588617ms)
+  ✔ membership removal (22.332222ms)
+✔ wasm keep=undefined: chat history and membership removal (1698.382849ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3031.188158ms)
+  ✔ offline transport (24.22602ms)
+  ✔ retry exhaustion (200.850011ms)
+  ✔ reconnect (38.425964ms)
+✔ wasm keep=true: profile route gate (3992.23176ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (34.531447ms)
+  ✔ own send and settlement (26.076154ms)
+  ✔ edit (25.533181ms)
+  ✔ delete (23.349757ms)
+  ✔ membership removal (21.033365ms)
+✔ wasm keep=true: chat history and membership removal (1662.657241ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3036.621339ms)
+  ✔ offline transport (10.36134ms)
+  ✔ retry exhaustion (190.579336ms)
+  ✔ reconnect (19.958414ms)
+✔ online keep=undefined: profile route gate (3952.426184ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (28.872314ms)
+  ✔ own send and settlement (25.010447ms)
+  ✔ edit (19.09483ms)
+  ✔ delete (17.086329ms)
+  ✔ membership removal (19.506437ms)
+✔ online keep=undefined: chat history and membership removal (657.553641ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3035.879065ms)
+  ✔ offline transport (8.812238ms)
+  ✔ retry exhaustion (191.199936ms)
+  ✔ reconnect (20.540637ms)
+✔ online keep=true: profile route gate (3926.614415ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (26.493469ms)
+  ✔ own send and settlement (20.712424ms)
+  ✔ edit (18.559147ms)
+  ✔ delete (16.845198ms)
+  ✔ membership removal (17.064156ms)
+✔ online keep=true: chat history and membership removal (663.813182ms)
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (27.422132ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (8.718418ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (35.852597ms)
+  ✔ seed and upload retain their separate larger request ceilings (168.955997ms)
+  ✔ one-view assets finalize only after a complete non-range response (94.055334ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (74.713713ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (2188.840386ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (10684.253733ms)
+  ✔ a paused large response releases the engine before network progress (474.054778ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (13970.638794ms)
+✔ unchanged round-trip proof executes version/init/check/dev, client write/read and denied cross-persona read (60.096725ms)
+✔ round-trip proof propagates override refusal before dev starts (30.760395ms)
+✔ round-trip proof propagates version refusal before dev starts (35.473118ms)
+✔ round-trip proof propagates --version refusal before dev starts (31.773674ms)
+✔ round-trip proof propagates init refusal before dev starts (29.692854ms)
+✔ round-trip proof propagates check refusal before dev starts (29.248739ms)
+✔ round-trip proof propagates dev startup failure without creating clients (57.370438ms)
+✔ round-trip proof rejects mutate and closes both clients and dev (56.109979ms)
+✔ round-trip proof rejects write-state and closes both clients and dev (54.431393ms)
+✔ round-trip proof rejects alice-query and closes both clients and dev (58.18479ms)
+✔ round-trip proof rejects read-count and closes both clients and dev (60.054041ms)
+✔ round-trip proof rejects read-title and closes both clients and dev (58.382345ms)
+✔ round-trip proof rejects bob-query and closes both clients and dev (55.478323ms)
+✔ round-trip proof rejects disclosure and closes both clients and dev (57.826743ms)
+ℹ tests 90
+ℹ suites 0
+ℹ pass 90
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33956.667088

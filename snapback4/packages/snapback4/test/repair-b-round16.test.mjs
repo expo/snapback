@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // II1: the identical invariant runs against the saved base client/device too.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,10 +12,7 @@ const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", impor
 const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
 const marker = { kind: "query", name: "marker" };
 const ok = reply => { assert.ok(!reply.denied, JSON.stringify(reply)); return reply.ok; };
-async function until(check) {
-  for (let i = 0; i < 1000; i++) { if (check()) return; await tick(5); }
-  assert.fail("watch did not reach the expected state");
-}
+async function until(check) { return awaitState(check); }
 
 for (const viaOverflow of [false, true]) for (const fault of ["healthy", "others", "remember", "recover"]) test(`II1: ${viaOverflow ? "inline overflow" : "data"} replacement with ${fault} post-save recovery`, async t => {
   const failRecovery = fault !== "healthy";

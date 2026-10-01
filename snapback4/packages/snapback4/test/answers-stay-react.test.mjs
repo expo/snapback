@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — render every real host notification, without batching away loading.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -50,9 +51,10 @@ window.replay = (input) => {
     { find: 'snapback4/react', replacement: new URL('react.js', sdk).pathname },
   ] } });
   await vite.listen();
-  const browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   t.after(async () => { await browser.close(); await vite.close(); rmSync(dir, { recursive: true, force: true }); });
   const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.replay);
   return async (kind, reads, scopeWithdrawal = false) => {
     const result = await page.evaluate(input => window.replay(input), { kind, reads });
@@ -68,7 +70,7 @@ window.replay = (input) => {
   };
 }
 for (const host of ['process', 'wasm', 'online']) for (const keep of [undefined, true]) {
-  test(`${host} keep=${keep}: profile route gate`, { timeout: 60000 }, async t => {
+  test(`${host} keep=${keep}: profile route gate`, { timeout: hangBudget(23) }, async t => {
     const f = await fixture(t), render = await renderer(t);
     let failing = false, slowGate;
     const client = await open(t, f, host, { fetch: async (input, init) => {
@@ -94,11 +96,11 @@ for (const host of ['process', 'wasm', 'online']) for (const keep of [undefined,
           const work = owner.fetch(async () => ({ read: await client.query(q('profile'), {}) }), notify);
           await delay(3000); slowGate.resolve(); slowGate = undefined; await work;
         }
-        if (scenario === 'offline transport') { failing = true; await client.query(q('profile'), {}); await delay(30); }
+        if (scenario === 'offline transport') { failing = true; await client.query(q('profile'), {}); await until(() => client.link() === 'offline'); }
         if (scenario === 'retry exhaustion') await owner.fetch(async () => ({ read: ready }), notify, { accept: () => false });
         if (scenario === 'reconnect') {
-          failing = true; await client.query(q('profile'), {}); await delay(30);
-          failing = false; if (client.sync) await client.sync(); await client.query(q('profile'), {}); if (client.sync) await client.sync(); await delay(30);
+          failing = true; await client.query(q('profile'), {}); await until(() => client.link() === 'offline');
+          failing = false; if (client.sync) await client.sync(); await client.query(q('profile'), {}); if (client.sync) await client.sync(); await until(() => client.link() === 'online');
         }
         reads.push(watch.getSnapshot());
         await render('profile', reads);
@@ -106,7 +108,7 @@ for (const host of ['process', 'wasm', 'online']) for (const keep of [undefined,
       } finally { stop(); }
     });
   });
-  test(`${host} keep=${keep}: chat history and membership removal`, { timeout: 60000 }, async t => {
+  test(`${host} keep=${keep}: chat history and membership removal`, { timeout: hangBudget(13) }, async t => {
     const f = await fixture(t), render = await renderer(t), client = await open(t, f, host);
     const watch = client.observe(q('history'), { c: null }, { keep }); t.after(() => watch.close());
     await until(() => watch.getSnapshot().data?.length === 1);

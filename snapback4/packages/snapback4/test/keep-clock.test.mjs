@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // The issued device clock can stay ahead while the estimated server clock rolls back.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -210,7 +211,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
   assert.ok(f.clock.deviceDelay(f.serverDeadline) === 0 && f.clock.serverDelay(f.serverDeadline) === 3_600_000);
   f.clock.sample(f.serverDeadline, f.wall, f.wall, "server:1");
   // The original timer has an hour left. Only clock correction can withdraw now.
-  for (let i = 0; i < 100 && !(active.getSnapshot().loading && idle.getSnapshot().loading); i++) await delay(5);
+  await awaitState(async () => !(!(active.getSnapshot().loading && idle.getSnapshot().loading)), "keep-clock.test.mjs: !(active.getSnapshot().loading && idle.getSnapshot().loading)", { poll: async () => { await delay(5); } });
   assert.deepEqual(active.getSnapshot(), { loading: true }, "correction must re-arm the displayed answer's timer");
   assert.deepEqual(idle.getSnapshot(), { loading: true }, "a lingering watch keeps that same clock subscription");
   assert.deepEqual(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep }), { loading: true });

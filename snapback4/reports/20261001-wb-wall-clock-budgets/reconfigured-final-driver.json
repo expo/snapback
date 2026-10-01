@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-01T03:44:40.671401+00:00",
+  "stopped": [
+    {
+      "pid": 2188049,
+      "command": [
+        "python3",
+        "snapback4/reports/20261001-wb-wall-clock-budgets/final-runs.py"
+      ]
+    }
+  ],
+  "reason": "Queued driver has launched no tests. Add final full-file client-seams repair coverage after five ongoing follow-up runs; preserve scripts/test.sh once-only rule."
+}

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Caller IDs across independent owners and the bounded device receipt window.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -15,11 +16,7 @@ const binary = process.env.SNAPBACK4_BIN ?? new URL("../../../target/debug/snapb
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const op = name => ({ kind: "mutation", name });
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check) {
-  const end = Date.now() + 15000;
-  do { const value = await check(); if (value) return value; await new Promise(r => setTimeout(r, 20)); } while (Date.now() < end);
-  throw new Error("timed out waiting for write");
-}
+async function until(check) { return awaitState(check); }
 const source = `use personas alice, bob
 table records:
   n: int
@@ -127,7 +124,7 @@ for (const tier of ["memory", "native"]) {
       t.diagnostic(`store=${tier} predictions=1 queued=1 applied=1 conflicting_events=0`);
     });
   }
-  for (const guarded of [false, true]) test(`W6R1 B ${tier}: evicted ${guarded ? "changed guard" : "explicit row"} outcome reaches server replay`, { timeout: 120000 }, async t => {
+  for (const guarded of [false, true]) test(`W6R1 B ${tier}: evicted ${guarded ? "changed guard" : "explicit row"} outcome reaches server replay`, { timeout: hangBudget(18) }, async t => {
     const f = await fixture(t, tier), client = await f.open(), id = mintId();
     if (guarded) assert.equal((await client.mutate(op("explicit"), { row: "gate", n: 0 })).state, "sent");
     const name = guarded ? "guarded" : "explicit", args = guarded ? {} : { row: "R", n: 1 };

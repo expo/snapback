@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -17,7 +18,7 @@ async function seedRoom2(f){assert.equal((await f.post('/seed',[
  ...['alice','bob'].map(p=>({table:'members',row:{id:p+'2',room:'room2',principal:'dev:'+p}})),
  {table:'messages',row:{id:'item2',room:'room2',body:'permitted room2',at:1}}
 ])).seeded,3);}
-for(const tier of ['wasm','process'])for(const staged of [false,true])test(`${tier}: ${staged?'staged':'published'} removal preserves server-backed sibling`,{timeout:20000},async t=>{
+for(const tier of ['wasm','process'])for(const staged of [false,true])test(`${tier}: ${staged?'staged':'published'} removal preserves server-backed sibling`,{timeout:hangBudget(12)},async t=>{
  const f=await fixture(t,twoRooms);await seedRoom2(f);
  const slots=Promise.withResolvers(),continuation=Promise.withResolvers();let work,cut=false,released=false;
  t.after(()=>{slots.resolve();released=true;continuation.resolve()});

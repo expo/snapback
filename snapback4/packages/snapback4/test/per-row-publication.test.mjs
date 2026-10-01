@@ -32,7 +32,7 @@ for(const tier of ['wasm','process']) test(`${tier}: unknown apply refresh drain
  await until(()=>applied,'apply');
  await until(()=>stateHeld,'watermark publication held');
  const oldPoll=releaseChange;gate.resolve();await until(()=>releaseChange!==oldPoll,'sync completed and next change poll began');
- for(let i=0;i<80;i++)await new Promise(r=>setImmediate(r));
+ await until(()=>w.getSnapshot().data?.label==='changed','owner refresh after watermark publication');
  const after=w.getSnapshot();
  assert.equal((await client.query({kind:'query',name:'point'},{id:'c0'})).data?.label,'changed','device is current');
  assert.equal(after.data?.label,'changed','sync must refresh the owner after clearing the remote fence');

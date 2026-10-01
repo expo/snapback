@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.019 §3.3 revision 4: the application explicitly opts into stale presentation.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -16,10 +17,7 @@ const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const query = { kind: "query", name: "secret" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check, message) {
-  for (let n = 0; n < 1000; n++) { if (check()) return; await delay(10); }
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 const source = `use personas alice, bob
 table members:
   room: text <=40
@@ -69,7 +67,7 @@ async function fixture(t) {
 }
 
 for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", "settle", "revoke", "leave", "refusal"]) {
-  test(`${tier}: keep=${keep} across ${change} retains ordinary answers and withdraws known scope loss`, { timeout: 30_000 }, async t => {
+  test(`${tier}: keep=${keep} across ${change} retains ordinary answers and withdraws known scope loss`, { timeout: hangBudget(14) }, async t => {
     const { directory, url, post, kick } = await fixture(t);
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const readOp = change === "refusal" ? { ...query, name: "required" } : query;
@@ -136,7 +134,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
   });
 }
 
-for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount lifetime, isolation, last subscriber and sign-out`, { timeout: 30_000 }, async t => {
+for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount lifetime, isolation, last subscriber and sign-out`, { timeout: hangBudget(15) }, async t => {
   const { directory, url } = await fixture(t);
   const held = deferred(); let holding = false, requests = 0;
   const initialChange = deferred();

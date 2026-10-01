@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.014: capture images and parent fallback on wasm and native.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -5,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { server, root } from "./helpers/read-through-server.mjs";
 const clique=readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/read-through-clique.q"),"utf8");
-for(const tier of ["wasm","process"]) test(`${tier}: Clique capture partitions and answers equal the flattened program`,{timeout:60000},async t=>{
+for(const tier of ["wasm","process"]) test(`${tier}: Clique capture partitions and answers equal the flattened program`,{timeout:hangBudget(9)},async t=>{
   const results=[];
   const until=Date.now()+3_600_000;
   for(const flat of [false,true]) {
@@ -67,7 +68,7 @@ mutation replace(old: children, parent: parents):
   delete children[old]
   insert children {id: 'new', parent, body: 'current'}
 `;
-for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back without losing retained rows`,{timeout:60000},async t=>{
+for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back without losing retained rows`,{timeout:hangBudget(12)},async t=>{
   const host=await server(t,tier,fallback);
   assert.equal((await host.post("/seed",[
     {table:"parents",row:{id:"a",owner:"dev:bob"}},{table:"parents",row:{id:"z",owner:"dev:bob"}},
@@ -106,13 +107,13 @@ for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back
   const sampled=client.observe({kind:"query",name:"sampled"},{parent:"a"});
   t.after(()=>sampled.close());
   const asked=()=>host.requests.filter(path=>path==="/q/sampled").length;
-  for(let i=0;i<500&&asked()<3;i++)await new Promise(resolve=>setTimeout(resolve,20));
+  await awaitState(async () => !(asked()<3), "read-through.test.mjs: asked()<3", { poll: async () => { await new Promise(resolve=>setTimeout(resolve,20)); } });
   assert.ok(asked()>=3,`the composed presence answer stopped refreshing after ${asked()} reads`);
   assert.deepEqual(sampled.getSnapshot().data,[{id:"new",body:"current"},{id:"old",body:"delivered",retained:true}],JSON.stringify(sampled.getSnapshot()));
 });
 
 const chain=readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/read-through-device.q"),"utf8");
-for(const tier of ["wasm","process"]) test(`${tier}: four-level capture, covered prediction and inherited expiry`,{timeout:60000},async t=>{
+for(const tier of ["wasm","process"]) test(`${tier}: four-level capture, covered prediction and inherited expiry`,{timeout:hangBudget(18)},async t=>{
   const host=await server(t,tier,chain);const until=Date.now()+3_600_000;
   const setup=await host.post("/m/setup",{id:"setup",args:{org:"o",project:"p",task:"t",until}});assert.equal(setup.state,"sent",JSON.stringify(setup));
   const snapshot=await host.post("/sync",{from:0,limit:100});
@@ -156,7 +157,7 @@ test("retained fallback preserves unpaired history and prefers matching source I
   assert.deepEqual(keepRetainedRows([current],[old],[mask("rows","old",true)]),[old],"a missing server envelope cannot authorize identity guesses");
 });
 
-for(const tier of ["wasm","process"]) test(`${tier}: retained children do not terminally refuse a reused parent delete`,{timeout:60000},async t=>{
+for(const tier of ["wasm","process"]) test(`${tier}: retained children do not terminally refuse a reused parent delete`,{timeout:hangBudget(18)},async t=>{
   const source=chain.replace("table comments:","table comments:\n  retain delivered-history")+`
 mutation reuse():
   delete comments['old']
@@ -194,7 +195,7 @@ mutation dropComment(id: comments):
   assert.equal((await host.post("/m/dropTask",{id:"delete-server",args:{id:"t"}})).state,"sent");
 });
 
-for(const tier of ["wasm","process"]) test(`${tier}: an expired unswept matching child queues its parent delete`,{timeout:60000},async t=>{
+for(const tier of ["wasm","process"]) test(`${tier}: an expired unswept matching child queues its parent delete`,{timeout:hangBudget(7)},async t=>{
   const source=chain.replace("table comments:","table comments:\n  until: time ?\n  expire at .until")+`
 mutation postUntil(id: comments, task: tasks, until: time):
   insert comments {id, task, until, body: 'soon', at: 1}

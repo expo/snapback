@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // B1d.2a source-only qualification for the managed organization recipe.
 // Every CLI principal and time is an operator test input, not authentication
 // or provider evidence. The parent lane supplies and pins the sha256-capable
@@ -292,7 +293,7 @@ test("managed organization and invitation policy runs in the shared interpreter"
     };
     const spawnRecorded = (args, label, kind, operatorPrincipal = null, operatorNow = null) => {
       const result = spawnSync(binary, args, {
-        cwd: canonical, encoding: "utf8", timeout: 20_000,
+        cwd: canonical, encoding: "utf8", timeout: hangBudget(),
       });
       appendFileSync(responseJournal, `${JSON.stringify({
         sequence: ++responseSequence, operation: label, kind,

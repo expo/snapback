@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -151,7 +152,7 @@ test("upload preserves a server store refusal and its actual cause", async () =>
   assert.deepEqual(result, { ok: false, why });
 });
 
-for (const capacity of ["connection", "worker"]) test(`fresh replay host reports ${capacity} overload to the real upload transport and recovers`, { timeout: 20_000 }, async t => {
+for (const capacity of ["connection", "worker"]) test(`fresh replay host reports ${capacity} overload to the real upload transport and recovers`, { timeout: hangBudget(11) }, async t => {
   const dir = await mkdtemp(join(tmpdir(), "sb4-upload-overload-"));
   await mkdir(join(dir, "snapback"));
   await writeFile(join(dir, "snapback/schema.q"), `use personas alice
@@ -172,7 +173,7 @@ table photos:
   });
   const url = await new Promise((resolve, reject) => {
     let output = "";
-    const timeout = setTimeout(() => reject(Error(`server startup timeout: ${log}`)), 10_000);
+    const timeout = setTimeout(() => reject(Error(`server startup timeout: ${log}`)), hangBudget());
     child.stdout.on("data", bytes => {
       output += bytes;
       const match = output.match(/http:\/\/127\.0\.0\.1:\d+/);

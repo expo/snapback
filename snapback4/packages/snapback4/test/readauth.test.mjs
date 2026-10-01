@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real SDK watches, actual wasm/memory and native/SQLite devices. No mocked interpreter.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,10 +19,7 @@ const binary=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
 const wasm=readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm',import.meta.url));
 const fixture=name=>readFileSync(join(root,'crates/snapback4-device/tests/readauth',name),'utf8');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function until(f,message) {
-  for(let i=0;i<400;i++) {if(await f())return;await sleep(25);}
-  assert.fail(message);
-}
+async function until(f,message) { return awaitState(f, message); }
 async function oldReport(host,persist,name,dir) {
   // Both hosts load identical old-client rows and outbox records. Memory
   // rebuilds its indexes on load; SQLite persists the corresponding keys.
@@ -48,7 +46,7 @@ async function oldReport(host,persist,name,dir) {
   } finally {db?.close();}
 }
 for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation','retained','upgrade','report','grant']) {
-  test(`${host}: ${mode} filters every watched read`,{timeout:90000},async t=>{
+  test(`${host}: ${mode} filters every watched read`,{timeout:hangBudget(43)},async t=>{
     const directory=mkdtempSync(join(tmpdir(),'sb4-readauth-'));
     mkdirSync(join(directory,'snapback'));
     const reporting=mode==='upgrade'||mode==='report';

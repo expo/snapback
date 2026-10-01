@@ -1,3 +1,5 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
@@ -13,7 +15,7 @@ const headers = { 'x-snapback-persona': 'bob' };
 const deferred = () => Promise.withResolvers();
 
 // Fix-round-2 differential probes, reproduced against the real server.
-test('schema retries retire a known obsolete durable answer before adoption completes', { timeout: 15000 }, async t => {
+test('schema retries retire a known obsolete durable answer before adoption completes', { timeout: hangBudget(5) }, async t => {
   const text = source.replace('return notes first 100 by byId', 'return 1');
   const { url, dir } = await server(t, undefined, text, { watch: true });
   let fail = false, schemas = 0;
@@ -43,7 +45,7 @@ test('schema retries retire a known obsolete durable answer before adoption comp
   assert.equal(watch.getSnapshot().fresh, false, 'polling is suspended until the new interests are known');
 });
 
-test('schema retries still deliver durable inserts during initial discovery', { timeout: 15000 }, async t => {
+test('schema retries still deliver durable inserts during initial discovery', { timeout: hangBudget(5) }, async t => {
   const { url } = await server(t, undefined, source);
   let schemas = 0;
   const client = createClient({ url, persona: 'bob', waitSeconds: 1, fetch: async (input, init) => {
@@ -66,7 +68,7 @@ test('schema retries still deliver durable inserts during initial discovery', { 
   assert.equal(watch.getSnapshot().fresh, false, 'suspended polling cannot claim freshness');
 });
 
-test('schema E_AUTH after revocation terminates discovery without retrying', { timeout: 15000 }, async t => {
+test('schema E_AUTH after revocation terminates discovery without retrying', { timeout: hangBudget(8) }, async t => {
   const { url } = await server(t, undefined, source);
   const signed = await guest(url, defaultFetch); assert.ok(signed.ok);
   const gate = deferred(); t.after(() => gate.resolve());
@@ -87,7 +89,7 @@ test('schema E_AUTH after revocation terminates discovery without retrying', { t
   await logout(url, signed.session.token, defaultFetch);
   gate.resolve();
   await until(() => statuses.length >= 1);
-  await delay(650);
+  await awaitState(() => client.link() === "signed-out" && watch.getSnapshot().denied, "schema refusal ends credentials");
   assert.equal(statuses[0], 401);
   assert.equal(client.link(), 'signed-out', 'schema refusal must end current credentials');
   assert.equal(watch.getSnapshot().denied?.code, 'E_AUTH');

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Actual managed-recipe execution through the shared server interpreter.
 // These CLI principals/times are operator inputs, not auth/provider/mint proof.
 import test from "node:test";
@@ -30,7 +31,7 @@ test("managed OIDC profile binding orders and expires trusted email evidence", {
     copyFileSync(join(packageRoot, "test/fixtures/identity-recipe/snapback/schema.q"), join(canonical, "snapback/schema.q"));
 
     const invoke = (args, expected = 0) => {
-      const result = spawnSync(binary, args, { cwd: canonical, encoding: "utf8", timeout: 20_000 });
+      const result = spawnSync(binary, args, { cwd: canonical, encoding: "utf8", timeout: hangBudget() });
       assert.equal(result.error, undefined, result.error?.message);
       assert.equal(result.status, expected, `${args.join(" ")}\n${result.stdout}\n${result.stderr}`);
       return result.stdout.trim() ? JSON.parse(result.stdout) : null;

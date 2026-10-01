@@ -1,0 +1,15 @@
+
+ℹ tests 455
+ℹ suites 0
+ℹ pass 454
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1368193.892182
+
+✖ failing tests:
+
+test at packages/snapback4/test/ordinary-search-oracle.test.mjs:359:5
+✖ ordinary search generated oracle process: 300 seeds (720003.133599ms)
+  'test timed out after 720000ms'

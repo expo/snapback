@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, appendFileSync, readFileSync, existsSync, writeFileSync, rmSync } from "node:fs";
@@ -6,7 +7,7 @@ import { tmpdir } from "node:os";
 
 test('prepared launch requires a native observation and preserves its hashes in the strict envelope', async () => {
   const { createWitness } = await import('../../snapback4-expo/src/witness-core.ts');
-  const lines = [], container = { witnessLaunch: JSON.stringify({ segment: 'prime', timeoutMs: 1000, proof: { sha256: 'expected' } }),
+  const lines = [], container = { witnessLaunch: JSON.stringify({ segment: 'prime', timeoutMs: hangBudget(), proof: { sha256: 'expected' } }),
     witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => true };
   assert.throws(() => createWitness(container), /E_WITNESS_PROOF/);
   const runtime = { scriptURL: 'file:///app/main.jsbundle', dev: false, hermes: true, launcherManifestPresent: false, updatesPresent: false, updatesManifestPresent: false };
@@ -31,7 +32,7 @@ test("witness is inert without a launch; a fake container preserves receipts and
   const dir = mkdtempSync(join(tmpdir(), "sb4-witness-helper-"));
   try {
     const w = createWitness({
-      witnessLaunch: JSON.stringify({ segment: "offline", timeoutMs: 1000 }),
+      witnessLaunch: JSON.stringify({ segment: "offline", timeoutMs: hangBudget() }),
       witnessAppend: (line) => appendFileSync(join(dir, "receipts.jsonl"), line),
       witnessSignaled: (label) => existsSync(join(dir, label)),
     });
@@ -82,7 +83,7 @@ test("Expo package exports the witness and its types", () => {
 test("receipt serialization cannot replace the witness envelope", async () => {
   const { createWitness } = await import("../../snapback4-expo/src/witness-core.ts");
   const lines = [];
-  const w = createWitness({ witnessLaunch: JSON.stringify({ segment: "offline", timeoutMs: 1000 }),
+  const w = createWitness({ witnessLaunch: JSON.stringify({ segment: "offline", timeoutMs: hangBudget() }),
     witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => true });
   for (const value of ["not-an-object", [], null, { witness: { step: "done" } }]) {
     await assert.rejects(w.receipt({ toJSON() { return value; } }), /E_WITNESS_RECEIPT/);

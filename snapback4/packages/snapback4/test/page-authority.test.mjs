@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -11,10 +12,7 @@ import { processDevice } from '../dist/native.js';
 import { memorySessionStore } from '../dist/auth.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const query = name => ({ kind: 'query', name });
-const until = async (read, label) => {
-  for (let n = 0; n < 500; n++) { if (await read()) return; await delay(10); }
-  assert.fail(`timed out: ${label}`);
-};
+const until = async (read, label) => { return awaitState(read, label); };
 const blocked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(Error('closed'));
   else signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
@@ -81,7 +79,7 @@ test('a loading server reply retires memory before a speculative transport failu
   assert.equal(local.unknown, true); assert.equal(local.speculative, true);
 });
 
-for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {
+for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: hangBudget(16) }, async t => {
   const f = await fixture(t);
   const page = f.client.observe(query('privatePage'), {}, { keep: false }), server = f.client.observe(query('serverPage'), {}, { keep: false });
   await until(() => page.getSnapshot().data?.[0]?.body === 'private' && server.getSnapshot().data?.[0]?.body === 'private', 'published private rows');
@@ -109,7 +107,7 @@ for (const postCommitFailure of [false, true]) test(`applied revocation clears k
   page.close(); server.close();
 });
 
-test('an unavailable held rerun clears its answer without a server fallback', { timeout: 30_000 }, async t => {
+test('an unavailable held rerun clears its answer without a server fallback', { timeout: hangBudget(5) }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('heldPage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'held answer');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
@@ -147,7 +145,7 @@ test('transport failures are loading and an explained server refusal lasts until
 });
 
 
-test('a local observation has no remembered answer after a failed replacing fetch', { timeout: 30_000 }, async t => {
+test('a local observation has no remembered answer after a failed replacing fetch', { timeout: hangBudget(6) }, async t => {
   const f = await fixture(t);
   const watch = f.client.observe(query('serverPage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
@@ -160,7 +158,7 @@ test('a local observation has no remembered answer after a failed replacing fetc
   watch.close();
 });
 
-test('a server-class observation uses ordinary device-fallback retention during HTTP', { timeout: 30_000 }, async t => {
+test('a server-class observation uses ordinary device-fallback retention during HTTP', { timeout: hangBudget(4) }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('serverPage'), {});
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
   const before = watch.getSnapshot();
@@ -175,7 +173,7 @@ test('a server-class observation uses ordinary device-fallback retention during 
   watch.close();
 });
 
-test('a predicted membership removal clears a kept private answer before the pending send', { timeout: 30_000 }, async t => {
+test('a predicted membership removal clears a kept private answer before the pending send', { timeout: hangBudget(8) }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('privatePage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
   f.hold('privatePage');
@@ -192,7 +190,7 @@ test('a predicted membership removal clears a kept private answer before the pen
 
 
 for (const operation of ['expireSecret', 'expireMember'])
-  test(`predicted ${operation}: every commit clears the pending observation`, { timeout: 30_000 }, async t => {
+  test(`predicted ${operation}: every commit clears the pending observation`, { timeout: hangBudget(10) }, async t => {
     const f = await fixture(t), watch = f.client.observe(query('privatePage'), {}, { keep: false });
     await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
     const id = watch.getSnapshot().data[0].id;
@@ -213,7 +211,7 @@ for (const operation of ['expireSecret', 'expireMember'])
     watch.close();
   });
 
-test('online client drops a heap-aborted private answer within one fetch, including after revoke', { timeout: 30_000 }, async t => {
+test('online client drops a heap-aborted private answer within one fetch, including after revoke', { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'online private answer');
   f.hold('privatePage');
@@ -230,7 +228,7 @@ test('online client drops a heap-aborted private answer within one fetch, includ
   watch.close();
 });
 
-test('online revoke fences an already authorized HTTP response held across its commit', { timeout: 30_000 }, async t => {
+test('online revoke fences an already authorized HTTP response held across its commit', { timeout: hangBudget(6) }, async t => {
   const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {}, { keep: false }), values = [];
   watch.subscribe(() => values.push(watch.getSnapshot()));
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial authorized answer');
@@ -246,7 +244,7 @@ test('online revoke fences an already authorized HTTP response held across its c
   watch.close();
 });
 
-test('an unavailable HTTP response predating a cost-reducing write must refetch', { timeout: 30_000 }, async t => {
+test('an unavailable HTTP response predating a cost-reducing write must refetch', { timeout: hangBudget(5) }, async t => {
   const f = await fixture(t, true);
   await f.post('/m/setCost', { grow: true });
   f.hold('privatePage');

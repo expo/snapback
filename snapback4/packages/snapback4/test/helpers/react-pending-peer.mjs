@@ -54,12 +54,12 @@ window.openPendingPeer = async () => {
     async submit() {
       gate = undefined;
       const write = await custody.client.mutate(mutation, { body: "shared intent" }, { waitSeconds: 0 });
-      for (let n = 0; n < 100 && !gate; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      await awaitState(async () => !(!gate), 'helpers/react-pending-peer.mjs: !gate', { poll: async () => { await new Promise(resolve => setTimeout(resolve, 5)); } });
       check(gate, "the admitted write dispatched"); return write;
     },
     async settle() {
       gate.resolve(Response.json({ state: "sent", seq: 0 }));
-      for (let n = 0; n < 100 && (await custody.client.pendingWrites()).length; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      await awaitState(async () => !((await custody.client.pendingWrites()).length), 'helpers/react-pending-peer.mjs: (await custody.client.pendingWrites()).length', { poll: async () => { await new Promise(resolve => setTimeout(resolve, 5)); } });
       equal(await custody.client.pendingWrites(), [], "B settled its journal entry");
     },
     pause: custody.pause,
@@ -70,7 +70,7 @@ cases["shared online journal updates A's hook on B's admission and settlement af
   localStorage.clear();
   const a = await window.openPendingPeer(), b = await window.openPendingPeer();
   async function wait(checkState) {
-    for (let n = 0; n < 100 && !checkState(); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+    await awaitState(async () => !(!checkState()), 'helpers/react-pending-peer.mjs: !checkState()', { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } });
     check(checkState(), "A hook follows shared custody");
   }
   try {

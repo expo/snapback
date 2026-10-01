@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -38,7 +39,7 @@ test("new requires an explicit template and names what init creates", t => {
 
 // @ref LLP 3000.028#7.3 — the starter must acquire owner coverage beyond its public window.
 for (const tier of ["native", "web"]) {
-  test(`social starter ${tier}: cold owner keys prove old likes and unqueried absence offline`, { timeout: 30_000 }, async t => {
+  test(`social starter ${tier}: cold owner keys prove old likes and unqueried absence offline`, { timeout: hangBudget(11) }, async t => {
     const generated = starter(t), api = await generatedApi(generated);
     const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
     const signup = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({
@@ -119,7 +120,7 @@ test("published social starter and guide snippets typecheck against generated op
 });
 
 // @ref LLP 3000.028#8 — scaffold/check/dev and the installed client vocabulary.
-test("social starter runs through the public client: feed, likes, receipts, typing, media and retained history", { timeout: 90_000 }, async t => {
+test("social starter runs through the public client: feed, likes, receipts, typing, media and retained history", { timeout: hangBudget(62) }, async t => {
   const dir = starter(t), api = await generatedApi(dir);
   let output = "";
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
@@ -235,7 +236,7 @@ test("social starter runs through the public client: feed, likes, receipts, typi
 });
 
 // Both stores read a horizon-free private key; the server owns creation races.
-for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens converge, held keys resolve offline and an offline race settles`, { timeout: 30_000 }, async t => {
+for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens converge, held keys resolve offline and an offline race settles`, { timeout: hangBudget(41) }, async t => {
   const generated = starter(t), api = await generatedApi(generated);
   const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
   const sessions = await Promise.all([0, 1, 2].map(() => fetch(url + "/auth/guest", { method: "POST", body: "{}" }).then(r => r.json())));

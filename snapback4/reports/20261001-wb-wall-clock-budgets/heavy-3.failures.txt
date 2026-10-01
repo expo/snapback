@@ -1,0 +1,147 @@
+
+ℹ tests 4476
+ℹ suites 0
+ℹ pass 4460
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 9
+ℹ todo 0
+ℹ duration_ms 4431397.612719
+
+✖ failing tests:
+
+test at packages/snapback4/test/live-propagation-fallback.test.mjs:39:3
+✖ wasm: pending cut preserves transition before sync publication (1513.538309ms)
+  AssertionError [ERR_ASSERTION]: initial answer is local
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-react.test.mjs:100:1
+✖ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (15689.945509ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   calls: 2675,
+  -   calls: 2000,
+      loading: 0,
+      rows: 1000
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/per-row-react.test.mjs:105:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { loading: 0, calls: 2675, rows: 1000 },
+    expected: { loading: 0, calls: 2000, rows: 1000 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/release-activation.test.mjs:280:1
+✖ stopped full-release restore preserves its recovery point and stays separate from the original (124149.702146ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'done' !== 'parked'
+  
+      at file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/release-activation.test.mjs:336:12
+      at async serve (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/release-activation.test.mjs:76:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/release-activation.test.mjs:325:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'done',
+    expected: 'parked',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/supervised-workers.test.mjs:23:38
+✖ dev declares two workers, injects usable secret seats, restarts independently and stops both (514.324908ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\[worker:push\] authenticated:push/. Input:
+  
+  'snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\n' +
+    'snapback4 dev: http://127.0.0.1:36635  (schema: snapback/, types: /tmp/sb4-named-workers-TtOkzD/snapback/generated/api.ts)\n' +
+    'store: /tmp/sb4-named-workers-TtOkzD/.snapback4/store.sqlite\n' +
+    'snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\n' +
+    'snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply\n' +
+    'snapback4 worker: /tmp/sb4-named-workers-TtOkzD/snapback/workers/digest.mjs (pid 2409437)\n' +
+    'snapback4 worker: /tmp/sb4-named-workers-TtOkzD/snapback/workers/push.mjs (pid 2409445)\n' +
+    '[worker:digest] also:[REDACTED]\n' +
+    '[worker:digest] token:[REDACTED]\n' +
+    '[worker:push] also:[REDACTED]\n' +
+    '[worker:push] token:[REDACTED]\n' +
+    '[worker:digest] authenticated:digest\n' +
+    '[worker:digest] ledger:/tmp/sb4-named-workers-TtOkzD/.snapback4/worker-ledger-cc264910b5321537d2b75755d6b2e84e1f84d915ace6a9362e9dae8481d34cb2.sqlite\n'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/supervised-workers.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\nsnapback4 dev: http://127.0.0.1:36635  (schema: snapback/, types: /tmp/sb4-named-workers-TtOkzD/snapback/generated/api.ts)\nstore: /tmp/sb4-named-workers-TtOkzD/.snapback4/store.sqlite\nsnapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply\nsnapback4 worker: /tmp/sb4-named-workers-TtOkzD/snapback/workers/digest.mjs (pid 2409437)\nsnapback4 worker: /tmp/sb4-named-workers-TtOkzD/snapback/workers/push.mjs (pid 2409445)\n[worker:digest] also:[REDACTED]\n[worker:digest] token:[REDACTED]\n[worker:push] also:[REDACTED]\n[worker:push] token:[REDACTED]\n[worker:digest] authenticated:digest\n[worker:digest] ledger:/tmp/sb4-named-workers-TtOkzD/.snapback4/worker-ledger-cc264910b5321537d2b75755d6b2e84e1f84d915ace6a9362e9dae8481d34cb2.sqlite\n',
+    expected: /\[worker:push\] authenticated:push/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/unread-range.test.mjs:71:24
+✖ unread range wasm: meter-cut (40527.272002ms)
+  Error: E_OFFLINE: the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying
+      at file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/dist/local-backend.js:25:33
+      at async loadBackend (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/dist/local-backend.js:24:32)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/dist/local.js:122:19)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/unread-range.test.mjs:88:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    denied: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying', retryable: true }
+  }
+
+test at packages/snapback4/test/unread-range.test.mjs:71:24
+✖ unread range wasm: short-range-large-window (80585.068801ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:16416:13
+      at async Object.post (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/unread-range.test.mjs:43:15)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/unread-range.test.mjs:85:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    [cause]: Error [SocketError]: other side closed
+        at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7611:26)
+        at Socket.emit (node:events:520:35)
+        at endReadableNT (node:internal/streams/readable:1701:12)
+        at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+      code: 'UND_ERR_SOCKET',
+      socket: { localAddress: '127.0.0.1', localPort: 37164, remoteAddress: undefined, remotePort: undefined, remoteFamily: undefined, timeout: undefined, bytesWritten: 8711, bytesRead: 1773404 }
+    }
+  }
+
+test at packages/snapback4/test/unread-range.test.mjs:71:24
+✖ unread range wasm: sequence-short-range-large-window (74031.025838ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:16416:13
+      at async Object.post (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/unread-range.test.mjs:43:15)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-3/snapback4/packages/snapback4/test/unread-range.test.mjs:85:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    [cause]: Error [SocketError]: other side closed
+        at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7611:26)
+        at Socket.emit (node:events:520:35)
+        at endReadableNT (node:internal/streams/readable:1701:12)
+        at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+      code: 'UND_ERR_SOCKET',
+      socket: { localAddress: '127.0.0.1', localPort: 42522, remoteAddress: undefined, remotePort: undefined, remoteFamily: undefined, timeout: undefined, bytesWritten: 8711, bytesRead: 1773401 }
+    }
+  }

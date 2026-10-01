@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
@@ -23,7 +24,7 @@ const selectedFetch = process.env.KA_BASELINE_FETCH ? (await import(new URL("../
 
 // No fake fetch or socket error: delay the actual writer after it has selected
 // an idle socket. This is the race left after undici's idle validation turn.
-for (let round = 0; round < Number(process.env.KA_ROUNDS ?? 1); round++) test(`Node SDK query survives a client pause across the dev idle deadline (${round})`, { timeout: 30_000 }, async t => {
+for (let round = 0; round < Number(process.env.KA_ROUNDS ?? 1); round++) test(`Node SDK query survives a client pause across the dev idle deadline (${round})`, { timeout: hangBudget(4) }, async t => {
   const { url } = await server(t, undefined, source);
   const clients = Array.from({ length: Number(process.env.KA_CLIENTS ?? 1) }, () => createClient({ url, persona: "alice", ...(selectedFetch ? { fetch: selectedFetch } : {}) }));
   t.after(() => Promise.all(clients.map(client => client.close())));

@@ -1,3 +1,4 @@
+import { withHangGuard, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
@@ -11,7 +12,7 @@ import { createSmoke } from "../../snapback4-expo/src/smoke.ts";
 
 import { binary, until, server } from "./helpers/app-server.mjs";
 const add = { kind: "mutation", name: "add" }, list = { kind: "query", name: "list" };
-for (const tier of ["online", "local"]) test(`app ${tier}: signup, restart, rotation, account-bound pending writes and logout`, { timeout: 60_000 }, async t => {
+for (const tier of ["online", "local"]) test(`app ${tier}: signup, restart, rotation, account-bound pending writes and logout`, { timeout: hangBudget(25) }, async t => {
   const { url, dir } = await server(t);
   const sessionStore = memorySessionStore();
   let offline = false;
@@ -57,7 +58,7 @@ for (const tier of ["online", "local"]) test(`app ${tier}: signup, restart, rota
   await app.close(); app = createApp(options); await app.ready; assert.equal(app.auth.state, "signed-out");
 });
 
-test("online app recovers two lost confirmations with original IDs and immutable arguments", { timeout: 30_000 }, async t => {
+test("online app recovers two lost confirmations with original IDs and immutable arguments", { timeout: hangBudget(16) }, async t => {
   const { url } = await server(t);
   const sessionStore = memorySessionStore();
   let cut = false;
@@ -88,7 +89,7 @@ test("online app recovers two lost confirmations with original IDs and immutable
   assert.equal((await app.client.write(first.id)).replayed, true);
 });
 
-test("logoutEverywhere revokes other sessions and session restore cancellation cannot resurrect identity", { timeout: 30_000 }, async t => {
+test("logoutEverywhere revokes other sessions and session restore cancellation cannot resurrect identity", { timeout: hangBudget(16) }, async t => {
   const { url } = await server(t);
   const sessionStore = memorySessionStore();
   const app = createApp({ url, sessionStore }); t.after(() => app.close());
@@ -107,7 +108,7 @@ test("logoutEverywhere revokes other sessions and session restore cancellation c
   assert.equal(delayed.auth.state, "signed-out"); assert.equal(await restoreSession(url, sessionStore), null);
 });
 
-test("online logout completes while rotation is stalled and revokes the late successor", { timeout: 10_000 }, async t => {
+test("online logout completes while rotation is stalled and revokes the late successor", { timeout: hangBudget(9) }, async t => {
   const sessionStore = memorySessionStore(), url = "https://app.invalid";
   const initial = { principal: "user:a", token: "old", kind: "user", expiresAt: Date.now() + 7 * 86400000 };
   await keepSession(url, initial, sessionStore);
@@ -131,7 +132,7 @@ test("online logout completes while rotation is stalled and revokes the late suc
   assert.equal(await restoreSession(url, sessionStore), null);
 });
 
-test("online custody refuses unstored admission and retains committed writes when receipt storage fails", { timeout: 30_000 }, async t => {
+test("online custody refuses unstored admission and retains committed writes when receipt storage fails", { timeout: hangBudget(7) }, async t => {
   const { url } = await server(t);
   const memory = memorySessionStore();
   let failIntent = false, failReceipt = false, sends = 0;
@@ -160,7 +161,7 @@ test("online custody refuses unstored admission and retains committed writes whe
   assert.equal(sends, 1);
 });
 
-test("failed session commit revokes only the provisional bearer before reporting signed-out", { timeout: 15_000 }, async t => {
+test("failed session commit revokes only the provisional bearer before reporting signed-out", { timeout: hangBudget(15) }, async t => {
   const { url } = await server(t), memory = memorySessionStore();
   let sessionWrites = 0, issued;
   const app = createApp({ url, sessionStore: { ...memory, async set(key, value) {
@@ -229,7 +230,7 @@ test("signed-out completion waits for durable credential deletion", async t => {
   assert.equal(app.auth.state, "signed-out");
 });
 
-for (const tier of ["online", "local"]) test(`logout ${tier} deletes the bearer while network work is held`, { timeout: 15_000 }, async t => {
+for (const tier of ["online", "local"]) test(`logout ${tier} deletes the bearer while network work is held`, { timeout: hangBudget(19) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const session = (await (await fetch(url + "/auth/guest", { method: "POST", body: "{}" })).json()).session;
   await keepSession(url, session, store);
@@ -250,7 +251,7 @@ for (const tier of ["online", "local"]) test(`logout ${tier} deletes the bearer 
   else await app.ready;
   const ending = app.auth.logout();
   await until(() => logoutRequested);
-  assert.equal((await Promise.race([ending, delay(500).then(() => ({ ok: false }))])).ok, true, "local logout is independent of both held requests");
+  assert.equal((await withHangGuard(() => ending, "app.test.mjs: asynchronous completion")).ok, true, "local logout is independent of both held requests");
   assert.equal(await restoreSession(url, store), null);
   assert.equal(app.auth.state, "signed-out");
   const restarted = createApp({ url, sessionStore: store });
@@ -261,7 +262,7 @@ for (const tier of ["online", "local"]) test(`logout ${tier} deletes the bearer 
   await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${session.token}` } })).json()).denied?.code === "E_AUTH");
 });
 
-for (const tier of ["online", "local"]) test(`ordinary ${tier} app close retires an unread rotation and reopening refuses its consumed predecessor`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`ordinary ${tier} app close retires an unread rotation and reopening refuses its consumed predecessor`, { timeout: hangBudget(20) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   let release, rotated;
   const gate = new Promise(resolve => { release = resolve; });
@@ -295,7 +296,7 @@ for (const tier of ["online", "local"]) test(`ordinary ${tier} app close retires
 });
 
 
-for (const tier of ["online", "local"]) test(`a stale ${tier} refresh preserves another owner's kept successor`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`a stale ${tier} refresh preserves another owner's kept successor`, { timeout: hangBudget(19) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const options = { url, sessionStore: store };
   const a = createApp({ ...options, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "tab-a"), binary }) } : {}) });
@@ -324,7 +325,7 @@ for (const tier of ["online", "local"]) test(`a stale ${tier} refresh preserves 
   await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${fresh.session.token}` } })).json()).denied?.code === "E_AUTH");
 });
 
-for (const [tier, stage] of [["online", "first save"], ["local", "first save"], ["online", "final save"], ["local", "backend acquisition"]]) test(`stale ${tier} restoration restarts when another app rotates before its ${stage}`, { timeout: 20_000 }, async t => {
+for (const [tier, stage] of [["online", "first save"], ["local", "first save"], ["online", "final save"], ["local", "backend acquisition"]]) test(`stale ${tier} restoration restarts when another app rotates before its ${stage}`, { timeout: hangBudget(19) }, async t => {
   const { url, dir } = await server(t), memory = memorySessionStore(), saved = [];
   const store = { ...memory, async set(key, value) {
     if (key.endsWith(".session")) saved.push(JSON.parse(value).token);
@@ -372,7 +373,7 @@ for (const [tier, stage] of [["online", "first save"], ["local", "first save"], 
   assert.deepEqual((await b.client.query(list, {})).data, [], "restarting A must not revoke B's successor family");
 });
 
-for (const tier of ["online", "local"]) test(`${tier} auth rejection after a failed login completes signed-out cleanup`, { timeout: 15_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier} auth rejection after a failed login completes signed-out cleanup`, { timeout: hangBudget(10) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const app = createApp({ url, sessionStore: store,
     ...(tier === "local" ? { device: processDevice({ dir: join(dir, "rejected-device"), binary }) } : {}),
@@ -393,7 +394,7 @@ for (const tier of ["online", "local"]) test(`${tier} auth rejection after a fai
   assert.equal(await restoreSession(url, store), null);
 });
 
-for (const tier of ["online", "local"]) for (const loginBob of [false, true]) test(`shared logout fences a held ${tier} rotation${loginBob ? " across Bob's login" : " while signed out"}`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) for (const loginBob of [false, true]) test(`shared logout fences a held ${tier} rotation${loginBob ? " across Bob's login" : " while signed out"}`, { timeout: hangBudget(23) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const bob = (await (await fetch(url + "/auth/signup", { method: "POST", body: JSON.stringify({ email: "bob@example.com", password: "password-b" }) })).json()).session;
   await revokeSession(url, bob.token);
@@ -439,7 +440,7 @@ for (const tier of ["online", "local"]) for (const loginBob of [false, true]) te
   if (loginBob) assert.deepEqual((await b.client.query(list, {})).data, []);
 });
 
-test("a sign-in started before another app's logout cannot overwrite its later login", { timeout: 15_000 }, async t => {
+test("a sign-in started before another app's logout cannot overwrite its later login", { timeout: hangBudget(17) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
   await b.ready; await b.auth.signup("bob@example.com", "password-b");
@@ -463,7 +464,7 @@ test("a sign-in started before another app's logout cannot overwrite its later l
   assert.deepEqual((await b.client.query(list, {})).data, []);
 });
 
-for (const damage of ["invalid JSON", "expired session"]) test(`restoration cleanup of ${damage} preserves a replacement written after its read`, { timeout: 15_000 }, async t => {
+for (const damage of ["invalid JSON", "expired session"]) test(`restoration cleanup of ${damage} preserves a replacement written after its read`, { timeout: hangBudget(15) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   let held = false, release, requested = false, releaseResponse;
   const gate = new Promise(resolve => { release = resolve; });
@@ -494,7 +495,7 @@ for (const damage of ["invalid JSON", "expired session"]) test(`restoration clea
   assert.deepEqual((await a.client.query(list, {})).data, []);
 });
 
-test("expired stored-session cleanup deletes bytes without revoking the live bearer", { timeout: 15_000 }, async t => {
+test("expired stored-session cleanup deletes bytes without revoking the live bearer", { timeout: hangBudget(8) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   const a = createApp({ url, sessionStore: store }); t.after(() => a.close());
   await a.ready; await a.auth.guest();
@@ -512,7 +513,7 @@ test("expired stored-session cleanup deletes bytes without revoking the live bea
   assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied, undefined);
 });
 
-test("refresh started after a shared logout refuses before dispatch even if remote logout failed", { timeout: 15_000 }, async t => {
+test("refresh started after a shared logout refuses before dispatch even if remote logout failed", { timeout: hangBudget(12) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   let refreshes = 0;
   const a = createApp({ url, sessionStore: store, fetch: (input, init) => {
@@ -538,7 +539,7 @@ test("refresh started after a shared logout refuses before dispatch even if remo
   assert.deepEqual((await b.client.query(list, {})).data, []);
 });
 
-for (const persistentFailure of [false, true]) test(`offline logout replaces credentials when its epoch write ${persistentFailure ? "keeps failing" : "exceeds quota"}`, { timeout: 15_000 }, async t => {
+for (const persistentFailure of [false, true]) test(`offline logout replaces credentials when its epoch write ${persistentFailure ? "keeps failing" : "exceeds quota"}`, { timeout: hangBudget(10) }, async t => {
   const { url } = await server(t), values = new Map();
   const key = sessionKey(url), epochKey = key + ".epoch";
   const size = () => [...values].reduce((total, [key, value]) => total + key.length + value.length, 0);
@@ -578,7 +579,7 @@ for (const persistentFailure of [false, true]) test(`offline logout replaces cre
   assert.equal(reopened.auth.state, "signed-out");
 });
 
-test("near-expiry restoration defers automatic refresh until journal opening and comparison commit succeed", { timeout: 20_000 }, async t => {
+test("near-expiry restoration defers automatic refresh until journal opening and comparison commit succeed", { timeout: hangBudget(22) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   let rotated, releaseResponse, journalHeld = false, releaseJournal, rejected = false;
   const responseGate = new Promise(resolve => { releaseResponse = resolve; });
@@ -619,7 +620,7 @@ test("near-expiry restoration defers automatic refresh until journal opening and
   assert.deepEqual((await b.client.query(list, {})).data, [], "retry must not revoke the winning session family");
 });
 
-for (const quota of [false, true]) for (const operation of ["refresh", "login"]) test(`logout tombstone fences another app's held ${operation} when ${quota ? "quota blocks" : "storage rejects"} the epoch key`, { timeout: 20_000 }, async t => {
+for (const quota of [false, true]) for (const operation of ["refresh", "login"]) test(`logout tombstone fences another app's held ${operation} when ${quota ? "quota blocks" : "storage rejects"} the epoch key`, { timeout: hangBudget(32) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let full = false, release, issued, deletes = 0;
   const gate = new Promise(resolve => { release = resolve; });
@@ -675,7 +676,7 @@ for (const quota of [false, true]) for (const operation of ["refresh", "login"])
   assert.deepEqual((await b.client.query(list, {})).data, []);
 });
 
-test("logout does not delete or revoke before either durable fence can be stored", { timeout: 15_000 }, async t => {
+test("logout does not delete or revoke before either durable fence can be stored", { timeout: hangBudget(12) }, async t => {
   const { url } = await server(t), memory = memorySessionStore();
   let broken = false, deletes = 0, revokes = 0;
   const store = { ...memory,
@@ -701,7 +702,7 @@ test("logout does not delete or revoke before either durable fence can be stored
   await until(() => revokes > 0);
 });
 
-for (const maxBytes of [-1, 1.5]) test(`invalid local asset budget ${maxBytes} leaves a restored bearer untouched`, { timeout: 15_000 }, async t => {
+for (const maxBytes of [-1, 1.5]) test(`invalid local asset budget ${maxBytes} leaves a restored bearer untouched`, { timeout: hangBudget(12) }, async t => {
   const { url, dir } = await server(t), memory = memorySessionStore();
   const original = createApp({ url, sessionStore: memory });
   await original.ready; await original.auth.guest();
@@ -726,7 +727,7 @@ for (const maxBytes of [-1, 1.5]) test(`invalid local asset budget ${maxBytes} l
   assert.equal((await repaired.ready).ok, true); assert.equal(repaired.auth.viewer, session.principal);
 });
 
-for (const operation of ["refresh", "login"]) for (const releaseAfterRetry of [false, true]) test(`failed fence revokes a discarded ${operation} ${releaseAfterRetry ? "after" : "before"} logout retry`, { timeout: 20_000 }, async t => {
+for (const operation of ["refresh", "login"]) for (const releaseAfterRetry of [false, true]) test(`failed fence revokes a discarded ${operation} ${releaseAfterRetry ? "after" : "before"} logout retry`, { timeout: hangBudget(22) }, async t => {
   const { url } = await server(t), memory = memorySessionStore();
   let broken = false, issued, release;
   const gate = new Promise(resolve => { release = resolve; }), revocations = [];
@@ -768,7 +769,7 @@ for (const operation of ["refresh", "login"]) for (const releaseAfterRetry of [f
   assert.equal(await restoreSession(url, memory), null);
 });
 
-test("logout retry revokes a discarded login after its token-comparison read throws", { timeout: 15_000 }, async t => {
+test("logout retry revokes a discarded login after its token-comparison read throws", { timeout: hangBudget(22) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let brokenWrites = false, brokenRead = false, comparedOriginal = false, failedReads = 0, issued, release;
   const gate = new Promise(resolve => { release = resolve; }), failedWrites = [], revocations = [];
@@ -814,7 +815,7 @@ test("logout retry revokes a discarded login after its token-comparison read thr
   await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH", "retry revoked the login token deferred by the failed comparison");
 });
 
-test("logout retry drains deferred revocation after another account replaced the stored bearer", { timeout: 15_000 }, async t => {
+test("logout retry drains deferred revocation after another account replaced the stored bearer", { timeout: hangBudget(15) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let broken = false, failedFence = false, compared = false;
   const revocations = [];
@@ -846,7 +847,7 @@ test("logout retry drains deferred revocation after another account replaced the
   for (const token of [original.token, replacement.session.token]) await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code === "E_AUTH");
 });
 
-test("sign-in keeps the tombstone until its epoch promotion is durable", { timeout: 15_000 }, async t => {
+test("sign-in keeps the tombstone until its epoch promotion is durable", { timeout: hangBudget(16) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let blockEpoch = false, holdEpoch = false, held = false, release;
   const gate = new Promise(resolve => { release = resolve; });
@@ -874,7 +875,7 @@ test("sign-in keeps the tombstone until its epoch promotion is durable", { timeo
   assert.equal((await restoreSession(url, memory)).token, result.session.token);
 });
 
-test("local restoration captures the asset budget before the caller mutates it", { timeout: 15_000 }, async t => {
+test("local restoration captures the asset budget before the caller mutates it", { timeout: hangBudget(7) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const original = createApp({ url, sessionStore: store });
   await original.ready; await original.auth.guest();
@@ -918,7 +919,7 @@ test("the native instrumentation hook receives createApp's own restored client",
   await app.close(); // Stop its long poll before the server fixture tears down.
 });
 
-test("native smoke observes only the published replacement of a near-expiry restored session", { timeout: 20_000 }, async t => {
+test("native smoke observes only the published replacement of a near-expiry restored session", { timeout: hangBudget(17) }, async t => {
   const { url, dir } = await server(t);
   const storage = memorySessionStore();
   const initial = createApp({ url, sessionStore: storage });
@@ -938,7 +939,7 @@ test("native smoke observes only the published replacement of a near-expiry rest
   assert.deepEqual(Object.keys(queryFacts), ['list']);
   await keepSession(url, { ...saved, expiresAt: Date.now() + 3600_000 }, storage);
   const receipts = [], published = [];
-  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment: 'prime', timeoutMs: 5000,
+  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment: 'prime', timeoutMs: hangBudget(),
     queryFacts, queryGeneration: backend.generation }),
     witnessAppend: line => receipts.push(JSON.parse(line)), witnessSignaled: () => false }, {
     errors: { getGlobalHandler: () => () => {}, setGlobalHandler: () => {} },
@@ -1010,7 +1011,7 @@ for (const ending of ['sign-out', 'replacement']) test(`committed refresh body s
   const refreshing = client.refreshSession(); await until(() => rotated);
   if (changing) { replace(); assert.equal((await changing).denied.code, 'E_STORE_REPLACED'); }
   else await client.signOut();
-  assert.equal((await Promise.race([refreshing, delay(500).then(() => assert.fail('caller still waits for the refresh body'))])).ok, false);
+  assert.equal((await withHangGuard(() => refreshing, 'caller still waits for the refresh body')).ok, false);
   release();
   await until(async () => (await (await fetch(url + '/probe', { headers: { authorization: `Bearer ${rotated.token}` } })).json()).denied?.code === 'E_AUTH', 'unkept successor is revoked');
   assert.ok(logouts.includes(`Bearer ${rotated.token}`));
@@ -1035,7 +1036,7 @@ for (const kind of ['mutation', 'upload']) test(`local close cancels a ${kind} c
   await app.ready; await app.auth.guest(); const prior = app.client;
   const outcome = kind === 'mutation' ? app.mutate(add, { body: 'committed' }) : prior.upload(new Uint8Array([1]));
   await until(() => entered); assert.equal(signal, undefined);
-  await Promise.race([app.close(), delay(500).then(() => assert.fail('close waited for an effect body'))]);
+  await withHangGuard(() => app.close(), 'close waited for an effect body');
   if (kind === 'upload') assert.equal((await outcome).why?.code, 'E_CLOSED');
   const write = await outcome;
   if (kind === 'mutation') {
@@ -1104,7 +1105,7 @@ for (const afterReopen of [false, true]) test(`online app keeps an unrotated bea
   await until(async () => (await (await fetch(url + '/probe', { headers: { authorization: `Bearer ${original.token}` } })).json()).denied?.code === 'E_AUTH', 'explicit logout really invalidates the saved bearer');
 });
 
-for (const restart of [false, true]) test(`sign-in after a failed fence advances the epoch${restart ? " after restart" : " in the same runtime"}`, { timeout: 20_000 }, async t => {
+for (const restart of [false, true]) test(`sign-in after a failed fence advances the epoch${restart ? " after restart" : " in the same runtime"}`, { timeout: hangBudget(20) }, async t => {
   const { url } = await server(t), memory = memorySessionStore();
   let broken = false, refreshes = 0;
   const store = { ...memory, async set(key, value) { if (broken) throw Error("all writes fail"); await memory.set(key, value); } };
@@ -1135,7 +1136,7 @@ for (const restart of [false, true]) test(`sign-in after a failed fence advances
   assert.deepEqual((await reopened.client.query(list, {})).data, []);
 });
 
-for (const failure of ["offline", "refusal"]) test(`displaced-bearer revocation survives restart after ${failure} instead of acknowledgement`, { timeout: 15_000 }, async t => {
+for (const failure of ["offline", "refusal"]) test(`displaced-bearer revocation survives restart after ${failure} instead of acknowledgement`, { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   let attempts = 0;
   const a = createApp({ url, sessionStore: store, fetch: (input, init) => {
@@ -1157,7 +1158,7 @@ for (const failure of ["offline", "refusal"]) test(`displaced-bearer revocation 
   assert.deepEqual((await b.client.query(list, {})).data, [], "retirement never revokes the current bearer");
 });
 
-for (const failAt of ["journal", "epoch", "bearer"]) test(`failed ${failAt} write during sign-in preserves the displaced session bytes`, { timeout: 15_000 }, async t => {
+for (const failAt of ["journal", "epoch", "bearer"]) test(`failed ${failAt} write during sign-in preserves the displaced session bytes`, { timeout: hangBudget(11) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let armed = false;
   const store = { ...memory, async set(k, value) {
@@ -1178,7 +1179,7 @@ for (const failAt of ["journal", "epoch", "bearer"]) test(`failed ${failAt} writ
   assert.deepEqual((await b.client.query(list, {})).data, [], "a staged revocation must skip the still-stored bearer");
 });
 
-for (const ending of ["logout", "sign-in"]) test(`a comparison read failure retains a discarded login for the next successful ${ending}`, { timeout: 20_000 }, async t => {
+for (const ending of ["logout", "sign-in"]) test(`a comparison read failure retains a discarded login for the next successful ${ending}`, { timeout: hangBudget(20) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let broken = false, failedFence = false, comparisons = 0, unreadable = false, readFailures = 0, issued, release;
   const gate = new Promise(resolve => { release = resolve; }), revocations = [];
@@ -1214,7 +1215,7 @@ for (const ending of ["logout", "sign-in"]) test(`a comparison read failure reta
   if (ending === "sign-in") assert.deepEqual((await app.client.query(list, {})).data, []);
 });
 
-test("a foreign revocation journal never sends its bearer to this backend", { timeout: 15_000 }, async t => {
+test("a foreign revocation journal never sends its bearer to this backend", { timeout: hangBudget(5) }, async t => {
   const { url } = await server(t), store = memorySessionStore(), revocations = [];
   const saved = JSON.stringify({ backend: "https://another-backend.invalid", tokens: ["foreign-secret"] });
   await store.set(sessionKey(url) + ".revocations", saved);
@@ -1228,7 +1229,7 @@ test("a foreign revocation journal never sends its bearer to this backend", { ti
   assert.equal(await store.get(sessionKey(url) + ".revocations"), saved, "preserve the damaged obligation for repair");
 });
 
-for (const failAt of ["fourth save", "device opening"]) test(`replacement preserves a guest when ${failAt} fails`, { timeout: 20_000 }, async t => {
+for (const failAt of ["fourth save", "device opening"]) test(`replacement preserves a guest when ${failAt} fails`, { timeout: hangBudget(11) }, async t => {
   const { url, dir } = await server(t), memory = memorySessionStore(), key = sessionKey(url), revoked = [];
   let writes = 0, rejectDevice = false;
   const device = processDevice({ dir: join(dir, "provisional-device"), binary });
@@ -1260,7 +1261,7 @@ for (const failAt of ["fourth save", "device opening"]) test(`replacement preser
   }
 });
 
-test("failed replacement cannot advance the epoch or make a peer revoke the stored bearer", { timeout: 20_000 }, async t => {
+test("failed replacement cannot advance the epoch or make a peer revoke the stored bearer", { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url), revoked = [];
   let failing = false;
   const store = { ...memory, async set(k, value) { if (failing && k === key) throw Error("bearer commit failed"); await memory.set(k, value); } };
@@ -1279,7 +1280,7 @@ test("failed replacement cannot advance the epoch or make a peer revoke the stor
   assert.deepEqual((await b.client.query(list, {})).data, []);
 });
 
-test("acknowledged retirement removes journal and tombstone entries", { timeout: 20_000 }, async t => {
+test("acknowledged retirement removes journal and tombstone entries", { timeout: hangBudget(10) }, async t => {
   const { url } = await server(t), store = memorySessionStore(), key = sessionKey(url);
   const app = createApp({ url, sessionStore: store }); t.after(() => app.close()); await app.ready;
   for (let n = 0; n < 5; n++) {
@@ -1291,7 +1292,7 @@ test("acknowledged retirement removes journal and tombstone entries", { timeout:
   await until(async () => await store.get(key + ".revocations") === null);
 });
 
-test("an observed replacement fences device reads, cached watches and native asset credentials", { timeout: 20_000 }, async t => {
+test("an observed replacement fences device reads, cached watches and native asset credentials", { timeout: hangBudget(9) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   const a = createApp({ url, sessionStore: store, device: processDevice({ dir: join(dir, "cached-epoch"), binary }) });
   t.after(() => a.close()); await a.ready; await a.auth.guest();
@@ -1308,7 +1309,7 @@ test("an observed replacement fences device reads, cached watches and native ass
   assert.equal((await old.mutate(add, { body: "old account" })).why.code, "E_AUTH");
 });
 
-test("a provisional online login cannot replay pending writes before its session commits", { timeout: 20_000 }, async t => {
+test("a provisional online login cannot replay pending writes before its session commits", { timeout: hangBudget(12) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let failCommit = false, initial, candidate; const sent = [];
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -1335,7 +1336,7 @@ test("a provisional online login cannot replay pending writes before its session
   assert.equal(sent[0].id, pending.id);
 });
 
-test("failed local restoration cannot consume a near-expiry guest before device opening succeeds", { timeout: 15_000 }, async t => {
+test("failed local restoration cannot consume a near-expiry guest before device opening succeeds", { timeout: hangBudget(10) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   const original = createApp({ url, sessionStore: store }); await original.ready; await original.auth.guest();
   const session = original.client.session(); await original.close();
@@ -1363,7 +1364,7 @@ test("foreign tombstone retirement credentials are preserved without dispatch", 
   assert.deepEqual(sent, []); assert.equal(await store.get(key), bytes);
 });
 
-test("Client signOut and logoutAll use the app's atomic logout boundary", { timeout: 15_000 }, async t => {
+test("Client signOut and logoutAll use the app's atomic logout boundary", { timeout: hangBudget(14) }, async t => {
   const { url } = await server(t), store = memorySessionStore();
   const app = createApp({ url, sessionStore: store }); t.after(() => app.close()); await app.ready;
   await app.auth.guest(); const old = app.client, token = old.session().token;
@@ -1392,7 +1393,7 @@ test("session custody preserves a class store's methods and receiver", async t =
   assert.equal((await app.auth.logout()).ok, true); assert.equal(await restoreSession(url, store), null);
 });
 
-test("a session comparison read failure returns client refusals without losing identity", { timeout: 15_000 }, async t => {
+test("a session comparison read failure returns client refusals without losing identity", { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let broken = false;
   const app = createApp({ url, sessionStore: { ...memory, async get(k) {

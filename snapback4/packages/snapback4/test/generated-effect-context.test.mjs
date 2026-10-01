@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { startServer } from "../dist/server.js";
@@ -165,7 +166,7 @@ for (const [name, failure, secrets, env, expected] of [
   assert.deepEqual(errors, []);
 });
 
-for (const stage of ["fetch", "body"]) test(`actual final status ${stage} timeout latches E_OFFLINE without settlement`, { timeout: 15_000 }, async () => {
+for (const stage of ["fetch", "body"]) test(`actual final status ${stage} timeout latches E_OFFLINE without settlement`, { timeout: hangBudget(1) }, async () => {
   const stop = new AbortController(), paths = [], errors = [];
   const claim = claimOnce();
   const worker = startServer(manifest(), { effects: { mail: () => "must-not-settle" } }, {

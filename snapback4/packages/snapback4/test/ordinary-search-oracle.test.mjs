@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.028#7.2 — seeded real-host model with inter-page mutations.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,6 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
+import { defaultFetch } from '../dist/node-fetch.js';
 import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
 import { binary, server, until } from './helpers/app-server.mjs';
@@ -45,7 +47,9 @@ async function scenario(host, seed, currentOnly = false, large = null) {
                     return parkedChanges(init.signal);
                 if (path.startsWith('/q/'))
                     calls++;
-                return fetch(String(input).replace(initial.url, target), init);
+                // Preserve the real Node transport under this instrumentation:
+                // a long local search may outlive the server's idle socket.
+                return defaultFetch(String(input).replace(initial.url, target), init);
             } };
         client = await createLocalClient(options);
         await client.sync();
@@ -289,8 +293,14 @@ async function scenario(host, seed, currentOnly = false, large = null) {
             }
             if (action === 7 && seed % 3 === 0) {
                 const previous = await fetch(`${target}/schema`, { headers: { "x-snapback-persona": "bob" } }).then(r => r.json());
-                writeFileSync(join(targetDir, 'snapback/schema.q'), source + `\nquery generation${++generationChanges}():\n  return true\n`);
-                await until(async () => { const next = await fetch(`${target}/schema`, { headers: { "x-snapback-persona": "bob" } }).then(r => r.json()); return next.generation > previous.generation; }, 'generation adoption');
+                const marker = `generation${++generationChanges}`;
+                writeFileSync(join(targetDir, 'snapback/schema.q'), source + `\nquery ${marker}():\n  return true\n`);
+                // A watcher can adopt the truncation before the completed write.
+                // Await this exact program, not merely an intermediate revision.
+                await until(async () => {
+                    const next = await fetch(`${target}/schema`, { headers: { "x-snapback-persona": "bob" } }).then(r => r.json());
+                    return next.generation > previous.generation && next.programs.some(p => p.name === marker) && next.programs.some(p => p.name === 'search');
+                }, `${marker} adoption`);
                 freshIdentity = true;
                 events.push('generation');
             }
@@ -351,13 +361,19 @@ async function scenario(host, seed, currentOnly = false, large = null) {
     }
 }
 const seeds = process.env.SB4_SEARCH_SEEDS?.split(',').map(Number) ?? Array.from({ length: 300 }, (_, i) => i + 1);
+// A history includes setup, up to six inter-page changes and cleanup. Count
+// those phases, extra differential histories, large-overlap writes and meter
+// seed batches; one two-second unit per whole history undercounts this work.
+const differentialSeed = seed => seed % 10 === 0 && seed % 11 !== 0 && seed % 12 !== 0 && seed % 75 !== 0;
+const oracleWork = seeds.reduce((work, seed) => work + 8 + (differentialSeed(seed) ? 8 : 0)
+    + (seed % 25 === 0 ? 100 : 0) + (seed % 75 === 0 ? Math.ceil(8195 / 200) : 1), 0);
 for (const host of ['process', 'wasm'])
-    test(`ordinary search generated oracle ${host}: ${seeds.length} seeds`, { timeout: 600000 }, async () => {
+    test(`ordinary search generated oracle ${host}: ${seeds.length} seeds`, { timeout: hangBudget(oracleWork) }, async () => {
         const failures = [], coverage = {}, start = Date.now();
         for (const seed of seeds) {
             try {
                 const r = await scenario(host, seed);
-                if (seed % 10 === 0 && seed % 11 !== 0 && seed % 12 !== 0 && seed % 75 !== 0) {
+                if (differentialSeed(seed)) {
                     const extra = await scenario(host, seed, true);
                     assert.ok(extra.differentialPages > 0, 'current-only schedule exercised differential');
                     r.events.push(...extra.events);
@@ -390,7 +406,7 @@ for (const host of ['process', 'wasm'])
     });
 
 for (const host of ['process','wasm']) for (const limit of [86,100])
-    test(`ordinary search full last ${limit} overlaps ${host}`, {timeout:30000}, async()=>{
+    test(`ordinary search full last ${limit} overlaps ${host}`, {timeout:hangBudget(limit + 8)}, async()=>{
         await scenario(host,limit,false,{limit,direction:'last'});
     });
 
