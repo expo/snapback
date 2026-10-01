@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // Deterministic transport barriers around the real wasm device.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,7 +10,7 @@ const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", impor
 export const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
 export const ok = reply => { assert.ok(!reply.denied, JSON.stringify(reply)); return reply.ok; };
 export const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-export async function until(check) { for (let i = 0; i < 10000; i++) { if (await check()) return; await tick(); } assert.fail("barrier was not reached"); }
+export async function until(check) { return awaitState(check); }
 const events = (store, count = 1) => [
   { table: "conversations", id: "c1", title: store, creatorId: "dev:alice" },
   { table: "memberships", id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 },

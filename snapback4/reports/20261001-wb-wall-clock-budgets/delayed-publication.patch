@@ -1,0 +1,7 @@
+                if (watch.op.name === 'presentTransition' && read.data?.body === 'image-2') {
+                    console.error('WB_MUTATION: fallback reached publication');
+                    await new Promise(resolve => {
+                        WB_REAL_TIMER(resolve, 15000);
+                        signal.addEventListener('abort', resolve, { once: true });
+                    });
+                }

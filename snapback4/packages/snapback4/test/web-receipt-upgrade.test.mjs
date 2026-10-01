@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Upgrade custody on real Wasm + IndexedDB: original-store delivery and
 // corrected receipts crossing more than one orphan adoption.
 import test from 'node:test';
@@ -26,7 +27,7 @@ query total():
   return counters['audit'].total
 `;
 
-test('web receipt upgrades preserve original binding and corrected shared custody', { timeout: 90_000 }, async t => {
+test('web receipt upgrades preserve original binding and corrected shared custody', { timeout: hangBudget(255) }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-web-receipt-upgrade-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), source);

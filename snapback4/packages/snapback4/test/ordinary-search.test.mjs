@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.028#7.2 — real server/device source traversal and delivery races.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -132,7 +133,7 @@ for (const tier of ['process', 'wasm']) test(`ordinary mixed search ${tier}: com
   assert.ok(read.next);
 });
 for (const tier of ['process','wasm']) for (const cut of ['words','meter'])
-test(`ordinary mixed search ${tier}: device ${cut} cut keeps the server page and its consumed continuation`, {timeout:180000}, async t=>{
+test(`ordinary mixed search ${tier}: device ${cut} cut keeps the server page and its consumed continuation`, {timeout:hangBudget(3)}, async t=>{
   const count=cut==='words'?40:8192;
   const current=Array.from({length:count},(_,i)=>({id:`current${String(i).padStart(5,'0')}`,room:'live',at:i+10,text:cut==='words'?`coffee${String(i).padStart(2,'0')}`:'coffee'}));
   const departed=cut==='words'?[{id:'keptHead',room:'left',at:5000,text:'coffee00'}, {id:'undiscoveredHead',room:'left',at:6000,text:'coffee99'}]:[{id:'olderDeparted',room:'left',at:1,text:'coffee'}];
@@ -239,7 +240,7 @@ test('ordinary mixed search: departure during delivery rereads against the curre
   assert.deepEqual(read.data,after.data,'the settled reread is the same authorized page as the next read');
 });
 
-test('ordinary mixed search: a real server drain cut is never automatically drained', {timeout:120000}, async t=>{
+test('ordinary mixed search: a real server drain cut is never automatically drained', {timeout:hangBudget(5)}, async t=>{
   const f=await setup(t);
   // The compact plan's default 8,192 examined allowance opens 4,077 live
   // dense scopes but cuts during drain. They need not be acquired locally.
@@ -270,7 +271,7 @@ test('ordinary mixed search: a real server drain cut is never automatically drai
   assert.deepEqual(next.denied,direct.denied);
 });
 
-test('ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it', {timeout:10000}, async t=>{
+test('ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it', {timeout:hangBudget(7)}, async t=>{
   const expires=Date.now()+2000;
   const f=await setup(t,'process',expires);
   assert.equal((await f.admin.mutate(m('edit'),{id:'m064',text:'changed after departure'})).state,'sent');
@@ -307,7 +308,7 @@ for(const tier of ['process','wasm'])test(`ordinary mixed search ${tier}: reopen
 });
 
 // Reuse the repository's Vite/Chromium harness with a real wasm local client.
-test('mounted React ordinary search follows departure, offline and rejoin without switching queries', {timeout:60000}, async t=>{
+test('mounted React ordinary search follows departure, offline and rejoin without switching queries', {timeout:hangBudget(39)}, async t=>{
   const f=await setup(t);
   assert.equal((await f.admin.mutate(m('join'),{room:'left'})).state,'sent');
   const {createRequire}=await import('node:module');
@@ -352,8 +353,9 @@ window.finish=async()=>{root.unmount();await client.close();};
     ...['react','local','web'].map(name=>({find:'snapback4/'+name,replacement:join(root,'packages/snapback4/src/'+name+(name==='react'?'.tsx':'.ts'))})),
     {find:'sync-control',replacement:join(root,'packages/snapback4/test/helpers/sync-control.mjs')}
   ]}});await vite.listen();
-  browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
-  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
+  browser=await chromium.launch({ timeout: hangBudget(),executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
+  const page=await browser.newPage(),errors=[];
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());page.on('pageerror',e=>errors.push(String(e)));
   await page.goto(vite.resolvedUrls.local[0]);
   try {
     await page.waitForFunction(()=>window.read?.data?.length===20&&window.read.fresh===true);
@@ -425,7 +427,7 @@ test(`ordinary mixed search ${tier}: combined keyset boundary excludes new heads
   assert.equal(third.complete, true);
 });
 
-test('ordinary mixed search: real word-dense drain pages follow the combined keyset once', {timeout:120000}, async t=>{
+test('ordinary mixed search: real word-dense drain pages follow the combined keyset once', {timeout:hangBudget(5)}, async t=>{
   const f=await setup(t);
   // Overlap points share the 8,192 examined allowance with opening and drain.
   // 246 full 32-word extra scopes plus one 25-word scope leave a short drain.

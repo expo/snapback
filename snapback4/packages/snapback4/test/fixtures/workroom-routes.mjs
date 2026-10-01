@@ -1,3 +1,4 @@
+import { hangBudget } from '../helpers/wait.mjs';
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
@@ -78,7 +79,7 @@ route billing: post "/billing/webhook" as service:billing secrets [HOOK_KEY] ret
     if (fault === "503-once") { refused++; response.writeHead(503); response.end(); return; }
     try {
       const upstream = await fetch(host.url + request.url, {method:"POST", headers:request.headers,
-        body:Buffer.concat(chunks), signal:AbortSignal.timeout(5000)});
+        body:Buffer.concat(chunks), signal:AbortSignal.timeout(hangBudget())});
       const bytes = Buffer.from(await upstream.arrayBuffer());
       if (fault === "commit-then-drop-once") { dropped++; response.destroy(); return; }
       response.writeHead(upstream.status, Object.fromEntries(upstream.headers)); response.end(bytes);
@@ -88,13 +89,13 @@ route billing: post "/billing/webhook" as service:billing secrets [HOOK_KEY] ret
   t.after(async () => { proxy.closeAllConnections(); await new Promise(resolve => proxy.close(resolve)); });
   const admin = "workroom-route-fixture-admin-only", serviceToken = "workroom-route-fixture-service-only";
   const configuration = {directory:join(p.directory, "provider"), adminToken:admin, serviceToken, signingSecret:KEY,
-    webhookUrl:`http://127.0.0.1:${proxy.address().port}/billing/webhook`, autoRetry:false, retryMs:10, timeoutMs:6000};
+    webhookUrl:`http://127.0.0.1:${proxy.address().port}/billing/webhook`, autoRetry:false, retryMs:10, timeoutMs:hangBudget()};
   let services = await startServices(configuration), closed = false;
   t.after(async () => { if (!closed) await services.close(); });
   async function providerCall(path, input, key) {
     const response = await fetch(services.url + path, {method:input === undefined ? "GET" : "POST",
       headers:{authorization:`Bearer ${admin}`, "content-type":"application/json", ...(key ? {"idempotency-key":key} : {})},
-      ...(input === undefined ? {} : {body:JSON.stringify(input)}), signal:AbortSignal.timeout(15_000)});
+      ...(input === undefined ? {} : {body:JSON.stringify(input)}), signal:AbortSignal.timeout(hangBudget())});
     const result = await response.json(); assert.equal(response.status, 200, JSON.stringify(result)); return result;
   }
   const tick = () => providerCall("/payment/tick", {});
@@ -115,7 +116,7 @@ route billing: post "/billing/webhook" as service:billing secrets [HOOK_KEY] ret
     return until(async () => {
       const result = await tick();
       return ids.every(id => result.deliveries.some(delivery => delivery.id === id && delivery.ack)) && result;
-    }, "canonical payment deliveries have durable acknowledgements", host.log, 15_000);
+    }, "canonical payment deliveries have durable acknowledgements", host.log);
   }
   let invalidBaseline, backlogIds = [], backlogEvents = [], finalSnapshot;
   const actions = [...starterActions({conformance:true})].filter(action => action.milestone === "W5");

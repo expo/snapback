@@ -1,3 +1,4 @@
+import { withHangGuard } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
@@ -12,7 +13,7 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
 const tick = () => new Promise(resolve => setTimeout(resolve, 10));
 async function promptly(work) {
   let timer;
-  try { return await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("local sign-out waited for the network")), 1000); })]); }
+  try { return await withHangGuard(() => work, "local sign-out waited for the network"); }
   finally { clearTimeout(timer); }
 }
 function fileStore(directory, hooks = {}) {

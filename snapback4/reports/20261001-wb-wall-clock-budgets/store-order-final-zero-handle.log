@@ -1,0 +1,21 @@
+✔ replayed mutation cannot lower the query floor (48.777198ms)
+✔ replayed mutation cannot lower the observation floor (44.293314ms)
+✔ closing while a stale HTTP body is in flight prevents publication and refetch (263.596898ms)
+✔ same-store head regression reports E_STORE_RESTORE and stops polling and reading (143.383442ms)
+✔ a change response captured before a write is not evidence of a same-store restore (42.63766ms)
+✔ direct stale-sequence reads back off and stop after four requests (442.104212ms)
+✔ observed stale-sequence reads back off and stop after four requests (449.362567ms)
+✔ closing the last owner during backoff cancels the next stale-response request (264.263837ms)
+✔ closing one of two subscribed owners does not cancel their shared fetch (26.897006ms)
+✔ a buffered first identity reply cannot lower a newer write floor (60.57448ms)
+✔ first poll after a completed write refuses a lower head (new identity) (84.872337ms)
+✔ first poll after a completed write refuses a lower head (known identity) (80.285398ms)
+✔ first identity discovery remembers the acknowledged receipt for later heads (30.526258ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2114.353154

@@ -1,3 +1,4 @@
+import { withHangGuard, waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -7,7 +8,7 @@ import { mintId } from '../dist/client.js';
 import { storeKey } from '../dist/app-storage.js';
 import { WRITE_HISTORY_LIMIT } from '../dist/writes.js';
 const url = 'http://store.test', q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'revoke' };
-const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('app recovery did not settle'); };
+const until = async check => { return awaitState(check); };
 const session = { principal: 'alice', token: 'alice-token', kind: 'guest', expiresAt: Date.now() + 30 * 86400_000 };
 const blocked = signal => new Promise((_, reject) => { if (signal?.aborted) reject(Error('closed')); else signal?.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
@@ -86,8 +87,7 @@ for (const end of ['logout', 'close', 'login']) test(`${end} cancels replacement
   t.after(() => app.close()); await app.ready;
   await app.client.query(q, {}); store = 'B'; await app.client.query(q, {});
   await until(() => probing);
-  await Promise.race([end === 'logout' ? app.auth.logout() : end === 'login' ? app.auth.login('bob@example.com', 'password') : app.close(),
-    delay(1000).then(() => assert.fail('auth operation stayed queued behind replacement probe'))]);
+  await withHangGuard(() => end === 'logout' ? app.auth.logout() : end === 'login' ? app.auth.login('bob@example.com', 'password') : app.close(), 'auth operation stayed queued behind replacement probe');
   await until(() => aborted);
   assert.equal(app.auth.state, end === 'login' ? 'signed-in' : 'signed-out');
   assert.equal(app.auth.viewer, end === 'login' ? 'bob' : null);

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -147,7 +148,7 @@ test("online session: current refusal clears the session; an obsolete refusal re
   assert.deepEqual(observed, [null]);
 });
 
-test("online query caps repeated obsolete-credential refetches", { timeout: 3000 }, async t => {
+test("online query caps repeated obsolete-credential refetches", { timeout: hangBudget(2) }, async t => {
   let reads = 0, rotations = 0;
   const client = createClient({ url: "https://race.invalid", session: session("old"), fetch: async url => {
     if (new URL(url).pathname === "/auth/refresh") return Response.json({ session: session(`next-${++rotations}`) });
@@ -162,7 +163,7 @@ test("online query caps repeated obsolete-credential refetches", { timeout: 3000
   assert.equal(client.session().token, "next-4", "obsolete refusals never end the replacement session");
 });
 
-test("online reconnect probe caps repeated obsolete-credential refetches", { timeout: 7000 }, async t => {
+test("online reconnect probe caps repeated obsolete-credential refetches", { timeout: hangBudget(5) }, async t => {
   const disconnect = deferred();
   let polls = 0, probes = 0, rotations = 0;
   const client = createClient({ url: "https://race.invalid", session: session("old"), fetch: async (url, init) => {
@@ -177,10 +178,10 @@ test("online reconnect probe caps repeated obsolete-credential refetches", { tim
   } });
   t.after(() => { disconnect.resolve(); return client.close(); });
   const watch = client.observe(query, {});
-  for (let n = 0; n < 200 && !watch.getSnapshot().data; n++) await new Promise(resolve => setTimeout(resolve, 5));
+  await awaitState(async () => !(!watch.getSnapshot().data), "online-session.test.mjs: !watch.getSnapshot().data", { poll: async () => { await new Promise(resolve => setTimeout(resolve, 5)); } });
   assert.deepEqual(watch.getSnapshot().data, []);
   disconnect.resolve();
-  for (let n = 0; n < 500 && probes < 4; n++) await new Promise(resolve => setTimeout(resolve, 10));
+  await awaitState(async () => !(probes < 4), "online-session.test.mjs: probes < 4", { poll: async () => { await new Promise(resolve => setTimeout(resolve, 10)); } });
   await new Promise(resolve => setTimeout(resolve, 300));
   assert.equal(probes, 4);
   assert.equal(client.session().token, "next-4");

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // LLP 3000.014 round 10: actual device/server provenance, never projected IDs.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -111,7 +112,7 @@ async function mutate(host,name,args,id=name) {
   const result=await host.post("/m/"+name,{id,args});assert.equal(result.state,"sent",JSON.stringify(result));
 }
 for(const tier of ["wasm","process"]) {
-  for(const shifted of [false,true]) test(`${tier}: retained nested rows follow source parents on ${shifted?"shifted":"reordered"} pages`,{timeout:60000},async t=>{
+  for(const shifted of [false,true]) test(`${tier}: retained nested rows follow source parents on ${shifted?"shifted":"reordered"} pages`,{timeout:hangBudget(10)},async t=>{
     const host=await server(t,tier,source);const ids=shifted?["A","B","C"]:["A","B"];
     assert.equal((await host.post("/seed",ids.flatMap((id,i)=>[parent(id,i),child("old-"+id,id)]))).seeded,ids.length*2);
     const client=await host.open();await leave(host,"children");
@@ -133,7 +134,7 @@ for(const tier of ["wasm","process"]) {
       assert.deepEqual(row.rows,shifted&&row.title==="B"?[old]:[{roomId:row.title,body:"current"},old],JSON.stringify(result));
     }
   });
-  test(`${tier}: composed tables sharing an ID keep independent retained rows`,{timeout:60000},async t=>{
+  test(`${tier}: composed tables sharing an ID keep independent retained rows`,{timeout:hangBudget(7)},async t=>{
     const host=await server(t,tier,source);
     assert.equal((await host.post("/seed",[parent("A",0),child("x","A"),{table:"reactions",row:{id:"x",parent:"A",body:"reaction"}}])).seeded,3);
     const client=await host.open();await leave(host,"reactions");
@@ -144,7 +145,7 @@ for(const tier of ["wasm","process"]) {
     const mask=host.answers.findLast(a=>a.name==="mixed").retainedRows;
     assert.deepEqual(mask.map(m=>m.source),[["children","x"],["reactions","x"]]);
   });
-  test(`${tier}: projections without id replace a retained copy using its source envelope`,{timeout:60000},async t=>{
+  test(`${tier}: projections without id replace a retained copy using its source envelope`,{timeout:hangBudget(8)},async t=>{
     const host=await server(t,tier,source);
     assert.equal((await host.post("/seed",[parent("A",0),child("x","A")])).seeded,2);
     const client=await host.open();await leave(host,"children");await mutate(host,"edit",{id:"x"});
@@ -161,7 +162,7 @@ for(const tier of ["wasm","process"]) {
 }
 
 for(const tier of ["wasm","process"]) {
-  test(`${tier}: an identityless object merges its identified child rows`,{timeout:60000},async t=>{
+  test(`${tier}: an identityless object merges its identified child rows`,{timeout:hangBudget(8)},async t=>{
     const host=await server(t,tier,source);
     assert.equal((await host.post("/seed",[parent("A",0),child("x","A"),{table:"reactions",row:{id:"x",parent:"A",body:"reaction"}}])).seeded,3);
     const client=await host.open();await leave(host,"reactions");
@@ -177,7 +178,7 @@ for(const tier of ["wasm","process"]) {
     assert.equal(remote.rowProvenance.source,null);
     assert.deepEqual(remote.rowProvenance.fields.items.map(m=>m.source),[["children","x"],["reactions","x"]]);
   });
-  test(`${tier}: an unidentified sibling preserves paired parents and drops an unpaired current row`,{timeout:60000},async t=>{
+  test(`${tier}: an unidentified sibling preserves paired parents and drops an unpaired current row`,{timeout:hangBudget(7)},async t=>{
     const host=await server(t,tier,source);
     assert.equal((await host.post("/seed",[parent("A",0),parent("C",1),parent("D",2),child("old-A","A"),child("old-C","C")])).seeded,5);
     const client=await host.open();await leave(host,"children");
@@ -197,7 +198,7 @@ for(const tier of ["wasm","process"]) {
 }
 
 for(const tier of ["wasm","process"]) {
-  test(`${tier}: an anonymous nested page appends only retained history after a partial rejoin`,{timeout:60000},async t=>{
+  test(`${tier}: an anonymous nested page appends only retained history after a partial rejoin`,{timeout:hangBudget(11)},async t=>{
     const host=await server(t,tier,source);
     assert.equal((await host.post("/seed",[parent("A",0),child("c","A"),child("old","A")])).seeded,3);
     const client=await host.open();await leave(host,"children");
@@ -216,7 +217,7 @@ for(const tier of ["wasm","process"]) {
     assert.deepEqual(result.data,[{rows:[{id:"c",body:"current"}]},{rows:[{id:"old",body:"old-A",retained:true}]}]);
     assert.equal(result.complete,false);assert.equal(result.fresh,false);
   });
-  test(`${tier}: an in-place edit under an anonymous nested page replaces its retained copy`,{timeout:60000},async t=>{
+  test(`${tier}: an in-place edit under an anonymous nested page replaces its retained copy`,{timeout:hangBudget(8)},async t=>{
     const host=await server(t,tier,source);
     assert.equal((await host.post("/seed",[parent("A",0),child("x","A")])).seeded,2);
     const client=await host.open();await leave(host,"children");await mutate(host,"edit",{id:"x"});

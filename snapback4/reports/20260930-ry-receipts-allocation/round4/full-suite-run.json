@@ -1,0 +1,9 @@
+{
+  "command": "bash scripts/test.sh",
+  "cwd": "/home/ccheever/sb4-intent/lane-ry/snapback4",
+  "started": "2026-09-30T23:57:41.384426+00:00",
+  "pid": 620338,
+  "exit_code": 0,
+  "ended": "2026-10-01T00:19:26.703715+00:00",
+  "elapsed_seconds": 1305.319222852122
+}

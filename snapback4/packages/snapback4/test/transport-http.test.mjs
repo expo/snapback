@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Both real device stores, the real HTTP parser, and an idle TCP proxy that
 // blackholes response bytes without closing the held downstream connection.
 import test from "node:test";
@@ -21,11 +22,7 @@ const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4")
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const headers = { "x-snapback-persona": "alice", "content-type": "application/json" };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, ms = 8000) {
-  const end = performance.now() + ms;
-  while (performance.now() < end) { if (await check()) return; await sleep(10); }
-  assert.fail("timed out");
-}
+async function until(check) { return awaitState(check); }
 const source = `use identity
 use personas alice
 table items:
@@ -56,7 +53,7 @@ async function host(t) {
     rmSync(dir, { recursive: true, force: true });
   });
   await until(() => { assert.equal(child.exitCode, null, log); return url; });
-  const post = (path, body) => fetch(url + path, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body), signal: AbortSignal.timeout(5000) });
+  const post = (path, body) => fetch(url + path, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body), signal: AbortSignal.timeout(hangBudget()) });
   const rows = Array.from({ length: 37 }, (_, n) => ({ table: "items", row: { id: `row-${String(n).padStart(3, "0")}`, body: `item ${n}` } }));
   assert.equal((await (await post("/seed", rows)).json()).seeded, rows.length);
   const opener = (tier, name) => {
@@ -72,7 +69,7 @@ function oldLine(ids) {
   return `GET /sync?from=1091&limit=4000&pending=${encodeURIComponent(JSON.stringify(ids))} HTTP/1.1`;
 }
 
-test("sync request-line boundaries and a deliberate body ceiling", { timeout: 15_000 }, async t => {
+test("sync request-line boundaries and a deliberate body ceiling", { timeout: hangBudget(16) }, async t => {
   const f = await host(t);
   for (const count of [232, 233, 256]) {
     const ids = Array.from({ length: count }, (_, n) => String(n).padStart(26, "0"));
@@ -130,7 +127,7 @@ test("sync request-line boundaries and a deliberate body ceiling", { timeout: 15
 
 // Each boundary owns its server and queue. These are protocol assertions;
 // concurrent queues otherwise spend the timeout contending during replay.
-for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for (const recovery of (count === 256 ? ["automatic", "explicit sync"] : ["automatic"])) test(`${tier}: maximum pending ids (${count}), cursor batches and every terminal acknowledgement (${recovery})`, { timeout: 40_000 }, async t => {
+for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for (const recovery of (count === 256 ? ["automatic", "explicit sync"] : ["automatic"])) test(`${tier}: maximum pending ids (${count}), cursor batches and every terminal acknowledgement (${recovery})`, { timeout: hangBudget(16) }, async t => {
   const f = await host(t);
   // The final case also has a tail beyond sync_state's 256-id window.
   const ids = Array.from({ length: count + (count === 256 ? 17 : 0) }, (_, n) => `${tier}-${count}-${n}`.padEnd(128, "x"));
@@ -185,7 +182,7 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for 
   await until(async () => {
     if (recovery === "explicit sync") await client.sync();
     return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
-  }, 30_000);
+  });
   assert.equal(pendingSizes[0], count);
   assert.ok(cursors.length >= 5, "the real snapshot continues across six batches");
   assert.deepEqual([...new Set([...receipts, ...ordinaryReceipts])].sort(), [...ids].sort(), "every id has a server acknowledgement, including the tail");
@@ -198,7 +195,7 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for 
   await client.close();
 });
 
-test("idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores", { timeout: 30_000 }, async t => {
+test("idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores", { timeout: hangBudget(8) }, async t => {
   const f = await host(t);
   const scenarios = new Map();
   const upstreams = new Set();
@@ -237,20 +234,20 @@ test("idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores",
     } });
     f.clients.push(client);
     client.onLink(link => { if (link === "offline" && !times.notification) times.notification = performance.now(); });
-    await until(() => times.notification, 22_000);
+    await until(() => times.notification);
     const report = { store: tier, offsetMs: offset, requestStartMs: times.start, cutMs: times.cut, rejectionMs: times.rejection, notificationMs: times.notification, detectionMs: times.notification - times.cut };
     console.log(JSON.stringify(report));
     assert.ok(times.cut > times.start, "no false offline transition before the cut");
     assert.ok(times.rejection >= times.cut);
     assert.ok(report.detectionMs <= 5000, JSON.stringify(report));
     times.cut = 0;
-    await until(() => client.link() === "online", 5000);
+    await until(() => client.link() === "online");
     assert.equal((await client.query({ kind: "query", name: "items" }, {})).data.length, 37);
     await client.close();
   })));
 });
 
-test("healthy heartbeat polls, buffered native fetch and browser connectivity hints", { timeout: 18_000 }, async t => {
+test("healthy heartbeat polls, buffered native fetch and browser connectivity hints", { timeout: hangBudget(10) }, async t => {
   const f = await host(t);
   const lifetime = new AbortController();
   t.after(() => lifetime.abort());
@@ -295,7 +292,7 @@ test("healthy heartbeat polls, buffered native fetch and browser connectivity hi
   } finally { await client.close(); globalThis.addEventListener = savedAdd; globalThis.removeEventListener = savedRemove; }
 });
 
-test("a streaming poll rechecks a revoked bearer before its final JSON", { timeout: 5000 }, async t => {
+test("a streaming poll rechecks a revoked bearer before its final JSON", { timeout: hangBudget(8) }, async t => {
   const f = await host(t);
   const session = (await (await f.post("/auth/guest", {})).json()).session;
   const bearer = { authorization: `Bearer ${session.token}` };

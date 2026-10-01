@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP projection, both client stores, watch invalidation and cold restoration.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,12 +21,9 @@ const api = { kind:"query",name:"postRow" };
 const triple = row => { publicJson(row); return [row.likeCount,row.selected,row.total]; };
 const publicJson = value => assert.doesNotMatch(JSON.stringify(value),/\$column:/i);
 const privateTarget="$column:"+createHash("sha256").update(JSON.stringify(["posts","likeCount"])).digest("hex");
-async function until(check) {
-  const deadline = Date.now()+30000;
-  for (;;) { const result=await check(); if(result) return result; if(Date.now()>deadline) throw Error("watch did not converge"); await new Promise(r=>setTimeout(r,20)); }
-}
+async function until(check) { return awaitState(check); }
 
-for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) test(`maintained columns: ${family} watches use server values across interrupted sync and reopen (${queuedTail ? "queued tail" : "one write"})`, {timeout:180000}, async t => {
+for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) test(`maintained columns: ${family} watches use server values across interrupted sync and reopen (${queuedTail ? "queued tail" : "one write"})`, {timeout:hangBudget(51)}, async t => {
   const directory=mkdtempSync(join(tmpdir(),"sb4-columns-"));
   mkdirSync(join(directory,"snapback"));
   writeFileSync(join(directory,"snapback/schema.q"),source);
@@ -35,7 +33,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   server.stderr.on("data",chunk=>{log+=chunk});
   t.after(async()=>{watch?.close();await client?.close();if(server.exitCode==null&&server.signalCode==null)server.kill();await exited;rmSync(directory,{recursive:true,force:true})});
   const url=await new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>reject(Error(log)),60000);
+    const timer=setTimeout(()=>reject(Error(log)),hangBudget());
     server.once("exit",()=>{clearTimeout(timer);reject(Error(log))});
     server.stdout.on("data",chunk=>{log+=chunk;const address=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];if(address){clearTimeout(timer);resolve(address)}});
   });
@@ -49,7 +47,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.equal(Object.keys(projection.schema.tables).length,2);
   assert.equal(projection.schema.maintains.length,0);
   assert.equal(Object.keys(projection.schema.tables.posts.maintained).length,3);
-  const command=args=>spawnSync(binary,args,{cwd:directory,encoding:"utf8",timeout:30000});
+  const command=args=>spawnSync(binary,args,{cwd:directory,encoding:"utf8",timeout:hangBudget()});
   for(const args of [["check","--json"],["doctor","--json"]]) {
     const out=command(args);assert.equal(out.status,0,out.stdout+out.stderr);assert.doesNotMatch(out.stdout,/\$column/);
     if(args[0]==="check")assert.equal(JSON.parse(out.stdout).tables,2);

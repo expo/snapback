@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — two independent offline writers converge without queue-only history gaps.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ const root = new URL('../../../', import.meta.url).pathname;
 const source = readFileSync(new URL('./helpers/subscription-pressure.q', import.meta.url), 'utf8');
 const require = createRequire(join(root, 'package.json'));
 
-for (const tier of ['wasm', 'process']) test(`${tier}: two offline devices, 124 mounted observations each, exactly-once history`, { timeout: 60000 }, async t => {
+for (const tier of ['wasm', 'process']) test(`${tier}: two offline devices, 124 mounted observations each, exactly-once history`, { timeout: hangBudget(2 * 124) }, async t => {
   const drivers = [], pages = [], renders = [Promise.resolve(), Promise.resolve()];
   t.after(async () => { for (const driver of drivers) await driver.close(); await Promise.all(renders); });
   const { url, dir } = await server(t, '', source);
@@ -44,10 +45,11 @@ window.openPressure = async ({url,persona,holdMs}) => { const state = { holdMs, 
   const vite = await createServer({ root: pageDir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, pageDir] } }, resolve: { alias: ['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })) } });
   await vite.listen(); t.after(() => vite.close());
   const { chromium } = require('playwright-core');
-  const browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox', '--disable-background-timer-throttling'] });
+  const browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox', '--disable-background-timer-throttling'] });
   t.after(() => browser.close());
   for (const [i, persona] of ['alice','bob'].entries()) {
-    const context = await browser.newContext(), page = await context.newPage(); pages.push(page);
+    const context = await browser.newContext(), page = await context.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget()); pages.push(page);
     page.on('pageerror', error => t.diagnostic(error.stack));
     await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.openPressure);
     if (tier === 'wasm') {

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Lane C's client/dev seams against the real HTTP host and process device.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -31,10 +32,7 @@ async function gatedSync(input, init, blocked) {
   await response.body?.cancel();
   return Response.json({}, { status: 503 });
 }
-async function until(check, ms = 10000) {
-  const end = Date.now() + ms;
-  for (;;) { const value = await check(); if (value) return value; if (Date.now() >= end) throw new Error("timed out waiting"); await sleep(20); }
-}
+async function until(check) { return awaitState(check); }
 const source = `use personas alice, bob
 use identity
 table photos:
@@ -273,7 +271,7 @@ for (const tier of ["online", "web", "native"]) {
     assert.equal(valid.state, "sent"); assert.equal(f.attempts.length, 1);
   });
 
-  test(`W6d ${tier}: input key order is immaterial and an evicted receipt never readmits on the same client`, { timeout: 60000 }, async t => {
+  test(`W6d ${tier}: input key order is immaterial and an evicted receipt never readmits on the same client`, { timeout: hangBudget(14) }, async t => {
     const f = await callerFixture(t), client = await f.open(), id = mintId();
     // A device's foreground wait may return pending under load. Eviction counts
     // terminal receipts, so follow that same id without submitting another write.
@@ -367,7 +365,7 @@ for (const tier of ["online", "web", "native"]) {
   });
 }
 
-for (const transport of ["HTTP", "client"]) test(`W6b password character minimum and byte maximum through ${transport}`, { timeout: 60000 }, async t => {
+for (const transport of ["HTTP", "client"]) test(`W6b password character minimum and byte maximum through ${transport}`, { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t, true, "use identity password\n");
   const signIn = async (route, email, password) => {
     if (transport === "client") return (route === "signup" ? signup : login)(f.url, email, password);
@@ -403,7 +401,7 @@ for (const transport of ["HTTP", "client"]) test(`W6b password character minimum
   t.diagnostic(`${transport}: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused`);
 });
 
-test("W6b identity forms advertise and enforce the guest choice", { timeout: 60000 }, async t => {
+test("W6b identity forms advertise and enforce the guest choice", { timeout: hangBudget(5) }, async t => {
   for (const [form, guests, password] of [["use identity", true, true], ["use identity guests", true, false], ["use identity password", false, true]]) {
     const f = await fixture(t, true, `${form}\n`);
     const config = await (await fetch(f.url + "/auth/config")).json();
@@ -442,7 +440,7 @@ test("sent results reach online, process-device and queued-write callers", async
 });
 
 for (const tier of ["online", "process-device"]) for (const queued of [false, true]) {
-  test(`${tier}: ${queued ? "queued" : "immediate"} lost first acknowledgement preserves the same-id replay receipt`, { timeout: 15000 }, async t => {
+  test(`${tier}: ${queued ? "queued" : "immediate"} lost first acknowledgement preserves the same-id replay receipt`, { timeout: hangBudget(13) }, async t => {
     const f = await fixture(t);
     let offline = false, dropped = false;
     const attempts = [], replies = [];
@@ -551,7 +549,7 @@ function hook() {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-for (const [keep, maxBytes] of [["viewed", png.length], ["viewed", png.length - 1], ["none", png.length]]) test(`createApp forwards asset retention (${keep}, ${maxBytes} bytes) through a real offline reopen`, { timeout: 20_000 }, async t => {
+for (const [keep, maxBytes] of [["viewed", png.length], ["viewed", png.length - 1], ["none", png.length]]) test(`createApp forwards asset retention (${keep}, ${maxBytes} bytes) through a real offline reopen`, { timeout: hangBudget(12) }, async t => {
   const f = await fixture(t), sessionStore = memorySessionStore();
   let offline = false, assetRequests = 0;
   const options = { url: f.url, device: f.device, sessionStore, assets: { keep, maxBytes }, fetch: (input, init) => {
@@ -582,7 +580,7 @@ for (const [keep, maxBytes] of [["viewed", png.length], ["viewed", png.length - 
   assert.equal(assetRequests, requests, "offline reads use retained bytes without an asset request");
 });
 
-test("createApp forwards local waitSeconds while retaining app-owned identity", { timeout: 15_000 }, async t => {
+test("createApp forwards local waitSeconds while retaining app-owned identity", { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t), waits = [];
   const options = { url: f.url, device: f.device, sessionStore: memorySessionStore(), waitSeconds: 30,
     // Excess properties from an untyped caller must not bypass app.auth.
@@ -611,7 +609,7 @@ test("createApp forwards local waitSeconds while retaining app-owned identity", 
   assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
 });
 
-test("online createApp ignores settings that apply only with a device", { timeout: 15_000 }, async t => {
+test("online createApp ignores settings that apply only with a device", { timeout: hangBudget(5) }, async t => {
   const f = await fixture(t);
   const app = createApp({ url: f.url, sessionStore: memorySessionStore(),
     get assets() { throw Error("online must not read the local asset policy"); },
@@ -818,7 +816,7 @@ query filtered(c: cursor ?):
   return entries['normal'] after c last 10 by byRoomTime where .body = 'absent'
 `;
 
-for (const release of [false, true]) test(`W8R1a ${release ? "serve" : "dev"} withholds hidden population cuts`, { timeout: 60000 }, async t => {
+for (const release of [false, true]) test(`W8R1a ${release ? "serve" : "dev"} withholds hidden population cuts`, { timeout: hangBudget(12) }, async t => {
   const schema = `use identity
 table records:
   owner: principal
@@ -879,7 +877,7 @@ query search():
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run observations keep explicit withdrawal during a replacing fetch`, { timeout: 30000 }, async t => {
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run observations keep explicit withdrawal during a replacing fetch`, { timeout: hangBudget(12) }, async t => {
   const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only") + "\nmutation pulse(): server\n  return null\n");
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
   seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
@@ -911,7 +909,7 @@ for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run o
   await until(() => watches.every(({ watch }) => watch.getSnapshot().loading));
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8a ${tier} uniform words continue while nonuniform words and meter cuts remain bounded`, { timeout: 30000 }, async t => {
+for (const tier of ["online", "native", "web"]) test(`W8a ${tier} uniform words continue while nonuniform words and meter cuts remain bounded`, { timeout: hangBudget(12) }, async t => {
   const source = tier === "online" ? cutSource : cutSource.replaceAll("c: cursor ?):", "c: cursor ?) held:");
   const f = await fixture(t, false, source);
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${String(n).padStart(5, "0")}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
@@ -1010,7 +1008,7 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
 });
 
 for (const tier of ["native", "web"]) {
-  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} read stays local online`, { timeout: 60000 }, async t => {
+  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} read stays local online`, { timeout: hangBudget(5) }, async t => {
     const f = await fixture(t, false, cutSource + "\nquery top():\n  return entries['normal'] last 1 by byRoomTime\n");
     const count = kind === "meter" ? 8200 : 2;
     for (let start = 0; start < count; start += 1000) {
@@ -1048,7 +1046,7 @@ for (const tier of ["native", "web"]) {
   });
 }
 
-for (const release of [false, true]) test(`W13b ${release ? "serve hides" : "dev logs"} a measured cut`, { timeout: 60000 }, async t => {
+for (const release of [false, true]) test(`W13b ${release ? "serve hides" : "dev logs"} a measured cut`, { timeout: hangBudget(8) }, async t => {
   const schema = cutSource.replace("  sync public", "  insert <- allow\n  sync public") + `
 mutation fill(start: int, count: int):
   for i in range(start, start + count):
@@ -1082,7 +1080,7 @@ mutation fill(start: int, count: int):
 });
 
 
-for (const tier of ["native", "web", "online", "app-online"]) test(`CCP admission boundary: ${tier}`, { timeout: 30_000 }, async t => {
+for (const tier of ["native", "web", "online", "app-online"]) test(`CCP admission boundary: ${tier}`, { timeout: hangBudget(31) }, async t => {
   const f = await fixture(t), events = [], requests = [], holds = [];
   let hold = true;
   const transport = async (input, init) => {
@@ -1106,10 +1104,41 @@ for (const tier of ["native", "web", "online", "app-online"]) test(`CCP admissio
   await client.query({ kind: "query", name: "receipts" }, {});
   assert.equal(client.link(), "online");
   const start = performance.now();
-  const admitted = await client.mutate(mutation("record"), { n: 901 }, { waitSeconds: 0 });
+  let admitted, failure, settled = false;
+  // Hold delivery of product timers while keeping real Timeout handles and
+  // node:timers intact. Node's broad timer mock also rewrites HTTP parser
+  // timers, which is unsafe while this real transport is active.
+  const schedule = globalThis.setTimeout, cancel = globalThis.clearTimeout;
+  const timers = new Map(); let held = true;
+  const scheduled = t.mock.method(globalThis, "setTimeout", (callback, ms, ...args) => {
+    if (!(ms > 0)) return schedule(callback, ms, ...args);
+    const state = { callback, args, fired: false };
+    const timer = schedule(function () {
+      if (held) state.fired = true;
+      else { timers.delete(timer); callback.apply(timer, args); }
+    }, ms);
+    timers.set(timer, state); return timer;
+  });
+  const cancelled = t.mock.method(globalThis, "clearTimeout", timer => {
+    timers.delete(timer); return cancel(timer);
+  });
+  const writing = client.mutate(mutation("record"), { n: 901 }, { waitSeconds: 0 })
+    .then(value => { admitted = value; }, error => { failure = error; }).finally(() => { settled = true; });
+  try {
+    await awaitState(() => settled, "waitSeconds=0 returns without advancing a caller-wait timer", {
+      work: 2, poll: async () => { await new Promise(resolve => setImmediate(resolve)); },
+    });
+    await writing;
+    if (failure) throw failure;
+  } finally {
+    held = false; scheduled.mock.restore(); cancelled.mock.restore();
+    for (const [timer, state] of timers) if (state.fired) state.callback.apply(timer, state.args);
+    timers.clear();
+  }
   const elapsed = performance.now() - start;
   t.diagnostic(`${tier}: waitSeconds=0 returned ${admitted.state} in ${elapsed.toFixed(3)} ms`);
-  assert.equal(admitted.state, "pending"); assert.ok(elapsed < 1000);
+  assert.equal(admitted.state, "pending");
+  assert.equal(hold, true, "the zero-wait result precedes the held acknowledgement");
   assert.equal((await client.write(admitted.id)).state, "pending");
   await until(() => holds.length === 1);
   if (app) {

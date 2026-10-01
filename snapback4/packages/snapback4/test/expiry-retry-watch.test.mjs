@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.016#2.2 — expiry retry recovery and transport retain the publication rules.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -17,11 +18,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, message) {
-  const end = Date.now() + 10000;
-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 function gate() {
   let release;
   const promise = new Promise(resolve => { release = resolve; });
@@ -72,7 +69,7 @@ query expiryPage(c: cursor ?):
 `;
 
 for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination", "server pagination watch", "remembered branch", "remembered branch watch", "remembered branch timer watch"]) {
-  test(`expiry retry ${scenario} ${tier}`, { timeout: 30000 }, async t => {
+  test(`expiry retry ${scenario} ${tier}`, { timeout: hangBudget(33) }, async t => {
     const directory = mkdtempSync(join(tmpdir(), "sb4-expiry-retry-"));
     mkdirSync(join(directory, "snapback"));
     writeFileSync(join(directory, "snapback/schema.q"), source);

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -83,7 +84,7 @@ test('a returned admission timestamp raises the clock even without host notifica
   assert.equal(client.now(), 1_004_000, 'the returned execution timestamp must reach the clock');
 });
 
-for (const interruption of ['reload', 'rejected save']) test(`${interruption} at a held orphan commit cannot replay a waiting journal before its floor`, { timeout: 10_000 }, async t => {
+for (const interruption of ['reload', 'rejected save']) test(`${interruption} at a held orphan commit cannot replay a waiting journal before its floor`, { timeout: hangBudget(18) }, async t => {
   const f = fixture(t), core = await f.openCore();
   assert.equal((await core.call({ op: 'apply', page: modelPage(0, {}), first: true })).denied, undefined);
   assert.equal((await core.call(observe)).denied, undefined);

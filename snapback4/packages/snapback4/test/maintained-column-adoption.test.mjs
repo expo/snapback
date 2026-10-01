@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
@@ -24,13 +25,9 @@ table likes:
 query one(id: posts):
   return posts[id]
 `;
-async function until(check) {
-  const end = Date.now() + 60000;
-  do { if (await check()) return; await delay(20); } while (Date.now() < end);
-  throw Error("adoption/watch did not converge");
-}
+async function until(check) { return awaitState(check); }
 for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
-  test(`column activation: ${tier}, ${synced ? "device" : "server"} watch`, { timeout: 180000 }, async t => {
+  test(`column activation: ${tier}, ${synced ? "device" : "server"} watch`, { timeout: hangBudget(13) }, async t => {
     const dir = mkdtempSync(join(tmpdir(), "sb4-column-adoption-"));
     mkdirSync(join(dir, "snapback"));
     const path = join(dir, "snapback/schema.q");

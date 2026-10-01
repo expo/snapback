@@ -1,0 +1,5 @@
+heavy-2-repair: exit=0 elapsed=1196.9s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-2-repair.log
+heavy-4-repair: exit=0 elapsed=1210.6s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-4-repair.log
+heavy-1-repair: exit=0 elapsed=1223.7s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-1-repair.log
+heavy-3-repair: exit=0 elapsed=1248.4s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-3-repair.log
+heavy-5-repair: exit=0 elapsed=1376.6s log=/home/ccheever/sb4-intent/lane-wb/snapback4/reports/20261001-wb-wall-clock-budgets/heavy-5-repair.log

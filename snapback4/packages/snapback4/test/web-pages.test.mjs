@@ -1,9 +1,10 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { launch, root } from '../../../witness/lib.mjs';
 
-test('format 3 upgrades atomically to bounded strict pages without losing device custody', {timeout:120000}, async t => {
+test('format 3 upgrades atomically to bounded strict pages without losing device custody', {timeout:hangBudget(32)}, async t => {
   const witness = await launch({seed:Array.from({length:600},(_,n)=>({table:'migrationRows',row:{id:`r${n}`,value:n}})), extraSource:`
 table migrationRows:
   value: int
@@ -83,7 +84,7 @@ Object.assign(window,{prepareClient,rawClient,pageStore:()=>indexedDbStore(index
 
 });
 
-test('a long-lived format-3 adapter cannot use cached packing after another owner migrates', {timeout:120000}, async t => {
+test('a long-lived format-3 adapter cannot use cached packing after another owner migrates', {timeout:hangBudget(14)}, async t => {
   const witness = await launch({entrySource:`
 import { indexedDbStore } from '${join(root,'packages/snapback4/src/web-idb.ts')}';
 Object.assign(window,{pageStore:()=>indexedDbStore(indexedDbPersistence().claim,true)});
@@ -129,7 +130,7 @@ Object.assign(window,{pageStore:()=>indexedDbStore(indexedDbPersistence().claim,
   assert.deepEqual(result.writes,['strict','strict','strict']);
 });
 
-for (const mode of ['save', 'conditional', 'worker-host']) test(`migration during a format-3 ${mode} rechecks layout in the writing transaction`, {timeout:120000}, async t => {
+for (const mode of ['save', 'conditional', 'worker-host']) test(`migration during a format-3 ${mode} rechecks layout in the writing transaction`, {timeout:hangBudget(14)}, async t => {
   const witness = await launch({entrySource:`
 import { indexedDbStore } from '${join(root,'packages/snapback4/src/web-idb.ts')}';
 import { WebWorkerHost } from '${join(root,'packages/snapback4/src/web-worker-host.ts')}';

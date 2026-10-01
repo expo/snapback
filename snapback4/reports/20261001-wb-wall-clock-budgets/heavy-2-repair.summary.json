@@ -1,0 +1,21 @@
+{
+  "log": "heavy-2-repair.log",
+  "sha256": "1f69d8fc7659126e19494ceff6cc3723b20626d58a3f32062210e37048a834ae",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 73",
+    "ℹ suites 0",
+    "ℹ pass 73",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 1196672.758333"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

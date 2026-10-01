@@ -1,0 +1,4 @@
+check: ok — 6 tables (5 synced), 12 operations, no problems, 1 note, 20.2 ms
+note: schema.q:78:1 — N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue
+1 mutations never predict: markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation

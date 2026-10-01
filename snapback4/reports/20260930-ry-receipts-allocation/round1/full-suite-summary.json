@@ -1,0 +1,32 @@
+{
+  "summary": "== 0 failure(s) in 1324 s",
+  "exit": 0,
+  "runs": 1,
+  "rust": {
+    "passed": 4453,
+    "failed": 0,
+    "ignored": 33
+  },
+  "clients": {
+    "passed": 5577,
+    "failed": 0,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "fixtures": {
+    "passed": 9,
+    "failed": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0,
+    "sequences_per_walk": 5000,
+    "walks": 2
+  },
+  "failure_classification": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "source_files_unchanged": 1698
+}

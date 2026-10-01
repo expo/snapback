@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Signed local protocol double. Real-provider qualification is a separate, credentials-gated fixture.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -344,7 +345,7 @@ function suite(provider, core = new FakeCore()) {
         return Response.json(reply);
       },
     });
-    const timeout = AbortSignal.timeout(4_000);
+    const timeout = AbortSignal.timeout(hangBudget());
     try { await Promise.race([worker.done, new Promise((_, reject) => timeout.addEventListener("abort", () => reject(Error("identity invocation timed out")), { once: true }))]); }
     finally { stop.abort(); }
     return { settled: core.settled, errors, id, attempt };

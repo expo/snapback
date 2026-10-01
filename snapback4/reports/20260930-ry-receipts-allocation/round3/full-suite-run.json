@@ -1,0 +1,8 @@
+{
+  "command": "bash scripts/test.sh",
+  "exit": 0,
+  "started": "2026-09-30T22:23:37.673980+00:00",
+  "finished": "2026-09-30T22:45:40.604169+00:00",
+  "source_files": 1851,
+  "source_delta": []
+}

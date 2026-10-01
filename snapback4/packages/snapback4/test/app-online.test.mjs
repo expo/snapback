@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
@@ -42,7 +43,7 @@ for (const fault of ["closing owner", "closed channel", "throwing listener"]) te
   if (fault === "throwing listener") assert.ok(logged.length > 0, "the throwing listener was exercised");
   assert.equal(JSON.parse(await store.get(key)).pending[0].id, admitted.id);
   if (fault !== "closed channel") {
-    for (let n = 0; n < 500 && !messages.length; n++) await delay(1);
+    await awaitState(async () => !(!messages.length), "app-online.test.mjs: !messages.length", { poll: async () => { await delay(1); } });
     assert.ok(messages.length > 0, "the other realm receives an invalidation before local teardown");
     assert.ok(messages.every(message => message === null), "notifications disclose no intent");
   }
@@ -68,10 +69,7 @@ test("unsaved online hold stays visible through failed retries in shared journal
   };
   const a = await make(), b = await make(memory);
   t.after(async () => { fail = false; await a.client.close(); await b.client.close(); });
-  const until = async check => {
-    for (let n = 0; n < 1000; n++) { if (await check()) return; await delay(10); }
-    assert.fail("hold/retry/settlement did not arrive");
-  };
+  const until = async check => { return awaitState(check); };
   const tail = mintId(), head = mintId(), op = { kind: "mutation", name: "write" };
   await a.client.mutate(op, { body: "first" }, { id: head, waitSeconds: 0 });
   await until(() => requests.length === 1);
@@ -122,7 +120,7 @@ test("asynchronous settlement bounds online argument reservations, including ano
   const a = await make(), b = await make();
   t.after(async () => { await a.client.close(); await b.client.close(); });
   a.client.onWrite(write => emitted.push("a:" + write.id)); b.client.onWrite(write => emitted.push("b:" + write.id));
-  const until = async check => { for (let n = 0; n < 500; n++) { if (check()) return; await delay(1); } assert.fail("settlement notification missing"); };
+  const until = async check => { return awaitState(check); };
   for (let i = 0; i < 300; i++) {
     const id = mintId(), op = { kind: "mutation", name: "write" }, args = { body: "retained input " + i };
     await a.client.mutate(op, args, { id }); await b.client.mutate(op, args, { id });
@@ -172,7 +170,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
       if (source === "lookup") { available = outcome; assert.deepEqual(await client.write(id), outcome); }
       else {
         callback(outcome);
-        for (let n = 0; n < 500 && !notifications.length; n++) await delay(1);
+        await awaitState(async () => !(!notifications.length), "app-online.test.mjs: !notifications.length", { poll: async () => { await delay(1); } });
       }
     }
     assert.deepEqual(notifications, [outcome], "a known outcome notifies even when its receipt cannot be saved");

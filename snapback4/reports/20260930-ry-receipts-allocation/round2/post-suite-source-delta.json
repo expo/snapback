@@ -1,0 +1,18 @@
+{
+  "crates/snapback4-lang/tests/declarative_receipts/dependencies.rs": {
+    "suite": "0c1595fb124fef8df6bceb58d4c6dde07b53b288598032dfd4a8e1afc0cf9ad6",
+    "final": "7592b5e6f47d152a8e798d61419df461986197ab79360cbaee5e3b5d7e2c1c29"
+  },
+  "crates/snapback4-core/src/engine/recorded.rs": {
+    "suite": "706868cbd63adc79c66b63dbfcce347c69ff1650efcc25a747e670226bad6f55",
+    "final": "8996267ab9f6722bab8106453d1605aa096d1e86377acda0a82e0600c7f79c05"
+  },
+  "crates/snapback4-core/src/engine/sequences.rs": {
+    "suite": "9c1462a850dacb532f6a10a2e8af6618183eae7d8541ff1b6ff0378cdba16ddc",
+    "final": "31d6921279f545b005648bc6b4f1bfd4cd880103cf42713bfc732e3c7c841134"
+  },
+  "metrics/wasm-budget.json": {
+    "suite": "0b7fcf93d5cd7689d8dd357f78215a1e2690d0dd5cc6a4e964aa0113a4a9f8c0",
+    "final": "7a87fa089da012f84bb67f559abd3430dc32d54d300d744dd03c6d43afeaf3e2"
+  }
+}

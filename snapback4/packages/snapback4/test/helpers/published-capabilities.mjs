@@ -1,3 +1,4 @@
+import { hangBudget } from './wait.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -15,7 +16,7 @@ export async function published(cache, into, diagnostic) {
   assert.equal(`${process.platform}-${process.arch}`,'darwin-arm64','the opt-in native 0.2.33 witness requires darwin-arm64');
   mkdirSync(cache,{recursive:true});
   for(const name of ['snapback4','snapback4-darwin-arm64']) {
-    const response=await fetch(`https://registry.npmjs.org/${name}/0.2.33`,{signal:AbortSignal.timeout(30_000)});
+    const response=await fetch(`https://registry.npmjs.org/${name}/0.2.33`,{signal:AbortSignal.timeout(hangBudget())});
     assert.equal(response.status,200);
     const meta=await response.json(), archive=join(cache,`${name}-0.2.33.tgz`);
     assert.equal(meta.version,'0.2.33');assert.equal(meta.dist.integrity,integrity[name]);
@@ -23,7 +24,7 @@ export async function published(cache, into, diagnostic) {
     const matches=()=>createHash(algorithm).update(readFileSync(archive)).digest('base64')===want;
     if(existsSync(archive)&&!matches())rmSync(archive);
     if(!existsSync(archive)) {
-      const tarball=await fetch(meta.dist.tarball,{signal:AbortSignal.timeout(30_000)});
+      const tarball=await fetch(meta.dist.tarball,{signal:AbortSignal.timeout(hangBudget())});
       assert.equal(tarball.status,200);writeFileSync(archive,Buffer.from(await tarball.arrayBuffer()));
     }
     assert.equal(algorithm,'sha512');

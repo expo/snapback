@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Calibration #26's exact Quarry program and query/useAsset patterns, on the public package entries.
 // @ref LLP 3000.008.002.000#6 — author avatars keep profile authority across message/feed observations.
 import test from "node:test";
@@ -19,7 +20,7 @@ import { avatarFixture } from "./helpers/avatar-fixture.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
 
-test('completed ordinary and once bytes survive rotation; new local downloads await its bearer', { timeout: 60000 }, async t => {
+test('completed ordinary and once bytes survive rotation; new local downloads await its bearer', { timeout: hangBudget(28) }, async t => {
   const f = await avatarFixture(t);
   for (const tier of ['online', 'process', 'wasm']) await t.test(tier, async t => {
     const signed = await login(f.url, 'bob@avatars.test', 'password-avatars'); assert.equal(signed.ok, true);
@@ -77,7 +78,7 @@ test('completed ordinary and once bytes survive rotation; new local downloads aw
   });
 });
 
-test('local queue saturation keeps link and retained media live', { timeout: 60000 }, async t => {
+test('local queue saturation keeps link and retained media live', { timeout: hangBudget(15) }, async t => {
   const f = await avatarFixture(t);
   for (const tier of ['process', 'wasm']) await t.test(tier, async t => {
     const signed = await login(f.url, 'bob@avatars.test', 'password-avatars'); assert.equal(signed.ok, true);
@@ -114,7 +115,7 @@ test('local queue saturation keeps link and retained media live', { timeout: 600
   });
 });
 
-test('queued local avatars survive credential rotation without invalidating retained handles', { timeout: 60000 }, async t => {
+test('queued local avatars survive credential rotation without invalidating retained handles', { timeout: hangBudget(19) }, async t => {
   const fixture = await avatarFixture(t);
   for (const tier of ['process', 'wasm']) await t.test(tier, async t => {
     const signed = await login(fixture.url, 'bob@avatars.test', 'password-avatars'); assert.equal(signed.ok, true);
@@ -159,7 +160,7 @@ test('queued local avatars survive credential rotation without invalidating reta
   });
 });
 
-test("message authors and feed avatars share ordinary home-row authority", { timeout: 180_000 }, async t => {
+test("message authors and feed avatars share ordinary home-row authority", { timeout: hangBudget(54) }, async t => {
   const fixture = await avatarFixture(t);
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
@@ -180,9 +181,10 @@ test("message authors and feed avatars share ordinary home-row authority", { tim
       { find: "#fetch", replacement: join(clientDir, "default-fetch.js") },
     ] } });
   await server.listen();
-  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
   for (const tier of ["online", "process", "wasm"]) await t.test(tier, async t => {
     const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const devices = [], errors = [];
     t.after(async () => { await page.close(); for (const d of devices) await d.close(); });
     page.on("pageerror", error => errors.push(String(error)));
@@ -214,7 +216,7 @@ test("message authors and feed avatars share ordinary home-row authority", { tim
       await page.waitForFunction(() => ["dm", "group", "feed", "inbox"].every(scope => {
         const nodes = [...document.querySelectorAll(`[data-scope="${scope}"]`)];
         return nodes.length === (scope === "inbox" ? 2 : 20) && nodes.every(n => n.dataset.status === "ready" && n.querySelector("img")?.naturalWidth > 0);
-      }), null, { timeout: 15_000 });
+      }), null, { timeout: hangBudget() });
     } catch (error) {
       assert.fail(JSON.stringify({ error: String(error), errors, state: await page.evaluate(() => window.diagnostics()) }));
     }
@@ -261,6 +263,7 @@ test("message authors and feed avatars share ordinary home-row authority", { tim
 
 const harness = `
 import React, { useState } from "react";
+import { waitFor as awaitState } from '/@fs/${new URL('./helpers/wait.mjs', import.meta.url).pathname}';
 import { createRoot } from "react-dom/client";
 import { AppProvider, SnapbackProvider, useQuery, usePage, useAsset, useViewer } from "snapback4/react";
 import { createApp } from "snapback4/app";
@@ -339,8 +342,7 @@ window.faultProbe = async (id, mode) => {
   window.probe(id);
   if (config.faultControl) await new Promise(r => setTimeout(r, mode === "timeout" ? 31000 : 3000));
   else {
-    const deadline = Date.now() + 10000;
-    while (Date.now() < deadline) { await new Promise(r => setTimeout(r, 20)); if (window.probeState.status === (mode === "exhaust" ? "error" : "ready")) break; }
+    await awaitState(() => window.probeState.status === (mode === "exhaust" ? "error" : "ready"), "asset probe outcome");
   }
   const state = window.probeState; fault = null; if (mode !== "exhaust") window.probe(null);
   return { state, calls: faultCalls };
@@ -348,8 +350,7 @@ window.faultProbe = async (id, mode) => {
 window.recoverProbe = async () => {
   if (app.client.sync) await app.client.sync();
   window.dispatchEvent(new Event("focus"));
-  const deadline = Date.now() + 10000;
-  while (window.probeState.status !== "ready" && Date.now() < deadline) await new Promise(r => setTimeout(r, 20));
+  await awaitState(() => window.probeState.status === "ready", "asset recovery");
   const state = window.probeState; window.probe(null); return state;
 };
 window.diagnostics = () => ({ tier: config.tier, requests, snapshots, counts: ["dm", "group", "feed", "inbox"].map(scope => ({ scope, ready: [...document.querySelectorAll('[data-scope="' + scope + '"]')].filter(n => n.dataset.status === "ready").length })) });

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
@@ -39,7 +40,7 @@ mutation edit(p: messages):
   update messages[p] {body: 'edited'}
 `;
 const ids = read => read.data.map(row => row.id);
-for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "conversation ordinal" : "public timeline"}`, { timeout: 720_000 }, async t => {
+for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "conversation ordinal" : "public timeline"}`, { timeout: hangBudget(5000) }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-horizon-boundary-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), group ? groupSource : publicSource);
@@ -49,7 +50,7 @@ for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "c
   server.stderr.on("data", chunk => { log += chunk; });
   t.after(async () => { await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`server did not start in ten minutes: ${log}`)), 600_000);
+    const timer = setTimeout(() => reject(new Error(`server did not start in ten minutes: ${log}`)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
     server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
@@ -190,7 +191,7 @@ async function reviewServer(t, source = reviewSource) {
   server.stderr.on("data", chunk => { log += chunk; });
   t.after(async () => { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(log)), 600_000);
+    const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
     server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
@@ -209,7 +210,7 @@ async function reviewServer(t, source = reviewSource) {
   const core = await webDevice({ wasm, persist }).open(directory, backend); t.after(() => core.close());
   return { post, core, persisted: () => persist.load(directory) };
 }
-for (const moved of [false, true]) for (const hidden of [false, true]) test(`wasm wire withholds a ${hidden ? "hidden" : "deleted"} floor's historical value${moved ? " with moved survivor (recheck)" : ""}`, { timeout: 720_000 }, async t => {
+for (const moved of [false, true]) for (const hidden of [false, true]) test(`wasm wire withholds a ${hidden ? "hidden" : "deleted"} floor's historical value${moved ? " with moved survivor (recheck)" : ""}`, { timeout: hangBudget(5000) }, async t => {
   const payloads = [];
   for (const at of [800, 2000]) {
     const { post, core } = await reviewServer(t);
@@ -231,7 +232,7 @@ for (const moved of [false, true]) for (const hidden of [false, true]) test(`was
   }
 });
 
-for (const removed of [false, true]) test(`wasm recheck unselected row ${removed ? "replaces a deleted selection" : "enters the current top two"}`, { timeout: 720_000 }, async t => {
+for (const removed of [false, true]) test(`wasm recheck unselected row ${removed ? "replaces a deleted selection" : "enters the current top two"}`, { timeout: hangBudget(5000) }, async t => {
   const { post, core } = await reviewServer(t);
   await post("/seed", [1500, 2000, 3000].map((at, i) => ({ table: "posts", row: { id: `p${i + 1}`, group: "g", at } })));
   const before = await post("/sync", { from: 0 }); ok(await core.call({ op: "apply", first: true, page: before }));
@@ -253,7 +254,7 @@ for (const removed of [false, true]) test(`wasm recheck unselected row ${removed
   console.log(`wasm unselected control removed=${removed}: completions=${floors.length} key-at=${removed ? "1000" : "1500"} page-complete=true`);
 });
 
-test("wasm acquires 5000 empty groups through bounded HTTP pages", { timeout: 720_000 }, async t => {
+test("wasm acquires 5000 empty groups through bounded HTTP pages", { timeout: hangBudget(5000) }, async t => {
   const { post, core } = await reviewServer(t);
   for (let n = 0; n < 5000; n += 100) {
     await post("/seed", Array.from({ length: 100 }, (_, i) => ({ table: "members", row: { id: `m${n + i}`, person: "dev:bob", group: `${String(n + i).padStart(4, "0")}${"😀".repeat(430)}` } })));
@@ -275,7 +276,7 @@ test("wasm acquires 5000 empty groups through bounded HTTP pages", { timeout: 72
   console.log(`wasm empty groups: groups=${groups} pages=${pages} max-response-bytes=${maxBytes}`);
 });
 
-for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip ? "round trip hides pre-join key" : "same-key rewrite duplicates current acquisition"}`, { timeout: 720_000 }, async t => {
+for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip ? "round trip hides pre-join key" : "same-key rewrite duplicates current acquisition"}`, { timeout: hangBudget(5000) }, async t => {
   const payloads = [], floors = [], reads = [], expected = [];
   for (const at of roundTrip ? [1500, 1200] : [1500]) {
     const { post, core } = await reviewServer(t);
@@ -308,7 +309,7 @@ for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip
   console.log(`wasm written unselected round-trip=${roundTrip}: payload-bytes=${Buffer.byteLength(payloads[0])} worlds=${payloads.length} p1-puts=${roundTrip ? 3 : 2} completions=1 key-at=1000`);
 });
 
-for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"]) test(`wasm membership collision ${kind} row-event=${rowEvent}`, { timeout: 720_000 }, async t => {
+for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"]) test(`wasm membership collision ${kind} row-event=${rowEvent}`, { timeout: hangBudget(5000) }, async t => {
   const collision = JSON.stringify([{ String: "g" }]);
   const payloads = [], floors = [], reads = [], expected = [];
   const source = reviewSource.replace("use personas alice, bob", "use personas alice, bob, charlie")
@@ -353,7 +354,7 @@ for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"
   console.log(`wasm membership collision kind=${kind} row-event=${rowEvent}: payload-bytes=${Buffer.byteLength(payloads[0])} identical-worlds=2 completions=1 key-at=${rowEvent === "del" ? 1000 : 1500}`);
 });
 
-for (const retained of [false, true]) for (const staged of [false, true]) test(`wasm current acquisition survives paged duplicates and later row changes staged=${staged} retained=${retained}`, { timeout: 720_000 }, async t => {
+for (const retained of [false, true]) for (const staged of [false, true]) test(`wasm current acquisition survives paged duplicates and later row changes staged=${staged} retained=${retained}`, { timeout: hangBudget(5000) }, async t => {
   const source = reviewSource.replace("  sync to members", `${retained ? "  retain delivered-history\n" : ""}  sync to members`).replace("  at: time", "  at: time\n  until: time ?\n  expire at .until\n  by byExpiry: until")
     + "\nmutation expire(p: posts):\n  update posts[p] {until: 1}\nquery one(p: posts):\n  return posts[p]\n";
   for (const change of ["below", "delete", "group", "expiry"]) {
@@ -383,7 +384,7 @@ for (const retained of [false, true]) for (const staged of [false, true]) test(`
   }
 });
 
-test("wasm horizonless current join and closed private join", { timeout: 720_000 }, async t => {
+test("wasm horizonless current join and closed private join", { timeout: hangBudget(5000) }, async t => {
   const source = reviewSource.replace(" last 2 by byTime\nquery", "\nquery")
     .replace("  insert <- deny\n  online only", "  insert <- deny\n  delete <- allow\n  online only")
     .replace("  sync to members", "  retain delivered-history\n  sync to members")
@@ -418,7 +419,7 @@ test("wasm public retained history keeps only served rows on a closed horizonles
   }
 });
 
-for (const change of ["move-up", "move-down", "remove", "hide", "remove-both"]) test(`wasm current selection fills a changed historical candidate set: ${change}`, { timeout: 720_000 }, async t => {
+for (const change of ["move-up", "move-down", "remove", "hide", "remove-both"]) test(`wasm current selection fills a changed historical candidate set: ${change}`, { timeout: hangBudget(5000) }, async t => {
   const { post, core } = await reviewServer(t);
   await post("/seed", [1500, 2000, 3000].map((at, i) => ({ table: "posts", row: { id: `p${i + 1}`, group: "g", at } })));
   const before = await post("/sync", { from: 0 }); ok(await core.call({ op: "apply", first: true, page: before }));
@@ -448,7 +449,7 @@ function rustReviewFixtures() {
     const output = join(directory, "pages.json");
     try {
       await promisify(execFile)("cargo", ["test", "-p", "snapback4-device", "--test", "w13g_probe", "renewal_review::export_wire_fixtures", "--", "--exact"], {
-        cwd: root, env: { ...process.env, SNAPBACK4_REVIEW_FIXTURES: output }, timeout: 600_000, maxBuffer: 4 * 1024 * 1024,
+        cwd: root, env: { ...process.env, SNAPBACK4_REVIEW_FIXTURES: output }, timeout: hangBudget(300), maxBuffer: 4 * 1024 * 1024,
       });
       return JSON.parse(readFileSync(output, "utf8"));
     } finally { rmSync(directory, { recursive: true, force: true }); }
@@ -456,7 +457,7 @@ function rustReviewFixtures() {
 }
 for (const kind of ["cold", "gap", "revoke", "unlimited"]) for (const horizon of [false, true]) for (const split of [false, true]) {
   if (kind === "unlimited" && (!horizon || !split)) continue;
-  test(`wasm review renewal ${kind} horizon=${horizon} split=${split}`, { timeout: 720_000 }, async t => {
+  test(`wasm review renewal ${kind} horizon=${horizon} split=${split}`, { timeout: hangBudget(5000) }, async t => {
     const f = (await rustReviewFixtures()).renewals.find(f => f.kind === kind && f.horizon === horizon && f.split === split);
     const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
     for (const [i, page] of f.initial.entries()) ok(await core.call({ op: "apply", first: i === 0, page }));
@@ -491,7 +492,7 @@ for (const kind of ["cold", "gap", "revoke", "unlimited"]) for (const horizon of
   });
 }
 for (const kind of ["renew", "rejoin", "twice", "later"]) for (const horizon of [false, true]) for (const split of [false, true]) for (const retained of [false, true]) {
-  test(`wasm review same-commit ${kind} horizon=${horizon} split=${split} retained=${retained}`, { timeout: 720_000 }, async t => {
+  test(`wasm review same-commit ${kind} horizon=${horizon} split=${split} retained=${retained}`, { timeout: hangBudget(5000) }, async t => {
     const f = (await rustReviewFixtures()).same_commit.find(f => f.kind === kind && f.horizon === horizon && f.split === split && f.retained === retained);
     const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
     for (const page of f.pages) ok(await core.call({ op: "apply", page }));
@@ -518,7 +519,7 @@ for (const kind of ["renew", "rejoin", "twice", "later"]) for (const horizon of 
     if (split) { assert.deepEqual(f.pages[1].events.filter(e => e.table === "posts"), []); assert.deepEqual(f.pages[1].acquisitions, []); }
   });
 }
-for (const snapshot of [false, true]) test(`wasm review mixed-readable generated pages snapshot=${snapshot}`, { timeout: 720_000 }, async t => {
+for (const snapshot of [false, true]) test(`wasm review mixed-readable generated pages snapshot=${snapshot}`, { timeout: hangBudget(5000) }, async t => {
   const observations = [];
   for (const f of (await rustReviewFixtures()).mixed.filter(f => f.snapshot === snapshot)) {
     const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
@@ -537,7 +538,7 @@ for (const snapshot of [false, true]) test(`wasm review mixed-readable generated
   assert.deepEqual(observations[4], observations[5], "an empty readable group stays whole under 1000 hidden rows");
 });
 
-for (const retained of [false, true]) for (const staged of [false, true]) test(`wasm review duplicate below the floor retained=${retained} staged=${staged}`, { timeout: 720_000 }, async t => {
+for (const retained of [false, true]) for (const staged of [false, true]) test(`wasm review duplicate below the floor retained=${retained} staged=${staged}`, { timeout: hangBudget(5000) }, async t => {
   const source = reviewSource.replace("  sync to members", `${retained ? "  retain delivered-history\n" : ""}  sync to members`)
     + "\nquery one(p: posts):\n  return posts[p]\n";
   const { post, core, persisted } = await reviewServer(t, source);

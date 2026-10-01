@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -61,7 +62,7 @@ async function browser(t, worker) {
 }
 for (const worker of [false, true]) {
   const tier = worker ? 'Worker' : 'wasm';
-  test(`immediate mounted form waits for identity and second save works (${tier})`, { timeout: 90_000 }, async t => {
+  test(`immediate mounted form waits for identity and second save works (${tier})`, { timeout: hangBudget(17) }, async t => {
     const f = await browser(t, worker);
     await f.page.click('button'); await f.page.waitForFunction(() => calls.length === 1);
     assert.equal(await f.page.evaluate(() => saves.length), 0, 'no queued acknowledgement before admission');
@@ -77,7 +78,7 @@ for (const worker of [false, true]) {
     assert.deepEqual(await f.page.evaluate(() => events.map(e => e.state)), ['sent', 'sent']);
     assert.deepEqual(await f.page.evaluate(() => posts.map(e => e.id)), await f.page.evaluate(() => saves.map(e => e.id)));
   });
-  test(`pre-identity burst admits in call order with ordinary prediction (${tier})`, { timeout: 90_000 }, async t => {
+  test(`pre-identity burst admits in call order with ordinary prediction (${tier})`, { timeout: hangBudget(15) }, async t => {
     const f = await browser(t, worker);
     await f.page.evaluate(() => {
       window.ids = [mintId(), mintId(), mintId()]; window.burst = ids.map((id, i) => save(String(i), id));
@@ -97,7 +98,7 @@ for (const worker of [false, true]) {
     assert.deepEqual(await f.page.evaluate(() => posts.map(e => e.id)), ids);
     assert.deepEqual(await f.page.evaluate(() => events.map(e => e.id)), ids);
   });
-  test(`reload discards only the unadmitted call (${tier})`, { timeout: 90_000 }, async t => {
+  test(`reload discards only the unadmitted call (${tier})`, { timeout: hangBudget(14) }, async t => {
     const f = await browser(t, worker);
     await f.page.evaluate(() => { window.id = mintId(); window.call = save('not admitted', id); });
     const id = await f.page.evaluate(() => id);
@@ -110,7 +111,7 @@ for (const worker of [false, true]) {
     assert.equal(await f.page.evaluate(() => posts.length), 1);
     assert.notEqual(await f.page.evaluate(() => posts[0].id), id);
   });
-  for (const failure of ['timeout', 'adoption', 'incarnation', 'restore']) test(`identity ${failure} refuses publicly without custody (${tier})`, { timeout: 90_000 }, async t => {
+  for (const failure of ['timeout', 'adoption', 'incarnation', 'restore']) test(`identity ${failure} refuses publicly without custody (${tier})`, { timeout: hangBudget(31) }, async t => {
     const f = await browser(t, worker);
     if (failure === 'timeout') await f.page.clock.install();
     await f.page.click('button'); await f.page.waitForFunction(() => calls.length === 1);
@@ -176,7 +177,7 @@ async function nodeFixture(t, online = false, held = true) {
 }
 for (const online of [false, true]) {
   const tier = online ? 'online' : 'process';
-  test(`fresh first save and burst wait in memory (${tier})`, { timeout: 60_000 }, async t => {
+  test(`fresh first save and burst wait in memory (${tier})`, { timeout: hangBudget(10) }, async t => {
     const f = await nodeFixture(t, online), p = await f.open(), events = []; p.client.onWrite(w => events.push(w));
     let fulfilled = 0;
     const writes = ['one', 'two', 'three'].map(body => p.client.mutate(op, args(body), { waitSeconds: 0 }).then(w => { fulfilled++; return w; }));
@@ -192,7 +193,7 @@ for (const online of [false, true]) {
     assert.ok(events.every(w => w.state === 'sent'));
     assert.equal((await p.client.mutate(op, args('second save'), { waitSeconds: 5 })).state, 'sent');
   });
-  test(`close and reopen has no unadmitted custody (${tier})`, { timeout: 60_000 }, async t => {
+  test(`close and reopen has no unadmitted custody (${tier})`, { timeout: hangBudget(12) }, async t => {
     const f = await nodeFixture(t, online), p = await f.open();
     const writing = p.client.mutate(op, args('lost on close'), { waitSeconds: 0 });
     await until(async () => (await p.client.pendingWrites()).length === 1);
@@ -203,7 +204,7 @@ for (const online of [false, true]) {
     assert.equal((await next.client.mutate(op, args('new attempt'), { waitSeconds: 5 })).state, 'sent');
     assert.equal(f.posts.length, 1); assert.notEqual(f.posts[0].id, id);
   });
-  test(`identity never arrives refuses within 15 seconds and recovers (${tier})`, { timeout: 35_000 }, async t => {
+  test(`identity never arrives refuses within 15 seconds and recovers (${tier})`, { timeout: hangBudget(6) }, async t => {
     const f = await nodeFixture(t, online), p = await f.open(), begin = performance.now();
     const failed = await p.client.mutate(op, args('timeout'), { waitSeconds: 0 }); const elapsed = performance.now() - begin;
     assert.equal(failed.why.code, 'E_ADMISSION_TIMEOUT');
@@ -214,7 +215,7 @@ for (const online of [false, true]) {
     assert.equal((await p.client.mutate(op, args('new attempt'), { waitSeconds: 5 })).state, 'sent');
   });
 }
-for (const replacement of ['generation', 'incarnation']) test(`process ${replacement} at ordinary admission refuses unsent`, { timeout: 60_000 }, async t => {
+for (const replacement of ['generation', 'incarnation']) test(`process ${replacement} at ordinary admission refuses unsent`, { timeout: hangBudget(8) }, async t => {
   const f = await nodeFixture(t), p = await f.open(), invoke = p.core.call;
   let raced = false;
   p.core.call = async (request, committed) => {
@@ -234,7 +235,7 @@ for (const replacement of ['generation', 'incarnation']) test(`process ${replace
   assert.deepEqual((await p.client.write(failed.id)).why, failed.why);
   assert.equal(f.posts.length, 0);
 });
-test('ordinary native settlement stamps a live outbox before replacement (Grok round 2)', { timeout: 60_000 }, async t => {
+test('ordinary native settlement stamps a live outbox before replacement (Grok round 2)', { timeout: hangBudget(11) }, async t => {
   const f = await nodeFixture(t), p = await f.open(); f.release(); await p.start();
   const { mintId } = await import('../dist/client.js'); const id = mintId();
   const admitted = await p.core.call({ op: 'admit', entry: { id, op: 'send', args: args('settled'), seq: 1, viewer: 'dev:alice', now: Date.now(), new_ids: [mintId()], predictable: false, predicted: [] } });
@@ -266,7 +267,7 @@ test('timely identity does not expire behind an earlier ordinary admission', asy
   assert.deepEqual(order, ['first', 'second']);
 });
 
-test('online incompatible-store signal interrupts a held probe before custody', { timeout: 5000 }, async t => {
+test('online incompatible-store signal interrupts a held probe before custody', { timeout: hangBudget(6) }, async t => {
   const f = await nodeFixture(t, true), p = await f.open();
   const writing = p.client.mutate(op, args('unadmitted'), { waitSeconds: 0 });
   await until(async () => (await p.client.pendingWrites()).length === 1);
@@ -295,7 +296,7 @@ async function identifyProcess(p, store) {
     watermark: 10, images_at: 10, committed_above: {}, more: false, store_id: store } });
   assert.ok(!reply.denied, JSON.stringify(reply));
 }
-for (const replacement of ['store', 'backend']) test(`waiting calls pin first identity across ${replacement} replacement`, { timeout: 60_000 }, async t => {
+for (const replacement of ['store', 'backend']) test(`waiting calls pin first identity across ${replacement} replacement`, { timeout: hangBudget(17) }, async t => {
   const held = Promise.withResolvers(); t.after(() => held.resolve());
   const f = await nodeFixture(t), initial = await f.open();
   const cached = (await initial.core.call({ op: 'backend' })).ok;
@@ -337,7 +338,7 @@ for (const replacement of ['store', 'backend']) test(`waiting calls pin first id
   assert.deepEqual(await p.client.pendingWrites(), []);
 });
 
-for (const failure of ['hang', 'reject']) test(`final identity recheck ${failure} produces a public unsent refusal`, { timeout: 60_000 }, async t => {
+for (const failure of ['hang', 'reject']) test(`final identity recheck ${failure} produces a public unsent refusal`, { timeout: hangBudget(12) }, async t => {
   const held = Promise.withResolvers(); t.after(() => { held.resolve(); t.mock.timers.reset(); });
   const f = await nodeFixture(t), p = await f.open(), invoke = p.core.call, events = [];
   const store = (await (await nodeFetch(`${f.api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json()).store_id;
@@ -371,7 +372,7 @@ for (const failure of ['hang', 'reject']) test(`final identity recheck ${failure
   t.mock.timers.reset();
 });
 
-for (const worker of [false, true]) test(`waiting E_ADMISSION releases the same-id reservation (${worker ? 'Worker' : 'wasm'})`, { timeout: 90_000 }, async t => {
+for (const worker of [false, true]) test(`waiting E_ADMISSION releases the same-id reservation (${worker ? 'Worker' : 'wasm'})`, { timeout: hangBudget(13) }, async t => {
   const f = await browser(t, worker);
   await f.page.evaluate(() => {
     window.id = mintId(); window.writing = save('repair storage', id);
@@ -426,7 +427,7 @@ for (const queued of [false, true]) test(`final identity I/O keeps only the rema
 });
 
 
-for (const reopen of [false, true]) test(`adoption-required store waits before any custody (reopen=${reopen})`, { timeout: 60_000 }, async t => {
+for (const reopen of [false, true]) test(`adoption-required store waits before any custody (reopen=${reopen})`, { timeout: hangBudget(13) }, async t => {
   let sync; t.after(() => sync?.resolve());
   const f = await nodeFixture(t); let p = await f.open(); f.release(); await p.start();
   await rewindProcess(p.core.call);
@@ -463,7 +464,7 @@ test('temporary unreadiness after first identification continues the bounded wai
   assert.equal((await writing).state, 'pending'); assert.equal(admits, 1);
 });
 
-test('native admission fences backend-required after the final read', { timeout: 60_000 }, async t => {
+test('native admission fences backend-required after the final read', { timeout: hangBudget(8) }, async t => {
   const f = await nodeFixture(t), p = await f.open(), invoke = p.core.call;
   const store = (await (await nodeFetch(`${f.api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json()).store_id;
   await identifyProcess(p, store); let injected = false;
@@ -509,7 +510,7 @@ async function rewindProcess(invoke) {
 }
 
 // Round 5: review reproductions cross synchronous capture into the serialized transaction.
-for (const worker of [false, true]) test(`browser transaction rejects backend replacement after synchronous capture (${worker ? 'Worker' : 'wasm'})`, { timeout: 90_000 }, async t => {
+for (const worker of [false, true]) test(`browser transaction rejects backend replacement after synchronous capture (${worker ? 'Worker' : 'wasm'})`, { timeout: hangBudget(15) }, async t => {
   const f = await browser(t, worker);
   await f.page.evaluate(async () => {
     const invoke = core.call.bind(core);
@@ -574,7 +575,7 @@ test('FIFO wait behind identity I/O consumes the identity budget', async t => {
   held.resolve(true); await tick(); assert.equal(admits, 0, 'late identity cannot admit expired calls');
 });
 
-for (const worker of [false, true]) test(`browser transaction checks generation independently of backend (${worker ? 'Worker' : 'wasm'})`, { timeout: 90_000 }, async t => {
+for (const worker of [false, true]) test(`browser transaction checks generation independently of backend (${worker ? 'Worker' : 'wasm'})`, { timeout: hangBudget(9) }, async t => {
   const f = await browser(t, worker); await f.page.evaluate(() => start());
   const result = await f.page.evaluate(async () => {
     const state = (await core.call({ op: 'sync_state', capture: false })).ok;
@@ -707,7 +708,7 @@ for (const phase of ['initial', 'final']) test(`suspended runtime refuses late $
   assert.deepEqual(waiter.pending(), []);
 });
 
-test('offline cached backend to real /schema refresh preserves waiting admission', { timeout: 120_000 }, async t => {
+test('offline cached backend to real /schema refresh preserves waiting admission', { timeout: hangBudget(28) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-identity-native-refresh-'));
   const clients = [], held = Promise.withResolvers();
   let server, exited;
@@ -741,13 +742,11 @@ fn nativeRead(_ctx: &Ctx, _args: &Json) -> Result<Json> { Ok(json!([])) }
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => {
     log += bytes; api ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
   });
-  const start = performance.now();
-  while (!api) {
+  await awaitState(() => {
     if (spawnError) throw spawnError;
     assert.equal(server.exitCode, null, log);
-    assert.ok(performance.now() - start < 90_000, log);
-    await new Promise(resolve => setTimeout(resolve, 25));
-  }
+    return api;
+  }, 'native fixture startup', { diagnostics: () => log });
   const wire = await (await nodeFetch(`${api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json();
   assert.equal((await nodeFetch(`${api}/seed`, { method: 'POST', body: JSON.stringify(seed) })).ok, true);
   let mode = 'initial', schemas = 0, natives = 0;

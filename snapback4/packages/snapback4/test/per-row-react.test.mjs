@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — key-order-only React renders preserve the observation and page chain.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,8 +31,9 @@ async function browserFixture(t, harness, setup = async () => {}) {
       ...['client', 'react', 'local', 'web'].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === 'react' ? 'tsx' : 'ts'}`) })),
     ] } });
   await server.listen();
-  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await setup(page);
   await page.goto(server.resolvedUrls.local[0]);
   return page;
@@ -97,6 +99,7 @@ window.finish = async () => { root.unmount(); await client.close(); };
 
 test('1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders', async t => {
   const page = await browserFixture(t, rowsHarness);
+  page.setDefaultTimeout(hangBudget(1000));
   await page.waitForFunction(() => window.ready === 1000);
   await page.evaluate(() => { window.loading = 0; window.revalidating = 0; window.edit(); });
   await page.waitForFunction(() => window.changed === 1000);
@@ -110,15 +113,34 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient } from 'snapback4/client';
 import { SnapbackProvider, useQuery } from 'snapback4/react';
+// This mock tests render/answer ordering, not the one-second withdrawal law.
+// Keep semantic time fixed while React and 1,000 immediate replies are serviced;
+// the real-clock cases below and the expiry suite retain their timing assertions.
+const wall = Date.now(); Date.now = () => wall;
 window.calls = 0; window.loading = 0; window.ready = 0; window.changed = 0; window.revalidating = 0;
 let seq = 1, change;
 const client = createClient({ url: 'http://row-render.test', persona: 'alice', fetch: async (input, init) => {
   const path = new URL(input).pathname;
   if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
-  if (path === '/changes') return new Promise((resolve, reject) => {
-    change = () => resolve(Response.json({seq, generation: 1, tables: ['cards']}));
-    init.signal.addEventListener('abort', () => reject(Error('closed')), {once: true});
-  });
+  if (path === '/changes') {
+    // The fixture holds change evidence, not network progress. A long mount
+    // must not trip the real five-second packet-silence watchdog.
+    let cleanup;
+    return new Response(new ReadableStream({
+      start(controller) {
+        const beat = () => controller.enqueue(new Uint8Array([32, 10]));
+        const timer = setInterval(beat, 500);
+        const abort = () => { cleanup(); controller.error(init.signal.reason); };
+        cleanup = () => { clearInterval(timer); init.signal.removeEventListener('abort', abort); };
+        change = () => {
+          cleanup(); controller.enqueue(new TextEncoder().encode(JSON.stringify({seq, generation: 1, tables: ['cards']}))); controller.close();
+        };
+        if (init.signal.aborted) abort();
+        else { init.signal.addEventListener('abort', abort, {once: true}); beat(); }
+      },
+      cancel() { cleanup(); }
+    }));
+  }
   if (path.startsWith('/q/')) { window.calls++; return Response.json({data: seq, seq, tables: ['cards']}); }
   throw Error(path);
 } });
@@ -251,6 +273,7 @@ for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row h
       await page.exposeFunction('pqClose', async id => (await cores[id]).close());
     }
   });
+  page.setDefaultTimeout(hangBudget(1000));
   await page.waitForFunction(() => window.pq?.ready);
   if (tier === 'process') {
     const opened = cores.length;

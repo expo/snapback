@@ -1,3 +1,5 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -27,16 +29,14 @@ async function backend(t) {
     if (host.exitCode === null && host.signalCode === null) host.kill("SIGTERM");
     await exited; rmSync(dir, { recursive: true, force: true });
   });
-  for (let n = 0; n < 1000; n++) {
+  const url = await awaitState(() => {
     assert.equal(host.exitCode, null, log);
-    const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
-    if (url) return { url, dir };
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
-  assert.fail(log);
+    return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+  }, "page observation server", { diagnostics: () => log });
+  return { url, dir };
 }
 
-test("native process devices withdraw an expired inbox during fallback, offline and on account switch", { timeout: 45_000 }, async t => {
+test("native process devices withdraw an expired inbox during fallback, offline and on account switch", { timeout: hangBudget(2) }, async t => {
   const { url, dir } = await backend(t);
   let serial = 0;
   const result = await exercise({ url, createApp, memorySessionStore,
@@ -47,7 +47,7 @@ test("native process devices withdraw an expired inbox during fallback, offline 
   assert.equal(result.accountCleared, true);
 });
 
-test("web IndexedDB device withdraws expired inbox data in useQuery and usePage", { timeout: 60_000 }, async t => {
+test("web IndexedDB device withdraws expired inbox data in useQuery and usePage", { timeout: hangBudget(11) }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
@@ -99,8 +99,9 @@ test("web IndexedDB device withdraws expired inbox data in useQuery and usePage"
   let browser;
   try {
     await server.listen();
-    browser = await chromium.launch({ executablePath, headless: true });
+    browser = await chromium.launch({ timeout: hangBudget(), executablePath, headless: true });
     const page = await browser.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(server.resolvedUrls.local[0]);

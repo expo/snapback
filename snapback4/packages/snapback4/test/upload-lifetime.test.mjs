@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -56,7 +57,7 @@ async function fixture(t, tier, respond, refresh = async () => {}, store = async
 }
 
 for (const tier of ["online", "web"]) {
-  test(`${tier} upload started during refresh waits for the replacement bearer`, { timeout: 10_000 }, async t => {
+  test(`${tier} upload started during refresh waits for the replacement bearer`, { timeout: hangBudget(6) }, async t => {
     const entered = deferred(), refreshed = deferred();
     const { client, requests } = await fixture(t, tier, async () => Response.json({ asset }),
       async () => { entered.resolve(); await refreshed.promise; });
@@ -74,7 +75,7 @@ for (const tier of ["online", "web"]) {
 
   for (const ending of ["sign-out", "close", "rotation", "refresh in progress"]) {
     for (const reply of ["success", "admission refusal"]) {
-      test(`${tier} upload refuses a late ${reply} after ${ending}`, { timeout: 10_000 }, async t => {
+      test(`${tier} upload refuses a late ${reply} after ${ending}`, { timeout: hangBudget(8) }, async t => {
         const entered = deferred(), response = deferred(), refreshed = deferred();
         const { client, requests, facts } = await fixture(t, tier, async () => {
           entered.resolve(); await response.promise;
@@ -104,7 +105,7 @@ for (const tier of ["online", "web"]) {
   }
 
   for (const ending of ["sign-out", "rotation"]) {
-    test(`${tier} upload stops before retry when ${ending} occurs during backoff`, { timeout: 10_000 }, async t => {
+    test(`${tier} upload stops before retry when ${ending} occurs during backoff`, { timeout: hangBudget(5) }, async t => {
       const backoff = deferred();
       t.mock.method(Math, "random", () => 0.5);
       let resume;
@@ -130,7 +131,7 @@ for (const tier of ["online", "web"]) {
 }
 
 for (const ending of ["rotation", "failed refresh", "sign-out", "close"]) {
-  test(`web upload receipt cleanup after ${ending} overlaps persistence`, { timeout: 10_000 }, async t => {
+  test(`web upload receipt cleanup after ${ending} overlaps persistence`, { timeout: hangBudget(9) }, async t => {
     const entered = deferred(), stored = deferred();
     const { client, requests, receipt } = await fixture(t, "web", async () => Response.json({ asset }),
       ending === "failed refresh" ? async () => { throw new TypeError("refresh unavailable"); } : undefined,
@@ -164,7 +165,7 @@ const failedRefreshes = {
   admission: async () => Response.json({ denied: rateLimit }, { status: 429 }),
 };
 for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.entries(failedRefreshes)) {
-  test(`${tier} upload E_AUTH ends the session after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
+  test(`${tier} upload E_AUTH ends the session after a completed ${failure} refresh failure`, { timeout: hangBudget(5) }, async t => {
     const entered = deferred(), response = deferred();
     const denied = { code: "E_AUTH", family: "auth", message: "this bearer was revoked" };
     const { client, requests, facts } = await fixture(t, tier, async () => {
@@ -185,7 +186,7 @@ for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.en
   });
 }
 
-test("web close waits until interrupted upload receipt deletion finishes", { timeout: 10_000 }, async t => {
+test("web close waits until interrupted upload receipt deletion finishes", { timeout: hangBudget(9) }, async t => {
   const entered = deferred(), stored = deferred(), forgetting = deferred(), removed = deferred();
   const { client, receipt } = await fixture(t, "web", async () => Response.json({ asset }), undefined,
     async () => { entered.resolve(); await stored.promise; },
@@ -211,7 +212,7 @@ test("web close waits until interrupted upload receipt deletion finishes", { tim
   assert.equal(await receipt(), null);
 });
 
-for (const ending of ["rotation", "close"]) test(`web upload keeps the session refusal when receipt deletion is denied after ${ending}`, { timeout: 10_000 }, async t => {
+for (const ending of ["rotation", "close"]) test(`web upload keeps the session refusal when receipt deletion is denied after ${ending}`, { timeout: hangBudget(10) }, async t => {
   const entered = deferred(), stored = deferred(), forgetting = deferred(), removed = deferred();
   let deletions = 0;
   const storageRefusal = { code: "E_STORE", family: "store", message: "injected receipt deletion refusal" };
@@ -241,7 +242,7 @@ for (const ending of ["rotation", "close"]) test(`web upload keeps the session r
   assert.deepEqual(JSON.parse(await receipt()), asset, "the injection really refused deletion; it did not silently clean up");
 });
 
-test("web upload fences close in every microtask between receipt persistence and upload settlement", { timeout: 10_000 }, async t => {
+test("web upload fences close in every microtask between receipt persistence and upload settlement", { timeout: hangBudget(6) }, async t => {
   let fenced = 0, completed = 0;
   for (let offset = 0; offset <= 8; offset++) {
     let uploading, closing, settled = false, closedBeforeSettlement;
@@ -278,7 +279,7 @@ test("web upload fences close in every microtask between receipt persistence and
 
 for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.entries(failedRefreshes)) {
   for (const reply of ["success", "admission refusal"]) {
-    test(`${tier} upload preserves ${reply} after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
+    test(`${tier} upload preserves ${reply} after a completed ${failure} refresh failure`, { timeout: hangBudget(6) }, async t => {
       const entered = deferred(), response = deferred();
       const { client, requests, receipt } = await fixture(t, tier, async () => {
         entered.resolve(); await response.promise;
@@ -294,7 +295,7 @@ for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.en
       if (tier === "web" && reply === "success") assert.deepEqual(JSON.parse(await receipt()), asset);
     });
   }
-  test(`${tier} upload continues backoff after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
+  test(`${tier} upload continues backoff after a completed ${failure} refresh failure`, { timeout: hangBudget(4) }, async t => {
     const backoff = deferred();
     t.mock.method(Math, "random", () => 0.5);
     let resume;

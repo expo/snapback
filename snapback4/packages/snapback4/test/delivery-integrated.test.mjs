@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -20,7 +21,7 @@ function fingerprint(binding) {
   return hash.digest('hex');
 }
 for (const mode of ['online', 'local-fallback', 'local-publication']) {
-  test(`integrated delivery binding, manifest, report and no-op replay: ${mode}`, { timeout: 20000 }, async t => {
+  test(`integrated delivery binding, manifest, report and no-op replay: ${mode}`, { timeout: hangBudget(21) }, async t => {
     let source = `use personas alice\n${fixture}`
       .replace('  public\n', '  public\n  insert <- allow\n')
       .replace('  require low <= high else NOT_A_RUN\n  return null',
@@ -116,7 +117,7 @@ query coverage():
 
 // @ref LLP 3000.022#14 — a real manifest must carry maintenance custody all
 // the way through the online reporter and the server fingerprint check.
-test('declarative full runs compact a long deleted hole through the real SDK', {timeout:20000}, async t=>{
+test('declarative full runs compact a long deleted hole through the real SDK', {timeout:hangBudget(15)}, async t=>{
  const source=`use personas alice, bob
 table conversations:
   creator: principal
@@ -150,18 +151,6 @@ table messages:
   insert <- .sender = viewer and exists members[.conversation, viewer]
   delete <- .sender = viewer
   sync to members[.conversation]
-mutation seed():
-  chat = insert conversations { creator: viewer, lastOrdinal: 2131 }
-  insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
-  insert members { conversation: chat.id, principal: 'dev:bob', joinedOrdinal: 0 }
-  insert messages { conversation: chat.id, ordinal: 1, sender: viewer, recipients: 1 }
-  insert messages { conversation: chat.id, ordinal: 2000, sender: viewer, recipients: 1 }
-  for i in range(0,64):
-    insert messages { conversation: chat.id, ordinal: 2001 + i * 2, sender: viewer, recipients: 1 }
-    insert messages { conversation: chat.id, ordinal: 2002 + i * 2, sender: viewer, recipients: 1 }
-  insert messages { conversation: chat.id, ordinal: 2130, sender: viewer, recipients: 1 }
-  insert messages { conversation: chat.id, ordinal: 2131, sender: viewer, recipients: 1 }
-  return chat.id
 mutation erase(conversation: conversations):
   delete messages[conversation, 1]
   delete messages[conversation, 2000]
@@ -175,7 +164,14 @@ query fetched(conversation: conversations):
 `;
  const {url}=await server(t,'',source);
  const post=(persona,path,body)=>fetch(`${url}${path}`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':persona},body:JSON.stringify(body)}).then(r=>r.json());
- const chat=(await post('alice','/m/seed',{id:'seed',args:{}})).result;assert.ok(chat);
+ // Restore the same sparse historical layout through administrative seed;
+ // application mutations cannot write v3 accounting fields.
+ const chat='c', rows=[
+   {table:'conversations',row:{id:chat,creator:'dev:alice',lastOrdinal:2131}},
+   ...['alice','bob'].map(principal=>({table:'members',row:{id:principal,conversation:chat,principal:`dev:${principal}`,joinedOrdinal:0}})),
+   ...[1,2000,...Array.from({length:128},(_,i)=>2001+i),2130,2131].map(ordinal=>({table:'messages',row:{id:`m${ordinal}`,conversation:chat,ordinal,sender:'dev:alice',recipients:1}})),
+ ];
+ const restored=await post('alice','/seed',rows);assert.equal(restored.seeded,rows.length,JSON.stringify(restored));
  for(let i=0;i<64;i++) {
    const r=await post('bob','/m/chatDelivered',{id:`run${i}`,args:{conversation:chat,from:2002+i*2,through:2002+i*2}});assert.equal(r.state,'sent',JSON.stringify(r));
  }

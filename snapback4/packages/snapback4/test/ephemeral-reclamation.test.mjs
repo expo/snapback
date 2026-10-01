@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient } from '../dist/client.js';
@@ -23,7 +24,7 @@ mutation visible():
 query seen():
   return ghosts first 1 by byN { n }
 `;
-for (const tier of ['online', 'wasm']) test(`${tier}: a real hidden prefix expires silently and incomplete polling reaches the visible row`, { timeout: 30000 }, async t => {
+for (const tier of ['online', 'wasm']) test(`${tier}: a real hidden prefix expires silently and incomplete polling reaches the visible row`, { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t, undefined, source);
   const post = async (path, body, persona = 'bob') => {
     const response = await defaultFetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-snapback-persona': persona }, body: JSON.stringify(body) });

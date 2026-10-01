@@ -1,3 +1,4 @@
+import { withHangGuard } from './helpers/wait.mjs';
 // Protocol doubles; the CLI lane owns real ingress/verification/crash witnesses.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,13 +24,13 @@ const ticket = (extra = {}) => ({ id: "ticket-1", route: "billing", contract: "r
 
 async function enteredWithin(promise) {
   let timer;
-  try { await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("handler did not enter")), 1000); })]); }
+  try { await withHangGuard(() => promise, "handler did not enter"); }
   finally { clearTimeout(timer); }
 }
 
 async function finished(worker, stop) {
   let timer;
-  try { await Promise.race([worker.done, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("server did not stop")), 2000); })]); }
+  try { await withHangGuard(() => worker.done, "server did not stop"); }
   finally { clearTimeout(timer); stop.abort(); }
 }
 

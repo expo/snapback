@@ -1,0 +1,1570 @@
+{
+  "backend": {
+    "generation": 1,
+    "programs": [
+      {
+        "args": {
+          "c": {
+            "Optional": "Cursor"
+          }
+        },
+        "body": [
+          {
+            "Return": {
+              "Scan": {
+                "after": {
+                  "Variable": "c"
+                },
+                "before": null,
+                "index": "$intent:byOwnerId:956b3790e6932131",
+                "merge_site": null,
+                "opaque_cursor": true,
+                "order": "Asc",
+                "prefix": [
+                  {
+                    "Scalar": {
+                      "Input": "Viewer"
+                    }
+                  }
+                ],
+                "provenance": "Shape",
+                "range": null,
+                "site": "programs.list.0",
+                "table": "todos",
+                "take": {
+                  "Literal": 100
+                }
+              }
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "list",
+        "read_time_granularity_ms": null
+      },
+      {
+        "args": {
+          "title": {
+            "Text": {
+              "max": 200
+            }
+          }
+        },
+        "body": [
+          {
+            "Let": {
+              "name": "$value1",
+              "value": {
+                "Input": "NewId"
+              }
+            }
+          },
+          {
+            "Const": {
+              "name": "$inserted2",
+              "value": {
+                "Object": {
+                  "done": {
+                    "Literal": {
+                      "Bool": false
+                    }
+                  },
+                  "id": {
+                    "Variable": "$value1"
+                  },
+                  "ownerId": {
+                    "Input": "Viewer"
+                  },
+                  "title": {
+                    "Variable": "title"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "Insert": {
+              "row": {
+                "Variable": "$inserted2"
+              },
+              "table": "todos"
+            }
+          },
+          {
+            "Return": {
+              "Variable": "$inserted2"
+            }
+          }
+        ],
+        "kind": "Mutation",
+        "name": "add",
+        "read_time_granularity_ms": null
+      },
+      {
+        "args": {
+          "todoId": {
+            "Ref": {
+              "table": "todos"
+            }
+          }
+        },
+        "body": [
+          {
+            "Let": {
+              "name": "$present1",
+              "value": {
+                "Get": {
+                  "index": "byId",
+                  "key": [
+                    {
+                      "Variable": "todoId"
+                    }
+                  ],
+                  "provenance": "Shape",
+                  "site": "programs.toggle.0",
+                  "table": "todos"
+                }
+              }
+            }
+          },
+          {
+            "Require": {
+              "code": "NOT_FOUND",
+              "condition": {
+                "Binary": {
+                  "left": {
+                    "Variable": "$present1"
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": "Null"
+                  }
+                }
+              },
+              "site": "schema.q:22:24"
+            }
+          },
+          {
+            "Let": {
+              "name": "$todo2",
+              "value": {
+                "Variable": "$present1"
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "$key3",
+              "value": {
+                "Field": {
+                  "base": {
+                    "Variable": "$todo2"
+                  },
+                  "name": "id"
+                }
+              }
+            }
+          },
+          {
+            "WriteTarget": {
+              "condition": null,
+              "patch": {
+                "Object": {
+                  "done": {
+                    "Unary": {
+                      "op": "Not",
+                      "value": {
+                        "Field": {
+                          "base": {
+                            "Variable": "$todo2"
+                          },
+                          "name": "done"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "result": null,
+              "target": {
+                "index": "byId",
+                "key": [
+                  {
+                    "Variable": "$key3"
+                  }
+                ],
+                "provenance": "Shape",
+                "site": "schema.q:23:3",
+                "table": "todos"
+              },
+              "upsert": false
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ],
+        "kind": "Mutation",
+        "name": "toggle",
+        "read_time_granularity_ms": null
+      },
+      {
+        "args": {
+          "todoId": {
+            "Ref": {
+              "table": "todos"
+            }
+          }
+        },
+        "body": [
+          {
+            "Let": {
+              "name": "$key1",
+              "value": {
+                "Variable": "todoId"
+              }
+            }
+          },
+          {
+            "Delete": {
+              "key": {
+                "Variable": "$key1"
+              },
+              "table": "todos"
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ],
+        "kind": "Mutation",
+        "name": "remove",
+        "read_time_granularity_ms": null
+      },
+      {
+        "args": {
+          "xs": {
+            "List": {
+              "max": 1000,
+              "of": "Int"
+            }
+          }
+        },
+        "body": [
+          {
+            "Let": {
+              "name": "n",
+              "value": {
+                "Literal": {
+                  "Int": 0
+                }
+              }
+            }
+          },
+          {
+            "For": {
+              "binding": "i",
+              "body": [
+                {
+                  "Assign": {
+                    "name": "n",
+                    "value": {
+                      "Builtin": {
+                        "args": [
+                          {
+                            "Variable": "xs"
+                          }
+                        ],
+                        "builtin": "Count"
+                      }
+                    }
+                  }
+                }
+              ],
+              "domain": {
+                "LiteralRange": {
+                  "end_exclusive": 2000,
+                  "start": 0
+                }
+              }
+            }
+          },
+          {
+            "Return": {
+              "Variable": "n"
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "countLoop",
+        "read_time_granularity_ms": null
+      }
+    ],
+    "schema": {
+      "maintains": [],
+      "operations": {
+        "add": {
+          "predicts": "eligible",
+          "requires": [],
+          "sites": []
+        },
+        "list": {
+          "requires": [],
+          "runs": "device",
+          "sites": [
+            {
+              "class": "held",
+              "index": "$intent:byOwnerId:956b3790e6932131",
+              "kind": "scan",
+              "reason": "scan todos by $intent:byOwnerId:956b3790e6932131: held, no horizon; selected $intent:byOwnerId:956b3790e6932131 (ownerId = viewer); result: page; synthesized; explicit by; read: todos where .ownerId = viewer after c first 100 by .id",
+              "rewrite": "",
+              "site": "schema.q:16:10 (todos where .ownerId = viewer first 100 by .id after c)",
+              "table": "todos"
+            }
+          ]
+        },
+        "remove": {
+          "predicts": "eligible",
+          "requires": [],
+          "sites": []
+        },
+        "toggle": {
+          "predicts": "eligible",
+          "requires": [
+            "NOT_FOUND"
+          ],
+          "sites": [
+            {
+              "class": "held",
+              "index": "byId",
+              "kind": "point",
+              "reason": "point todos by byId: held, no horizon; selected byId (id = todoId); result: row or null; only declared unique key of this arity",
+              "rewrite": "",
+              "site": "schema.q:22:10 (todos[todoId])",
+              "table": "todos"
+            },
+            {
+              "class": "held",
+              "index": "byId",
+              "kind": "write target",
+              "reason": "write target todos by byId: held, no horizon",
+              "rewrite": "",
+              "site": "schema.q:23:3",
+              "table": "todos"
+            }
+          ]
+        }
+      },
+      "tables": {
+        "todos": {
+          "columns": {
+            "done": "Bool",
+            "id": "Id",
+            "ownerId": "Principal",
+            "title": {
+              "Text": {
+                "max": 200
+              }
+            }
+          },
+          "constraints": [
+            {
+              "Cap": {
+                "by": [
+                  "ownerId"
+                ],
+                "max": 1000
+              }
+            }
+          ],
+          "indexes": {
+            "$intent:byOwnerId:4b7e95ad85ea33fa": {
+              "components": [
+                {
+                  "Column": "ownerId"
+                }
+              ],
+              "unique": false
+            },
+            "$intent:byOwnerId:956b3790e6932131": {
+              "components": [
+                {
+                  "Column": "ownerId"
+                },
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": false
+            },
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "leave": "until-revoked",
+          "rules": {
+            "delete": {
+              "Eq": [
+                {
+                  "Field": "ownerId"
+                },
+                "Viewer"
+              ]
+            },
+            "insert": {
+              "Eq": [
+                {
+                  "Field": "ownerId"
+                },
+                "Viewer"
+              ]
+            },
+            "read": {
+              "Eq": [
+                {
+                  "Field": "ownerId"
+                },
+                "Viewer"
+              ]
+            },
+            "update": {
+              "Eq": [
+                {
+                  "Field": "ownerId"
+                },
+                "Viewer"
+              ]
+            }
+          },
+          "sync": {
+            "audience": {
+              "Column": "ownerId"
+            }
+          }
+        }
+      }
+    }
+  },
+  "notes": [],
+  "page": {
+    "acquisitions": [],
+    "after": null,
+    "events": [
+      {
+        "data": {
+          "done": false,
+          "id": "t099",
+          "ownerId": "alice",
+          "title": "Task 99"
+        },
+        "id": "t099",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t098",
+          "ownerId": "alice",
+          "title": "Task 98"
+        },
+        "id": "t098",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t097",
+          "ownerId": "alice",
+          "title": "Task 97"
+        },
+        "id": "t097",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t096",
+          "ownerId": "alice",
+          "title": "Task 96"
+        },
+        "id": "t096",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t095",
+          "ownerId": "alice",
+          "title": "Task 95"
+        },
+        "id": "t095",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t094",
+          "ownerId": "alice",
+          "title": "Task 94"
+        },
+        "id": "t094",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t093",
+          "ownerId": "alice",
+          "title": "Task 93"
+        },
+        "id": "t093",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t092",
+          "ownerId": "alice",
+          "title": "Task 92"
+        },
+        "id": "t092",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t091",
+          "ownerId": "alice",
+          "title": "Task 91"
+        },
+        "id": "t091",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t090",
+          "ownerId": "alice",
+          "title": "Task 90"
+        },
+        "id": "t090",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t089",
+          "ownerId": "alice",
+          "title": "Task 89"
+        },
+        "id": "t089",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t088",
+          "ownerId": "alice",
+          "title": "Task 88"
+        },
+        "id": "t088",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t087",
+          "ownerId": "alice",
+          "title": "Task 87"
+        },
+        "id": "t087",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t086",
+          "ownerId": "alice",
+          "title": "Task 86"
+        },
+        "id": "t086",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t085",
+          "ownerId": "alice",
+          "title": "Task 85"
+        },
+        "id": "t085",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t084",
+          "ownerId": "alice",
+          "title": "Task 84"
+        },
+        "id": "t084",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t083",
+          "ownerId": "alice",
+          "title": "Task 83"
+        },
+        "id": "t083",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t082",
+          "ownerId": "alice",
+          "title": "Task 82"
+        },
+        "id": "t082",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t081",
+          "ownerId": "alice",
+          "title": "Task 81"
+        },
+        "id": "t081",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t080",
+          "ownerId": "alice",
+          "title": "Task 80"
+        },
+        "id": "t080",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t079",
+          "ownerId": "alice",
+          "title": "Task 79"
+        },
+        "id": "t079",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t078",
+          "ownerId": "alice",
+          "title": "Task 78"
+        },
+        "id": "t078",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t077",
+          "ownerId": "alice",
+          "title": "Task 77"
+        },
+        "id": "t077",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t076",
+          "ownerId": "alice",
+          "title": "Task 76"
+        },
+        "id": "t076",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t075",
+          "ownerId": "alice",
+          "title": "Task 75"
+        },
+        "id": "t075",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t074",
+          "ownerId": "alice",
+          "title": "Task 74"
+        },
+        "id": "t074",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t073",
+          "ownerId": "alice",
+          "title": "Task 73"
+        },
+        "id": "t073",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t072",
+          "ownerId": "alice",
+          "title": "Task 72"
+        },
+        "id": "t072",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t071",
+          "ownerId": "alice",
+          "title": "Task 71"
+        },
+        "id": "t071",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t070",
+          "ownerId": "alice",
+          "title": "Task 70"
+        },
+        "id": "t070",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t069",
+          "ownerId": "alice",
+          "title": "Task 69"
+        },
+        "id": "t069",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t068",
+          "ownerId": "alice",
+          "title": "Task 68"
+        },
+        "id": "t068",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t067",
+          "ownerId": "alice",
+          "title": "Task 67"
+        },
+        "id": "t067",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t066",
+          "ownerId": "alice",
+          "title": "Task 66"
+        },
+        "id": "t066",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t065",
+          "ownerId": "alice",
+          "title": "Task 65"
+        },
+        "id": "t065",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t064",
+          "ownerId": "alice",
+          "title": "Task 64"
+        },
+        "id": "t064",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t063",
+          "ownerId": "alice",
+          "title": "Task 63"
+        },
+        "id": "t063",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t062",
+          "ownerId": "alice",
+          "title": "Task 62"
+        },
+        "id": "t062",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t061",
+          "ownerId": "alice",
+          "title": "Task 61"
+        },
+        "id": "t061",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t060",
+          "ownerId": "alice",
+          "title": "Task 60"
+        },
+        "id": "t060",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t059",
+          "ownerId": "alice",
+          "title": "Task 59"
+        },
+        "id": "t059",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t058",
+          "ownerId": "alice",
+          "title": "Task 58"
+        },
+        "id": "t058",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t057",
+          "ownerId": "alice",
+          "title": "Task 57"
+        },
+        "id": "t057",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t056",
+          "ownerId": "alice",
+          "title": "Task 56"
+        },
+        "id": "t056",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t055",
+          "ownerId": "alice",
+          "title": "Task 55"
+        },
+        "id": "t055",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t054",
+          "ownerId": "alice",
+          "title": "Task 54"
+        },
+        "id": "t054",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t053",
+          "ownerId": "alice",
+          "title": "Task 53"
+        },
+        "id": "t053",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t052",
+          "ownerId": "alice",
+          "title": "Task 52"
+        },
+        "id": "t052",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t051",
+          "ownerId": "alice",
+          "title": "Task 51"
+        },
+        "id": "t051",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t050",
+          "ownerId": "alice",
+          "title": "Task 50"
+        },
+        "id": "t050",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t049",
+          "ownerId": "alice",
+          "title": "Task 49"
+        },
+        "id": "t049",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t048",
+          "ownerId": "alice",
+          "title": "Task 48"
+        },
+        "id": "t048",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t047",
+          "ownerId": "alice",
+          "title": "Task 47"
+        },
+        "id": "t047",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t046",
+          "ownerId": "alice",
+          "title": "Task 46"
+        },
+        "id": "t046",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t045",
+          "ownerId": "alice",
+          "title": "Task 45"
+        },
+        "id": "t045",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t044",
+          "ownerId": "alice",
+          "title": "Task 44"
+        },
+        "id": "t044",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t043",
+          "ownerId": "alice",
+          "title": "Task 43"
+        },
+        "id": "t043",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t042",
+          "ownerId": "alice",
+          "title": "Task 42"
+        },
+        "id": "t042",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t041",
+          "ownerId": "alice",
+          "title": "Task 41"
+        },
+        "id": "t041",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t040",
+          "ownerId": "alice",
+          "title": "Task 40"
+        },
+        "id": "t040",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t039",
+          "ownerId": "alice",
+          "title": "Task 39"
+        },
+        "id": "t039",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t038",
+          "ownerId": "alice",
+          "title": "Task 38"
+        },
+        "id": "t038",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t037",
+          "ownerId": "alice",
+          "title": "Task 37"
+        },
+        "id": "t037",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t036",
+          "ownerId": "alice",
+          "title": "Task 36"
+        },
+        "id": "t036",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t035",
+          "ownerId": "alice",
+          "title": "Task 35"
+        },
+        "id": "t035",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t034",
+          "ownerId": "alice",
+          "title": "Task 34"
+        },
+        "id": "t034",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t033",
+          "ownerId": "alice",
+          "title": "Task 33"
+        },
+        "id": "t033",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t032",
+          "ownerId": "alice",
+          "title": "Task 32"
+        },
+        "id": "t032",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t031",
+          "ownerId": "alice",
+          "title": "Task 31"
+        },
+        "id": "t031",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t030",
+          "ownerId": "alice",
+          "title": "Task 30"
+        },
+        "id": "t030",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t029",
+          "ownerId": "alice",
+          "title": "Task 29"
+        },
+        "id": "t029",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t028",
+          "ownerId": "alice",
+          "title": "Task 28"
+        },
+        "id": "t028",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t027",
+          "ownerId": "alice",
+          "title": "Task 27"
+        },
+        "id": "t027",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t026",
+          "ownerId": "alice",
+          "title": "Task 26"
+        },
+        "id": "t026",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t025",
+          "ownerId": "alice",
+          "title": "Task 25"
+        },
+        "id": "t025",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t024",
+          "ownerId": "alice",
+          "title": "Task 24"
+        },
+        "id": "t024",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t023",
+          "ownerId": "alice",
+          "title": "Task 23"
+        },
+        "id": "t023",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t022",
+          "ownerId": "alice",
+          "title": "Task 22"
+        },
+        "id": "t022",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t021",
+          "ownerId": "alice",
+          "title": "Task 21"
+        },
+        "id": "t021",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t020",
+          "ownerId": "alice",
+          "title": "Task 20"
+        },
+        "id": "t020",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t019",
+          "ownerId": "alice",
+          "title": "Task 19"
+        },
+        "id": "t019",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t018",
+          "ownerId": "alice",
+          "title": "Task 18"
+        },
+        "id": "t018",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t017",
+          "ownerId": "alice",
+          "title": "Task 17"
+        },
+        "id": "t017",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t016",
+          "ownerId": "alice",
+          "title": "Task 16"
+        },
+        "id": "t016",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t015",
+          "ownerId": "alice",
+          "title": "Task 15"
+        },
+        "id": "t015",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t014",
+          "ownerId": "alice",
+          "title": "Task 14"
+        },
+        "id": "t014",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t013",
+          "ownerId": "alice",
+          "title": "Task 13"
+        },
+        "id": "t013",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t012",
+          "ownerId": "alice",
+          "title": "Task 12"
+        },
+        "id": "t012",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t011",
+          "ownerId": "alice",
+          "title": "Task 11"
+        },
+        "id": "t011",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t010",
+          "ownerId": "alice",
+          "title": "Task 10"
+        },
+        "id": "t010",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t009",
+          "ownerId": "alice",
+          "title": "Task 9"
+        },
+        "id": "t009",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t008",
+          "ownerId": "alice",
+          "title": "Task 8"
+        },
+        "id": "t008",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t007",
+          "ownerId": "alice",
+          "title": "Task 7"
+        },
+        "id": "t007",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t006",
+          "ownerId": "alice",
+          "title": "Task 6"
+        },
+        "id": "t006",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t005",
+          "ownerId": "alice",
+          "title": "Task 5"
+        },
+        "id": "t005",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t004",
+          "ownerId": "alice",
+          "title": "Task 4"
+        },
+        "id": "t004",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t003",
+          "ownerId": "alice",
+          "title": "Task 3"
+        },
+        "id": "t003",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t002",
+          "ownerId": "alice",
+          "title": "Task 2"
+        },
+        "id": "t002",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": false,
+          "id": "t001",
+          "ownerId": "alice",
+          "title": "Task 1"
+        },
+        "id": "t001",
+        "kind": "put",
+        "table": "todos"
+      },
+      {
+        "data": {
+          "done": true,
+          "id": "t000",
+          "ownerId": "alice",
+          "title": "Task 0"
+        },
+        "id": "t000",
+        "kind": "put",
+        "table": "todos"
+      }
+    ],
+    "generation": 1,
+    "held": {},
+    "more": false,
+    "next": null,
+    "snapshot": true,
+    "watermark": 1
+  }
+}

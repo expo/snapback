@@ -1,0 +1,14 @@
+{
+  "initial_main": "91a111cd85044176ebcc7200449e16e968d276f5",
+  "initial_head": "412a4d23a60934c87563305d43f97294a03b033b",
+  "initial_merge": "git fetch origin; git merge --no-edit origin/main: Already up to date.",
+  "initial_main_is_ancestor": true,
+  "current_shared_tracking_ref": "d959efe2edf405e1270dce35f75703d89a0ccbf7",
+  "tracking_reflog": [
+    "d959efe2ed refs/remotes/origin/main@{2026-10-01 03:38:50 +0200}: update by push",
+    "91a111cd85 refs/remotes/origin/main@{2026-10-01 01:17:01 +0200}: update by push",
+    "096a1b78ef refs/remotes/origin/main@{2026-09-30 23:27:01 +0200}: update by push"
+  ],
+  "merge_wasm_log_modified_utc": "2026-10-01T01:18:02.948210+00:00",
+  "scope": "Initial merged source plus this round; no push, publication, or chase of later main updates."
+}

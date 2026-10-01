@@ -1,0 +1,2 @@
+✖ unchanged round-trip proof executes version/init/check/dev, client write/read and denied cross-persona read (60.772838ms)
+✖ failing tests:

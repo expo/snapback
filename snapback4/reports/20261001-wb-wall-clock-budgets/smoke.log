@@ -1,0 +1,328 @@
+✔ process: pending cut preserves transition before sync publication (3202.12341ms)
+✔ process: pending cut preserves emptyTransition before sync publication (2991.245013ms)
+✔ process: pending cut preserves presentTransition before sync publication (1259.583775ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (495.892055ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (276.292435ms)
+✔ wasm: pending cut preserves transition before sync publication (2211.835665ms)
+✔ wasm: pending cut preserves emptyTransition before sync publication (1264.102378ms)
+✔ wasm: pending cut preserves presentTransition before sync publication (1941.503202ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (567.408157ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (308.035138ms)
+✔ native process devices withdraw an expired inbox during fallback, offline and on account switch (7931.415892ms)
+✔ web IndexedDB device withdraws expired inbox data in useQuery and usePage (9503.859367ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (30.583937ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (4.218923ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.911182ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (9.05442ms)
+✖ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (461.611967ms)
+✖ wasm keep=false: eight closed active reads cannot starve later observations or publish late (153.955036ms)
+✖ wasm keep=true: eight closed active reads cannot starve later observations or publish late (153.43102ms)
+✖ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (150.613758ms)
+✖ process keep=undefined: eight closed active reads cannot starve later observations or publish late (145.754285ms)
+✖ process keep=false: eight closed active reads cannot starve later observations or publish late (146.956296ms)
+✖ process keep=true: eight closed active reads cannot starve later observations or publish late (148.130497ms)
+✖ process keep=undefined: eight expired active reads cannot starve later observations or publish late (149.621561ms)
+✖ wasm: acquired unknown apply footprint revalidates and refreshes every owner (152.570591ms)
+✖ process: acquired unknown apply footprint revalidates and refreshes every owner (150.345937ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (144.621668ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (182.49553ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (219.397626ms)
+✔ online keep=undefined: a due completion preserves a newer answer and retries (182.620057ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (155.180873ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (156.268523ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (651.385515ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (183.48337ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (190.152776ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (232.319942ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (231.920134ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (222.496179ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (222.431623ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (257.973199ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (12.502999ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (12.27026ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (11.145785ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (1.577404ms)
+✔ journal storage listener belongs to the last shared owner (1.705817ms)
+▶ React hooks and reference-app lifetimes
+  ✔ the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself (11.635439ms)
+  ✔ the receipts card leaves delivery to the SDK and reports only visible settled rows (7.464306ms)
+  ✔ the receipts card retains seen retries and scope without delivery reporting (2.307008ms)
+  ✔ the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation (8.85454ms)
+  ✔ useNow hides a server-answered row at its deadline and after a clock advance (15.141733ms)
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (42.157912ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (20.732482ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (294.347083ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (4.408778ms)
+  ✔ useMutation passes admission options and saved identity; custody clears inFlight (3.248579ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (5.614945ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (3.460866ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (7.912148ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (4.511331ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (5.549767ms)
+  ✔ useAsset never commits a previous id, client or principal's handle (7.266561ms)
+  ✔ unmounting one avatar hook preserves another hook for the same id (8.079159ms)
+  ✔ useAsset effect lifetime survives Activity and initial StrictMode replay (6.36543ms)
+  ✔ useAsset recovers transport errors on focus and reconnect, never denials or consumed views (9.437214ms)
+  ✔ useAsset preserves real admission cooldown through focus and reconnect (13.560684ms)
+  ✔ useAsset remembers one recovery event while busy without looping (2.327578ms)
+  ✔ useAsset with a bearer before viewer discovery fetches only once (2.21469ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (3.851102ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (2.980808ms)
+  ✔ keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset (76.861474ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (60.196468ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (11.515959ms)
+  ✔ usePage keeps the ready prefix while replacing an in-flight suffix (3.285083ms)
+  ✔ usePage keeps loaded pages while another loads and withdraws them on a first-page reset (6.016206ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (12.106695ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (9.403443ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (15.190577ms)
+  ✔ useQuery lingering remount has data in its first committed render (13.680944ms)
+  ✔ useQuery lingering remount has data in its first committed render through the app facade (8.489804ms)
+  ✔ usePage lingering remount has data in its first committed render (7.3468ms)
+  ✔ usePage lingering remount has data in its first committed render through the app facade (6.604689ms)
+  ✔ useQuery createApp remount first commits the lingering answer during a held re-read (35.564481ms)
+  ✔ usePage createApp remount first commits the lingering answer during a held re-read (21.646782ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (33.504714ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (30.716356ms)
+  ✔ web submit owns a fresh field and storage failure keeps the draft (4.974155ms)
+  ✔ Expo submit owns a fresh field and storage failure keeps the draft (7.874702ms)
+  ✔ Expo composer uses membership presence without losing its draft (7.036105ms)
+  ✔ Expo observes every saved ID across reload, late refusal, unknown receipt and account switch (21.620042ms)
+  ✔ Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete (14.632129ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (3.718083ms)
+  ✔ receipt notifications read one pending list for ten thousand message hooks (414.181823ms)
+  ✔ pending-write lists filter, update, fence old reads, and release StrictMode subscriptions (6.041004ms)
+  ✔ web receipt labels separate admission, restoration and unknown; late refusal offers text (4.626534ms)
+  ✔ Expo receipt labels separate admission, restoration and unknown; late refusal offers text (6.114764ms)
+  ✔ saved write restoration ends on reject or live outcome and restarts for another id (2.40198ms)
+  ✔ web room loading keeps the same input and legacy intents disclose missing text (7.189925ms)
+  ✔ shared online journal updates A's hook on B's admission and settlement after remount (27.160816ms)
+3:46:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+3:46:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+3:46:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+3:46:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ shared online journal invalidates pending hooks across browser tabs (330.742641ms)
+3:46:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ closing the last journal owner during admission still invalidates another tab (245.732054ms)
+3:46:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+3:46:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+3:46:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+3:46:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ clearing localStorage in another tab invalidates the journal hook (241.39897ms)
+✔ React hooks and reference-app lifetimes (3334.730752ms)
+ℹ tests 102
+ℹ suites 0
+ℹ pass 92
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18504.714331
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (461.611967ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ wasm keep=false: eight closed active reads cannot starve later observations or publish late (153.955036ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ wasm keep=true: eight closed active reads cannot starve later observations or publish late (153.43102ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (150.613758ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ process keep=undefined: eight closed active reads cannot starve later observations or publish late (145.754285ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ process keep=false: eight closed active reads cannot starve later observations or publish late (146.956296ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ process keep=true: eight closed active reads cannot starve later observations or publish late (148.130497ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:55:3
+✖ process keep=undefined: eight expired active reads cannot starve later observations or publish late (149.621561ms)
+  ReferenceError: failure is not defined
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:79:21)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:129:41
+✖ wasm: acquired unknown apply footprint revalidates and refreshes every owner (152.570591ms)
+  ReferenceError: failure is not defined
+      at strip (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:134:58)
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:139:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:131:28)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/per-row-liveness.test.mjs:129:41
+✖ process: acquired unknown apply footprint revalidates and refreshes every owner (150.345937ms)
+  ReferenceError: failure is not defined
+      at strip (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:134:58)
+      at Object.call (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:139:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local-sync.js:59:19)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/dist/local.js:159:9)
+      at async deviceFixture (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:42:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:131:28)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

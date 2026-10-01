@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -38,7 +39,7 @@ test("new requires an explicit template and names what init creates", t => {
 
 // @ref LLP 3000.028#7.3 — the starter must acquire owner coverage beyond its public window.
 for (const tier of ["native", "web"]) {
-  test(`social starter ${tier}: cold owner keys prove old likes and unqueried absence offline`, { timeout: 30_000 }, async t => {
+  test(`social starter ${tier}: cold owner keys prove old likes and unqueried absence offline`, { timeout: hangBudget(11) }, async t => {
     const generated = starter(t), api = await generatedApi(generated);
     const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
     const signup = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({
@@ -119,7 +120,7 @@ test("published social starter and guide snippets typecheck against generated op
 });
 
 // @ref LLP 3000.028#8 — scaffold/check/dev and the installed client vocabulary.
-test("social starter runs through the public client: feed, likes, receipts, typing, media and retained history", { timeout: 90_000 }, async t => {
+test("social starter runs through the public client: feed, likes, receipts, typing, media and retained history", { timeout: hangBudget(62) }, async t => {
   const dir = starter(t), api = await generatedApi(dir);
   let output = "";
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
@@ -156,6 +157,9 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   const message = await write(a, api.send, { conversation, text: "coffee tomorrow", photo: null });
   await b.sync();
   await until(async () => (await b.query(api.history, { conversation })).data?.[0]?.id === message, "ordinary history");
+  const allocated = (await b.query(api.history, { conversation })).data[0];
+  assert.equal(allocated.ordinal, 1); assert.equal(allocated.recipients, 1);
+  assert.equal((await b.query(api.receiptMember, { conversation })).data.joinedOrdinal, 0);
   await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.[0]?.receipt === "delivered", "SDK delivery reporter");
   await write(b, api.seen, { conversation, through: 1 });
   await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.[0]?.receipt === "read", "seen receipt");
@@ -214,6 +218,17 @@ test("social starter runs through the public client: feed, likes, receipts, typi
     return "loading" in read ? false : read;
   }, "ordinary retained search ready");
   assert.deepEqual(allSearch.data.map(row => row.id), [message], "ordinary all-chat search keeps the departed hit online");
+  // RY: the clause stamps a fresh floor on rejoin and snapshots recipients.
+  const high = (await a.query(api.conversationScreen, { conversation })).data.lastOrdinal;
+  await write(a, api.add, { conversation, principal: b.viewer() }); await b.sync();
+  assert.equal((await b.query(api.receiptMember, { conversation })).data.joinedOrdinal, high);
+  const rejoined = await write(a, api.send, { conversation, text: "new membership", photo: null });
+  await b.sync();
+  const afterJoin = await until(async () => (await b.query(api.history, { conversation })).data?.find(row => row.id === rejoined), "rejoined history");
+  assert.equal(afterJoin.ordinal, high + 1); assert.equal(afterJoin.recipients, 1);
+  await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.find(row => row.id === rejoined)?.receipt === "delivered", "rejoin delivery");
+  await write(b, api.seen, { conversation, through: high + 1 });
+  await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.find(row => row.id === rejoined)?.receipt === "read", "rejoin read");
   const previous = b.viewer();
   await bob.auth.logout(); await bob.auth.guest();
   assert.notEqual(bob.client.viewer(), previous);
@@ -221,7 +236,7 @@ test("social starter runs through the public client: feed, likes, receipts, typi
 });
 
 // Both stores read a horizon-free private key; the server owns creation races.
-for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens converge, held keys resolve offline and an offline race settles`, { timeout: 30_000 }, async t => {
+for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens converge, held keys resolve offline and an offline race settles`, { timeout: hangBudget(41) }, async t => {
   const generated = starter(t), api = await generatedApi(generated);
   const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
   const sessions = await Promise.all([0, 1, 2].map(() => fetch(url + "/auth/guest", { method: "POST", body: "{}" }).then(r => r.json())));
@@ -270,10 +285,13 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
   assert.equal(queued.state, "pending", JSON.stringify(queued));
   const admission = (await local.pendingWrites()).find(w => w.id === opening);
   assert.ok(admission, "creation enters SDK custody offline");
-  assert.ok(admission.predicted.includes(`conversations/${provisional}`), "covered creation predicts its proposed conversation");
-  const predicted = await local.query(api.directConversation, { other: peer });
-  assert.equal(predicted.data?.conversation, provisional, JSON.stringify(predicted));
-  assert.equal(predicted.data.pending, true);
+  assert.ok(admission.predicted.length > 0, "scope, membership and direct lookup predict together");
+  const pendingPair = await local.query(api.directConversation, { other: peer });
+  assert.equal(pendingPair.data.conversation, provisional, JSON.stringify(pendingPair));
+  assert.equal(pendingPair.data.pending, true);
+  const pendingMember = await local.query(api.receiptMember, { conversation: provisional });
+  assert.equal(pendingMember.data, null);
+  assert.equal(pendingMember.existence, "partial", "pending membership cannot prove settled absence");
   const proposals = [mintId(), mintId()];
   let completed = 0;
   const concurrent = [
@@ -397,4 +415,62 @@ test("social proposal associations are durable, account/backend scoped and prese
   assert.deepEqual(open().read(), [original[0]], "pruning preserves the recoverable intent verbatim");
   open().forget(original[0].id);
   assert.equal(values.size, 0);
+});
+
+// @ref LLP 3000.022#14.3 — ordinary history renders offline sends, with no application outbox merge.
+test("social starter wasm: offline history predicts in compose order and settles once with receipts", { timeout: 30_000 }, async t => {
+  const generated = starter(t), api = await generatedApi(generated);
+  const { url } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+  const sessions = [];
+  for (const name of ["predict-alice", "predict-bob"]) {
+    const response = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({
+      email: `${name}@example.com`, password: "offline-receipts-password",
+    }) }).then(r => r.json());
+    assert.ok(response.session, JSON.stringify(response)); sessions.push(response.session);
+  }
+  const remote = createClient({ url, token: sessions[1].token });
+  t.after(() => remote.close());
+  let offline = false;
+  const device = webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+  const local = await createLocalClient({ url, session: sessions[0], device, fetch: (input, init) => {
+    if (offline) throw new TypeError("offline");
+    return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
+  } });
+  t.after(() => local.close());
+  const created = await local.mutate(api.createConversation, { title: "offline history" });
+  assert.equal(created.state, "sent", JSON.stringify(created));
+  const conversation = created.result;
+  assert.equal((await local.mutate(api.add, { conversation, principal: sessions[1].principal })).state, "sent");
+  await local.sync(); offline = true; await local.sync();
+  const writes = [];
+  for (const text of ["offline first", "offline second"]) {
+    const write = await local.mutate(api.send, { conversation, text, photo: null }, { waitSeconds: 0 });
+    assert.equal(write.state, "pending", JSON.stringify(write)); writes.push(write.id);
+    const history = await local.query(api.history, { conversation });
+    assert.equal(history.existence, "present", JSON.stringify(history));
+    assert.equal(history.data.length, writes.length);
+    assert.ok(history.data.every(row => row.pending === true));
+    assert.deepEqual([...history.data].sort((a,b) => a.ordinal-b.ordinal).map(row => row.text), ["offline first", "offline second"].slice(0,writes.length));
+    const receipts = await local.query(api.messageReceipts, { conversation });
+    assert.ok(receipts.data.every(row => row.pending === true && row.receipt === null), JSON.stringify(receipts));
+    const progress = await local.query(api.progress, { conversation });
+    assert.deepEqual(progress.data.ahead, []); assert.deepEqual(progress.data.runs, []);
+    assert.equal(progress.data.member.deliveredOrdinal, 0); assert.equal(progress.data.member.seenOrdinal, 0);
+  }
+  // A remote commit wins ordinal 1; the predictions must move on settlement.
+  const other = await remote.mutate(api.send, { conversation, text: "remote first", photo: null });
+  assert.equal(other.state, "sent", JSON.stringify(other));
+  offline = false; await local.sync();
+  await until(async () => !(await local.pendingWrites()).some(w => writes.includes(w.id)), "offline sends settle");
+  await local.sync();
+  const history = await local.query(api.history, { conversation });
+  const rows = [...history.data].sort((a,b) => a.ordinal-b.ordinal);
+  assert.deepEqual(rows.map(row => row.text), ["remote first", "offline first", "offline second"]);
+  assert.deepEqual(rows.map(row => row.ordinal), [1,2,3]);
+  assert.equal(new Set(rows.map(row => row.id)).size, 3);
+  assert.ok(rows.every(row => !row.pending && row.recipients === 1));
+  await remote.query(api.history, { conversation });
+  await until(async () => { await local.sync(); const read = await local.query(api.messageReceipts, { conversation }); return read.data?.filter(row => row.id !== other.result).every(row => row.receipt === "delivered"); }, "offline sends delivered");
+  assert.equal((await remote.mutate(api.seen, { conversation, through: 3 })).state, "sent");
+  await until(async () => { await local.sync(); const read = await local.query(api.messageReceipts, { conversation }); return read.data?.filter(row => row.id !== other.result).every(row => row.receipt === "read"); }, "offline sends read");
 });

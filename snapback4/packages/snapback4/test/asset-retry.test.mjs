@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.002.000#6 — retry only transfers that cannot consume a view.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,7 +28,7 @@ test('rotation during admission backoff returns the existing refusal instead of 
   assert.equal(assetRetryAt(read.denied), 101000);
 });
 
-for (const kind of ['reset', 'body reset', '503', 'timeout']) test(`ordinary ${kind} recovers with a non-consuming full-file Range`, { timeout: 10000 }, async t => {
+for (const kind of ['reset', 'body reset', '503', 'timeout']) test(`ordinary ${kind} recovers with a non-consuming full-file Range`, { timeout: hangBudget(4) }, async t => {
   if (kind === 'timeout') t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
   let calls = 0; const times = [];
   const reading = download(async (_url, init) => {
@@ -59,7 +60,7 @@ test('exhaustion is bounded, retains its cause, and preserves long retry guidanc
   assert.equal(calls, 1); assert.equal(limited.denied.code, 'E_RATE_LIMIT'); assert.ok(assetRetryAt(limited.denied) >= start + 60000);
 });
 
-test('a real HTTP video progressing for over five seconds completes in one transfer', { timeout: 15000 }, async t => {
+test('a real HTTP video progressing for over five seconds completes in one transfer', { timeout: hangBudget(4) }, async t => {
   let calls = 0;
   const server = createServer((_request, response) => {
     calls++;
@@ -209,7 +210,7 @@ test('revocation during ordinary retry stops at its first refusal', async () => 
   assert.equal(calls, 2); assert.equal(read.denied.code, 'E_ASSET_UNKNOWN');
 });
 
-for (const kind of ['reset', 'body reset', 'timeout', 'malformed refusal']) test(`one-view ${kind} never replays an ambiguous download`, { timeout: 10000 }, async t => {
+for (const kind of ['reset', 'body reset', 'timeout', 'malformed refusal']) test(`one-view ${kind} never replays an ambiguous download`, { timeout: hangBudget(2) }, async t => {
   if (kind === 'timeout') t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
   let probes = 0, views = 0;
   const reading = download(async (_url, init) => {

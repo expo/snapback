@@ -1,0 +1,718 @@
+{
+  "qualified": true,
+  "contention_scope": "Five source-bound composite repetitions: unchanged passing files, reruns of every scope in late-tests.json, and five final full-file client-seams/search repairs. All diagnosed superseded failures and intentional model cancellations are retained.",
+  "whole_suite_footer": "== 0 failure(s) in 1404 s",
+  "runs": [
+    {
+      "name": "heavy-1",
+      "phase": "initial",
+      "seconds": 5123.109043464996,
+      "counts": {
+        "tests": [
+          4476,
+          2
+        ],
+        "pass": [
+          4461,
+          1
+        ],
+        "fail": [
+          6,
+          0
+        ],
+        "cancelled": [
+          0,
+          1
+        ],
+        "skipped": [
+          9,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+        "packages/snapback4/test/helpers/app-session-model.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/online-store-order.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/per-row-react.test.mjs",
+        "packages/snapback4/test/per-row-retry.test.mjs",
+        "packages/snapback4/test/per-row-work.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/supervised-workers.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/web-admission-review.test.mjs",
+        "packages/snapback4/test/web-navigation.test.mjs"
+      ],
+      "superseded_failures": [
+        "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders",
+        "process: unknown apply refresh drains after the watermark",
+        "stopped full-release restore preserves its recovery point and stays separate from the original",
+        "unread range wasm: sequence-short-range-large-window",
+        "unread range wasm: short-range-large-window",
+        "wasm: pending cut preserves transition before sync publication"
+      ],
+      "log_sha256": "473eafb8c231b7a56b0b23b7e511605b2d14df5825566ddee5b37b94668456c5",
+      "metadata_sha256": "a6a36b441de82331ad97d66651b9c2c9f6cee64eb63622ffe7bcca96b9197502"
+    },
+    {
+      "name": "heavy-2",
+      "phase": "initial",
+      "seconds": 5122.9162353430875,
+      "counts": {
+        "tests": [
+          4476,
+          2
+        ],
+        "pass": [
+          4461,
+          1
+        ],
+        "fail": [
+          6,
+          0
+        ],
+        "cancelled": [
+          0,
+          1
+        ],
+        "skipped": [
+          9,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+        "packages/snapback4/test/helpers/app-session-model.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/online-store-order.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/per-row-react.test.mjs",
+        "packages/snapback4/test/per-row-retry.test.mjs",
+        "packages/snapback4/test/per-row-work.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/supervised-workers.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/web-admission-review.test.mjs",
+        "packages/snapback4/test/web-navigation.test.mjs"
+      ],
+      "superseded_failures": [
+        "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders",
+        "closing the last owner during backoff cancels the next stale-response request",
+        "process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks",
+        "stopped full-release restore preserves its recovery point and stays separate from the original",
+        "unread range wasm: meter-cut",
+        "wasm: pending cut preserves transition before sync publication"
+      ],
+      "log_sha256": "9af33e60d205393d5f7b8e0af6065c732cce54ade7a2a6dc19f30745414b4be5",
+      "metadata_sha256": "57a8699d3f17fb63952d4bef7112e7acf25a43cf727e0ad1e1c336aa9ed79a64"
+    },
+    {
+      "name": "heavy-3",
+      "phase": "initial",
+      "seconds": 5122.498805178795,
+      "counts": {
+        "tests": [
+          4476,
+          2
+        ],
+        "pass": [
+          4460,
+          1
+        ],
+        "fail": [
+          7,
+          0
+        ],
+        "cancelled": [
+          0,
+          1
+        ],
+        "skipped": [
+          9,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+        "packages/snapback4/test/helpers/app-session-model.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/online-store-order.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/per-row-react.test.mjs",
+        "packages/snapback4/test/per-row-retry.test.mjs",
+        "packages/snapback4/test/per-row-work.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/supervised-workers.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/web-admission-review.test.mjs",
+        "packages/snapback4/test/web-navigation.test.mjs"
+      ],
+      "superseded_failures": [
+        "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders",
+        "dev declares two workers, injects usable secret seats, restarts independently and stops both",
+        "stopped full-release restore preserves its recovery point and stays separate from the original",
+        "unread range wasm: meter-cut",
+        "unread range wasm: sequence-short-range-large-window",
+        "unread range wasm: short-range-large-window",
+        "wasm: pending cut preserves transition before sync publication"
+      ],
+      "log_sha256": "8f264d9af9aa7d78710a0ec82bf6077aea8ee86919d29df632bb19b6c79eac4c",
+      "metadata_sha256": "d3f48bbb6d6af33ae23e7cb1aa782b1c02afd89c787f2873d16b68efc8090784"
+    },
+    {
+      "name": "heavy-4",
+      "phase": "initial",
+      "seconds": 5123.223683749791,
+      "counts": {
+        "tests": [
+          4476,
+          2
+        ],
+        "pass": [
+          4459,
+          1
+        ],
+        "fail": [
+          8,
+          0
+        ],
+        "cancelled": [
+          0,
+          1
+        ],
+        "skipped": [
+          9,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+        "packages/snapback4/test/helpers/app-session-model.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/online-store-order.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/per-row-react.test.mjs",
+        "packages/snapback4/test/per-row-retry.test.mjs",
+        "packages/snapback4/test/per-row-work.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/supervised-workers.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/web-admission-review.test.mjs",
+        "packages/snapback4/test/web-navigation.test.mjs"
+      ],
+      "superseded_failures": [
+        "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders",
+        "mutate waits for outbox persistence before the exit transport can see it",
+        "same-epoch logout tombstone refuses live admission",
+        "stopped full-release restore preserves its recovery point and stays separate from the original",
+        "unread range wasm: meter-cut",
+        "unread range wasm: sequence-short-range-large-window",
+        "wasm: pending cut preserves transition before sync publication",
+        "web admission review: recovery and transport respect the session boundary"
+      ],
+      "log_sha256": "2c259526f6b64a88f166b437a519b75348ab945095274cbfa49a40e20e724009",
+      "metadata_sha256": "960e28a6abccf7ac49ce258927d2c10b1990e0d5522c64fb0eeca7b94a271095"
+    },
+    {
+      "name": "heavy-5",
+      "phase": "initial",
+      "seconds": 5123.032142541837,
+      "counts": {
+        "tests": [
+          4476,
+          2
+        ],
+        "pass": [
+          4462,
+          1
+        ],
+        "fail": [
+          5,
+          0
+        ],
+        "cancelled": [
+          0,
+          1
+        ],
+        "skipped": [
+          9,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+        "packages/snapback4/test/helpers/app-session-model.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/online-store-order.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/per-row-react.test.mjs",
+        "packages/snapback4/test/per-row-retry.test.mjs",
+        "packages/snapback4/test/per-row-work.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/supervised-workers.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/web-admission-review.test.mjs",
+        "packages/snapback4/test/web-navigation.test.mjs"
+      ],
+      "superseded_failures": [
+        "1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders",
+        "ordinary search generated oracle wasm: 300 seeds",
+        "stopped full-release restore preserves its recovery point and stays separate from the original",
+        "unread range wasm: meter-cut",
+        "wasm: pending cut preserves transition before sync publication"
+      ],
+      "log_sha256": "e56a4b2b9ca1b599b61c30cd8764f681e3f07dc1de6811b64abaf1319c52dd88",
+      "metadata_sha256": "91698c3ba4fe732287fb13c38ee33678cc3e7bfc474fd0648ae5e7e47195b720"
+    },
+    {
+      "name": "heavy-1-final",
+      "phase": "followup",
+      "seconds": 2423.2947109518573,
+      "counts": {
+        "tests": [
+          455,
+          52
+        ],
+        "pass": [
+          454,
+          52
+        ],
+        "fail": [
+          0,
+          0
+        ],
+        "cancelled": [
+          1,
+          0
+        ],
+        "skipped": [
+          0,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+      ],
+      "superseded_failures": [
+        "ordinary search generated oracle process: 300 seeds"
+      ],
+      "log_sha256": "ba77b4509a9c7083fd4b60efbce336c27cb44ad3d03cee0976967d85bdd75d0c",
+      "metadata_sha256": "70ff32b2681dbaea44c1e56156cf53f895e9d1b7a769050c1b34c25b0f8c304c"
+    },
+    {
+      "name": "heavy-2-final",
+      "phase": "followup",
+      "seconds": 2400.3785378350876,
+      "counts": {
+        "tests": [
+          455,
+          52
+        ],
+        "pass": [
+          454,
+          52
+        ],
+        "fail": [
+          0,
+          0
+        ],
+        "cancelled": [
+          1,
+          0
+        ],
+        "skipped": [
+          0,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+      ],
+      "superseded_failures": [
+        "ordinary search generated oracle process: 300 seeds"
+      ],
+      "log_sha256": "b3e13e9d86cd6a045b1b5d06bf356be638f3045f452cfbb84f4415e0a15fe71f",
+      "metadata_sha256": "1cf03885cedb309433dd2865e83f6a01b6146723aad1df5f9a825a8b8f23e0cd"
+    },
+    {
+      "name": "heavy-3-final",
+      "phase": "followup",
+      "seconds": 2404.009994052816,
+      "counts": {
+        "tests": [
+          456,
+          52
+        ],
+        "pass": [
+          454,
+          52
+        ],
+        "fail": [
+          2,
+          0
+        ],
+        "cancelled": [
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+      ],
+      "superseded_failures": [
+        "ordinary search generated oracle process: 300 seeds",
+        "packages/snapback4/test/client-seams.test.mjs"
+      ],
+      "log_sha256": "bba45904b80b715405f00cedaf9d6289f20d3ff21561490df8d037cc38031ebd",
+      "metadata_sha256": "83feeb73fe7d6926079c929ba8b3d2af8418fc2cd1f98b063ab230dc147b4103"
+    },
+    {
+      "name": "heavy-4-final",
+      "phase": "followup",
+      "seconds": 2234.195740140043,
+      "counts": {
+        "tests": [
+          456,
+          52
+        ],
+        "pass": [
+          455,
+          52
+        ],
+        "fail": [
+          1,
+          0
+        ],
+        "cancelled": [
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+      ],
+      "superseded_failures": [
+        "packages/snapback4/test/client-seams.test.mjs"
+      ],
+      "log_sha256": "7784428fb8d79dd30970c23f09dff3eaefc31e7cf4f2bb6734518929d0b06e81",
+      "metadata_sha256": "bb51cf2414954f20e508f3e08c51dba670e8b97790669c52b8316b9f61c044d4"
+    },
+    {
+      "name": "heavy-5-final",
+      "phase": "followup",
+      "seconds": 2370.3789706872776,
+      "counts": {
+        "tests": [
+          456,
+          52
+        ],
+        "pass": [
+          455,
+          52
+        ],
+        "fail": [
+          1,
+          0
+        ],
+        "cancelled": [
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          0
+        ]
+      },
+      "source_difference": [
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+      ],
+      "superseded_failures": [
+        "packages/snapback4/test/client-seams.test.mjs"
+      ],
+      "log_sha256": "85b87f3774716962ec5d863860abaafeeed9818521ef04ab11aa75aaacd67f55",
+      "metadata_sha256": "6ae6ba133fcf4bf6a94d61b1b6845b9675673e2066932d480afcf96289a9eef8"
+    },
+    {
+      "name": "heavy-1-repair",
+      "phase": "final",
+      "seconds": 1223.6861028270796,
+      "counts": {
+        "tests": [
+          73
+        ],
+        "pass": [
+          73
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "c01be0e2a8ff5d7e1729b895fe61d4d7a80b90a188b855598d812d372ff66d97",
+      "metadata_sha256": "bc5af1092fe545060bdf346651cf74ea3c0f0659884ad06d1e57e742a7d203fd"
+    },
+    {
+      "name": "heavy-2-repair",
+      "phase": "final",
+      "seconds": 1196.933666112367,
+      "counts": {
+        "tests": [
+          73
+        ],
+        "pass": [
+          73
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "1f69d8fc7659126e19494ceff6cc3723b20626d58a3f32062210e37048a834ae",
+      "metadata_sha256": "e73375bfdb838aa525c05f4bdde5bb53eb9705de3f437ade4d469448c856ad7c"
+    },
+    {
+      "name": "heavy-3-repair",
+      "phase": "final",
+      "seconds": 1248.3786469181068,
+      "counts": {
+        "tests": [
+          73
+        ],
+        "pass": [
+          73
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "8fcdebcac9d5791b0eafbe91ea2c89b8904a0ac4e834b0c0b6ce89c0e4bd9925",
+      "metadata_sha256": "54d53376efd827280b2d311487e383db135b2bef78bee539be0c4a0690ba37d8"
+    },
+    {
+      "name": "heavy-4-repair",
+      "phase": "final",
+      "seconds": 1210.5793014019728,
+      "counts": {
+        "tests": [
+          73
+        ],
+        "pass": [
+          73
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "73c3f3a9ea1862464789f55ed6dc36086ae9311f37d98f2f2cce339767192307",
+      "metadata_sha256": "d66901195b6976015d29e747eca0cb6bf1cee8d66b9d3c1349fb2fb5476ca654"
+    },
+    {
+      "name": "heavy-5-repair",
+      "phase": "final",
+      "seconds": 1376.6205167528242,
+      "counts": {
+        "tests": [
+          73
+        ],
+        "pass": [
+          73
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "71e77937c2eac68763966f6d7dac2bee4d5b5cfb7a71bb89cbc3299cf5d12e24",
+      "metadata_sha256": "c825e55bf659253e91d6837947498c22d357ed936012a1607231406235bc0074"
+    },
+    {
+      "name": "final-unconfined",
+      "phase": "final",
+      "seconds": 849.6601237230934,
+      "counts": {
+        "tests": [
+          4476,
+          52
+        ],
+        "pass": [
+          4467,
+          52
+        ],
+        "fail": [
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0
+        ],
+        "skipped": [
+          9,
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "b209f80b008fdd9e195129c1a90321a497e62397a07e8bea1df232a6c0a1c220",
+      "metadata_sha256": "165474bb269ca927e5154ee1865e47ae8a24df0d47586744d8e12a730a76eba1"
+    },
+    {
+      "name": "whole-suite",
+      "phase": "final",
+      "seconds": 1403.5832599126734,
+      "counts": {
+        "tests": [
+          9,
+          5736,
+          79
+        ],
+        "pass": [
+          9,
+          5726,
+          79
+        ],
+        "fail": [
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          10,
+          0
+        ]
+      },
+      "source_difference": [],
+      "superseded_failures": [],
+      "log_sha256": "8cb5c3daf7cbfbb118115762576f05e6217c5c69143e5020a885f43f1597e0b5",
+      "metadata_sha256": "8e9d709e9a37c6e1eb8012dfb694e3f5018c551add0349569faedaf1684c4012"
+    }
+  ],
+  "source_manifest_sha256": "6ce49b71a2313b131fb8c03c9ee58e65f649ba4bb1df97e85e3b360ced6246f6",
+  "guide": "110 passed; 0 failed; 0 ignored",
+  "controls": [
+    {
+      "name": "delayed-publication",
+      "exit": 0,
+      "expected": true,
+      "seconds": 15.939343877136707,
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^wasm: pending cut preserves presentTransition before sync publication$",
+        "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+      ],
+      "original": "9bdf17887304020feccb5f68bc347856f7dc84cc2dc00da71a215d2e3daa96a7",
+      "mutant": "98630465e8a4a3b83c68253be56440ab31d5632c0364a773b2ee4e2c2c92eba8",
+      "test_sha256": "7bdca0eca4bda037714c4085ec2fae8a18400cb921036cfd6d555685c8768d87",
+      "wait_sha256": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935"
+    },
+    {
+      "name": "missing-publication",
+      "exit": 1,
+      "expected": true,
+      "seconds": 125.06050038896501,
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^wasm: pending cut preserves presentTransition before sync publication$",
+        "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+      ],
+      "original": "9bdf17887304020feccb5f68bc347856f7dc84cc2dc00da71a215d2e3daa96a7",
+      "mutant": "72d72a859c141f51ebc4152deddedf813658130e43c529ba0c597e73a23d6efc",
+      "test_sha256": "7bdca0eca4bda037714c4085ec2fae8a18400cb921036cfd6d555685c8768d87",
+      "wait_sha256": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935"
+    }
+  ],
+  "final_failures": {
+    "ours": 0,
+    "baseline": 0,
+    "environmental": 0
+  }
+}

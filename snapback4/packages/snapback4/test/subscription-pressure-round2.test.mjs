@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {join} from 'node:path';
@@ -8,7 +9,7 @@ const {peekObservation}=await import(new URL('observe-watch.js',sdk));
 const {guardClient}=await import(new URL('app-client.js',sdk));
 const {LocalReads}=await import(new URL('local-reads.js',sdk));
 const {ReadWork}=await import(new URL('read-work.js',sdk));
-for(const tier of ['wasm','process'])for(const staged of [false,true])for(const keep of [undefined,true,false])test(`${tier}: reuse closed handle after ${staged?'staged':'published'} revocation, keep=${keep}`,{timeout:20000},async t=>{
+for(const tier of ['wasm','process'])for(const staged of [false,true])for(const keep of [undefined,true,false])test(`${tier}: reuse closed handle after ${staged?'staged':'published'} revocation, keep=${keep}`,{timeout:hangBudget(11)},async t=>{
  const f=await fixture(t), raw=opener(tier,join(f.dir,'reuse'));
  const slots=Promise.withResolvers(),continuation=Promise.withResolvers();let work,cut=false,release=false;
  t.after(()=>{slots.resolve();release=true;continuation.resolve()});

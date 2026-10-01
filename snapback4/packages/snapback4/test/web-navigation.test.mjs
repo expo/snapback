@@ -1,3 +1,4 @@
+import { withHangGuard, waitFor as awaitState } from './helpers/wait.mjs';
 // Page teardown around the real wasm device and HTTP server; IndexedDB itself
 // is exercised by witness/navigation.mjs. No browser process needed here.
 import test from "node:test";
@@ -17,10 +18,7 @@ const seed = [
   { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
 ];
 const tick = () => new Promise(resolve => setImmediate(resolve));
-async function until(check) {
-  const end = Date.now() + 10000;
-  while (!await check()) { if (Date.now() > end) throw new Error("timed out waiting"); await new Promise(resolve => setTimeout(resolve, 20)); }
-}
+async function until(check) { return awaitState(check); }
 function page(t) {
   const window = new EventTarget(), document = new EventTarget();
   document.visibilityState = "visible";
@@ -78,9 +76,7 @@ async function fixture(t, { stallExitBody = false, applyExit = true, holdExit = 
 }
 
 async function within(work, ms, message) {
-  let timer;
-  try { return await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })]); }
-  finally { clearTimeout(timer); }
+  return withHangGuard(() => work, message);
 }
 
 for (const applyExit of [false, true]) test(`stalled exit body recovers in order (${applyExit ? "already applied acknowledgement" : "not applied"})`, async t => {
@@ -229,6 +225,9 @@ test("hidden flushes, visible does not, and close removes page hooks", async t =
 
 test("mutate waits for outbox persistence before the exit transport can see it", async t => {
   const f = await fixture(t);
+  // Keep the first dispatch outstanding through the second pagehide. A fast
+  // response is allowed to retire that slot; this case tests durable admission.
+  f.holdExit(); t.after(() => f.releaseExit());
   const save = f.persist.save.bind(f.persist);
   let release, saving = false;
   f.persist.save = async (name, changes) => {
@@ -250,6 +249,7 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   await tick();
   f.window.dispatchEvent(new Event("pagehide"));
   assert.equal(f.requests.length, 1);
+  f.releaseExit();
   await until(() => f.responses.length === 1);
 });
 

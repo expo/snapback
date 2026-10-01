@@ -72,7 +72,7 @@ impl DeliveryBinding {
             hash.update(field.as_bytes());
         }
         if let Some(semantics) = &self.semantics {
-            hash.update(b"snapback4.receipts.v2\0");
+            hash.update(b"snapback4.receipts.v4\0");
             for field in [semantics.as_str(), self.compact.as_deref().unwrap_or("")] {
                 hash.update((field.len() as u64).to_be_bytes()); hash.update(field.as_bytes());
             }

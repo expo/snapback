@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0410/helpers-0.4.10/expo-verify.py", line 14, in <module>
+    assert files==q['files'], {'extra':sorted(files.keys()-q['files'].keys()),'missing':sorted(q['files'].keys()-files.keys()),'changed':[n for n in files if n in q['files'] and files[n]!=q['files'][n]]}
+           ^^^^^^^^^^^^^^^^^
+AssertionError: {'extra': ['plugin.cjs'], 'missing': [], 'changed': []}

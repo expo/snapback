@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real wasm/process stores, with controlled sync and credential replies.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,10 +15,10 @@ const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", impor
 const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check) { for (let i = 0; i < 600; i++) { if (check()) return; await delay(5); } assert.fail("reset not observed"); }
+async function until(check) { return awaitState(check); }
 
 for (const keep of [undefined, true]) for (const guarded of keep === undefined ? [false, true] : [false]) for (const tier of ["wasm", "process"]) for (const reset of ["adoption", "replacement", "credentials", "viewer", "sign-out", "close"]) {
-  test(`${tier} keep=${keep} facade=${guarded}: ${reset} drops active and lingering answers before a held read lands`, { timeout: 20_000 }, async t => {
+  test(`${tier} keep=${keep} facade=${guarded}: ${reset} drops active and lingering answers before a held read lands`, { timeout: hangBudget(13) }, async t => {
     const dir = mkdtempSync(join(tmpdir(), "sb4-keep-reset-"));
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir, binary });
     let generation = original.generation, store = "A", principal = "dev:alice", marker = "old", hold = false, heldReads = 0;

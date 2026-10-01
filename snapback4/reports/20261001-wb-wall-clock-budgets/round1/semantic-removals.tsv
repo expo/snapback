@@ -1,0 +1,275 @@
+snapback4/packages/snapback4/test/acquisition.test.mjs	-  const end = Date.now() + 15000;
+snapback4/packages/snapback4/test/acquisition.test.mjs	-  do { if (await check()) return; await sleep(20); } while (Date.now() < end);
+snapback4/packages/snapback4/test/acquisition.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/admit-before-identity.test.mjs	-  const start = performance.now();
+snapback4/packages/snapback4/test/admit-before-identity.test.mjs	-    assert.ok(performance.now() - start < 90_000, log);
+snapback4/packages/snapback4/test/answer-row-authority.test.mjs	-  for (let n = 0; n < 1000; n++) { if (check()) return; await delay(10); }
+snapback4/packages/snapback4/test/answer-row-authority.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/answer-withdrawal.test.mjs	-  for (let n = 0; n < 1000; n++) { if (check()) return; await delay(10); }
+snapback4/packages/snapback4/test/answer-withdrawal.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/answers-stay-react.test.mjs	-        if (scenario === 'offline transport') { failing = true; await client.query(q('profile'), {}); await delay(30); }
+snapback4/packages/snapback4/test/answers-stay-react.test.mjs	-          failing = true; await client.query(q('profile'), {}); await delay(30);
+snapback4/packages/snapback4/test/answers-stay-react.test.mjs	-          failing = false; if (client.sync) await client.sync(); await client.query(q('profile'), {}); if (client.sync) await client.sync(); await delay(30);
+snapback4/packages/snapback4/test/answers-stay-review.test.mjs	-  offline = true; await client.sync(); await delay(20);
+snapback4/packages/snapback4/test/app-online.test.mjs	-    for (let n = 0; n < 500 && !messages.length; n++) await delay(1);
+snapback4/packages/snapback4/test/app-online.test.mjs	-    for (let n = 0; n < 1000; n++) { if (await check()) return; await delay(10); }
+snapback4/packages/snapback4/test/app-online.test.mjs	-    assert.fail("hold/retry/settlement did not arrive");
+snapback4/packages/snapback4/test/app-online.test.mjs	-  const until = async check => { for (let n = 0; n < 500; n++) { if (check()) return; await delay(1); } assert.fail("settlement notification missing"); };
+snapback4/packages/snapback4/test/app-online.test.mjs	-        for (let n = 0; n < 500 && !notifications.length; n++) await delay(1);
+snapback4/packages/snapback4/test/app-storage.test.mjs	-const until = async read => { for (let n = 0; n < 500; n++) { const value = await read(); if (value) return value; await delay(5); } assert.fail("condition did not settle"); };
+snapback4/packages/snapback4/test/app-store-replacement.test.mjs	-const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('app recovery did not settle'); };
+snapback4/packages/snapback4/test/app-store-replacement.test.mjs	-  await Promise.race([end === 'logout' ? app.auth.logout() : end === 'login' ? app.auth.login('bob@example.com', 'password') : app.close(),
+snapback4/packages/snapback4/test/app-store-replacement.test.mjs	-    delay(1000).then(() => assert.fail('auth operation stayed queued behind replacement probe'))]);
+snapback4/packages/snapback4/test/app.test.mjs	-  assert.equal((await Promise.race([ending, delay(500).then(() => ({ ok: false }))])).ok, true, "local logout is independent of both held requests");
+snapback4/packages/snapback4/test/app.test.mjs	-  assert.equal((await Promise.race([refreshing, delay(500).then(() => assert.fail('caller still waits for the refresh body'))])).ok, false);
+snapback4/packages/snapback4/test/app.test.mjs	-  await Promise.race([app.close(), delay(500).then(() => assert.fail('close waited for an effect body'))]);
+snapback4/packages/snapback4/test/asset-avatars.test.mjs	-    const deadline = Date.now() + 10000;
+snapback4/packages/snapback4/test/asset-avatars.test.mjs	-    while (Date.now() < deadline) { await new Promise(r => setTimeout(r, 20)); if (window.probeState.status === (mode === "exhaust" ? "error" : "ready")) break; }
+snapback4/packages/snapback4/test/asset-avatars.test.mjs	-  const deadline = Date.now() + 10000;
+snapback4/packages/snapback4/test/asset-avatars.test.mjs	-  while (window.probeState.status !== "ready" && Date.now() < deadline) await new Promise(r => setTimeout(r, 20));
+snapback4/packages/snapback4/test/asset-lists.test.mjs	-    const deadline = Date.now() + 15000;
+snapback4/packages/snapback4/test/asset-lists.test.mjs	-    while (!url) { if (server.exitCode != null || Date.now() > deadline) throw Error(log); await new Promise(r => setTimeout(r, 20)); }
+snapback4/packages/snapback4/test/bounded-following.test.mjs	-  const deadline = Date.now() + timeout;
+snapback4/packages/snapback4/test/bounded-following.test.mjs	-  do { if (await check()) return; await sleep(10); } while (Date.now() < deadline);
+snapback4/packages/snapback4/test/bounded-following.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/client-lifecycle.test.mjs	-  const end = Date.now() + timeout;
+snapback4/packages/snapback4/test/client-lifecycle.test.mjs	-  do { const value = await check(); if (value) return value; await sleep(10); } while (Date.now() < end);
+snapback4/packages/snapback4/test/client-lifecycle.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/client-seams.test.mjs	-  const end = Date.now() + ms;
+snapback4/packages/snapback4/test/client-seams.test.mjs	-  for (;;) { const value = await check(); if (value) return value; if (Date.now() >= end) throw new Error("timed out waiting"); await sleep(20); }
+snapback4/packages/snapback4/test/client-seams.test.mjs	-  assert.equal(admitted.state, "pending"); assert.ok(elapsed < 1000);
+snapback4/packages/snapback4/test/column-stream-recovery.test.mjs	-  const deadline=Date.now()+60000;
+snapback4/packages/snapback4/test/column-stream-recovery.test.mjs	-  while(!url){assert.equal(child.exitCode,null,log);assert.ok(Date.now()<deadline,log);await delay(20)}
+snapback4/packages/snapback4/test/composed-authority.test.mjs	-const until = async (check, message) => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail(message); };
+snapback4/packages/snapback4/test/delivery-activation.test.mjs	-const until=async fn=>{for(let i=0;i<600;i++){if(fn())return;await delay(5);}assert.fail('activation did not settle');};
+snapback4/packages/snapback4/test/delivery-cas.test.mjs	-const until=async fn=>{for(let i=0;i<200;i++){if(await fn())return;await delay(5);}assert.fail('collection did not settle');};
+snapback4/packages/snapback4/test/delivery-clients.test.mjs	-const until=async fn=>{for(let i=0;i<300;i++){if(fn())return;await delay(5);}assert.fail('delivery did not settle');};
+snapback4/packages/snapback4/test/delivery-clients.test.mjs	- await q.accept(manifest([['a',1],['b',1]]));await q.pump();responses[1](Response.json({state:'sent',head:20,seq:20,store_id:'S'}));await delay(5);responses[0](Response.json({state:'sent',head:10,seq:10,store_id:'S'}));await delay(5);assert.equal(current,true);assert.deepEqual(observations,[10,10]);
+snapback4/packages/snapback4/test/delivery-fault-fixture.mjs	-export async function until(check) { for (let i = 0; i < 10000; i++) { if (await check()) return; await tick(); } assert.fail("barrier was not reached"); }
+snapback4/packages/snapback4/test/delivery-web.test.mjs	- const until=async fn=>{for(let n=0;n<2000;n++){if(fn())return;await delay(5);}assert.fail('activation failed to resume');};
+snapback4/packages/snapback4/test/effectful-cancellation.test.mjs	-const until = async check => { for (let i = 0; i < 400; i++) { if (await check()) return; await delay(5); } assert.fail('effect custody did not settle'); };
+snapback4/packages/snapback4/test/effectful-cancellation.test.mjs	-const promptly = promise => Promise.race([promise, delay(500).then(() => assert.fail('caller stayed behind an effectful response'))]);
+snapback4/packages/snapback4/test/ephemeral-capability.test.mjs	-  await delay(650);
+snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs	-  const end = Date.now() + 10000;
+snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs	-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
+snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/familiar-forms.test.mjs	-  const deadline = Date.now() + 30000;
+snapback4/packages/snapback4/test/familiar-forms.test.mjs	-    assert.ok(Date.now() < deadline, log);
+snapback4/packages/snapback4/test/first-account.test.mjs	-  const deadline = Date.now() + 30_000;
+snapback4/packages/snapback4/test/first-account.test.mjs	-  while (Date.now() < deadline) { const value = await read(); if (value) return value; await delay(20); }
+snapback4/packages/snapback4/test/first-account.test.mjs	-  assert.fail(`timed out: ${label}`);
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await run.lifecycle.waitForProofDrain(20), true);
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await settlesWithin(run.request("/cut"), 50), true);
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await settlesWithin(run.request("/intentional-cut"), 50), true);
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await run.close(5, 50), "proxy-proof-drain-timeout");
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await settlesWithin(pending, 50), true);
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await run.close(5, 50), "engine-spawn");
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs	-  assert.equal(await settlesWithin(pending, 50), true);
+snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs	-  const deadline = Date.now() + milliseconds;
+snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs	-  while (Date.now() < deadline) {
+snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs	-    await delay(40);
+snapback4/packages/snapback4/test/fixtures/routes.mjs	-  const end = Date.now() + milliseconds;
+snapback4/packages/snapback4/test/fixtures/routes.mjs	-    if (Date.now() >= end) throw Error(`timed out: ${description}\n${safe(diagnostics())}`);
+snapback4/packages/snapback4/test/fixtures/routes.mjs	-    await delay(20);
+snapback4/packages/snapback4/test/following-unfollow.test.mjs	-  const end = Date.now() + 15000;
+snapback4/packages/snapback4/test/following-unfollow.test.mjs	-  while (Date.now() < end) { if (await check()) return; await pause(10); }
+snapback4/packages/snapback4/test/following-unfollow.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/helpers/app-server.mjs	-    await delay(10);
+snapback4/packages/snapback4/test/helpers/app-server.mjs	-  assert.fail(`timed out: ${label}`);
+snapback4/packages/snapback4/test/helpers/read-through-server.mjs	-  for(let i=0;!url&&i<750;i++){assert.equal(child.exitCode,null,log);await sleep(20);}assert.ok(url,log);
+snapback4/packages/snapback4/test/helpers/subscription-pressure-driver.mjs	-  const end = performance.now() + 15000;
+snapback4/packages/snapback4/test/helpers/subscription-pressure-driver.mjs	-  while (!watches.every(w => 'data' in w.getSnapshot())) { if (performance.now() > end) throw Error('initial observations timed out: ' + JSON.stringify(history.getSnapshot())); await delay(10); }
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs	-  const deadline=Date.now()+30000;
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs	-  while(Date.now()<deadline) { if(await check())return; await new Promise(r=>setTimeout(r,20)); }
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-    const deadline = Date.now() + 3000;
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-    while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-        await sleep(80);
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-        const started = Date.now();
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { headers, signal: AbortSignal.timeout(500) })).status, 200);
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-        assert.ok(Date.now() - started < 500, "ordinary work must not await the long-poll interval");
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-        const started = Date.now();
+snapback4/packages/snapback4/test/http-bounds.test.mjs	-        assert.ok(Date.now() - started < 500, "slow output must not hold the engine lock");
+snapback4/packages/snapback4/test/intent-views.test.mjs	-    const end = Date.now() + 15000;
+snapback4/packages/snapback4/test/intent-views.test.mjs	-    do { if (predicate()) return; assert.equal(server.exitCode, null, log); await delay(20); } while (Date.now() < end);
+snapback4/packages/snapback4/test/keep-authority.test.mjs	-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
+snapback4/packages/snapback4/test/keep-authority.test.mjs	-  assert.fail("authority did not settle");
+snapback4/packages/snapback4/test/keep-clock.test.mjs	-  for (let i = 0; i < 100 && !(active.getSnapshot().loading && idle.getSnapshot().loading); i++) await delay(5);
+snapback4/packages/snapback4/test/keep-device.test.mjs	-  for (let n = 0; n < 1000; n++) { if (check()) return; await delay(10); }
+snapback4/packages/snapback4/test/keep-device.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/keep-observation.test.mjs	-async function until(check) { for (let i = 0; i < 600; i++) { if (check()) return; await delay(5); } assert.fail("read did not settle"); }
+snapback4/packages/snapback4/test/keep-reset.test.mjs	-async function until(check) { for (let i = 0; i < 600; i++) { if (check()) return; await delay(5); } assert.fail("reset not observed"); }
+snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs	-  const end = performance.now() + 5000;
+snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs	-  while (!predicate() && performance.now() < end) {
+snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs	-    const cutoff = Date.now() + 1000;
+snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs	-    if (transition) await new Promise(resolve => setTimeout(resolve, Math.max(0, cutoff - Date.now() + 1)));
+snapback4/packages/snapback4/test/live-propagation.test.mjs	-  const limit = performance.now() + 10000;
+snapback4/packages/snapback4/test/live-propagation.test.mjs	-  while (!predicate() && performance.now() < limit) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+snapback4/packages/snapback4/test/local-e2e.test.mjs	-  const deadline = Date.now() + ms;
+snapback4/packages/snapback4/test/local-e2e.test.mjs	-    if (Date.now() > deadline) throw new Error("timed out waiting");
+snapback4/packages/snapback4/test/local-e2e.test.mjs	-    await sleep(25);
+snapback4/packages/snapback4/test/local-signout.test.mjs	-  try { return await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("local sign-out waited for the network")), 1000); })]); }
+snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs	-  const end = Date.now() + 60000;
+snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs	-  do { if (await check()) return; await delay(20); } while (Date.now() < end);
+snapback4/packages/snapback4/test/maintained-columns.test.mjs	-  const deadline = Date.now()+30000;
+snapback4/packages/snapback4/test/maintained-columns.test.mjs	-  for (;;) { const result=await check(); if(result) return result; if(Date.now()>deadline) throw Error("watch did not converge"); await new Promise(r=>setTimeout(r,20)); }
+snapback4/packages/snapback4/test/maintains.test.mjs	-  for (let i=0; !url && i<750; i++) { assert.equal(child.exitCode, null, log); await sleep(20); }
+snapback4/packages/snapback4/test/native-e2e.test.mjs	-  const deadline = Date.now() + ms;
+snapback4/packages/snapback4/test/native-e2e.test.mjs	-    if (Date.now() > deadline) throw new Error("timed out waiting");
+snapback4/packages/snapback4/test/native-e2e.test.mjs	-    await sleep(25);
+snapback4/packages/snapback4/test/native-e2e.test.mjs	-    const reconnectDeadline = Date.now() + 20_000;
+snapback4/packages/snapback4/test/native-e2e.test.mjs	-    const landed = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.filter((m) => /^q\d$/.test(m.body)).length === 5 ? r : null; }, Math.max(0, reconnectDeadline - Date.now()));
+snapback4/packages/snapback4/test/native-e2e.test.mjs	-    }, Math.max(0, reconnectDeadline - Date.now()));
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  const end = performance.now() + ms;
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  do { if (await check()) return true; await new Promise(r => setTimeout(r, 10)); } while (performance.now() < end);
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(async () => (await client.write(id))?.state === "sent", 15000));
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(() => !f.persist.stores.has(source), 5000), "the busy candidate remains a background responsibility");
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(async () => (await f.audit())?.total === 1, 5000));
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(() => !f.persist.stores.has(source), 5000));
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(async () => (await replacement.write(a.id))?.state === "sent" && (await replacement.write(b.id))?.state === "sent", 5000));
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(async () => (await first.write(id))?.state === "sent" && (await second.write(id))?.state === "sent", 15000));
+snapback4/packages/snapback4/test/navigation-model.test.mjs	-  assert.ok(await until(async () => (await recovered.write(id))?.state === "sent", 15000));
+snapback4/packages/snapback4/test/one-shot-bounds.test.mjs	-    return await Promise.race([work, delay(2000, undefined, { signal: controller.signal }).then(() => { throw Error('independent one-shot watchdog'); })]);
+snapback4/packages/snapback4/test/one-shot-bounds.test.mjs	-    assert.ok(started); assert.equal(timers(), 1, 'facade and raw client share one timer');
+snapback4/packages/snapback4/test/one-shot-bounds.test.mjs	-    gate.resolve(); block = false; await delay(20);
+snapback4/packages/snapback4/test/one-shot-bounds.test.mjs	-  assert.equal(read.denied?.code, 'E_QUERY_RETRY'); assert.equal(timers(), 1);
+snapback4/packages/snapback4/test/one-shot-model.test.mjs	-        const floor = admitted, started = performance.now();
+snapback4/packages/snapback4/test/one-shot-model.test.mjs	-          assert.ok(performance.now() - started < 30_000, trace.join(' / '));
+snapback4/packages/snapback4/test/one-shot-model.test.mjs	-        const read = await Promise.race([final, delay(2000, undefined, { signal: watchdog.signal }).then(() => { throw Error(`close did not settle: ${trace.join(' / ')}`); })]);
+snapback4/packages/snapback4/test/one-shot-review.test.mjs	-    return await Promise.race([work, delay(2000, undefined, { signal: controller.signal }).then(() => assert.fail('independent query watchdog'))]);
+snapback4/packages/snapback4/test/one-shot-review.test.mjs	-    const cutoff = Date.now() + 1000;
+snapback4/packages/snapback4/test/one-shot-review.test.mjs	-        await delay(Math.max(0, cutoff - Date.now() + 30));
+snapback4/packages/snapback4/test/online-read-order.test.mjs	-const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
+snapback4/packages/snapback4/test/online-store-order.test.mjs	-const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
+snapback4/packages/snapback4/test/online-store-order.test.mjs	-  else assert.equal((await Promise.race([result, delay(500).then(() => assert.fail('retry round did not settle'))])).denied?.code, 'E_QUERY_RETRY');
+snapback4/packages/snapback4/test/online-store-order.test.mjs	-  await delay(0); // Let the first response be rejected and enter its backoff.
+snapback4/packages/snapback4/test/online-store-terminal.test.mjs	-const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('store transition did not settle'); };
+snapback4/packages/snapback4/test/online-store-terminal.test.mjs	-    for (const write of await Promise.race([Promise.all(submitted), delay(500).then(() => assert.fail('terminal writes did not settle before the HTTP body'))])) {
+snapback4/packages/snapback4/test/online-terminal-entrypoints.test.mjs	-const until = async check => { for (let n = 0; n < 400; n++) { if (await check()) return; await delay(5); } assert.fail('terminal operation did not settle'); };
+snapback4/packages/snapback4/test/page-authority.test.mjs	-  for (let n = 0; n < 500; n++) { if (await read()) return; await delay(10); }
+snapback4/packages/snapback4/test/page-authority.test.mjs	-  assert.fail(`timed out: ${label}`);
+snapback4/packages/snapback4/test/page-observation.test.mjs	-  assert.fail(log);
+snapback4/packages/snapback4/test/page-ready.test.mjs	-  for (let n = 0; n < 500; n++) { const value = await read(); if (value) return value; await delay(10); }
+snapback4/packages/snapback4/test/page-ready.test.mjs	-  assert.fail(`timed out: ${label}`);
+snapback4/packages/snapback4/test/pending-writes.test.mjs	-  for (const end = Date.now() + 15000; Date.now() < end; await sleep(5)) {
+snapback4/packages/snapback4/test/pending-writes.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs	-  const end = performance.now() + 10_000;
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs	-  while (!done && performance.now() < end) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs	-  const end = performance.now() + 10_000;
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs	-  while (!predicate() && performance.now() < end) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs	-      const deadline = performance.now() + 60_000;
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs	-      while (!predicate() && performance.now() < deadline) {
+snapback4/packages/snapback4/test/per-row-retry.test.mjs	-  const end = performance.now() + 60_000;
+snapback4/packages/snapback4/test/per-row-retry.test.mjs	-  while (!predicate() && performance.now() < end) { t.mock.timers.tick(0); await pause(); }
+snapback4/packages/snapback4/test/per-row-work.test.mjs	-  await until(ready, 'mount 1000', 15000); assert.equal(calls, 1000);
+snapback4/packages/snapback4/test/periphery.test.mjs	-    const deadline = Date.now() + 5000;
+snapback4/packages/snapback4/test/periphery.test.mjs	-    while (!predicate() && child.exitCode == null && child.signalCode == null && Date.now() < deadline) await delay(10);
+snapback4/packages/snapback4/test/periphery.test.mjs	-    const deadline = Date.now() + 5000;
+snapback4/packages/snapback4/test/periphery.test.mjs	-    while (!url && child.exitCode == null && Date.now() < deadline) await delay(10);
+snapback4/packages/snapback4/test/presence-composed.test.mjs	-const until = async (check, message, ms = 10_000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await check()) return; await delay(20); } assert.fail(message); };
+snapback4/packages/snapback4/test/presence-composed.test.mjs	-    await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, 'server did not listen', 30_000);
+snapback4/packages/snapback4/test/presence-live.test.mjs	-  for (;;) { if (await check()) return Date.now() - start; if (Date.now() - start >= ms) return null; await sleep(20); }
+snapback4/packages/snapback4/test/presence-live.test.mjs	-  assert.notEqual(await until(() => url, 30000), null, log);
+snapback4/packages/snapback4/test/presence-live.test.mjs	-  await sleep(6000);
+snapback4/packages/snapback4/test/presence-local.test.mjs	-const until = async (check, message, ms = 10_000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await check()) return; await delay(10); } assert.fail(message); };
+snapback4/packages/snapback4/test/presence-local.test.mjs	-  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, "server did not listen", 30_000);
+snapback4/packages/snapback4/test/presence-local.test.mjs	-    await delay(100);
+snapback4/packages/snapback4/test/presence-refresh.test.mjs	-async function until(check, why, ms = 3000) { const start = Date.now(); while (Date.now() - start < ms) { if (check()) return; await delay(10); } assert.fail(why); }
+snapback4/packages/snapback4/test/presence-refresh.test.mjs	-  await delay(400); // the background refresh is now held
+snapback4/packages/snapback4/test/presence-refresh.test.mjs	-  await delay(400); // the background refresh is held
+snapback4/packages/snapback4/test/presence-refresh.test.mjs	-  await delay(50);
+snapback4/packages/snapback4/test/read-admission-insert.test.mjs	-const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('existence integration did not settle'); };
+snapback4/packages/snapback4/test/read-existence-integration.test.mjs	-const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('existence integration did not settle'); };
+snapback4/packages/snapback4/test/readauth.test.mjs	-  for(let i=0;i<400;i++) {if(await f())return;await sleep(25);}
+snapback4/packages/snapback4/test/readauth.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/recorded-compatibility.test.mjs	-    assert.equal(child.exitCode,null,log); await delay(20);
+snapback4/packages/snapback4/test/recorded-compatibility.test.mjs	-      assert.equal(child.exitCode,null,log); await delay(20);
+snapback4/packages/snapback4/test/recorded-compatibility.test.mjs	-    assert.fail(log);
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    const deadline = Date.now() + 3000;
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    while (!url && child.exitCode == null && Date.now() < deadline) await delay(10);
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    const deadline = Date.now() + 4000;
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    while (!recoveryState(deployment).durable._jobs.some((job) => job.state === "parked") && Date.now() < deadline) await delay(25);
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    const deadline = Date.now() + 3000;
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    while (!ready && child.exitCode == null && Date.now() < deadline) await delay(5);
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    const deadline = Date.now() + 4000;
+snapback4/packages/snapback4/test/release-activation.test.mjs	-    while (jobs()[0]?.state !== "done" && Date.now() < deadline) await delay(20);
+snapback4/packages/snapback4/test/repair-b-overflow.test.mjs	-  const deadline = Date.now() + 20000;
+snapback4/packages/snapback4/test/repair-b-overflow.test.mjs	-  do { if (await check()) return; await delay(20); } while (Date.now() < deadline);
+snapback4/packages/snapback4/test/repair-b-overflow.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/repair-b-round16.test.mjs	-  assert.fail("watch did not reach the expected state");
+snapback4/packages/snapback4/test/repair-b-round9.test.mjs	-        await Promise.race([observed, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error("head observation not delivered")), 4000); timer.unref(); })]);
+snapback4/packages/snapback4/test/residency.test.mjs	-  const end = Date.now() + timeout;
+snapback4/packages/snapback4/test/residency.test.mjs	-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
+snapback4/packages/snapback4/test/residency.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/residency.test.mjs	-  await sleep(20);
+snapback4/packages/snapback4/test/retained-history.test.mjs	-  const end = Date.now() + 15000;
+snapback4/packages/snapback4/test/retained-history.test.mjs	-  do { if (await check()) return; await sleep(20); } while (Date.now() < end);
+snapback4/packages/snapback4/test/retained-history.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/retention-episode.test.mjs	-async function until(check) { for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); } assert.fail("read did not settle"); }
+snapback4/packages/snapback4/test/retention-lifecycle.test.mjs	-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
+snapback4/packages/snapback4/test/retention-lifecycle.test.mjs	-  assert.fail("lifecycle boundary did not settle");
+snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs	-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
+snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs	-  assert.fail("online boundary did not settle");
+snapback4/packages/snapback4/test/retention-store-withdrawal.test.mjs	-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
+snapback4/packages/snapback4/test/retention-store-withdrawal.test.mjs	-  assert.fail("online boundary did not settle");
+snapback4/packages/snapback4/test/schema-capabilities.test.mjs	-      const assertAlive=()=>{assert.equal(child.exitCode,null,log);assert.equal(child.signalCode,null,log);};
+snapback4/packages/snapback4/test/schema-capabilities.test.mjs	-      await delay(20);
+snapback4/packages/snapback4/test/schema-capabilities.test.mjs	-    }assert.fail(log);
+snapback4/packages/snapback4/test/server-clock-browser.test.mjs	-  assert.ok(delays.every(ms => ms >= 0 && ms <= 1000), JSON.stringify(delays));
+snapback4/packages/snapback4/test/server-clock-browser.test.mjs	-  assert.ok(Date.now() - before < 3000, 'must not wait two minutes of device time');
+snapback4/packages/snapback4/test/server-clock-wire.test.mjs	-    assert.ok(Number.isSafeInteger(at) && Math.abs(at - Date.now() - 90_000_000) < 1000, `${response.url}: ${at}`);
+snapback4/packages/snapback4/test/server-clock-wire.test.mjs	-  assert.ok(Math.abs(sent.at - Date.now() - 90_000_000) < 1000);
+snapback4/packages/snapback4/test/server-clock-wire.test.mjs	-  assert.ok(observed.filter(r => ['query', 'admit'].includes(r.op)).every(r => Math.abs(r.now - Date.now() - expected) < 2000));
+snapback4/packages/snapback4/test/server-e2e.test.mjs	-  const deadline = Date.now() + timeout;
+snapback4/packages/snapback4/test/server-e2e.test.mjs	-    if (Date.now() >= deadline) throw Error(`timed out: ${description}${diagnostics ? "\n" + safe(diagnostics()) : ""}`);
+snapback4/packages/snapback4/test/server-e2e.test.mjs	-    await delay(20);
+snapback4/packages/snapback4/test/server-routes.test.mjs	-  try { await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("handler did not enter")), 1000); })]); }
+snapback4/packages/snapback4/test/server-routes.test.mjs	-  try { await Promise.race([worker.done, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("server did not stop")), 2000); })]); }
+snapback4/packages/snapback4/test/server-runtime.test.mjs	-    await Promise.race([worker.done, delay(2_000, undefined, { signal: timeout.signal }).then(() => { throw Error("runtime did not finish"); })]);
+snapback4/packages/snapback4/test/server-runtime.test.mjs	-    await Promise.race([entered, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("batch did not enter")), 1000); })]);
+snapback4/packages/snapback4/test/session-security.test.mjs	-  const deadline = Date.now() + 2_000;
+snapback4/packages/snapback4/test/session-security.test.mjs	-  while (!predicate() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
+snapback4/packages/snapback4/test/session-security.test.mjs	-  assert.ok(predicate(), message);
+snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs	-  const end = Date.now() + ms;
+snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs	-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
+snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/store-reset-review.test.mjs	-async function until(check, message = "barrier was not reached") { for (let i = 0; i < 10000; i++) { if (await check()) return; await tick(); } assert.fail(message); }
+snapback4/packages/snapback4/test/store-reset.test.mjs	-  const end = Date.now() + 20000;
+snapback4/packages/snapback4/test/store-reset.test.mjs	-  do { if (await check()) return; await sleep(20); } while (Date.now() < end);
+snapback4/packages/snapback4/test/store-reset.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/supervised-workers.test.mjs	-  for (let i = 0; i < 200; i++) { const result = await probe(); if (result) return result; await sleep(50); }
+snapback4/packages/snapback4/test/sync-generation.test.mjs	-    const deadline = Date.now() + 30000;
+snapback4/packages/snapback4/test/sync-generation.test.mjs	-    while (!ready && Date.now() < deadline) { assert.equal(child.exitCode, null, log); await delay(20); }
+snapback4/packages/snapback4/test/sync-overflow.test.mjs	-  const deadline = Date.now() + 20000;
+snapback4/packages/snapback4/test/sync-overflow.test.mjs	-  do { if (await check()) return; await delay(20); } while (Date.now() < deadline);
+snapback4/packages/snapback4/test/sync-overflow.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/transport-http.test.mjs	-  const end = performance.now() + ms;
+snapback4/packages/snapback4/test/transport-http.test.mjs	-  while (performance.now() < end) { if (await check()) return; await sleep(10); }
+snapback4/packages/snapback4/test/transport-http.test.mjs	-  assert.fail("timed out");
+snapback4/packages/snapback4/test/typing-expiry.test.mjs	-      const end = performance.now() + 60_000;
+snapback4/packages/snapback4/test/typing-expiry.test.mjs	-        assert.ok(performance.now() < end, `browser state did not settle: ${predicate}`);
+snapback4/packages/snapback4/test/web-admission-review.test.mjs	-      assert.equal(await total(session), before);
+snapback4/packages/snapback4/test/web-navigation.test.mjs	-  const end = Date.now() + 10000;
+snapback4/packages/snapback4/test/web-navigation.test.mjs	-  while (!await check()) { if (Date.now() > end) throw new Error("timed out waiting"); await new Promise(resolve => setTimeout(resolve, 20)); }
+snapback4/packages/snapback4/test/web-navigation.test.mjs	-  try { return await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })]); }
+snapback4/packages/snapback4/test/witness-acquire.test.mjs	-  const end = Date.now() + 30000;
+snapback4/packages/snapback4/test/witness-acquire.test.mjs	-  while (!url) { assert.equal(server.exitCode, null, log); assert.ok(Date.now() < end, log); await new Promise(r => setTimeout(r, 10)); }
+snapback4/packages/snapback4/test/worker-ledger-contention.test.mjs	-    for (let n=0;n<1000;n++) {const found=s.events.find(predicate);if(found)return found;await sleep(5);}
+snapback4/packages/snapback4/test/worker-ledger-contention.test.mjs	-    assert.fail(JSON.stringify(s.events)+' '+s.log);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs	-  for (let i = 0; i < 240; i++) { if (await fn()) return; await sleep(50); }
+snapback4/packages/snapback4/test/worker-regressions.test.mjs	-  assert.fail('worker regression timed out');
+snapback4/packages/snapback4/test/worker.test.mjs	-    const deadline = Date.now() + 10_000;
+snapback4/packages/snapback4/test/worker.test.mjs	-    while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
+snapback4/packages/snapback4/test/worker.test.mjs	-    await sleep(150);
+snapback4/packages/snapback4/test/worker.test.mjs	-    const until = Date.now() + 15_000;
+snapback4/packages/snapback4/test/worker.test.mjs	-    while (delivered.length === 0 && Date.now() < until) await sleep(50);
+snapback4/packages/snapback4/test/worker.test.mjs	-    while (sent.length === 0 && Date.now() < until) { sent = await listEffects(url, serviceToken, "sent"); if (sent.length === 0) await sleep(50); }
+snapback4/packages/snapback4/test/worker.test.mjs	-  const deadline = Date.now() + timeout;
+snapback4/packages/snapback4/test/worker.test.mjs	-  for (;;) { const value = await check(); if (value) return value; if (Date.now() >= deadline) throw Error("timed out waiting"); await sleep(20); }
+snapback4/packages/snapback4/test/write-authority.test.mjs	-  const end = Date.now() + 8000;
+snapback4/packages/snapback4/test/write-authority.test.mjs	-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
+snapback4/packages/snapback4/test/write-authority.test.mjs	-  assert.fail(message);
+snapback4/packages/snapback4/test/write-ids.test.mjs	-  const end = Date.now() + 15000;
+snapback4/packages/snapback4/test/write-ids.test.mjs	-  do { const value = await check(); if (value) return value; await new Promise(r => setTimeout(r, 20)); } while (Date.now() < end);
+snapback4/witness/lib.mjs	-    const deadline = performance.now() + 5000;
+snapback4/witness/lib.mjs	-      if (performance.now() >= deadline) throw new Error(`dev readiness timed out: ${log}`);

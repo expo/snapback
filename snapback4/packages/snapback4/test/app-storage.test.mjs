@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -14,7 +15,7 @@ import { storeKey } from "../dist/app-storage.js";
 const mutation = { kind: "mutation", name: "write" };
 const url = "https://app.invalid";
 const session = principal => ({ principal, token: "token-" + principal, kind: "user", expiresAt: Date.now() + 7 * 86400000 });
-const until = async read => { for (let n = 0; n < 500; n++) { const value = await read(); if (value) return value; await delay(5); } assert.fail("condition did not settle"); };
+const until = async read => { return awaitState(read); };
 function storage() {
   const values = new Map(), keys = [];
   const check = key => { assert.match(key, /^[A-Za-z0-9._-]+$/); keys.push(key); };

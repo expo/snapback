@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, q, m, ids } from './helpers/astra-search.mjs';
@@ -23,7 +24,8 @@ for(const tier of ['process','wasm']) test(`review invalid search input preserve
 test('review invalid mounted search does not retry its permanent refusal',async t=>{
  const f=await setup(t);await f.admin.mutate(m('join'),{room:'left'});await f.client.sync();
  const before=f.requests.length,observed=f.client.observe(q,{q:123});const stop=observed.subscribe(()=>{});
- await new Promise(r=>setTimeout(r,200));
+ await awaitState(() => observed.getSnapshot().denied, "invalid input refusal");
+ await new Promise(r=>setTimeout(r,200)); // Check that the permanent refusal does not retry.
  const read=observed.getSnapshot(),calls=f.requests.length-before;stop();observed.close();
  console.log('INVALID_WATCH',JSON.stringify({calls,read}));
  assert.equal(read.denied?.code,'E_INPUT');assert.equal(calls,1);

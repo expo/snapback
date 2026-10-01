@@ -1,0 +1,7 @@
+{
+  "pids": [
+    2582004,
+    2582013
+  ],
+  "reason": "Intermediate combination of timer mocking and method mocking restored a fake scheduler into subsequent cases. Stop this diagnostic; replace with a gated real timer. No qualification credit."
+}

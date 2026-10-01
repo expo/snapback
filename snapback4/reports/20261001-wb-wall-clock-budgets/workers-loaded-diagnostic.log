@@ -1,0 +1,137 @@
+WB diagnostic attempt 1
+TAP version 13
+# (node:2534487) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: dev declares two workers, injects usable secret seats, restarts independently and stops both
+ok 1 - dev declares two workers, injects usable secret seats, restarts independently and stops both
+  ---
+  duration_ms: 1740.574675
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2049.101857
+WB diagnostic attempt 2
+TAP version 13
+# (node:2534608) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: dev declares two workers, injects usable secret seats, restarts independently and stops both
+ok 1 - dev declares two workers, injects usable secret seats, restarts independently and stops both
+  ---
+  duration_ms: 1423.032217
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1601.057606
+WB diagnostic attempt 3
+TAP version 13
+# (node:2534798) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: dev declares two workers, injects usable secret seats, restarts independently and stops both
+ok 1 - dev declares two workers, injects usable secret seats, restarts independently and stops both
+  ---
+  duration_ms: 1705.818749
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2149.566818
+WB diagnostic attempt 4
+TAP version 13
+# (node:2535159) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: dev declares two workers, injects usable secret seats, restarts independently and stops both
+ok 1 - dev declares two workers, injects usable secret seats, restarts independently and stops both
+  ---
+  duration_ms: 2088.350381
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2493.482702
+WB diagnostic attempt 5
+TAP version 13
+# (node:2535432) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: dev declares two workers, injects usable secret seats, restarts independently and stops both
+not ok 1 - dev declares two workers, injects usable secret seats, restarts independently and stops both
+  ---
+  duration_ms: 1294.842481
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/supervised-workers.test.mjs:23:38'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /\[worker:push\] authenticated:push/. Input:
+    
+    'snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576\n' +
+      'snapback4 dev: http://127.0.0.1:45343  (schema: snapback/, types: /tmp/sb4-named-workers-GATiR6/snapback/generated/api.ts)\n' +
+      'store: /tmp/sb4-named-workers-GATiR6/.snapback4/store.sqlite\n' +
+      'snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\n' +
+      'snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply\n' +
+      'snapback4 worker: /tmp/sb4-named-workers-GATiR6/snapback/workers/digest.mjs (pid 2535468)\n' +
+      'snapback4 worker: /tmp/sb4-named-workers-GATiR6/snapback/workers/push.mjs (pid 2535473)\n' +
+      '[worker:digest] token:[REDACTED]\n' +
+      '[worker:digest] also:[REDACTED]\n' +
+      '[worker:push] also:[REDACTED]\n' +
+      '[worker:push] token:[REDACTED]\n' +
+      '[worker:digest] authenticated:digest\n' +
+      '[worker:digest] ledger:/tmp/sb4-named-workers-GATiR6/.snapback4/worker-ledger-8938ef3e06c5f184f98c2485162ff43fbbdf1faa8c1dbc6a6ff925675d893be1.sqlite\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576
+    snapback4 dev: http://127.0.0.1:45343  (schema: snapback/, types: /tmp/sb4-named-workers-GATiR6/snapback/generated/api.ts)
+    store: /tmp/sb4-named-workers-GATiR6/.snapback4/store.sqlite
+    snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+    snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+    snapback4 worker: /tmp/sb4-named-workers-GATiR6/snapback/workers/digest.mjs (pid 2535468)
+    snapback4 worker: /tmp/sb4-named-workers-GATiR6/snapback/workers/push.mjs (pid 2535473)
+    [worker:digest] token:[REDACTED]
+    [worker:digest] also:[REDACTED]
+    [worker:push] also:[REDACTED]
+    [worker:push] token:[REDACTED]
+    [worker:digest] authenticated:digest
+    [worker:digest] ledger:/tmp/sb4-named-workers-GATiR6/.snapback4/worker-ledger-8938ef3e06c5f184f98c2485162ff43fbbdf1faa8c1dbc6a6ff925675d893be1.sqlite
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/packages/snapback4/test/supervised-workers.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1584.010568

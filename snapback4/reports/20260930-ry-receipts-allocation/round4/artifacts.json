@@ -1,0 +1,8 @@
+{
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2017966,
+    "gzip_bytes": 605913,
+    "sha256": "4751efdc088de8abe01838faa59aacb631fd655566c794029e4e9c82a6af05c0",
+    "gzip_method": "gzip -9 -c <path>, matching scripts/build-wasm.sh"
+  }
+}

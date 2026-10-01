@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.019#3.3 — typing opts into stale presentation; expiry still withdraws it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -42,7 +43,7 @@ query typingIn(room: text <=40):
 `;
 const hasPeer = read => read.data?.some(row => row.principal === 'dev:alice') === true;
 
-for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing survives member commits and expires during a held re-read`, { timeout: 20_000 }, async t => {
+for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing survives member commits and expires during a held re-read`, { timeout: hangBudget(27) }, async t => {
   const { url, dir } = await server(t, undefined, source);
   const seeded = await defaultFetch(url + '/seed', { method: 'POST', body: JSON.stringify(
     ['alice', 'bob'].map(person => ({ table: 'members', row: { id: person, room: 'r', principal: `dev:${person}`, revision: 0 } }))) });

@@ -1,0 +1,15 @@
+
+ℹ tests 456
+ℹ suites 0
+ℹ pass 455
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1370842.424633
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-seams.test.mjs:1:1
+✖ packages/snapback4/test/client-seams.test.mjs (256179.313127ms)
+  'test failed'

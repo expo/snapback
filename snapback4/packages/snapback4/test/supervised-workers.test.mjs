@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -13,16 +14,13 @@ import { runWorker } from "../dist/worker.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
-async function until(probe) {
-  for (let i = 0; i < 200; i++) { const result = await probe(); if (result) return result; await sleep(50); }
-  throw Error("worker witness timed out");
-}
+async function until(probe) { return awaitState(probe); }
 function command(cwd, args) {
   const result = spawnSync(binary, args, { cwd, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   return result.stdout;
 }
-for (const mode of ["dev", "serve"]) test(`${mode} declares two workers, injects usable secret seats, restarts independently and stops both`, { timeout: 30_000 }, async t => {
+for (const mode of ["dev", "serve"]) test(`${mode} declares two workers, injects usable secret seats, restarts independently and stops both`, { timeout: hangBudget(4) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-named-workers-"));
   mkdirSync(join(dir, "snapback/workers"), { recursive: true });
   writeFileSync(join(dir, "snapback/schema.q"), "effect notify\nmutation send():\n  emit notify { message: 'hello' }\n  return true\n");
@@ -57,6 +55,11 @@ setInterval(() => {}, 1000);
   });
   const starts = name => { try { return readFileSync(join(workdir, `starts-${name}.jsonl`), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };
   await until(() => starts("push").length === 1 && starts("digest").length === 1);
+  // The worker's synchronous file write can reach us before its independent
+  // stdout/stderr pipes. Await each required record before inspecting them.
+  await until(() => ["push", "digest"].every(name => [
+    `token:[REDACTED]`, `also:[REDACTED]`, `authenticated:${name}`,
+  ].every(record => stderr.includes(`[worker:${name}] ${record}`))));
   const db = new DatabaseSync(join(mode === "dev" ? join(dir, ".snapback4") : release, "store.sqlite"), { readOnly: true });
   assert.deepEqual(db.prepare("SELECT DISTINCT principal FROM _sessions WHERE kind = 'service' ORDER BY principal").all().map(row => row.principal), ["service:digest", "service:push"]);
   const storeIdentity = db.prepare("SELECT value FROM _meta WHERE key = 'store_id'").get().value;
@@ -75,6 +78,7 @@ setInterval(() => {}, 1000);
   assert.match(doctor, /"name":"push".*"restarts":1/);
   assert.match(doctor, /"name":"digest".*"restarts":0/);
   const expectedLedger = join(realpathSync(mode === "dev" ? join(dir, ".snapback4") : release), `worker-ledger-${createHash('sha256').update(storeIdentity).digest('hex')}.sqlite`);
+  await until(() => stderr.includes(`ledger:${expectedLedger}`));
   assert.ok(stderr.includes(`ledger:${expectedLedger}`));
   child.kill("SIGTERM"); await exited;
   for (const name of ["push", "digest"]) assert.throws(() => process.kill(starts(name).at(-1).pid, 0), { code: "ESRCH" });
@@ -129,7 +133,7 @@ test("ledger rolls back a failed handler and never treats failure as completion"
   assert.equal(calls, 2);
 });
 
-test("two standalone processes sharing a ledger perform one action, then replay after both exit", { timeout: 15_000 }, async t => {
+test("two standalone processes sharing a ledger perform one action, then replay after both exit", { timeout: hangBudget(3) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-worker-shared-ledger-"));
   const children = [];
   t.after(async () => {

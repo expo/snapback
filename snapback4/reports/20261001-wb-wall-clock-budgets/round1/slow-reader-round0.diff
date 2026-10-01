@@ -1,0 +1,20 @@
+--- http-bounds.test.mjs
++++ http-bounds.test.mjs
+@@ -241,6 +241,7 @@
+       }
+     });
+     await t.test("a paused large response releases the engine before network progress", async () => {
++      await (await post("/dev/latency/reset", "{}")).json();
+       const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port), readableHighWaterMark: 1024 });
+       sockets.add(socket);
+       await once(socket, "connect");
+@@ -248,7 +249,9 @@
+       await once(socket, "readable");
+       socket.pause();
+       try {
++        await sleep(6500); // scratch control: outlive the write timeout
+         await ping();
++        console.log("CONTROL_COMPLETION", JSON.stringify((await (await fetch(url + "/dev/latency", { headers })).json()).operations["/sync"]));
+         assert.equal(socket.readableFlowing, false, "the engine answers while output remains paused");
+         assert.equal(socket.destroyed, false, "the blocked response is still held");
+       } finally { socket.destroy(); sockets.delete(socket); }

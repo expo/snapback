@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -13,7 +14,7 @@ import { createClient } from "snapback4/client";
 import { harness, nativeViews, routerHarness, onlineClientHarness, searchHarness } from "./helpers/social-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
-test("social recipes in React/browser: real online signals and media, controlled read interleavings", { timeout: 90_000 }, async t => {
+test("social recipes in React/browser: real online signals and media, controlled read interleavings", { timeout: hangBudget(303) }, async t => {
   const dir = mkdtempSync(join(root, ".social-browser-"));
   let vite, browser;
   t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
@@ -76,8 +77,9 @@ test("social recipes in React/browser: real online signals and media, controlled
     ] }, esbuild: { jsx: "automatic" } });
   await vite.listen();
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
-  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage(), errors = [];
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await page.exposeFunction("leaveSession", async () => {
     const write = await secondSession.mutate(api.leave, { conversation });
     assert.equal(write.state, "sent", JSON.stringify(write)); return write;
@@ -224,7 +226,7 @@ test("social recipes in React/browser: real online signals and media, controlled
     assert.equal(await page.evaluate(() => window.typingResults.at(-1)), "failed");
     const renewals = await signalCount("setTyping"), stops = await signalCount("stopTyping");
     await tick();
-    await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length > n, renewals, { timeout: 3000 });
+    await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length > n, renewals, { timeout: hangBudget() });
     await tick(); // Idle stop still owns the newer lease, before its server expiry.
     await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/stopTyping" && r.account === "alice").length > n, stops);
     await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
@@ -347,7 +349,7 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.waitForFunction(async () => (await window.savedSends()).filter(w => w.op === "send").length === 2);
     assert.ok(!(await page.evaluate(() => window.serverHistory())).data.some(row => row.text.includes("offline message")), "neither send reached the server while offline");
     await page.evaluate(() => window.reconnect());
-    try { await page.getByRole("button", { name: "Edit unsent message" }).nth(1).waitFor({ timeout: 5000 }); }
+    try { await page.getByRole("button", { name: "Edit unsent message" }).nth(1).waitFor({ timeout: hangBudget() }); }
     catch (error) { throw Error(String(error) + JSON.stringify(await page.evaluate(async () => ({ pending: await window.savedSends(), text: document.body.innerText, settlements: await window.sendOutcomes() })))); }
     const failed = page.locator('[data-testid^="send-"]');
     assert.equal(await failed.count(), 2, JSON.stringify(await failed.allTextContents()));
@@ -397,7 +399,7 @@ test("social recipes in React/browser: real online signals and media, controlled
 });
 
 // @ref LLP 3000.028#3.3 — ordinary search composes both domains; usePage owns accumulation.
-test("social search in React/browser uses current server and retained device pages", { timeout: 90_000 }, async t => {
+test("social search in React/browser uses current server and retained device pages", { timeout: hangBudget(40) }, async t => {
   const dir = mkdtempSync(join(root, ".social-search-"));
   let vite, browser;
   t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
@@ -450,7 +452,7 @@ test("social search in React/browser uses current server and retained device pag
     ] }, esbuild: { jsx: "automatic" } });
   await vite.listen();
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
-  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
 
   for (const scenario of ["search spans a live and a departed conversation", "leave followed by a search", "pagination accumulates both domains with no duplicate"]) {
     await t.test(scenario, async () => {
@@ -461,6 +463,7 @@ test("social search in React/browser uses current server and retained device pag
         assert.equal(rejoined.seeded, 1, JSON.stringify(rejoined));
       }
       const context = await browser.newContext(), page = await context.newPage(), errors = [];
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
       page.on("pageerror", error => errors.push(String(error)));
       try {
         await page.goto(vite.resolvedUrls.local[0]);
@@ -506,7 +509,7 @@ test("social search in React/browser uses current server and retained device pag
 });
 
 // @ref LLP 3000.028#8 — route IDs belong to navigation, drafts survive settlement.
-test("social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft", { timeout: 120_000 }, async t => {
+test("social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft", { timeout: hangBudget(199) }, async t => {
   const { directHarness, directRouter } = await import("./helpers/social-direct-browser.mjs");
   const dir = mkdtempSync(join(root, ".social-direct-"));
   let vite, browser;
@@ -546,8 +549,9 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     ] }, esbuild: { jsx: "automatic" } });
   await vite.listen();
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
-  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage(), errors = [];
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   page.on("pageerror", error => errors.push(String(error)));
   await page.goto(vite.resolvedUrls.local[0]);
   await page.waitForFunction(() => window.fixtureReady);
@@ -590,10 +594,16 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   assert.equal((await page.evaluate(() => window.pendingDM())).some(w => w.op === "openDirect"), true);
   const opening = await page.evaluate(() => window.routeDM().opening);
   await page.evaluate(() => window.profileDM());
+  await page.evaluate(() => window.holdPendingDM(true));
   await page.evaluate(other => window.openDM(other), carol.principal);
+  await page.waitForFunction(() => window.pendingDMReads > 0);
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 2, "an empty initial hook snapshot must not recreate a queued opening");
+  assert.equal(await page.evaluate(() => window.routeDM().screen), "dm", "wait for durable custody before choosing the opening");
+  await page.evaluate(() => window.holdPendingDM(false));
   await page.getByTestId("composer").waitFor();
   assert.equal(await page.evaluate(() => window.routeDM().id), provisional);
-  assert.equal(await page.evaluate(() => window.routeDM().opening), opening, "reopening a prediction recovers its original settlement owner");
+  assert.equal(await page.evaluate(() => window.routeDM().opening), opening, "reopening queued creation recovers its original settlement owner");
   await page.getByTestId("composer").fill("sent against the provisional ID");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send"));
@@ -616,11 +626,11 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.evaluate(() => window.profileDM());
     await page.evaluate(other => window.openDM(other), carol.principal);
     await page.waitForFunction(id => window.routeDM().id === id, raced.result);
-    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: hangBudget() });
     assert.match(await page.locator('[data-testid^="send-"]').innerText(), /Not sent.*sent against the provisional ID/s);
     await page.reload(); await page.waitForFunction(() => window.fixtureReady);
     await page.evaluate(id => window.navigateDM({ id }), raced.result);
-    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: hangBudget() });
     assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, original, "admitted arguments never change");
     assert.deepEqual(await page.evaluate(() => window.dmAttempts), [], "recovery never resubmits opening");
     await page.getByRole("button", { name: "Edit unsent message" }).click();
@@ -643,7 +653,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     assert.equal(await page.evaluate(() => window.routeDM().id), provisional, "receipt alone supplies no destination");
     await page.getByTestId("composer").fill("recovered receipt draft");
     await page.evaluate(() => window.holdLookup(false));
-    await page.waitForFunction(id => window.routeDM().id === id, raced.result, { timeout: 5000 });
+    await page.waitForFunction(id => window.routeDM().id === id, raced.result, { timeout: hangBudget() });
     assert.equal(await page.getByTestId("composer").inputValue(), "recovered receipt draft");
   });
 
@@ -665,7 +675,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
       const answer = window.membersDM[id];
       return answer?.data === null && answer.complete && answer.fresh === false && !answer.revalidating;
     }, canonical);
-    await page.getByText("Membership is being checked. You can queue a message.").waitFor({ timeout: 5000 });
+    await page.getByText("Membership is being checked. You can queue a message.").waitFor({ timeout: hangBudget() });
     assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
     await page.getByTestId("composer").fill("queued after offline re-invite");
     await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -722,7 +732,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.reload(); await page.waitForFunction(() => window.fixtureReady);
     await page.evaluate(id => window.navigateDM({ id }), winner.result);
     const failed = page.getByTestId(`send-${queued.id}`);
-    await failed.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    await failed.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: hangBudget() });
     assert.match(await failed.innerText(), /Not sent.*left before settlement/s);
     const saved = (await page.evaluate(() => window.savedDM())).intents.find(i => i.id === queued.id);
     assert.deepEqual(saved.args, queued.args, "recovery does not retarget an admitted send");

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Compiler-to-runtime acceptance: an effect-only application needs no server directive.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 
-test("effect-only generated handler keeps secrets, steps, retry, cancellation and authority loss", { timeout: 20_000 }, async t => {
+test("effect-only generated handler keeps secrets, steps, retry, cancellation and authority loss", { timeout: hangBudget(6) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-effect-only-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, "snapback"));
@@ -24,7 +25,7 @@ mutation send():
 `;
   assert.doesNotMatch(source, /use server/);
   writeFileSync(join(dir, "snapback/schema.q"), source);
-  const checked = spawnSync(binary, ["check", "--json"], { cwd: dir, encoding: "utf8", timeout: 10_000 });
+  const checked = spawnSync(binary, ["check", "--json"], { cwd: dir, encoding: "utf8", timeout: hangBudget() });
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   assert.equal(JSON.parse(checked.stdout).ok, true);
   assert.doesNotMatch(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), /\b(?:Action|Route)\b/);

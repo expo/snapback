@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -54,7 +55,7 @@ with open(sys.argv[1], "a+b") as store:
 `, `${path}-owner`]);
   const exited = once(holder, "close");
   t.after(async () => { holder.stdin.end(); await exited; });
-  const [ready] = await once(holder.stdout, "data", { signal: AbortSignal.timeout(10000) });
+  const [ready] = await once(holder.stdout, "data", { signal: AbortSignal.timeout(hangBudget()) });
   assert.equal(String(ready).trim(), "locked");
 }
 
@@ -116,7 +117,7 @@ test("device usage and invalid store failures each emit a denial before exiting 
     [[], "E_INPUT", "input", /usage: snapback4 device/],
     [[dir], "E_STORE", "store", /E_STORE/],
   ]) {
-    const result = spawnSync(binary, ["device", ...args], { encoding: "utf8", timeout: 10000 });
+    const result = spawnSync(binary, ["device", ...args], { encoding: "utf8", timeout: hangBudget() });
     assert.equal(result.status, 2, result.stderr);
     assert.match(denial(result.stdout, code, family).message, message);
     assert.match(result.stderr, message);

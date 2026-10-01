@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -12,7 +13,7 @@ const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 
 for (const tier of ["wasm", "native"]) for (const refuse of [false, true]) for (const close of [false, true])
-  test(`${tier}: known ${refuse ? "failed" : "sent"} survives keep_write failure; close=${close}`, { timeout: 20_000 }, async t => {
+  test(`${tier}: known ${refuse ? "failed" : "sent"} survives keep_write failure; close=${close}`, { timeout: hangBudget(15) }, async t => {
     const { url, dir } = await server(t), saving = gate(), id = mintId(), events = [];
     let entered = false, broken = true, failures = 0;
     const underlying = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });

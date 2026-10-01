@@ -1,0 +1,277 @@
+[
+  {
+    "log": "check-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Four compile errors during Value refactor: Cow/value mismatch and three unhandled Receipt variants; fixed source ownership and explicit codec/type-display handling.",
+    "failed_tests": [],
+    "compiler_errors": [
+      "error[E0308]: mismatched types",
+      "error[E0004]: non-exhaustive patterns: `&value::Value::Receipt(_)` not covered",
+      "error[E0004]: non-exhaustive patterns: `&value::Value::Receipt(_)` not covered",
+      "error[E0004]: non-exhaustive patterns: `&value::Value::Receipt(_)` not covered",
+      "error: could not compile `snapback4-core` (lib) due to 4 previous errors"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "compound-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Two missing complete_source fixture calls; replaced with existing source plus explicit horizon replacement.",
+    "failed_tests": [],
+    "compiler_errors": [
+      "error[E0425]: cannot find function `complete_source` in this scope",
+      "error[E0425]: cannot find function `complete_source` in this scope",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 2 previous errors"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "compound-second.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Invalid min record-shape spelling from review probe; replaced by valid spread and require successful compilation for every probe.",
+    "failed_tests": [
+      "allocation::dependencies::compound_values::review_composites_memory",
+      "allocation::dependencies::compound_values::review_composites_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": [
+      "E_QUARRY_SHAPE_JOIN"
+    ]
+  },
+  {
+    "log": "generated-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Missing queued_context fixture helper; construct pinned Context explicitly.",
+    "failed_tests": [],
+    "compiler_errors": [
+      "error[E0425]: cannot find function `queued_context` in this scope",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 1 previous error"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "generated-second.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Quarry does not support text + int/record and positional taintTotals key is ambiguous. Use a compound-to-text adapter, raw IR formatting cases, and named passed key.",
+    "failed_tests": [
+      "allocation::dependencies::generated_value_taint::generated_values_memory",
+      "allocation::dependencies::generated_value_taint::generated_values_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": [
+      "E_QUARRY_POSITIONAL_SCAN",
+      "E_QUARRY_TYPE"
+    ]
+  },
+  {
+    "log": "generated-internal.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Internal-expression substitution assumed unhygienic variable m/n names; binder supplies $m3/$n4.",
+    "failed_tests": [
+      "allocation::dependencies::generated_value_taint::generated_values_memory",
+      "allocation::dependencies::generated_value_taint::generated_values_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "generated-internal-second.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Diagnostic follow-up confirmed hygienic binding mismatch; match compiler name with numeric suffix and require one replacement.",
+    "failed_tests": [
+      "allocation::dependencies::generated_value_taint::generated_values_memory"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "receipts-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Eight introduced failures: final_exists and generated_hooks (both stores) had inflated encoded key bounds for wrapper; generated_columns (both) consumed taint during internal serialization and disabled ordinary shelfSend; generated_conditions (both) lacked marked old-row input. Correct key sizing, transparent codec, and rule/conditional value sources.",
+    "failed_tests": [
+      "allocation::dependencies::final_exists_memory",
+      "allocation::dependencies::generated::round4::generated_columns_memory",
+      "allocation::dependencies::generated::round4::generated_hooks_memory",
+      "allocation::dependencies::generated::round4::generated_conditions_memory",
+      "allocation::dependencies::final_exists_sqlite",
+      "allocation::dependencies::generated::round4::generated_columns_sqlite",
+      "allocation::dependencies::generated::round4::generated_hooks_sqlite",
+      "allocation::dependencies::generated::round4::generated_conditions_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "receipts-second.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "aggregate_live_source on both stores missed expiring recount source/member marks. Mark values at those maintenance input boundaries.",
+    "failed_tests": [
+      "allocation::dependencies::aggregate_live_source_memory",
+      "allocation::dependencies::aggregate_live_source_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "taint-unit-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Extremum discarded the source root mark when selecting a clean candidate field; carry source plus projection mark through fold.",
+    "failed_tests": [
+      "engine::runner::receipt_taint_tests::every_builtin_preserves_scalar_and_compound_taint"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-core --lib`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "taint-unit-second.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Assertion counted 60 builtin configurations rather than the actual 62; roster unchanged, count corrected.",
+    "failed_tests": [
+      "engine::runner::receipt_taint_tests::every_builtin_preserves_scalar_and_compound_taint"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-core --lib`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "wasm-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Intermediate 609917 gzip bytes exceeded old 605913 budget by 4004; retain measurement, final budget set to actual final merged size.",
+    "failed_tests": [],
+    "compiler_errors": [],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "wasm-final.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Intermediate 609948 gzip bytes exceeded old 605913 budget by 4035; retain measurement, final budget set to actual final merged size.",
+    "failed_tests": [],
+    "compiler_errors": [],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "wasm-formatted.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Intermediate 609948 gzip measurement after formatting exceeded old cap by 4035. The no-copy array path reduced the suite snapshot to 609741; final audit refinements measure 609750 and the final cap is exact.",
+    "failed_tests": [],
+    "compiler_errors": [],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "device-affected.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Command named recorded as a test target; recorded is a device submodule, actual standalone target is recorded_coverage.",
+    "failed_tests": [],
+    "compiler_errors": [
+      "error: no test target named `recorded` in `snapback4-device` package"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "device-affected-final.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Follow-up command named maintains as a test target; it is a submodule of the device target, which is included in the corrected command.",
+    "failed_tests": [],
+    "compiler_errors": [
+      "error: no test target named `maintains` in `snapback4-device` package"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "generated-final.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "New after-insert probe had ambiguous positional one-column key; use exists taintChecks[passed = .passed]. Cascading receipt-lowering type diagnostics are retained in full log.",
+    "failed_tests": [
+      "allocation::dependencies::generated_value_taint::generated_values_memory",
+      "allocation::dependencies::generated_value_taint::generated_values_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostic_codes": [
+      "E_QUARRY_POSITIONAL_SCAN",
+      "E_QUARRY_TYPE"
+    ]
+  },
+  {
+    "classification": "ours",
+    "resolved": true,
+    "kind": "command/setup corrections",
+    "details": [
+      "Initial wrong output directory and duplicated snapback4 path; corrected working-directory-relative paths.",
+      "One python invocation was unavailable; switched to python3.",
+      "A late hook-edit command incorrectly prefixed snapback4 under a snapback4 cwd; file was unchanged, and corrected edit ran before the queued generator compiled.",
+      "Read-only lookups for missing log/files or an incorrect wasm-budget path were corrected.",
+      "An ancestor check against mutable origin/main returned false after another worktree advanced the shared ref; the pinned initial merge parent remains an ancestor. No additional product integration is claimed."
+    ]
+  },
+  {
+    "log": "post-audit-negative.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Two detecting tests exposed lost result marks on extrema with clean/null outputs and shape bases. Preserve the source union through extrema and shapes; both now pass.",
+    "failed_tests": [
+      "engine::runner::receipt_taint_tests::extrema_preserve_compound_source_marks_on_clean_outputs",
+      "engine::runner::receipt_taint_tests::shapes_preserve_compound_source_marks_on_clean_outputs"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-core --lib`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "decision-negative.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Two detecting tests exposed raw numeric/created rule terms and compound effect payloads bypassing consumption. Consume at rule-term and effect-write boundaries; both now pass.",
+    "failed_tests": [
+      "engine::runner::receipt_taint_tests::rule_decision_sink_consumes_marked_numeric_and_created_terms",
+      "engine::runner::receipt_taint_tests::effect_decision_sink_consumes_compound_payload"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-core --lib`"
+    ],
+    "diagnostic_codes": []
+  },
+  {
+    "log": "final-wasm.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "cause_and_resolution": "Final artifact 609750 gzip bytes exceeded the suite snapshot cap 609741 by 9. Set cap exactly to measured 609750, preserve earlier reasons, and independently verify final artifact against it.",
+    "failed_tests": [],
+    "compiler_errors": [],
+    "diagnostic_codes": []
+  }
+]

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Rule 1: real client session transitions at asynchronous routing boundaries.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -5,7 +6,7 @@ import { createLocalClient } from "../dist/local.js";
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 for (const transition of ["sign-out", "close"]) for (const boundary of ["local", "dispatch", "transport", "delivery", "publication"]) {
-  test(`rule 1: ${transition} during ${boundary} cannot publish private data`, { timeout: 10000 }, async t => {
+  test(`rule 1: ${transition} during ${boundary} cannot publish private data`, { timeout: hangBudget(11) }, async t => {
     const backend = { generation: 1, schema: { tables: {} }, programs: [{ name: "secret", kind: "Query", body: [], args: {}, runs: "server" }] };
     const paused = deferred(), release = deferred();
     let armed = false, delivered = false, deliveryChecks = 0, didPause = false, calls = 0;
@@ -51,7 +52,7 @@ for (const transition of ["sign-out", "close"]) for (const boundary of ["local",
     const ending = transition === "close" ? client.close() : client.signOut();
     // Close sets the fence synchronously but waits for the active query to settle.
     if (transition === "sign-out") {
-      for (let i = 0; i < 100 && client.link() !== "signed-out"; i++) await new Promise(resolve => setTimeout(resolve, 5));
+      await awaitState(async () => !(client.link() !== "signed-out"), "query-publication-session.test.mjs: client.link() !== \"signed-out\"", { poll: async () => { await new Promise(resolve => setTimeout(resolve, 5)); } });
       assert.equal(client.link(), "signed-out");
     }
     release.resolve();

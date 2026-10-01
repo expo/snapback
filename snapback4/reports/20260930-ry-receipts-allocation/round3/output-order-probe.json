@@ -1,0 +1,34 @@
+{
+  "path": "/tmp/ry-r3-output-order-x2z9xikz",
+  "exit": 0,
+  "command": [
+    "rustc",
+    "--edition=2024",
+    "--test",
+    "/tmp/ry-r3-output-order-x2z9xikz/probe.rs",
+    "-L",
+    "dependency=/home/ccheever/sb4-intent/lane-ry/snapback4/target/debug/deps",
+    "-o",
+    "/tmp/ry-r3-output-order-x2z9xikz/probe",
+    "--extern",
+    "snapback4_core=/home/ccheever/sb4-intent/lane-ry/snapback4/target/debug/deps/libsnapback4_core-28d6887f8b29dc53.rlib",
+    "--extern",
+    "snapback4_lang=/home/ccheever/sb4-intent/lane-ry/snapback4/target/debug/deps/libsnapback4_lang-02db12e221e34eae.rlib",
+    "--extern",
+    "serde_json=/home/ccheever/sb4-intent/lane-ry/snapback4/target/debug/deps/libserde_json-6e01f644020828f3.rlib",
+    "--extern",
+    "snapback4_device=/home/ccheever/sb4-intent/lane-ry/snapback4/target/debug/deps/libsnapback4_device.rlib"
+  ],
+  "trials": [
+    {
+      "serde_json": "libserde_json-83a79be7f91d9ef2.rlib",
+      "compile_exit": 1
+    },
+    {
+      "serde_json": "libserde_json-6e01f644020828f3.rlib",
+      "compile_exit": 0
+    }
+  ],
+  "runtime_without_classification_exit": 0,
+  "source_sha256": "46828ac700371a5a86bd0ca3b544ac4a1d535a4d239a4543bcb2973e066143e5"
+}

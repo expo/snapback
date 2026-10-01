@@ -1,0 +1,39 @@
+{
+  "full_suite": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "final_product_tests": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "development": {
+    "ours": "development-failures.json",
+    "baseline": [
+      {
+        "log": "round4-negative-compound.log.gz",
+        "classification": "baseline",
+        "expected": true,
+        "failed_tests": [
+          "allocation::dependencies::compound_values::review_share_consumer_memory",
+          "allocation::dependencies::compound_values::review_share_consumer_sqlite",
+          "allocation::dependencies::compound_values::review_composites_memory",
+          "allocation::dependencies::compound_values::review_composites_sqlite"
+        ]
+      },
+      {
+        "log": "round4-negative-generated.log.gz",
+        "classification": "baseline",
+        "expected": true,
+        "failed_tests": [
+          "allocation::dependencies::generated_value_taint::generated_values_memory",
+          "allocation::dependencies::generated_value_taint::generated_values_sqlite"
+        ]
+      }
+    ],
+    "environmental": []
+  },
+  "limit": "Development failures are retained, resolved, and are not reported as full-suite failures."
+}

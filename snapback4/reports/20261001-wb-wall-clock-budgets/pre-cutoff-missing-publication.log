@@ -1,0 +1,19 @@
+WB_MUTATION: fallback reached publication
+✖ wasm: pending cut preserves presentTransition before sync publication (127151.198354ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 127358.99652
+
+✖ failing tests:
+
+test at target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs:39:3
+✖ wasm: pending cut preserves presentTransition before sync publication (127151.198354ms)
+  Error: TEST_HANG: new branch obtains a current whole-server answer while sync remains held; 2 work unit(s), 124000 ms elapsed, 124000 ms guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

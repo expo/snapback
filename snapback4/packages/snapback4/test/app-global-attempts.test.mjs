@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
@@ -9,7 +10,7 @@ const gate = () => { let release; const promise = new Promise(resolve => { relea
 const probe = async (url, token) => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code;
 const login = async (url) => (await (await fetch(url + "/auth/login", { method: "POST", body: JSON.stringify({ email: "alice@example.com", password: "password-a" }) })).json()).session;
 
-for (const failCleanup of [false, true]) test(`a held global acknowledgement preserves retirement of a login minted after its dispatch${failCleanup ? " across a cleanup retry" : ""}`, { timeout: 20_000 }, async t => {
+for (const failCleanup of [false, true]) test(`a held global acknowledgement preserves retirement of a login minted after its dispatch${failCleanup ? " across a cleanup retry" : ""}`, { timeout: hangBudget(29) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url), dispatch = gate(), receipt = gate();
   let cleanupFailures = 0;
   const store = { ...memory, async set(k, value) {
@@ -57,7 +58,7 @@ for (const failCleanup of [false, true]) test(`a held global acknowledgement pre
   await until(async () => !(await custody()).includes(late.token));
 });
 
-for (const tier of ["online", "local"]) test(`${tier}: a dormant tab cannot globally revoke a later login of the same principal`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier}: a dormant tab cannot globally revoke a later login of the same principal`, { timeout: hangBudget(15) }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore(), sent = [];
   const options = name => ({ url, sessionStore: store,
     ...(tier === "local" ? { device: processDevice({ dir: join(dir, name), binary }) } : {}),
@@ -77,7 +78,7 @@ for (const tier of ["online", "local"]) test(`${tier}: a dormant tab cannot glob
   assert.equal((await b.client.query({ kind: "query", name: "list" }, {})).denied, undefined);
 });
 
-test("global selection uses the principal's journal watermark for legacy session bytes", { timeout: 20_000 }, async t => {
+test("global selection uses the principal's journal watermark for legacy session bytes", { timeout: hangBudget(13) }, async t => {
   const { url } = await server(t), store = memorySessionStore(), sent = [];
   const a = createApp({ url, sessionStore: store, fetch: (input, init) => {
     if (new URL(input).pathname === "/auth/logout-all") sent.push(input);
@@ -95,7 +96,7 @@ test("global selection uses the principal's journal watermark for legacy session
   assert.equal(await probe(url, next.token), undefined); assert.equal(await probe(url, sibling.token), undefined);
 });
 
-test("another principal's watermark and legacy counter cannot block a same-scope rotated bearer", { timeout: 20_000 }, async t => {
+test("another principal's watermark and legacy counter cannot block a same-scope rotated bearer", { timeout: hangBudget(14) }, async t => {
   const { url } = await server(t), store = memorySessionStore(), key = sessionKey(url);
   const a = createApp({ url, sessionStore: store }); t.after(() => a.close()); await a.ready;
   await a.auth.signup("alice@example.com", "password-a");

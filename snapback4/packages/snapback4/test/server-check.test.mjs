@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -54,7 +55,7 @@ module.exports = { ...ts, sys: wrap({ ...ts.sys }), createCompilerHost: (...args
     }
     writeFileSync(entry, boundary === "readFile" ? "export default 0;\n" : 'import { value } from "../late/helper.js"; export default value;\n');
     const before = statSync(entry, { bigint: true });
-    const check = () => spawnSync(process.execPath, ["--input-type=module", "-e", checker, root, entry], { encoding: "utf8", timeout: 30_000 });
+    const check = () => spawnSync(process.execPath, ["--input-type=module", "-e", checker, root, entry], { encoding: "utf8", timeout: hangBudget() });
     const first = check();
     assert.equal(first.status, 1, first.stderr);
     assert.match(first.stderr, /E_SERVER_TYPECHECK/);

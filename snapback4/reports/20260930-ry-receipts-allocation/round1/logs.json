@@ -1,0 +1,114 @@
+{
+  "cli-build.log.gz": {
+    "uncompressed_sha256": "1bcd6e5a1e0d98336b452cb3569aef1e62b08b4cb7e43149426123405ca3ce66",
+    "uncompressed_bytes": 765
+  },
+  "cli-confirm.log.gz": {
+    "uncompressed_sha256": "19b4a8f0d3dbcdd9d3655b8f5b43fa8a010a8456659e58d4e9c727de85e611a9",
+    "uncompressed_bytes": 764
+  },
+  "cli-final.log.gz": {
+    "uncompressed_sha256": "97f327be6c44f93d6afb53af7920963da58a541cd0f0d4928588067e2483f24d",
+    "uncompressed_bytes": 819
+  },
+  "compile-second.log.gz": {
+    "uncompressed_sha256": "f04ae71d7fcd95691d3686b1df55a1c11ccfad88d8325b7c521f9157b5898a05",
+    "uncompressed_bytes": 1857
+  },
+  "compile.log.gz": {
+    "uncompressed_sha256": "e2e918adcfd38d22afea8aaa18fbe3b8ff8b0292dc643dbd4285058af5f812a6",
+    "uncompressed_bytes": 1186
+  },
+  "core-affected.log.gz": {
+    "uncompressed_sha256": "aa7ad93b91aad07293fcc74d1fe5a8b66ed82000d29860f693713726b72cd5de",
+    "uncompressed_bytes": 4686
+  },
+  "device-affected.log.gz": {
+    "uncompressed_sha256": "147ad8746400692c5b11e7b8bf79a9372b28757412f6e3dbb3cd28a19e93baa2",
+    "uncompressed_bytes": 197050
+  },
+  "device-final.log.gz": {
+    "uncompressed_sha256": "f27dd7bb7813ede01d550009e7166b9d1a6fd9284a5c8bcb2993be8fb506c142",
+    "uncompressed_bytes": 7856
+  },
+  "docs-budget-final.log.gz": {
+    "uncompressed_sha256": "80a35b43cd5f52501bfd4c9257f2d5beca99cb2e75c5b13ecabbd537612d0bb0",
+    "uncompressed_bytes": 343
+  },
+  "docs-budget.log.gz": {
+    "uncompressed_sha256": "8751ab0ecc0d2c00afcb3c56dd26219ddecfeb455a1c164d6ec22bfb17d19085",
+    "uncompressed_bytes": 772
+  },
+  "full-suite.log.gz": {
+    "uncompressed_sha256": "5580f838caaa6be779c23a8413af907f274a25c699a34888aca39dcd2d5a6718",
+    "uncompressed_bytes": 862343
+  },
+  "install.log.gz": {
+    "uncompressed_sha256": "eb4eac4a1db159e3afce41c3595401981f2973500568f8adda894778b293fe44",
+    "uncompressed_bytes": 96
+  },
+  "lang-affected.log.gz": {
+    "uncompressed_sha256": "204db262fe9a08dcc31ecc3cce0c9df13ee30bf5b371e7bde7c79a9ec7af0bcb",
+    "uncompressed_bytes": 2030
+  },
+  "lang-final.log.gz": {
+    "uncompressed_sha256": "25665ed9638b1c2f96e87cc8cb8c0dfa10fcf0ae7cc17cbd5f9689fd6f228121",
+    "uncompressed_bytes": 3062
+  },
+  "prediction-first.log.gz": {
+    "uncompressed_sha256": "d7e07f410633c5e8c4a59841d2c370405b62e3530340c94d7f2449dd23aee07c",
+    "uncompressed_bytes": 4343
+  },
+  "prediction-second.log.gz": {
+    "uncompressed_sha256": "f6da14ad3b9c762eab543c99079bad0f2d0fab8dda97468fdc3c0a1d5216462c",
+    "uncompressed_bytes": 789
+  },
+  "receipts-first.log.gz": {
+    "uncompressed_sha256": "4acbeed23cbcf6fd0d79ffce50f3f5334551491c157f6215440c7f1751fab143",
+    "uncompressed_bytes": 7347
+  },
+  "receipts-guide-final.log.gz": {
+    "uncompressed_sha256": "259a5daa82063d3eca80b1e360466c5130c7c34456cd7d40123c694ce91b9f8a",
+    "uncompressed_bytes": 12790
+  },
+  "receipts-guide.log.gz": {
+    "uncompressed_sha256": "064c4d7d4434da368e538d1e7a44e653cbd9afa578a2789c8529f60b44fc7f96",
+    "uncompressed_bytes": 12790
+  },
+  "ref-check-final.log.gz": {
+    "uncompressed_sha256": "a45cb68b5854711dd14be9b4eb5160d03c7c8b6e612a8c5f315ba7b15bf67f51",
+    "uncompressed_bytes": 81
+  },
+  "ref-check.log.gz": {
+    "uncompressed_sha256": "a79cc5eb2c4b315d64a5813f9c01d02605f6e428b6493049fbf9c2238ee595ea",
+    "uncompressed_bytes": 81
+  },
+  "sdk-build.log.gz": {
+    "uncompressed_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "uncompressed_bytes": 201
+  },
+  "starter-browser-second.log.gz": {
+    "uncompressed_sha256": "7da993910f3ecbe1c40149671caa2cec9a661bc99e63af3b518eacfe0d5c3900",
+    "uncompressed_bytes": 3950
+  },
+  "starter-final.log.gz": {
+    "uncompressed_sha256": "472d1de00d48eb12b1409773d90bdcbea672c34235e893aa5c0d6e790695fd88",
+    "uncompressed_bytes": 1365
+  },
+  "starter-first.log.gz": {
+    "uncompressed_sha256": "2771da4762c23be5e9d182bb1d9e2fc338108cf64d70035cb22086ade715dd4d",
+    "uncompressed_bytes": 2192
+  },
+  "wasm-confirm.log.gz": {
+    "uncompressed_sha256": "e9e0c664497d80b669ac6aff918cf52b124df7b5877669f79284b9b9234620d3",
+    "uncompressed_bytes": 8325
+  },
+  "wasm-final.log.gz": {
+    "uncompressed_sha256": "a9da395c358a6a0d08a8d977abd4b37470e48fa1cffde105a928fd95497bbe0f",
+    "uncompressed_bytes": 8325
+  },
+  "wasm-first.log.gz": {
+    "uncompressed_sha256": "59f7070ea8589ad1d21281e9cc35300209847dd7b61134720ae14e2eb9ab0b17",
+    "uncompressed_bytes": 8325
+  }
+}

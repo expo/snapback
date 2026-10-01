@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Generated action orders on the real server, facade, and (locally) Rust/wasm device.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -30,7 +31,7 @@ query list():
 function random(seed) { return () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return seed >>> 0; }; }
 
 for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "process"]) for (const seed of [23, 44, 445]) {
-  test(`createApp keep=${keep} property: ${tier}, seed ${seed}, 50ms authority`, { timeout: 120_000 }, async t => {
+  test(`createApp keep=${keep} property: ${tier}, seed ${seed}, 50ms authority`, { timeout: hangBudget(21) }, async t => {
     const { url, dir } = await server(t, undefined, source), memory = memorySessionStore(), next = random(seed);
     let delayed = false, offline = false, authorityReads = 0, pages = 0, predictions = 0, settlements = 0;
     const opener = tier === "process" ? processDevice({ binary, dir: join(dir, "device") }) : webDevice({ wasm, persist: memoryPersistence() });

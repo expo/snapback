@@ -123,6 +123,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_RECEIPT_PREDICTION", "N_RECEIPT_PREDICTION identifies the first static receipt dependency in a mutation; the whole mutation queues without a predicted row."),
     ("E_RECEIPTS_CLAUSE", "malformed declarations refuse `E_RECEIPTS_CLAUSE`"),
     ("E_RECEIPTS_OWNED", "Progress fields and runs refuse ordinary writes with `E_RECEIPTS_OWNED`"),
     ("EMPTY_READ", "EMPTY_READ is optional local evidence"),

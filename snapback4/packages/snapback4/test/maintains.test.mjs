@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real Quarry calendar keys and maintain cursors on wasm and the native device.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -17,7 +18,7 @@ const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_devi
 const source = "use personas alice, bob\ntable posts:\n  owner: principal\n  item: id\n  at: time\n  selected: bool\n  score: int\n  by byOwner: owner, at, id\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  sync last 1 by byOwner\nmaintain totals: sum posts of score where .selected by owner, item, day(.at)\n  read <- .owner = viewer\n  by byScore: owner, value, id\nquery groups(c: cursor ?):\n  return totals[viewer] after c first 50 by byGroup\nquery scoped(owner: principal, c: cursor ?):\n  return totals[owner] after c first 50 by byGroup\nquery rank(c: cursor ?):\n  return totals[viewer] after c last 10 by byScore\nquery calendar(at: time):\n  return {day: day(at), hour: hour(at), bucket: bucket(at, 2m)}\nmutation lower(row: posts):\n  update posts[row] {score: 1}\n";
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-for (const tier of ["wasm", "process"]) test(tier + ": calendar endpoints, full aggregate pages past a source horizon, and rank", { timeout: 60000 }, async t => {
+for (const tier of ["wasm", "process"]) test(tier + ": calendar endpoints, full aggregate pages past a source horizon, and rank", { timeout: hangBudget(15) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-d1-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source);
@@ -27,7 +28,7 @@ for (const tier of ["wasm", "process"]) test(tier + ": calendar endpoints, full 
   child.stdout.on("data", d => { log += d; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   child.stderr.on("data", d => { log += d; });
   t.after(async () => { await client?.close(); if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM"); await exit; rmSync(dir, {recursive:true, force:true}); });
-  for (let i=0; !url && i<750; i++) { assert.equal(child.exitCode, null, log); await sleep(20); }
+  await awaitState(async () => !(!url), "maintains.test.mjs: !url", { poll: async () => { assert.equal(child.exitCode, null, log); await sleep(20); } });
   assert.ok(url, log);
   const post = async (path, body) => fetch(url+path, {method:"POST", headers:{"x-snapback-persona":"bob"}, body:JSON.stringify(body)}).then(r=>r.json());
   const seed = Array.from({length:51}, (_, n) => ({table:"posts", row:{id:"p"+n, item:"i"+String(n).padStart(2,"0"), owner:"dev:bob", at:-1, selected:true, score:n+1}}));

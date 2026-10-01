@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../dist/app.js";
@@ -128,7 +129,7 @@ test("failed intent identity persistence refuses admission before any dispatch",
   await app.close(); f.failIdentity(false); await f.open(); assert.equal(f.sends.length, 0);
 });
 
-test("close detaches a held first-store probe without admitting its call", { timeout: 5000 }, async t => {
+test("close detaches a held first-store probe without admitting its call", { timeout: hangBudget(9) }, async t => {
   const f = await fixture(t), app = await f.open(), id = mintId(), probe = f.holdProbe();
   const writing = app.mutate(op, {}, { id }); await until(() => probe.entered);
   await app.close();

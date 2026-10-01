@@ -1,0 +1,22 @@
+{
+  "control": "refresh",
+  "revision": "round1",
+  "base": "33b412a54baf80d170cf197b65f6eda0ea7df2b9",
+  "scratch": "/tmp/wb-r1-controls-gzncxajy/refresh-round1/snapback4",
+  "command": [
+    "node",
+    "--test",
+    "packages/snapback4/test/presence-refresh.test.mjs"
+  ],
+  "exit": 1,
+  "elapsed_seconds": 7.097510093823075,
+  "inputs": {
+    "packages/snapback4/test/presence-refresh.test.mjs": "1f5da18e3bc5ce7dae6fe775c05789abf45d7c561612605a0e8c4f75427dd676",
+    "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+    "packages/snapback4/dist/presence-refresh.js": "048faa47b74b2f6d7e95d1e391708257e35b6607f17ef45f46a32a26bc8b8bd8",
+    "target/debug/snapback4": "d38499c79fdcc1107d99dd5886f442e412da9f6232b9fa340c239c47d3045c57"
+  },
+  "original_test_sha256": "1f5da18e3bc5ce7dae6fe775c05789abf45d7c561612605a0e8c4f75427dd676",
+  "product_before_sha256": "80e66d9f9a996af9cc8d2d10fe5ba61a2c49b56717c1a09a9b570de9d655929d",
+  "log_sha256": "7aab3e28b6dd8ad77cf67edf75c3933db1850274af435c8c2c79a0bc1f3de2ac"
+}

@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -82,7 +83,7 @@ test("a failed launch stops load workers, removes copies and refuses partial num
   assert.equal(existsSync(dirname(seed)), false);
 });
 
-test("the optional CPU load worker starts and exits without signing in the test", { timeout: 10000 }, async (t) => {
+test("the optional CPU load worker starts and exits without signing in the test", { timeout: hangBudget(1) }, async (t) => {
   const options = { ...fixture(t), n: 1, load: 1 };
   const record = await measureLaunch(options, {
     identity: () => "chosen", sign: () => ({}),

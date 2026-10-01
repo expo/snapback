@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 // @ref LLP 3000.023#3.4 — discovery, store boundaries and link loss end every retained answer.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,10 +12,7 @@ const parked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(signal.reason);
   else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
 });
-async function until(check) {
-  for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
-  assert.fail("online boundary did not settle");
-}
+async function until(check) { return awaitState(check); }
 
 for (const keep of [undefined, true]) test(`schema discovery withdraws an overlapping invalidation: keep=${keep}`, async t => {
   let wall = 1000, reads = 0, polls = 0, discovering = false;

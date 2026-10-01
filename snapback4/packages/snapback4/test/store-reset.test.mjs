@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -26,11 +27,7 @@ mutation add(body: text <=100):
 const query = { kind: "query", name: "all" };
 const mutation = { kind: "mutation", name: "add" };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function until(check, message) {
-  const end = Date.now() + 20000;
-  do { if (await check()) return; await sleep(20); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 async function fixture(t, durable = false) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-store-reset-"));
   mkdirSync(join(dir, "snapback")); writeFileSync(join(dir, "snapback/schema.q"), source);
@@ -80,7 +77,7 @@ async function fixture(t, durable = false) {
   return { start, seed, open, post, pages, writes, core: () => core, offline: (v) => { offline = v; }, interrupt: (v) => { interrupt = v; replies = 0; } };
 }
 
-test("wasm: persisted device reacquires after two backend replacements and preserves an unsent write", { timeout: 60000 }, async (t) => {
+test("wasm: persisted device reacquires after two backend replacements and preserves an unsent write", { timeout: hangBudget(28) }, async (t) => {
   const f = await fixture(t); await f.seed("A", 3);
   let client = await f.open();
   const acquired = await client.query(query, {});
@@ -117,7 +114,7 @@ test("wasm: persisted device reacquires after two backend replacements and prese
   t.diagnostic(`reacquired: B rows=${current.data.length}, C rows=${final.data.length}, pending POSTs=${f.writes.length}, resets=2`);
 });
 
-test("sync store identity survives a server restart; a live client detects an equal-watermark replacement", { timeout: 60000 }, async (t) => {
+test("sync store identity survives a server restart; a live client detects an equal-watermark replacement", { timeout: hangBudget(15) }, async (t) => {
   const f = await fixture(t, true); await f.seed("A", 3);
   let client = await f.open();
   const first = f.pages.at(-1).reply;
@@ -148,7 +145,7 @@ test("sync store identity survives a server restart; a live client detects an eq
   t.diagnostic(`server: identity length=${second.store_id.length}, restart IDs=1, replacement IDs=2, equal watermark=${second.watermark}`);
 });
 
-test("wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID", { timeout: 60000 }, async (t) => {
+test("wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID", { timeout: hangBudget(18) }, async (t) => {
   const f = await fixture(t); await f.seed("A", 1);
   let client = await f.open(); f.offline(true); await client.sync();
   const known = await client.mutate(mutation, { body: "known" });
@@ -172,7 +169,7 @@ test("wasm: a known receipt is not replayed to the replacement; an unknown recei
   t.diagnostic("receipts across reset: known POSTs=0, unknown POSTs=1, duplicate replay=true");
 });
 
-test("wasm: a replacement reloads backend programs even when the generation number repeats", { timeout: 60000 }, async (t) => {
+test("wasm: a replacement reloads backend programs even when the generation number repeats", { timeout: hangBudget(10) }, async (t) => {
   const f = await fixture(t); await f.seed("A", 1);
   let client = await f.open();
   assert.equal((await client.query(query, {})).data.length, 1);

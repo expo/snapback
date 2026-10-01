@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -14,15 +15,15 @@ async function runHelper(binary, directory) {
       error = new Error(`native helper timed out during ${phase}`);
       child.kill("SIGKILL");
     };
-    let timer = setTimeout(() => stop("process launch"), 120_000);
+    let timer = setTimeout(() => stop("process launch"), hangBudget());
     child.stdout.on("data", bytes => { stdout += bytes; });
     child.stderr.on("data", bytes => {
       stderr += bytes;
       if (!entered && stderr.split("\n").includes("SNAPBACK4_TEST_MAIN_REACHED")) {
         entered = true;
         clearTimeout(timer);
-        // Preserve the original execution bound after Swift main is reached.
-        timer = setTimeout(() => stop("execution"), 15_000);
+        // Start an independent execution hang guard after Swift main is reached.
+        timer = setTimeout(() => stop("execution"), hangBudget());
       }
     });
     child.on("error", failure => { error = failure; });
@@ -36,7 +37,7 @@ async function runHelper(binary, directory) {
 
 test("Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle", {
   skip: process.platform !== "darwin" ? "requires macOS Foundation and AVFoundation" : false,
-  timeout: 180_000, // compilation (40 s), OS launch (120 s), execution (15 s)
+  timeout: hangBudget(3), // Compilation, OS launch and native execution.
 }, async () => {
   const directory = mkdtempSync(join(tmpdir(), "snapback4-media-files-"));
   try {
@@ -44,7 +45,7 @@ test("Expo native media storage migrates MP4 filenames, decodes their URIs, and 
     const helper = fileURLToPath(new URL("../../snapback4-expo/ios/MediaFiles.swift", import.meta.url));
     const harness = fileURLToPath(new URL("../../snapback4-expo/test/MediaFilesTests.swift", import.meta.url));
     const architecture = process.arch === "arm64" ? "arm64" : "x86_64";
-    const build = spawnSync("xcrun", ["swiftc", "-swift-version", "5", "-target", `${architecture}-apple-macosx13.0`, helper, harness, "-o", binary], { encoding: "utf8", timeout: 40_000 });
+    const build = spawnSync("xcrun", ["swiftc", "-swift-version", "5", "-target", `${architecture}-apple-macosx13.0`, helper, harness, "-o", binary], { encoding: "utf8", timeout: hangBudget() });
     assert.equal(build.status, 0, `native helper compile failed: ${build.error ?? ""}\n${build.stdout}\n${build.stderr}`);
     const run = await runHelper(binary, directory);
     assert.equal(run.error, undefined, `${run.error ?? ""}\n${run.stdout}\n${run.stderr}`);

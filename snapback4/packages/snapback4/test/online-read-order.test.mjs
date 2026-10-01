@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -6,7 +7,7 @@ import { ReadObservation } from '../dist/read-observation.js';
 const q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'revoke' };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const ready = (data, seq = 1) => ({ data, seq, complete: true, tables: ['secrets'] });
-const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
+const until = async check => { return awaitState(check); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
 test('online keep:false reruns publish loading instead of keeping a previous answer', async t => {

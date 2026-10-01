@@ -1,0 +1,105 @@
+
+ℹ tests 4476
+ℹ suites 0
+ℹ pass 4462
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 9
+ℹ todo 0
+ℹ duration_ms 4439054.748664
+
+✖ failing tests:
+
+test at packages/snapback4/test/live-propagation-fallback.test.mjs:39:3
+✖ wasm: pending cut preserves transition before sync publication (2527.364712ms)
+  AssertionError [ERR_ASSERTION]: initial answer is local
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ordinary-search-oracle.test.mjs:356:5
+✖ ordinary search generated oracle wasm: 300 seeds (476373.21812ms)
+  AssertionError [ERR_ASSERTION]: [{"seed":75,"message":"unjustified cut refusal: {\"denied\":{\"code\":\"E_OFFLINE\",\"family\":\"link\",\"message\":\"the request did not complete: UND_ERR_SOCKET; check the connection and server logs before retrying\",\"retryable\":true}}"}]
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:390:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-react.test.mjs:100:1
+✖ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (5569.615994ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      calls: 2000,
+  +   loading: 499,
+  -   loading: 0,
+      rows: 1000
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/per-row-react.test.mjs:105:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { loading: 499, calls: 2000, rows: 1000 },
+    expected: { loading: 0, calls: 2000, rows: 1000 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/release-activation.test.mjs:280:1
+✖ stopped full-release restore preserves its recovery point and stays separate from the original (124318.883959ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'done' !== 'parked'
+  
+      at file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/release-activation.test.mjs:336:12
+      at async serve (file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/release-activation.test.mjs:76:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/release-activation.test.mjs:325:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'done',
+    expected: 'parked',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/unread-range.test.mjs:71:24
+✖ unread range wasm: meter-cut (29747.7769ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(partial.data > 0 && partial.data < 8300)
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/wb-proof-5/snapback4/packages/snapback4/test/unread-range.test.mjs:93:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — retired attempts release capacity and cannot publish late.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,15 +17,15 @@ const drain = async () => { for (let i = 0; i < 40; i++) await Promise.resolve()
 // Advance only zero-delay timers while real I/O completes; no deadline or probe moves.
 async function turns(t, work, label) {
   let done = false;
-  const result = Promise.resolve().then(work).finally(() => { done = true; });
-  const end = performance.now() + 10_000;
-  while (!done && performance.now() < end) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+  let failure;
+  const result = Promise.resolve().then(work).catch(error => { failure = error; }).finally(() => { done = true; });
+  await awaitState(() => done, label, { work: 8, poll: async () => { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); } });
   assert.ok(done, label);
+  if (failure) throw failure;
   return result;
 }
 async function settle(t, predicate, label) {
-  const end = performance.now() + 10_000;
-  while (!predicate() && performance.now() < end) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+  await awaitState(predicate, label, { work: 8, poll: async () => { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); } });
   assert.ok(predicate(), label);
 }
 const parked = signal => new Promise((_, reject) => {
@@ -51,7 +52,7 @@ async function deviceFixture(t, tier, wrap) {
 }
 
 for (const tier of ['online', 'wasm', 'process']) for (const [end, keep] of [['close', undefined], ['close', false], ['close', true], ['expire', undefined]]) {
-  test(`${tier} keep=${keep}: eight ${end === 'close' ? 'closed' : 'expired'} active reads cannot starve later observations or publish late`, { timeout: 4 * 60_000 }, async t => {
+  test(`${tier} keep=${keep}: eight ${end === 'close' ? 'closed' : 'expired'} active reads cannot starve later observations or publish late`, { timeout: hangBudget(10) }, async t => {
     const held = [], order = [], signals = [], watches = [];
     let client, allow = false;
     t.after(() => { allow = true; held.splice(0).forEach(release => release()); watches.forEach(w => w.close()); });
@@ -92,11 +93,10 @@ for (const tier of ['online', 'wasm', 'process']) for (const [end, keep] of [['c
       // Each barrier includes real device IPC. A fixed count of parent turns
       // can finish while the child is descheduled; only state proves progress.
       // Keep semantic time frozen until the explicit READ_WORK_LIFETIME step.
-      const deadline = performance.now() + 60_000;
-      while (!predicate() && performance.now() < deadline) {
+      await awaitState(predicate, 'controlled work made progress', { work: 8, poll: async () => {
         if (end === 'expire') t.mock.timers.tick(0);
         await new Promise(resolve => setImmediate(resolve));
-      }
+      } });
       assert.ok(predicate(), 'controlled work made progress');
     };
     await pump(() => held.length === 8);

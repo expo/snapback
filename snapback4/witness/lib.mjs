@@ -1,3 +1,4 @@
+import { hangBudget, waitFor } from '../packages/snapback4/test/helpers/wait.mjs';
 // What every Chromium witness needs: the local-first client bundled into a
 // page, a seeded `snapback4 dev`, and a browser with a CDP session for the
 // heap. Each witness seeds its own rows and measures its own thing.
@@ -74,16 +75,11 @@ export async function devServer({ seed, extraSource = "", sourceDir, port = 0, c
     }
   })();
   try {
-    let api;
-    const deadline = performance.now() + 5000;
-    while (!api) {
+    const api = await waitFor(() => {
       if (spawnError) throw spawnError;
       if (server.exitCode != null || server.signalCode != null) throw new Error(`dev exited before readiness: ${log}`);
-      api = output.match(/^http:\/\/127\.0\.0\.1:\d+\r?\n/m)?.[0].trim();
-      if (api) break;
-      if (performance.now() >= deadline) throw new Error(`dev readiness timed out: ${log}`);
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+      return output.match(/^http:\/\/127\.0\.0\.1:\d+\r?\n/m)?.[0].trim();
+    }, 'witness dev readiness', { diagnostics: () => log });
     const t0 = performance.now();
     const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then(r => r.json());
     const seedMs = +(performance.now() - t0).toFixed(1);
@@ -127,8 +123,9 @@ export async function launch({ seed, extraSource = "", headless = true, sourceDi
   const pageUrl = `http://127.0.0.1:${pageServer.address().port}/`;
   let browser;
   try {
-  browser = await chromium.launch({ executablePath: exe, headless });
+  browser = await chromium.launch({ executablePath: exe, headless, timeout: hangBudget() });
   const context = await browser.newContext();
+  context.setDefaultTimeout(hangBudget()); context.setDefaultNavigationTimeout(hangBudget());
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("Performance.enable");
@@ -170,9 +167,10 @@ export async function launchUnicode({ glue, bytes }) {
   const require = createRequire(join(root, 'package.json'));
   const { chromium } = require('playwright-core');
   const executablePath = chromiumExecutable();
-  const browser = await chromium.launch({ executablePath, headless: true });
+  const browser = await chromium.launch({ executablePath, headless: true, timeout: hangBudget() });
   try {
     const page = await browser.newPage();
+    page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const cdp = await page.context().newCDPSession(page);
     const version = await cdp.send('Browser.getVersion');
     await page.evaluate(async ({ glue, bytes }) => {

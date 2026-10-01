@@ -1,0 +1,87 @@
+[
+  {
+    "name": "heavy-1",
+    "suite_pid": 1606458,
+    "model_pid": 2685804,
+    "owned_model_pids": [
+      2685804,
+      2685815
+    ],
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "packages/snapback4/test/app-session-model.test.mjs"
+    ],
+    "at": "2026-10-01T03:34:48.738179+00:00",
+    "reason": "Ordinary stage completed. This model helper is superseded and its results are not credited; final follow-up runs both full-count tiers at final bytes."
+  },
+  {
+    "name": "heavy-2",
+    "suite_pid": 1606637,
+    "model_pid": 2680524,
+    "owned_model_pids": [
+      2680524,
+      2680551
+    ],
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "packages/snapback4/test/app-session-model.test.mjs"
+    ],
+    "at": "2026-10-01T03:34:48.743933+00:00",
+    "reason": "Ordinary stage completed. This model helper is superseded and its results are not credited; final follow-up runs both full-count tiers at final bytes."
+  },
+  {
+    "name": "heavy-3",
+    "suite_pid": 1606934,
+    "model_pid": 2685981,
+    "owned_model_pids": [
+      2685981,
+      2685992
+    ],
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "packages/snapback4/test/app-session-model.test.mjs"
+    ],
+    "at": "2026-10-01T03:34:48.749504+00:00",
+    "reason": "Ordinary stage completed. This model helper is superseded and its results are not credited; final follow-up runs both full-count tiers at final bytes."
+  },
+  {
+    "name": "heavy-4",
+    "suite_pid": 1606322,
+    "model_pid": 2684890,
+    "owned_model_pids": [
+      2684890,
+      2684917
+    ],
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "packages/snapback4/test/app-session-model.test.mjs"
+    ],
+    "at": "2026-10-01T03:34:48.754875+00:00",
+    "reason": "Ordinary stage completed. This model helper is superseded and its results are not credited; final follow-up runs both full-count tiers at final bytes."
+  },
+  {
+    "name": "heavy-5",
+    "suite_pid": 1606515,
+    "model_pid": 2686274,
+    "owned_model_pids": [
+      2686274,
+      2686280
+    ],
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "packages/snapback4/test/app-session-model.test.mjs"
+    ],
+    "at": "2026-10-01T03:34:48.761700+00:00",
+    "reason": "Ordinary stage completed. This model helper is superseded and its results are not credited; final follow-up runs both full-count tiers at final bytes."
+  }
+]

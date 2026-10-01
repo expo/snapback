@@ -1,3 +1,4 @@
+import { hangBudget } from '../../helpers/wait.mjs';
 const categories = new Set([
   "custody-registration",
   "custody-revalidation",
@@ -152,7 +153,7 @@ export async function closeExpectedProxy({ server, lifecycle, exchanges, current
   return currentFailure();
 }
 
-export async function stopOwnedChild(child, ownedChildren, milliseconds = 4_000) {
+export async function stopOwnedChild(child, ownedChildren, milliseconds = hangBudget()) {
   if (!ownedChildren.has(child)) return;
   const terminal = () => child.exitCode !== null || child.signalCode !== null;
   if (terminal()) { ownedChildren.delete(child); return; }

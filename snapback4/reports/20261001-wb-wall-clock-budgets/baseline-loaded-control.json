@@ -1,0 +1,19 @@
+{
+  "base": "91a111cd85044176ebcc7200449e16e968d276f5",
+  "command": [
+    "taskset",
+    "-c",
+    "10-19",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "/home/ccheever/sb4-intent/lane-wb/snapback4/target/wb-fallback-control/packages/snapback4/test/live-propagation-fallback.test.mjs"
+  ],
+  "test_sha256": "1bf6689fcdff182f1a667ecb8d47cc5c3117274e3d5fbf0df86efedc2e36cdd7",
+  "note": "Baseline test bytes; final test fixtures and unmodified built product. Shares CPU mask with still-running heavy-2 load.",
+  "exit": 1,
+  "tests": 10,
+  "passed": 9,
+  "failed": 1,
+  "failure": "wasm: pending cut preserves transition before sync publication: initial answer is local"
+}

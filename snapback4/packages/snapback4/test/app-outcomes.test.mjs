@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../dist/app.js";
@@ -27,7 +28,7 @@ for (const method of ["mutate", "act", "upload", "refreshSession", "write"]) tes
   else assert.equal((refused.why ?? refused.denied).code, "E_AUTH");
 });
 
-test("a held committed mutation returns pending at logout and replays once with its original id", { timeout: 20_000 }, async t => {
+test("a held committed mutation returns pending at logout and replays once with its original id", { timeout: hangBudget(15) }, async t => {
   const { url } = await server(t), held = gate(), store = memorySessionStore();
   let receipt, dispatches = 0;
   const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {

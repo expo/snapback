@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.007 §8.7: real /m replies and a process device's durable queue.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -37,11 +38,7 @@ mutation pass(owner: principal): server
   return n
 `;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-async function until(check, message) {
-  const end = Date.now() + 8000;
-  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 async function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-write-authority-"));
   mkdirSync(join(directory, "snapback"));
@@ -68,7 +65,7 @@ async function fixture(t) {
   return { directory, url, clients, request, seed };
 }
 
-test("write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation", { timeout: 20000 }, async (t) => {
+test("write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation", { timeout: hangBudget(8) }, async (t) => {
   const f = await fixture(t);
   const input = { id: "hidden", args: { key: "lookup" } };
   const first = await f.request("/m/put", "bob", input);
@@ -93,7 +90,7 @@ test("write authority: /m replay keeps only execution identity after hidden writ
   }
 });
 
-test("write authority: the client sends a queued unheld upsert without planting a pending row", { timeout: 20000 }, async (t) => {
+test("write authority: the client sends a queued unheld upsert without planting a pending row", { timeout: hangBudget(12) }, async (t) => {
   const f = await fixture(t);
   const storage = join(f.directory, "device"); mkdirSync(storage);
   const opener = processDevice({ binary, dir: storage, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
@@ -126,7 +123,7 @@ test("write authority: check --cost prints the bounded uniform pass and its exam
   assert.match(checked.stdout, /a pass over the first 10 rows of counters where \.owner = owner by byOwner; examined ceiling 8192/);
 });
 
-test("write authority: a lost readable key-collision reply cannot recover its key after revocation", { timeout: 20000 }, async (t) => {
+test("write authority: a lost readable key-collision reply cannot recover its key after revocation", { timeout: hangBudget(6) }, async (t) => {
   const f = await fixture(t);
   const other = { id: "other", key: "other", owner: "dev:alice", secret: "PRIVATE", amount: 0 };
   assert.equal((await f.request("/seed", "alice", [{ table: "counters", row: other }])).seeded, 1);
@@ -144,7 +141,7 @@ test("write authority: a lost readable key-collision reply cannot recover its ke
   for (const field of ["code", "site", "rewrite", "guide", "family", "retryable"]) assert.deepEqual(retry.why[field], first.why[field]);
 });
 
-for (const tier of ["online", "local"]) test(`replay card: ${tier} keeps a lost response's same-id receipt and fresh result`, { timeout: 20000 }, async (t) => {
+for (const tier of ["online", "local"]) test(`replay card: ${tier} keeps a lost response's same-id receipt and fresh result`, { timeout: hangBudget(9) }, async (t) => {
   const f = await fixture(t);
   const { createClient } = await import("../dist/client.js");
   let lose = false, replayOverHttp = false;

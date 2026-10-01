@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
@@ -6,7 +7,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { launch, root } from '../../../witness/lib.mjs';
 
-test('web review: acquisition lifetimes and bounded persistence', { timeout: 120_000 }, async t => {
+test('web review: acquisition lifetimes and bounded persistence', { timeout: hangBudget(146) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-web-review-'));
   const sourceDir = join(dir, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), `use personas alice, bob

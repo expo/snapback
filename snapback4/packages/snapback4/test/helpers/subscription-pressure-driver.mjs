@@ -1,3 +1,4 @@
+import { waitFor as awaitState } from './wait.mjs';
 import { ReadWork } from '../../dist/read-work.js';
 import { inspect } from '../../dist/inspection.js';
 import { answerObservation } from '../../dist/read-observation.js';
@@ -16,8 +17,7 @@ export async function pressureDriver(client, state, render = () => {}) {
     open('profile', { principal: 'dev:p' + i });
   }
   open('following', {}); open('discover', {}); open('search', { room: 'room', q: 'History' });
-  const end = performance.now() + 15000;
-  while (!watches.every(w => 'data' in w.getSnapshot())) { if (performance.now() > end) throw Error('initial observations timed out: ' + JSON.stringify(history.getSnapshot())); await delay(10); }
+  await awaitState(() => watches.every(w => 'data' in w.getSnapshot()), 'initial pressure observations', { work: watches.length, diagnostics: () => JSON.stringify(history.getSnapshot()) });
   for (const watch of watches) {
     const owner = answerObservation(watch.getSnapshot()); owners.push(owner);
     let queueEntry;

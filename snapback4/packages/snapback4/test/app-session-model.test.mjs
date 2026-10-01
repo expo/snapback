@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -255,7 +256,7 @@ const publicationSeed11 = [
   {"op": "capture", "app": 1, "account": 1, "hold": false, "fault": {"kind": "get", "at": 3}, "holdDispatch": true},
 ];
 
-test("publication seed 11: fair recovery waits for overlapping model work before owning its clock", { timeout: 30_000 }, async () => {
+test("publication seed 11: fair recovery waits for overlapping model work before owning its clock", { timeout: hangBudget(20 * 2) }, async () => {
   for (let replay = 0; replay < 20; replay++) {
     await Promise.all([
       execute(generate(11), {}, "online"),

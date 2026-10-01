@@ -1,0 +1,59 @@
+[
+  {
+    "name": "post-audit-negative",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "preserve_compound_source_marks_on_clean_outputs"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-ry/snapback4",
+    "started": "2026-10-01T02:20:57.163178+00:00",
+    "exit": 101,
+    "ended": "2026-10-01T02:21:08.437715+00:00"
+  },
+  {
+    "name": "post-audit-core",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-ry/snapback4",
+    "started": "2026-10-01T02:21:08.474957+00:00",
+    "exit": 0,
+    "ended": "2026-10-01T02:21:47.805186+00:00"
+  },
+  {
+    "name": "post-audit-receipts-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "declarative_receipts",
+      "--test",
+      "guide"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-ry/snapback4",
+    "started": "2026-10-01T02:21:47.805586+00:00",
+    "exit": 0,
+    "ended": "2026-10-01T02:26:07.541119+00:00"
+  },
+  {
+    "name": "post-audit-wasm",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-ry/snapback4",
+    "started": "2026-10-01T02:26:07.541540+00:00",
+    "exit": 0,
+    "ended": "2026-10-01T02:27:23.088150+00:00"
+  }
+]

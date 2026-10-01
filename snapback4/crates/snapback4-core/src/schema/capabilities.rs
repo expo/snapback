@@ -11,6 +11,8 @@ use std::collections::BTreeSet;
 struct Wire {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     receipts: Vec<ReceiptFamily>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
@@ -42,7 +44,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
-    ("declarative-receipts-v2", |s| !s.receipts.is_empty()),
+    ("declarative-receipts-v4", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
     ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),
@@ -125,6 +127,7 @@ impl<'de> Deserialize<'de> for Schema {
         if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }
+        schema.prepare_receipt_dependencies();
         Ok(schema)
     }
 }

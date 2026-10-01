@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real CLI, HTTP, supervised Node children and an on-disk provider double.
 // This proves the provider protocol under crashes, not a third-party adapter.
 import nodeTest from "node:test";
@@ -31,15 +32,7 @@ const safe = text => String(text).replace(/token \(printed once\): \S+/g, "token
 const jsonFile = file => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return undefined; } };
 const lines = file => { try { return readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse); } catch { return []; } };
 
-async function until(check, description, timeout = 10_000, diagnostics) {
-  const deadline = Date.now() + timeout;
-  for (;;) {
-    const result = await check();
-    if (result) return result;
-    if (Date.now() >= deadline) throw Error(`timed out: ${description}${diagnostics ? "\n" + safe(diagnostics()) : ""}`);
-    await delay(20);
-  }
-}
+async function until(check, description, diagnostics) { return awaitState(check, description, { diagnostics: () => safe(diagnostics?.() ?? '') }); }
 
 function project(t, source, entry) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-a2-e2e-"));
@@ -56,7 +49,7 @@ function project(t, source, entry) {
     await Promise.all(hosts.map(host => host.stop()));
     rmSync(directory, { recursive: true, force: true });
   });
-  const command = (args, env = {}) => spawnSync(binary, args, { cwd: directory, encoding: "utf8", timeout: 20_000, env: { ...process.env, SNAPBACK_NODE: NODE, ...env } });
+  const command = (args, env = {}) => spawnSync(binary, args, { cwd: directory, encoding: "utf8", timeout: hangBudget(), env: { ...process.env, SNAPBACK_NODE: NODE, ...env } });
   const checked = () => {
     const result = command(["check", "--json"]);
     assert.equal(result.status, 0, safe(result.stdout + result.stderr));
@@ -109,7 +102,7 @@ function project(t, source, entry) {
       return url;
     }, "server listening");
     const post = async (path, body = {}, credential, lease) => {
-      const response = await fetch(url + path, { method: "POST", signal: AbortSignal.timeout(10_000), headers: {
+      const response = await fetch(url + path, { method: "POST", signal: AbortSignal.timeout(hangBudget()), headers: {
         "content-type": "application/json", ...(credential ? { authorization: `Bearer ${credential}` } : { "x-snapback-persona": "alice" }),
         ...(lease ? { "x-snapback-action-lease": lease } : {}),
       }, body: JSON.stringify(body) });
@@ -120,7 +113,7 @@ function project(t, source, entry) {
       const value = await call(name, id, args, credential);
       if (value.denied) throw Error(JSON.stringify(value));
       return value.state === "pending" ? undefined : value;
-    }, `action ${name}/${id} settling`, 15_000, diagnostics);
+    }, `action ${name}/${id} settling`, diagnostics);
     return Object.assign(host, { url, token, operatorToken: operator.stdout.trim(), post, call, collect, command });
   }
   return { directory, command, checked, start, writeEntry(text) { writeFileSync(join(directory, "snapback/server.ts"), text); } };
@@ -139,7 +132,7 @@ import { setTimeout as delay } from "node:timers/promises";
 ${shutdown}`;
 const options = `{ signal: stop.signal, lease: 1, wait: 1, batch: 1, statusIntervalMs: 50 }`;
 
-test("check validates generated handler returns, arguments and declared secrets without executing the entry", { timeout: 30_000 }, t => {
+test("check validates generated handler returns, arguments and declared secrets without executing the entry", { timeout: hangBudget(1) }, t => {
   const source = "use server\naction echo(message: text <=80) returns { value: text <=80 } secrets [MAIL_KEY]\n";
   const p = project(t, source);
   const entry = body => `import { server } from "./generated/server.ts";\nthrow Error("typechecking must not execute the entry");\nexport default server({actions:{echo:${body}}});\n`;
@@ -180,7 +173,7 @@ query mine():
   return notes[viewer] first 20 by byOwner
 `;
 
-test("dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks", { timeout: 70_000 }, async t => {
+test("dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks", { timeout: hangBudget(19) }, async t => {
   const p = project(t, "use server\nuse personas alice\naction inspect() returns { value: text <=80 }\n", `${imports}
 import { value } from "../src/provider.ts";
 const worker = server({actions:{async inspect() { return {value:value()}; }}}, ${options});
@@ -214,13 +207,13 @@ export default worker; await worker.done;
   async function accepted(edit, expected) {
     const workers = f.workerPids().length;
     edit();
-    await until(() => f.workerPids().length > workers, `checked worker restarts for ${expected}`, 12_000, f.log);
+    await until(() => f.workerPids().length > workers, `checked worker restarts for ${expected}`, f.log);
     // Fresh invocation ids avoid mistaking an old durable action result for
     // the new handler. A checked graph must not itself count as another edit.
     await until(async () => {
       const result = await read();
       return result.state === "done" && result.result.value === expected;
-    }, `new handler returns ${expected}`, 12_000, f.log);
+    }, `new handler returns ${expected}`, f.log);
     await delay(1200);
     assert.equal(f.workerPids().length, workers + 1, "one accepted edit must restart exactly once\n" + f.log());
   }
@@ -230,7 +223,7 @@ export default worker; await worker.done;
     await until(() => {
       const log = f.log().slice(offset);
       return log.includes("E_SERVER_TYPECHECK") && log.includes("serving the previous generation") && diagnostic.test(log);
-    }, "invalid dependency is diagnosed before restart", 12_000, f.log);
+    }, "invalid dependency is diagnosed before restart", f.log);
     assert.equal(f.workerPids().length, workers, "invalid source must retain the previous worker\n" + f.log());
     await expectValue(expected);
   }
@@ -247,7 +240,7 @@ export default worker; await worker.done;
   await accepted(() => writeFileSync(baseConfig, "{}\n"), "resolved");
 });
 
-test("dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets", { timeout: 60_000 }, async t => {
+test("dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets", { timeout: hangBudget(5) }, async t => {
   // Longer than the supervisor redactor's 4096-byte read buffer: even
   // coalesced child writes must cross actual reader boundaries. Any leaked
   // byte is detectable, not only a contiguous copy of the complete secret.
@@ -316,7 +309,7 @@ await worker.done;
     const logged = await f.collect("logSecret", `log-${sink}`, {sink}, undefined, diagnostics);
     assert.equal(logged.state, "done", diagnostics());
     const {begin, end} = markers(sink);
-    await until(() => f.rawOutput().stderr.includes(end), `${sink} redaction END observed`, 10_000, diagnostics);
+    await until(() => f.rawOutput().stderr.includes(end), `${sink} redaction END observed`, diagnostics);
     const text = f.rawOutput().stderr.toString("utf8"), start = text.indexOf(begin), finish = text.indexOf(end);
     assert.ok(start >= 0 && finish > start, diagnostics());
     assert.equal(text.split(begin).length - 1, 1, diagnostics()); assert.equal(text.split(end).length - 1, 1, diagnostics());
@@ -327,7 +320,7 @@ await worker.done;
   assert.doesNotMatch(f.log(), /token \(printed once\)/);
 });
 
-test("scheduled generated action runs under its declared service seat", { timeout: 20_000 }, async t => {
+test("scheduled generated action runs under its declared service seat", { timeout: hangBudget(3) }, async t => {
   const p = project(t, `${notes}
 use server
 action tick(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:clock'
@@ -350,7 +343,7 @@ export default worker; await worker.done;
   assert.equal(records[0].read.data.length, 1); assert.equal(records[0].read.data[0].body, "scheduled");
 });
 
-test("raw HTTP settlement validates declared results terminally and never reclaims them", { timeout: 15_000 }, async t => {
+test("raw HTTP settlement validates declared results terminally and never reclaims them", { timeout: hangBudget(10) }, async t => {
   const p = project(t, "use server\nuse personas alice\naction shape() returns { ok: bool, text: text <=5 } retry 3 backoff 1s\n");
   const f = await p.start();
   for (const [index, result] of [{ ok: "wrong", text: "ok" }, { ok: true, text: "too long" }, { ok: true, text: "fine", extra: true }].entries()) {
@@ -373,7 +366,7 @@ test("raw HTTP settlement validates declared results terminally and never reclai
   }
 });
 
-test("cancellation and admitting-session revocation abort an in-flight context before later writes", { timeout: 25_000 }, async t => {
+test("cancellation and admitting-session revocation abort an in-flight context before later writes", { timeout: hangBudget(13) }, async t => {
   const p = project(t, `${notes}
 use server
 action wait() returns {} cancellation allow
@@ -389,18 +382,18 @@ export default worker; await worker.done;
 `);
   const f = await p.start();
   assert.equal((await f.call("wait", "cancelled")).state, "pending");
-  await until(() => jsonFile(join(p.directory, "started-cancelled.json")), "cancellable handler enters", 10_000, f.log);
+  await until(() => jsonFile(join(p.directory, "started-cancelled.json")), "cancellable handler enters", f.log);
   assert.equal((await f.post("/actions/cancelled/cancel")).request.why.code, "E_ACTION_CANCELLED");
-  const cancelled = await until(() => jsonFile(join(p.directory, "ended-cancelled.json")), "cancellation abort delivered", 10_000, f.log);
+  const cancelled = await until(() => jsonFile(join(p.directory, "ended-cancelled.json")), "cancellation abort delivered", f.log);
   assert.equal(cancelled.cancelled, true); assert.equal(cancelled.attempted.why.code, "E_ACTION_CANCELLED");
   assert.equal((await f.post("/q/mine", { args: {} })).data.length, 0);
   const minted = await f.post("/auth/session", { principal: "member:revoked" }, f.token);
   const session = minted.session;
   assert.ok(session?.token, JSON.stringify(minted));
   assert.equal((await f.call("wait", "revoked", {}, session.token)).state, "pending");
-  await until(() => jsonFile(join(p.directory, "started-revoked.json")), "revocable handler enters", 10_000, f.log);
+  await until(() => jsonFile(join(p.directory, "started-revoked.json")), "revocable handler enters", f.log);
   assert.equal((await f.post("/auth/logout", {}, session.token)).status, 200);
-  const revoked = await until(() => jsonFile(join(p.directory, "ended-revoked.json")), "authority revocation abort delivered", 10_000, f.log);
+  const revoked = await until(() => jsonFile(join(p.directory, "ended-revoked.json")), "authority revocation abort delivered", f.log);
   assert.equal(revoked.cancelled, false); assert.equal(revoked.attempted.why.code, "E_ACTION_AUTHORITY");
   const replacement = (await f.post("/auth/session", { principal: "member:revoked" }, f.token)).session;
   assert.equal((await f.post("/q/mine", { args: {} }, replacement.token)).data.length, 0);
@@ -455,7 +448,7 @@ async function provider(t, directory) {
 }
 
 // @ref LLP 3000.009#11-verification-obligations — distinguish both external-work crash cuts and never infer provider absence from an uncertain lookup.
-test("actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes", { timeout: 60_000 }, async t => {
+test("actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes", { timeout: hangBudget(10) }, async t => {
   const p = project(t, `${notes}
 use server
 action work(mode: enum('done', 'reconcile', 'park', 'changed', 'before', 'lookup-timeout', 'lookup-5xx', 'lookup-unreadable')) returns { value: text <=80, attempt: int, writeId: text <=26 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
@@ -519,13 +512,13 @@ export default worker; await worker.done;
   const f = await p.start({ env: { TEST_PROVIDER_URL: remote.url } });
   const beforeId = "crash-before";
   assert.equal((await f.call("work", beforeId, { mode: "before" })).state, "pending");
-  const cut = await until(() => jsonFile(join(p.directory, "before-provider-cut.json")), "durable pre-provider cut marker", 10_000, f.log);
+  const cut = await until(() => jsonFile(join(p.directory, "before-provider-cut.json")), "durable pre-provider cut marker", f.log);
   assert.equal(cut.stage, "after durable begin, before provider request/acceptance");
   assert.equal(cut.id, beforeId); assert.equal(cut.attempt, 1);
   assert.ok(f.workerPids().includes(cut.pid), "the cut marker belongs to this fixture's supervised worker");
   assert.deepEqual(remote.receipts().filter(receipt => receipt.key === cut.key), [], "no provider receipt exists at the cut");
   assert.deepEqual(remote.requests().filter(request => request.key === cut.key), [], "no provider request happened before the cut");
-  await until(() => { try { process.kill(cut.pid, 0); return false; } catch (error) { if (error.code === "ESRCH") return true; throw error; } }, "pre-provider worker PID dies", 10_000, f.log);
+  await until(() => { try { process.kill(cut.pid, 0); return false; } catch (error) { if (error.code === "ESRCH") return true; throw error; } }, "pre-provider worker PID dies", f.log);
 
   const settled = new Map([["before", await f.collect("work", beforeId, { mode: "before" })]]);
   for (const mode of ["done", "reconcile", "park", "changed", "lookup-timeout", "lookup-5xx", "lookup-unreadable"]) {
@@ -585,7 +578,7 @@ export default worker; await worker.done;
   assert.equal((await f.post("/q/mine", { args: {} })).data.length, 8, "one database write per invocation across worker crashes");
 });
 
-test("parked action operator disposition records known provider acceptance without resuming original work", { timeout: 30_000 }, async t => {
+test("parked action operator disposition records known provider acceptance without resuming original work", { timeout: hangBudget(9) }, async t => {
   const p = project(t, `use personas alice
 use identity
 table operatorDispositions:
@@ -676,7 +669,7 @@ export default worker; await worker.done;
   assert.equal(remote.receipts().filter(receipt => receipt.key === key).length, 1);
 });
 
-test("serve uses the same generated contract and declared environment across a supervised restart", { timeout: 25_000 }, async t => {
+test("serve uses the same generated contract and declared environment across a supervised restart", { timeout: hangBudget(6) }, async t => {
   const secret = "serve-a2-secret-value";
   const p = project(t, "use server\nuse identity\naction echo(message: text <=80) returns { value: text <=80, principal: principal } secrets [MAIL_KEY]\n", `${imports}
 appendFileSync(new URL("../serve-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid, declared:process.env.MAIL_KEY === ${JSON.stringify(secret)}, unrelated:process.env.A2_PARENT_ONLY ?? null, keys:Object.keys(process.env).sort()}) + "\\n", {flush:true});

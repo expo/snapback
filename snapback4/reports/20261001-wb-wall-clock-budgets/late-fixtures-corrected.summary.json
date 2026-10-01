@@ -1,0 +1,21 @@
+{
+  "log": "late-fixtures-corrected.log",
+  "sha256": "88f262e6939df229d30996d59f3a29d3ceefc53feaf128bdc78db62ccefb0ba2",
+  "summary": [],
+  "stages": [],
+  "inventory": [],
+  "rust": {},
+  "node_summaries": [
+    "ℹ tests 145",
+    "ℹ suites 0",
+    "ℹ pass 145",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 248474.825802"
+  ],
+  "wasm": [],
+  "asynchronous_errors": [],
+  "failures": []
+}

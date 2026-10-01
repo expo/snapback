@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Compile Quarry through the real CLI; run its admitted IR on both device stores.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -92,7 +93,7 @@ const source = `use personas alice
   insert privateNotes { conversation: 'one', owner: 'bob', body: 'hidden' }
 `.replace(/^ /gm, '');
 
-test('familiar forms preserve nested bindings, disclosure, helper semantics on wasm and native', {timeout: 60000}, async t => {
+test('familiar forms preserve nested bindings, disclosure, helper semantics on wasm and native', {timeout: hangBudget(36)}, async t => {
   const directory = mkdtempSync(join(tmpdir(), 'sb4-familiar-'));
   mkdirSync(join(directory, 'snapback'));
   writeFileSync(join(directory, 'snapback/schema.q'), source);
@@ -108,14 +109,14 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
     rmSync(directory, {recursive: true, force: true});
   });
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
-  const deadline = Date.now() + 30000;
+  const deadline = performance.now() + hangBudget();
   while (!url) {
     assert.equal(server.exitCode, null, log);
-    assert.ok(Date.now() < deadline, log);
+    assert.ok(performance.now() < deadline, log);
     await delay(20);
   }
   const online = async (kind, name, args = {}) => {
-    const response = await fetch(`${url}/${kind}/${name}`, {method: 'POST', headers: {'x-snapback-persona': 'alice', 'content-type': 'application/json'}, body: JSON.stringify({args}), signal: AbortSignal.timeout(30000)});
+    const response = await fetch(`${url}/${kind}/${name}`, {method: 'POST', headers: {'x-snapback-persona': 'alice', 'content-type': 'application/json'}, body: JSON.stringify({args}), signal: AbortSignal.timeout(hangBudget())});
     assert.equal(response.status, 200);
     const answer = await response.json();
     assert.equal(answer.denied, undefined, JSON.stringify(answer));

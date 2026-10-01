@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // Actual generated server entries, supervised Node 24 workers and HTTP ingress.
 // The local provider is a durable protocol witness, not a third-party adapter.
 import test from "node:test";
@@ -12,7 +13,7 @@ const jsonBody = value => Buffer.from(JSON.stringify(value));
 const auth = token => ({authorization:`Bearer ${token}`});
 const noSuccess = response => assert.ok(response.status >= 400, `${response.status}: ${response.text}`);
 
-test("HMAC sees exact non-UTF8 bytes; unsigned/wrong duplicates cannot admit or collect before or after success", {timeout:25_000}, async t => {
+test("HMAC sees exact non-UTF8 bytes; unsigned/wrong duplicates cannot admit or collect before or after success", {timeout:hangBudget(8)}, async t => {
   const p = fixture(t, hook, entry(`{billing:{verify, async handle(req, ctx) {
     const bytes = await req.rawBody();
     await save(ctx, createHash("sha256").update(bytes).digest("hex"));
@@ -50,7 +51,7 @@ test("HMAC sees exact non-UTF8 bytes; unsigned/wrong duplicates cannot admit or 
   assert.equal(f.leakedSecret(), false);
 });
 
-test("verifier exceptions and non-boolean results remain unavailable without durable admission", {timeout:25_000}, async t => {
+test("verifier exceptions and non-boolean results remain unavailable without durable admission", {timeout:hangBudget(2)}, async t => {
   const p = fixture(t, `
 route broken: post "/hooks/broken" as service:billing secrets [HOOK_KEY] wait 1s
 route malformed: post "/hooks/malformed" as service:billing wait 1s
@@ -69,7 +70,7 @@ route malformed: post "/hooks/malformed" as service:billing wait 1s
   assert.equal(f.leakedSecret(), false);
 });
 
-test("canonical fixture payment: signed duplicates, out-of-order revisions and durable backlog acknowledgements", {timeout:70_000}, workroomRoutes);
+test("canonical fixture payment: signed duplicates, out-of-order revisions and durable backlog acknowledgements", {timeout:hangBudget(1)}, workroomRoutes);
 
 function heldEntry() {
   return entry(`{billing:{verify, async handle(req, ctx) {
@@ -81,7 +82,7 @@ function heldEntry() {
   }}}`);
 }
 
-test("a pending 503 is followed by a same-body retry collecting the settled response once", {timeout:25_000}, async t => {
+test("a pending 503 is followed by a same-body retry collecting the settled response once", {timeout:hangBudget(6)}, async t => {
   const p = fixture(t, hook.replace("wait 2s", "wait 1s"), heldEntry());
   const f = await p.start(), body = Buffer.from("pending-delivery");
   const first = await f.signed("/hooks/billing", body);
@@ -98,7 +99,7 @@ test("a pending 503 is followed by a same-body retry collecting the settled resp
   assert.equal(p.inspect("SELECT * FROM r").length, 1);
 });
 
-test("an explicit 5xx Response retries the same invocation without duplicating its mutation", {timeout:25_000}, async t => {
+test("an explicit 5xx Response retries the same invocation without duplicating its mutation", {timeout:hangBudget(5)}, async t => {
   const p = fixture(t, hook.replace("wait 2s", "wait 250ms"), entry(`{billing:{verify, async handle(_, ctx) {
     const write = await save(ctx, "retry-on-5xx");
     record("attempts", {id:ctx.invocation.id, attempt:ctx.invocation.attempt, write});
@@ -118,7 +119,7 @@ test("an explicit 5xx Response retries the same invocation without duplicating i
   assert.equal(Object.hasOwn(attempts[1].write, "result"), false); assert.equal(p.inspect("SELECT * FROM r").length, 1);
 });
 
-test("actual worker crashes replay a completed step or reconcile uncertain provider acceptance", {timeout:40_000}, async t => {
+test("actual worker crashes replay a completed step or reconcile uncertain provider acceptance", {timeout:hangBudget(5)}, async t => {
   const p = fixture(t, hook.replace("[HOOK_KEY]", "[HOOK_KEY, PROVIDER_URL]").replace("wait 2s", "wait 500ms"), entry(`{billing:{verify, async handle(req, ctx) {
     const {mode} = JSON.parse(Buffer.from(await req.rawBody()).toString("utf8")) as {mode:string};
     const write = await save(ctx, mode);
@@ -145,7 +146,7 @@ test("actual worker crashes replay a completed step or reconcile uncertain provi
   for (const mode of ["completed", "uncertain"]) {
     const body = jsonBody({mode}), first = await f.signed("/hooks/billing", body);
     assert.equal(first.status, 503, first.text + "\n" + f.log());
-    const result = await until(async () => { const value = await f.signed("/hooks/billing", body); return value.status === 200 ? value : undefined; }, `${mode} step recovers after process death`, f.log, 15_000);
+    const result = await until(async () => { const value = await f.signed("/hooks/billing", body); return value.status === 200 ? value : undefined; }, `${mode} step recovers after process death`, f.log);
     assert.equal(result.json.attempt, 2);
     const attempts = p.records("attempts").filter(value => value.mode === mode);
     assert.deepEqual(attempts.map(value => value.attempt), [1, 2]); assert.equal(attempts[0].id, attempts[1].id);
@@ -160,7 +161,7 @@ test("actual worker crashes replay a completed step or reconcile uncertain provi
   assert.equal(p.records("crashes").length, 2); assert.equal(p.inspect("SELECT * FROM r").length, 2);
 });
 
-test("bounded invalid responses are terminal; only application GiveUp acknowledges, never infrastructure or ParkStep", {timeout:30_000}, async t => {
+test("bounded invalid responses are terminal; only application GiveUp acknowledges, never infrastructure or ParkStep", {timeout:hangBudget(4)}, async t => {
   const p = fixture(t, hook, entry(`{billing:{verify, async handle(req, ctx) {
     const mode = Buffer.from(await req.rawBody()).toString("utf8");
     await save(ctx, mode); record("handled", {mode, id:ctx.invocation.id});
@@ -187,7 +188,7 @@ test("bounded invalid responses are terminal; only application GiveUp acknowledg
   assert.equal(f.leakedSecret(), false);
 });
 
-test("session routes isolate identical bodies by principal and admitting session family", {timeout:25_000}, async t => {
+test("session routes isolate identical bodies by principal and admitting session family", {timeout:hangBudget(11)}, async t => {
   const p = fixture(t, 'route session: post "/session" wait 2s\n', entry(`{async session(req, ctx) {
     await save(ctx, "session delivery"); record("handled", {id:ctx.invocation.id, principal:ctx.principal});
     return Response.json({id:ctx.invocation.id, principal:ctx.principal});
@@ -208,7 +209,7 @@ test("session routes isolate identical bodies by principal and admitting session
   assert.equal(p.records("handled").length, 3); assert.equal(p.inspect("SELECT * FROM r").length, 3);
 });
 
-test("logout while a session route waits revokes its context before any later write or response", {timeout:25_000}, async t => {
+test("logout while a session route waits revokes its context before any later write or response", {timeout:hangBudget(6)}, async t => {
   const p = fixture(t, 'route session: post "/session" wait 2s\n', entry(`{async session(_, ctx) {
     record("started", {id:ctx.invocation.id});
     if (!ctx.invocation.signal.aborted) await new Promise<void>(resolve => ctx.invocation.signal.addEventListener("abort", () => resolve(), {once:true}));
@@ -225,7 +226,7 @@ test("logout while a session route waits revokes its context before any later wr
   assert.equal(p.inspect("SELECT * FROM r").length, 0);
 });
 
-test("disconnect after admission does not undo route work or force a new invocation", {timeout:25_000}, async t => {
+test("disconnect after admission does not undo route work or force a new invocation", {timeout:hangBudget(5)}, async t => {
   const p = fixture(t, hook, heldEntry()), f = await p.start(), stop = new AbortController(), body = Buffer.from("disconnect-after-admission");
   const pending = f.signed("/hooks/billing", body, {signal:stop.signal});
   // Observe the rejection immediately, so the deliberate abort cannot become
@@ -239,7 +240,7 @@ test("disconnect after admission does not undo route work or force a new invocat
   assert.equal(p.records("started").length, 1); assert.equal(p.inspect("SELECT * FROM r").length, 1);
 });
 
-test("actual non-loopback peers reach declared routes, but not dev personas or old worker/core doors", {timeout:25_000}, async t => {
+test("actual non-loopback peers reach declared routes, but not dev personas or old worker/core doors", {timeout:hangBudget(8)}, async t => {
   const ip = Object.values(networkInterfaces()).flat().find(value => value && !value.internal && value.family === "IPv4")?.address;
   if (!ip) { t.skip("no non-loopback IPv4 interface: real peer witness unavailable"); return; }
   const p = fixture(t, hook + 'route session: post "/session" wait 2s\n', entry(`{
@@ -262,7 +263,7 @@ test("actual non-loopback peers reach declared routes, but not dev personas or o
   noSuccess(await f.send("/hooks/billing", undefined, {origin, method:"GET"}));
 });
 
-test("raw body and header bounds refuse before verification or private work admission", {timeout:25_000}, async t => {
+test("raw body and header bounds refuse before verification or private work admission", {timeout:hangBudget(3)}, async t => {
   const p = fixture(t, hook, entry(`{billing:{verify, async handle(req) { record("handled", {}); return new Response(await req.rawBody()); }}}`));
   const f = await p.start();
   for (const [body, headers] of [[Buffer.alloc(65537, 255), {}], [Buffer.from("headers"), Object.fromEntries(Array.from({length:80}, (_, i) => [`x-field-${i}`, "value"]))]]) {
@@ -275,7 +276,7 @@ test("raw body and header bounds refuse before verification or private work admi
   assert.equal(p.records("handled").length, 1);
 });
 
-test("32 idle actions and 129 service routes still verify and complete the last route", {timeout:75_000}, async t => {
+test("32 idle actions and 129 service routes still verify and complete the last route", {timeout:hangBudget(3)}, async t => {
   const actions = Array.from({length:32}, (_, i) => `idle${String(i).padStart(3, "0")}`);
   const routes = Array.from({length:129}, (_, i) => `route${String(i).padStart(3, "0")}`);
   const last = routes.at(-1), path = `/hooks/${last}`;
@@ -300,7 +301,7 @@ test("32 idle actions and 129 service routes still verify and complete the last 
     };`,
   });
   const p = fixture(t, schema, source), f = await p.start(), body = Buffer.from("large-registry-delivery");
-  const first = await f.signed(path, body, {headers:{"x-delivery":"first"}, timeoutMs:30_000});
+  const first = await f.signed(path, body, {headers:{"x-delivery":"first"}, timeoutMs:hangBudget()});
   assert.equal(first.status, 200, first.text + "\n" + f.log());
   assert.deepEqual(first.json, {id:runs(p)[0]?.id, path, principal:"service:billing", delivery:"first"});
   assert.deepEqual(p.records("registry-verified"), [{path, delivery:"first", ok:true}]);
@@ -308,7 +309,7 @@ test("32 idle actions and 129 service routes still verify and complete the last 
 
   // Collection of an already settled body must reach that last verifier
   // afresh, while retaining the first admitted envelope and outcome.
-  const replay = await f.signed(path, body, {headers:{"x-delivery":"replay"}, timeoutMs:30_000});
+  const replay = await f.signed(path, body, {headers:{"x-delivery":"replay"}, timeoutMs:hangBudget()});
   assert.equal(replay.status, 200, replay.text + "\n" + f.log()); assert.deepEqual(replay.json, first.json);
   assert.deepEqual(p.records("registry-verified"), [{path, delivery:"first", ok:true}, {path, delivery:"replay", ok:true}]);
   assert.deepEqual(p.records("registry-handled"), [first.json]);

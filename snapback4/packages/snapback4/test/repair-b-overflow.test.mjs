@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP encoding at the unchanged 16 MiB ceiling, SQLite server storage,
 // and the production catch-up loop on both wasm and SQLite process devices.
 import test from "node:test";
@@ -37,11 +38,7 @@ query one(id: items):
 `;
 const id = i => `row-${String(i).padStart(2, "0")}`;
 const headers = { "x-snapback-persona": "alice" };
-async function until(check, message) {
-  const deadline = Date.now() + 20000;
-  do { if (await check()) return; await delay(20); } while (Date.now() < deadline);
-  assert.fail(message);
-}
+async function until(check, message) { return awaitState(check, message); }
 
 function parkedChanges(signal) {
   let cleanup;
@@ -84,7 +81,7 @@ async function fixture(t) {
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
   }
   async function post(path, body) {
-    const response = await fetch(url + path, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+    const response = await fetch(url + path, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(hangBudget()) });
     assert.equal(response.status, 200);
     return response.json();
   }
@@ -111,7 +108,7 @@ async function fixture(t) {
   return { post, start, seed, widen, open: rawOpen, url: () => url };
 }
 
-test("oversized indivisible commit replaces deferred effects on wasm and SQLite", { timeout: 90000 }, async t => {
+test("oversized indivisible commit replaces deferred effects on wasm and SQLite", { timeout: hangBudget(23) }, async t => {
   const f = await fixture(t);
   assert.equal((await f.post("/seed", [{ table: "counters", row: { id: "a", n: 0 } }])).seeded, 1);
   const devices = [];

@@ -1,0 +1,7 @@
+[
+  "crates/snapback4-lang/src/guide/social.rs",
+  "crates/snapback4/src/verbs/init/social/Direct.tsx",
+  "packages/snapback4/test/delivery-integrated.test.mjs",
+  "packages/snapback4/test/helpers/social-direct-browser.mjs",
+  "packages/snapback4/test/social-browser.test.mjs"
+]

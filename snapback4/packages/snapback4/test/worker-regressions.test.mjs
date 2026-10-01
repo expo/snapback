@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -13,10 +14,7 @@ const { WorkerLedger } = await import(process.env.SNAPBACK4_TEST_WORKER_LEDGER ?
 
 const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../target/debug/snapback4', import.meta.url));
 const workerModule = new URL('../dist/worker.js', import.meta.url).href;
-async function until(fn) {
-  for (let i = 0; i < 240; i++) { if (await fn()) return; await sleep(50); }
-  assert.fail('worker regression timed out');
-}
+async function until(fn) { return awaitState(fn); }
 function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
 function alive(pid) {
   try {
@@ -110,7 +108,7 @@ for (const scope of ['snapback', 'project', 'ancestor']) test(`named snapshot re
     writeFileSync(join(project,'snapback/workers/push.mjs'),idle);
   }
   symlinkSync(outside,manifest);
-  const result=spawnSync(binary,['dev','--port','0','--no-watch'],{cwd:project,encoding:'utf8',timeout:1500});
+  const result=spawnSync(binary,['dev','--port','0','--no-watch'],{cwd:project,encoding:'utf8',timeout:hangBudget()});
   assert.match(result.stderr,/workers:.*(symbolic|symlink|regular|loop)/i);
   assert.equal(existsSync(join(project,'starts')),false);
 });
@@ -246,7 +244,7 @@ test('automatic worker executes validated entry and relative helper after source
   assert.equal(readFileSync(join(f.dir, 'values'), 'utf8'), 'validated');
 });
 
-for (const check of ['query fence', 'retirement custody']) test(`removed worker retains ${check} while deletion is locked`, { timeout: 35_000 }, async t => {
+for (const check of ['query fence', 'retirement custody']) test(`removed worker retains ${check} while deletion is locked`, { timeout: hangBudget(10) }, async t => {
   const f = fixture(t, idle + `\nprocess.on('SIGTERM',()=>{appendFileSync('terms','stopping');});`);
   writeFileSync(join(f.dir, 'snapback/schema.q'), 'query who():\n  return viewer\nmutation send():\n  return true\n');
   const s = await f.start([], {}, true);
@@ -282,7 +280,7 @@ for (const check of ['query fence', 'retirement custody']) test(`removed worker 
   assert.equal(alive(first.pid), false);
 });
 
-test('restart refuses an entry symlink already rejected by discovery', {timeout: 20_000}, async t => {
+test('restart refuses an entry symlink already rejected by discovery', {timeout: hangBudget(6)}, async t => {
   const f = fixture(t, idle), s = await f.start([], {}, true);
   await until(() => rows(join(f.dir, 'starts')).length === 1);
   const first = rows(join(f.dir, 'starts'))[0];
@@ -300,7 +298,7 @@ test('restart refuses an entry symlink already rejected by discovery', {timeout:
   await until(() => rows(join(f.dir, 'starts')).length === 2);
 });
 
-test('launch executes validated entry and helper bytes after source paths are replaced', {timeout: 20_000}, async t => {
+test('launch executes validated entry and helper bytes after source paths are replaced', {timeout: hangBudget(3)}, async t => {
   const f = fixture(t, `import { value } from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
   mkdirSync(join(f.dir, 'snapback/workers/helpers'));
   writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "export const value='validated';");
@@ -319,7 +317,7 @@ test('launch executes validated entry and helper bytes after source paths are re
   assert.equal(readFileSync(join(f.dir, 'values'), 'utf8'), 'validated');
 });
 
-test('watchdog SIGKILL terminates its Node group before replacement', {timeout: 20_000}, async t => {
+test('watchdog SIGKILL terminates its Node group before replacement', {timeout: hangBudget(3)}, async t => {
   const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
 const helper=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
 appendFileSync('starts',JSON.stringify({pid:process.pid,watchdog:process.ppid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
@@ -359,7 +357,7 @@ test('ledger commits with FULL synchronization and durable journaling', async t 
   }
 });
 
-test('new declarations retry failed admission after Node is repaired without another source edit', {timeout:25_000}, async t => {
+test('new declarations retry failed admission after Node is repaired without another source edit', {timeout:hangBudget(3)}, async t => {
   const f = fixture(t), wrapper = join(f.dir, 'node-wrapper');
   writeFileSync(join(f.dir, 'bad-node'), '');
   writeFileSync(wrapper, `#!/bin/bash\nif [ "$1" = --version ] && [ -f '${f.dir}/bad-node' ]; then printf 'v23.0.0\\n'; exit 0; fi\nexec '${process.execPath}' "$@"\n`);
@@ -373,7 +371,7 @@ test('new declarations retry failed admission after Node is repaired without ano
   assert.equal(s.log.match(/schema adopted as generation/g)?.length ?? 0, adoptions);
 });
 
-for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`watchdog ${signal} completes group cleanup without a live supervisor`, {timeout:10_000}, async t => {
+for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`watchdog ${signal} completes group cleanup without a live supervisor`, {timeout:hangBudget(5)}, async t => {
   const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
 const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
 process.on('SIGTERM',()=>{});appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
@@ -403,7 +401,7 @@ test('ledger open waits for a busy writer before becoming ready', async t => {
   const ledger=await opening;ledger.close();assert.equal(ready,true);
 });
 
-test('failed revocation blocks restart until the retired bearer is refused', { timeout: 35_000 }, async t => {
+test('failed revocation blocks restart until the retired bearer is refused', { timeout: hangBudget(7) }, async t => {
   const f = fixture(t, idle), s = await f.start();
   await until(() => rows(join(f.dir, 'starts')).length === 1);
   const first = rows(join(f.dir, 'starts'))[0];
@@ -423,7 +421,7 @@ test('failed revocation blocks restart until the retired bearer is refused', { t
   assert.equal(s.log.includes(first.token), false);
 });
 
-test('rotation retires the old bearer even while its stored expiry still stands', { timeout: 15_000 }, async t => {
+test('rotation retires the old bearer even while its stored expiry still stands', { timeout: hangBudget(6) }, async t => {
   const f = fixture(t, idle), s = await f.start();
   await until(() => rows(join(f.dir, 'starts')).length === 1);
   const first = rows(join(f.dir, 'starts'))[0];
@@ -455,7 +453,7 @@ for (const where of ['schema', 'root', 'entry', 'helper', 'fifo']) test(`worker 
   else if (where === 'entry') symlinkSync(join(outside, 'push.mjs'), join(workers, 'push.mjs'));
   else if (where === 'helper') symlinkSync(outside, join(workers, 'helpers'));
   else assert.equal(spawnSync('mkfifo', [join(workers, 'pipe')]).status, 0);
-  const result = spawnSync(binary, ['deploy', join(f.dir, 'release')], { cwd: f.dir, encoding: 'utf8', timeout: 10_000 });
+  const result = spawnSync(binary, ['deploy', join(f.dir, 'release')], { cwd: f.dir, encoding: 'utf8', timeout: hangBudget() });
   assert.notEqual(result.status, 0, 'unsafe source must not deploy');
   assert.match(result.stderr, /worker|symlink|regular/i);
   assert.equal(existsSync(join(f.dir, 'release/releases/1/snapback/workers/.env.test')), false);
@@ -474,7 +472,7 @@ test('worker snapshot retains regular nested helper bytes and permissions', t =>
   assert.equal(statSync(copy).mode & 0o777, 0o750);
 });
 
-test('fresh stores and replacement stores cannot replay another store completion', { timeout: 30_000 }, async t => {
+test('fresh stores and replacement stores cannot replay another store completion', { timeout: hangBudget(6) }, async t => {
   const source = `import { appendFileSync } from 'node:fs';
 import { runWorker } from ${JSON.stringify(workerModule)};
 appendFileSync('starts',JSON.stringify({pid:process.pid,ledger:process.env.SNAPBACK_WORKER_LEDGER})+'\\n');
@@ -498,7 +496,7 @@ effects:{notify:(_payload,meta)=>{appendFileSync('actions',JSON.stringify({id:me
   assert.ok(paths.slice(0, 2).every(p => !p.startsWith(join(f.dir, '.snapback4'))));
 });
 
-for (const death of ['worker', 'SIGTERM', 'SIGKILL']) test(`${death} stops worker descendants`, { timeout: 20_000 }, async t => {
+for (const death of ['worker', 'SIGTERM', 'SIGKILL']) test(`${death} stops worker descendants`, { timeout: hangBudget(6) }, async t => {
   const source = `import { spawn } from 'node:child_process'; import { appendFileSync } from 'node:fs';
 const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
 appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`;
@@ -534,7 +532,7 @@ for (const bad of ['corrupt', 'schema', 'receipt', 'parent-file']) test(`ledger 
   assert.equal(errors.length, 1);
 });
 
-test('named workers receive only entry-named declared secrets, defaulting to none', { timeout: 15_000 }, async t => {
+test('named workers receive only entry-named declared secrets, defaulting to none', { timeout: hangBudget(2) }, async t => {
   const f = fixture(t);
   writeFileSync(join(f.dir, 'snapback/schema.q'), 'effect notify secrets [WK_PUSH_KEY]\neffect digest secrets [WK_MAIL_KEY]\nquery hello():\n  return true\n');
   for (const name of ['push', 'plain']) writeFileSync(join(f.dir, `snapback/workers/${name}.mjs`), `${name === 'push' ? '// snapback4 secrets: WK_PUSH_KEY' : ''}
@@ -548,7 +546,7 @@ setInterval(()=>{},1000);`);
   }
 });
 
-test('shutdown starts every worker grace period together', { timeout: 15_000 }, async t => {
+test('shutdown starts every worker grace period together', { timeout: hangBudget(3) }, async t => {
   const f = fixture(t);
   for (let i = 0; i < 4; i++) writeFileSync(join(f.dir, `snapback/workers/w${i}.mjs`), `import {appendFileSync} from 'node:fs';
 process.on('SIGTERM',()=>appendFileSync('terms',JSON.stringify({pid:process.pid,at:Date.now()})+'\\n'));
@@ -562,7 +560,7 @@ appendFileSync('starts',JSON.stringify({pid:process.pid})+'\\n');setInterval(()=
   for (const row of terms) assert.equal(alive(row.pid), false);
 });
 
-test('repeated secret admission failures increase restart backoff', { timeout: 15_000 }, async t => {
+test('repeated secret admission failures increase restart backoff', { timeout: hangBudget(2) }, async t => {
   const f = fixture(t, '// snapback4 secrets: UNDECLARED_KEY\n'+idle), s = await f.start();
   const failures = () => s.events.filter(e => e.text.includes('UNDECLARED_KEY is not a declared'));
   await until(() => failures().length >= 4);

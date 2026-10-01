@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // React's actual effect/subscription replay, with controlled transport and
 // observations. Skipped only when Chromium is unavailable; no backend or
 // simulator is launched. React Native host views are DOM stubs, so these cover
@@ -142,9 +143,10 @@ test("React hooks and reference-app lifetimes", async (t) => {
       }],
     });
     await server.listen();
-    browser = await chromium.launch({ executablePath, headless: true });
+    browser = await chromium.launch({ timeout: hangBudget(), executablePath, headless: true });
     const context = await browser.newContext();
     const page = await context.newPage();
+  page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(server.resolvedUrls.local[0]);
@@ -160,6 +162,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
     }
     await t.test("shared online journal invalidates pending hooks across browser tabs", async () => {
       const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
       try {
         await peer.goto(server.resolvedUrls.local[0]);
         await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
@@ -184,6 +187,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
     });
     await t.test("closing the last journal owner during admission still invalidates another tab", async () => {
       const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
       try {
         await peer.goto(server.resolvedUrls.local[0]);
         await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
@@ -206,6 +210,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
     });
     await t.test("clearing localStorage in another tab invalidates the journal hook", async () => {
       const peer = await page.context().newPage();
+  peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
       try {
         await peer.goto(server.resolvedUrls.local[0]);
         const admitted = await page.evaluate(async () => {

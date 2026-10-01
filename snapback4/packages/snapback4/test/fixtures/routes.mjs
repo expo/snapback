@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from '../helpers/wait.mjs';
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
@@ -20,15 +21,7 @@ const safe = text => String(text).replaceAll(KEY, "[REDACTED]").replace(/token \
 export const sign = body => createHmac("sha256", KEY).update(body).digest("hex");
 export const lines = path => { try { return readFileSync(path, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse); } catch { return []; } };
 
-export async function until(check, description, diagnostics = () => "", milliseconds = 10_000) {
-  const end = Date.now() + milliseconds;
-  for (;;) {
-    const value = await check();
-    if (value) return value;
-    if (Date.now() >= end) throw Error(`timed out: ${description}\n${safe(diagnostics())}`);
-    await delay(20);
-  }
-}
+export async function until(check, description, diagnostics = () => "") { return awaitState(check, description, { diagnostics: () => safe(diagnostics?.() ?? '') }); }
 
 const journal = `use server
 use personas alice, bob
@@ -90,17 +83,17 @@ export function fixture(t, schema, source) {
   writeFileSync(join(directory, "snapback/server.ts"), source);
   const hosts = [];
   t.after(async () => { await Promise.all(hosts.map(host => host.stop())); rmSync(directory, {recursive:true, force:true}); });
-  const command = (args, env = {}) => spawnSync(binary, args, {cwd:directory, encoding:"utf8", timeout:20_000, env:{...process.env, SNAPBACK_NODE:process.execPath, ...env}});
+  const command = (args, env = {}) => spawnSync(binary, args, {cwd:directory, encoding:"utf8", timeout:hangBudget(), env:{...process.env, SNAPBACK_NODE:process.execPath, ...env}});
   const inspect = (sql, ...args) => {
     const db = new DatabaseSync(database, {readOnly:true});
-    try { db.exec("PRAGMA busy_timeout=3000"); return db.prepare(sql).all(...args); } finally { db.close(); }
+    try { db.exec(`PRAGMA busy_timeout=${hangBudget()}`); return db.prepare(sql).all(...args); } finally { db.close(); }
   };
   // Logical data/work/audit snapshots, excluding unrelated supervisor metadata.
   // A read transaction gives every compared table the same SQLite snapshot.
   const snapshot = () => {
     const db = new DatabaseSync(database, {readOnly:true});
     try {
-      db.exec("PRAGMA busy_timeout=3000; BEGIN");
+      db.exec(`PRAGMA busy_timeout=${hangBudget()}; BEGIN`);
       const tables = ["r", "_commits", "_log", "_ops", "_requests", "_action_steps", "_principals", "_principal_generations"];
       return JSON.stringify(tables.map(name => [name, db.prepare(`SELECT * FROM ${name}`).all().map(row => JSON.stringify(row)).sort()])
         .concat([["delegated_sessions", db.prepare("SELECT * FROM _sessions WHERE kind = 'action'").all().map(row => JSON.stringify(row)).sort()]]));
@@ -132,7 +125,7 @@ export function fixture(t, schema, source) {
     await until(() => { if (error) throw error; if (exited) throw Error(host.log() || "host exited before listening"); return port; }, "route host listening", host.log);
     await until(() => lines(join(directory, "ready.jsonl")).length > readyBefore, "generated server entry ready", host.log);
     const url = `http://127.0.0.1:${port}`;
-    const send = async (path, body = Buffer.alloc(0), { headers = {}, method = "POST", origin = url, signal, timeoutMs = 15_000 } = {}) => {
+    const send = async (path, body = Buffer.alloc(0), { headers = {}, method = "POST", origin = url, signal, timeoutMs = hangBudget() } = {}) => {
       const response = await fetch(origin + path, {method, headers, ...(method === "POST" ? {body} : {}), signal:signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)});
       const bytes = Buffer.from(await response.arrayBuffer()); let json;
       try { json = JSON.parse(bytes.toString("utf8")); } catch {}

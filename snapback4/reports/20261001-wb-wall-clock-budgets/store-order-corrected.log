@@ -1,0 +1,23 @@
+✔ replayed mutation cannot lower the query floor (48.317221ms)
+✔ replayed mutation cannot lower the observation floor (44.243913ms)
+✔ closing while a stale HTTP body is in flight prevents publication and refetch (263.556116ms)
+✔ same-store head regression reports E_STORE_RESTORE and stops polling and reading (122.11058ms)
+✔ a change response captured before a write is not evidence of a same-store restore (23.106272ms)
+✔ direct stale-sequence reads back off and stop after four requests (431.91266ms)
+✔ observed stale-sequence reads back off and stop after four requests (442.702552ms)
+✔ closing the last owner during backoff cancels the next stale-response request (2.730205ms)
+✖ packages/snapback4/test/online-store-order.test.mjs (73098.906876ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73104.942498
+
+✖ failing tests:
+
+test at packages/snapback4/test/online-store-order.test.mjs:1:1
+✖ packages/snapback4/test/online-store-order.test.mjs (73098.906876ms)
+  'Promise resolution is still pending but the event loop has already resolved'

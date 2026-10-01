@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -13,7 +14,7 @@ import { memoryPersistence, webDevice } from '../dist/web.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-const until = async (check, message) => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail(message); };
+const until = async (check, message) => { return awaitState(check, message); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 // runLocal registers its cleanup before client.query awaits its result. Tap
 // that cleanup to deliver a concurrent commit after runLocal's own fence but
@@ -65,7 +66,7 @@ mutation revoke(room: text <=40):
 `;
 
 for (const tier of ['wasm', 'process']) for (const boundary of ['watch', 'query', 'query return'])
-  test(`composed ${boundary} ${tier}: revocation fences pre-revocation server fields`, { timeout: 30_000 }, async t => {
+  test(`composed ${boundary} ${tier}: revocation fences pre-revocation server fields`, { timeout: hangBudget(25) }, async t => {
     const observation = boundary === 'watch', finalFence = boundary === 'query return';
     const directory = mkdtempSync(join(tmpdir(), 'sb4-composed-authority-'));
     mkdirSync(join(directory, 'snapback'));

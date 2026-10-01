@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.016#5 — replay server-produced fault schedules through both actual device hosts.
 // scripts/test.sh runs the Rust producer before client tests. For this file alone:
 // cargo test -p snapback4-device --test event_slots_trace
@@ -16,7 +17,7 @@ const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_devi
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 for (const tier of ["wasm", "native"]) {
   for (const trace of traces) {
-    test(`event slots ${tier}: ${trace.name}`, { timeout: 30000 }, async t => {
+    test(`event slots ${tier}: ${trace.name}`, { timeout: hangBudget(5) }, async t => {
       const dir = mkdtempSync(join(tmpdir(), "sb4-event-slots-"));
       const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir });
       let device = await opener.open("device", trace.backend);

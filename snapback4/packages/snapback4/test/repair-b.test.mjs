@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Native round trip uses the same Device without requiring a wasm build.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +25,7 @@ mutation bump():
   c = counters['a'] ! else NOT_FOUND
   update counters['a'] {n: c.n + 1}
 `;
-test("Repair B carries both bounds and resumes a private transfer cursor", { timeout: 60_000 }, async t => {
+test("Repair B carries both bounds and resumes a private transfer cursor", { timeout: hangBudget(27) }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-repair-b-"));
   mkdirSync(join(directory, "snapback"));
   mkdirSync(join(directory, "devices"));
@@ -35,7 +36,7 @@ test("Repair B carries both bounds and resumes a private transfer cursor", { tim
   server.stderr.on("data", chunk => { log += chunk; });
   t.after(async () => { await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(log)), 15_000);
+    const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
     server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
   });
@@ -108,14 +109,14 @@ test("Repair B carries both bounds and resumes a private transfer cursor", { tim
   const remaining = (await ok({ op: "queued" })).find(q => q.id === "alice");
   assert.ok(!remaining || remaining.observed_seq === sent.seq);
   await client.query({ kind: "query", name: "counter" }, {});
-  for (let i = 0; i < 100 && watch.getSnapshot().data?.n !== 2; i++) await new Promise(resolve => setTimeout(resolve, 10));
+  await awaitState(async () => !(watch.getSnapshot().data?.n !== 2), "repair-b.test.mjs: watch.getSnapshot().data?.n !== 2", { poll: async () => { await new Promise(resolve => setTimeout(resolve, 10)); } });
   assert.equal(watch.getSnapshot().data.n, 2);
   assert.ok(watched.length > 0);
   assert.ok(watched.every(n => n <= 2), JSON.stringify(watched));
   assert.ok(observed.every(n => n <= 2), JSON.stringify(observed));
 });
 
-test("catch-up requests adopt the device transfer cursor", { timeout: 5000 }, async () => {
+test("catch-up requests adopt the device transfer cursor", { timeout: hangBudget(3) }, async () => {
   // Exercise the live TypeScript transport without a server/device build.
   // The stub supplies durable cursor facts only; it does not implement replay.
   const { createLocalClient: create } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
@@ -163,7 +164,7 @@ test("catch-up requests adopt the device transfer cursor", { timeout: 5000 }, as
   } finally { await client.close(); }
 });
 
-test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }, async () => {
+test("interrupted snapshot catch-up resumes its durable mode", { timeout: hangBudget(4) }, async () => {
   const { createLocalClient: create } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   const backend = { generation: 1, schema: { tables: {} }, programs: [] };
   let staged = false, published = 0, failures = 1;
@@ -224,7 +225,7 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
   } finally { await client.close(); }
 });
 
-test("generation adoption compares published identity during private acquisition", { timeout: 5000 }, async () => {
+test("generation adoption compares published identity during private acquisition", { timeout: hangBudget(3) }, async () => {
   const { createLocalClient: create } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   let generation = 1, staged = false, published = 0, adopted = 0, serverGeneration = 1;
   const stateReads = [];
@@ -279,7 +280,7 @@ test("generation adoption compares published identity during private acquisition
   } finally { await client.close(); }
 });
 
-test("row reset between A2 acquisition and B fetches B's backend and retires A's receipt", { timeout: 60_000 }, async t => {
+test("row reset between A2 acquisition and B fetches B's backend and retires A's receipt", { timeout: hangBudget(28) }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-repair-b-reset-"));
   const servers = [];
   let client, core, deviceName, switched = false, adoptedA2 = false, bSchemas = 0, schemaReads = 0, receipt;
@@ -295,7 +296,7 @@ test("row reset between A2 acquisition and B fetches B's backend and retires A's
     const exited = once(server, "exit"); servers.push({ server, exited });
     let log = ""; server.stderr.on("data", chunk => { log += chunk; });
     return await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(log)), 15_000);
+      const timer = setTimeout(() => reject(new Error(log)), hangBudget());
       server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
       server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
     });

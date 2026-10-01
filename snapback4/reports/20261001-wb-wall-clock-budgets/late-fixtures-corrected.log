@@ -1,0 +1,202 @@
+✔ unread range wasm: covered-strict (866.224005ms)
+✔ unread range wasm: inclusive-floor-tie (388.274609ms)
+✔ unread range wasm: strict-floor-tie (543.683515ms)
+✔ unread range wasm: inclusive-above-floor (288.532098ms)
+✔ unread range wasm: reversed (201.447785ms)
+✔ unread range wasm: strongest-bound (203.803848ms)
+✔ unread range wasm: strict-wins-equal-bound (253.674574ms)
+✔ unread range wasm: strict-wins-equal-bound-first (213.464483ms)
+✔ unread range wasm: null-bound (194.359338ms)
+✔ unread range wasm: null-sibling-is-weakest (204.559231ms)
+✔ unread range wasm: upper-bound (227.713327ms)
+✔ unread range wasm: wrong-order (291.427219ms)
+✔ unread range wasm: composite-wrong-order (190.713762ms)
+✔ unread range wasm: composite-leading-ordinal (202.683899ms)
+✔ unread range wasm: public-parent-mismatch (237.931859ms)
+✔ unread range wasm: below-floor (248.18985ms)
+✔ unread range wasm: empty-whole (321.779428ms)
+✔ unread range wasm: whole (228.774429ms)
+✔ unread range wasm: missing-acquisition (185.35049ms)
+✔ unread range wasm: own-and-tombstone (270.177838ms)
+✔ unread range wasm: offline-expiry (195.063884ms)
+✔ unread range wasm: floor-expiry (201.64442ms)
+✔ unread range wasm: floor-deletion (190.723526ms)
+✔ unread range wasm: physical-deletion (212.52839ms)
+✔ unread range wasm: backdated-delivery (191.658648ms)
+✔ unread range wasm: backward-watermark (201.11687ms)
+✔ unread range wasm: prediction-covered (210.491576ms)
+✔ unread range wasm: prediction-uncovered (313.316699ms)
+✔ unread range wasm: prediction-empty (293.705765ms)
+✔ unread range wasm: meter-cut (11759.15566ms)
+✔ unread range wasm: retained-rejoin (238.925398ms)
+✔ unread range wasm: short-range-large-window (12776.12412ms)
+✔ unread range wasm: null-whole-semantics (357.326284ms)
+✔ unread range wasm: upper-whole-semantics (272.212748ms)
+✔ unread range wasm: sequence-empty-prediction (209.819548ms)
+✔ unread range wasm: interrupted-acquisition (176.378707ms)
+✔ unread range wasm: provisional-empty-range-refusal (218.878009ms)
+✔ unread range wasm: nonexpiring-pending-keeps-settled (245.11653ms)
+✔ unread range wasm: source-authority-lost (281.101125ms)
+✔ unread range wasm: prediction-uncovered-empty (248.193203ms)
+✔ unread range wasm: null-no-other-column (267.689485ms)
+✔ unread range wasm: other-column-only (200.002578ms)
+✔ unread range wasm: public-whole (306.454058ms)
+✔ unread range wasm: whole-expired-backlog (10896.187262ms)
+✔ unread range wasm: lower-bound-expiry (294.65127ms)
+✔ unread range wasm: prediction-1024 (1492.917363ms)
+✔ unread range wasm: prediction-1025 (1108.584756ms)
+✔ unread range wasm: provisional-nonempty-range-refusal (222.044647ms)
+✔ unread range wasm: null-source-authority-lost (177.276703ms)
+✔ unread range wasm: strongest-bound-first (191.068512ms)
+✔ unread range wasm: null-sibling-last (227.523661ms)
+✔ unread range wasm: sequence-short-range-large-window (23910.308935ms)
+✔ unread range wasm: provisional-residual-sequence-refusal (11600.054192ms)
+✔ unread range wasm: provisional-member-sequence-refusal (533.137286ms)
+  query badge:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.badge.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+  query badgeRows:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.badgeRows.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    scan unread.$intent:byPrincipal:0a27093f52d1419b first 100 — rule decided by the prefix: no probes
+      selected $intent:byPrincipal:0a27093f52d1419b (principal = viewer); result: page; synthesized; explicit by; read: unread where .principal = viewer first 100
+      sort/group/sum/count consume this page, not the whole population
+  mutation mark:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.mark.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    write target members.byId — engine-private lookup; the update rule decides
+    point unread.byGroup — one row, one rule check
+    update members, fans out to .principal
+  mutation depend:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.depend.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+  mutation send:
+    scale: constant — at most 8196 rows examined, 8197 probes, 0 lanes; per write: `unread`: at most 2 derived writes per source transition (old/new groups)
+    no explicit reads
+    insert messages, fans out to the members in members
+  mutation countThenRefuse:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.countThenRefuse.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+✔ unread range check names the chosen predicates, index and horizon (534.578046ms)
+✔ unread badge uses server fallback online and keeps its bound after cold offline reopen (1425.044368ms)
+✔ the guide Clique program certifies and expires on wasm after reopen (8207.762191ms)
+✔ unread fallback respects held (1321.584632ms)
+✔ unread fallback respects prediction (4569.747378ms)
+✔ several wasm badges share one request allowance (30848.674584ms)
+✔ check enumerates every range candidate and its fallback in text and JSON (598.118823ms)
+✔ check omits the device range for a stored non-expiring count (313.262743ms)
+(node:2695942) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (4929.690922ms)
+  ✔ exit notification waits for a session turn queued after strict admission (1346.740317ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (2266.813431ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (3506.101594ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (4694.960014ms)
+  ✔ a hide during the startup probe waits for its accepted decision (2797.982757ms)
+  ✔ a hide during the startup probe waits for its refused decision (3155.848829ms)
+  ✔ a hide during the startup probe waits for its restore decision (4320.887052ms)
+  ✔ a hide during the startup probe waits for its replacement decision (4455.845572ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (6344.376934ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (2714.934858ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (2986.346583ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (2564.10032ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (3691.383339ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (2792.224499ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (2167.49594ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (2833.325142ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (4066.468753ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (3699.108093ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (3736.52991ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (3641.708526ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (2228.068404ms)
+  ✔ a successful reconnect enables exit after startup 503s (2194.629536ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (7101.965902ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (6214.072522ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (6944.012019ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (9990.270037ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (2940.094236ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (2226.525499ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (2319.042115ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (2704.724109ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (1841.174038ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (4048.737313ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (3197.464399ms)
+  ✔ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (3027.917457ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (4807.184239ms)
+  ✔ a legacy refused observation with no history remains pending until same-id replay (5516.636367ms)
+  ✔ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (1461.188249ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (9377.43943ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (4294.340173ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (4983.988385ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (6448.6469ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (6625.137416ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (10312.920448ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (9361.656059ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (8835.780509ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6615.09296ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (7149.670092ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (5288.70039ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (8265.325243ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (8265.182352ms)
+  ✔ same-epoch logout tombstone refuses live admission (2185.922609ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (2243.407608ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (2327.772278ms)
+✔ web admission review: recovery and transport respect the session boundary (247952.525461ms)
+ℹ {"mode":"held-sync","id":"01M3TQYBEZ5Y5A5J00CFYJJMA6","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3TQYE7YD2JSE4RMPW7TP7CG","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3TQYP527GFA6VHBP4KFS6Q2","sendsWhileProbeHeld":0,"originalAudit":5}
+ℹ {"mode":"refused","originalId":"01M3TQYRZF0Z2TTV1FHXTAS7SM","sendsWhileProbeHeld":0,"originalAudit":5}
+ℹ {"mode":"restore","originalId":"01M3TQYWHZYE2A5JBCP88ZXHAR","sendsWhileProbeHeld":0,"originalAudit":5}
+ℹ {"mode":"replacement","originalId":"01M3TQYZTT45F2YS75HQ4406KD","sendsWhileProbeHeld":0,"originalAudit":5,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3TQZ40XBD1X70TJ97W4QEAD","sendsWhileProbeHeld":0,"originalAudit":6,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3TR3V4QSW6K5AW3A31P6BFP","originalStore":"e9c08c2724d15a35ba3b5864a19bd67d","refusal":"E_STORE_REPLACED","auditA":19,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3TR43DK36YVPRFYBQSTXY8R","originalStore":"e9c08c2724d15a35ba3b5864a19bd67d","refusal":"E_STORE_REPLACED","auditA":19,"auditB":0}
+ℹ {"orphan":"01M3TR4B360SWK0T6GQK1KKAGY","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":19,"auditB":0}
+ℹ {"orphan":"01M3TR4J6Q064R353M1ANVA2TW","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":19,"auditB":0}
+ℹ {"orphan":"01M3TR4SWWTZVCEGQZXG3FMWZH","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":19,"auditB":0}
+ℹ {"orphan":"01M3TR50WEQ1E00KQ9QZM6C07K","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":19,"auditB":0}
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1059 ms
+✔ stalled exit body recovers in order (not applied) (3612.690017ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 1 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1020 ms
+✔ stalled exit body recovers in order (already applied acknowledgement) (1271.020476ms)
+stalled exit close: 982 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1188.484433ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.648272ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1472.571124ms)
+✔ pagehide dispatch and retryable hold invalidate the pending-write list (1263.085578ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1385.12499ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1223.969517ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=false) (1411.266536ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=true) (1358.203454ms)
+✔ a second exit before its status commit supersedes the first acknowledged exit and later hold (1254.613393ms)
+✔ first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available) (1214.604906ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available) (1209.734943ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws) (1203.737921ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1303.436216ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available) (1351.027613ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws) (1238.929145ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1265.346153ms)
+✔ pagehide dispatch subscriber signOut prevents keepalive and POST (1246.278624ms)
+✔ pagehide dispatch subscriber close prevents keepalive and POST (1293.031374ms)
+✔ IndexedDB save resolves on transaction completion, not request success (8.995158ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1182.555219ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1353.187589ms)
+keepalive: 64179 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (8.839604ms)
+✔ exit ordering survives reversed server processing (0.644386ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (18.551095ms)
+✔ exit overlaps only the same ordinary in-flight head (1262.94331ms)
+✔ ordinary flush waits for the exit request before replaying its head (1251.463307ms)
+ℹ tests 145
+ℹ suites 0
+ℹ pass 145
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 248474.825802

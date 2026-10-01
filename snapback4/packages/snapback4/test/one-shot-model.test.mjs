@@ -1,10 +1,10 @@
+import { withHangGuard, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#11 — the oracle stores admitted values, not SDK read state.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setTimeout as delay } from 'node:timers/promises';
 import { setup, q, m, until } from './helpers/one-shot.mjs';
 
-for (const tier of ['wasm', 'process']) test(`${tier}: seeded one-shot/write/link/deadline/close model`, { timeout: 120_000 }, async t => {
+for (const tier of ['wasm', 'process']) test(`${tier}: seeded one-shot/write/link/deadline/close model`, { timeout: hangBudget(12 * 19) }, async t => {
   let random = 0x515330;
   const pick = n => { random ^= random << 13; random ^= random >>> 17; random ^= random << 5; return (random >>> 0) % n; };
   const coverage = new Set();
@@ -29,10 +29,9 @@ for (const tier of ['wasm', 'process']) test(`${tier}: seeded one-shot/write/lin
         admitted = value; trace.push(`write ${value}`); coverage.add('write');
       }
       function start(name = 'item') {
-        const floor = admitted, started = performance.now();
+        const floor = admitted;
         trace.push(`query ${name} after ${floor}`); coverage.add('query');
-        const result = f.client.query(q(name), {}).then(read => {
-          assert.ok(performance.now() - started < 30_000, trace.join(' / '));
+        const result = withHangGuard(() => f.client.query(q(name), {}), `one-shot query ${name} after ${floor}`).then(read => {
           assert.equal('loading' in read, false, trace.join(' / '));
           if ('data' in read) {
             if (name === 'item') {
@@ -80,11 +79,10 @@ for (const tier of ['wasm', 'process']) test(`${tier}: seeded one-shot/write/lin
       const final = start(); await until(() => reached);
       closed = true; trace.push('close'); coverage.add('close');
       const closing = f.client.close();
-      const watchdog = new AbortController();
       try {
-        const read = await Promise.race([final, delay(2000, undefined, { signal: watchdog.signal }).then(() => { throw Error(`close did not settle: ${trace.join(' / ')}`); })]);
+        const read = await withHangGuard(() => final, `close did not settle: ${trace.join(' / ')}`);
         assert.equal(read.denied?.code, 'E_CLOSED');
-      } finally { watchdog.abort(); gate.resolve(); }
+      } finally { gate.resolve(); }
       await closing; await Promise.all(inflight);
       assert.equal(closed, true);
     });

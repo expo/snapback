@@ -168,3 +168,34 @@ or publication.
 - or reserve the M1 for publication windows.
 
 Separately, run a lane's new client test files on a Mac before a release cut. PQ and WK passed every Linux suite and failed only on macOS. The Apartment mini ran such a canary for the final cut's new lanes (`~/sb4-canary.sh`): all green.
+
+## 2026-10-01 — the M1 qualified 0.4.10; signing is the remaining blocker
+
+After 0.4.10's first dry run on the M5 failed on host sleep (the M5 is an
+in-use laptop), the office M1 qualified the release: native half, a Linux
+qualification against the M1's client, and a dry run whose full suite
+passed (`== 0 failure(s) in 9455 s`). Two causes explain the earlier M1
+failures, and both are now handled:
+
+1. **This repository's drift backstop loads the host.** The launchd job
+   (`com.snapback.drift-backstop`, 2 h interval) runs 2.5–4.5 h, so it runs
+   almost back to back. On 2026-09-30 one run held 278 runnable processes
+   (load 283), and a native witness failed at teardown when its video
+   recorder did not stop within 10 s. Publication now holds both launchd
+   backstops off the host (`launchctl bootout`, only when no run is in
+   progress) and restores them afterward; a safety watchdog restores them
+   after 14 h at most.
+2. **The "Chromium failures" were a cascade.** In 0.4.9's M1 attempt 4, one
+   web-admission-review test timed out under load, then closed the shared
+   browser, so every later test failed with "Target page, context or
+   browser has been closed". Lane SL made that test hold up under load.
+
+**Remaining blocker:** the M1 has no code-signing identity at all
+(`security find-identity -v -p codesigning` finds 0). The dry run signs the
+darwin binary with a Developer ID Application identity right after the
+suite, so the M1's dry run stopped there. Only the black M5 holds that
+identity. 0.4.10 was therefore signed and published from the M5 (dry run
+attempt 2, run under `caffeinate` so the laptop could not idle-sleep). For
+the M1 to publish, the owner must install the Developer ID Application
+identity in the M1's login keychain, or set `SNAPBACK4_SIGN_IDENTITY` to an
+identity that exists there. This ticket stays open until then.

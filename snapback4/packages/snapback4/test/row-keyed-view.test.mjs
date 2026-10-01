@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
@@ -164,7 +165,7 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
   }
 }
 
-test('row-key check JSON and rebuilt wasm queue large live-count certification', { timeout: 90000 }, async t => {
+test('row-key check JSON and rebuilt wasm queue large live-count certification', { timeout: hangBudget(10) }, async t => {
   const directory = mkdtempSync(join(root, 'target/b3-wire-'));
   mkdirSync(join(directory, 'snapback'));
   const source = 'use personas bob\n' + fixture + `
@@ -189,7 +190,7 @@ mutation fill(start: int):
   });
   server.stderr.on('data', b => { log += b; });
   const url = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(Error(log)), 60000);
+    const timer = setTimeout(() => reject(Error(log)), hangBudget());
     server.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
     server.stdout.on('data', b => { log += b; const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (url) { clearTimeout(timer); resolve(url); } });
   });

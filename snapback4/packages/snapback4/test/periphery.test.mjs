@@ -1,3 +1,4 @@
+import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -20,7 +21,7 @@ const json = (file) => JSON.parse(read(file));
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-periphery-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const invoke = (...args) => spawnSync(binary, args, { cwd: dir, encoding: "utf8", timeout: 5000 });
+  const invoke = (...args) => spawnSync(binary, args, { cwd: dir, encoding: "utf8", timeout: hangBudget() });
   const run = (...args) => {
     const result = invoke(...args);
     assert.equal(result.error, undefined);
@@ -30,7 +31,7 @@ function fixture(t) {
   return { dir, invoke, run };
 }
 
-for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token`, { timeout: 20000 }, async (t) => {
+for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token`, { timeout: hangBudget(10) }, async (t) => {
   const { dir, run, invoke } = fixture(t);
   run("init", "--online");
   const schema = join(dir, "snapback/schema.q");
@@ -59,8 +60,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
   child.stderr.on("data", data => { stderr += data; });
   const withoutToken = () => stdout.replace(/^snapback4 dev worker: service:worker token \(printed once\): \S+\n/gm, "");
   const until = async (predicate) => {
-    const deadline = Date.now() + 5000;
-    while (!predicate() && child.exitCode == null && child.signalCode == null && Date.now() < deadline) await delay(10);
+    await awaitState(() => predicate() || child.exitCode !== null || child.signalCode !== null, "child progress");
     assert.ok(predicate(), (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
   };
   try {
@@ -75,7 +75,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
       await until(() => stderr.includes("schema adopted as generation 2"));
     }
     const post = async (path, token, body) => {
-      const response = await fetch(url + path, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(3000) });
+      const response = await fetch(url + path, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(response.status, 200, await response.clone().text());
       return response.json();
     };
@@ -297,7 +297,7 @@ test("an elif is repaired while an ambiguous positional key needs an author choi
   run("check");
 });
 
-test("SQL reads chat views while dev writes in WAL, refuses raw access, and bounds rows", { timeout: 20000 }, async (t) => {
+test("SQL reads chat views while dev writes in WAL, refuses raw access, and bounds rows", { timeout: hangBudget(5) }, async (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), read(join(root, "apps/chat/snapback/schema.q")));
@@ -307,11 +307,11 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
   child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   try {
-    const deadline = Date.now() + 5000;
-    while (!url && child.exitCode == null && Date.now() < deadline) await delay(10);
+    const deadline = performance.now() + hangBudget();
+    while (!url && child.exitCode == null && performance.now() < deadline) await delay(10);
     assert.ok(url, log);
     const post = async (route, body) => {
-      const response = await fetch(url + route, { method: "POST", headers: { "content-type": "application/json", "x-snapback-persona": "alice" }, body: JSON.stringify(body), signal: AbortSignal.timeout(3000) });
+      const response = await fetch(url + route, { method: "POST", headers: { "content-type": "application/json", "x-snapback-persona": "alice" }, body: JSON.stringify(body), signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(response.status, 200);
       return response.json();
     };
@@ -460,7 +460,7 @@ test("processDevice imports without Node builtins and opens with injected host f
     assert.deepEqual(spawns[1], ["host-cli", ["device", "devices/alice.sqlite"]]);
     await cold.close();
     assert.equal(killed, 2);
-  `], { encoding: "utf8", timeout: 5000 });
+  `], { encoding: "utf8", timeout: hangBudget() });
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
@@ -489,7 +489,7 @@ test("CLI and Node device share environment, platform-package and repository bin
       };
       syncBuiltinESMExports();
       await import(${JSON.stringify(join(pkgDir, "bin/snapback4.js"))});
-    `], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
+    `], { cwd: dir, env, encoding: "utf8", timeout: hangBudget() });
     assert.equal(cli.status, 0, cli.stderr);
     assert.equal(realpathSync(cli.stdout.trim()), realpathSync(expected));
     const device = spawnSync(process.execPath, ["--input-type=module", "-e", `
@@ -499,12 +499,12 @@ test("CLI and Node device share environment, platform-package and repository bin
         return { stdin: { write() {} }, stdout: { on(event, receive) { queueMicrotask(() => receive('{"ok":true}\\n')); } }, kill() {} };
       }, writeFile: async () => {} });
       await (await opener.open("alice", null)).close();
-    `], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
+    `], { cwd: dir, env, encoding: "utf8", timeout: hangBudget() });
     assert.equal(device.status, 0, device.stderr);
     assert.equal(realpathSync(device.stdout.trim()), realpathSync(expected));
     rmSync(expected);
   }
-  const missing = spawnSync(process.execPath, [join(pkgDir, "bin/snapback4.js")], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
+  const missing = spawnSync(process.execPath, [join(pkgDir, "bin/snapback4.js")], { cwd: dir, env, encoding: "utf8", timeout: hangBudget() });
   assert.equal(missing.status, 2);
   assert.match(missing.stderr, /^snapback4: no binary for /);
 });
@@ -531,7 +531,7 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
       assert.deepEqual(await core.call({ op: "probe" }), { ok: { backend, request: { op: "probe" } } });
       assert.equal(await readFile("new/devices/alice.sqlite.backend.json", "utf8"), JSON.stringify(backend));
     } finally { await core.close(); }
-  `], { cwd: dir, encoding: "utf8", timeout: 5000 });
+  `], { cwd: dir, encoding: "utf8", timeout: hangBudget() });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
