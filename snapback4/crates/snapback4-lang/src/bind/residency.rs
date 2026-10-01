@@ -5,6 +5,7 @@ use snapback4_core::ir::{self, Expr, LoopDomain, Program, ProgramKind, Stmt};
 use snapback4_core::schema::{Audience, Execution, ResidencySite, RuleExpr, Schema, SiteClass};
 use std::collections::{BTreeMap, BTreeSet};
 mod presence;
+pub(super) mod receipts;
 mod inserts;
 mod horizons;
 mod components;
@@ -12,7 +13,12 @@ mod effect_reads;
 pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition, sync_order_notes};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
-    execution_with_presence(schema, program, None)
+    let mut fact = execution_with_presence(schema, program, None);
+    if let Some(site) = receipts::classify(schema, program) {
+        fact.sites.insert(0, site);
+        fact.predicts = Some("never".into());
+    }
+    fact
 }
 
 pub(super) fn presence_facts(schema: &Schema, program: &Program, ownership: &super::program::setup::Ownership, sources: &[(Expr, crate::diag::Site, String)]) -> Execution {
@@ -81,6 +87,10 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     super::timeline::aggregate_sites(schema, program, &mut fact);
     for (table, kind) in ir::write_tables(program) {
         super::timeline::write_site(schema, &table, kind, &mut fact);
+        if !matches!(kind, "insert" | "insert-if-absent") && schema.receipts.iter().any(|f| f.members == table || f.runs == table) {
+            fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: "receipt accounting".into(), class: SiteClass::Server,
+                reason: "receipt membership changes and progress need settled state".into(), rewrite: "queue until server settlement".into() });
+        }
         if schema.tables.get(&table).is_none_or(|t| t.sync.is_none()) { fact.sites.push(site(schema, &format!("{kind} {table}"), &table, "byId", "write")); }
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
@@ -342,7 +352,7 @@ fn event_site(schema: &Schema, location: &str, table: &str, index: &str, kind: &
 
 /// A single human reason for the first site that prevents prediction.
 pub fn prediction_reason(schema: &Schema, site: &ResidencySite) -> String {
-    if matches!(site.kind.as_str(), "presence" | "dispatch" | "native" | "upsert" | "insert-if-absent")
+    if matches!(site.kind.as_str(), "receipt dependency" | "presence" | "dispatch" | "native" | "upsert" | "insert-if-absent")
         || schema.tables.get(&site.table).is_some_and(|table| table.sync.is_some()) { return site.reason.clone(); }
     let verb = match site.kind.as_str() { "write" | "write target" | inserts::UPSERT_BLOCKED | inserts::ABSENT_BLOCKED => "writes", "rule" => "a write rule reads", _ => "reads" };
     let noun = if schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" };

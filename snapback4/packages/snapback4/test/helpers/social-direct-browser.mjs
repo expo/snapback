@@ -33,6 +33,17 @@ const opened = await app.ready;
 if (!opened.ok) throw Error(JSON.stringify(opened));
 await app.client.sync();
 const observe = app.client.observe, mutate = app.client.mutate;
+const pendingWrites = app.client.pendingWrites, pendingWaiters = new Set();
+let pendingHeld = false;
+window.pendingDMReads = 0;
+app.client.pendingWrites = async () => {
+  if (pendingHeld) { window.pendingDMReads++; await new Promise(resolve => pendingWaiters.add(resolve)); }
+  return pendingWrites();
+};
+window.holdPendingDM = value => {
+  pendingHeld = value;
+  if (!value) { for (const resume of pendingWaiters) resume(); pendingWaiters.clear(); }
+};
 window.memberDM = conversation => app.client.query(api.receiptMember, { conversation });
 window.leaveDM = conversation => app.client.mutate(api.leave, { conversation });
 window.historyDM = conversation => app.client.query(api.history, { conversation });

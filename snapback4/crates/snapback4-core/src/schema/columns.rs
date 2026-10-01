@@ -32,6 +32,8 @@ impl Schema {
     // @ref LLP 3000.007.001#3.2 — identity remains on Table, which image-retention compares.
     pub fn public_projection(&self) -> Self {
         let mut schema = self.clone();
+        schema.prepare_receipt_dependencies();
+        schema.receipt_dependencies.retain(|name, _| self.visible(name));
         schema.tables.retain(|name, _| self.visible(name));
         schema.maintains.retain(|m| self.visible(&m.target));
         schema

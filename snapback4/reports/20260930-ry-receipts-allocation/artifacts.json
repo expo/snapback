@@ -1,0 +1,26 @@
+[
+  {
+    "path": "target/debug/snapback4",
+    "bytes": 72136336,
+    "sha256": "585f43dab91f9a3a33592bfca4dafbb76aca4355ce603752596f49f16d9c9bc0"
+  },
+  {
+    "path": "packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+    "bytes": 1992140,
+    "sha256": "0d03ed05b51d5e1bfb897eb10a514851f416fd165ad70e6e6233ff614d6ff84c",
+    "gzip_bytes": 597386,
+    "gzip_method": "gzip -9 -c <filename>, same as scripts/build-wasm.sh"
+  },
+  {
+    "path": "packages/snapback4/src/wasm/snapback4_device.js",
+    "bytes": 14877,
+    "sha256": "0ff39271a3b554bd15ab0ef8589d4a40923f848df89b1c83b3ae74430640e485"
+  },
+  {
+    "path": "packages/snapback4/dist/wasm/snapback4_device_bg.wasm",
+    "bytes": 1992140,
+    "sha256": "0d03ed05b51d5e1bfb897eb10a514851f416fd165ad70e6e6233ff614d6ff84c",
+    "gzip_bytes": 597386,
+    "gzip_method": "gzip -9 -c <filename>, same as scripts/build-wasm.sh"
+  }
+]

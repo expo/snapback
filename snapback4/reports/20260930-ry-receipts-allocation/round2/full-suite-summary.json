@@ -1,0 +1,59 @@
+{
+  "command": "bash scripts/test.sh",
+  "invocations": 1,
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1271 s",
+  "rust": {
+    "passed": 4501,
+    "failed": 0,
+    "ignored": 33
+  },
+  "clients": {
+    "passed": 5577,
+    "failed": 0,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "seeded_walks": [
+      5000,
+      5000
+    ]
+  },
+  "fixtures": {
+    "passed": 9,
+    "failed": 0
+  },
+  "stages": [
+    "-- ok: cargo build (7 s)",
+    "-- ok: wasm build (31 s)",
+    "-- ok: docs budget (1 s)",
+    "-- ok: release guard (3 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (3 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (478 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (2 s)",
+    "-- ok: fixture wrapper tests (21 s)",
+    "-- ok: client tests (444 s)",
+    "-- ok: client models (302 s)"
+  ],
+  "failures": [],
+  "failure_classification": {
+    "ours": 0,
+    "baseline": 0,
+    "environmental": 0
+  },
+  "source_hashes_unchanged": true,
+  "source_inputs": 1779,
+  "qualification": "Before the recorded-capture correction; post-suite checks and source delta recorded separately.",
+  "docs_budget_rust_test": {
+    "passed": 1,
+    "failed": 0
+  }
+}

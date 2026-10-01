@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_RECEIPT_PREDICTION", &["Use only clean fields and stable ids to predict", "Remove an incompatible", "any refusal keeps custody"]),
     ("E_RECEIPTS_CLAUSE", &["Multiple distinct families may coexist", "at most 50 members", "64 disjoint runs per member"]),
     ("E_RECEIPTS_OWNED", &["Deleting a member retires their runs atomically"]),
     ("EMPTY_READ", &["does not prove denial", "snapback4 dev --trace-empty", "snapback4 why TABLE", "snapback4 check --residency", "snapback4 guide sync"]),

@@ -67,20 +67,12 @@ query messageReceipts(conversation: conversations, c: cursor ?):
 
 mutation send(conversation: conversations, text: text <=2000, photo: image <=5000000 ?):
   require exists members[conversation, viewer] else NOT_MEMBER
-  chat = conversations[conversation] ! else NOT_FOUND
-  ordinal = chat.lastOrdinal + 1
-  recipients = 0
-  for member in members where .conversation = conversation:
-    if member.principal != viewer:
-      recipients = recipients + 1
-  update conversations[chat] { lastOrdinal: ordinal }
-  m = insert messages { conversation, sender: viewer, ordinal, recipients, text, photo, at: now }
+  m = insert messages { conversation, sender: viewer, text, photo, at: now }
   return m.id
 
 mutation add(conversation: conversations, principal: principal):
   require exists members[conversation, viewer] else NOT_MEMBER
-  chat = conversations[conversation] ! else NOT_FOUND
-  insert members { conversation, principal, joinedOrdinal: chat.lastOrdinal } if absent
+  insert members { conversation, principal } if absent
   return null
 
 mutation leave(conversation: conversations):
@@ -90,7 +82,7 @@ mutation leave(conversation: conversations):
 
 mutation createConversation(title: text 1..50):
   chat = insert conversations { title, creatorId: viewer }
-  insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
+  insert members { conversation: chat.id, principal: viewer }
   return chat.id
 
 -- @ref LLP 3000.028#8 — two private keys, atomically installed; no horizon or online-only resolver.
@@ -117,8 +109,8 @@ mutation openDirect(id: id, other: principal):
   if pair != null:
     return pair.conversation
   chat = insert conversations { id, title: 'Direct message', creatorId: viewer }
-  insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
-  insert members { conversation: chat.id, principal: other, joinedOrdinal: 0 }
+  insert members { conversation: chat.id, principal: viewer }
+  insert members { conversation: chat.id, principal: other }
   insert directChats { owner: viewer, peer: other, conversation: chat.id }
   insert directChats { owner: other, peer: viewer, conversation: chat.id }
   return chat.id

@@ -97,6 +97,7 @@ impl Runner<'_> {
         // The image copy an event slot costs is the writer's own supplied bytes (LLP 3000.015 §1).
         let image_bytes = row.heap_bytes();
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
+        let row = self.receipt_insert_fields(table_name, row)?;
         if let Some(index) = upsert_index {
             if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
             // Preserve upsert's target preflight before the ordinary insert checks;
@@ -194,6 +195,7 @@ impl Runner<'_> {
         // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
         self.commit_sequences(table_name, &row)?;
+        self.commit_receipt_counter(table_name, &row)?;
         let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
         validate_row(self.schema, table_name, &row)?;
         let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.put(table_name, table, &row, None))?;
@@ -310,6 +312,7 @@ impl Runner<'_> {
 
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
+        self.refuse_receipt_scope_delete(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         self.reserve_write_rules(table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
@@ -416,6 +419,10 @@ impl Runner<'_> {
 
     /// Programs never write a maintained target; the engine does.
     pub(super) fn refuse_engine_owned(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
+        // @ref LLP 3000.022#14.3 — pending member changes cannot rewrite settled requirements.
+        if self.device && effect != Effect::Insert && self.schema.receipts.iter().any(|f| f.members == table || f.runs == table) {
+            return Err(RuntimeError::Prediction("receipt membership changes and progress queue until settlement".into()));
+        }
         self.refuse_receipt_table(table)?;
         self.refuse_condition_write()?;
         self.refuse_timeline_write(table, effect)?;

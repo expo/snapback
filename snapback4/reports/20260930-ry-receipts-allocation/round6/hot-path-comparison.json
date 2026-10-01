@@ -1,0 +1,87 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-core/src/value.rs",
+    "identical_to_main": true,
+    "sha256": "d89c4c5d1151deed4ac0eb838edd9c74ce1ef753fbdfaa307d6c4f5b37552ca5"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/value/supplied.rs",
+    "identical_to_main": true,
+    "sha256": "053287bdb4b3af9dc142e80d092d82ce2248428e2ab9cbd6ac7b6253a2279456"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/key.rs",
+    "identical_to_main": true,
+    "sha256": "50385cbc9e074c09b0b6af023a74cbff38123141f8d7cad363d449879862bf1c"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/wire.rs",
+    "identical_to_main": true,
+    "sha256": "580a08853f4ecfa5853ed02eabd0124d49c5b6e44e5b81caadabdf893c174077"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/maintain.rs",
+    "identical_to_main": true,
+    "sha256": "e9c408b0ec07d9a30e76752a6f20ce3c58c141a57cd6444d10eb51916c01933e"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/authorized_scan.rs",
+    "identical_to_main": true,
+    "sha256": "edca73371f80761ca6bb5391131fe50fea022484a73ad29c6826e86b0378526b"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/extrema.rs",
+    "identical_to_main": true,
+    "sha256": "cbccfbfa1ddebad193174182ffdd34b9f7f3c8c73b35a729d32bc924c1f934e9"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/read.rs",
+    "identical_to_main": true,
+    "sha256": "b7bb7c6b81b9d90c355a2525d45f53c2a3df2b1bca78b17ccebbc3ac88c4d92d"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/read_auth.rs",
+    "identical_to_main": true,
+    "sha256": "6a74c0e115c821f1636d732a739850e5f9ea695a5ad8997283354a8af2d79371"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/read_point.rs",
+    "identical_to_main": true,
+    "sha256": "28b37cf4da8c6ca01bca62ae7f9c5c306d8ac8e917351260fa7d15e580003d81"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/maintains.rs",
+    "identical_to_main": true,
+    "sha256": "f63790b83c5a7e5417385184642783a841c781c274ca77cb3f086ed10a21571e"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/recorded.rs",
+    "identical_to_main": true,
+    "sha256": "706868cbd63adc79c66b63dbfcce347c69ff1650efcc25a747e670226bad6f55"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/row_views.rs",
+    "identical_to_main": true,
+    "sha256": "cccd33299d6a89db235dec04e0814b47f9d76e4bb44cd6fb06b356d6e9ca8230"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/rules.rs",
+    "identical_to_main": true,
+    "sha256": "0e5529e90ce40701caf4a91c29f77ed6368d035c19e5935f1331b4405b2bef4f"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/validate.rs",
+    "identical_to_main": true,
+    "sha256": "830846fd6774a1276b64284d579ca0c218c7853d1ffc09777caa1035c6ed659a"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/witness.rs",
+    "identical_to_main": true,
+    "sha256": "3a62c47479bd4d72be5c869a8fa79be193101144b2543d62df1e564162cced47"
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/engine/word_heap.rs",
+    "identical_to_main": true,
+    "sha256": "1eed43d17e1d4f0f3e3beb7ccc7bbec4afee9dd62d662c8ee146a69f5ae4cdea"
+  }
+]

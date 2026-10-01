@@ -38,6 +38,7 @@ pub(super) fn receipts(doc: &mut Document, clause: &ReceiptsDecl) {
     let mut visit = |value: &mut Expr| {
         if let Expr::Call { name, .. } = value {
             *name = match name.as_str() {
+                "receiptBuiltinSettled" => "$builtin:receiptSettled".into(),
                 "receiptBuiltinFirst" => "$builtin:first".into(),
                 "receiptBuiltinMax" => "$builtin:max".into(),
                 "receiptBuiltinCount" => "$builtin:count".into(),

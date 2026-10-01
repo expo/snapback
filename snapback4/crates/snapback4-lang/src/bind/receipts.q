@@ -14,10 +14,12 @@ table @RUNS@:
   sync to @MEMBERS@[.@RUN_GROUP@] by .@PRINCIPAL@
 
 fn @RECEIPT@($m: @MESSAGES@):
+  if not receiptBuiltinSettled($m):
+    return null
   $state = 'read'
   $remaining = 0
   for $member in @MEMBERS@ where .@MEMBER_GROUP@ = $m.@GROUP@:
-    if $member.@PRINCIPAL@ != $m.@SENDER@ and $member.@FLOOR@ < $m.@POSITION@:
+    if receiptBuiltinSettled($member) and $member.@PRINCIPAL@ != $m.@SENDER@ and $member.@FLOOR@ < $m.@POSITION@:
       $remaining = $remaining + 1
       if $m.@POSITION@ > $member.@DELIVERED_FIELD@:
         $run = receiptBuiltinFirst(@RUNS@[@RUN_GROUP@ = $m.@GROUP@, principal = $member.@PRINCIPAL@, fromOrdinal <= $m.@POSITION@] last 1 by .fromOrdinal)
@@ -28,12 +30,15 @@ fn @RECEIPT@($m: @MESSAGES@):
   return $state if $remaining > 0 or $m.@COUNT@ > 0 else 'sent'
 
 query @MEMBER@(@ARG@: @SCOPE@):
-  return @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer]
+  $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer]
+  return $me if $me != null and receiptBuiltinSettled($me) else null
 
 query @PROGRESS@(@ARG@: @SCOPE@, @CURSOR@: cursor ?):
   $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
+  if not receiptBuiltinSettled($me):
+    return null
   $delivered = receiptBuiltinMax($me.@DELIVERED_FIELD@, $me.@FLOOR@)
-  return { member: $me, runs: @RUNS@ where .@RUN_GROUP@ = @ARG@ and .principal = viewer, ahead: @MESSAGES@ where .@GROUP@ = @ARG@ and .@POSITION@ > $delivered and .@POSITION@ <= $delivered + 100 last 100 by .@POSITION@ after @CURSOR@ }
+  return { member: $me, runs: @RUNS@ where .@RUN_GROUP@ = @ARG@ and .principal = viewer, ahead: @MESSAGES@ where .@GROUP@ = @ARG@ and .@POSITION@ > $delivered and .@POSITION@ <= $delivered + 100 and receiptBuiltinSettled(.) last 100 by .@POSITION@ after @CURSOR@ }
 
 mutation @DELIVERED@(@ARG@: @SCOPE@, @FROM@: int, @THROUGH@: int)
   reports delivery of @MESSAGES@ by .@GROUP@, .@POSITION@: server
@@ -123,7 +128,7 @@ fn @FOLD@(@ARG@: @SCOPE@, $initial: int, $low: int, $high: int):
     $changed = true
   return { prefix: $prefix, changed: $changed }
 
-mutation @SEEN@(@ARG@: @SCOPE@, @THROUGH@: int):
+mutation @SEEN@(@ARG@: @SCOPE@, @THROUGH@: int): server
   $me = @MEMBERS@[@MEMBER_GROUP@ = @ARG@, @PRINCIPAL@ = viewer] ! else NOT_MEMBER
   $chat = @SCOPE@[id = @ARG@] ! else NOT_FOUND
   require @THROUGH@ <= $chat.@COUNTER@ else PAST_LAST_MESSAGE

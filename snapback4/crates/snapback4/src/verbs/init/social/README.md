@@ -76,7 +76,8 @@ A stale absent row offline still queues; the server authorizes or refuses at syn
 answer; retained rows grant no authority. Account change clears UI
 state through `AppProvider`. Delivery is reported by the SDK's
 `reports delivery` binding; only foreground visible settled messages report
-`seen`. Receipts appear on each bubble, using the same cursor as its history
+`seen`. The receipts clause assigns ordinals, recipient counts and join floors
+at server commit. Sends queue offline without predicted history rows. Receipts appear on each bubble, using the same cursor as its history
 page. `usePendingWrites` shows outstanding sends and posts. Every send saves
 its ID and complete arguments (including the attachment ID) in an account-
 and backend-scoped intent journal before dispatch. Each saved ID observes its
@@ -90,7 +91,8 @@ Loading never creates a chat. After a complete miss, creation enters SDK custody
 and opens a minted ID offline. The server atomically deduplicates both directions.
 Settlement updates the route ID, keeping the composer under the opening write ID.
 Lookup rows have no horizon and survive leave; they grant no membership or content.
-Creation predicts with acquired key coverage; the server can choose another ID.
+Receipt scopes and joins queue without predicted rows; pending-write state keeps
+the proposed route and composer while settlement chooses the canonical ID.
 Refused sends stay editable after reopening: one private route lookup resolves their saved links, retired with each proposal’s last send.
 
 History uses `messages where .conversation = conversation last 20 by

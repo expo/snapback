@@ -1,0 +1,299 @@
+{
+  "affinity_cpu": 95,
+  "binary_sha256": {
+    "native-count-main": "e7ad98b22e529ffc19535d087fc39f3ec1452a48a3742b4decd9041df669ec8d",
+    "native-count-candidate": "68b0e0749a32430a5bf45ea78c3f393b919c4a0e0319d3dbeabd3350e2aedfc4",
+    "native-default-main": "3c70a2755bbc790bc42a90f099a0fac66069b11232f369c1ede9cc5d94d899c1",
+    "native-default-candidate": "77075215bbfe88425a98a7334a7047fb00385db871d9352021a885dd0ec03dec"
+  },
+  "profiles": {
+    "native-count": {
+      "count-0": {
+        "main_median_ns": 410075,
+        "candidate_median_ns": 407240,
+        "delta_percent": -0.69,
+        "main_samples_ns": [
+          406370,
+          410075,
+          406039,
+          412138,
+          411967,
+          572398,
+          405378
+        ],
+        "candidate_samples_ns": [
+          409594,
+          407240,
+          405608,
+          408212,
+          405999,
+          404346,
+          410626
+        ]
+      },
+      "count-100": {
+        "main_median_ns": 409424,
+        "candidate_median_ns": 408243,
+        "delta_percent": -0.29,
+        "main_samples_ns": [
+          409174,
+          409344,
+          409424,
+          409604,
+          416044,
+          587792,
+          409013
+        ],
+        "candidate_samples_ns": [
+          410996,
+          411257,
+          409044,
+          408243,
+          406670,
+          407551,
+          406239
+        ]
+      },
+      "count-1000": {
+        "main_median_ns": 437887,
+        "candidate_median_ns": 435313,
+        "delta_percent": -0.59,
+        "main_samples_ns": [
+          437206,
+          441533,
+          437887,
+          437206,
+          442654,
+          609634,
+          435313
+        ],
+        "candidate_samples_ns": [
+          440490,
+          432088,
+          434361,
+          436354,
+          435553,
+          434582,
+          435313
+        ]
+      },
+      "count-500": {
+        "main_median_ns": 425888,
+        "candidate_median_ns": 421492,
+        "delta_percent": -1.03,
+        "main_samples_ns": [
+          423315,
+          422123,
+          425888,
+          427992,
+          427661,
+          590215,
+          424536
+        ],
+        "candidate_samples_ns": [
+          419990,
+          422314,
+          416795,
+          423224,
+          419830,
+          422733,
+          421492
+        ]
+      }
+    },
+    "native-default": {
+      "count-0": {
+        "main_median_ns": 430124,
+        "candidate_median_ns": 429124,
+        "delta_percent": -0.23,
+        "main_samples_ns": [
+          432108,
+          490495,
+          430124,
+          427130,
+          427180,
+          427281,
+          430175
+        ],
+        "candidate_samples_ns": [
+          429124,
+          443295,
+          439269,
+          428403,
+          429584,
+          428953,
+          425267
+        ]
+      },
+      "count-100": {
+        "main_median_ns": 432098,
+        "candidate_median_ns": 431347,
+        "delta_percent": -0.17,
+        "main_samples_ns": [
+          435112,
+          495844,
+          432098,
+          431147,
+          429695,
+          431757,
+          432519
+        ],
+        "candidate_samples_ns": [
+          432568,
+          444747,
+          442924,
+          430746,
+          430335,
+          428943,
+          431347
+        ]
+      },
+      "count-1000": {
+        "main_median_ns": 459509,
+        "candidate_median_ns": 457406,
+        "delta_percent": -0.46,
+        "main_samples_ns": [
+          461171,
+          521282,
+          459909,
+          457205,
+          454672,
+          458768,
+          459509
+        ],
+        "candidate_samples_ns": [
+          457406,
+          471577,
+          469013,
+          455994,
+          455954,
+          459549,
+          455262
+        ]
+      },
+      "count-500": {
+        "main_median_ns": 445858,
+        "candidate_median_ns": 442775,
+        "delta_percent": -0.69,
+        "main_samples_ns": [
+          446209,
+          505729,
+          446179,
+          443675,
+          442193,
+          445858,
+          443184
+        ],
+        "candidate_samples_ns": [
+          442955,
+          455012,
+          454622,
+          441732,
+          442584,
+          441842,
+          442775
+        ]
+      },
+      "ordinary-100": {
+        "main_median_ns": 166400,
+        "candidate_median_ns": 167381,
+        "delta_percent": 0.59,
+        "main_samples_ns": [
+          166489,
+          168473,
+          166169,
+          166400,
+          166390,
+          165368,
+          167081
+        ],
+        "candidate_samples_ns": [
+          166340,
+          165228,
+          167381,
+          172328,
+          168142,
+          168212,
+          166190
+        ]
+      }
+    },
+    "wasm": {
+      "count-0": {
+        "main_median_ns": 1055723,
+        "candidate_median_ns": 1005358,
+        "delta_percent": -4.77,
+        "main_samples_ns": [
+          993079,
+          1214771,
+          1055723
+        ],
+        "candidate_samples_ns": [
+          1019899,
+          1005358,
+          1004926
+        ]
+      },
+      "count-100": {
+        "main_median_ns": 1081242,
+        "candidate_median_ns": 1033199,
+        "delta_percent": -4.44,
+        "main_samples_ns": [
+          1013851,
+          1234741,
+          1081242
+        ],
+        "candidate_samples_ns": [
+          1045718,
+          1033199,
+          1032218
+        ]
+      },
+      "count-1000": {
+        "main_median_ns": 1179118,
+        "candidate_median_ns": 1174281,
+        "delta_percent": -0.41,
+        "main_samples_ns": [
+          1178738,
+          1195353,
+          1179118
+        ],
+        "candidate_samples_ns": [
+          1190575,
+          1159218,
+          1174281
+        ]
+      },
+      "count-500": {
+        "main_median_ns": 1137426,
+        "candidate_median_ns": 1091887,
+        "delta_percent": -4.0,
+        "main_samples_ns": [
+          1079418,
+          1301612,
+          1137426
+        ],
+        "candidate_samples_ns": [
+          1113069,
+          1087811,
+          1091887
+        ]
+      },
+      "ordinary-100": {
+        "main_median_ns": 1449433,
+        "candidate_median_ns": 1443815,
+        "delta_percent": -0.39,
+        "main_samples_ns": [
+          1452347,
+          1449433,
+          1407080
+        ],
+        "candidate_samples_ns": [
+          1453680,
+          1443815,
+          1426560
+        ]
+      }
+    }
+  }
+}

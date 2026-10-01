@@ -77,6 +77,7 @@ pub(crate) struct PagePosition {
 
 pub struct Runner<'a> {
     pub(super) receipt_operation: String,
+    pub(super) receipt_allocation: bool,
     #[cfg(feature = "sqlite")]
     pub(super) delivery: super::delivery::Tracking,
     pub(crate) tx: super::authorized_scan::GuardedRows<'a>,
@@ -249,6 +250,7 @@ impl<'a> Runner<'a> {
         }
         Self {
             receipt_operation: String::new(),
+            receipt_allocation: false,
             #[cfg(feature = "sqlite")]
             delivery: Default::default(),
             tx: super::authorized_scan::GuardedRows::new(tx),
@@ -515,7 +517,7 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Insert { table, row } => {
                     let image = self.expr(row)?;
-                    if self.schema.tables[table].sequences.is_empty() {
+                    if self.schema.tables[table].sequences.is_empty() && !self.schema.receipt_insert(table) {
                         self.insert(table, image.expression_input(ExpressionAccess(())))?;
                     } else {
                         self.meter.heap(expression_heap(&image))?;
@@ -922,6 +924,14 @@ impl<'a> Runner<'a> {
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
+            Builtin::ReceiptSettled { table } => {
+                // This primitive remains for settled-only query accounting.
+                // Raw IR invoking it during prediction must keep queue custody.
+                if self.device_allowance.is_some() {
+                    return Err(RuntimeError::Prediction("receipt state needs server settlement".into()));
+                }
+                Ok(Value::Bool(!self.is_provisional(table, &args[0])?))
+            },
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {

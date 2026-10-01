@@ -129,7 +129,7 @@ impl Runner<'_> {
 
     /// Author-facing point reads and pages share the sequence result contract.
     pub(super) fn sequence_read_result(&mut self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
-        if row != Value::Null && row.field("pending") != Ok(&Value::Bool(true)) && !self.schema.tables[name].sequences.is_empty() && self.is_provisional(name, &row)? {
+        if row != Value::Null && row.field("pending") != Ok(&Value::Bool(true)) && (!self.schema.tables[name].sequences.is_empty() || self.schema.receipt_insert(name)) && self.is_provisional(name, &row)? {
             let bytes = self.project_row(name, row.clone())?.heap_bytes();
             self.meter.heap(bytes + word_heap::insertion::<String, Value>(row.as_object()?.len()) + word_heap::text("pending"))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert("pending".into(), Value::Bool(true)); }
@@ -278,7 +278,7 @@ impl Runner<'_> {
     pub(super) fn sequence_result(&mut self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         if table.sequences.is_empty() {
-            return Ok(row);
+            return self.receipt_result(name, row);
         }
         let stored = self.metered_scan(|runner, allowance| runner.tx.get(allowance, name, row.field("id")?.as_str()?))?.expect("just inserted");
         let stored = self.project_row(name, stored)?;
@@ -292,7 +292,7 @@ impl Runner<'_> {
                 fields.insert("pending".into(), Value::Bool(true));
             }
         }
-        Ok(row)
+        self.receipt_result(name, row)
     }
 }
 

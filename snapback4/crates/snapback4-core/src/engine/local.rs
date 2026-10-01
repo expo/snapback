@@ -102,6 +102,15 @@ pub struct Prediction {
 pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> Result<Prediction, RuntimeError> {
     if program.kind == crate::ir::ProgramKind::Action { return Err(RuntimeError::UnknownOp("an action cannot predict; call client.act".into())); }
     validate_inputs(schema, program, &mut context.args)?;
+    // @ref LLP 3000.022#14.3 — compiler facts are required for receipt prediction.
+    // Missing classification (legacy/raw IR callers) conservatively keeps custody.
+    if !schema.receipts.is_empty() && !schema.operations.get(&program.name).is_some_and(|fact| matches!(fact.predicts.as_deref(), Some("eligible" | "never"))) {
+        return Err(RuntimeError::Prediction("receipt mutation has no compiler classification".into()));
+    }
+    // Runtime custody is independent of advisory prediction classification.
+    if schema.receipts.iter().any(|f| program.name == f.delivered || program.name == f.seen || program.name == f.compact) {
+        return Err(RuntimeError::Prediction("receipt reports need server settlement".into()));
+    }
     if let Some(fact) = schema.operations.get(&program.name) && fact.predicts.as_deref() == Some("never") {
         let reason = fact.sites.iter().find(|site| site.class == crate::schema::SiteClass::Server).map(|site| format!("site {}: {}", site.site, site.reason)).unwrap_or_else(|| program.name.clone());
         return Err(RuntimeError::Prediction(format!("{reason}; queued without a predicted row")));
@@ -116,6 +125,7 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     runner.device_allowance = Some(Meter::new(ceilings, Cut::Abort));
     let result = runner.run(program).and_then(|value| {
         runner.check_final_exists()?;
+        if runner.receipt_allocation { runner.charge_output(&value)?; }
         Ok(value)
     });
     if matches!(result, Err(RuntimeError::AuthorizationBudget { .. })) {
@@ -125,6 +135,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     // Any refusal after consuming one may change with the server's assignment,
     // including constraints, postconditions and a selected branch's refusal.
     // The host rolls back all predicted rows and retains the intent.
+    // Receipt dependencies are classified before evaluation (LLP 3000.022 §14.3).
+    if runner.receipt_allocation && result.is_err() {
+        return Err(RuntimeError::Prediction("receipt allocation preceded a refusal; queue the write for server settlement (guide writes)".into()));
+    }
     if runner.provisional_sequence_read && result.is_err() {
         return Err(RuntimeError::Prediction("a refusal depends on a provisional sequence; queue the write for the server (guide writes)".into()));
     }
@@ -142,8 +156,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         other => other,
     };
     let result = result.map_err(|error| counterfactual(error, runner.charged_untaken))?;
-    let charged = runner.charged_untaken;
-    runner.charge_output(&result).map_err(|error| counterfactual(error, charged))?;
+    if !runner.receipt_allocation {
+        let charged = runner.charged_untaken;
+        runner.charge_output(&result).map_err(|error| counterfactual(error, charged))?;
+    }
     Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }
 

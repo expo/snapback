@@ -1,0 +1,495 @@
+[
+  {
+    "log": "audit-fixed-final.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::scalar_max_memory",
+      "allocation::dependencies::scalar_max_sqlite",
+      "allocation::dependencies::sort_sqlite",
+      "allocation::dependencies::sort_memory"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_TYPE",
+        "= compares a messages reference ? with text <=2"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "> needs present operands; got int ? and int"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "audit-fixed.log.gz",
+    "classification": "ours",
+    "test_failures": [],
+    "compiler_errors": [
+      "error[E0308]: mismatched types",
+      "error: could not compile `snapback4-core` (lib) due to 1 previous error"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "audit-probes.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::scalar_max_memory",
+      "allocation::dependencies::scalar_max_sqlite",
+      "allocation::dependencies::maintained_filter_memory",
+      "allocation::dependencies::maintained_sum_memory",
+      "allocation::dependencies::maintained_filter_sqlite",
+      "allocation::dependencies::maintained_sum_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_TYPE",
+        "> needs present operands; got int ? and int"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "capture-audit.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::captured_memory",
+      "allocation::dependencies::captured_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_MAINTAIN",
+        "maintain cannot evaluate .message.recipients; predicates compare row-local scalar columns and literals"
+      ],
+      [
+        "E_QUARRY_MAINTAIN",
+        "marks.message must be immutable"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into members omits required column joinedOrdinal"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into messages omits required columns ordinal, recipients"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "unknown table marked"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "capture-before.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::captured_memory",
+      "allocation::dependencies::captured_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_MAINTAIN",
+        "maintain comparison needs compatible scalar types; got int ? and int"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into members omits required column joinedOrdinal"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into messages omits required columns ordinal, recipients"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "unknown table marked"
+      ],
+      [
+        "E_SYNC",
+        "sync cannot infer an audience from `allow`; use public, `.column = viewer`, or `exists target[.columns, viewer]`"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "compile-first.log.gz",
+    "classification": "ours",
+    "test_failures": [],
+    "compiler_errors": [
+      "error[E0061]: this function takes 2 arguments but 1 argument was supplied",
+      "error[E0277]: a value of type `BTreeMap<std::string::String, snapback4_core::Value>` cannot be built from an iterator over elements of type `(std::string::String, Result<snapback4_core::Value, std::string::String>)`",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 2 previous errors"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "compile-second.log.gz",
+    "classification": "ours",
+    "test_failures": [],
+    "compiler_errors": [
+      "error[E0609]: no field `arg_types` on type `&Program`",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 1 previous error"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "exact-round1-negative.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::aggregate_live_source_memory",
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::aggregate_live_member_memory",
+      "allocation::dependencies::aggregate_source_memory",
+      "allocation::dependencies::final_exists_memory",
+      "allocation::dependencies::old_count_rule_memory",
+      "allocation::dependencies::maintained_filter_memory",
+      "allocation::dependencies::maintained_sum_memory",
+      "allocation::dependencies::ordinal_delete_memory",
+      "allocation::dependencies::same_transaction_memory",
+      "allocation::dependencies::next_count_rule_memory",
+      "allocation::dependencies::ordinal_update_memory",
+      "allocation::dependencies::sort_memory",
+      "allocation::dependencies::receipt_followup_memory",
+      "allocation::dependencies::scalar_max_memory",
+      "allocation::dependencies::residual_rule_memory",
+      "allocation::dependencies::group_memory",
+      "allocation::dependencies::group_sqlite",
+      "allocation::dependencies::member_followup_memory",
+      "allocation::dependencies::maintained_filter_sqlite",
+      "allocation::dependencies::progress_followup_memory",
+      "allocation::dependencies::aggregate_live_source_sqlite",
+      "allocation::dependencies::aggregate_live_member_sqlite",
+      "allocation::dependencies::old_count_rule_sqlite",
+      "allocation::dependencies::aggregate_member_sqlite",
+      "allocation::dependencies::aggregate_source_sqlite",
+      "allocation::dependencies::residual_rule_sqlite",
+      "allocation::dependencies::ordinal_delete_sqlite",
+      "allocation::dependencies::maintained_sum_sqlite",
+      "allocation::dependencies::final_exists_sqlite",
+      "allocation::dependencies::scalar_max_sqlite",
+      "allocation::dependencies::next_count_rule_sqlite",
+      "allocation::dependencies::ordinal_update_sqlite",
+      "allocation::dependencies::same_transaction_sqlite",
+      "allocation::dependencies::receipt_followup_sqlite",
+      "allocation::dependencies::sort_sqlite",
+      "allocation::dependencies::progress_followup_sqlite",
+      "allocation::dependencies::member_followup_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "expected round-1 regression control"
+  },
+  {
+    "log": "regression-after.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::aggregate_source_memory",
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::aggregate_source_sqlite",
+      "allocation::dependencies::aggregate_member_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "regression-before.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::final_exists_memory",
+      "allocation::dependencies::old_count_rule_memory",
+      "allocation::dependencies::ordinal_delete_memory",
+      "allocation::dependencies::next_count_rule_memory",
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::receipt_followup_memory",
+      "allocation::dependencies::same_transaction_memory",
+      "allocation::dependencies::ordinal_update_memory",
+      "allocation::dependencies::aggregate_source_memory",
+      "allocation::dependencies::next_count_rule_sqlite",
+      "allocation::dependencies::final_exists_sqlite",
+      "allocation::dependencies::old_count_rule_sqlite",
+      "allocation::dependencies::member_followup_memory",
+      "allocation::dependencies::progress_followup_memory",
+      "allocation::dependencies::ordinal_update_sqlite",
+      "allocation::dependencies::ordinal_delete_sqlite",
+      "allocation::dependencies::aggregate_member_sqlite",
+      "allocation::dependencies::same_transaction_sqlite",
+      "allocation::dependencies::aggregate_source_sqlite",
+      "allocation::dependencies::receipt_followup_sqlite",
+      "allocation::dependencies::member_followup_sqlite",
+      "allocation::dependencies::progress_followup_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "expected round-1 regression control"
+  },
+  {
+    "log": "regression-complete.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::aggregate_source_memory",
+      "allocation::dependencies::aggregate_member_sqlite",
+      "allocation::dependencies::aggregate_source_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "regression-fixtures-first.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::member_followup_memory",
+      "allocation::dependencies::member_followup_sqlite",
+      "allocation::dependencies::aggregate_member_sqlite",
+      "allocation::dependencies::old_count_rule_sqlite",
+      "allocation::dependencies::old_count_rule_memory",
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::aggregate_source_memory",
+      "allocation::dependencies::next_count_rule_memory",
+      "allocation::dependencies::progress_followup_memory",
+      "allocation::dependencies::progress_followup_sqlite",
+      "allocation::dependencies::aggregate_source_sqlite",
+      "allocation::dependencies::receipt_followup_memory",
+      "allocation::dependencies::final_exists_memory",
+      "allocation::dependencies::same_transaction_memory",
+      "allocation::dependencies::ordinal_delete_memory",
+      "allocation::dependencies::ordinal_update_memory",
+      "allocation::dependencies::ordinal_delete_sqlite",
+      "allocation::dependencies::final_exists_sqlite",
+      "allocation::dependencies::ordinal_update_sqlite",
+      "allocation::dependencies::same_transaction_sqlite",
+      "allocation::dependencies::receipt_followup_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_TYPE",
+        "insert into members omits required column joinedOrdinal"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into messages omits required columns ordinal, recipients"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "int has no fields"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "ordered comparisons belong to update (old, next) transitions"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "unknown function progress"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "unknown function receiptMember"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "regression-fixtures-second.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::direct_count_sqlite",
+      "allocation::dependencies::direct_count_memory",
+      "allocation::dependencies::receipt_followup_memory",
+      "allocation::dependencies::receipt_followup_sqlite",
+      "allocation::dependencies::aggregate_source_memory",
+      "allocation::dependencies::final_exists_sqlite",
+      "allocation::dependencies::ordinal_delete_memory",
+      "allocation::dependencies::next_count_rule_sqlite",
+      "allocation::dependencies::final_exists_memory",
+      "allocation::dependencies::old_count_rule_memory",
+      "allocation::dependencies::next_count_rule_memory",
+      "allocation::dependencies::ordinal_update_memory",
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::same_transaction_memory",
+      "allocation::dependencies::member_followup_memory",
+      "allocation::dependencies::old_count_rule_sqlite",
+      "allocation::dependencies::progress_followup_memory",
+      "allocation::dependencies::aggregate_source_sqlite",
+      "allocation::dependencies::same_transaction_sqlite",
+      "allocation::dependencies::ordinal_delete_sqlite",
+      "allocation::dependencies::ordinal_update_sqlite",
+      "allocation::dependencies::aggregate_member_sqlite",
+      "allocation::dependencies::progress_followup_sqlite",
+      "allocation::dependencies::member_followup_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_TYPE",
+        "insert into members omits required column joinedOrdinal"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into messages omits required columns ordinal, recipients"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "an update (old, next) rule names its images; . is not bound"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "residual-before.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::residual_rule_memory",
+      "allocation::dependencies::residual_rule_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "diagnostics": [
+      [
+        "E_QUARRY_TYPE",
+        "insert into members omits required column joinedOrdinal"
+      ],
+      [
+        "E_QUARRY_TYPE",
+        "insert into messages omits required columns ordinal, recipients"
+      ],
+      [
+        "E_QUARRY_UNKNOWN",
+        "an update (old, next) rule names its images; . is not bound"
+      ]
+    ],
+    "budget_failures": [],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "log": "wasm-build.log.gz",
+    "classification": "ours",
+    "test_failures": [],
+    "compiler_errors": [],
+    "diagnostics": [],
+    "budget_failures": [
+      "wasm 2004883 B raw, 601592 B gzip (budget 600268: OVER by 1324 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ],
+    "disposition": "corrected; see passing final checks"
+  },
+  {
+    "classification": "ours",
+    "log": null,
+    "command_failures": [
+      "Initial report/test creation used root-relative paths from snapback4/: no test file was created; moved the prompt to the requested report directory and removed the empty accidental directory.",
+      "One row-view edit attempt likewise used a root-relative path from snapback4/ and failed before editing; immediately corrected.",
+      "Early inspection commands assumed a lang engine path and a lane-ry.prompt.md name; actual engine is snapback4-core and round-zero prompt is lane-ry.r0.prompt.md.",
+      "Later read-only audit searches guessed absent admit.rs, core/device and schema/recorded.rs paths; rg located the actual files. One scratch setup used a snapback4-prefixed path from snapback4 and was corrected before compilation. No product files changed."
+    ],
+    "disposition": "path mistakes corrected; no product or user files lost"
+  },
+  {
+    "log": "capture-public-four-before.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "dependencies::captured_followup_memory",
+      "dependencies::captured_public_memory",
+      "dependencies::captured_public_sqlite",
+      "dependencies::captured_followup_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `--lib`"
+    ],
+    "budget_failures": [],
+    "disposition": "Expected negative control on round 1 or pre-correction capture, corrected fixture insert authority, or exact-cap update; final affected checks pass."
+  },
+  {
+    "log": "capture-public-runtime-final.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "dependencies::captured_public_memory",
+      "dependencies::captured_public_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `--lib`"
+    ],
+    "budget_failures": [],
+    "disposition": "Expected negative control on round 1 or pre-correction capture, corrected fixture insert authority, or exact-cap update; final affected checks pass."
+  },
+  {
+    "log": "capture-public-runtime.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "dependencies::captured_public_memory",
+      "dependencies::captured_public_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `--lib`"
+    ],
+    "budget_failures": [],
+    "disposition": "Expected negative control on round 1 or pre-correction capture, corrected fixture insert authority, or exact-cap update; final affected checks pass."
+  },
+  {
+    "log": "capture-round1-negative.log.gz",
+    "classification": "ours",
+    "test_failures": [
+      "allocation::dependencies::captured_followup_memory",
+      "allocation::dependencies::captured_public_memory",
+      "allocation::dependencies::captured_public_sqlite",
+      "allocation::dependencies::captured_followup_sqlite"
+    ],
+    "compiler_errors": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "budget_failures": [],
+    "disposition": "Expected negative control on round 1 or pre-correction capture, corrected fixture insert authority, or exact-cap update; final affected checks pass."
+  },
+  {
+    "log": "post-suite-wasm.log.gz",
+    "classification": "ours",
+    "test_failures": [],
+    "compiler_errors": [],
+    "budget_failures": [
+      "wasm 2005133 B raw, 601629 B gzip (budget 601592: OVER by 37 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ],
+    "disposition": "Expected negative control on round 1 or pre-correction capture, corrected fixture insert authority, or exact-cap update; final affected checks pass."
+  }
+]

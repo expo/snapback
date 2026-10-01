@@ -1,0 +1,113 @@
+{
+  "command": "scripts/test.sh",
+  "invocations": 1,
+  "exit_code": 1,
+  "exact_summary": "== 1 failure(s) in 1311 s",
+  "stages": [
+    {
+      "name": "cargo build",
+      "result": "ok",
+      "seconds": 2
+    },
+    {
+      "name": "wasm build",
+      "result": "ok",
+      "seconds": 30
+    },
+    {
+      "name": "docs budget",
+      "result": "ok",
+      "seconds": 1
+    },
+    {
+      "name": "release guard",
+      "result": "ok",
+      "seconds": 10
+    },
+    {
+      "name": "package typecheck",
+      "result": "ok",
+      "seconds": 2
+    },
+    {
+      "name": "package build",
+      "result": "ok",
+      "seconds": 2
+    },
+    {
+      "name": "chat app check",
+      "result": "ok",
+      "seconds": 0
+    },
+    {
+      "name": "cargo test",
+      "result": "ok",
+      "seconds": 546
+    },
+    {
+      "name": "chat app typecheck",
+      "result": "ok",
+      "seconds": 2
+    },
+    {
+      "name": "expo app typecheck",
+      "result": "ok",
+      "seconds": 3
+    },
+    {
+      "name": "fixture wrapper tests",
+      "result": "ok",
+      "seconds": 21
+    },
+    {
+      "name": "client tests",
+      "result": "FAIL",
+      "seconds": 413
+    },
+    {
+      "name": "client models",
+      "result": "ok",
+      "seconds": 305
+    }
+  ],
+  "rust": {
+    "passed": 4441,
+    "failed": 0,
+    "ignored": 33
+  },
+  "failures": [
+    {
+      "stage": "client tests",
+      "test": "declarative full runs compact a long deleted hole through the real SDK",
+      "classification": "ours",
+      "symptom": "seed mutation refused; chat result undefined at assert.ok(chat)",
+      "cause": "v2 fixture supplies explicit accounting fields through an application mutation; v3 owns those fields",
+      "correction": "Preserve sparse historical rows with the administrative /seed endpoint; all original compaction and coverage assertions retained",
+      "recheck": "delivery-integrated-final.log.gz: 4 passed, 0 failed"
+    }
+  ],
+  "baseline_failures": [],
+  "environmental_failures": [],
+  "source_unchanged_during_run": true,
+  "fixtures": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "clients": {
+    "tests": 5362,
+    "pass": 5351,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 10
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  }
+}

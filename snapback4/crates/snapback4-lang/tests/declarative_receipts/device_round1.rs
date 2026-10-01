@@ -108,7 +108,7 @@ fn adoption<H: Host>(host: &mut H) {
             .predictable,
         "adoption rolls back manual delivery prediction"
     );
-    assert!(pending.iter().find(|q| q.op == "seen").unwrap().predictable);
+    assert!(!pending.iter().find(|q| q.op == "seen").unwrap().predictable);
     // Both adapters persist the outbox and authoritative progress across reopen.
     host.close("adoption", d);
     let mut d = host.open("adoption", None).unwrap();

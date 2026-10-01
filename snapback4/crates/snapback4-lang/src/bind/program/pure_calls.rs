@@ -111,7 +111,7 @@ pub(super) fn expression(value: &Expr) -> bool {
 
 fn builtin_pure(builtin: &Builtin) -> bool {
     match builtin {
-        Builtin::Connected => false,
+        Builtin::Connected | Builtin::ReceiptSettled { .. } => false,
         Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. }
         | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim
         | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last

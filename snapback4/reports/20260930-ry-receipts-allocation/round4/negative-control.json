@@ -1,0 +1,5 @@
+{
+  "mutation": "disable only runner.tx.observe_receipts(schema)",
+  "returncode": 101,
+  "restored_sha256": "ed19f61c1da5c519a130107d5b88eb5f718834f04fc3cea03796fa18da19c447"
+}

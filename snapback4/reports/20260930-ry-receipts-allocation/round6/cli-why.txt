@@ -1,0 +1,10 @@
+mutation countedSend(conversation: a conversations reference)
+  returns null
+  countedSend: predicts: never; queued without a row
+    Server: reads receipt-owned or derived field messages.recipients (site schema.q:227:12)
+      rewrite: queue this mutation for server settlement; predict using only non-clause fields and stable ids
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site schema.q:52:3 (messages insert rule: members by index (conversation, principal), chosen by the planner))
+  mutation countedSend:
+    scale: constant — at most 8196 rows examined, 8197 probes, 0 lanes
+    no explicit reads
+    insert messages, fans out to the members in members

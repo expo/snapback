@@ -15,8 +15,7 @@ export default function Direct({ other }: { other: string }) {
 function Resolve({ other }: { other: string }) {
   const client = useClient(), read = useQuery(api.directConversation, { other });
   const pending = usePendingWrites(api.openDirect);
-  const creation = "data" in read && read.data?.pending ? pending.find(write =>
-    write.args.other === other && write.args.id === read.data?.conversation) : undefined;
+  const creation = pending.find(write => write.args.other === other);
   const started = useRef(false), alive = useRef(true);
   const [problem, setProblem] = useState("");
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -30,15 +29,32 @@ function Resolve({ other }: { other: string }) {
       } });
       return;
     }
-    const id = mintId(), opening = mintId();
-    // A complete absent lookup permits this attempt. Only the SDK replays it.
-    void client.mutate(api.openDirect, { id, other }, { id: opening, waitSeconds: 0 }).then(write => {
+    if (creation) {
+      router.replace({ pathname: "/conversation/[id]", params: {
+        id: creation.args.id, opening: creation.id, proposed: creation.args.id, other,
+      } });
+      return;
+    }
+    void (async () => {
+      // The hook starts empty while restoring. Await custody before creating.
+      const restored = ((await client.pendingWrites()).filter(write => write.op === api.openDirect.name) as typeof pending)
+        .find(write => write.args.other === other);
+      if (!alive.current) return;
+      if (restored) {
+        router.replace({ pathname: "/conversation/[id]", params: {
+          id: restored.args.id, opening: restored.id, proposed: restored.args.id, other,
+        } });
+        return;
+      }
+      const id = mintId(), opening = mintId();
+      // A complete absent lookup permits this attempt. Only the SDK replays it.
+      const write = await client.mutate(api.openDirect, { id, other }, { id: opening, waitSeconds: 0 });
       if (!alive.current) return;
       if (write.state === "failed") { setProblem(write.why.message); return; }
       router.replace({ pathname: "/conversation/[id]", params: {
         id: write.state === "sent" && write.result ? write.result : id, opening, proposed: id, other,
       } });
-    }).catch(error => { if (alive.current) setProblem(`Opening outcome unknown: ${String(error)}`); });
+    })().catch(error => { if (alive.current) setProblem(`Opening outcome unknown: ${String(error)}`); });
   }, [client, other, read, creation]);
   return <><Text>{existence(read) === "loading" ? "Loading…" : existence(read) === "partial" ? "Partial results" : "denied" in read ? read.denied.message : ""}</Text><Text>{problem || "Opening direct message…"}</Text></>;
 }

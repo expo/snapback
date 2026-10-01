@@ -15,6 +15,7 @@ fn authored_template_call_names_do_not_change_receipts_or_delivery() {
         "receiptBuiltinMax",
         "receiptBuiltinCount",
         "receiptBuiltinFirst",
+        "receiptBuiltinSettled",
         "receiptBuiltinRange",
         "viewer",
     ] {
@@ -301,10 +302,10 @@ fn missing_run_coverage_only<H: Host>(host: &mut H) {
     use snapback4_core::schema::LeavePolicy;
     use snapback4_device::device::{Backend, Queued};
     let mut b = bound(DECLARATIVE);
-    // A narrow core-defense fixture: default generated runs are until-revoked.
-    // Retained runs make their range coverage independently unknown while the
-    // member's acquired authority stays usable. No whole-snapshot guard can mask
-    // removal's receipt-specific coverage check in this fixture.
+    // The RX fixture made run coverage independently unknown while membership
+    // authority stayed acquired. V4 queues removal even with complete runs:
+    // both variants preserve settled accounting until server commitment.
+    // The incomplete-coverage case remains a conservative custody regression.
     b.schema.tables.get_mut("runs").unwrap().leave = LeavePolicy::DeliveredHistory;
     let mut e = Engine::memory(
         b.schema.clone(),

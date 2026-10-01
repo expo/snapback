@@ -1,0 +1,12 @@
+{
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "platform": "Linux expose-builder-pixel 6.8.0-138-generic #138-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 22:41:49 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+  "binaryen": "132.0.0 (locked workspace dependency)",
+  "fleet": "Inventory absent: /home/ccheever/Dropbox/APIKeys/MACHINE_FLEET.md",
+  "branch": "sb4-intent/ry-receipts-allocation",
+  "merge": "82a5797a6811790fb6b1d910751d0c74c89a0b94",
+  "incoming_main": "91a111cd85044176ebcc7200449e16e968d276f5"
+}

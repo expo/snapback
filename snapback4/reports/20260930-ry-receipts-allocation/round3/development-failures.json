@@ -1,0 +1,176 @@
+[
+  {
+    "log": "receipts-storage.log.gz",
+    "classification": "ours, resolved",
+    "reason": "Two old terminal controls loaded receipt-family rows before refusing; round 3 intentionally queues those. Retained that scenario as an explicit conservative-touch control, and moved the entire read into the terminal control\u2019s untaken branch.",
+    "failed_tests": [
+      "allocation::dependencies::terminal_control_memory",
+      "allocation::dependencies::terminal_control_sqlite"
+    ],
+    "diagnostics": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ]
+  },
+  {
+    "log": "generated-first.log.gz",
+    "classification": "ours, resolved",
+    "reason": "The new maintenance group-key fixture omitted the source\u2019s conversation authority key. Added conversation to the grouping; retained the recipient bucket difference and overflow assertion.",
+    "failed_tests": [
+      "allocation::dependencies::generated::generated_maintenance_memory",
+      "allocation::dependencies::generated::generated_maintenance_sqlite"
+    ],
+    "diagnostics": [
+      "[Diagnostic { site: Site { file: \"schema.q\", line: 237, col: 1 }, code: \"E_MAINTAIN_READ_RULE\", message: \"maintain scored cannot derive messages's read rule `exists members[.conversation, viewer]`: .conversation are not bare group keys; calendar keys and reference paths do not preserve those fields\", rewrite: \"read <- deny  -- replace deny with an explicit aggregate read rule over its group keys\", guide: \"maintains\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 71, col: 7 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 76, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 86, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 113, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 114, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 232, col: 10 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 234, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 239, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }]",
+      "[Diagnostic { site: Site { file: \"schema.q\", line: 237, col: 1 }, code: \"E_MAINTAIN_READ_RULE\", message: \"maintain scored cannot derive messages's read rule `exists members[.conversation, viewer]`: .conversation are not bare group keys; calendar keys and reference paths do not preserve those fields\", rewrite: \"read <- deny  -- replace deny with an explicit aggregate read rule over its group keys\", guide: \"maintains\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 71, col: 7 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 76, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 86, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 113, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 114, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 232, col: 10 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 234, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 239, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, score, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }]",
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ]
+  },
+  {
+    "log": "generated-third.log.gz",
+    "classification": "ours, resolved",
+    "reason": "The new server-refusal control named non-existent WriteState::Refused; corrected to WriteState::Failed.",
+    "failed_tests": [],
+    "diagnostics": [
+      "error[E0599]: no variant named `Refused` found for enum `snapback4_core::WriteState`",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 1 previous error"
+    ]
+  },
+  {
+    "log": "generated-final.log.gz",
+    "classification": "ours, resolved",
+    "reason": "Additional unique test keys duplicated existing key arities, making the starter\u2019s positional reads ambiguous. Used extra creator/sender/scope pins so the new keys have distinct arities; receipt-field selection assertions unchanged.",
+    "failed_tests": [
+      "allocation::dependencies::generated::other_owned_targets_memory",
+      "allocation::dependencies::generated::other_owned_targets_sqlite"
+    ],
+    "diagnostics": [
+      "[Diagnostic { site: Site { file: \"schema.q\", line: 99, col: 13 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"a positional rule probe must identify one declared unique key by arity\", rewrite: \"conversations[id = .conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 28, col: 13 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"a positional rule probe must identify one declared unique key by arity\", rewrite: \"conversations[id = .conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 60, col: 10 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"conversations positional key has 2 declared unique keys of arity 1; use named columns\", rewrite: \"conversations[id = conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 63, col: 100 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"conversations positional key has 2 declared unique keys of arity 1; use named columns\", rewrite: \"conversations[id = .conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 73, col: 7 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 78, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 88, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 115, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 116, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 234, col: 10 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 236, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }]",
+      "[Diagnostic { site: Site { file: \"schema.q\", line: 99, col: 13 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"a positional rule probe must identify one declared unique key by arity\", rewrite: \"conversations[id = .conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 28, col: 13 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"a positional rule probe must identify one declared unique key by arity\", rewrite: \"conversations[id = .conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 60, col: 10 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"conversations positional key has 2 declared unique keys of arity 1; use named columns\", rewrite: \"conversations[id = conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 63, col: 100 }, code: \"E_QUARRY_POSITIONAL_SCAN\", message: \"conversations positional key has 2 declared unique keys of arity 1; use named columns\", rewrite: \"conversations[id = .conversation]\", guide: \"reads\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 73, col: 7 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 78, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 88, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 115, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 116, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into members omits required column joinedOrdinal\", rewrite: \"insert members { conversation, deliveredOrdinal, principal, seenOrdinal, joinedOrdinal: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 234, col: 10 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: \"schema.q\", line: 236, col: 3 }, code: \"E_QUARRY_TYPE\", message: \"insert into messages omits required columns ordinal, recipients\", rewrite: \"insert messages { at, conversation, photo, sender, text, ordinal: <int>, recipients: <int> }\", guide: \"types\", mechanical: false, cascade_of: None }]",
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ]
+  },
+  {
+    "log": "lang-affected.log.gz",
+    "classification": "ours, resolved",
+    "reason": "Command used receipt_clause/integration/replay names; actual Cargo targets are delivery_clause/integration/replay_conversion. Corrected command and reran.",
+    "failed_tests": [],
+    "diagnostics": [
+      "error: no test target named `receipt_clause` in `snapback4-lang` package"
+    ]
+  },
+  {
+    "log": "device-affected.log.gz",
+    "classification": "ours, resolved",
+    "reason": "Command named a maintains integration target; it is a module of the device target. Corrected command and ran the entire device target.",
+    "failed_tests": [],
+    "diagnostics": [
+      "error: no test target named `maintains` in `snapback4-device` package"
+    ]
+  },
+  {
+    "log": "merged-wasm.log.gz",
+    "classification": "ours, resolved",
+    "reason": "Merged artifact exceeds the RY round-2 cap by 2,019 B; set exact merged size with both RY and PR reasons.",
+    "failed_tests": [],
+    "diagnostics": [
+      "wasm 2009398 B raw, 603648 B gzip (budget 601629: OVER by 2019 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "log": "final-wasm-first.log.gz",
+    "classification": "ours, resolved",
+    "reason": "Structural guard exceeds the merged cap by 647 B; set exact final measured cap without slack.",
+    "failed_tests": [],
+    "diagnostics": [
+      "wasm 2011439 B raw, 604295 B gzip (budget 603648: OVER by 647 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "classification": "ours, resolved",
+    "log": null,
+    "reason": "Operational/read-only command mistakes: initial lane-ry.prompt.md spelling (actual round-0 prompt has .r0); root-relative wasm log destination and edit-script paths used from the wrong working directory; nonexistent schema/index.rs, engine/receipts_allocation.rs, tests/common/host.rs and engine/row_coverage.rs read paths; unmatched *ret* test and hashed device-rlib globs; and an apply_patch context changed by rustfmt. Located the actual paths or retried exact context; no unintended product edits. A contiguous journal-substring check was too strict for interleaved merge entries; the ordered-subsequence check verifies both full parent histories with zero deleted lines."
+  },
+  {
+    "classification": "ours, intentional detecting negative control",
+    "log": "merged-round2-negative.log.gz",
+    "reason": "Restored all six changed core files from merged round-2 commit 093c98c0a8. All ten generated tests fail at the intended admission assertion (zero compile failures). Restored final files byte-for-byte in finally; hashes in negative-control.json. Each loop stops at its first counter, predicate-overflow, ordinal-hit, owned-key or conservative-touch witness; this is not a claim all 382 cases were executed negatively.",
+    "failed_tests": [
+      "allocation::dependencies::generated::generated_maintenance_memory",
+      "allocation::dependencies::generated::generated_maintenance_sqlite",
+      "allocation::dependencies::generated::generated_ordinal_targets_memory",
+      "allocation::dependencies::generated::generated_ordinal_targets_sqlite",
+      "allocation::dependencies::generated::generated_reads_memory",
+      "allocation::dependencies::generated::generated_reads_sqlite",
+      "allocation::dependencies::generated::other_owned_targets_memory",
+      "allocation::dependencies::generated::other_owned_targets_sqlite",
+      "allocation::dependencies::generated::touched_refusal_memory",
+      "allocation::dependencies::generated::touched_refusal_sqlite"
+    ]
+  },
+  {
+    "classification": "ours, resolved isolated-probe linking error",
+    "log": "output-order-probe.log.gz",
+    "reason": "The standalone retained-history/output-order probe initially selected an incompatible cached serde_json library, producing duplicate-serde trait/type errors. Selected the library matching the existing device rlib. Both tests then pass, including with all advisory operation classification removed. No workspace source changed. The exact final probe source/command and trials are retained.",
+    "diagnostics": [
+      "error[E0277]: the trait bound `Backend: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `Backend: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `Backend: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `Acquisition: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `Acquisition: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_core::Value: serde::Deserialize<'de>` is not satisfied",
+      "error[E0277]: the trait bound `Acquisition: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0277]: the trait bound `Acquisition: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0308]: mismatched types",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0308]: mismatched types",
+      "error[E0277]: can't compare `serde_json::value::Value` with `serde_json::Value`",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0308]: mismatched types",
+      "error[E0277]: can't compare `serde_json::value::Value` with `serde_json::Value`",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0277]: can't compare `serde_json::value::Value` with `serde_json::Value`",
+      "error[E0308]: mismatched types",
+      "error[E0308]: mismatched types",
+      "error[E0277]: the trait bound `Acquisition: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `serde_json::value::Value: serde::Serialize` is not satisfied",
+      "error[E0277]: the trait bound `snapback4_device::device::StreamPage: serde::de::DeserializeOwned` is not satisfied",
+      "error[E0277]: can't compare `serde_json::value::Value` with `serde_json::Value`",
+      "error[E0277]: the trait bound `snapback4_device::device::Queued: serde::de::DeserializeOwned` is not satisfied",
+      "error: aborting due to 53 previous errors"
+    ]
+  },
+  {
+    "classification": "ours, resolved evidence formatting",
+    "log": null,
+    "reason": "The staged whitespace check detected two Markdown hard-break trailing spaces in the copied Astra review. Removed only trailing whitespace; review wording is preserved. No product input changed."
+  }
+]

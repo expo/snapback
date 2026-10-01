@@ -1,0 +1,29 @@
+{
+  "base_commit": "412a4d23a60934c87563305d43f97294a03b033b",
+  "product": "unchanged round 4; only three test files added/registered",
+  "test_hashes": {
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/dependencies.rs": "60d5966dfb6ce2a63ee2dc06fbb6e79bb834c3da9109322a1cac86663be27fc5",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/compound_values.rs": "d04f67a9ce55ae09e640e19adf73902a978785143e11c21ffb92ec80c61fbc43",
+    "snapback4/crates/snapback4-lang/tests/declarative_receipts/generated_value_taint.rs": "9c3e7a70af0e84e9ad8991611c9a2e0193edd250ef41aefe6f8be5bd794e8709"
+  },
+  "test_patch": "round4-negative-tests.patch.gz",
+  "commands": [
+    "cargo test -p snapback4-lang --test declarative_receipts compound_values",
+    "cargo test -p snapback4-lang --test declarative_receipts generated_value_taint"
+  ],
+  "compound": {
+    "passed": 0,
+    "failed": 4,
+    "exit": 101
+  },
+  "generated": {
+    "passed": 0,
+    "failed": 2,
+    "exit": 101,
+    "first_escape": "format: min of compound rows then clean text selection",
+    "matrix_at_negative_control": 2440,
+    "limit": "each store stops on first failing case; not every negative scenario runs"
+  },
+  "final_generator_extension": "Adds branch-false, after-insert and effect sinks plus a whole-record-derived source mode: 6344 final cases, with all four output tables compared after settlement.",
+  "classification": "baseline: intentional negative-control failures on untouched round-4 product"
+}

@@ -1,0 +1,39 @@
+{
+  "merged_baseline": {
+    "source_commit": "412a4d23a6",
+    "origin_main_at_initial_merge": "91a111cd85044176ebcc7200449e16e968d276f5",
+    "raw": 2017966,
+    "gzip": 605913,
+    "log": "merge-wasm.log.gz"
+  },
+  "final_before_suite": {
+    "path": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+    "raw": 2023922,
+    "gzip": 609741,
+    "sha256": "67011a35ef573f8253e6f404da8c6c231675adb1382c1ef169e640f6d25135c9",
+    "gzip_sha256": "fce008d7b4ebd304b66bb13ba2e28c75b6e6c0e11176a9d7b6f9802b1673dfed",
+    "method": "bash scripts/build-wasm.sh; gzip -9 -c <path> (filename header retained)",
+    "log": "wasm-qualified.log.gz"
+  },
+  "budget": 609750,
+  "final": {
+    "raw": 2024561,
+    "gzip": 609750,
+    "sha256": "e88c05bebce77d95db2f45c61edb10b6c23876aef24b2041c8ad62a292877356",
+    "gzip_sha256": "38991b3ae4ca2660935f779bb7885c25399948bf960808529fe306b61adf065d",
+    "log": "final-wasm.log.gz",
+    "budget_log": "final-budget-check.log.gz",
+    "method": "bash scripts/build-wasm.sh; gzip -9 -c <path> (filename header retained)"
+  },
+  "final_delta_from_merge": {
+    "raw": 6595,
+    "gzip": 3837,
+    "gzip_percent": 0.6333
+  },
+  "budget_sha256": "363a72cdff5898a4332e69231bb4914d7ca5990898b4449266edd7d4bcbad14f",
+  "pre_suite_delta_from_merge": {
+    "raw": 5956,
+    "gzip": 3828,
+    "gzip_percent": 0.6318
+  }
+}

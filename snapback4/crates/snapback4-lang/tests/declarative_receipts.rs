@@ -12,7 +12,34 @@ const DECLARATIVE: &str = include_str!("../../snapback4/src/verbs/init/social/sc
 fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_receipt_notes(&b);
     b
+}
+// Every authored static dependency has exactly one located check note and the
+// same reason in the execution facts used by why and device admission.
+fn assert_receipt_notes(b: &snapback4_lang::Bound) {
+    for (name, fact) in &b.schema.operations {
+        let generated = b.schema.receipts.iter().any(|f| [f.delivered.as_str(), f.seen.as_str(), f.compact.as_str()].contains(&name.as_str()));
+        if generated { continue; }
+        let notes: Vec<_> = b.notes.iter().filter(|n| n.code == "N_RECEIPT_PREDICTION" && n.message.starts_with(&format!("mutation {name} predicts:"))).collect();
+        if let Some(site) = fact.sites.iter().find(|s| s.kind == "receipt dependency") {
+            assert_eq!(fact.predicts.as_deref(), Some("never"), "{name}: {fact:?}");
+            assert_eq!(notes.len(), 1, "{name}: {:?}", b.notes);
+            assert!(notes[0].message.contains(&site.reason), "{name}: {:?}", notes[0]);
+            assert_eq!(notes[0].site.to_string(), site.site);
+            assert_eq!(notes[0].site.file, "schema.q");
+            assert!(notes[0].site.line > 0 && notes[0].site.col > 0);
+        } else { assert!(notes.is_empty(), "{name}: {notes:?}"); }
+    }
+ }
+fn compile(source: &str) -> (Engine, snapback4_device::device::Backend) {
+    let b = bound(source);
+    let e = Engine::memory(b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap();
+    let backend = snapback4_device::device::Backend { generation: e.generation(), schema: b.schema, programs: b.programs.into_iter().map(|p| p.program).collect() };
+    let text = serde_json::to_string(&backend).unwrap();
+    let decoded: snapback4_device::device::Backend = snapback4_core::json_codec::from_text(&text).unwrap();
+    assert_eq!(serde_json::to_value(&backend).unwrap(), serde_json::to_value(decoded).unwrap());
+    (e, backend)
 }
 fn ctx(who: &str, values: &[(&str, Value)], now: i64) -> Context {
     Context::new(who, args(values)).at(now)
@@ -552,7 +579,7 @@ fn receipts_remains_a_legal_ordinary_column_name() {
 }
 
 #[test]
-fn device_predictions_keep_owned_progress_and_include_removal_cleanup() {
+fn device_queues_progress_and_removal_without_changing_settled_receipts() {
     let source = format!(
         "{DECLARATIVE}\nmutation forge(conversation: conversations):\n  update members[conversation, viewer] {{ seenOrdinal: 999 }}\n"
     );
@@ -592,20 +619,17 @@ fn device_predictions_keep_owned_progress_and_include_removal_cleanup() {
         observed_seq: None,
         dispatch: None,
     };
-    assert_eq!(
-        d.admit(queued("forge", 1)).unwrap_err().code(),
-        "E_RECEIPTS_OWNED"
-    );
+    assert!(!d.admit(queued("forge", 1)).unwrap().predictable);
+    assert!(format!("{:?}", mutate(&mut e, "bob", "forge", &[("conversation",id("c"))], 30)).contains("E_RECEIPTS_OWNED"));
+    let before = d.query("progress", "bob", &json!({"conversation":"c","c":null}), 30).unwrap().data;
     let mut seen = queued("seen", 2);
     seen.args = json!({"conversation":"c","through":3});
-    assert!(d.admit(seen).unwrap().predictable);
+    assert!(!d.admit(seen).unwrap().predictable);
     let leave = d.admit(queued("leave", 3)).unwrap();
-    assert!(leave.predictable, "{leave:?}");
-    assert!(leave.predicted.contains(&"members/b".to_string()));
-    assert!(
-        leave.predicted.iter().any(|key| key.starts_with("runs/")),
-        "implicit run deletion is included in prediction's write set: {leave:?}"
-    );
+    assert!(!leave.predictable, "{leave:?}");
+    assert!(leave.predicted.is_empty());
+    assert_eq!(d.query("progress", "bob", &json!({"conversation":"c","c":null}), 30).unwrap().data, before);
+
 }
 
 #[path = "declarative_receipts/device_round1.rs"]
@@ -623,3 +647,6 @@ mod schedules;
 mod round3;
 #[path = "declarative_receipts/round4.rs"]
 mod round4;
+
+#[path = "declarative_receipts/allocation.rs"]
+mod allocation;

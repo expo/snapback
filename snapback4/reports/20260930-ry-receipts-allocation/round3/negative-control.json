@@ -1,0 +1,12 @@
+{
+  "baseline": "093c98c0a8",
+  "negative_exit": 101,
+  "restored": {
+    "snapback4/crates/snapback4-core/src/engine/authorized_scan.rs": "efc2921bcd2dfcb82017226e82f4b10f4300da6556738bc366840279c7d71332",
+    "snapback4/crates/snapback4-core/src/engine/local.rs": "24455298358f42e86729d0acab5b4d2babe1fabfd0cb985be97717ad0c6bc1c6",
+    "snapback4/crates/snapback4-core/src/engine/runner.rs": "ff136a30e80e5e1c7c1f39c71f83b5b2cbdb9474573089c822f7115507f49bc9",
+    "snapback4/crates/snapback4-core/src/engine/sequences.rs": "f504a22107c9116fcde29a26c5d293656518bd387b58e981fb0dc939b938cdaa",
+    "snapback4/crates/snapback4-core/src/engine/write_target.rs": "be4d2f213efd59e777f7aa37541bfcba33c40a7f8071887ce692fb6cf6da4fae",
+    "snapback4/crates/snapback4-core/src/schema/receipts.rs": "0a038c46b6c9f001b5b35ec0086e1de6ea959d9a36822cfe83a2039e1b4de904"
+  }
+}

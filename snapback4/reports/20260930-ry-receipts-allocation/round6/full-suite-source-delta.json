@@ -1,0 +1,17 @@
+[
+  {
+    "path": "crates/snapback4-core/src/engine/local.rs",
+    "suite_start_sha256": "5643576dea2a1283a5d362a3077d8bb0130a20a0a40e2e202e5ce5dc97eb1241",
+    "final_sha256": "97f0861260d318bb2bc7514cf2f444b0cb58fb2971ee894d02d24910ad1b2ca6"
+  },
+  {
+    "path": "crates/snapback4-lang/tests/declarative_receipts/allocation.rs",
+    "suite_start_sha256": "2b48607f554a82fb190293e478e60aa17e51677db9110211360e89d10ece22d6",
+    "final_sha256": "d71eb68548fb4fd952990d1ce0b2f123b1d4bb7ab5ee664b2655b52552d4df51"
+  },
+  {
+    "path": "metrics/wasm-budget.json",
+    "suite_start_sha256": "d78a6911229607f53103363d9e7b70868edaa419d9038ef095eb9d4f1217772d",
+    "final_sha256": "8f2ba227a973ab430a4abb9f486586fc482fa68042306a6947cc3bcc1e300e71"
+  }
+]
