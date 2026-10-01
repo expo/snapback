@@ -1,0 +1,13 @@
+{
+  "step": "registry-cli",
+  "command": [
+    "python3",
+    "/Users/ccheever/sb4-pub-0410/helpers-0.4.10/registry-verify.py",
+    "cli"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0410/snapback4",
+  "start": 1790829570.309085,
+  "end": 1790829581.413335,
+  "seconds": 11.104,
+  "exit": 0
+}
