@@ -158,23 +158,13 @@ impl Runner<'_> {
         Ok(())
     }
 
-    // @ref LLP 3000.022#14.3 — guessed accounting must never select a write's
-    // identity, even on a local hit. Stable-id writes and allocating inserts
-    // still predict. Resolve this key only in the server transaction.
-    fn require_stable_target(&self, target: &Read) -> Result<(), RuntimeError> {
-        if self.device && self.schema.receipt_key(&target.table, &target.index) {
-            return Err(RuntimeError::Prediction("a receipt-owned write key needs server resolution; queued without a predicted row (guide receipts)".into()));
-        }
-        Ok(())
-    }
-
     pub(in crate::engine) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
-        self.require_stable_target(target)?;
+        self.tx.touch_index(&target.table, &target.index);
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
     pub(in crate::engine) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
-        self.require_stable_target(target)?;
+        self.tx.touch_index(&target.table, &target.index);
         self.target_attempt(&target.table, |runner| {
             runner.refuse_engine_owned(&target.table, Effect::Delete)?;
             let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;
@@ -232,7 +222,7 @@ impl Runner<'_> {
             if let Some(condition) = condition {
                 self.require_readable_condition(&target.table, readable)?;
                 let projected_old = self.project_row(&target.table, old.clone())?;
-                let passed = self.write_condition(condition, projected_old);
+                let passed = self.write_condition(&target.table, condition, projected_old);
                 match passed {
                     Ok(true) => {}
                     Ok(false) => return Err(RuntimeError::Conflict { current: Read { key: vec![Expr::Literal(id)], index: "byId".into(), ..target.clone() } }),
@@ -273,13 +263,15 @@ impl Runner<'_> {
         if self.evaluating_write_condition { Err(RuntimeError::Input("an update condition cannot write".into())) } else { Ok(()) }
     }
 
-    fn write_condition(&mut self, condition: &WriteCondition, old: crate::engine::authorized_point::AuthorizedRow<'_>) -> Result<bool, RuntimeError> {
+    fn write_condition(&mut self, table: &str, condition: &WriteCondition, old: crate::engine::authorized_point::AuthorizedRow<'_>) -> Result<bool, RuntimeError> {
         validate_condition(condition)?;
         self.meter.heap(self.environment_heap() + old.heap_bytes())?;
         let env = self.env.clone();
         let consts = self.consts.clone();
         let site = self.statement_site.clone();
-        self.env.insert(condition.old.clone(), old.into_value());
+        let mut old = old.into_value();
+        if self.device && !self.schema.receipts.is_empty() { self.stamp_source(table, &mut old)?; }
+        self.env.insert(condition.old.clone(), old);
         let previous = self.evaluating_write_condition;
         self.evaluating_write_condition = true;
         let result = (|| {

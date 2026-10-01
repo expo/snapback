@@ -220,8 +220,7 @@ mutation checkedSend(conversation: conversations):
         let key = format!("maintenance-{label}");
         let mut d = host.open(&key, Some(b)).unwrap();
         publish(&mut e, &mut d, "alice");
-        let first = d.admit(queued("alice", 1)).unwrap();
-        assert!(first.predictable);
+        let first = deferred(&mut d, queued("alice", 1));
         // In the key case, send 1 has one recipient and send 2 has two at the
         // server, so their huge contributions enter different buckets. On the
         // device both guesses are zero, and the second would overflow.
@@ -239,7 +238,7 @@ mutation checkedSend(conversation: conversations):
             &mut d,
             request("checkedSend", json!({"conversation":"c"}), 2),
         );
-        assert_eq!(d.store().raw_rows("messages").len(), 1);
+        assert!(d.store().raw_rows("messages").is_empty());
         host.close(&key, d);
         let mut d = host.open(&key, None).unwrap();
         settle(&mut e, &mut d, &first); // write-id replay
@@ -507,3 +506,6 @@ both!(
     other_owned_targets_sqlite,
     other_owned_targets
 );
+
+#[path = "generated_read_rule.rs"]
+mod round4;

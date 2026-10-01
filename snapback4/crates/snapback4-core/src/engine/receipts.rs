@@ -313,6 +313,7 @@ impl Runner<'_> {
                     set(&mut row, field, stored.field(field)?.as_int()?)?;
                 }
             }
+            self.stamp_source(table, &mut row)?;
             return Ok(row);
         }
         Ok(row)

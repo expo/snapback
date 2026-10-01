@@ -115,6 +115,7 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     if !schema.timelines.is_empty() && crate::ir::write_tables(program).iter().any(|(table, _)| schema.timelines.iter().any(|t| &t.edges[0] == table)) {
         return Err(RuntimeError::Prediction("timeline follow/unfollow/refollow requires online-only slot accounting".into()));
     }
+    context.row_provenance |= !schema.receipts.is_empty();
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
     runner.device_allowance = Some(Meter::new(ceilings, Cut::Abort));
@@ -131,10 +132,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     // Any refusal after consuming one may change with the server's assignment,
     // including constraints, postconditions and a selected branch's refusal.
     // The host rolls back all predicted rows and retains the intent.
-    // @ref LLP 3000.022#14.3 — any refusal after touching clause-owned storage
-    // belongs to the server, even when a reader did not set a precise flag.
-    if (runner.tx.receipt_touched() || runner.provisional_sequence_read) && result.is_err() {
-        return Err(RuntimeError::Prediction("a refusal follows receipt state or a provisional sequence read; queue the write for the server (guide writes)".into()));
+    // @ref LLP 3000.022#14.3 — any authored receipt/derived read makes the
+    // whole prediction uncertain, including success. Allocation is internal.
+    if runner.tx.receipt_touched() || (runner.provisional_sequence_read && result.is_err()) {
+        return Err(RuntimeError::Prediction("authored receipt state or a refused provisional sequence was read; queue the write for the server (guide writes)".into()));
     }
     // Unknown input can select a branch the server will never execute. Its
     // exhaustion cannot refuse the write; a cut with known inputs still can.

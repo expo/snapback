@@ -11,6 +11,8 @@ impl Runner<'_> {
 
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(in crate::engine) fn probe_witness(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        self.tx.touch_index(table, index);
+        for (field, _) in equalities { self.tx.touch_field(table, field); }
         if self.device_work_active { return self.probe_witness_uncached(allowance, table, index, key, equalities, current); }
         let cached_key = WitnessKey { revision: self.tx.revision(), table: table.into(), index: index.into(), key: key.to_vec(), equalities: equalities.to_vec(), current };
         if let Some((previous, (live, known, expiry))) = &self.witness_cache && previous == &cached_key {

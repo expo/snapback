@@ -11,6 +11,8 @@ use std::collections::BTreeSet;
 struct Wire {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     receipts: Vec<ReceiptFamily>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
@@ -125,6 +127,7 @@ impl<'de> Deserialize<'de> for Schema {
         if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }
+        schema.prepare_receipt_dependencies();
         Ok(schema)
     }
 }

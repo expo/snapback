@@ -753,7 +753,7 @@ impl<'a> Runner<'a> {
             }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
-                if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site)? {
+                if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site, &self.tx)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     self.provisional_sequence_read |= self.sequence_field_is_provisional(base, name)?;
@@ -834,6 +834,12 @@ impl<'a> Runner<'a> {
                     return Ok(Value::Bool(true));
                 }
                 let right = self.expr(right)?;
+                // Composite comparisons consume their fields too. A null test
+                // checks presence only, and does not inspect a row's accounting.
+                if left != Value::Null && right != Value::Null {
+                    self.tx.touch_value(&left);
+                    self.tx.touch_value(&right);
+                }
                 #[cfg(not(target_arch = "wasm32"))]
                 self.presence_binary(*op, &left, projected, &right);
                 binary(*op, left, right)
@@ -870,7 +876,7 @@ impl<'a> Runner<'a> {
                 // Inspect a held value without allocating a copy just to count
                 // it. Reads that need ownership still charge every actual clone.
                 if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
-                    if let Some((value, steps)) = borrowed(&self.env, &args[0], &self.statement_site)? {
+                    if let Some((value, steps)) = borrowed(&self.env, &args[0], &self.statement_site, &self.tx)? {
                         self.meter.step(steps)?;
                         return scalar_builtin(builtin, value);
                     }
@@ -879,6 +885,7 @@ impl<'a> Runner<'a> {
                 self.builtin(builtin, args)
             }
             Expr::Get(read) => {
+                self.tx.touch(&read.table);
                 let value = self.get(read)?;
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
@@ -923,8 +930,8 @@ impl<'a> Runner<'a> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
-                // @ref LLP 3000.022#14.3 — storage custody covers the pending null
-                // even when this generated guard skips every field read.
+                // A pending null is itself receipt state, even with no field read.
+                self.tx.touch(table);
                 let provisional = self.is_provisional(table, &args[0])?;
                 Ok(Value::Bool(!provisional))
             },
@@ -1233,12 +1240,12 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
 
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str, reads: &super::authorized_scan::GuardedRows<'_>) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
         Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| missing_variable(name, site)),
-        Expr::Field { base, name } => match borrowed(env, base, site)? {
-            Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
+        Expr::Field { base, name } => match borrowed(env, base, site, reads)? {
+            Some((value, steps)) => { reads.touch_value_field(value, name); Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))) },
             None => Ok(None),
         },
         _ => Ok(None),

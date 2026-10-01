@@ -1,0 +1,168 @@
+[
+  {
+    "log": "receipts-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "Six prior assertions expected prediction through receipt-dependent maintenance. Updated them to the round-four rule; no product defect remains.",
+    "failed_tests": [
+      "allocation::dependencies::generated::generated_maintenance_memory",
+      "allocation::dependencies::maintained_filter_memory",
+      "allocation::dependencies::maintained_sum_memory",
+      "allocation::dependencies::generated::generated_maintenance_sqlite",
+      "allocation::dependencies::maintained_sum_sqlite",
+      "allocation::dependencies::maintained_filter_sqlite"
+    ],
+    "diagnostics": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 119 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.49s"
+    ]
+  },
+  {
+    "log": "generated-first.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "New helper needed the BoundaryMetadata bound and WriteState::Failed.why field. Corrected compile errors.",
+    "failed_tests": [],
+    "diagnostics": [
+      "error[E0599]: no method named `raw_rows` found for reference `&S` in the current scope",
+      "error[E0026]: variant `snapback4_core::WriteState::Failed` does not have a field named `error`",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 2 previous errors"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "generated-second.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "The generated loop used a nonuniform byId index. Corrected to the lawful conversation-prefixed index and .id authoring spelling.",
+    "failed_tests": [
+      "allocation::dependencies::generated::round4::generated_loops_sqlite",
+      "allocation::dependencies::generated::round4::generated_loops_memory"
+    ],
+    "diagnostics": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 125 filtered out; finished in 1.22s"
+    ]
+  },
+  {
+    "log": "receipts-guide.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "A test-helper edit left an unclosed delimiter. Restored the missing brace; rustfmt reported the same defect before Cargo.",
+    "failed_tests": [],
+    "diagnostics": [
+      "error: this file contains an unclosed delimiter",
+      "error: could not compile `snapback4-lang` (test \"declarative_receipts\") due to 1 previous error"
+    ],
+    "summaries": []
+  },
+  {
+    "log": "receipts-guide-corrected.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "Four member-maintenance fixtures assumed a predicted join supplied new_ids. The stronger rule queues that join. Added an explicit-id join for its follow-up, preserving server assertions.",
+    "failed_tests": [
+      "allocation::dependencies::aggregate_member_memory",
+      "allocation::dependencies::aggregate_live_member_memory",
+      "allocation::dependencies::aggregate_member_sqlite",
+      "allocation::dependencies::aggregate_live_member_sqlite"
+    ],
+    "diagnostics": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 132 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 81.21s"
+    ]
+  },
+  {
+    "log": "observer-negative.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": true,
+    "reason": "Intentional negative control: disable only the central observer. Eight tests detect it at admission. Three controls/schema tests pass. Restored source bytes in finally before final checks.",
+    "failed_tests": [
+      "allocation::dependencies::generated::round4::generated_columns_memory",
+      "allocation::dependencies::generated::round4::generated_loops_sqlite",
+      "allocation::dependencies::generated::round4::generated_aliases_memory",
+      "allocation::dependencies::generated::round4::generated_hooks_memory",
+      "allocation::dependencies::generated::round4::generated_loops_memory",
+      "allocation::dependencies::generated::round4::generated_columns_sqlite",
+      "allocation::dependencies::generated::round4::generated_hooks_sqlite",
+      "allocation::dependencies::generated::round4::generated_aliases_sqlite"
+    ],
+    "diagnostics": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 3 passed; 8 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.41s"
+    ]
+  },
+  {
+    "log": "whole-values-negative.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "Audit regression: whole-record/list/nested-record comparison initially consumed accounting without observation. Both stores failed admission assertions. Added composite value observation; all six cases now pass.",
+    "failed_tests": [
+      "allocation::dependencies::generated::round4::generated_whole_values_memory",
+      "allocation::dependencies::generated::round4::generated_whole_values_sqlite"
+    ],
+    "diagnostics": [
+      "error: test failed, to rerun pass `-p snapback4-lang --test declarative_receipts`"
+    ],
+    "summaries": [
+      "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 138 filtered out; finished in 0.08s"
+    ]
+  },
+  {
+    "log": "final-wasm.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "Intermediate artifact 2,017,393 raw / 605,719 gzip exceeded merged 604,295 cap by 1,424. Budget records only the final measurement.",
+    "failed_tests": [],
+    "diagnostics": [],
+    "summaries": [
+      "wasm 2017393 B raw, 605719 B gzip (budget 604295: OVER by 1424 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "log": "wasm-composite-final.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "Intermediate composite-consumer artifact 2,017,721 raw / 605,861 gzip exceeded intermediate cap by 142.",
+    "failed_tests": [],
+    "diagnostics": [],
+    "summaries": [
+      "wasm 2017721 B raw, 605861 B gzip (budget 605719: OVER by 142 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "log": "wasm-final.log.gz",
+    "classification": "ours",
+    "resolved": true,
+    "intentional_negative_control": false,
+    "reason": "Final conditional-row provenance artifact 2,017,966 raw / 605,913 gzip exceeded intermediate cap by 194. Set exact final cap 605,913, no slack; full suite rebuild verifies it.",
+    "failed_tests": [],
+    "diagnostics": [],
+    "summaries": [
+      "wasm 2017966 B raw, 605913 B gzip (budget 605719: OVER by 194 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "classification": "ours",
+    "resolved": true,
+    "kind": "command/path corrections",
+    "reason": "Initial report/budget commands used repository-relative paths from the snapback4 directory. Corrected working-directory prefixes and removed the empty nested report directory. A few read-only guessed paths did not exist; corrected them. No unintended product file survived. Initial artifact capture used Python gzip, which differs from build-wasm.sh; replaced its size with the exact gzip -9 -c path measurement."
+  }
+]

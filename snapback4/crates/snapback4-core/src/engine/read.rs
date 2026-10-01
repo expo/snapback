@@ -146,6 +146,7 @@ impl Probe for RuleProbe<'_, '_> {
 
 impl<'r> Runner<'r> {
     pub(super) fn created(&self, table: &str, index: &str, key: &[Value]) -> bool {
+        self.tx.touch_index(table, index);
         self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
     }
 
@@ -856,6 +857,7 @@ impl<'r> Runner<'r> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<&mut super::extrema::Aggregate<'_>>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.tx.touch(&scan.table);
         self.observe_sequence_selection(&scan.table, &scan.index, &prefix)?;
         self.event_read_unknown(&scan.table, &scan.index, &prefix, &scan.site);
         let page_expiry = self.next_expiry.scope();

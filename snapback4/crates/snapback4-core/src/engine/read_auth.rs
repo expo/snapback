@@ -107,6 +107,7 @@ impl Probe for ReadProbe<'_, '_> {
     fn take_unknown(&mut self) -> bool { std::mem::take(&mut self.unknown) }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, _old: bool) {
+        self.runner.tx.touch_field(self.table, field);
         self.runner.provisional_sequence_read |= self.provisional && self.runner.sequence_field_is_assigned(self.table, field);
     }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {

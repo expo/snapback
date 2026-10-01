@@ -39,6 +39,7 @@ impl Runner<'_> {
         self.meter.heap(super::write_target::row_copy_ceiling(table))?;
         for path in paths {
             let field = &table.recorded[path];
+            self.tx.touch_field(&field.table, &field.column);
             let target = &self.schema.tables[&field.table];
             // Even a null reference has the same declared point-read charge.
             self.meter.charge(MeterKind::Examined, 1)?;

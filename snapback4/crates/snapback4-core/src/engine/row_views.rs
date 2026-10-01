@@ -56,6 +56,7 @@ impl Runner<'_> {
                 if self.device && self.schema.tables[&m.target].sync.is_none() {
                     continue;
                 }
+                self.tx.touch(&m.target);
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
                     self.reserve_row_view(m, 1)?;

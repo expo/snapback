@@ -81107,3 +81107,48 @@ are retained and attributed in the report; no assertion or budget was relaxed.
 Report: reports/20260930-gq-guide-start-here/round1/REPORT.md, with every failure
 and rendered-card measurements. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-01 — RY round 4: every authored receipt read defers prediction
+
+Read rounds 0–3 and both complete round-3 reviews. Merged origin/main
+91a111cd85 first in 82a5797a68, preserving RY, PR and GQ plus both journal
+histories. Astra's residual-selection and maintained-parent findings and
+Grok's five non-receipt-index shapes now queue without predicted changes,
+on either local success or refusal. One sticky authored-read observation
+covers whole-row selections on any index, fields, residual probes, rules,
+hooks and composite comparisons. Schema-time fixed-point taint includes
+maintained predicates/keys/contributions, aggregate rows, mirrored parent
+columns and captures, and survives private-derivation projection and wire
+round-trip. Removed raw-store receipt touches and the separate receipt target
+refusal policy. Allocator probes remain internal; sends, creates, joins,
+id edits, text-only conditional edits and reaction upserts retain prediction.
+LLP 3000.022 §14.3 and the compiled receipts guide state the rule.
+
+Final receipt target: 140/140. Whole guide: 110/110. Generated coverage now
+has 704 admission/settlement scenarios plus two ordinary-control sequences
+and a transitive-schema unit in 25 Rust tests. The extension includes true
+ordinal comparisons in loops/filters over .id, sender, ordinal and timestamp
+indexes, first/last and horizons, aliases, maintained columns and after-insert
+hooks. Eight tests fail when only the central observer is disabled; whole
+record/list/nested-record regressions also failed before their consumer fix.
+All development failures are ours and resolved, with each named in the report.
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1305 s`, exit 0.
+All thirteen stages pass: Rust 4,533 passed/33 existing ignores; clients
+5,727 passed/10 existing skips; fixture wrappers 9/9; serial models 79/79,
+including 5,000 online and 5,000 local sequences. Full-suite failures: none
+(ours 0, baseline 0, environmental 0). All 2,335 source/manifest hashes
+match before/after; no product source changed after the run. The inherited
+60-second nominal suite target is exceeded without relaxing its policy.
+
+Merged wasm was unchanged at 2,011,439 B raw / 604,295 B gzip. Final same-
+toolchain artifact is 2,017,966 B raw / 605,913 B gzip (+6,527 raw / +1,618
+gzip, 0.27%): dependency closure/projection metadata, unconditional admission
+and typed/composite value observation, with old policies removed. These are
+whole-artifact deltas, not independent feature costs. Set the ratchet exactly
+to 605,913 B, no slack; full-suite rebuild matches size and SHA-256. Existing
+RY/PR/main budget reasons remain. No meter, count, timeout or concurrency
+change. The social starter stays 223 lines; no contract.ts change.
+
+Evidence and every failure classification:
+reports/20260930-ry-receipts-allocation/round4/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

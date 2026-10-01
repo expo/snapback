@@ -40,6 +40,7 @@ impl Runner<'_> {
     }
 
     fn maintain_one(&mut self, maintain: &Maintain, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+        self.tx.touch(&maintain.target);
         let table = self.schema.table(&maintain.source).expect("validated");
         let mut changes: Vec<(Vec<Value>, i128)> = Vec::new();
         for (image, direction) in [(old, -1), (new, 1)] {

@@ -58,12 +58,7 @@ impl Runner<'_> {
     // ordinals even when the requested suffix currently contains no rows.
     pub(super) fn observe_sequence_selection(&mut self, name: &str, index_name: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
         if !self.device || self.device_allowance.is_none() { return Ok(()); }
-        // @ref LLP 3000.022#14.3 — an authored read can carry a guessed key's
-        // selected id into a later write. Defer even a hit; allocator suffix
-        // probes use storage directly and ordinary sends still predict.
-        if self.schema.receipt_key(name, index_name) {
-            return Err(RuntimeError::Prediction("a receipt-owned selection needs server resolution (guide receipts)".into()));
-        }
+        self.tx.touch_index(name, index_name);
         if self.provisional_sequence_read { return Ok(()); }
         // A stored scalar aggregate can be zero/absent because a provisional
         // source failed its filter, or can hold a provisional sum/group key.
@@ -127,6 +122,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn sequence_field_is_provisional(&self, row: &Value, field: &str) -> Result<bool, RuntimeError> {
+        self.tx.touch_value_field(row, field);
         if !self.device || row.field("id").and_then(Value::as_str).is_err() { return Ok(false); }
         for name in self.schema.tables.keys() {
             if self.sequence_field_is_assigned(name, field) && self.is_provisional(name, row)? { return Ok(true); }
@@ -330,6 +326,7 @@ struct SequenceProbe<'a, 'b> {
 impl super::rules::Probe for SequenceProbe<'_, '_> {
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, old: bool) {
+        self.runner.tx.touch_field(self.table, field);
         self.runner.provisional_sequence_read |= (if old { self.old } else { self.next })
             && self.runner.sequence_field_is_assigned(self.table, field);
     }

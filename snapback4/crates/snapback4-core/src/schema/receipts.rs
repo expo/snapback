@@ -134,53 +134,96 @@ impl ReceiptFamily {
     }
 }
 impl super::Schema {
-    /// Storage custody includes generated receipt state and recorded copies,
-    /// not just the four fields assigned on insertion.
-    pub(crate) fn receipt_owned_field(&self, table: &str, field: &str) -> bool {
-        let (table, field) = self.tables[table]
-            .recorded
-            .get(field)
-            .map_or((table, field), |path| {
-                (path.table.as_str(), path.column.as_str())
-            });
-        self.receipt_assigned(table, field)
-            || self.receipts.iter().any(|f| {
-                table == f.runs
-                    || (table == f.members && (field == f.delivered_field || field == f.seen_field))
-            })
-    }
-
-    // @ref LLP 3000.022#14.3 — whole-row/index access conservatively touches
-    // the family's state, including absent selections and stored derivations.
-    pub(crate) fn receipt_state_table(&self, table: &str) -> bool {
+    // @ref LLP 3000.022#14.3 — derive once, before private maintains leave the
+    // device schema. Iterate to a fixed point for captures and maintained parents.
+    pub fn prepare_receipt_dependencies(&mut self) {
         if self.receipts.is_empty() {
-            return false;
+            self.receipt_dependencies.clear();
+            return;
         }
-        let owns = |name: &str| {
-            self.receipt_insert(name)
-                || self.receipts.iter().any(|f| name == f.runs)
-                || self.tables[name]
-                    .recorded
-                    .values()
-                    .any(|path| self.receipt_owned_field(&path.table, &path.column))
-        };
-        owns(table)
-            || self.maintain_for(table).is_some_and(|m| {
-                owns(&m.source) || m.row_key.as_ref().is_some_and(|key| owns(&key.table))
-            })
+        let mut fields = self.receipt_dependencies.clone();
+        for (name, table) in &self.tables {
+            for family in &self.receipts {
+                let owned = fields.entry(name.clone()).or_default();
+                owned.extend(family.assigned(name).map(str::to_owned));
+                if name == &family.members {
+                    owned.extend([family.delivered_field.clone(), family.seen_field.clone()]);
+                }
+                if name == &family.runs {
+                    owned.extend(table.columns.keys().cloned());
+                }
+            }
+        }
+        loop {
+            let before = fields.clone();
+            let depends =
+                |table: &str, field: &str| before.get(table).is_some_and(|fs| fs.contains(field));
+            for (name, table) in &self.tables {
+                for (field, path) in &table.recorded {
+                    if depends(&path.table, &path.column) {
+                        fields
+                            .entry(name.clone())
+                            .or_default()
+                            .insert(field.clone());
+                    }
+                }
+                if let Some(parent) = &table.through {
+                    for (field, source) in &parent.fields {
+                        if depends(&parent.parent, source) {
+                            fields
+                                .entry(name.clone())
+                                .or_default()
+                                .insert(field.clone());
+                        }
+                    }
+                }
+            }
+            for m in &self.maintains {
+                let dependent = m.dependencies().iter().any(|f| depends(&m.source, f))
+                    || m.row_key.as_ref().is_some_and(|k| {
+                        depends(&m.source, &k.source_key)
+                            || depends(&k.table, &k.member_key)
+                            || k.fields().iter().any(|f| depends(&k.table, f))
+                    });
+                if dependent {
+                    if let Some(target) = self.tables.get(&m.target) {
+                        // Predicate/contribution changes affect even existence and group ids.
+                        fields
+                            .entry(m.target.clone())
+                            .or_default()
+                            .extend(target.columns.keys().cloned());
+                    }
+                    if let Some(owner) = &m.private {
+                        fields
+                            .entry(owner.table.clone())
+                            .or_default()
+                            .insert(owner.column.clone());
+                    }
+                }
+            }
+            if before == fields {
+                break;
+            }
+        }
+        fields.retain(|_, fields| !fields.is_empty());
+        self.receipt_dependencies = fields;
     }
 
-    pub(crate) fn receipt_key(&self, table: &str, index: &str) -> bool {
-        if self.receipts.is_empty() { return false; }
-        self.tables
+    pub(crate) fn receipt_state_table(&self, table: &str) -> bool {
+        self.receipt_dependencies.contains_key(table)
+    }
+    pub(crate) fn receipt_owned_field(&self, table: &str, field: &str) -> bool {
+        self.receipt_dependencies
             .get(table)
-            .and_then(|t| t.index(index))
-            .is_some_and(|index| {
-                self.tables[table]
-                    .columns
-                    .keys()
-                    .any(|field| index.uses_column(field) && self.receipt_owned_field(table, field))
-            })
+            .is_some_and(|fields| fields.contains(field))
+    }
+    pub(crate) fn receipt_key(&self, table: &str, index: &str) -> bool {
+        self.receipt_dependencies.get(table).is_some_and(|fields| {
+            self.tables
+                .get(table)
+                .and_then(|t| t.index(index))
+                .is_some_and(|index| fields.iter().any(|field| index.uses_column(field)))
+        })
     }
 
     pub fn receipt_assigned(&self, table: &str, field: &str) -> bool {

@@ -32,6 +32,8 @@ pub use routes::RouteSpec;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
     pub receipts: Vec<ReceiptFamily>,
+    /// Schema-time closure; retained on device projections without private derivations.
+    pub receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
     pub tables: BTreeMap<String, Table>,
     pub delivery: Vec<DeliveryBinding>,
     #[cfg(feature = "sqlite")]

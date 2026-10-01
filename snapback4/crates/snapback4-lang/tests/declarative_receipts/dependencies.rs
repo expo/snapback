@@ -281,6 +281,8 @@ fn aggregate<H: Host>(host: &mut H, member_bound: bool, expiring: bool) {
         r#"
 view qualified: count messages by members m
   where .conversation = m.conversation and .ordinal > m.seenOrdinal and {predicate}
+mutation addKnown(conversation: conversations, principal: principal, id: id):
+  insert members {{ id, conversation, principal }}
 mutation aggregateFollowup(member: members):
   total = qualified[member] ! else NO_COUNT
   require total {expected} else NOT_SETTLED
@@ -299,17 +301,18 @@ mutation aggregateFollowup(member: members):
     let first = if member_bound {
         send(&mut e, 2, NOW);
         d.admit(request(
-            "add",
-            json!({"conversation":"c","principal":"carol"}),
+            "addKnown",
+            json!({"conversation":"c","principal":"carol","id":"queued-member"}),
             1,
         ))
         .unwrap()
     } else {
         d.admit(queued("alice", 1)).unwrap()
     };
-    assert!(first.predictable);
+    assert!(!first.predictable, "row-view declarations consume receipt state during maintenance");
+    assert!(first.predicted.is_empty());
     let member = if member_bound {
-        first.new_ids[0].as_str()
+        "queued-member"
     } else {
         "a"
     };
@@ -445,7 +448,7 @@ mutation scalarFollowup(conversation: conversations):
     let mut d = host.open("dependencies", Some(b)).unwrap();
     publish(&mut e, &mut d, "alice");
     let send = d.admit(queued("alice", 1)).unwrap();
-    assert!(send.predictable);
+    assert_eq!(send.predictable, view.is_empty(), "authored receipt-derived maintenance also reads accounting");
     let follow = deferred(
         &mut d,
         request("scalarFollowup", json!({"conversation":"c"}), 2),

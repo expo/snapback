@@ -161,6 +161,7 @@ impl crate::schema::Schema {
     // @ref LLP 3000.007#20.9 — every expiring maintain has a selected physical contribution index, including raw schema callers.
     pub fn prepare_contribution_indexes(&mut self) {
         self.prepare_row_views();
+        self.prepare_receipt_dependencies();
         for table in self.tables.values_mut() {
             table.indexes.retain(|_, index| !matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))));
         }

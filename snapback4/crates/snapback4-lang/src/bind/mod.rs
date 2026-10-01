@@ -88,6 +88,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     delivery::bind(&catalog, &mut schema, &mut diagnostics);
     receipts::bind(&catalog, &mut schema, &mut diagnostics);
+    schema.prepare_receipt_dependencies();
     // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
     for issue in snapback4_core::schema::field_authority::validate(&schema) {
         if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
