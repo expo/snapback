@@ -752,6 +752,7 @@ fn an_effect_claim_rechecks_service_session_after_waiting() {
 
 fn quick_limits() -> tiny_http::ConnectionLimits {
     tiny_http::ConnectionLimits {
+        thread_start: None,
         max_connections: 2,
         idle_timeout: Duration::from_millis(150),
         header_timeout: Duration::from_millis(300),

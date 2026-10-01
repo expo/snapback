@@ -81441,3 +81441,47 @@ the new file passes 4/4 with the publication cache; the original file fails the
 same three cases in the same tree (control); with the variable unset the fence
 downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
 changed.
+
+## 2026-10-02 — CT round 0: contended read serving
+
+Replayed calibration #28's actual packet to its 50% marker on eb1000:
+88,143 actions, original invariant verification passed. Probed the published
+0.4.10 token client in 23-call cohorts (drop three, rank 19/20) with arithmetic
+CPU contention at 0/half/all/1.5× available CPUs. Retained ten-CPU and whole
+96-logical-CPU matrices, alternating controls, shared-clock stage stamps,
+49,680 unchanged normalized answers, and an operator-only Mac harness.
+No harness or tests ran on the Macs.
+
+LLP 3000 §7 owns the decision: seven persistent request-worker pools behind
+unchanged RequestAdmission capacities and refusals; explicit Darwin
+user-initiated request QoS versus utility background QoS; unprivileged Linux
+background nice reduction. Detached reader custody, writer FIFO, answers,
+and KA's existing token-client connection reuse/retry contract are unchanged.
+The structural regression sees bounded serving-thread identities across
+1,000 reads and fails on the base's 1,000 new request threads.
+
+At 96 busy children, traced full-contention medians improve 47–64% and tails
+6–51%; dispatch median drops from about 1 ms to about 0.01 ms. The target is
+**not met**: idle regressions remain, and every traced full-contention p95/idle
+ratio exceeds 1.5. Untraced matrices confirm substantial loaded improvement
+but retain idle regressions and seven tail-ratio misses. One-CPU controls
+remove the query-execution increase; placement/frequency is a hypothesis,
+not a proven cause. Exploratory Linux utilization hints were inconsistent and
+are not retained. Mac scheduling behavior remains operator qualification.
+
+Affected server tests: 220 passed, four inherited ignores. Guide: 110 passed.
+KA/transport: 35 passed. The whole `scripts/test.sh` ran once and reported
+exactly `== 1 failure(s) in 1547 s` (`cargo test`): our standalone lifecycle
+abort fixture lacked its new scheduling import. Corrected the fixture;
+all 22 lifecycle tests pass. Client tests passed 5,742 with ten skips; all
+79 client models passed. Earlier descriptor exhaustion at ulimit 1,024 is
+recorded separately; the final affected run used 4,096. The Mac-specific
+modules and readback tests cross-compile on Linux; no runtime Mac claim.
+Wasm is 2,015,329 B raw / 605,001 B gzip against 605,225 B: unchanged budget,
+224 B remaining. The gzip differs by +276 B from the incoming host's recorded
+size; no wasm-executed code changed and no increase was necessary.
+
+Full tables, commands, source custody, qualification limitations, and every
+failed invocation/classification are in
+[`reports/20261001-ct-contended-reads/REPORT.md`](./reports/20261001-ct-contended-reads/REPORT.md).
+Committed on `sb4-intent/ct-contended-reads`; nothing pushed or published.

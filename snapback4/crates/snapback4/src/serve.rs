@@ -129,6 +129,9 @@ impl Shared {
     pub(crate) fn worker_owner(&self) -> Option<Arc<std::fs::File>> { self.owner.as_ref().map(|owner| owner.worker_lock()) }
 }
 
+#[path = "serve_trace.rs"]
+mod trace;
+
 #[path = "serve_readers.rs"]
 mod query_readers;
 use query_readers::QueryReaders;
@@ -378,6 +381,7 @@ fn serve_requests(
     background: Vec<(&str, std::thread::JoinHandle<()>)>, stopping: impl Fn() -> bool,
 ) -> Result<(), String> {
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
+    crate::thread_priority::dispatcher();
     let admission = Arc::new(RequestAdmission::default());
     let mut reported = tiny_http::AdmissionRefusals::default();
     let mut reported_workers = ([0; 7], [0; 7]);
@@ -421,7 +425,7 @@ const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, refused: [AtomicUsize; 7], undelivered: [AtomicUsize; 7] }
+struct RequestAdmission { workers: [request_workers::Workers; 7], short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, refused: [AtomicUsize; 7], undelivered: [AtomicUsize; 7] }
 
 #[derive(Clone, Copy)]
 enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier }
@@ -449,12 +453,18 @@ impl RequestAdmission {
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
         match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
+    fn limit(class: RequestClass) -> usize {
+        match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Sync => SYNC_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS }
+    }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Sync => SYNC_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
+        let limit = Self::limit(class);
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
 }
+
+#[path = "request_workers.rs"]
+mod request_workers;
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
     dispatch_with_builder(request, shared, admission, loopback_listener, std::thread::Builder::new().name("request".into()));
@@ -462,6 +472,7 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
 
 fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool, builder: std::thread::Builder) {
     // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
+    let trace = trace::Trace::capture(&request, shared.personas && loopback_listener);
     let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
@@ -480,10 +491,11 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         admission.refuse(request, class);
         return;
     };
-    let pending = PendingRequest { request: Some(request), admission, class };
-    if let Err(error) = builder.spawn(move || { let _permit = permit;
+    let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
+    if let Err(error) = admission.workers[class as usize].submit(RequestAdmission::limit(class), builder, Box::new(move || { let _permit = permit;
         let request = pending.take();
-        if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } }) {
+        let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
+        if let Some(trace) = trace { trace.run(run); } else { run(); } })) {
         snapback4_core::diagnostic!("snapback4: cannot start request thread: {error}");
     }
 }
@@ -697,6 +709,7 @@ fn respond_with_cors(request: Request, status: u16, body: impl latency::Reply, a
 
 fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
     let refused = status >= 400 || body.refused();
+    trace::mark("encode_start");
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
@@ -710,6 +723,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
         200
     } else { status };
     let refused = refused || encoded.is_err();
+    trace::mark("encode_end");
     let _evidence = dev_refusals::response::response(&bytes.0);
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
@@ -722,6 +736,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
         for header in cors(&request) { response.add_header(header); }
     }
     if let Some(header) = latency::header() { response.add_header(header); }
+    trace::mark("write_start");
     if status >= 400 && request.method() == &Method::Post {
         let _ = request.respond_and_close_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
@@ -745,6 +760,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     let response = request.prepare_response(response);
     if response.raw_print(&mut encoded, request.http_version().clone(), request.headers(), request.method() == &Method::Head, None).is_ok() {
         let mut writer = request.into_writer();
+        trace::mark("write_start");
         latency::finished(writer.write_all(&encoded).and_then(|_| writer.flush()).is_err() || refused);
     }
 }
@@ -1202,7 +1218,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), reader.generation());
                         let query_generation = reader.generation();
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
+                        trace::mark("query_start");
                         let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
+                        trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
                         (outcome, cut, metadata, reads_presence, query_generation, current, scopes)
@@ -1431,72 +1449,5 @@ fn handle(mut request: Request, shared: &Shared) {
 }
 
 #[cfg(test)]
-mod poison_tests {
-    use super::*;
-    use std::io::{Read, Write};
-    use std::net::{Shutdown, TcpStream};
-
-    #[test]
-    fn a_request_after_engine_poison_still_serves() {
-        let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
-        let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
-        let shared = Arc::new(Shared {
-            project: std::env::current_dir().unwrap(), temporary: true,
-            refusals: dev_refusals::Recent::default(),
-            latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
-            ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
-            wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
-            adoption: Mutex::new(adoption::Status::new(String::new())),
-            readers: Mutex::new(QueryReaders::new(&engine, &Default::default())),
-            engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
-            bound: Mutex::new(Bound { refusal_sites: Default::default(), view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
-            generation: Mutex::new(1),
-            worker_revision: AtomicUsize::new(0),
-            committed: Condvar::new(),
-            seq: Mutex::new(0),
-            personas: true,
-            hold_effects: false,
-            hold_schedules: false,
-            clock: clock.clone(), maintenance: Mutex::new(()),
-            entropy: Mutex::new(1),
-            presence: Arc::new(Live::new(clock)),
-            asset_transfers: AssetTransfers::default(),
-            native: Mutex::new(None),
-            auth: crate::auth::Admission::default(),
-            uploads: AtomicUsize::new(0),
-            route_verification: routes::Verification::default(), owner: None,
-            auth_work: Mutex::new(None),
-            request_work: Mutex::new(None),
-            upload_work: Mutex::new(None),
-            effect_wait: Mutex::new(None),
-            poll_wait: Mutex::new(None),
-            query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
-            mutation_wait: Mutex::new(None),
-        });
-        shared.install_ephemeral_wake();
-        let poisoned = shared.clone();
-        assert!(std::thread::spawn(move || {
-            let _engine = poisoned.engine.lock().unwrap();
-            panic!("request panic while the engine is locked");
-        }).join().is_err());
-        assert!(shared.engine.is_poisoned());
-
-        let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
-        let address = server.server_addr().to_ip().unwrap();
-        let serving = shared.clone();
-        let worker = std::thread::spawn(move || {
-            let request = server.recv_timeout(Duration::from_secs(5)).unwrap().expect("request");
-            handle(request, &serving);
-        });
-        let mut stream = TcpStream::connect(address).unwrap();
-        stream.write_all(b"POST /seed HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 2\r\n\r\n[]").unwrap();
-        stream.shutdown(Shutdown::Write).unwrap();
-        let mut answer = String::new();
-        stream.read_to_string(&mut answer).unwrap();
-        worker.join().unwrap();
-
-        assert!(answer.starts_with("HTTP/1.1 200 "), "{answer}");
-        assert!(answer.contains("\"seeded\":0"), "{answer}");
-        assert!(!shared.engine.is_poisoned());
-    }
-}
+#[path = "../tests/serve_poison/mod.rs"]
+mod poison_tests;

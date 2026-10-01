@@ -38,6 +38,7 @@ pub(super) fn executable() -> std::path::PathBuf {
 }
 
 pub(crate) fn watchdog(args: &[String]) -> u8 {
+    crate::thread_priority::background();
     if args.len() != 3 { return 1; }
     let owner_fd = match args[2].parse::<libc::c_int>() { Ok(fd) if fd == -1 || fd >= 3 => fd, _ => return 1 };
     // Keep ownership through kill/wait/output cleanup, but close it on Node's
@@ -72,7 +73,7 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
         let _ = child.wait(); return 1;
     }
     let mut output = child.stdout.take().unwrap();
-    let output = std::thread::spawn(move || { let _ = std::io::copy(&mut output, &mut std::io::stdout()); });
+    let output = std::thread::spawn(move || { crate::thread_priority::background(); let _ = std::io::copy(&mut output, &mut std::io::stdout()); });
     let mut stopping = None;
     loop {
         // WNOWAIT keeps the group leader's PID reserved until the final kill,

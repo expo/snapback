@@ -44,6 +44,7 @@ fn witness_card_is_published_under_builder_words() {
 }
 
 #[allow(dead_code)]
+#[path = "../src/thread_priority.rs"] mod thread_priority;
 #[path = "../src/verbs/witness/protocol.rs"]
 mod protocol;
 

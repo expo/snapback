@@ -51,6 +51,7 @@ impl<T, C: Clock> FairMutex<T, C> {
         recover(self.admit(true), || self.clear_poison())
     }
     fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T, C>> {
+        let trace_start = super::trace::begin();
         let started = self.clock.now();
         let mut queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
         if background {
@@ -67,6 +68,7 @@ impl<T, C: Clock> FairMutex<T, C> {
         drop(queue);
         let value = self.value.lock();
         // @ref LLP 3000.019#3.7 — clock advances run maintenance inside the request sample too.
+        super::trace::waited(trace_start, "engine");
         super::latency::waited(started);
         let timing = super::latency::EngineSpan::new();
         match value {
@@ -124,7 +126,12 @@ fn recover<T>(result: LockResult<T>, clear: impl FnOnce()) -> T {
 }
 impl<T> Lockable for Mutex<T> {
     type Guard<'a> = MutexGuard<'a, T> where T: 'a;
-    fn recover_lock(&self) -> Self::Guard<'_> { recover(self.lock(), || self.clear_poison()) }
+    fn recover_lock(&self) -> Self::Guard<'_> {
+        let start = super::trace::begin();
+        let guard = recover(self.lock(), || self.clear_poison());
+        super::trace::waited(start, "mutex");
+        guard
+    }
 }
 impl<T, C: Clock> Lockable for FairMutex<T, C> {
     type Guard<'a> = FairGuard<'a, T, C> where T: 'a, C: 'a;

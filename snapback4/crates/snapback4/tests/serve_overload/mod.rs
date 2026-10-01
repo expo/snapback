@@ -1,13 +1,48 @@
 use super::*;
 
 #[test]
+fn a_thousand_sequential_reads_reuse_bounded_request_threads() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\nquery ping():\n  return 7\n");
+    let threads = Arc::new(Mutex::new(std::collections::HashSet::new()));
+    let observed = threads.clone();
+    *lock(&host.shared.request_work) = Some(Arc::new(move || {
+        #[cfg(target_os = "macos")]
+        assert_eq!(crate::thread_priority::current_qos(),
+            libc::qos_class_t::QOS_CLASS_USER_INITIATED as u32);
+        lock(&observed).insert(thread::current().id());
+    }));
+    for _ in 0..1000 {
+        let response = host.request("POST", "/q/ping", "x-snapback-persona: alice\r\n", r#"{"args":{}}"#);
+        assert_eq!(body(&response)["data"], 7);
+    }
+    let created = lock(&threads).len();
+    assert!(created <= REQUEST_WORKERS, "1000 reads created {created} serving threads; capacity is {REQUEST_WORKERS}");
+}
+
+#[test]
+fn a_panicking_request_releases_its_slot_and_the_worker_serves_again() {
+    let host = Host::new(true);
+    let first = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    *lock(&host.shared.request_work) = Some(Arc::new(move || {
+        if first.swap(false, Ordering::AcqRel) { panic!("injected request panic"); }
+    }));
+    let _ = host.request("GET", "/auth/config", "", "");
+    wait_until(|| host.admission.short.load(Ordering::Acquire) == 0);
+    assert_eq!(status(&host.request("GET", "/auth/config", "", "")), 200);
+}
+
+#[test]
 fn full_mutation_workers_refuse_upload_without_body_drain_or_eviction() {
     let host = Host::new(true);
     struct Gate(Arc<(Mutex<bool>, Condvar)>);
     impl Drop for Gate { fn drop(&mut self) { *lock(&self.0.0) = true; self.0.1.notify_all(); } }
     let gate = Gate(Arc::new((Mutex::new(false), Condvar::new())));
     let held = gate.0.clone();
+    let started = Arc::new(AtomicUsize::new(0));
+    let counted = started.clone();
     *lock(&host.shared.request_work) = Some(Arc::new(move || {
+        counted.fetch_add(1, Ordering::Release);
         let mut released = lock(&held.0);
         while !*released { released = held.1.wait(released).unwrap(); }
     }));
@@ -18,6 +53,7 @@ fn full_mutation_workers_refuse_upload_without_body_drain_or_eviction() {
         requests.push(stream);
     }
     wait_until(|| host.admission.mutations.load(Ordering::Acquire) == MUTATION_WORKERS);
+    wait_until(|| started.load(Ordering::Acquire) == MUTATION_WORKERS);
     assert!(host.server.num_connections() < 128);
     for _ in 0..10 {
         let mut stream = TcpStream::connect(host.address).unwrap();

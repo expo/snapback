@@ -314,6 +314,8 @@ impl Server {
         let refusals = Arc::new(limits::RefusalCounters::default());
         let inside_refusals = refusals.clone();
         thread::spawn(move || {
+            let thread_start = limits.as_ref().and_then(|limits| limits.thread_start);
+            if let Some(start) = thread_start { start(); }
             // a tasks pool is used to dispatch the connections into threads
             let tasks_pool = limits.is_none().then(util::TaskPool::new);
 
@@ -364,6 +366,7 @@ impl Server {
                         let mut client = Some(client);
                         let bounded = limits.is_some();
                         let work = move || {
+                            if let Some(start) = thread_start { start(); }
                             if let Some(client) = client.take() {
                                 // Bounded HTTP admits one request per connection
                                 // until its response completes, so pipelining
