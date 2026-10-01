@@ -119,6 +119,13 @@ export function instrument(destination) {
 // PR round 3: captureStore before an observation with a notified cut is a
 // read-only watermark check. It does not admit, send, settle or persist writes;
 // incarnation/publication/signal fences still qualify its subsequent evaluation.
+// PRL (LLP 3000.023 §10): the existing online refresh await now captures
+// batch eligibility in its synchronous accept callback before scheduleExpiry.
+// The 58 client awaits and their I/O are unchanged. No delivery admission,
+// dispatch, custody or settlement is added, and offerDelivery still runs
+// synchronously before the optional subscriber notification batch. Per-row
+// boundary tests cover both row deadlines and the retiring episode; the
+// delivery matrix retains all existing sites, classifications and recipes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

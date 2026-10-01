@@ -139,6 +139,92 @@ window.edit = () => { seq++; change(); };
 window.finish = async () => { root.unmount(); await client.close(); };
 `;
 
+test('ready per-row completions share a React notification turn; publication does not wait for that turn', async t => {
+  const page = await browserFixture(t, publicationHarness);
+  await page.waitForFunction(() => window.batch?.ready());
+  await page.evaluate(() => window.batch.edit());
+  await page.waitForFunction(() => window.batch.replaced() === 8);
+  await page.evaluate(() => window.batch.renderTurn());
+  const held = await page.evaluate(() => window.batch.result());
+  t.diagnostic(JSON.stringify(held));
+  assert.equal(held.commits, 1, 'one invalidation render; ready rows must not each walk the entire React tree');
+  assert.equal(held.loading, 0);
+  assert.equal(held.replaced, 8, 'current answers publish before their batched UI notification');
+  await page.evaluate(() => window.batch.release());
+  await page.waitForFunction(() => window.batch.finished());
+  assert.equal(await page.evaluate(() => window.batch.result().loading), 0);
+  await page.evaluate(() => window.batch.finish());
+});
+
+test('a terminal refusal bypasses a held ready-notification turn and retires its pending completions', async t => {
+  const page = await browserFixture(t, publicationHarness);
+  await page.waitForFunction(() => window.batch?.ready());
+  await page.evaluate(() => window.batch.edit());
+  await page.waitForFunction(() => window.batch.replaced() === 8);
+  await page.evaluate(() => window.batch.refuse());
+  await page.waitForFunction(() => window.batch.denied());
+  await page.evaluate(() => window.batch.release());
+  await page.evaluate(() => window.batch.renderTurn());
+  assert.equal(await page.evaluate(() => window.batch.denied()), true, 'late ready callbacks and bodies cannot restore data');
+  await page.evaluate(() => window.batch.finish());
+});
+
+const publicationHarness = `
+import React, {Profiler} from 'react';
+import {createRoot} from 'react-dom/client';
+import {createClient} from 'snapback4/client';
+import {SnapbackProvider, useQuery} from 'snapback4/react';
+let seq=1, change, edited=false, held=false, commits=0, loading=0;
+const turns=[], replies=[], raw=[], rendered=new Map(), originalLater=window.setTimeout.bind(window), originalFrame=window.requestAnimationFrame.bind(window);
+const client=createClient({url:'http://publication-turn.test',persona:'alice',fetch:async(input,init)=>{
+  const path=new URL(input).pathname;
+  if(path==='/schema')return Response.json({schema:{tables:{}},programs:[],generation:1});
+  if(path==='/changes')return new Promise((resolve,reject)=>{
+    change=body=>resolve(Response.json(body ?? {seq,generation:1,tables:['cards']}));
+    init.signal.addEventListener('abort',()=>reject(Error('closed')),{once:true});
+  });
+  if(path.startsWith('/q/')){
+    const {id}=JSON.parse(init.body).args;
+    if(edited && held && id>=8)await new Promise(resolve=>replies.push(resolve));
+    return Response.json({data:seq,seq,tables:['cards']});
+  }
+  throw Error(path);
+}});
+await client.query({kind:'query',name:'warm'},{});
+const observe=client.observe;
+client.observe=(...args)=>{const handle=observe(...args);raw.push(handle);return handle;};
+const op={kind:'query',name:'row'};
+function Row({id}){
+  const read=useQuery(op,{id});rendered.set(id,read);
+  if(edited && read.loading)loading++;
+  return <span>{read.data}</span>;
+}
+const root=createRoot(document.getElementById('root'));
+root.render(<SnapbackProvider client={client}><Profiler id="rows" onRender={()=>{if(edited)commits++;}}>
+  {Array.from({length:32},(_,id)=><Row key={id} id={id}/>)}
+</Profiler></SnapbackProvider>);
+const replaced=()=>raw.filter(h=>h.getSnapshot().data===2).length;
+window.batch={
+  ready:()=>rendered.size===32 && [...rendered.values()].every(r=>r.data===1 && !r.revalidating),
+  edit(){
+    // Hold notification/timer turns, not response bodies or promise continuations.
+    // Freeze the authorization clock during this deliberate host suspension.
+    const now=Date.now();Date.now=()=>now;held=true;edited=true;
+    window.setTimeout=(run,ms,...args)=>held && ms<=50 ? (turns.push(()=>run(...args)), -turns.length) : originalLater(run,ms,...args);
+    window.requestAnimationFrame=run=>held ? (turns.push(run), -turns.length) : originalFrame(run);
+    seq++;change();
+  },
+  replaced,
+  result:()=>({commits,loading,replaced:replaced()}),
+  refuse:()=>change({seq,generation:1,denied:{code:'E_TEST_TERMINAL',family:'auth',message:'revoked'}}),
+  denied:()=>raw.every(h=>h.getSnapshot().denied?.code==='E_TEST_TERMINAL') && [...rendered.values()].every(r=>r.denied?.code==='E_TEST_TERMINAL'),
+  renderTurn:()=>new Promise(resolve=>originalFrame(()=>originalFrame(resolve))),
+  release(){held=false;window.setTimeout=originalLater;window.requestAnimationFrame=originalFrame;turns.splice(0).forEach(run=>run());replies.splice(0).forEach(run=>run());},
+  finished:()=>[...rendered.values()].every(r=>r.data===2 && !r.revalidating),
+  finish:async()=>{root.unmount();await client.close();}
+};
+`;
+
 for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row hooks retain through a relevant write with the real clock`, async t => {
   const { url, dir } = await appServer(t, '', readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8'));
   const seed = Array.from({ length: 1000 }, (_, slot) => ({ table: 'cards', row: { id: 'c' + slot, slot, owner: 'dev:alice', label: 'original' } }));

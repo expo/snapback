@@ -11,6 +11,103 @@ import { createClient } from '../dist/client.js';
 import { until } from './helpers/app-server.mjs';
 const drain = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 
+for (const host of ['postTask', 'MessageChannel']) test(`${host}: browser turns preserve eight starts and cancel queued service`, async t => {
+  const turns = [];
+  const install = (name, value) => {
+    const prior = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => { if (prior) Object.defineProperty(globalThis, name, prior); else delete globalThis[name]; });
+  };
+  if (host === 'postTask') install('scheduler', { postTask(run, { signal }) {
+    return new Promise((resolve, reject) => {
+      const stopped = () => reject(signal.reason);
+      signal.addEventListener('abort', stopped, { once: true });
+      turns.push({ cancelled: () => signal.aborted, run() {
+        signal.removeEventListener('abort', stopped);
+        if (!signal.aborted) { run(); resolve(); }
+      } });
+    });
+  } });
+  else {
+    install('scheduler', undefined); install('window', {});
+    install('MessageChannel', class {
+      closed = 0;
+      port1 = { onmessage: null, close: () => { this.closed++; } };
+      port2 = { close: () => { this.closed++; }, postMessage: () => turns.push({
+        cancelled: () => this.closed === 2,
+        run: () => this.port1.onmessage?.(),
+      }) };
+    });
+  }
+  const work = new ReadWork(); t.after(() => work.clear());
+  let starts = 0;
+  for (let i = 0; i < 1000; i++) work.schedule(i, async () => { starts++; });
+  await drain(); assert.equal(starts, 8);
+  while (starts < 1000) {
+    assert.equal(turns.length, 1, 'one host task owns the next allowance');
+    const before = starts; turns.shift().run(); await drain();
+    assert.ok(starts - before <= 8, 'promise continuations cannot exceed the task allowance');
+  }
+  assert.equal(starts, 1000);
+  assert.equal(turns.length, 1);
+  work.clear(); assert.equal(turns[0].cancelled(), true);
+  turns.shift().run(); await drain(); assert.equal(starts, 1000, 'clear cancels service');
+});
+
+// Deliberately hold capacity and the browser's positive notification window.
+// Publication must not retire the displayed predecessor's withdrawal boundary.
+for (const boundary of ['episode', 'old-row', 'new-row', 'empty', 'null']) test(`ready batching respects ${boundary} withdrawal evidence`, async t => {
+  let seq = 1, change;
+  const replies = [], seen = [], observations = [];
+  const expiry = Date.now() + 60_000;
+  const spin = async predicate => {
+    for (let i = 0; i < 1000 && !predicate(); i++) await new Promise(setImmediate);
+    assert.ok(predicate(), 'fixture reached the requested boundary');
+  };
+  const client = createClient({ url: 'http://ready-boundary.test', persona: 'alice', fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
+    if (path === '/changes') return new Promise((resolve, reject) => {
+      change = () => resolve(Response.json({ seq, generation: 1, tables: ['cards'] }));
+      init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+    });
+    if (path.startsWith('/q/')) {
+      if (seq === 1) return Response.json({ data: 1, seq, tables: ['cards'], nextExpiry: boundary === 'old-row' ? expiry : null });
+      return new Promise((resolve, reject) => {
+        replies.push(() => resolve(Response.json({ data: boundary === 'empty' ? [] : boundary === 'null' ? null : 2,
+          seq: 2, tables: ['cards'], nextExpiry: boundary === 'new-row' ? expiry : null })));
+        init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+      });
+    }
+    throw Error(path);
+  } });
+  t.after(async () => { observations.forEach(w => w.close()); await client.close(); });
+  const op = { kind: 'query', name: 'row' };
+  await client.query(op, {});
+  for (let id = 0; id < 32; id++) {
+    const w = client.observe(op, { id }); observations.push(w);
+    w.subscribe(() => { seen[id] = w.getSnapshot(); });
+  }
+  await until(() => seen.filter(r => r?.data === 1).length === 32 && change, 'initial rows');
+  const prior = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+  t.after(() => { if (prior) Object.defineProperty(globalThis, 'window', prior); else delete globalThis.window; });
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 });
+  seq = 2; change(); await spin(() => replies.length === 8);
+  if (boundary === 'episode') t.mock.timers.tick(975);
+  replies.splice(0, 8).forEach(resolve => resolve());
+  await spin(() => observations.slice(0, 8).every(w => 'data' in w.getSnapshot() && w.getSnapshot().data !== 1));
+  if (boundary === 'episode') {
+    assert.equal(seen[0].data, 1, 'positive callbacks can coalesce before the boundary');
+    t.mock.timers.tick(25); await drain();
+    assert.equal(seen[0].data, 2, 'retiring the episode timer cannot extend the displayed old answer');
+    assert.ok(seen.slice(16).every(r => r.loading), 'unanswered owners still withdraw at the original second');
+  } else {
+    assert.deepEqual(seen[0].data, boundary === 'empty' ? [] : boundary === 'null' ? null : 2,
+      'empty results and either side of a row deadline notify without entering a ready batch');
+  }
+});
+
 for (const outcome of ['success', 'rejection']) test(`request abort listeners are removed after ${outcome}`, async () => {
   const lifetime = new AbortController();
   for (let request = 0; request < 3; request++) {

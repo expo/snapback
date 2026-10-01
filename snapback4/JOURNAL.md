@@ -80896,3 +80896,41 @@ GQ) each set the budget to their own Linux measurement, so main had no
 headroom on a Mac, and every macOS build, the publication's included, would
 have failed. The budget is now 599,000 B with the reason recorded; the
 ratchet still fails new growth past it.
+
+
+## 2026-10-01 — PRL round 0: per-row answers under notification pressure
+
+Bisected the original 1,000-hook online loading regression at nine positions,
+ten runs each. PR landing 096a1b78ef is the first bad listed landing; its
+c3c4ed0976 round-1 commit fails 10/10 while exact parent c586a5904f passes 10/10.
+The required online bound now includes capacity wait, exposing repeated React
+tree walks from individual completions and nested timer cost. The baseline
+trace withdraws with change-timeout; the causal control fails main nine commits
+versus one while eight replacements are already published.
+
+Accepted online answers still publish immediately. Positive notifications
+coalesce under backlog for at most 50 ms in browsers, capped by the retiring
+episode deadline. Empty/null results, old/new row deadlines and withdrawals
+notify immediately. Captured subscriber membership prevents late-join delivery.
+Browser capacity uses postTask or MessageChannel with the same eight starts and
+eight in flight. Local authority, memory, detached handles, replacement owners,
+PQ unrelated-write selection and LL live paths remain unchanged. LLP 3000.023
+§10 records the rule; the report extends PR's full publication audit.
+
+Final per-row-react file: 50 consecutive passes unconfined and 50 consecutive
+passes on CPUs 86–95 under SL's 48 busy workers, seven cases each, fixed runtime
+inputs and no retries. All workers survived and were reaped. Affected tests:
+1,202/1,202; whole guide: 110/110. The single complete scripts/test.sh returned
+exactly `== 0 failure(s) in 1385 s` before the last callback-boundary correction.
+The complete final client stages then passed 5,734 client tests and all 79
+full-count model tests, with ten existing skips and one stale await-census hash
+(ours). Reviewed the unchanged 58-await boundary, updated its hash/classification
+without removing a fault site, and passed the complete 321-case delivery matrix
+in the final lane. The five new deadline/empty controls detect the initial
+batching gap and pass the correction. Build, typecheck and reference checks pass.
+
+Wasm: 1,994,357 B raw / 598,401 B canonical gzip; the 599,000 B budget is unchanged.
+Report: reports/20261001-prl-per-row-loading/REPORT.md, with every failed control,
+rejected candidate, disqualified cohort and final qualification scope retained.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

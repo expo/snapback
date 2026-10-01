@@ -1,0 +1,11 @@
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5660.494138ms)
+ℹ console: Failed to load resource: the server responded with a status of 404 (Not Found)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790830351872,"lastStart":1790830354031,"wallIsReal":true,"link":"online"}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5746.215202

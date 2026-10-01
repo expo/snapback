@@ -1,0 +1,9 @@
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (7714.926485ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8375.331261

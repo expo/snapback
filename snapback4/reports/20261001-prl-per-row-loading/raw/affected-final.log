@@ -1,0 +1,1950 @@
+✔ ready fixtures carry existence (0.76019ms)
+✔ online evidence while already revalidating: keep=undefined, late answer (1.852127ms)
+✔ online evidence while already revalidating: keep=undefined, throw (0.576464ms)
+✔ online evidence while already revalidating: keep=undefined, offline (0.320811ms)
+✔ online evidence while already revalidating: keep=undefined, exhausted (175.664726ms)
+✔ online evidence while already revalidating: keep=true, late answer (0.40694ms)
+✔ online evidence while already revalidating: keep=true, throw (0.258457ms)
+✔ online evidence while already revalidating: keep=true, offline (0.257977ms)
+✔ online evidence while already revalidating: keep=true, exhausted (175.635382ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=false (1039.107969ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=true (31.10989ms)
+✔ actual /changes bounds the online answer: keep=true, failed=false (1023.130005ms)
+✔ actual /changes bounds the online answer: keep=true, failed=true (32.09744ms)
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3059.351136ms)
+  ✔ offline transport (75.195863ms)
+  ✔ retry exhaustion (220.635987ms)
+  ✔ reconnect (117.192745ms)
+✔ process keep=undefined: profile route gate (4492.189104ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (46.965581ms)
+  ✔ own send and settlement (53.974208ms)
+  ✔ edit (29.476992ms)
+  ✔ delete (30.429649ms)
+  ✔ membership removal (32.094897ms)
+✔ process keep=undefined: chat history and membership removal (1795.428817ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3052.248567ms)
+  ✔ offline transport (61.691037ms)
+  ✔ retry exhaustion (214.573249ms)
+  ✔ reconnect (124.396716ms)
+✔ process keep=true: profile route gate (4129.640053ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (49.155053ms)
+  ✔ own send and settlement (52.528221ms)
+  ✔ edit (33.629828ms)
+  ✔ delete (28.129953ms)
+  ✔ membership removal (28.205997ms)
+✔ process keep=true: chat history and membership removal (1764.887816ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3039.931059ms)
+  ✔ offline transport (54.784553ms)
+  ✔ retry exhaustion (203.369653ms)
+  ✔ reconnect (144.72278ms)
+✔ wasm keep=undefined: profile route gate (4370.335918ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (35.549566ms)
+  ✔ own send and settlement (36.298549ms)
+  ✔ edit (22.901334ms)
+  ✔ delete (21.899963ms)
+  ✔ membership removal (22.147053ms)
+✔ wasm keep=undefined: chat history and membership removal (1633.387464ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3035.148647ms)
+  ✔ offline transport (51.488632ms)
+  ✔ retry exhaustion (207.474698ms)
+  ✔ reconnect (102.304586ms)
+✔ wasm keep=true: profile route gate (4044.725964ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (32.066234ms)
+  ✔ own send and settlement (25.081422ms)
+  ✔ edit (21.622346ms)
+  ✔ delete (22.531429ms)
+  ✔ membership removal (21.404029ms)
+✔ wasm keep=true: chat history and membership removal (1597.632345ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3035.961514ms)
+  ✔ offline transport (40.624104ms)
+  ✔ retry exhaustion (191.181582ms)
+  ✔ reconnect (69.073536ms)
+✔ online keep=undefined: profile route gate (4002.70743ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (27.363925ms)
+  ✔ own send and settlement (24.134173ms)
+  ✔ edit (16.483853ms)
+  ✔ delete (16.811003ms)
+  ✔ membership removal (16.22125ms)
+✔ online keep=undefined: chat history and membership removal (637.796552ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3031.806172ms)
+  ✔ offline transport (39.121071ms)
+  ✔ retry exhaustion (190.888512ms)
+  ✔ reconnect (68.052044ms)
+✔ online keep=true: profile route gate (3879.332604ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (27.005778ms)
+  ✔ own send and settlement (19.142048ms)
+  ✔ edit (16.402861ms)
+  ✔ delete (14.595442ms)
+  ✔ membership removal (17.158765ms)
+✔ online keep=true: chat history and membership removal (631.133254ms)
+✔ ready fixtures carry existence (0.947831ms)
+✔ apply keeps its bound on held, keep=undefined (1.330054ms)
+✔ apply keeps its bound on throw, keep=undefined (0.667741ms)
+✔ admit keeps its bound on held, keep=undefined (0.283655ms)
+✔ admit keeps its bound on throw, keep=undefined (0.387021ms)
+✔ settle keeps its bound on held, keep=undefined (0.383145ms)
+✔ settle keeps its bound on throw, keep=undefined (0.370746ms)
+✔ apply keeps its bound on held, keep=true (0.747391ms)
+✔ apply keeps its bound on throw, keep=true (0.264497ms)
+✔ admit keeps its bound on held, keep=true (0.338528ms)
+✔ admit keeps its bound on throw, keep=true (0.270776ms)
+✔ settle keeps its bound on held, keep=true (0.152558ms)
+✔ settle keeps its bound on throw, keep=true (0.158738ms)
+✔ process: applied membership removal and held replica replacement (288.183764ms)
+✔ process: applied membership removal and throw replica replacement (240.174889ms)
+✔ wasm: applied membership removal and held replica replacement (580.642939ms)
+✔ wasm: applied membership removal and throw replica replacement (202.662851ms)
+✔ online receipt bounds held replacement, keep=undefined (1173.541141ms)
+✔ online receipt bounds offline replacement, keep=undefined (162.931567ms)
+✔ online receipt bounds held replacement, keep=true (1167.729699ms)
+✔ online receipt bounds offline replacement, keep=true (165.981789ms)
+✔ online: ephemeral-only /changes bounds a held replacement (177.024025ms)
+✔ process: ephemeral-only /changes bounds a held replacement (247.59917ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (201.724205ms)
+✔ ephemeral periodic sampling is distinct from change evidence (2.640679ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (1.716023ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (237.80007ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (195.456419ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1145.344141ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1081.23634ms)
+✔ process: ordinary search offline classification (341.661399ms)
+✔ process: ordinary search loading classification (339.777294ms)
+✔ process: ordinary search denied classification (343.161107ms)
+✔ wasm: ordinary search offline classification (295.877971ms)
+✔ wasm: ordinary search loading classification (290.76816ms)
+✔ wasm: ordinary search denied classification (367.271915ms)
+✔ process: pre-change replica completion cannot erase a pending change bound (1177.709575ms)
+✔ wasm: pre-change replica completion cannot erase a pending change bound (1125.470649ms)
+✔ pending change requires published sync or a whole server answer at its cut (1.25348ms)
+✔ process: item notification survives readable old replica and failed sync, keep=undefined (1189.200327ms)
+✔ process: item notification survives readable old replica and failed sync, keep=true (1160.421632ms)
+✔ process: item notification survives readable old replica and failed sync, keep=false (1163.435772ms)
+✔ process: item notification survives throw old replica and failed sync, keep=undefined (1157.001466ms)
+✔ process: item notification survives throw old replica and failed sync, keep=true (1169.344582ms)
+✔ process: item notification survives throw old replica and failed sync, keep=false (1150.900982ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=undefined (1173.629767ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=true (1162.475115ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=false (1169.817523ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=undefined (1168.252168ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=true (1156.922713ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=false (1155.858428ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=undefined (1501.360417ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=true (1119.344157ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=false (1115.189528ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=undefined (1111.636222ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=true (1122.103166ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=false (1119.036368ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (1112.765097ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=true (1112.620221ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=false (1117.743792ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (1108.333074ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=true (1116.158527ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=false (1112.867003ms)
+✔ process: only a server answer at the reported cut can replace before sync (286.374496ms)
+✔ wasm: only a server answer at the reported cut can replace before sync (229.004266ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (5133.355803ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (554.222888ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (355.466641ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (5083.133032ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (401.05616ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (299.270341ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=undefined (2464.761286ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=true (2475.936312ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=false (2458.849098ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=undefined (2461.871112ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=true (2463.397193ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=false (2477.212197ms)
+✔ process: real generation-only adoption retires held replica answers, keep=undefined (2466.35969ms)
+✔ process: real generation-only adoption retires held replica answers, keep=true (2458.680931ms)
+✔ process: real generation-only adoption retires held replica answers, keep=false (2458.596988ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=undefined (2861.68815ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=true (2463.433035ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=false (2457.968175ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=undefined (2458.53663ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=true (2473.574629ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=false (2456.875285ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=undefined (2460.380393ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=true (2464.741654ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=false (2461.787578ms)
+✔ process: generation boundary clears remembered answers and a held server completion (1463.311025ms)
+✔ wasm: generation boundary clears remembered answers and a held server completion (1459.008435ms)
+✔ process: quiet presence cannot publish below a pending durable cut (344.110627ms)
+✔ wasm: quiet presence cannot publish below a pending durable cut (190.738289ms)
+✔ online: missing tables, keep=undefined, failed=false (1029.628641ms)
+✔ online: missing tables, keep=undefined, failed=true (31.053516ms)
+✔ online: missing tables, keep=true, failed=false (1028.088923ms)
+✔ online: missing tables, keep=true, failed=true (30.966986ms)
+✔ online: empty tables, keep=undefined, failed=false (1122.347027ms)
+✔ online: empty tables, keep=undefined, failed=true (1122.898716ms)
+✔ online: empty tables, keep=true, failed=false (1123.72851ms)
+✔ online: empty tables, keep=true, failed=true (1121.982663ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (461.176485ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can close (426.093488ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can remount (425.256163ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (807.566642ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can close (462.803564ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can remount (469.413324ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (535.653191ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can close (524.693369ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can remount (519.545242ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can inspect (424.043066ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can close (425.627741ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can remount (423.789265ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can inspect (495.04364ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can close (448.809466ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can remount (458.088467ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can inspect (513.561853ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can close (524.938319ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can remount (500.270166ms)
+✔ online keep=undefined: first schema installation resets pre-discovery watches before callbacks (41.604313ms)
+✔ online keep=true: first schema installation resets pre-discovery watches before callbacks (40.272806ms)
+✔ createApp wasm keep=undefined: held expiry fences late HTTP memory before rollback, preserving newer B (652.780067ms)
+✔ createApp wasm keep=true: held expiry fences late HTTP memory before rollback, preserving newer B (299.104757ms)
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11759.576673ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 2
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (11702.476937ms)
+ℹ inside-episode data notifications: 26; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (11819.050603ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (27143.21945ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 1
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (26445.438952ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (26441.205533ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 1
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (26565.746998ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (26651.412145ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (26042.323931ms)
+ℹ inside-episode data notifications: 72; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 23, 50ms authority (10842.029125ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 44, 50ms authority (11321.554481ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 1
+✔ createApp keep=true property: online, seed 445, 50ms authority (11133.478855ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 2
+✔ createApp keep=true property: wasm, seed 23, 50ms authority (26624.60815ms)
+ℹ inside-episode data notifications: 64; deadline withdrawals: 2
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (26319.78837ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=true property: wasm, seed 445, 50ms authority (26154.109589ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 23, 50ms authority (25575.876251ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 44, 50ms authority (25267.536181ms)
+ℹ inside-episode data notifications: 69; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 445, 50ms authority (25185.220091ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=undefined: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal (5111.774008ms)
+✔ createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal (6729.391619ms)
+✔ facade fence announces its denial after an unchanged approved answer, keep=undefined (8.914114ms)
+✔ replacement authority refusal announces one denial, keep=undefined (8.222497ms)
+✔ facade fence announces its denial after an unchanged approved answer, keep=false (4.788329ms)
+✔ replacement authority refusal announces one denial, keep=false (7.983448ms)
+✔ facade fence announces its denial after an unchanged approved answer, keep=true (5.630651ms)
+✔ replacement authority refusal announces one denial, keep=true (6.948387ms)
+✔ opening remount joins before withdrawal and is notified on shared reapproval, keep=undefined (6.681737ms)
+✔ opening remount joins after withdrawal and is notified on shared reapproval, keep=undefined (7.155919ms)
+✔ closing an opening facade captures its last shared answer, keep=undefined (9.599802ms)
+✔ closing an waiting facade captures its last shared answer, keep=undefined (13.471486ms)
+✔ one shared approval survives 100 replacements, keep=undefined (217.214949ms)
+✔ opening remount getter and notifications follow shared replacements, keep=undefined (8.381175ms)
+✔ rejection clears the shared approval and notifies all live facades once, keep=undefined (15.618175ms)
+✔ a live waiting facade holds A until its peer approves shared B, keep=undefined (10.707232ms)
+✔ opening authority refusal announces one denial to the remount and its peer, keep=undefined (7.77732ms)
+✔ opening remount joins before withdrawal and is notified on shared reapproval, keep=true (7.672513ms)
+✔ opening remount joins after withdrawal and is notified on shared reapproval, keep=true (7.757389ms)
+✔ closing an opening facade captures its last shared answer, keep=true (10.263968ms)
+✔ closing an waiting facade captures its last shared answer, keep=true (14.233079ms)
+✔ one shared approval survives 100 replacements, keep=true (218.433445ms)
+✔ opening remount getter and notifications follow shared replacements, keep=true (9.702395ms)
+✔ rejection clears the shared approval and notifies all live facades once, keep=true (13.725578ms)
+✔ a live waiting facade holds A until its peer approves shared B, keep=true (9.943547ms)
+✔ opening authority refusal announces one denial to the remount and its peer, keep=true (7.864711ms)
+✔ opening remount receives the revalidating mark during reload, keep=undefined (4.480878ms)
+✔ opening remount receives the revalidating mark during replacement, keep=undefined (4.054919ms)
+✔ opening remount receives the revalidating mark during reload, keep=true (5.18263ms)
+✔ opening remount receives the revalidating mark during replacement, keep=true (5.037292ms)
+✔ facade holds A until its device deadline (timer), including a lingering remount (8.405932ms)
+✔ facade holds A until its device deadline (correction), including a lingering remount (6.861087ms)
+✔ facade holds A until its server deadline (timer), including a lingering remount (9.251019ms)
+✔ facade holds A until its server deadline (correction), including a lingering remount (7.626113ms)
+✔ held server data ignores a device reobservation wakeup, even when device time is ahead (6.869459ms)
+✔ a replacement's earlier deadline withdraws the shared approved answer (4.60205ms)
+✔ all facade deadlines withdraw before a subscriber rolls the clock back (5.075169ms)
+✔ held approval ends on scope (4.50896ms)
+✔ held approval ends on denied (5.056972ms)
+✔ held approval ends on authority (7.222427ms)
+✔ held approval ends on fence (4.377633ms)
+✔ held approval ends on linger (5.123501ms)
+✔ a remount's initial authority error withdraws the held answer for every subscriber (6.526694ms)
+✔ held device deadline is latched by snapshot before timer delivery (5.820406ms)
+✔ held device deadline is latched by peek before timer delivery (4.324303ms)
+✔ held server deadline is latched by snapshot before timer delivery (5.312344ms)
+✔ held server deadline is latched by peek before timer delivery (5.101128ms)
+✔ opening remount is notified on reset (4.433757ms)
+✔ opening remount is notified on denied (5.036231ms)
+✔ opening remount is notified on retire (5.054478ms)
+✔ independent authority completions preserve the newest check: B-first (7.510039ms)
+✔ independent authority completions preserve the newest check: C-refuses (7.448677ms)
+✔ an early expiry timer rearm preserves the held-answer memory fence (1.741511ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (830.623139ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (30205.689116ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (482.830767ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (30251.698224ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (420.773586ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (30188.94698ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (425.595901ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (30193.521738ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (720.544099ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (30556.699619ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (808.016592ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (30573.196952ms)
+✔ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (405.398335ms)
+✔ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (470.225929ms)
+✔ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (626.243272ms)
+✔ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (419.643132ms)
+✔ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (449.160727ms)
+✔ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (468.156387ms)
+✔ online keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (153.443444ms)
+✔ wasm keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (157.499095ms)
+✔ process keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (189.830799ms)
+✔ online keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (150.956646ms)
+✔ wasm keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (154.984805ms)
+✔ process keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (178.252871ms)
+✔ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (150.818549ms)
+✔ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (196.417484ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (65.411621ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (165.873601ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (207.159701ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (62.072895ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (164.842915ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (212.254338ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (active) (162.367384ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (161.784069ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (active) (199.037673ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (lingering) (200.155288ms)
+✔ wasm keep: an older displayed deadline preserves a newer unexpired remembered answer (162.892361ms)
+✔ process keep: an older displayed deadline preserves a newer unexpired remembered answer (203.514014ms)
+✔ armReadExpiry: split clocks schedule the device deadline in its own domain (0.79393ms)
+✔ armReadExpiry: split clocks schedule the server deadline in its own domain (0.30686ms)
+✔ armReadExpiry: long deadlines clamp and rearm without premature expiry (0.537646ms)
+✔ online keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (311.192194ms)
+✔ online keep=false: queued recovery cannot republish a withdrawn deadline after rollback (425.97122ms)
+✔ online keep=true: queued recovery cannot republish a withdrawn deadline after rollback (243.337121ms)
+✔ wasm keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (279.665818ms)
+✔ wasm keep=false: queued recovery cannot republish a withdrawn deadline after rollback (261.644398ms)
+✔ wasm keep=true: queued recovery cannot republish a withdrawn deadline after rollback (257.844611ms)
+✔ process keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (284.210571ms)
+✔ process keep=false: queued recovery cannot republish a withdrawn deadline after rollback (292.919449ms)
+✔ process keep=true: queued recovery cannot republish a withdrawn deadline after rollback (301.323038ms)
+✔ online keep=undefined: a due floor still permits paced expiry retries (42.117726ms)
+✔ online keep=false: a due floor still permits paced expiry retries (41.689064ms)
+✔ online keep=true: a due floor still permits paced expiry retries (41.387872ms)
+✔ wasm: keep=undefined across apply retains ordinary answers and withdraws known scope loss (1614.668405ms)
+✔ wasm: keep=undefined across admit retains ordinary answers and withdraws known scope loss (1136.036299ms)
+✔ wasm: keep=undefined across settle retains ordinary answers and withdraws known scope loss (1120.833989ms)
+✔ wasm: keep=undefined across revoke retains ordinary answers and withdraws known scope loss (1214.083779ms)
+✔ wasm: keep=undefined across leave retains ordinary answers and withdraws known scope loss (1219.8065ms)
+✔ wasm: keep=undefined across refusal retains ordinary answers and withdraws known scope loss (1204.933714ms)
+✔ process: keep=undefined across apply retains ordinary answers and withdraws known scope loss (280.164534ms)
+✔ process: keep=undefined across admit retains ordinary answers and withdraws known scope loss (187.888684ms)
+✔ process: keep=undefined across settle retains ordinary answers and withdraws known scope loss (172.169948ms)
+✔ process: keep=undefined across revoke retains ordinary answers and withdraws known scope loss (266.312377ms)
+✔ process: keep=undefined across leave retains ordinary answers and withdraws known scope loss (275.443847ms)
+✔ process: keep=undefined across refusal retains ordinary answers and withdraws known scope loss (259.836409ms)
+✔ wasm: keep=true across apply retains ordinary answers and withdraws known scope loss (1212.644354ms)
+✔ wasm: keep=true across admit retains ordinary answers and withdraws known scope loss (1109.344978ms)
+✔ wasm: keep=true across settle retains ordinary answers and withdraws known scope loss (1116.012855ms)
+✔ wasm: keep=true across revoke retains ordinary answers and withdraws known scope loss (1206.422199ms)
+✔ wasm: keep=true across leave retains ordinary answers and withdraws known scope loss (1216.031295ms)
+✔ wasm: keep=true across refusal retains ordinary answers and withdraws known scope loss (1254.229713ms)
+✔ process: keep=true across apply retains ordinary answers and withdraws known scope loss (1266.188563ms)
+✔ process: keep=true across admit retains ordinary answers and withdraws known scope loss (184.947245ms)
+✔ process: keep=true across settle retains ordinary answers and withdraws known scope loss (172.185182ms)
+✔ process: keep=true across revoke retains ordinary answers and withdraws known scope loss (1267.980851ms)
+✔ process: keep=true across leave retains ordinary answers and withdraws known scope loss (278.290106ms)
+✔ process: keep=true across refusal retains ordinary answers and withdraws known scope loss (261.173194ms)
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (168.113178ms)
+✔ process: keep remount lifetime, isolation, last subscriber and sign-out (221.587436ms)
+✔ online: keep remount lifetime, isolation, last subscriber and sign-out (182.670632ms)
+✔ wasm: keep=undefined never publishes an evaluation captured before a newer commit (1211.395539ms)
+✔ process: keep=undefined never publishes an evaluation captured before a newer commit (1266.251951ms)
+✔ wasm: keep=true never publishes an evaluation captured before a newer commit (1213.984262ms)
+✔ process: keep=true never publishes an evaluation captured before a newer commit (1270.086472ms)
+✔ wasm: a closed raw local observation still latches its row deadline (546.392624ms)
+✔ wasm: a closed raw local observation still latches its episode deadline (170.533945ms)
+✔ process: a closed raw local observation still latches its row deadline (215.387289ms)
+✔ process: a closed raw local observation still latches its episode deadline (207.706054ms)
+✔ wasm keep=undefined: expiry withdraws across apply with the replacement held (180.72945ms)
+✔ wasm keep=undefined: expiry withdraws across admit with the replacement held (186.422225ms)
+✔ wasm keep=undefined: expiry withdraws across settle with the replacement held (183.613624ms)
+✔ wasm keep=true: expiry withdraws across apply with the replacement held (173.551239ms)
+✔ wasm keep=true: expiry withdraws across admit with the replacement held (183.192533ms)
+✔ wasm keep=true: expiry withdraws across settle with the replacement held (188.469795ms)
+✔ wasm keep: a failure re-read after change evidence withdraws before expiry (182.239314ms)
+✔ wasm keep: remount keeps the lingering watch's deadline (172.922586ms)
+✔ wasm keep: remount rejects an expired answer (159.409368ms)
+✔ process keep=undefined: expiry withdraws across apply with the replacement held (223.294585ms)
+✔ process keep=undefined: expiry withdraws across admit with the replacement held (238.818048ms)
+✔ process keep=undefined: expiry withdraws across settle with the replacement held (240.644535ms)
+✔ process keep=true: expiry withdraws across apply with the replacement held (231.29586ms)
+✔ process keep=true: expiry withdraws across admit with the replacement held (238.401242ms)
+✔ process keep=true: expiry withdraws across settle with the replacement held (238.430717ms)
+✔ process keep: a failure re-read after change evidence withdraws before expiry (241.694029ms)
+✔ process keep: remount keeps the lingering watch's deadline (216.40791ms)
+✔ process keep: remount rejects an expired answer (213.877557ms)
+✔ online keep=undefined: expiry withdraws across notification with the replacement held (174.160463ms)
+✔ online keep=true: expiry withdraws across notification with the replacement held (170.412383ms)
+✔ online keep: a loading re-read after change evidence withdraws before expiry (160.335236ms)
+✔ online keep: a failure re-read after change evidence withdraws before expiry (69.722548ms)
+✔ online keep: remount keeps the lingering watch's deadline (55.223772ms)
+✔ online keep: remount rejects an expired answer (56.526475ms)
+✔ wasm keep=undefined: ephemeral incarnation retires lingering snapshots before active callbacks (619.306536ms)
+✔ process keep=undefined: ephemeral incarnation retires lingering snapshots before active callbacks (282.908408ms)
+✔ online keep=undefined: ephemeral incarnation retires lingering snapshots before active callbacks (178.181491ms)
+✔ wasm keep=true: ephemeral incarnation retires lingering snapshots before active callbacks (232.6702ms)
+✔ process keep=true: ephemeral incarnation retires lingering snapshots before active callbacks (289.108943ms)
+✔ online keep=true: ephemeral incarnation retires lingering snapshots before active callbacks (177.063375ms)
+✔ wasm keep=undefined: a local read started before refreshSession never publishes its payload (46.469888ms)
+✔ process keep=undefined: a local read started before refreshSession never publishes its payload (84.451621ms)
+✔ wasm keep=false: a local read started before refreshSession never publishes its payload (40.846307ms)
+✔ process keep=false: a local read started before refreshSession never publishes its payload (82.772643ms)
+✔ wasm keep=true: a local read started before refreshSession never publishes its payload (18.433235ms)
+✔ process keep=true: a local read started before refreshSession never publishes its payload (68.552314ms)
+✔ online default: token-only first query discovers viewer and reaches an answer (10.659281ms)
+✔ online default: token-only first query discovers viewer and reaches an answer (11.17274ms)
+✔ online keep: token-only first query discovers viewer and reaches an answer (11.437998ms)
+✔ online keep=undefined: live viewer discovery resets active and idle answers and retries in-flight observations (33.262397ms)
+✔ online keep=false: live viewer discovery resets active and idle answers and retries in-flight observations (32.525932ms)
+✔ online keep=true: live viewer discovery resets active and idle answers and retries in-flight observations (31.267456ms)
+✔ signed-out observations settle without a reset retry loop (1066.341625ms)
+✔ peeking a lingering watch neither acquires it nor changes its timer or expiry boundary (2.390384ms)
+✔ app peek reuses only a live authorized snapshot and cannot cross withdrawal or retirement (12.739309ms)
+✔ facade approval follows freshness identity but never a new publication or reset (10.715625ms)
+✔ local keep: apply fences in-flight answers and keeps active and lingering data (175.67994ms)
+✔ local keep: admit fences in-flight answers and keeps active and lingering data (176.15994ms)
+✔ local keep: settle fences in-flight answers and keeps active and lingering data (176.388633ms)
+✔ local keep: clear_rows fences in-flight answers and drops active and lingering data (0.782203ms)
+✔ local keep: settle_exit fences in-flight answers and drops active and lingering data (0.614562ms)
+✔ local keep: adopt fences in-flight answers and drops active and lingering data (0.328392ms)
+✔ local keep: observe_store fences in-flight answers and drops active and lingering data (0.419248ms)
+✔ keep carries original freshness through reload, and every published result replaces it (0.856284ms)
+✔ rejoining at 29 seconds cancels the old close and gives the next unsubscribe a full window (2.08104ms)
+✔ lingering watches close on the 30-second timer and cannot return after clock rollback (1.124015ms)
+✔ online keep: mutation waits without loading, then publishes next (60.227613ms)
+✔ online keep: mutation waits without loading, then publishes denied (17.879565ms)
+✔ online keep: notification waits without loading, then publishes next (21.677028ms)
+✔ online keep: notification waits without loading, then publishes denied (20.694045ms)
+✔ online keep: adoption clears active and lingering answers (20.71059ms)
+✔ online keep: replacement clears active and lingering answers (15.656562ms)
+✔ online keep: regression clears active and lingering answers (16.370833ms)
+✔ online keep: credentials clears active and lingering answers (17.710462ms)
+✔ online keep: viewer clears active and lingering answers (11.07929ms)
+✔ online keep: sign-out clears active and lingering answers (11.091569ms)
+✔ online keep: close clears active and lingering answers (11.377807ms)
+✔ online keep: an in-flight answer read before a newer commit never replaces the kept answer (38.331977ms)
+✔ the app client forwards keep while its lifetime fence still withdraws data (26.959648ms)
+✔ createApp forwards source expiry while sessionStore.get is held (32.872432ms)
+✔ createApp keeps a superseded answer while replacement authority is held (279.559918ms)
+✔ createApp keeps a superseded answer while replacement authority is held (275.617317ms)
+✔ createApp withdraws a superseded answer while replacement authority is held (277.6472ms)
+✔ app facade forwards loading synchronously but gates replacement data (10.696086ms)
+✔ app facade forwards denied synchronously but gates replacement data (10.960552ms)
+✔ online keep preserves the existing expiry withdrawal before a held refetch (108.778782ms)
+✔ wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (492.263294ms)
+✔ wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (23.650688ms)
+✔ wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (19.147757ms)
+✔ wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (12.299229ms)
+✔ wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (11.918117ms)
+✔ wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands (11.779049ms)
+✔ process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (81.284291ms)
+✔ process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (81.840406ms)
+✔ process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (64.787129ms)
+✔ process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (59.389337ms)
+✔ process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (63.505417ms)
+✔ process keep=undefined facade=false: close drops active and lingering answers before a held read lands (60.554965ms)
+✔ wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (33.932142ms)
+✔ wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (26.673129ms)
+✔ wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (21.34424ms)
+✔ wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (15.531796ms)
+✔ wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (10.930527ms)
+✔ wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands (11.095514ms)
+✔ process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (75.965057ms)
+✔ process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (94.249089ms)
+✔ process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (76.216194ms)
+✔ process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (76.515312ms)
+✔ process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (65.689672ms)
+✔ process keep=undefined facade=true: close drops active and lingering answers before a held read lands (66.696482ms)
+✔ wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands (34.260393ms)
+✔ wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands (29.025866ms)
+✔ wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands (15.522081ms)
+✔ wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands (14.722852ms)
+✔ wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands (15.198095ms)
+✔ wasm keep=true facade=false: close drops active and lingering answers before a held read lands (14.424576ms)
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.17429ms)
+✔ process keep=true facade=false: replacement drops active and lingering answers before a held read lands (79.460167ms)
+✔ process keep=true facade=false: credentials drops active and lingering answers before a held read lands (65.749913ms)
+✔ process keep=true facade=false: viewer drops active and lingering answers before a held read lands (63.679549ms)
+✔ process keep=true facade=false: sign-out drops active and lingering answers before a held read lands (65.965015ms)
+✔ process keep=true facade=false: close drops active and lingering answers before a held read lands (59.601064ms)
+{"userAgent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36","rounds":[{"warm":24,"success":24,"failures":[]},{"warm":24,"success":24,"failures":[]},{"warm":24,"success":24,"failures":[]}]}
+✔ Chromium SDK reads survive a blocked renderer across the server idle timeout (16990.682826ms)
+✔ dev: keep-alive headers agree with HTTP connection policy (181.378914ms)
+✔ serve: keep-alive headers agree with HTTP connection policy (55.362179ms)
+✔ serve through a trusted TLS terminator retains SDK keep-alive (364.948593ms)
+✔ held and heartbeat /changes responses exceed idle timeout and remain reusable (12152.778814ms)
+✔ socket reset: reused=false, reset again=false (27.200389ms)
+✔ socket reset: reused=false, reset again=true (3.659336ms)
+✔ socket reset: reused=true, reset again=false (32.715257ms)
+✔ socket reset: reused=true, reset again=true (26.846919ms)
+✔ retry observation stays with its caller and host fetch sees every attempt (431.998418ms)
+✔ no retry after response bytes: partial header (55.412355ms)
+✔ no retry after response bytes: body (55.845875ms)
+✔ no ambiguous replay for /auth/refresh (196.973646ms)
+✔ no ambiguous replay for /assets (184.051062ms)
+✔ no ambiguous replay for /assets/once (499.604284ms)
+✔ no ambiguous replay for /a/work (118.317303ms)
+✔ no ambiguous replay for /m/ephemeral (195.15509ms)
+✔ no ambiguous replay for /m/add (186.096779ms)
+✔ a delivered overload is returned without socket retries (501.420768ms)
+✔ a reset retry preserves one real durable mutation and its write ID (444.135495ms)
+✔ the private agent retires idle sockets within the one-second budget (1005.649465ms)
+✔ a retryable durable envelope cannot execute an ephemeral operation (147.240495ms)
+✔ a reused-socket retry retains the original URL, body, write ID and headers (354.390457ms)
+{"round":0,"clients":1,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":1}
+✔ Node SDK query survives a client pause across the dev idle deadline (0) (3678.699662ms)
+✔ process: pending cut preserves transition before sync publication (3204.24333ms)
+✔ process: pending cut preserves emptyTransition before sync publication (2993.685262ms)
+✔ process: pending cut preserves presentTransition before sync publication (1255.223112ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (494.699963ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (270.943734ms)
+✔ wasm: pending cut preserves transition before sync publication (2221.35005ms)
+✔ wasm: pending cut preserves emptyTransition before sync publication (1243.555412ms)
+✔ wasm: pending cut preserves presentTransition before sync publication (1947.71955ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (497.123658ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (489.868952ms)
+✔ process: child-add keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (692.996481ms)
+✔ process: child-replace keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (482.895514ms)
+✔ process: child-remove keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (506.236438ms)
+✔ process: parent keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (497.04611ms)
+✔ process: joined-profile keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (500.744604ms)
+✔ process: authorization keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (522.17983ms)
+✔ process: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (355.51217ms)
+✔ process: child-add keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (670.359905ms)
+✔ process: child-remove keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (493.430089ms)
+✔ process: unknown-footprint keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (503.961108ms)
+✔ process: child-add keep=false expire=false drives mounted reads from change through apply without elapsed timers (501.685335ms)
+✔ process: child-add keep=true expire=false drives mounted reads from change through apply without elapsed timers (460.157987ms)
+✔ process: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers (671.159595ms)
+✔ process: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers (500.457956ms)
+✔ wasm: child-add keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (635.807184ms)
+✔ wasm: child-replace keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (228.056698ms)
+✔ wasm: child-remove keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (237.573295ms)
+✔ wasm: parent keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (437.642502ms)
+✔ wasm: joined-profile keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (288.579895ms)
+✔ wasm: authorization keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (295.411506ms)
+✔ wasm: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (489.789382ms)
+✔ wasm: child-add keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (461.964687ms)
+✔ wasm: child-remove keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (656.675861ms)
+✔ wasm: unknown-footprint keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (511.469686ms)
+✔ wasm: child-add keep=false expire=false drives mounted reads from change through apply without elapsed timers (302.969508ms)
+✔ wasm: child-add keep=true expire=false drives mounted reads from change through apply without elapsed timers (291.596437ms)
+✔ wasm: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers (241.314244ms)
+✔ wasm: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers (662.959933ms)
+✔ retained media: unrelated footprint keeps authorization and revocation (18.657712ms)
+✔ retained media: home footprint keeps authorization and revocation (1.183585ms)
+✔ retained media: authorization footprint keeps authorization and revocation (0.76045ms)
+✔ retained media: unknown footprint keeps authorization and revocation (0.660941ms)
+✔ retained media: legacy footprint keeps authorization and revocation (0.691457ms)
+✔ retained media: empty footprint keeps authorization and revocation (0.659639ms)
+✔ retained media: malformed footprint keeps authorization and revocation (0.564796ms)
+✔ retained media: expiry footprint keeps authorization and revocation (0.498167ms)
+✔ process: live asset-home dependencies preserve unrelated bytes and revoke on membership loss (331.685428ms)
+✔ wasm: live asset-home dependencies preserve unrelated bytes and revoke on membership loss (686.317249ms)
+✔ reference rejects transient empty member answers and sign-out loading (1.011927ms)
+{"host":"process","seeds":300,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule process: 300 independent histories (255832.49896ms)
+{"host":"wasm","seeds":300,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule wasm: 300 independent histories (175201.479614ms)
+ORACLE_PASS host=process seed=1
+ORACLE_PASS host=process seed=2
+ORACLE_PASS host=process seed=3
+ORACLE_PASS host=process seed=4
+ORACLE_PASS host=process seed=5
+ORACLE_PASS host=process seed=6
+ORACLE_PASS host=process seed=7
+ORACLE_PASS host=process seed=8
+ORACLE_PASS host=process seed=9
+ORACLE_PASS host=process seed=10
+ORACLE_PASS host=process seed=11
+ORACLE_PASS host=process seed=12
+ORACLE_PASS host=process seed=13
+ORACLE_PASS host=process seed=14
+ORACLE_PASS host=process seed=15
+ORACLE_PASS host=process seed=16
+ORACLE_PASS host=process seed=17
+ORACLE_PASS host=process seed=18
+ORACLE_PASS host=process seed=19
+ORACLE_PASS host=process seed=20
+ORACLE_PASS host=process seed=21
+ORACLE_PASS host=process seed=22
+ORACLE_PASS host=process seed=23
+ORACLE_PASS host=process seed=24
+ORACLE_PASS host=process seed=25
+ORACLE_PASS host=process seed=26
+ORACLE_PASS host=process seed=27
+ORACLE_PASS host=process seed=28
+ORACLE_PASS host=process seed=29
+ORACLE_PASS host=process seed=30
+ORACLE_PASS host=process seed=31
+ORACLE_PASS host=process seed=32
+ORACLE_PASS host=process seed=33
+ORACLE_PASS host=process seed=34
+ORACLE_PASS host=process seed=35
+ORACLE_PASS host=process seed=36
+ORACLE_PASS host=process seed=37
+ORACLE_PASS host=process seed=38
+ORACLE_PASS host=process seed=39
+ORACLE_PASS host=process seed=40
+ORACLE_PASS host=process seed=41
+ORACLE_PASS host=process seed=42
+ORACLE_PASS host=process seed=43
+ORACLE_PASS host=process seed=44
+ORACLE_PASS host=process seed=45
+ORACLE_PASS host=process seed=46
+ORACLE_PASS host=process seed=47
+ORACLE_PASS host=process seed=48
+ORACLE_PASS host=process seed=49
+ORACLE_PASS host=process seed=50
+ORACLE_PASS host=process seed=51
+ORACLE_PASS host=process seed=52
+ORACLE_PASS host=process seed=53
+ORACLE_PASS host=process seed=54
+ORACLE_PASS host=process seed=55
+ORACLE_PASS host=process seed=56
+ORACLE_PASS host=process seed=57
+ORACLE_PASS host=process seed=58
+ORACLE_PASS host=process seed=59
+ORACLE_PASS host=process seed=60
+ORACLE_PASS host=process seed=61
+ORACLE_PASS host=process seed=62
+ORACLE_PASS host=process seed=63
+ORACLE_PASS host=process seed=64
+ORACLE_PASS host=process seed=65
+ORACLE_PASS host=process seed=66
+ORACLE_PASS host=process seed=67
+ORACLE_PASS host=process seed=68
+ORACLE_PASS host=process seed=69
+ORACLE_PASS host=process seed=70
+ORACLE_PASS host=process seed=71
+ORACLE_PASS host=process seed=72
+ORACLE_PASS host=process seed=73
+ORACLE_PASS host=process seed=74
+ORACLE_PASS host=process seed=75
+ORACLE_PASS host=process seed=76
+ORACLE_PASS host=process seed=77
+ORACLE_PASS host=process seed=78
+ORACLE_PASS host=process seed=79
+ORACLE_PASS host=process seed=80
+ORACLE_PASS host=process seed=81
+ORACLE_PASS host=process seed=82
+ORACLE_PASS host=process seed=83
+ORACLE_PASS host=process seed=84
+ORACLE_PASS host=process seed=85
+ORACLE_PASS host=process seed=86
+ORACLE_PASS host=process seed=87
+ORACLE_PASS host=process seed=88
+ORACLE_PASS host=process seed=89
+ORACLE_PASS host=process seed=90
+ORACLE_PASS host=process seed=91
+ORACLE_PASS host=process seed=92
+ORACLE_PASS host=process seed=93
+ORACLE_PASS host=process seed=94
+ORACLE_PASS host=process seed=95
+ORACLE_PASS host=process seed=96
+ORACLE_PASS host=process seed=97
+ORACLE_PASS host=process seed=98
+ORACLE_PASS host=process seed=99
+ORACLE_PASS host=process seed=100
+ORACLE_PASS host=process seed=101
+ORACLE_PASS host=process seed=102
+ORACLE_PASS host=process seed=103
+ORACLE_PASS host=process seed=104
+ORACLE_PASS host=process seed=105
+ORACLE_PASS host=process seed=106
+ORACLE_PASS host=process seed=107
+ORACLE_PASS host=process seed=108
+ORACLE_PASS host=process seed=109
+ORACLE_PASS host=process seed=110
+ORACLE_PASS host=process seed=111
+ORACLE_PASS host=process seed=112
+ORACLE_PASS host=process seed=113
+ORACLE_PASS host=process seed=114
+ORACLE_PASS host=process seed=115
+ORACLE_PASS host=process seed=116
+ORACLE_PASS host=process seed=117
+ORACLE_PASS host=process seed=118
+ORACLE_PASS host=process seed=119
+ORACLE_PASS host=process seed=120
+ORACLE_PASS host=process seed=121
+ORACLE_PASS host=process seed=122
+ORACLE_PASS host=process seed=123
+ORACLE_PASS host=process seed=124
+ORACLE_PASS host=process seed=125
+ORACLE_PASS host=process seed=126
+ORACLE_PASS host=process seed=127
+ORACLE_PASS host=process seed=128
+ORACLE_PASS host=process seed=129
+ORACLE_PASS host=process seed=130
+ORACLE_PASS host=process seed=131
+ORACLE_PASS host=process seed=132
+ORACLE_PASS host=process seed=133
+ORACLE_PASS host=process seed=134
+ORACLE_PASS host=process seed=135
+ORACLE_PASS host=process seed=136
+ORACLE_PASS host=process seed=137
+ORACLE_PASS host=process seed=138
+ORACLE_PASS host=process seed=139
+ORACLE_PASS host=process seed=140
+ORACLE_PASS host=process seed=141
+ORACLE_PASS host=process seed=142
+ORACLE_PASS host=process seed=143
+ORACLE_PASS host=process seed=144
+ORACLE_PASS host=process seed=145
+ORACLE_PASS host=process seed=146
+ORACLE_PASS host=process seed=147
+ORACLE_PASS host=process seed=148
+ORACLE_PASS host=process seed=149
+ORACLE_PASS host=process seed=150
+ORACLE_PASS host=process seed=151
+ORACLE_PASS host=process seed=152
+ORACLE_PASS host=process seed=153
+ORACLE_PASS host=process seed=154
+ORACLE_PASS host=process seed=155
+ORACLE_PASS host=process seed=156
+ORACLE_PASS host=process seed=157
+ORACLE_PASS host=process seed=158
+ORACLE_PASS host=process seed=159
+ORACLE_PASS host=process seed=160
+ORACLE_PASS host=process seed=161
+ORACLE_PASS host=process seed=162
+ORACLE_PASS host=process seed=163
+ORACLE_PASS host=process seed=164
+ORACLE_PASS host=process seed=165
+ORACLE_PASS host=process seed=166
+ORACLE_PASS host=process seed=167
+ORACLE_PASS host=process seed=168
+ORACLE_PASS host=process seed=169
+ORACLE_PASS host=process seed=170
+ORACLE_PASS host=process seed=171
+ORACLE_PASS host=process seed=172
+ORACLE_PASS host=process seed=173
+ORACLE_PASS host=process seed=174
+ORACLE_PASS host=process seed=175
+ORACLE_PASS host=process seed=176
+ORACLE_PASS host=process seed=177
+ORACLE_PASS host=process seed=178
+ORACLE_PASS host=process seed=179
+ORACLE_PASS host=process seed=180
+ORACLE_PASS host=process seed=181
+ORACLE_PASS host=process seed=182
+ORACLE_PASS host=process seed=183
+ORACLE_PASS host=process seed=184
+ORACLE_PASS host=process seed=185
+ORACLE_PASS host=process seed=186
+ORACLE_PASS host=process seed=187
+ORACLE_PASS host=process seed=188
+ORACLE_PASS host=process seed=189
+ORACLE_PASS host=process seed=190
+ORACLE_PASS host=process seed=191
+ORACLE_PASS host=process seed=192
+ORACLE_PASS host=process seed=193
+ORACLE_PASS host=process seed=194
+ORACLE_PASS host=process seed=195
+ORACLE_PASS host=process seed=196
+ORACLE_PASS host=process seed=197
+ORACLE_PASS host=process seed=198
+ORACLE_PASS host=process seed=199
+ORACLE_PASS host=process seed=200
+ORACLE_PASS host=process seed=201
+ORACLE_PASS host=process seed=202
+ORACLE_PASS host=process seed=203
+ORACLE_PASS host=process seed=204
+ORACLE_PASS host=process seed=205
+ORACLE_PASS host=process seed=206
+ORACLE_PASS host=process seed=207
+ORACLE_PASS host=process seed=208
+ORACLE_PASS host=process seed=209
+ORACLE_PASS host=process seed=210
+ORACLE_PASS host=process seed=211
+ORACLE_PASS host=process seed=212
+ORACLE_PASS host=process seed=213
+ORACLE_PASS host=process seed=214
+ORACLE_PASS host=process seed=215
+ORACLE_PASS host=process seed=216
+ORACLE_PASS host=process seed=217
+ORACLE_PASS host=process seed=218
+ORACLE_PASS host=process seed=219
+ORACLE_PASS host=process seed=220
+ORACLE_PASS host=process seed=221
+ORACLE_PASS host=process seed=222
+ORACLE_PASS host=process seed=223
+ORACLE_PASS host=process seed=224
+ORACLE_PASS host=process seed=225
+ORACLE_PASS host=process seed=226
+ORACLE_PASS host=process seed=227
+ORACLE_PASS host=process seed=228
+ORACLE_PASS host=process seed=229
+ORACLE_PASS host=process seed=230
+ORACLE_PASS host=process seed=231
+ORACLE_PASS host=process seed=232
+ORACLE_PASS host=process seed=233
+ORACLE_PASS host=process seed=234
+ORACLE_PASS host=process seed=235
+ORACLE_PASS host=process seed=236
+ORACLE_PASS host=process seed=237
+ORACLE_PASS host=process seed=238
+ORACLE_PASS host=process seed=239
+ORACLE_PASS host=process seed=240
+ORACLE_PASS host=process seed=241
+ORACLE_PASS host=process seed=242
+ORACLE_PASS host=process seed=243
+ORACLE_PASS host=process seed=244
+ORACLE_PASS host=process seed=245
+ORACLE_PASS host=process seed=246
+ORACLE_PASS host=process seed=247
+ORACLE_PASS host=process seed=248
+ORACLE_PASS host=process seed=249
+ORACLE_PASS host=process seed=250
+ORACLE_PASS host=process seed=251
+ORACLE_PASS host=process seed=252
+ORACLE_PASS host=process seed=253
+ORACLE_PASS host=process seed=254
+ORACLE_PASS host=process seed=255
+ORACLE_PASS host=process seed=256
+ORACLE_PASS host=process seed=257
+ORACLE_PASS host=process seed=258
+ORACLE_PASS host=process seed=259
+ORACLE_PASS host=process seed=260
+ORACLE_PASS host=process seed=261
+ORACLE_PASS host=process seed=262
+ORACLE_PASS host=process seed=263
+ORACLE_PASS host=process seed=264
+ORACLE_PASS host=process seed=265
+ORACLE_PASS host=process seed=266
+ORACLE_PASS host=process seed=267
+ORACLE_PASS host=process seed=268
+ORACLE_PASS host=process seed=269
+ORACLE_PASS host=process seed=270
+ORACLE_PASS host=process seed=271
+ORACLE_PASS host=process seed=272
+ORACLE_PASS host=process seed=273
+ORACLE_PASS host=process seed=274
+ORACLE_PASS host=process seed=275
+ORACLE_PASS host=process seed=276
+ORACLE_PASS host=process seed=277
+ORACLE_PASS host=process seed=278
+ORACLE_PASS host=process seed=279
+ORACLE_PASS host=process seed=280
+ORACLE_PASS host=process seed=281
+ORACLE_PASS host=process seed=282
+ORACLE_PASS host=process seed=283
+ORACLE_PASS host=process seed=284
+ORACLE_PASS host=process seed=285
+ORACLE_PASS host=process seed=286
+ORACLE_PASS host=process seed=287
+ORACLE_PASS host=process seed=288
+ORACLE_PASS host=process seed=289
+ORACLE_PASS host=process seed=290
+ORACLE_PASS host=process seed=291
+ORACLE_PASS host=process seed=292
+ORACLE_PASS host=process seed=293
+ORACLE_PASS host=process seed=294
+ORACLE_PASS host=process seed=295
+ORACLE_PASS host=process seed=296
+ORACLE_PASS host=process seed=297
+ORACLE_PASS host=process seed=298
+ORACLE_PASS host=process seed=299
+ORACLE_PASS host=process seed=300
+ORACLE_SUMMARY {"host":"process","seeds":300,"failed":[],"ms":252112,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+✔ ordinary search generated oracle process: 300 seeds (252112.550483ms)
+ORACLE_PASS host=wasm seed=1
+ORACLE_PASS host=wasm seed=2
+ORACLE_PASS host=wasm seed=3
+ORACLE_PASS host=wasm seed=4
+ORACLE_PASS host=wasm seed=5
+ORACLE_PASS host=wasm seed=6
+ORACLE_PASS host=wasm seed=7
+ORACLE_PASS host=wasm seed=8
+ORACLE_PASS host=wasm seed=9
+ORACLE_PASS host=wasm seed=10
+ORACLE_PASS host=wasm seed=11
+ORACLE_PASS host=wasm seed=12
+ORACLE_PASS host=wasm seed=13
+ORACLE_PASS host=wasm seed=14
+ORACLE_PASS host=wasm seed=15
+ORACLE_PASS host=wasm seed=16
+ORACLE_PASS host=wasm seed=17
+ORACLE_PASS host=wasm seed=18
+ORACLE_PASS host=wasm seed=19
+ORACLE_PASS host=wasm seed=20
+ORACLE_PASS host=wasm seed=21
+ORACLE_PASS host=wasm seed=22
+ORACLE_PASS host=wasm seed=23
+ORACLE_PASS host=wasm seed=24
+ORACLE_PASS host=wasm seed=25
+ORACLE_PASS host=wasm seed=26
+ORACLE_PASS host=wasm seed=27
+ORACLE_PASS host=wasm seed=28
+ORACLE_PASS host=wasm seed=29
+ORACLE_PASS host=wasm seed=30
+ORACLE_PASS host=wasm seed=31
+ORACLE_PASS host=wasm seed=32
+ORACLE_PASS host=wasm seed=33
+ORACLE_PASS host=wasm seed=34
+ORACLE_PASS host=wasm seed=35
+ORACLE_PASS host=wasm seed=36
+ORACLE_PASS host=wasm seed=37
+ORACLE_PASS host=wasm seed=38
+ORACLE_PASS host=wasm seed=39
+ORACLE_PASS host=wasm seed=40
+ORACLE_PASS host=wasm seed=41
+ORACLE_PASS host=wasm seed=42
+ORACLE_PASS host=wasm seed=43
+ORACLE_PASS host=wasm seed=44
+ORACLE_PASS host=wasm seed=45
+ORACLE_PASS host=wasm seed=46
+ORACLE_PASS host=wasm seed=47
+ORACLE_PASS host=wasm seed=48
+ORACLE_PASS host=wasm seed=49
+ORACLE_PASS host=wasm seed=50
+ORACLE_PASS host=wasm seed=51
+ORACLE_PASS host=wasm seed=52
+ORACLE_PASS host=wasm seed=53
+ORACLE_PASS host=wasm seed=54
+ORACLE_PASS host=wasm seed=55
+ORACLE_PASS host=wasm seed=56
+ORACLE_PASS host=wasm seed=57
+ORACLE_PASS host=wasm seed=58
+ORACLE_PASS host=wasm seed=59
+ORACLE_PASS host=wasm seed=60
+ORACLE_PASS host=wasm seed=61
+ORACLE_PASS host=wasm seed=62
+ORACLE_PASS host=wasm seed=63
+ORACLE_PASS host=wasm seed=64
+ORACLE_PASS host=wasm seed=65
+ORACLE_PASS host=wasm seed=66
+ORACLE_PASS host=wasm seed=67
+ORACLE_PASS host=wasm seed=68
+ORACLE_PASS host=wasm seed=69
+ORACLE_PASS host=wasm seed=70
+ORACLE_PASS host=wasm seed=71
+ORACLE_PASS host=wasm seed=72
+ORACLE_PASS host=wasm seed=73
+ORACLE_PASS host=wasm seed=74
+ORACLE_PASS host=wasm seed=75
+ORACLE_PASS host=wasm seed=76
+ORACLE_PASS host=wasm seed=77
+ORACLE_PASS host=wasm seed=78
+ORACLE_PASS host=wasm seed=79
+ORACLE_PASS host=wasm seed=80
+ORACLE_PASS host=wasm seed=81
+ORACLE_PASS host=wasm seed=82
+ORACLE_PASS host=wasm seed=83
+ORACLE_PASS host=wasm seed=84
+ORACLE_PASS host=wasm seed=85
+ORACLE_PASS host=wasm seed=86
+ORACLE_PASS host=wasm seed=87
+ORACLE_PASS host=wasm seed=88
+ORACLE_PASS host=wasm seed=89
+ORACLE_PASS host=wasm seed=90
+ORACLE_PASS host=wasm seed=91
+ORACLE_PASS host=wasm seed=92
+ORACLE_PASS host=wasm seed=93
+ORACLE_PASS host=wasm seed=94
+ORACLE_PASS host=wasm seed=95
+ORACLE_PASS host=wasm seed=96
+ORACLE_PASS host=wasm seed=97
+ORACLE_PASS host=wasm seed=98
+ORACLE_PASS host=wasm seed=99
+ORACLE_PASS host=wasm seed=100
+ORACLE_PASS host=wasm seed=101
+ORACLE_PASS host=wasm seed=102
+ORACLE_PASS host=wasm seed=103
+ORACLE_PASS host=wasm seed=104
+ORACLE_PASS host=wasm seed=105
+ORACLE_PASS host=wasm seed=106
+ORACLE_PASS host=wasm seed=107
+ORACLE_PASS host=wasm seed=108
+ORACLE_PASS host=wasm seed=109
+ORACLE_PASS host=wasm seed=110
+ORACLE_PASS host=wasm seed=111
+ORACLE_PASS host=wasm seed=112
+ORACLE_PASS host=wasm seed=113
+ORACLE_PASS host=wasm seed=114
+ORACLE_PASS host=wasm seed=115
+ORACLE_PASS host=wasm seed=116
+ORACLE_PASS host=wasm seed=117
+ORACLE_PASS host=wasm seed=118
+ORACLE_PASS host=wasm seed=119
+ORACLE_PASS host=wasm seed=120
+ORACLE_PASS host=wasm seed=121
+ORACLE_PASS host=wasm seed=122
+ORACLE_PASS host=wasm seed=123
+ORACLE_PASS host=wasm seed=124
+ORACLE_PASS host=wasm seed=125
+ORACLE_PASS host=wasm seed=126
+ORACLE_PASS host=wasm seed=127
+ORACLE_PASS host=wasm seed=128
+ORACLE_PASS host=wasm seed=129
+ORACLE_PASS host=wasm seed=130
+ORACLE_PASS host=wasm seed=131
+ORACLE_PASS host=wasm seed=132
+ORACLE_PASS host=wasm seed=133
+ORACLE_PASS host=wasm seed=134
+ORACLE_PASS host=wasm seed=135
+ORACLE_PASS host=wasm seed=136
+ORACLE_PASS host=wasm seed=137
+ORACLE_PASS host=wasm seed=138
+ORACLE_PASS host=wasm seed=139
+ORACLE_PASS host=wasm seed=140
+ORACLE_PASS host=wasm seed=141
+ORACLE_PASS host=wasm seed=142
+ORACLE_PASS host=wasm seed=143
+ORACLE_PASS host=wasm seed=144
+ORACLE_PASS host=wasm seed=145
+ORACLE_PASS host=wasm seed=146
+ORACLE_PASS host=wasm seed=147
+ORACLE_PASS host=wasm seed=148
+ORACLE_PASS host=wasm seed=149
+ORACLE_PASS host=wasm seed=150
+ORACLE_PASS host=wasm seed=151
+ORACLE_PASS host=wasm seed=152
+ORACLE_PASS host=wasm seed=153
+ORACLE_PASS host=wasm seed=154
+ORACLE_PASS host=wasm seed=155
+ORACLE_PASS host=wasm seed=156
+ORACLE_PASS host=wasm seed=157
+ORACLE_PASS host=wasm seed=158
+ORACLE_PASS host=wasm seed=159
+ORACLE_PASS host=wasm seed=160
+ORACLE_PASS host=wasm seed=161
+ORACLE_PASS host=wasm seed=162
+ORACLE_PASS host=wasm seed=163
+ORACLE_PASS host=wasm seed=164
+ORACLE_PASS host=wasm seed=165
+ORACLE_PASS host=wasm seed=166
+ORACLE_PASS host=wasm seed=167
+ORACLE_PASS host=wasm seed=168
+ORACLE_PASS host=wasm seed=169
+ORACLE_PASS host=wasm seed=170
+ORACLE_PASS host=wasm seed=171
+ORACLE_PASS host=wasm seed=172
+ORACLE_PASS host=wasm seed=173
+ORACLE_PASS host=wasm seed=174
+ORACLE_PASS host=wasm seed=175
+ORACLE_PASS host=wasm seed=176
+ORACLE_PASS host=wasm seed=177
+ORACLE_PASS host=wasm seed=178
+ORACLE_PASS host=wasm seed=179
+ORACLE_PASS host=wasm seed=180
+ORACLE_PASS host=wasm seed=181
+ORACLE_PASS host=wasm seed=182
+ORACLE_PASS host=wasm seed=183
+ORACLE_PASS host=wasm seed=184
+ORACLE_PASS host=wasm seed=185
+ORACLE_PASS host=wasm seed=186
+ORACLE_PASS host=wasm seed=187
+ORACLE_PASS host=wasm seed=188
+ORACLE_PASS host=wasm seed=189
+ORACLE_PASS host=wasm seed=190
+ORACLE_PASS host=wasm seed=191
+ORACLE_PASS host=wasm seed=192
+ORACLE_PASS host=wasm seed=193
+ORACLE_PASS host=wasm seed=194
+ORACLE_PASS host=wasm seed=195
+ORACLE_PASS host=wasm seed=196
+ORACLE_PASS host=wasm seed=197
+ORACLE_PASS host=wasm seed=198
+ORACLE_PASS host=wasm seed=199
+ORACLE_PASS host=wasm seed=200
+ORACLE_PASS host=wasm seed=201
+ORACLE_PASS host=wasm seed=202
+ORACLE_PASS host=wasm seed=203
+ORACLE_PASS host=wasm seed=204
+ORACLE_PASS host=wasm seed=205
+ORACLE_PASS host=wasm seed=206
+ORACLE_PASS host=wasm seed=207
+ORACLE_PASS host=wasm seed=208
+ORACLE_PASS host=wasm seed=209
+ORACLE_PASS host=wasm seed=210
+ORACLE_PASS host=wasm seed=211
+ORACLE_PASS host=wasm seed=212
+ORACLE_PASS host=wasm seed=213
+ORACLE_PASS host=wasm seed=214
+ORACLE_PASS host=wasm seed=215
+ORACLE_PASS host=wasm seed=216
+ORACLE_PASS host=wasm seed=217
+ORACLE_PASS host=wasm seed=218
+ORACLE_PASS host=wasm seed=219
+ORACLE_PASS host=wasm seed=220
+ORACLE_PASS host=wasm seed=221
+ORACLE_PASS host=wasm seed=222
+ORACLE_PASS host=wasm seed=223
+ORACLE_PASS host=wasm seed=224
+ORACLE_PASS host=wasm seed=225
+ORACLE_PASS host=wasm seed=226
+ORACLE_PASS host=wasm seed=227
+ORACLE_PASS host=wasm seed=228
+ORACLE_PASS host=wasm seed=229
+ORACLE_PASS host=wasm seed=230
+ORACLE_PASS host=wasm seed=231
+ORACLE_PASS host=wasm seed=232
+ORACLE_PASS host=wasm seed=233
+ORACLE_PASS host=wasm seed=234
+ORACLE_PASS host=wasm seed=235
+ORACLE_PASS host=wasm seed=236
+ORACLE_PASS host=wasm seed=237
+ORACLE_PASS host=wasm seed=238
+ORACLE_PASS host=wasm seed=239
+ORACLE_PASS host=wasm seed=240
+ORACLE_PASS host=wasm seed=241
+ORACLE_PASS host=wasm seed=242
+ORACLE_PASS host=wasm seed=243
+ORACLE_PASS host=wasm seed=244
+ORACLE_PASS host=wasm seed=245
+ORACLE_PASS host=wasm seed=246
+ORACLE_PASS host=wasm seed=247
+ORACLE_PASS host=wasm seed=248
+ORACLE_PASS host=wasm seed=249
+ORACLE_PASS host=wasm seed=250
+ORACLE_PASS host=wasm seed=251
+ORACLE_PASS host=wasm seed=252
+ORACLE_PASS host=wasm seed=253
+ORACLE_PASS host=wasm seed=254
+ORACLE_PASS host=wasm seed=255
+ORACLE_PASS host=wasm seed=256
+ORACLE_PASS host=wasm seed=257
+ORACLE_PASS host=wasm seed=258
+ORACLE_PASS host=wasm seed=259
+ORACLE_PASS host=wasm seed=260
+ORACLE_PASS host=wasm seed=261
+ORACLE_PASS host=wasm seed=262
+ORACLE_PASS host=wasm seed=263
+ORACLE_PASS host=wasm seed=264
+ORACLE_PASS host=wasm seed=265
+ORACLE_PASS host=wasm seed=266
+ORACLE_PASS host=wasm seed=267
+ORACLE_PASS host=wasm seed=268
+ORACLE_PASS host=wasm seed=269
+ORACLE_PASS host=wasm seed=270
+ORACLE_PASS host=wasm seed=271
+ORACLE_PASS host=wasm seed=272
+ORACLE_PASS host=wasm seed=273
+ORACLE_PASS host=wasm seed=274
+ORACLE_PASS host=wasm seed=275
+ORACLE_PASS host=wasm seed=276
+ORACLE_PASS host=wasm seed=277
+ORACLE_PASS host=wasm seed=278
+ORACLE_PASS host=wasm seed=279
+ORACLE_PASS host=wasm seed=280
+ORACLE_PASS host=wasm seed=281
+ORACLE_PASS host=wasm seed=282
+ORACLE_PASS host=wasm seed=283
+ORACLE_PASS host=wasm seed=284
+ORACLE_PASS host=wasm seed=285
+ORACLE_PASS host=wasm seed=286
+ORACLE_PASS host=wasm seed=287
+ORACLE_PASS host=wasm seed=288
+ORACLE_PASS host=wasm seed=289
+ORACLE_PASS host=wasm seed=290
+ORACLE_PASS host=wasm seed=291
+ORACLE_PASS host=wasm seed=292
+ORACLE_PASS host=wasm seed=293
+ORACLE_PASS host=wasm seed=294
+ORACLE_PASS host=wasm seed=295
+ORACLE_PASS host=wasm seed=296
+ORACLE_PASS host=wasm seed=297
+ORACLE_PASS host=wasm seed=298
+ORACLE_PASS host=wasm seed=299
+ORACLE_PASS host=wasm seed=300
+ORACLE_SUMMARY {"host":"wasm","seeds":300,"failed":[],"ms":188627,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+✔ ordinary search generated oracle wasm: 300 seeds (188627.919008ms)
+✔ ordinary search full last 86 overlaps process (495.736015ms)
+✔ ordinary search full last 100 overlaps process (490.419533ms)
+✔ ordinary search full last 86 overlaps wasm (375.524385ms)
+✔ ordinary search full last 100 overlaps wasm (395.404002ms)
+✔ expired current replacement keeps retained history process (787.359763ms)
+✔ expired current replacement keeps retained history wasm (677.903259ms)
+✔ wasm keep=undefined: queued presence checks a second change at the response boundary (648.523778ms)
+✔ wasm keep=undefined: queued presence checks a second change at the callback boundary (233.96209ms)
+✔ wasm keep=false: queued presence checks a second change at the response boundary (243.050366ms)
+✔ wasm keep=false: queued presence checks a second change at the callback boundary (236.129059ms)
+✔ wasm keep=true: queued presence checks a second change at the response boundary (247.709991ms)
+✔ wasm keep=true: queued presence checks a second change at the callback boundary (237.63716ms)
+✔ process keep=undefined: queued presence checks a second change at the response boundary (299.141979ms)
+✔ process keep=undefined: queued presence checks a second change at the callback boundary (285.025025ms)
+✔ process keep=false: queued presence checks a second change at the response boundary (291.661725ms)
+✔ process keep=false: queued presence checks a second change at the callback boundary (274.842288ms)
+✔ process keep=true: queued presence checks a second change at the response boundary (291.546983ms)
+✔ process keep=true: queued presence checks a second change at the callback boundary (280.79282ms)
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (205.787751ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (198.774586ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (202.59222ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (316.239292ms)
+✔ process keep=false: a full queue cannot postpone the change transition (269.726549ms)
+✔ process keep=true: a full queue cannot postpone the change transition (254.883326ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (192.236425ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (433.479932ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (179.279198ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (433.019342ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (187.02361ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (427.527298ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (240.164029ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (485.765739ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (242.609895ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (386.858106ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (231.92036ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (484.968546ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (646.70937ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (219.670155ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (211.204422ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (277.056569ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (272.886046ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (243.489505ms)
+✔ online keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (269.100782ms)
+✔ online keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (242.769626ms)
+✔ wasm keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (249.848839ms)
+✔ wasm keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (269.049605ms)
+✔ process keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (380.139584ms)
+✔ process keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (309.603144ms)
+✔ wasm keep=undefined: the final callback checks a change version raised after evaluation (197.465415ms)
+✔ wasm keep=false: the final callback checks a change version raised after evaluation (192.817827ms)
+✔ wasm keep=true: the final callback checks a change version raised after evaluation (198.906556ms)
+✔ process keep=undefined: the final callback checks a change version raised after evaluation (250.600095ms)
+✔ process keep=false: the final callback checks a change version raised after evaluation (248.351054ms)
+✔ process keep=true: the final callback checks a change version raised after evaluation (288.063061ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (42.19517ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (6.970219ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (9.045662ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (17.168429ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (575.552802ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (180.842012ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (168.577686ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (164.095045ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (226.184771ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (228.21855ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (205.208403ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (210.618073ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (186.277773ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (254.532161ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (145.256932ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (170.06127ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (214.180905ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined (403.906777ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined, held (371.368454ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true (369.406373ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true, held (372.417838ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false (371.5721ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false, held (375.079087ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined (670.419999ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined, held (327.123131ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true (328.86363ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true, held (353.886426ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false (316.756379ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false, held (316.509168ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=undefined (308.367743ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=true (302.553817ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=false (307.099731ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=undefined (307.020623ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=true (304.625071ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=false (298.975131ms)
+✔ wasm: unknown apply refresh drains after the watermark (540.687632ms)
+✔ process: unknown apply refresh drains after the watermark (243.377167ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (164.577488ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (162.716188ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (157.026438ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (175.89123ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (176.194435ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (229.682796ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (226.440805ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (218.938988ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (227.255547ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (145.876202ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (148.181798ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (143.86775ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (154.820712ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (159.493727ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (164.155787ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (212.772624ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (224.471604ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (226.111342ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (880.721519ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (852.854231ms)
+✔ ready per-row completions share a React notification turn; publication does not wait for that turn (585.420257ms)
+ℹ {"commits":1,"loading":0,"replaced":8}
+✔ a terminal refusal bypasses a held ready-notification turn and retires its pending completions (561.878112ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4132.563106ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790830040495,"lastStart":1790830042514,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5433.081991ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790830045735,"lastStart":1790830047872,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (5959.972545ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790830051576,"lastStart":1790830053892,"wallIsReal":true,"link":"online"}
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (543.932408ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (165.29857ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (162.494837ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (213.21669ms)
+✔ process keep=false: sign-out never replaces its denial with loading (214.801086ms)
+✔ process keep=true: sign-out never replaces its denial with loading (220.495322ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (26.13346ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.900774ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.020304ms)
+✔ wasm: an unrelated replica publication revalidates server answers before offline reuse (187.165473ms)
+✔ process: an unrelated replica publication revalidates server answers before offline reuse (236.679887ms)
+✔ apply: remembered dependencies with footprint [] (0.300841ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.081051ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.044807ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.044026ms)
+✔ apply: remembered dependencies with footprint undefined (0.058618ms)
+✔ admit: remembered dependencies with footprint [] (0.043685ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.181452ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.065248ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.041072ms)
+✔ admit: remembered dependencies with footprint undefined (0.030977ms)
+✔ settle: remembered dependencies with footprint [] (0.030025ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.030226ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.038538ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.029574ms)
+✔ settle: remembered dependencies with footprint undefined (0.025328ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.021001ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.024106ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.030276ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.02703ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.021382ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.80107ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.222854ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.277386ms)
+✔ queued observation still withdraws at row expiry (0.454161ms)
+✔ queued observation still withdraws at reset (0.289904ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (203.418079ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (235.05452ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (202.016419ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (204.546171ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (199.806605ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (249.970413ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (246.04671ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (251.240476ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (207.22015ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (201.552243ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (194.231837ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (242.984329ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (240.493935ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (295.102175ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, failure (1.272578ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, timeout (0.595293ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, failure (0.568793ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, timeout (0.637225ms)
+✔ online keep=undefined: a due completion preserves a newer answer and retries (177.968194ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (144.780007ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (145.793768ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (558.769932ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (179.475585ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (170.108611ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (224.046507ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (213.844331ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (224.331404ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (201.061607ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (247.301571ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (11.967582ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (10.352692ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (11.835495ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (1.508942ms)
+✔ postTask: browser turns preserve eight starts and cancel queued service (20.230099ms)
+✔ MessageChannel: browser turns preserve eight starts and cancel queued service (11.995544ms)
+✔ request abort listeners are removed after success (0.261362ms)
+✔ request abort listeners are removed after rejection (0.520691ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (11.943766ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.23428ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.723925ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.177025ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.218337ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.747328ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (375.207591ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1180.624453ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1142.82204ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.467901ms)
+✔ replacement completes and clears revalidation: keep=undefined, "B" (2.081721ms)
+✔ replacement completes and clears revalidation: keep=undefined, null (0.190626ms)
+✔ replacement completes and clears revalidation: keep=undefined, [] (0.129534ms)
+✔ replacement completes and clears revalidation: keep=undefined, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.121853ms)
+✔ failure policy and explicit withdrawals: keep=undefined, throw (0.400711ms)
+✔ failure policy and explicit withdrawals: keep=undefined, transportOffline (0.163816ms)
+✔ failure policy and explicit withdrawals: keep=undefined, retryExhausted (175.787616ms)
+✔ failure policy and explicit withdrawals: keep=undefined, retain:false (0.216685ms)
+✔ failure policy and explicit withdrawals: keep=undefined, loading (0.129013ms)
+✔ replacement completes and clears revalidation: keep=true, "B" (0.217436ms)
+✔ replacement completes and clears revalidation: keep=true, null (0.128463ms)
+✔ replacement completes and clears revalidation: keep=true, [] (0.105017ms)
+✔ replacement completes and clears revalidation: keep=true, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.10005ms)
+✔ failure policy and explicit withdrawals: keep=true, throw (0.089554ms)
+✔ failure policy and explicit withdrawals: keep=true, transportOffline (0.083755ms)
+✔ failure policy and explicit withdrawals: keep=true, retryExhausted (176.162728ms)
+✔ failure policy and explicit withdrawals: keep=true, retain:false (0.168944ms)
+✔ failure policy and explicit withdrawals: keep=true, loading (0.084787ms)
+✔ replacement completes and clears revalidation: keep=false, "B" (0.137777ms)
+✔ replacement completes and clears revalidation: keep=false, null (0.131167ms)
+✔ replacement completes and clears revalidation: keep=false, [] (0.086039ms)
+✔ replacement completes and clears revalidation: keep=false, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.073571ms)
+✔ failure policy and explicit withdrawals: keep=false, throw (0.177737ms)
+✔ failure policy and explicit withdrawals: keep=false, transportOffline (0.051176ms)
+✔ failure policy and explicit withdrawals: keep=false, retryExhausted (175.235668ms)
+✔ failure policy and explicit withdrawals: keep=false, retain:false (0.147361ms)
+✔ failure policy and explicit withdrawals: keep=false, loading (0.052178ms)
+✔ one stable episode withdrawal at the deadline via snapshot, late success still lands (1.276273ms)
+✔ one stable episode withdrawal at the deadline via peek, late success still lands (0.263014ms)
+✔ one stable episode withdrawal at the deadline via timer, late success still lands (0.251357ms)
+✔ successful fallback and held composition keep the same episode: keep=undefined (0.2335ms)
+✔ successful fallback and held composition keep the same episode: keep=true (0.078197ms)
+✔ three watch keys and lifetimes in acquisition order ,false,true (1.017545ms)
+✔ three watch keys and lifetimes in acquisition order true,false, (0.15366ms)
+✔ clear_rows resets every retention policy and fences old reads (0.32707ms)
+✔ settle_exit resets every retention policy and fences old reads (0.111848ms)
+✔ adopt resets every retention policy and fences old reads (0.090776ms)
+✔ observe_store resets every retention policy and fences old reads (0.087181ms)
+✔ facade and opening remount share source expiry, keep=undefined (6.503761ms)
+✔ facade and opening remount share source loading, keep=undefined (4.152666ms)
+✔ facade and opening remount share source transportOffline, keep=undefined (4.761247ms)
+✔ facade and opening remount share source retain:false, keep=undefined (5.626796ms)
+✔ facade and opening remount share source reset, keep=undefined (4.560507ms)
+✔ facade and opening remount share source denied, keep=undefined (5.42939ms)
+✔ facade and opening remount share source expiry, keep=true (4.487708ms)
+✔ facade and opening remount share source loading, keep=true (4.387558ms)
+✔ facade and opening remount share source transportOffline, keep=true (4.692886ms)
+✔ facade and opening remount share source retain:false, keep=true (4.706216ms)
+✔ facade and opening remount share source reset, keep=true (5.61615ms)
+✔ facade and opening remount share source denied, keep=true (5.469741ms)
+✔ facade inherits A's episode timestamp from the invalidation, through B and C authority (7.486965ms)
+✔ an early episode timer rearms to the original deadline without accessor help (0.303285ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=undefined (4.50246ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=false (4.00214ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=true (5.32904ms)
+✔ closeWatchAnswers notifies each raw subscriber exactly once after withdrawing every peer (1.011366ms)
+✔ an episode due inside a grouped commit waits until the settled peer is revalidating (0.936023ms)
+✔ online change bounds an older facade hold through later source replacements, keep=undefined (7.738232ms)
+✔ online change bounds an older facade hold through later source replacements, keep=true (7.794926ms)
+✔ local apply retains within a change episode, keep=undefined (0.940079ms)
+✔ local admit retains within a change episode, keep=undefined (0.482153ms)
+✔ local settle retains within a change episode, keep=undefined (0.382503ms)
+✔ local apply retains within a change episode, keep=true (0.407831ms)
+✔ local admit retains within a change episode, keep=true (0.388983ms)
+✔ local settle retains within a change episode, keep=true (0.381472ms)
+✔ online guard: closed facade honors row expiry, live peer=false, keep=undefined (29.685996ms)
+✔ online guard: closed facade honors row expiry, live peer=false, keep=false (2.807189ms)
+✔ online guard: closed facade honors row expiry, live peer=false, keep=true (4.290994ms)
+✔ online guard: closed facade honors row expiry, live peer=true, keep=undefined (3.684244ms)
+✔ online guard: closed facade honors row expiry, live peer=true, keep=false (3.76188ms)
+✔ online guard: closed facade honors row expiry, live peer=true, keep=true (4.424844ms)
+✔ online createApp: closed facade honors row expiry, live peer=false, keep=undefined (7.089238ms)
+✔ online createApp: closed facade honors row expiry, live peer=false, keep=false (3.946116ms)
+✔ online createApp: closed facade honors row expiry, live peer=false, keep=true (4.24866ms)
+✔ online createApp: closed facade honors row expiry, live peer=true, keep=undefined (7.255258ms)
+✔ online createApp: closed facade honors row expiry, live peer=true, keep=false (4.63551ms)
+✔ online createApp: closed facade honors row expiry, live peer=true, keep=true (6.726775ms)
+✔ wasm guard: closed facade honors row expiry, live peer=false, keep=undefined (408.805061ms)
+✔ wasm guard: closed facade honors row expiry, live peer=false, keep=false (9.322687ms)
+✔ wasm guard: closed facade honors row expiry, live peer=false, keep=true (8.970559ms)
+✔ wasm guard: closed facade honors row expiry, live peer=true, keep=undefined (9.919662ms)
+✔ wasm guard: closed facade honors row expiry, live peer=true, keep=false (9.237549ms)
+✔ wasm guard: closed facade honors row expiry, live peer=true, keep=true (9.186423ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=false, keep=undefined (9.941134ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=false, keep=false (8.396508ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=false, keep=true (10.017589ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=true, keep=undefined (10.620863ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=true, keep=false (9.676648ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=true, keep=true (10.564889ms)
+✔ online guard: closed facade withdraws when peer republishes private B, keep=false (5.494387ms)
+✔ online guard: closed facade withdraws when peer republishes private A, keep=false (6.533846ms)
+✔ online guard: closed facade withdraws when peer republishes private B, keep=undefined (6.119625ms)
+✔ online guard: closed facade withdraws when peer republishes private A, keep=undefined (5.788458ms)
+✔ online guard: closed facade withdraws when peer republishes private B, keep=true (5.706124ms)
+✔ online guard: closed facade withdraws when peer republishes private A, keep=true (4.693006ms)
+✔ online createApp: closed facade withdraws when peer republishes private B, keep=false (5.651904ms)
+✔ online createApp: closed facade withdraws when peer republishes private A, keep=false (5.606986ms)
+✔ online createApp: closed facade withdraws when peer republishes private B, keep=undefined (6.003671ms)
+✔ online createApp: closed facade withdraws when peer republishes private A, keep=undefined (6.007416ms)
+✔ online createApp: closed facade withdraws when peer republishes private B, keep=true (6.985593ms)
+✔ online createApp: closed facade withdraws when peer republishes private A, keep=true (5.764172ms)
+✔ wasm guard: closed facade withdraws when peer republishes private B, keep=false (12.343876ms)
+✔ wasm guard: closed facade withdraws when peer republishes private A, keep=false (11.770126ms)
+✔ wasm guard: closed facade withdraws when peer republishes private B, keep=undefined (11.623066ms)
+✔ wasm guard: closed facade withdraws when peer republishes private A, keep=undefined (11.17253ms)
+✔ wasm guard: closed facade withdraws when peer republishes private B, keep=true (12.101263ms)
+✔ wasm guard: closed facade withdraws when peer republishes private A, keep=true (12.280532ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private B, keep=false (13.499428ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private A, keep=false (12.948503ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private B, keep=undefined (13.641833ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private A, keep=undefined (14.590434ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private B, keep=true (15.02108ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private A, keep=true (17.233096ms)
+✔ online: closing a standalone withdrawing facade releases its raw owner and callbacks (5.812454ms)
+✔ wasm: closing a standalone withdrawing facade releases its raw owner and callbacks (33.624851ms)
+✔ online: client close keeps one denial past its row deadline, keep=undefined (1.925888ms)
+✔ online detached handle: client close keeps one denial past its row deadline, keep=undefined (1.621722ms)
+✔ online: client close keeps one denial past its row deadline, keep=false (2.63413ms)
+✔ online detached handle: client close keeps one denial past its row deadline, keep=false (2.696733ms)
+✔ online: client close keeps one denial past its row deadline, keep=true (1.54117ms)
+✔ online detached handle: client close keeps one denial past its row deadline, keep=true (2.679067ms)
+✔ wasm: client close keeps one denial past its row deadline, keep=undefined (7.177862ms)
+✔ wasm detached handle: client close keeps one denial past its row deadline, keep=undefined (6.111913ms)
+✔ wasm: client close keeps one denial past its row deadline, keep=false (6.822498ms)
+✔ wasm detached handle: client close keeps one denial past its row deadline, keep=false (7.001697ms)
+✔ wasm: client close keeps one denial past its row deadline, keep=true (6.916419ms)
+✔ wasm detached handle: client close keeps one denial past its row deadline, keep=true (6.935358ms)
+✔ wasm: resubscription applies policy and rearms row expiry without an accessor, keep=undefined (6.954086ms)
+✔ wasm: resubscription applies policy and rearms row expiry without an accessor, keep=false (6.673886ms)
+✔ wasm: closed handle expiry fences memory across rollback (6.859784ms)
+✔ wasm: live handle expiry fences memory across rollback (6.659955ms)
+✔ wasm: closed A expiry preserves newer unexpired B in memory across rollback (6.868567ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined (6.56371ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=false (6.763469ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=true (6.667075ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined (6.595609ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false (6.665222ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=true (5.666736ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=false (7.744661ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined (8.11149ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=false (7.915387ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=true (6.883009ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined (6.887505ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false (6.850019ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=true (7.827205ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=false (5.80323ms)
+✔ online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=undefined (5.820296ms)
+✔ online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=false (6.697271ms)
+✔ online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=true (6.622659ms)
+✔ online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (6.561567ms)
+✔ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=false (6.322069ms)
+✔ online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true (6.390991ms)
+✔ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (6.761627ms)
+✔ online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (7.166485ms)
+✔ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true (7.114967ms)
+✔ online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false (6.341637ms)
+✔ online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (6.762108ms)
+✔ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=false (6.449179ms)
+✔ online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true (6.80348ms)
+✔ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (8.559282ms)
+✔ online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (6.42297ms)
+✔ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true (6.444462ms)
+✔ online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false (6.666885ms)
+✔ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined (6.788437ms)
+✔ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false (6.775838ms)
+✔ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true (7.75719ms)
+✔ online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (5.475118ms)
+✔ online raw: close withdraws both peers before every callback, keep=false, peerKeep=false (4.201989ms)
+✔ online raw: close withdraws both peers before every callback, keep=true, peerKeep=true (5.20931ms)
+✔ online raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined (5.250112ms)
+✔ online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false (5.241448ms)
+✔ online raw: close withdraws both peers before every callback, keep=false, peerKeep=true (4.270903ms)
+✔ online raw: close withdraws both peers before every callback, keep=true, peerKeep=false (6.278573ms)
+✔ online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (4.604433ms)
+✔ online guard: close withdraws both peers before every callback, keep=false, peerKeep=false (5.303721ms)
+✔ online guard: close withdraws both peers before every callback, keep=true, peerKeep=true (5.070311ms)
+✔ online guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined (5.108599ms)
+✔ online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false (5.057392ms)
+✔ online guard: close withdraws both peers before every callback, keep=false, peerKeep=true (4.040598ms)
+✔ online guard: close withdraws both peers before every callback, keep=true, peerKeep=false (4.037533ms)
+✔ online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined (5.143531ms)
+✔ online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false (6.275318ms)
+✔ online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true (5.237232ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (5.401508ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (6.045213ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (5.965223ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (5.956971ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (5.138374ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (5.034048ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (5.071453ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (4.300006ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (5.444893ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (5.337191ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (4.165124ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (5.293977ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (5.364252ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (4.236772ms)
+✔ online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined (5.347487ms)
+✔ online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (5.226486ms)
+✔ online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (4.139736ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (1014.991143ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=false (1018.25754ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true (1016.0887ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (1010.459641ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (1017.912155ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true (1017.900658ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false (1017.016863ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (1011.810688ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=false (1018.620919ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true (1065.128996ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (1015.73952ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (1015.136216ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true (1016.215054ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false (1014.509727ms)
+✔ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined (1015.109787ms)
+✔ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false (1013.562448ms)
+✔ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true (1011.024965ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (12.652439ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=false (12.08621ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=true (9.759802ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined (8.481085ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false (10.70534ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=true (8.688786ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=false (8.800323ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (7.760755ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=false (8.850238ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=true (7.842538ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined (8.105032ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false (10.259371ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=true (10.847172ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=false (11.790927ms)
+✔ wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined (11.4057ms)
+✔ wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false (11.284128ms)
+✔ wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true (10.803266ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (9.365331ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (8.091571ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (8.075687ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (9.202216ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (8.835557ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (8.97104ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (8.920394ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (9.622837ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (11.956055ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (8.823588ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (8.722426ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (8.621216ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (7.635117ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (8.763799ms)
+✔ wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined (8.69788ms)
+✔ wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (31.312665ms)
+✔ wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (8.825842ms)
+✔ schema discovery withdraws an overlapping invalidation: keep=undefined (25.23927ms)
+✔ schema discovery withdraws an overlapping invalidation: keep=true (6.173476ms)
+✔ online link loss follows evidence for a live settled answer immediately, keep=undefined (5.987597ms)
+✔ online link loss follows evidence for a live invalidated answer immediately, keep=undefined (6.055089ms)
+✔ online link loss follows evidence for a live settled answer immediately, keep=false (4.459726ms)
+✔ online link loss follows evidence for a live invalidated answer immediately, keep=false (6.864321ms)
+✔ online link loss follows evidence for a live settled answer immediately, keep=true (4.31601ms)
+✔ online link loss follows evidence for a live invalidated answer immediately, keep=true (6.170621ms)
+✔ usePage checks first page deadline before cached return without timer delivery (3.019768ms)
+✔ usePage checks second page deadline before cached return without timer delivery (0.563916ms)
+✔ usePage clears a later page's revalidating mark on replacement and replaces loaded cursors (1.41421ms)
+✔ usePage search repeats keep one newest image by ID through page refresh (0.558096ms)
+✔ usePage history repeats keep one newest image by ID through page refresh (0.41326ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (25.596475ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=false (4.316661ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true (5.218754ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined (5.024463ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false (5.300456ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=true (4.570983ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false (4.450853ms)
+✔ guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (4.520437ms)
+✔ guard: restore withdraws every peer before callbacks, keep=false, peerKeep=false (5.643311ms)
+✔ guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true (4.639326ms)
+✔ guard: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined (4.350333ms)
+✔ guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false (5.34907ms)
+✔ guard: restore withdraws every peer before callbacks, keep=false, peerKeep=true (5.30955ms)
+✔ guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false (4.803371ms)
+✔ app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (12.350757ms)
+✔ app: replacement withdraws every peer before callbacks, keep=false, peerKeep=false (5.17592ms)
+✔ app: replacement withdraws every peer before callbacks, keep=true, peerKeep=true (4.932665ms)
+✔ app: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined (5.381938ms)
+✔ app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false (6.528848ms)
+✔ app: replacement withdraws every peer before callbacks, keep=false, peerKeep=true (5.401138ms)
+✔ app: replacement withdraws every peer before callbacks, keep=true, peerKeep=false (8.087715ms)
+✔ app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (6.789038ms)
+✔ app: restore withdraws every peer before callbacks, keep=false, peerKeep=false (6.464512ms)
+✔ app: restore withdraws every peer before callbacks, keep=true, peerKeep=true (5.226836ms)
+✔ app: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined (6.277081ms)
+✔ app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false (6.038172ms)
+✔ app: restore withdraws every peer before callbacks, keep=false, peerKeep=true (5.435369ms)
+✔ app: restore withdraws every peer before callbacks, keep=true, peerKeep=false (5.516621ms)
+✔ lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=undefined (4.585755ms)
+✔ lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false (4.252585ms)
+✔ lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true (5.240406ms)
+✔ lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=undefined (4.503081ms)
+✔ lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false (5.914177ms)
+✔ lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true (7.532764ms)
+✔ notification: one authority revision retires detached and pending answers (1.458076ms)
+✔ apply publication: one authority revision retires detached and pending answers (0.179208ms)
+✔ local commit: one authority revision retires detached and pending answers (0.183064ms)
+✔ scope cut: one authority revision retires detached and pending answers (0.296795ms)
+✔ partition refusal: one authority revision retires detached and pending answers (0.222634ms)
+✔ reset: one authority revision retires detached and pending answers (0.132288ms)
+✔ a known quiet poll preserves detached and pending authority without another counter (0.181291ms)
+✔ every terminal refusal advances authority, even when the same refusal repeats without owners (0.174802ms)
+✔ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.28704ms)
+✔ closed facade deadline cannot follow later queue pauses; closeBeforeReload=false (5.033357ms)
+✔ closed facade deadline cannot follow later queue pauses; closeBeforeReload=true (1.08063ms)
+✔ closed deadline copy follows same-identity existence changes (1.464526ms)
+✔ wasm: queued history replacement (1887.833404ms)
+✔ wasm: queued history membership removal (225.001308ms)
+✔ process: queued history replacement (1495.40165ms)
+✔ process: queued history membership removal (293.550731ms)
+✔ wasm: two offline devices, 124 mounted observations each, exactly-once history (5151.276655ms)
+ℹ {"tier":"wasm","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ process: two offline devices, 124 mounted observations each, exactly-once history (4476.627671ms)
+ℹ {"tier":"process","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ online disjoint ordinary revalidation progresses during continuous hot-table evidence (447.006325ms)
+ℹ {"hotStarts":168,"coldRereads":5,"cold":[{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}],"coldStarts":[1,10,19,28,37],"pending":0,"active":8}
+✔ wasm: no-owner revocation must retire remembered content (1942.101038ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"2c4dc7ab6cd3c395146cea4c987c015c"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"2c4dc7ab6cd3c395146cea4c987c015c","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: no-owner revocation must retire remembered content (1589.124105ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"cfb1a0474772b853531c7b75c40fb0fe"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"cfb1a0474772b853531c7b75c40fb0fe","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: notification fences an unremembered in-flight direct answer (253.754667ms)
+✔ process: notification fences an unremembered in-flight direct answer (293.507446ms)
+✔ wasm: notification fences a saved candidate at recovery (1138.160757ms)
+✔ wasm: notification fences a saved candidate at approval (1141.420315ms)
+✔ process: notification fences a saved candidate at recovery (1183.35149ms)
+✔ process: notification fences a saved candidate at approval (1180.401077ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: partition refusal retires no-owner memory (186.944073ms)
+✔ wasm: credentials retires no-owner memory (575.220911ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: partition refusal retires no-owner memory (255.195447ms)
+✔ process: credentials retires no-owner memory (616.80133ms)
+✔ wasm: composed scope metadata accepts a table named constructor (637.314763ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830054721,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named constructor (260.988142ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830054988,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named __proto__ (208.491878ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830055199,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named __proto__ (258.401774ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830055455,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named toString (202.746324ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830055666,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named toString (247.131138ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830055909,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named hasOwnProperty (201.01596ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830056111,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named hasOwnProperty (254.080425ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790830056364,"next":null,"existence":"present"}
+✔ scope matching treats missing constructor as missing (0.694111ms)
+✔ scope matching treats missing __proto__ as missing (0.25358ms)
+✔ scope matching treats missing toString as missing (0.155003ms)
+✔ scope matching treats missing hasOwnProperty as missing (0.134693ms)
+✔ mock ephemeral writes preserve the table constructor (5.693196ms)
+✔ mock ephemeral writes preserve the table __proto__ (1.01377ms)
+✔ mock ephemeral writes preserve the table toString (0.899088ms)
+✔ mock ephemeral writes preserve the table hasOwnProperty (0.892998ms)
+✔ wasm: no-op empty sync replaces out-of-horizon answer with keep=undefined (3557.510929ms)
+ℹ {"tier":"wasm","footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.02922399999999925,"p95":0.02922399999999925,"max":0.02922399999999925},"attemptMs":{"p50":3.591814999999997,"p95":3.591814999999997,"max":3.591814999999997}}}}
+ℹ {"tier":"wasm","footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.02922399999999925,"p95":0.03925000000026557,"max":0.03925000000026557},"attemptMs":{"p50":3.462891000000127,"p95":3.591814999999997,"max":3.591814999999997}}}}
+✔ wasm: no-op unknown sync replaces out-of-horizon answer with keep=undefined (3122.614422ms)
+ℹ {"tier":"wasm","footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.0781170000000202,"p95":0.0781170000000202,"max":0.0781170000000202},"attemptMs":{"p50":4.658073999999942,"p95":4.658073999999942,"max":4.658073999999942}}}}
+ℹ {"tier":"wasm","footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.0781170000000202,"p95":0.08914399999957823,"max":0.08914399999957823},"attemptMs":{"p50":4.658073999999942,"p95":5.746925999999803,"max":5.746925999999803}}}}
+✔ wasm: no-op unrelated sync replaces out-of-horizon answer with keep=undefined (3103.102163ms)
+ℹ {"tier":"wasm","footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.05218899999999849,"p95":0.05218899999999849,"max":0.05218899999999849},"attemptMs":{"p50":4.218625000000429,"p95":4.218625000000429,"max":4.218625000000429}}}}
+ℹ {"tier":"wasm","footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.04166299999997136,"p95":0.05218899999999849,"max":0.05218899999999849},"attemptMs":{"p50":4.218625000000429,"p95":5.710180999998556,"max":5.710180999998556}}}}
+✔ wasm: no-op empty sync replaces out-of-horizon answer with keep=false (3116.228707ms)
+ℹ {"tier":"wasm","keep":false,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830064399,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.04807200000141165,"p95":0.04807200000141165,"max":0.04807200000141165},"attemptMs":{"p50":6.434536999999182,"p95":6.434536999999182,"max":6.434536999999182}}}}
+ℹ {"tier":"wasm","keep":false,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830064399,"query":"profile","cause":"retention-disabled"},{"at":1790830065905,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.04807200000141165,"p95":0.04963500000121712,"max":0.04963500000121712},"attemptMs":{"p50":6.434536999999182,"p95":6.702728999998726,"max":6.702728999998726}}}}
+✔ wasm: no-op unknown sync replaces out-of-horizon answer with keep=false (3111.216667ms)
+ℹ {"tier":"wasm","keep":false,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830067509,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.0844359999991866,"p95":0.0844359999991866,"max":0.0844359999991866},"attemptMs":{"p50":5.019164999999703,"p95":5.019164999999703,"max":5.019164999999703}}}}
+ℹ {"tier":"wasm","keep":false,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830067509,"query":"profile","cause":"retention-disabled"},{"at":1790830069015,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.04705099999955564,"p95":0.0844359999991866,"max":0.0844359999991866},"attemptMs":{"p50":5.019164999999703,"p95":5.2644020000007,"max":5.2644020000007}}}}
+✔ wasm: no-op unrelated sync replaces out-of-horizon answer with keep=false (3112.136971ms)
+ℹ {"tier":"wasm","keep":false,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830070623,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.03849699999955192,"p95":0.03849699999955192,"max":0.03849699999955192},"attemptMs":{"p50":5.273927000000185,"p95":5.273927000000185,"max":5.273927000000185}}}}
+ℹ {"tier":"wasm","keep":false,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830070623,"query":"profile","cause":"retention-disabled"},{"at":1790830072128,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.03434199999901466,"p95":0.03849699999955192,"max":0.03849699999955192},"attemptMs":{"p50":5.273927000000185,"p95":6.209298999998282,"max":6.209298999998282}}}}
+✔ wasm: no-op empty sync replaces out-of-horizon answer with keep=true (3173.173593ms)
+ℹ {"tier":"wasm","keep":true,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.03549300000304356,"p95":0.03549300000304356,"max":0.03549300000304356},"attemptMs":{"p50":5.013976999998704,"p95":5.013976999998704,"max":5.013976999998704}}}}
+ℹ {"tier":"wasm","keep":true,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.03549300000304356,"p95":0.06221399999776622,"max":0.06221399999776622},"attemptMs":{"p50":3.645295000002079,"p95":5.013976999998704,"max":5.013976999998704}}}}
+✔ wasm: no-op unknown sync replaces out-of-horizon answer with keep=true (3096.732543ms)
+ℹ {"tier":"wasm","keep":true,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.02860299999883864,"p95":0.02860299999883864,"max":0.02860299999883864},"attemptMs":{"p50":3.1635129999995115,"p95":3.1635129999995115,"max":3.1635129999995115}}}}
+ℹ {"tier":"wasm","keep":true,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.027590999998210464,"p95":0.02860299999883864,"max":0.02860299999883864},"attemptMs":{"p50":3.1635129999995115,"p95":4.942430000002787,"max":4.942430000002787}}}}
+✔ wasm: no-op unrelated sync replaces out-of-horizon answer with keep=true (3118.177369ms)
+ℹ {"tier":"wasm","keep":true,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.0435749999996915,"p95":0.0435749999996915,"max":0.0435749999996915},"attemptMs":{"p50":5.806626000001415,"p95":5.806626000001415,"max":5.806626000001415}}}}
+ℹ {"tier":"wasm","keep":true,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.040350999999645865,"p95":0.0435749999996915,"max":0.0435749999996915},"attemptMs":{"p50":5.806626000001415,"p95":9.840854000001855,"max":9.840854000001855}}}}
+✔ process: no-op empty sync replaces out-of-horizon answer with keep=undefined (3152.098789ms)
+ℹ {"tier":"process","footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.0386579999976675,"p95":0.0386579999976675,"max":0.0386579999976675},"attemptMs":{"p50":4.76454300000114,"p95":4.76454300000114,"max":4.76454300000114}}}}
+ℹ {"tier":"process","footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.0386579999976675,"p95":0.04307400000107009,"max":0.04307400000107009},"attemptMs":{"p50":4.76454300000114,"p95":5.910220999998273,"max":5.910220999998273}}}}
+✔ process: no-op unknown sync replaces out-of-horizon answer with keep=undefined (3162.953307ms)
+ℹ {"tier":"process","footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.034682000001339475,"p95":0.034682000001339475,"max":0.034682000001339475},"attemptMs":{"p50":4.820927999997366,"p95":4.820927999997366,"max":4.820927999997366}}}}
+ℹ {"tier":"process","footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.034682000001339475,"p95":0.04421599999477621,"max":0.04421599999477621},"attemptMs":{"p50":4.820927999997366,"p95":7.511693000000378,"max":7.511693000000378}}}}
+✔ process: no-op unrelated sync replaces out-of-horizon answer with keep=undefined (3168.584814ms)
+ℹ {"tier":"process","footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.016465000000607688,"p95":0.016465000000607688,"max":0.016465000000607688},"attemptMs":{"p50":3.4627410000030068,"p95":3.4627410000030068,"max":3.4627410000030068}}}}
+ℹ {"tier":"process","footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.016465000000607688,"p95":0.05654499999945983,"max":0.05654499999945983},"attemptMs":{"p50":3.4627410000030068,"p95":9.257660000002943,"max":9.257660000002943}}}}
+✔ process: no-op empty sync replaces out-of-horizon answer with keep=false (3487.316777ms)
+ℹ {"tier":"process","keep":false,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830092957,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.04616000000532949,"p95":0.04616000000532949,"max":0.04616000000532949},"attemptMs":{"p50":18.96842800000013,"p95":18.96842800000013,"max":18.96842800000013}}}}
+ℹ {"tier":"process","keep":false,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830092957,"query":"profile","cause":"retention-disabled"},{"at":1790830094473,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.04616000000532949,"p95":0.05556300000171177,"max":0.05556300000171177},"attemptMs":{"p50":7.154617000000144,"p95":18.96842800000013,"max":18.96842800000013}}}}
+✔ process: no-op unknown sync replaces out-of-horizon answer with keep=false (3427.880362ms)
+ℹ {"tier":"process","keep":false,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830096390,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.05801699999574339,"p95":0.05801699999574339,"max":0.05801699999574339},"attemptMs":{"p50":10.539371000006213,"p95":10.539371000006213,"max":10.539371000006213}}}}
+ℹ {"tier":"process","keep":false,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830096390,"query":"profile","cause":"retention-disabled"},{"at":1790830097904,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.053290000003471505,"p95":0.05801699999574339,"max":0.05801699999574339},"attemptMs":{"p50":10.539371000006213,"p95":11.696815999996033,"max":11.696815999996033}}}}
+✔ process: no-op unrelated sync replaces out-of-horizon answer with keep=false (3444.596148ms)
+ℹ {"tier":"process","keep":false,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830099801,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.05511300000216579,"p95":0.05511300000216579,"max":0.05511300000216579},"attemptMs":{"p50":13.548962999993819,"p95":13.548962999993819,"max":13.548962999993819}}}}
+ℹ {"tier":"process","keep":false,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790830099801,"query":"profile","cause":"retention-disabled"},{"at":1790830101329,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.05511300000216579,"p95":0.06597900000633672,"max":0.06597900000633672},"attemptMs":{"p50":11.452189999996335,"p95":13.548962999993819,"max":13.548962999993819}}}}
+✔ process: no-op empty sync replaces out-of-horizon answer with keep=true (3360.311789ms)
+ℹ {"tier":"process","keep":true,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.040490999999747146,"p95":0.040490999999747146,"max":0.040490999999747146},"attemptMs":{"p50":8.136548999995284,"p95":8.136548999995284,"max":8.136548999995284}}}}
+ℹ {"tier":"process","keep":true,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.040490999999747146,"p95":0.05449200000293786,"max":0.05449200000293786},"attemptMs":{"p50":8.136548999995284,"p95":10.014444000000367,"max":10.014444000000367}}}}
+✔ process: no-op unknown sync replaces out-of-horizon answer with keep=true (3384.579116ms)
+ℹ {"tier":"process","keep":true,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.05799699999624863,"p95":0.05799699999624863,"max":0.05799699999624863},"attemptMs":{"p50":11.353441999999632,"p95":11.353441999999632,"max":11.353441999999632}}}}
+ℹ {"tier":"process","keep":true,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.05357000000367407,"p95":0.05799699999624863,"max":0.05799699999624863},"attemptMs":{"p50":8.022186999995029,"p95":11.353441999999632,"max":11.353441999999632}}}}
+✔ process: no-op unrelated sync replaces out-of-horizon answer with keep=true (3419.136411ms)
+ℹ {"tier":"process","keep":true,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.0398499999937485,"p95":0.0398499999937485,"max":0.0398499999937485},"attemptMs":{"p50":10.112021000000823,"p95":10.112021000000823,"max":10.112021000000823}}}}
+ℹ {"tier":"process","keep":true,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.0398499999937485,"p95":0.049123999997391365,"max":0.049123999997391365},"attemptMs":{"p50":10.112021000000823,"p95":15.224856000000727,"max":15.224856000000727}}}}
+✔ wasm: resumed handle inherits unrelated notification (646.19669ms)
+✔ wasm: resumed handle inherits intersecting notification (1466.896982ms)
+✔ process: resumed handle inherits unrelated notification (284.801454ms)
+✔ process: resumed handle inherits intersecting notification (1520.926576ms)
+✔ notification cuts keep unknown dependencies conservative and forget applied tables (0.665818ms)
+✔ online authorized sibling re-read jumps ordinary queued work after evidence (217.398652ms)
+✔ evidence priority survives an active attempt retiring into the queue (23.059011ms)
+✔ ObserveOptions documents plain retention and bounded change evidence for omitted and true (0.75315ms)
+✔ plain revalidation is unbounded; evidence bounds keep=undefined (1.731906ms)
+✔ plain revalidation is unbounded; evidence bounds keep=true (0.295974ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at response (654.41376ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"26f3b9741f9acec4f48db1368aca593e","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at approval (238.78167ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"16884acb401e65f71b3c71ed20f9da66","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at response (286.500222ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"63c251eb8c8a538853dbd114734c8807","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at approval (282.164782ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"0d781571a45ce46ab57c7d92088e96fb","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✔ unused inspection records no timings and allocates no withdrawal callbacks (34.415948ms)
+✔ compound scope matching skips disjoint groups and watches with no tables (1.655462ms)
+✔ a pending group removal fences an initial observation until actual publication (0.201292ms)
+✔ wasm: published removal only withdraws its room and resumes (608.704501ms)
+✔ wasm: staged removal only withdraws its room and resumes (595.158873ms)
+✔ wasm: offline removal only withdraws its room and resumes (324.166001ms)
+✔ wasm: offline-before removal only withdraws its room and resumes (320.679234ms)
+✔ process: published removal only withdraws its room and resumes (282.464551ms)
+✔ process: staged removal only withdraws its room and resumes (753.239994ms)
+✔ process: offline removal only withdraws its room and resumes (359.70333ms)
+✔ process: offline-before removal only withdraws its room and resumes (398.74304ms)
+✔ wasm: terminal change-feed refusal bypasses eight occupied slots (175.964192ms)
+✔ process: terminal change-feed refusal bypasses eight occupied slots (226.786606ms)
+✔ online scope-ambiguous change evidence expires while waiting for capacity (1188.386694ms)
+✔ online viewer replacement is inspected as viewer, not schema reset (78.875633ms)
+✔ wasm: reuse closed handle after published revocation, keep=undefined (1806.562754ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=true (1411.727603ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=false (1414.900883ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=undefined (1500.615089ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=true (1505.027586ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=false (1504.957161ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=undefined (1475.396122ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=true (1461.745348ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=false (1513.342025ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=undefined (1548.722529ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=true (1555.563347ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=false (1559.319749ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ scope loss fences remembered server answers without a mounted owner (0.76723ms)
+✔ wasm: a dormant local handle checks terminal refusal before reuse (203.954497ms)
+✔ process: a dormant local handle checks terminal refusal before reuse (234.930878ms)
+✔ wasm: detached handle must respect notified cut before sync, mounted control=false (1888.327288ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ wasm: detached handle must respect notified cut before sync, mounted control=true (1489.668596ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ process: detached handle must respect notified cut before sync, mounted control=false (1528.391732ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ process: detached handle must respect notified cut before sync, mounted control=true (1527.233437ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=false (213.746056ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=true (211.419638ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=false (263.712529ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=true (254.741519ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ queue selection scales linearly, priority=false (137.34306ms)
+ℹ {"n":1000,"inspections":1124,"ms":19.524901999999997}
+ℹ {"n":10000,"inspections":11249,"ms":116.36012099999999}
+✔ queue selection scales linearly, priority=true (109.201098ms)
+ℹ {"n":1000,"inspections":1124,"ms":12.327241000000015}
+ℹ {"n":10000,"inspections":11249,"ms":96.67003100000002}
+✔ wasm: published removal preserves server-backed sibling (668.526791ms)
+✔ wasm: staged removal preserves server-backed sibling (442.412692ms)
+✔ process: published removal preserves server-backed sibling (271.755676ms)
+✔ process: staged removal preserves server-backed sibling (499.596495ms)
+✔ wasm: combined retained/server scopes preserve the authorized room (238.132678ms)
+✔ process: combined retained/server scopes preserve the authorized room (293.444013ms)
+✔ server audience metadata uses all public branches; unknown point selectors stay conservative (172.405888ms)
+✔ wasm: ownerless server memory is retired by publication (1851.843777ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by commit-then-throw (1431.262706ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by recovery-after-lost-ack (1435.319108ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by unknown-footprint (1431.698491ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by housekeeping-footprint (1413.84109ms)
+ℹ {"mode":"housekeeping-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by nonempty-footprint (1411.235644ms)
+ℹ {"mode":"nonempty-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":1}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by empty-notification (1441.445487ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by publication (1483.569913ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by commit-then-throw (1629.262863ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by recovery-after-lost-ack (1459.14151ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by unknown-footprint (1476.567898ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by housekeeping-footprint (1457.815724ms)
+ℹ {"mode":"housekeeping-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by nonempty-footprint (1463.473488ms)
+ℹ {"mode":"nonempty-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":1}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by empty-notification (1597.519206ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: cancelled resumed watermark releases running (597.845823ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ wasm: expired resumed watermark releases running (212.209583ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: cancelled resumed watermark releases running (246.942866ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: expired resumed watermark releases running (244.279463ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ queued replacement preserves mounted history and facade, keep=undefined (7.929919ms)
+✔ queued replacement preserves mounted history and facade, keep=true (3.162651ms)
+✔ inspection groups shared observations, measures queue/attempt time, and records bounded withdrawal causes (9.896147ms)
+✔ queued history immediately withdraws on expiry (0.39951ms)
+✔ queued history immediately withdraws on denial (0.25322ms)
+✔ queued history immediately withdraws on reset (0.25384ms)
+ℹ tests 1197
+ℹ suites 0
+ℹ pass 1197
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 483169.581015

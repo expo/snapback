@@ -1,0 +1,13 @@
+✔ ready batching respects episode withdrawal evidence (34.309652ms)
+✔ ready batching respects old-row withdrawal evidence (14.520113ms)
+✔ ready batching respects new-row withdrawal evidence (15.819249ms)
+✔ ready batching respects empty withdrawal evidence (15.839188ms)
+✔ ready batching respects null withdrawal evidence (12.945932ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4175.67883

@@ -1,0 +1,50 @@
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (29.772824ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (3.751003ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.548851ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.514115ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (601.619843ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (187.329915ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (192.357741ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (178.940568ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (228.918702ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (216.060776ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (227.29017ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (227.372694ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (197.628022ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (244.647872ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (156.466936ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (171.500594ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (218.234815ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (933.79413ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (743.848855ms)
+✔ ready per-row completions share a React notification turn; publication does not wait for that turn (585.987058ms)
+ℹ {"commits":1,"loading":0,"replaced":8}
+✔ a terminal refusal bypasses a held ready-notification turn and retires its pending completions (566.061197ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4362.310893ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790829885483,"lastStart":1790829887519,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5485.762095ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790829890891,"lastStart":1790829893038,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (5936.160149ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790829896637,"lastStart":1790829898972,"wallIsReal":true,"link":"online"}
+✔ postTask: browser turns preserve eight starts and cancel queued service (21.204789ms)
+✔ MessageChannel: browser turns preserve eight starts and cancel queued service (12.138157ms)
+✔ request abort listeners are removed after success (0.274712ms)
+✔ request abort listeners are removed after rejection (0.485238ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (11.236225ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.146769ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.527591ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.079458ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.276094ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (4.314398ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (380.934274ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1217.196891ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1180.324005ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.464957ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18738.109629
