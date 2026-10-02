@@ -59,18 +59,21 @@ if (registry) {
   };
 }
 
-// The live keeper reserves the file's process group until verification ends.
+// The live keeper reserves the file's process group until whole-group cleanup.
+// Verification continues after that signal, including when the keeper is dead.
 // Reparenting (including shell double forks) cannot remove group membership.
 // Registered detached processes additionally seed ancestry discovery. Deliberate
 // setsid/setpgid escapes from non-Node descendants remain outside this boundary.
 export function ownedProcesses(owned, keeper, inspect = processTable) {
   const table = inspect(); // errors must propagate, even when no records exist
-  if (keeper && !live(keeper)) throw inspectionError('file group keeper exited before verification');
   const known = new Map();
   for (const row of owned) if (live(row)) known.set(row.pid, row);
   for (const row of table) if (row.alive && keeper && row.group === keeper.pid && row.pid !== keeper.pid) {
     const current = identity(row.pid);
-    if (current?.alive && current.group === keeper.pid) known.set(row.pid, current);
+    // A snapshot member is evidence even if it has since exited: it may have
+    // forked a replacement after ps sampled it. Never turn disappearance into
+    // proof of emptiness. Whole-group signals cover the unsampled replacement.
+    known.set(row.pid, current?.group === keeper.pid ? current : { ...row, vanished: true });
   }
   let added;
   do {
@@ -84,29 +87,36 @@ export function ownedProcesses(owned, keeper, inspect = processTable) {
   return [...known.values()];
 }
 
-export async function cleanupProcesses(owned, { graceMs = 5000, keeper, inspect = processTable } = {}) {
+export async function cleanupProcesses(owned, { keeper, inspect = processTable } = {}) {
   const known = new Map(owned.map(row => [row.pid, row]));
-  const refresh = () => {
-    const rows = ownedProcesses([...known.values()], keeper, inspect);
-    for (const row of rows) known.set(row.pid, row);
-    return rows;
+  const signalGroup = () => {
+    // A new group leader with the same PID is not ours. The first signal is
+    // sent while our keeper is alive; later signals stay on that same group.
+    const now = identity(keeper.pid);
+    if (now && now.start !== keeper.start) throw inspectionError('file group identity changed');
+    try { process.kill(-keeper.pid, 'SIGKILL'); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
   };
-  const signal = (rows, name) => {
-    for (const row of rows.reverse()) if (live(row)) {
-      try { process.kill(row.pid, name); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+  const signalDetached = () => {
+    for (const row of known.values()) if (!row.vanished && live(row)) {
+      try { process.kill(row.pid, 'SIGKILL'); }
+      catch (error) { if (error.code !== 'ESRCH') throw error; }
     }
   };
-  let remaining = refresh();
-  const deadline = performance.now() + graceMs;
-  signal(remaining, 'SIGTERM');
-  while (remaining.length && performance.now() < deadline) {
-    await sleep(50); remaining = refresh();
-  }
-  const killedAt = performance.now();
-  while (remaining.length && performance.now() - killedAt < 2000) {
-    signal(remaining, 'SIGKILL');
-    await sleep(50); remaining = refresh();
-  }
-  if (remaining.length) throw new Error(`TEST_PROCESS_CLEANUP: still alive after SIGKILL: ${JSON.stringify(remaining)}`);
-  return [...known.values()];
+  if (!keeper || !live(keeper)) throw inspectionError('file group keeper exited before cleanup');
+  // Signal the entire group BEFORE the first verification snapshot, even when
+  // the initial discovery saw nothing. Individual PID lists cannot close the
+  // fork/exit race. Zombies have no execution or resources to clean up.
+  signalGroup(); signalDetached();
+  const deadline = performance.now() + 5000;
+  let empty = 0, remaining = [];
+  do {
+    remaining = ownedProcesses([...known.values()], keeper, inspect);
+    for (const row of remaining) known.set(row.pid, row);
+    if (remaining.length) {
+      empty = 0; signalGroup(); signalDetached();
+    } else if (++empty === 2) return [...known.values()];
+    await sleep(50);
+  } while (performance.now() < deadline);
+  throw new Error(`TEST_PROCESS_CLEANUP: no two consecutive empty snapshots: ${JSON.stringify(remaining)}`);
 }

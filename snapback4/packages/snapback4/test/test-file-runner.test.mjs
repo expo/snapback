@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runFile, fileTimeout } from '../../../scripts/run-client-tests.mjs';
+import { runFile, fileStallTimeout, largestGuard } from '../../../scripts/run-client-tests.mjs';
 import { identity, live, processTable } from '../../../scripts/test-processes.mjs';
 
 for (const block of ['event loop', 'leaked handle']) test(`file watchdog diagnoses ${block} and reaps detached descendants`, { timeout: 20000 }, async t => {
@@ -18,7 +18,7 @@ test('stuck fixture', async () => {
   const child = spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{});console.log('child ready');setInterval(()=>{},1000)"], {detached:true,stdio:['ignore','pipe','ignore']});
   await once(child.stdout,'data');
   writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
-  console.log('FIXTURE_READY: ${block}');
+  await new Promise(resolve => process.stdout.write('FIXTURE_READY: ${block}\\n', resolve));
   ${block === 'event loop' ? 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0);' : "throw Error('original assertion failure');"}
 });`);
   let output = '';
@@ -125,15 +125,20 @@ test('process inspection forces C locale and refuses empty output', () => {
   assert.ok(identity(process.pid)?.alive);
 });
 
-test('long-file caps cover aggregate declared guards with margin, including seed overrides', () => {
-  assert.equal(fileTimeout('ordinary-search-oracle.test.mjs', {}), 24060000);
-  assert.equal(fileTimeout('mixed-evidence-oracle.test.mjs', {}), 5400000);
-  assert.equal(fileTimeout('app-session-model.test.mjs', {}), 26150000);
-  assert.equal(fileTimeout('online-client-model.test.mjs', {}), 8400000);
-  assert.ok(fileTimeout('horizon-boundary.test.mjs') > 82 * (120000 + 5000 * 2000));
-  assert.ok(fileTimeout('online-client-model.test.mjs', {SNAPBACK4_ONLINE_SEQUENCES:'6000'}) > 12000000);
-  assert.ok(fileTimeout('mixed-evidence-oracle.test.mjs', {RL_SEEDS:'1000'}) > 12000000);
-  assert.equal(fileTimeout('ordinary.test.mjs'), 900000);
+test('stall bounds cover single guards with margin, including serial mode and seed overrides', () => {
+  assert.equal(largestGuard('ordinary-search-oracle.test.mjs', {}), 8592000);
+  assert.equal(fileStallTimeout('ordinary-search-oracle.test.mjs', {}), 10740000);
+  assert.equal(fileStallTimeout('mixed-evidence-oracle.test.mjs', {}), 2250000);
+  assert.equal(fileStallTimeout('app-session-model.test.mjs', {}), 12500000);
+  assert.equal(fileStallTimeout('online-client-model.test.mjs', {}), 7500000);
+  assert.equal(fileStallTimeout('horizon-boundary.test.mjs', {}), 12650000);
+  assert.equal(fileStallTimeout('social-browser.test.mjs', {}), 907500);
+  assert.equal(fileStallTimeout('retained-history.test.mjs', {}), 900000);
+  assert.equal(fileStallTimeout('online-client-model.test.mjs', {SNAPBACK4_ONLINE_SEQUENCES:'6000'}), 15000000);
+  assert.equal(fileStallTimeout('mixed-evidence-oracle.test.mjs', {RL_SEEDS:'1000'}), 7500000);
+  assert.equal(fileStallTimeout('ordinary.test.mjs'), 900000);
+  for (const file of ['social-browser', 'retained-history', 'app-session-model'])
+    assert.equal(fileStallTimeout(file + '.test.mjs', {SNAPBACK4_TEST_SERIAL_CLIENT_FILES:'1'}), fileStallTimeout(file + '.test.mjs', {}));
 });
 
 test('persistent inspection failure stays a failure and kills the owned group', async t => {
@@ -153,4 +158,125 @@ test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bi
   assert.match(result.inspectionFailure, /persistent injected failure/);
   const current = identity(Number(readFileSync(pidFile, 'utf8')));
   assert.equal(current && live(current) || false, false);
+});
+
+// Keep this interleaving deterministic: the real ps snapshot contains a shell
+// parent; only after the snapshot is taken may it fork, publish the child PID
+// and exit. That child never appears in the stale snapshot returned to runFile.
+test('fork then exit during a real snapshot cannot hide a same-group orphan', { timeout: 20000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-fork-snapshot-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'fork.test.mjs'), go = join(dir, 'go'), ready = join(dir, 'ready'), pidFile = join(dir, 'pid');
+  writeFileSync(path, `import test from 'node:test';
+import {spawnSync} from 'node:child_process';
+test('owned helper', () => {
+  spawnSync('/bin/sh', ['-c', '(echo ready > "${ready}"; while [ ! -f "${go}" ]; do sleep 0.01; done; sleep 600 </dev/null >/dev/null 2>&1 & echo $! > "${pidFile}") </dev/null >/dev/null 2>&1 & while [ ! -f "${ready}" ]; do sleep 0.01; done'], {timeout:5000});
+});`);
+  let inspections = 0, output = '', orphan;
+  const { existsSync } = await import('node:fs');
+  const pause = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: () => {
+    const snapshot = processTable();
+    if (++inspections === 1) {
+      assert.ok(existsSync(ready));
+      writeFileSync(go, 'go');
+      const deadline = performance.now() + 5000;
+      while ((!existsSync(pidFile) || !readFileSync(pidFile, 'utf8').trim()) && performance.now() < deadline) pause();
+      orphan = identity(Number(readFileSync(pidFile, 'utf8')));
+      assert.ok(orphan?.alive);
+      assert.equal(snapshot.some(row => row.pid === orphan.pid), false);
+      // Ensure the intermediate parent really exited before returning ps data.
+      while (snapshot.some(row => row.group === orphan.group && row.pid !== orphan.group && identity(row.pid)?.alive) && performance.now() < deadline) pause();
+      assert.equal(snapshot.some(row => row.group === orphan.group && row.pid !== orphan.group && identity(row.pid)?.alive), false);
+    }
+    return snapshot;
+  } });
+  assert.equal(result.passed, false, output);
+  assert.equal(result.reason, 'TEST_FILE_LEAK', output);
+  assert.ok(inspections >= 3, 'two fresh empty snapshots after the stale snapshot');
+  assert.equal(live(orphan), false, output);
+  assert.equal(processTable().some(row => row.group === orphan.group && row.alive), false);
+});
+
+test('sequential and nested subtests keep progressing beyond the file stall interval', { timeout: 20000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-progress-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'progress.test.mjs');
+  writeFileSync(path, `import test from 'node:test';
+import {setTimeout as sleep} from 'node:timers/promises';
+for(let i=0;i<3;i++) test('sequential '+i, {timeout:1200}, async()=>{await sleep(800)});
+test('parent', {timeout:5000}, async t=>{for(let i=0;i<4;i++) await t.test('nested '+i, {timeout:1200}, async()=>{await sleep(800)})});`);
+  let output = '';
+  const result = await runFile(path, { timeout: 2000, onOutput: text => { output += text; } });
+  assert.equal(result.passed, true, output);
+  assert.ok(result.elapsed > 2 * result.stallMs);
+  assert.equal(result.counts.pass, 8);
+  assert.ok(result.progressCount >= 16);
+});
+
+test('console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup', { timeout: 20000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-no-progress-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'chatter.test.mjs');
+  writeFileSync(path, `import test from 'node:test';test('stuck with output', async()=>{setInterval(()=>console.log('# Subtest: fake progress'),20);await new Promise(()=>{})});`);
+  let output = '', group;
+  const result = await runFile(path, { timeout: 1500, onStart: child => {group=child.pid}, onOutput: text => { output += text; } });
+  assert.equal(result.passed, false, output);
+  assert.equal(result.reason, 'TEST_FILE_HANG');
+  assert.ok(result.elapsed >= 1500 && result.elapsed < 8000, output);
+  assert.match(output, /without progress; last progress test:dequeue: stuck with output/);
+  assert.match(output, /owned processes:/);
+  assert.equal(processTable().some(row => row.group === group && row.alive), false);
+});
+
+test('verification requires consecutive empty snapshots and retains intervening leak evidence', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-stable-empty-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'leak.test.mjs');
+  writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';test('helper',()=>{execFileSync('/bin/sh',['-c','sleep 600 </dev/null >/dev/null 2>&1 &'])});`);
+  let inspections = 0, before, output = '';
+  const result = await runFile(path, {onOutput: text => {output+=text}, inspect: () => {
+    const current = processTable();
+    inspections++;
+    if (inspections === 1) before = current;
+    // runFile discovers, stop diagnoses, then cleanup verifies. Return a stale
+    // real nonempty table between empties; disappearance is still evidence.
+    if (inspections === 4) return before;
+    return current;
+  }});
+  assert.equal(result.passed, false, output);
+  assert.equal(result.reason, 'TEST_FILE_LEAK', output);
+  assert.ok(inspections >= 6, `expected fresh empties after intervening members; got ${inspections}`);
+});
+
+
+test('synchronous subtests renew progress before the reporter can format buffered output', { timeout: 20000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-sync-progress-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'sync.test.mjs');
+  writeFileSync(path, `import test from 'node:test';
+for(let i=0;i<10;i++)test('synchronous '+i,{timeout:500},()=>{
+  const end=performance.now()+300;while(performance.now()<end){}
+});`);
+  let output = '';
+  const result = await runFile(path, {timeout:1000,onOutput:text=>{output+=text}});
+  assert.equal(result.passed, true, output);
+  assert.equal(result.counts.pass, 10);
+  assert.ok(result.elapsed > 3 * result.stallMs);
+  assert.equal(result.progressCount, 20, 'start and completion for every synchronous body');
+});
+
+test('name and skip filters preserve the selected assertion-bearing cases', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-progress-filter-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'filter.test.mjs');
+  writeFileSync(path, `import test from 'node:test';
+test('wanted',()=>{});test('unwanted',()=>{throw Error('name filter lost')});
+test('wanted skip',()=>{throw Error('skip filter lost')});`);
+  let output = '';
+  const result = await runFile(path, {nodeArgs:['--test-name-pattern=^wanted','--test-skip-pattern=skip'],onOutput:text=>{output+=text}});
+  assert.equal(result.passed, true, output);
+  assert.equal(result.counts.pass, 1);
+  assert.equal(result.counts.tests, 1);
+  assert.equal(result.progressCount, 2);
 });

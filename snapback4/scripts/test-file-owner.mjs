@@ -3,7 +3,8 @@
 // intermediate-parent exit; only the external runner releases this keeper.
 import { spawn } from 'node:child_process';
 process.on('SIGTERM', () => {});
-const child = spawn(process.execPath, process.argv.slice(2), { stdio: 'inherit' });
+const child = spawn(process.execPath, process.argv.slice(2), { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+child.on('message', message => { if (process.connected) process.send(message); });
 child.once('error', error => process.send({ error: error.message }));
 child.once('exit', (code, signal) => process.send({ code, signal }));
 process.on('message', message => { if (message === 'release') process.exit(0); });

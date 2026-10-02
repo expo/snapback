@@ -1,0 +1,25 @@
+{
+  "started": "2026-10-02T21:45:31.358Z",
+  "finished": "2026-10-02T22:00:31.666Z",
+  "result": {
+    "file": "/tmp/qf-r2-real-stall-MooF5v/stall.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_HANG",
+    "elapsed": 900260,
+    "counts": {
+      "tests": 0,
+      "pass": 0,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 1,
+    "lastProgress": "test:dequeue: /tmp/qf-r2-real-stall-MooF5v/stall.test.mjs"
+  },
+  "survivors": [],
+  "orphanAlive": false
+}

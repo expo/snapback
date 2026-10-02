@@ -1,0 +1,17 @@
+{
+  "verifiedAfterSuite": "2026-10-02T23:13:59.867366+00:00",
+  "qualifiedSourceFiles": 2157,
+  "qualifiedInputDigests": 15,
+  "mismatchesBeforePostSuiteCommentEdit": [],
+  "qualifiedManifest": "source-manifest-qualified.json",
+  "qualifiedInputs": "inputs-qualified.sha256",
+  "finalManifest": "source-manifest.json",
+  "finalInputs": "inputs.sha256",
+  "postSuiteExecutableChanges": [],
+  "postSuiteCommentChanges": [
+    "snapback4/scripts/test.sh"
+  ],
+  "suiteInvocations": 1,
+  "fullSuiteExitCode": 0,
+  "fullSuiteSummary": "== 0 failure(s) in 1655 s"
+}

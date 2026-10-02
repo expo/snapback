@@ -1,0 +1,9 @@
+-- client file start: /tmp/qf-r2-real-stall-HNrr3Z/stall.test.mjs; stall bound 900000 ms
+
+TEST_FILE_HANG: /tmp/qf-r2-real-stall-HNrr3Z/stall.test.mjs; 900055 ms elapsed; stall bound 900000 ms; 900001 ms without progress; last progress test:dequeue: deliberate no-progress fixture
+last output:
+REAL_STALL_READY
+
+owned processes: [{"pid":1295719,"start":"333786182","group":1295669,"alive":true},{"pid":1295794,"start":"333786185","group":1295669,"alive":true}]
+REAL_STALL_READY
+-- client file FAIL: /tmp/qf-r2-real-stall-HNrr3Z/stall.test.mjs (900237 ms)

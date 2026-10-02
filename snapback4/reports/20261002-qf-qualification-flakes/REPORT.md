@@ -427,3 +427,256 @@ started by this task or their verified descendants. Nothing pushed or published.
 Intermittent SSH and archive-retrieval failures were environmental; a persistent
 connection was closed and bounded retries recovered the logs. They caused no
 Mac test retry. The unavailable npm 0.4.12 package likewise ran no test.
+
+## Round 2 — whole-group cleanup and progress watchdog (2026-10-03)
+
+Parent: `64bde25266`. Astra's full round-1 review is **NOT READY**: a process
+could fork after a real snapshot and exit before identity validation, hiding
+its same-group orphan; named total-duration caps still missed social-browser
+and retained-history. Both findings are addressed here. This round changes
+only qualification infrastructure and its regressions/docs. The original
+worker/replacement fixture fixes, assertions, test guards and seed counts remain.
+
+Grok's completed round-1 review is **READY WITH CHANGES**. Its Medium repeats
+the aggregate-cap gap (also naming keep-app-model and worker-regressions);
+progress bounds resolve it for the full census. Its Low asks for exact margin
+assertions for horizon and seed overrides: the permanent regression now requires
+12,650,000 ms for horizon, 15,000,000 ms for 6,000 online sequences, and
+7,500,000 ms for 1,000 mixed-evidence seeds. Both reviews' acknowledged native
+group/session-escape limit remains explicit. Grok's mini checks were blocked;
+this round retains fresh mini execution evidence instead of treating its
+source/log audit as a live Mac check.
+
+### Group cleanup and stable verification
+
+Each file still owns a detached process group whose keeper survives node:test.
+Every file, including an apparently clean successful file, now receives an
+unconditional **whole-group SIGKILL** before verification. Cleanup no longer
+signals only the PIDs that tree discovery happened to find. A snapshot member
+that vanishes before identity validation remains leak evidence: it could have
+forked a child that the snapshot missed. Registered detached Node children
+retain the additional identity-checked individual cleanup path.
+
+Verification inspects until **two consecutive snapshots**, separated by 50 ms,
+contain no living group members or registered descendants. An intervening
+member resets the count, triggers another group signal, and prevents a pass.
+Leak evidence after a completed file reports `TEST_FILE_LEAK`; a stopped stall
+retains `TEST_FILE_HANG`. Zombies are treated as dead: they cannot execute or
+retain output handles. Verification retries for five seconds; each ps call has
+a two-second timeout. Inspection errors remain `TEST_PROCESS_INSPECTION` and
+fail closed, including errors after the first empty snapshot. Group signals
+start while the keeper is alive and refuse a changed keeper PID identity;
+individual signals check the recorded process start identity.
+
+The new race regression delays a **real** process-table snapshot while an owned
+shell helper forks, writes its new child's PID and exits. It proves that the
+orphan was absent from the snapshot and that the sampled parents have exited
+before handing that stale table back to the unchanged inspection path. The
+runner must report `TEST_FILE_LEAK`, remove the orphan and leave no live group
+member. A second regression interposes a stale nonempty snapshot between
+empties, requiring two fresh empties after it. Both run on Linux and macOS.
+The documented deliberate native group/session-escape limitation remains;
+this fix covers ordinary same-group fork/reparent races, not arbitrary daemons.
+
+### Progress watchdog and declared-guard census
+
+The timer now measures **time since the last test lifecycle event**, initially
+file startup. The execution helper uses the public `node:test.run()` API and
+attaches synchronous listeners for `test:dequeue` (actual execution start) and
+`test:complete` before importing tests. These events travel over IPC through
+the group keeper. Each file already owns an isolated external process, so the
+helper uses `isolation: none`; Node's additional child serializer and async
+reporters can buffer events while synchronous test bodies keep executing.
+TAP's ordered `test:start` presentation can also be delayed by nested/parallel
+work. Standard TAP formatting remains separate from progress observation.
+Console text, even `# Subtest:` chatter, never renews the timer. Name/skip filters
+are passed to the same Node test API; unknown runner flags fail explicitly.
+
+For largest single declared guard `G`, the stall bound is
+**`max(900 s, G + max(60 s, 0.25 × G))`**, equally in serial mode. Model/search
+seed overrides are included. There is **no absolute duration ceiling**: a
+progressing file should not fail because it contains many sequential tests.
+A true stall fails with the filename, elapsed/idle milliseconds, bound, last
+subtest event, last output, owned process records and full group cleanup.
+
+The reproducible [source census](./round2/guard-census.mjs) reads timeout and
+helper-guard expressions without importing or executing test bodies. It
+uses the existing TypeScript parser, evaluates source constants and current
+model/search defaults, enumerates unread-range's JSON cases, and uses the
+source search-limit maximum of 100. Unresolved or nonfinite guards fail the
+census. [guards.tsv](./round2/guards.tsv) gives **all 286 client/fixture files**;
+[guards.json](./round2/guards.json) retains the evaluated expressions. Every
+maximum plus margin fits its runner stall bound. Zero means no explicit guard
+in that source, not a zero timeout. Shared helper work is additionally included
+where explicitly declared in that file. The runner's named long-guard table
+must stay aligned with declarations; this census is the review evidence and
+reproduction tool, not a new suite-wide blocking gate.
+
+| File (`.test.mjs`) | Largest single guard, s | Stall bound, s |
+| --- | ---: | ---: |
+| acquisition | 1,320 | 1,650 |
+| app-session-model | 10,000 | 12,500 |
+| column-stream-recovery | 2,160 | 2,700 |
+| horizon-boundary | 10,120 | 12,650 |
+| mixed-evidence-oracle | 1,800 | 2,250 |
+| online-client-model | 6,000 | 7,500 |
+| ordinary-search-oracle | 8,592 | 10,740 |
+| per-row-react | 2,120 | 2,650 |
+| per-row-work | 2,120 | 2,650 |
+| retained-history | 372 | 900 |
+| social-browser | 726 | 907.5 |
+| sync-overflow | 2,168 | 2,710 |
+| timeline-delivery | 2,160 | 2,700 |
+| web-admission-review (enclosing parent) | 6,832 | 8,540 |
+
+Other files fit the 900-second floor including margin. Retained-history's
+68 sequential 372-second guards can therefore consume their full 25,296
+seconds: each start/finish resets the 900-second stall clock. Social-browser's
+726 + 200 + 518 seconds likewise have no total-duration cutoff. A subtest that
+uses its entire declared guard still has the explicit margin before the file
+watchdog can fire. The focused sequential/nested regression runs for multiple
+stall intervals; a separate test prints repeated fake progress while stalled
+and must still be stopped and cleaned up.
+
+### Verification
+
+Linux (eb1000 / `expose-builder-pixel`, Node 24.13.1) and Apartment mini
+(Darwin arm64, Node 24.18.0): **21/21 focused checks passed on each**, comprising
+18 runner checks and the unchanged three replacement-fixture checks. Commands:
+
+```bash
+# From snapback4 on Linux
+node scripts/run-client-tests.mjs 1 files packages/snapback4/test/test-file-runner.test.mjs packages/snapback4/test/replacement-fixture.test.mjs
+# Inside the task-created mini scratch directory
+LC_ALL=de_DE.UTF-8 SNAPBACK4_BIN=/tmp/qf-r2-verified.4ZqhPu/package/snapback4 node snapback4/scripts/run-client-tests.mjs 1 files snapback4/packages/snapback4/test/test-file-runner.test.mjs snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+# Guard census, from snapback4
+node reports/20261002-qf-qualification-flakes/round2/guard-census.mjs
+```
+
+The mini exercised identical source hashes with non-C ambient locale; actual
+ps calls still force C locale. Replacement checks used the published 0.4.10
+Darwin binary (`b30b96dcb7e66abb4a13ba664d135c218d4d8383b2be45cbc294cbc0b90d8e44`),
+so this is fixture/runner portability evidence, not current-release Mac
+qualification. The scratch directory was deleted after collecting logs;
+`round2/mini-cleanup.log` records removal. Only the Apartment mini was contacted.
+
+The unscaled default-bound stall probe ran from 2026-10-02T22:09:03.511Z to
+22:24:03.794Z. It deliberately blocked JavaScript after creating an unregistered
+same-group shell orphan. Diagnostics fired after **900,000 ms without progress**;
+the runner returned `TEST_FILE_HANG` after **900,237 ms**. The final inspection
+found **zero living group members**, and the recorded orphan was dead.
+`round2/stall.log` preserves the actual stalled subtest name, marker, bound and
+owned process records; `stall.json` preserves the result and independent cleanup
+checks. This expected failure is the requested negative control, not a suite
+failure. The real probe uses no shortened timeout or seed override.
+Its active runner predates only the filter-flag forwarding correction; it passes
+no filters, so that correction changes none of this probe's executed semantics.
+`inputs-before-filter.sha256` preserves those exact inputs.
+
+The **final** 24-file stress ran 2026-10-02T22:15:19.097Z–22:45:06.730Z:
+**worker 200/200**, **observed replacement 200/200**, and **background
+1,763/1,763**, with zero failures. Every one of the 400 target completions
+recorded **23 active background slots**. Every worker result executed exactly
+one test; every replacement result executed exactly two (parent plus selected
+scenario). All 283 ordinary files ran in the background, with no empty results.
+The driver waited for every in-flight background file to finish before starting
+the full suite. Command, from `snapback4/`:
+
+```bash
+SNAPBACK4_QF_WORKER_BIN="$PWD/reports/20261002-qf-qualification-flakes/delayed-server.sh" node reports/20261002-qf-qualification-flakes/stress.mjs after /tmp/qf-r2-stress-qualified 200 both
+```
+
+Worker min/median/max: **3,009 / 3,062.5 / 4,403 ms**; replacement:
+**2,638 / 3,783.5 / 11,945 ms**. The worker retains the same verified 100 ms
+clone3 scheduling control; background and replacement cases use the unmodified
+lane binary. This is repeated correctness under real file contention, not a
+product-latency or comparative-speed claim. `round2/stress-stats.json` retains
+checked aggregates, and `stress-runs.jsonl.gz`, `stress-runs.tsv.gz`, metadata,
+summary and load timeline preserve every result. The metadata's `sourceCommit`
+is the stress harness's historical before-fixture baseline; current source and
+binary custody are the SHA-256 manifests, not that historical baseline field.
+
+The **single** full eb1000 suite ran 2026-10-02T22:45:06.774Z–23:12:41.859Z,
+after every stress process finished. From `snapback4/`:
+
+```bash
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT scripts/test.sh
+```
+
+Its exact footer is **`== 0 failure(s) in 1655 s`**, exit **0**. All build,
+budget, release-guard, package/app, Rust target/doctest and fixture categories
+passed. Rust enumerated 285 test binaries and 998 executions. Ordinary clients:
+**283/283 files, 5,806 passed, zero failed, ten unchanged conditional skips**.
+Models: **79/79**; fixture wrapper: **9/9**. Across the 286 file results,
+**5,894 tests passed**, ten skipped, zero failed/cancelled/todo. The only
+per-file count change from round 1 is the runner regression file, **12 → 18**;
+all other counts match, including worker 61/61, admission 55/55, replacement
+3/3 and retained-history 68/68. No assertion or seed count was weakened.
+
+Full-suite failure classification: **ours 0, baseline 0, environmental 0**.
+The intentional stall negative control and development outcomes below are
+separate records, not full-suite failures. `round2/full-suite.log.gz` retains
+the complete log (uncompressed SHA-256
+`173ccd4b50e392822f76fa0bd2b8935bcb44cfd5768888bf28199e4281fdcede`);
+`full-suite-summary.json`, `full-suite-files.tsv`, `full-suite-categories.txt`
+and `full-suite-count-deltas.json` retain its summary and count audit.
+
+After the suite, all **2,157 source hashes and 15 qualification inputs** still
+matched. Only obsolete comments in `scripts/test.sh` then changed; its executed
+source is retained as `test-sh-qualified.txt`. Qualified and final manifests,
+`source-amendments.json` and `qualification-custody.json` bind both versions.
+There were no post-suite executable changes. The real stall's exact runner is
+also retained as `stall-runner-qualified.txt`. The Round 2 journal entry and
+LLP/command-sheet updates accompany the code. Reference and whitespace checks
+pass. This remains a local commit with the requested Astra trailer; nothing
+was pushed or published.
+
+### Development outcomes and scope of the final run
+
+The initial asynchronous-reporter implementation passed the first focused set,
+but a separate synchronous-work probe revealed that Node's child serializer
+could buffer progress until a later event-loop turn. Ten 300 ms synchronous
+subtests (each guarded at 500 ms) were wrongly killed by a 1,000 ms stall timer.
+This was **our runner defect**, not a product failure. The final execution helper
+observes lifecycle events synchronously in the already-isolated file process.
+The permanent positive regression requires ten passes, twenty progress events
+and a total duration exceeding three stall intervals. A retained old-runner
+negative control reproduces `TEST_FILE_HANG`; its source variants and result
+are in `round2/development-*.mjs` and `sync-progress-negative-control.*`.
+
+The first stress batch was stopped through its own recorded PID for that fix:
+worker 162 passes + one abort, replacement 162 passes + one abort, background
+1,443 passes + 23 aborts. All 25 failures were intentional `TEST_FILE_ABORT`;
+there were no spontaneous target/background failures. The complete records
+are retained under `round2/development-stress-*` and excluded from qualification.
+A second development batch exposed Node 24's in-process filter behavior:
+public run options alone did not apply the name filter to the current test
+tree. It was stopped before its first target completed (one worker abort,
+one replacement abort, and 23 background aborts; 311 background passes).
+Those records are `development-filter-stress-*`. The final helper passes
+validated name/skip filters both as Node CLI flags and public API options.
+The permanent filter regression failed before that correction and now proves
+exactly one selected assertion-bearing case executes. That red is ours;
+`development-filter-regression.log.gz` retains it. The standalone original worker
+filter was then checked explicitly before restarting qualification.
+
+One intermediate mini focused run passed 18/19: the blocked-JavaScript fixture
+had no `FIXTURE_READY` marker in its captured output. Its expectation was kept;
+the fixture now awaits completion of the marker write before blocking. This
+is classified as **our qualification fixture failure**; the full failure and
+host/source records are `mini-unflushed-*`. The subsequent pre-API mini run
+passed 19/19, and the final API/filter version passes 21/21. The fork-race fixture
+also gained an explicit helper-ready barrier before file completion. No original
+worker/replacement assertion or seed count changed. Earlier successful focused
+logs, source amendments and source manifests are retained, not represented as
+final-version qualification.
+
+Four preparation commands used a wrong working-directory prefix or named two
+nonexistent optional witness files; they failed before running any test and
+were corrected. A temporary custom-reporter prototype rejected an unavailable
+`.on` method on its async iterator, and another stream-composition prototype
+reported `AbortError` after its ten test bodies passed. These were ours and
+were discarded in favor of the public run API's synchronous setup listeners.
+Whitespace cleanup removed a trailing blank report line. None of these outcomes
+is a product failure or a qualifying pass. No full suite was started by either
+interrupted development driver; the final full suite remains a single run.

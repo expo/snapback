@@ -6,63 +6,84 @@ import { mkdtempSync, rmSync, readFileSync, openSync, closeSync, writeSync } fro
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { identity, live, records, ownedProcesses, processTable, cleanupProcesses } from './test-processes.mjs';
 
-export const FILE_TIMEOUT_MS = 15 * 60_000;
-// Named long files cover their serial aggregate guards, plus 25% and the
-// ordinary 15-minute allowance for setup, unguarded cases and teardown. These
-// are hang ceilings, not speed assertions; serial publication uses the same
-// caps. Keep this table with changes to the named tests' work/case counts.
+export const FILE_STALL_FLOOR_MS = 15 * 60_000;
+// Largest SINGLE declared test guard, not the sum of sequential guards.
+// The complete source census is retained in the QF round-2 report. Files below
+// the floor need no entry. A guard gets 25% scheduling slack, at least a minute.
 const hang = work => 120_000 + Math.max(1, work) * 2000;
-export function fileTimeout(file, env = process.env) {
+export function largestGuard(file, env = process.env) {
   const count = (key, fallback) => {
     const value = Number(env[key] ?? fallback);
     if (!Number.isSafeInteger(value) || value < 1) throw Error(`invalid ${key}: ${value}`);
     return value;
   };
   const searchSeeds = env.SB4_SEARCH_SEEDS?.split(',').map(Number) ?? Array.from({ length: 300 }, (_, i) => i + 1);
+  if (searchSeeds.some(seed => !Number.isSafeInteger(seed) || seed < 1)) throw Error('invalid SB4_SEARCH_SEEDS');
   const searchWork = searchSeeds.reduce((work, seed) => work + 8
     + (seed % 10 === 0 && seed % 11 !== 0 && seed % 12 !== 0 && seed % 75 !== 0 ? 8 : 0)
     + (seed % 25 === 0 ? 100 : 0) + (seed % 75 === 0 ? Math.ceil(8195 / 200) : 1), 0);
-  const budgets = {
-    'ordinary-search-oracle.test.mjs': 2 * hang(searchWork) + 4 * hang(108),
+  return ({
+    'ordinary-search-oracle.test.mjs': Math.max(hang(searchWork), hang(108)),
     'web-admission-review.test.mjs': 56 * hang(1),
-    'mixed-evidence-oracle.test.mjs': 2 * Math.max(240_000, count('RL_SEEDS', 300) * 3 * 2000),
-    'app-session-model.test.mjs': 2 * Math.max(240_000, count('SNAPBACK4_SESSION_SEQUENCES', 5000) * 2000) + hang(40),
+    'mixed-evidence-oracle.test.mjs': Math.max(240_000, count('RL_SEEDS', 300) * 3 * 2000),
+    'app-session-model.test.mjs': Math.max(240_000, count('SNAPBACK4_SESSION_SEQUENCES', 5000) * 2000),
     'online-client-model.test.mjs': Math.max(180_000, count('SNAPBACK4_ONLINE_SEQUENCES', 3000) * 2000),
     'column-stream-recovery.test.mjs': hang(1020),
     'timeline-delivery.test.mjs': hang(1020),
-    // Conservative: every current case gets the largest declared guard,
-    // including cases whose actual guard is shorter or implicit.
-    'horizon-boundary.test.mjs': 82 * hang(5000),
-    'acquisition.test.mjs': 47 * hang(600),
-    'sync-overflow.test.mjs': 23 * hang(1024),
-    'per-row-work.test.mjs': 25 * hang(1000),
-    'per-row-react.test.mjs': 7 * hang(1000),
-  };
-  return FILE_TIMEOUT_MS + Math.ceil((budgets[basename(file)] ?? 0) * 1.25);
+    'horizon-boundary.test.mjs': hang(5000),
+    'acquisition.test.mjs': hang(600),
+    'sync-overflow.test.mjs': hang(1024),
+    'per-row-work.test.mjs': hang(1000),
+    'per-row-react.test.mjs': hang(1000),
+    'social-browser.test.mjs': hang(303),
+    'retained-history.test.mjs': hang(126),
+  })[basename(file)] ?? 0;
 }
+export const fileStallTimeout = (file, env) => {
+  const guard = largestGuard(file, env);
+  return Math.max(FILE_STALL_FLOOR_MS, guard + Math.max(60_000, Math.ceil(guard * .25)));
+};
 const preload = fileURLToPath(new URL('./test-processes.mjs', import.meta.url));
 
 export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable } = {}) {
-  timeout ??= fileTimeout(file, { ...process.env, ...overrides });
+  timeout ??= fileStallTimeout(file, { ...process.env, ...overrides });
+  const { values } = parseArgs({ args: nodeArgs, options: {
+    'test-name-pattern': { type: 'string', multiple: true },
+    'test-skip-pattern': { type: 'string', multiple: true },
+  } });
+  // Node 24's in-process test tree also reads filters from the CLI, so pass
+  // the validated flags to Node as well as the public run() options.
+  const testOptions = { testNamePatterns: values['test-name-pattern'], testSkipPatterns: values['test-skip-pattern'] };
   const temp = mkdtempSync(join(tmpdir(), 'sb4-test-file-'));
   const registry = join(temp, 'processes.jsonl'), output = join(temp, 'output.log');
   const fd = openSync(output, 'w');
   const env = { ...process.env, ...overrides, SNAPBACK4_TEST_PROCESS_LOG: registry };
   delete env.NODE_TEST_CONTEXT;
   const started = performance.now();
-  onOutput(`-- client file start: ${file}; limit ${timeout} ms\n`);
+  onOutput(`-- client file start: ${file}; stall bound ${timeout} ms\n`);
   const child = spawn(process.execPath, [fileURLToPath(new URL('./test-file-owner.mjs', import.meta.url)),
-    '--import', preload, '--test', '--test-reporter=tap', ...nodeArgs, resolve(file)], {
+    '--import', preload, ...nodeArgs, fileURLToPath(new URL('./test-progress-reporter.mjs', import.meta.url)), resolve(file), JSON.stringify(testOptions)], {
     env, detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
-  let keeper, tail = '', reason, cleanup, spawnError, inspectionFailure;
+  let keeper, tail = '', reason, cleanup, spawnError, inspectionFailure, timer;
+  let lastProgress = started, progress = 'file startup', progressCount = 0;
   const capture = b => { writeSync(fd, b); tail = (tail + b).slice(-16384); };
   child.stdout.on('data', capture); child.stderr.on('data', capture);
   const closed = new Promise(resolve => child.once('close', resolve));
   const completed = new Promise(resolve => {
-    child.once('message', result => { if (result.error) spawnError = result.error; resolve(result); });
+    child.on('message', result => {
+      if (result.progress) {
+        if (cleanup) return;
+        lastProgress = performance.now(); progress = `${result.progress}: ${result.name}`; progressCount++;
+        clearTimeout(timer); timer = setTimeout(() => { void stop('TEST_FILE_HANG'); }, timeout);
+        return;
+      }
+      if (result.error) spawnError = result.error;
+      resolve(result);
+    });
     child.once('error', error => { spawnError = error; resolve({ code: null, signal: null }); });
     child.once('exit', () => resolve({ code: null, signal: null }));
   });
@@ -90,7 +111,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   const stop = why => {
     if (cleanup) return cleanup;
     reason = why;
-    onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; limit ${timeout} ms\nlast output:\n${tail}\n`);
+    onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; stall bound ${timeout} ms; ${Math.round(performance.now() - lastProgress)} ms without progress; last progress ${progress}\nlast output:\n${tail}\n`);
     cleanup = (async () => {
       try {
         const owned = ownedProcesses(records(registry), keeper, inspect);
@@ -102,7 +123,6 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     return cleanup;
   };
   const abort = () => { void stop('TEST_FILE_ABORT'); };
-  let timer;
   try {
     keeper = identity(child.pid);
     if (!keeper) throw Error('TEST_PROCESS_INSPECTION: missing group keeper');
@@ -117,9 +137,15 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
       try {
         const remaining = ownedProcesses(records(registry), keeper, inspect);
         if (remaining.length) await stop('TEST_FILE_LEAK');
+        else {
+          const found = await cleanupProcesses([], { keeper, inspect });
+          if (found.length) {
+            reason = 'TEST_FILE_LEAK';
+            onOutput(`TEST_FILE_LEAK: ${file}; found during group cleanup: ${JSON.stringify(found)}\n`);
+          }
+        }
       } catch (error) { diagnose(error); await stop('TEST_PROCESS_INSPECTION'); }
     }
-    if (child.connected) child.send('release');
     // Pipes are inherited by helpers. Even failed inspection cannot wedge the
     // reporting path; failure remains recorded if EOF cannot be established.
     let closeTimer;
@@ -137,7 +163,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     const counts = Object.fromEntries(['tests', 'pass', 'fail', 'cancelled', 'skipped', 'todo'].map(key =>
       [key, Number(text.match(new RegExp(`^# ${key} (\\d+)$`, 'm'))?.[1] ?? 0)]));
     onOutput(`-- client file ${passed ? 'ok' : 'FAIL'}: ${file} (${elapsed} ms)\n`);
-    return { file, ...result, passed, reason, inspectionFailure, elapsed, counts };
+    return { file, ...result, passed, reason, inspectionFailure, elapsed, counts, stallMs: timeout, progressCount, lastProgress: progress };
   } catch (error) {
     diagnose(error); emergencyCleanup();
     return { file, passed: false, reason, inspectionFailure, elapsed: Math.round(performance.now() - started) };

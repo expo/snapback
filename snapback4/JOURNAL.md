@@ -82772,3 +82772,54 @@ output-closure correction: 24 aborts, no spontaneous failure. Preparation path
 mistakes were ours; temporary SSH failures and the unavailable 0.4.12 npm
 artifact were environmental and ran no failing test. Local commit with the
 requested Astra co-author trailer; nothing pushed or published.
+
+## 2026-10-03 — QF round 2: whole-group cleanup and progress watchdog
+
+Addressed Astra's round-1 same-group fork/exit race and aggregate-cap finding,
+plus Grok's aggregate-cap and exact-margin findings. Every test file now ends
+with a whole-group SIGKILL, even when preliminary discovery finds nothing.
+A sampled process that exits before identity validation remains leak evidence.
+Cleanup requires two consecutive empty snapshots, repeats the group signal for
+any observed member and fails closed on inspection errors. The real-snapshot
+regression forks an absent child while its sampled parent exits; both Linux and
+the Apartment mini require TEST_FILE_LEAK and verify the orphan is dead. Native
+descendants that deliberately leave the group/session and lose their parent
+remain outside the documented containment boundary.
+
+The independent watchdog now times lack of actual subtest starts/finishes over
+IPC: max(900 seconds, largest single declared guard plus max(60 seconds, 25%)).
+There is no absolute duration cap. The public node:test run API observes events
+synchronously in each already-isolated file process, so CPU-bound consecutive
+tests cannot hide progress in Node's child serializer. Console chatter cannot
+renew the clock. The source census records all 286 client/fixture maxima and
+proves their margins fit, including retained-history's 68 sequential 372-second
+guards. Exact default and override assertions replace the old loose cap checks.
+
+Final focused checks pass 21/21 on Linux and 21/21 on the Apartment mini: 18
+runner regressions plus the unchanged three replacement checks. Mini sources
+match, its non-C locale is retained, and its published 0.4.10 binary provides
+fixture portability evidence only. All task-created mini scratch directories
+were deleted; no other Mac was contacted and no unrelated process was signaled.
+The real default-bound stall emits diagnostics at 900,000 ms without progress,
+returns TEST_FILE_HANG at 900,237 ms and leaves zero live group members.
+Under 24-file stress, worker and observed replacement each pass 200/200;
+all 1,763 background runs pass across all 283 ordinary files. Every target
+completion records 23 active background slots.
+
+The single complete eb1000 suite reports exactly `== 0 failure(s) in 1655 s`,
+exit 0. Every Rust/build/app/fixture category passes; ordinary clients pass
+5,806 with ten unchanged skips, models 79/79 and fixture wrappers 9/9.
+Full-suite failures: ours 0, baseline 0, environmental 0. Per-file counts match
+round 1 except six added runner regressions. All 2,157 source hashes and 15
+qualification input hashes still matched after the run. The only later source
+edit corrects obsolete shell comments; exact qualified and final bytes are
+recorded. No product source, original assertion or seed count changed.
+
+The [Round 2 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-2--whole-group-cleanup-and-progress-watchdog-2026-10-03)
+retains complete logs, manifests, guard census, every stress result and failure
+classifications. Development exposed our buffered-progress and filter-forwarding
+defects and an unflushed fixture marker; all were fixed with regressions.
+Two stopped development stress batches each contain 25 intentional aborts,
+with no spontaneous target/background failure and no additional full-suite run.
+Reference and whitespace checks accompany the local commit with the requested
+Astra co-author trailer. Nothing pushed or published.

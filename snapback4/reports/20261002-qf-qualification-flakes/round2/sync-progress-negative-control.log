@@ -1,0 +1,9 @@
+-- client file start: /tmp/qf-r2-sync-negative-YQ0Hkt/sync.test.mjs; stall bound 1000 ms
+
+TEST_FILE_HANG: /tmp/qf-r2-sync-negative-YQ0Hkt/sync.test.mjs; 1080 ms elapsed; stall bound 1000 ms; 1000 ms without progress; last progress test:dequeue: /tmp/qf-r2-sync-negative-YQ0Hkt/sync.test.mjs
+last output:
+TAP version 13
+
+owned processes: [{"pid":1620933,"start":"333840253","group":1620435,"alive":true},{"pid":1621987,"start":"333840258","group":1620435,"alive":true}]
+TAP version 13
+-- client file FAIL: /tmp/qf-r2-sync-negative-YQ0Hkt/sync.test.mjs (1286 ms)
