@@ -56,6 +56,10 @@ import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutA
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+// @ref LLP 3000.028#3.3.1 — publication preserves the evaluator's required value deadlines.
+type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & {
+  incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined;
+};
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
@@ -428,7 +432,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
-      answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
+      answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null, null, false, null, null); }
     });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -858,7 +862,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     })();
   }
   const pendingRead = (tables: Set<string> | null, predictions = core[deviceControl]?.()?.predictions) => answers.pending(tables, predictions); // @ref LLP 3000.016#2.2 — one publication procedure governs every read kind.
-  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal): Promise<LocalResult<R>> {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view(); const owner = watch ?? backgroundWatch, changeVersion = owner?.changeVersion;
     const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
@@ -889,7 +893,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
       offline, get serverAnswers() { return answerCache; }, ephemeralReads,
     };
-    const work = duringRead((async () => {
+    const work = duringRead((async (): Promise<LocalResult<R>> => {
       for (let attempt = 0; ; attempt++) {
         checkRead(signal);
         const revision = incarnation, authority = answers.revision;
@@ -926,7 +930,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, (reset, changed, preserved) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
-      if (reset) scheduleExpiry(watch, null);
+      if (reset) scheduleExpiry(watch, null, null, false, null, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;

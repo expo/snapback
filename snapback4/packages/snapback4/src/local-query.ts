@@ -107,7 +107,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     && latest.outcome.speculative === true;
   // Rule 4: retained siblings cannot validate a speculative component. The
   // atomic Read<T> contract has no per-component loading word; withhold it all.
-  const fallback = () => placeholder() ? loading : latest?.result ?? loading;
+  const fallback = (): Result<R> => placeholder() ? loading : latest?.result ?? loading;
   const localCandidate = (): Candidate<R> => ({
     // Rule 4 can withhold a value without removing its next expiry wakeup.
     result: { ...fallback(), nextExpiry: latest?.result.nextExpiry ?? null }, origin: "local",
@@ -152,7 +152,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // not a transport failure that may retain the previously displayed value.
     return { origin: "remembered", result: { scopes: last?.scopes, transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null, valueDevice: null, valueServer: last ? valueDeadline(last.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null } };
   };
-  const local = async () => {
+  const local = async (): Promise<{ outcome: Outcome; result: Result<R> }> => {
     checkpoint();
     const answer = await env.call({ op: "query", name: op.name, viewer: env.principal, args, now: env.deviceNow() }); checkpoint();
     const outcome = (answer.ok ?? {}) as Outcome;
@@ -207,7 +207,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     };
     // The observation may retain a previous answer during transport; only this
     // procedure publishes the returned candidate after its final checks.
-    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, revalidate: env.revalidate ?? true, ...(retain ? {} : { retain: false }) }) : await fetch(); checkpoint();
+    const result = watch ? await watch.fetch(async (): Promise<Candidate<R> & { read: Read<R> }> => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, revalidate: env.revalidate ?? true, ...(retain ? {} : { retain: false }) }) : await fetch(); checkpoint();
     return result;
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.

@@ -1,11 +1,8 @@
-import { decorationDue } from "./read-decoration.ts";
+import { decorationDue, type ValueDeadlines } from "./read-decoration.ts";
 import type { ServerClock } from "./clock.ts";
 
-export interface ReadDeadlines {
+export interface ReadDeadlines extends ValueDeadlines {
   valueRetry?: number | undefined;
-  /** Presentation-only deadlines reobserve values without withdrawing rows. */
-  valueDevice?: number | null | undefined;
-  valueServer?: number | null | undefined;
   device: number | null;
   server: number | null;
   /** A remembered server answer can have a local reobservation wakeup. */

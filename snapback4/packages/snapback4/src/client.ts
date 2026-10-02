@@ -217,7 +217,7 @@ export function createClient(options: ClientOptions): Client {
   const resetWatches = (publish = true, cause = "schema-reset") => {
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
-      for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null); }
+      for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null, null); }
     });
     if (publish) { deliver(); for (const watch of watches.values()) notify(watch); }
     return deliver;
@@ -384,7 +384,7 @@ export function createClient(options: ClientOptions): Client {
       if (refreshTimer) clearTimeout(refreshTimer);
       aborter.abort();
       stopRefresh(storeRefusal!);
-      for (const watch of watches.values()) { watch.reset({ denied: storeRefusal! }); scheduleExpiry(watch, null); }
+      for (const watch of watches.values()) { watch.reset({ denied: storeRefusal! }); scheduleExpiry(watch, null, null); }
     });
     deliver();
     // Retire every owner, including the request currently awaiting its body.
@@ -631,7 +631,7 @@ export function createClient(options: ClientOptions): Client {
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, (reset, changed, preserved) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
-      if (reset) scheduleExpiry(watch, null);
+      if (reset) scheduleExpiry(watch, null, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
@@ -677,8 +677,8 @@ export function createClient(options: ClientOptions): Client {
     for (const subscriber of watch.subscribers) subscriber();
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer?: number | null, valueRetry?: number) {
-    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false, valueServer, valueRetry }, clock,
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer: QueryResult<unknown>["valueServer"], valueRetry?: number) {
+    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false, valueDevice: null, valueServer, valueRetry }, clock,
       () => !closed && watches.get(watch.key) === watch, sweepExpiries, undefined, link === "online");
   }
 
@@ -776,7 +776,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || !currentRead(result, watch)) {
         if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) { retryExpired = true; return; }
         if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed(result.transportOffline);
-        if (!watch.kept) scheduleExpiry(watch, null);
+        if (!watch.kept) scheduleExpiry(watch, null, null);
         schedulePresence(watch, false);
         notify(watch);
         return;
@@ -789,7 +789,7 @@ export function createClient(options: ClientOptions): Client {
         && "data" in watch.snapshot && watch.snapshot.existence === "present") notifyReady(watch, previousDeadline);
       else notify(watch);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-      if (exhausted && !watch.kept) scheduleExpiry(watch, null);
+      if (exhausted && !watch.kept) scheduleExpiry(watch, null, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } catch {
       if (!signal.aborted && !closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(link === "offline"); notify(watch); }
@@ -868,7 +868,7 @@ export function createClient(options: ClientOptions): Client {
         if (await pauseRefusal(response, json.denied, aborter.signal)) continue;
         if (refusal(json.denied)) {
           changesRefusal = json.denied; queryEpoch++;
-          const deliver = deferReadNotifications(() => { for (const watch of watches.values()) { watch.reset({ denied: changesRefusal! }); scheduleExpiry(watch, null); } });
+          const deliver = deferReadNotifications(() => { for (const watch of watches.values()) { watch.reset({ denied: changesRefusal! }); scheduleExpiry(watch, null, null); } });
           deliver(); for (const watch of watches.values()) notify(watch);
           break;
         }

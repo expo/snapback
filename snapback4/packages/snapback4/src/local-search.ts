@@ -278,7 +278,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (!remote.data.length) throw new SearchBound(`retained ${local.cut}; narrow the search or search one chat`);
     }
     const current = response.json.searchCurrent;
-    const invalidOverlap = () => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
+    const invalidOverlap = (): SearchResult => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
     if (!Array.isArray(current) || current.length > retained.length) return invalidOverlap();
     // Validate a page-sized subset in linear work, like the scope proof above.
     // Prepay both sets and membership probes; decoding already charged ID bytes.

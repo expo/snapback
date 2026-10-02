@@ -13,8 +13,8 @@ export function withdrawnLocalResult(watches: Iterable<Watch>, watch: Watch,
 
 export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalReads, clock: ServerClock,
   closed: () => boolean, unavailable: () => Refusal | null, acquireRead: (watch: Watch) => void, online: () => boolean) {
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false, valueDevice?: number | null, valueServer?: number | null, valueRetry?: number) {
-    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup, valueDevice, valueServer, valueRetry };
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry: number | null | undefined, localWakeup = false, valueDevice: ReadDeadlines["valueDevice"], valueServer: ReadDeadlines["valueServer"], valueRetry?: number) {
+    const deadlines: ReadDeadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup, valueDevice, valueServer, valueRetry };
     armReadExpiry(watch, deadlines, clock,
       () => !closed() && watches.get(watch.key) === watch, sweepExpiries,
       (serverDue, now) => answers.expire(watch, serverDue, now), online());

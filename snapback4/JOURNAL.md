@@ -82863,3 +82863,30 @@ Linux host was used; neither the office M1 nor M5. The
 retains return-site audit, commands, byte accounting and small verification
 receipts. Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing merged, pushed or published.
+
+
+## 2026-10-03 — SJ round 4: enforce value deadlines through publication
+
+Read round 3's Astra review (READY WITH CHANGES, one P3; Grok READY).
+Reproduced its undefined-deadline mutation compiling against 1bb5c5732d.
+No production omission existed. Explicit result types now preserve required
+ValueDeadlines through the final local wrapper and runLocal; shared/local/online
+scheduler inputs require them, and absent deadlines are explicit nulls.
+Audited and annotated the remaining inferred query-result helpers. LLP 3000.028
+§3.3.1 and the report record the enforcement boundary.
+
+Package typecheck/build pass; permanent compiler controls pass 17/17, rejecting
+16 mutations including Astra's exact return. Decorated search passes 57/57 on
+process, Wasm and online paths (2,950 oracle pages); affected clients 903/903;
+local-read/lifecycle/sign-out/ephemeral resets 75/75. Zero final failures/skips.
+The sole development failure was an ambiguous mutation-test anchor, corrected.
+Reference validation passes: 525 LLPs / 10,114 refs / zero errors or unchecked.
+
+Emitted JavaScript changes only absent scheduler deadlines to explicit nulls;
+runtime behavior is unchanged, so no full-suite run. One await hash changes
+for an erased annotation; all 32 local-query awaits and delivery classifications
+remain. Wasm stays byte-identical: 2,048,753 B raw / 617,410 B gzip under the
+unchanged 618,040 B cap. The Round 4 report and receipt retain commands,
+source/log hashes and scope. Only local Linux; neither office M1 nor M5.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

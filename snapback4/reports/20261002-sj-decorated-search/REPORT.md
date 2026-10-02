@@ -653,3 +653,49 @@ three collapsed-shape cases and eight discarded-deadline cases must fail.
 The changed `client.ts` await-expression hash is refreshed because the existing
 callback now schedules `valueServer`; all **58 awaits** and all classified site
 IDs, recipes and required/optional assignments remain unchanged.
+
+
+
+## Round 4 — enforce publication and scheduler value deadlines (2026-10-03)
+
+Starting commit: `1bb5c5732d`. Read `~/sb4-intent/reviews/sj-r3.astra.md`:
+READY WITH CHANGES, one P3; round-3 Grok was READY. Reproduced Astra's exact
+undefined-deadline mutation against round 3: zero strict TypeScript diagnostics.
+There was no production omission.
+
+Both the final local async wrapper and `runLocal` now declare `LocalResult<R>`,
+which preserves the evaluator's required `ValueDeadlines` plus publication
+fences. `ReadDeadlines` extends `ValueDeadlines`; local and online scheduler
+inputs require deadlines, and no-deadline sites explicitly supply nulls.
+The return audit also made the local fallback, device evaluation, watch-candidate
+adapter and search-overlap refusal explicit. Their consumers already constrained
+forwarding; the annotations enforce it at each producer. Search, composition,
+recovery and online publication returns already required the pair. LLP 3000.028
+§3.3.1 records enforcement through publication and scheduling.
+
+Permanent compiler tests pass **17/17**: one clean control and **16 rejected
+mutations**, including Astra's exact return, outer `runLocal`, both fields in
+all three result constructors, the audited helpers, online publication and the
+three scheduler boundaries. Mutations run in memory. The initial harness matched
+four `return work` sites; narrowing the anchor to `runLocal` fixed its sole
+failure (ours, test harness only).
+
+Emitted-JavaScript comparison confirms four changed modules are identical after
+type erasure; the two clients only spell absent scheduler deadlines as nulls.
+Runtime behavior is unchanged, so this round does not run or claim the full
+suite. The existing local-query callback annotation changes one await hash;
+all **32** awaits, delivery sites and classifications remain unchanged.
+
+Package typecheck/build pass. Decorated-search JS passes **57/57** on process,
+Wasm and online paths, including **2,950 oracle pages**. Affected clients pass
+**903/903**, and local-read/lifecycle/sign-out/ephemeral-reset checks **75/75**:
+**1,035 total**, zero failures or skips. Reference validation passes: **525 LLPs,
+10,114 refs, zero errors/unchecked**. All eight qualified source/test hashes
+remain unchanged. `round4-verification.json` records commands and log hashes;
+raw logs are at `~/sb4-intent/reviews/sj-r4-evidence/`.
+
+Wasm remains byte-identical to round 3: **2,048,753 B raw / 617,410 B gzip**,
+SHA-256 `6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8`;
+the **618,040 B** budget is unchanged. All work ran on Linux
+`expose-builder-pixel`; neither office M1 nor M5 was used. Local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
