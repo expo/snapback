@@ -1,0 +1,14 @@
+{
+  "pass": true,
+  "at": 1790972715379,
+  "freshContext": true,
+  "user": "u0500",
+  "feedMs": 1301,
+  "checks": [
+    "fresh-account-web-acquisition",
+    "500-follow-profile",
+    "insights-seven-days",
+    "trending-ten-rows"
+  ],
+  "errors": []
+}

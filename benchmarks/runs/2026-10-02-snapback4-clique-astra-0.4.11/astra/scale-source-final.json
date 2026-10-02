@@ -1,0 +1,13 @@
+{
+  "at": 1790972587476,
+  "files": {
+    "scale-instance/snapback/schema.q": "d1bdf39f91474fa8afa9d0ba6374aec0951f6a6957c75e7fcaea93d883972813",
+    "scale-instance/snapback/windows.q": "a68031ece85ea2e730ddbb11551249129e20db7579ffb0a1978c66f22cabb3fb",
+    "scale-instance/snapback/workers/push.mjs": "52b7cd872a291e514c1cef211d0d569224358e822f08dfce448b7bb3000f1cea",
+    "scripts/replay-adapter.mjs": "81ac5ba8db37590cc323ba9d6f5a95e0fb2ea81b6a4415e8f5143c34b3bc9e37",
+    "scripts/scale-replay.mjs": "a661db8c68ee9f40345041d7bf17ca26f62120ebfa80a9ed6df554918d262325",
+    "scripts/scale-verify.mjs": "1a9ed0629aac8e4e556bcf1148140e186b0c05561c6442d25af5f1965d799e97",
+    "snapback/generated/api.ts": "1e60b4c282fb99a1bdb69828491f5a952a1aad7a50a67efaa22fc0d75659920b"
+  },
+  "note": "Final schema after unread-count correction; original replay source hashes retained separately."
+}

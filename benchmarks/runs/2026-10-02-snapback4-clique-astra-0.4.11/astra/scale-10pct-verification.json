@@ -1,0 +1,246 @@
+{
+  "stage": "10%",
+  "pass": true,
+  "started": 1790968374507,
+  "ended": 1790968380661,
+  "checks": [
+    {
+      "name": "profiles",
+      "actual": 1008
+    },
+    {
+      "name": "followEdges",
+      "actual": 5921
+    },
+    {
+      "name": "posts",
+      "actual": 5048
+    },
+    {
+      "name": "topLevelPosts",
+      "actual": 4844
+    },
+    {
+      "name": "replies",
+      "actual": 204
+    },
+    {
+      "name": "activeLikes",
+      "actual": 508
+    },
+    {
+      "name": "activeReposts",
+      "actual": 104
+    },
+    {
+      "name": "conversations",
+      "actual": 1002
+    },
+    {
+      "name": "dms",
+      "actual": 901
+    },
+    {
+      "name": "groups",
+      "actual": 101
+    },
+    {
+      "name": "memberships",
+      "actual": 2053
+    },
+    {
+      "name": "messages",
+      "actual": 10015
+    },
+    {
+      "name": "textMessages",
+      "actual": 10014
+    },
+    {
+      "name": "mediaMessages",
+      "actual": 1
+    },
+    {
+      "name": "quotedReplies",
+      "actual": 9
+    },
+    {
+      "name": "activeReactions",
+      "actual": 200
+    },
+    {
+      "name": "disappearingSettingsEnabled",
+      "actual": 0
+    },
+    {
+      "name": "registeredUsers",
+      "actual": 1008
+    },
+    {
+      "name": "perChatMessageCounts",
+      "entities": 1002
+    },
+    {
+      "name": "perGroupMemberCounts",
+      "entities": 101
+    },
+    {
+      "name": "perUserFollowingCounts",
+      "entities": 1008
+    },
+    {
+      "name": "perUserConversationCounts",
+      "entities": 1008
+    },
+    {
+      "name": "named O5 fixtures and full busy-chat API paging",
+      "messages": 1000
+    }
+  ],
+  "probes": [
+    {
+      "who": "u0005",
+      "name": "following",
+      "ms": 16.987957999983337,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0005",
+      "name": "inbox",
+      "ms": 72.91674999997485,
+      "rows": 2,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0005",
+      "name": "global",
+      "ms": 37.050290999992285,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0005",
+      "name": "search",
+      "ms": 26.066832999989856,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0005",
+      "name": "insights",
+      "ms": 9.064375000016298,
+      "rows": 1,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0005",
+      "name": "trending",
+      "ms": 19.19979099999182,
+      "rows": 10,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0500",
+      "name": "following",
+      "ms": 29.18383300001733,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0500",
+      "name": "inbox",
+      "ms": 103.73854200000642,
+      "rows": 50,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0500",
+      "name": "global",
+      "ms": 29.230458999983966,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0500",
+      "name": "search",
+      "ms": 23.888416000001598,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0500",
+      "name": "insights",
+      "ms": 23.365208000002895,
+      "rows": 1,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0500",
+      "name": "trending",
+      "ms": 10.119332999980543,
+      "rows": 10,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0901",
+      "name": "following",
+      "ms": 21.957374999998137,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0901",
+      "name": "inbox",
+      "ms": 11.344333999964874,
+      "rows": 1,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0901",
+      "name": "global",
+      "ms": 12.197958000004292,
+      "rows": 20,
+      "complete": true,
+      "next": true
+    },
+    {
+      "who": "u0901",
+      "name": "search",
+      "ms": 20.50437499996042,
+      "rows": 10,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0901",
+      "name": "insights",
+      "ms": 25.023542000039015,
+      "rows": 1,
+      "complete": true,
+      "next": false
+    },
+    {
+      "who": "u0901",
+      "name": "trending",
+      "ms": 24.123458999965806,
+      "rows": 10,
+      "complete": true,
+      "next": false
+    }
+  ]
+}
