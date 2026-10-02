@@ -1,0 +1,30 @@
+✔ mounted history: insert, keep=undefined, replacement held beyond one second (50.341592ms)
+✔ mounted history: delete, keep=undefined, replacement held beyond one second (31.41139ms)
+✔ mounted history: legacy, keep=undefined, replacement held beyond one second (32.032581ms)
+✔ mounted history: malformed, keep=undefined, replacement held beyond one second (33.402674ms)
+✔ mounted history: opaque, keep=undefined, replacement held beyond one second (30.99789ms)
+✔ mounted history: insert, keep=true, replacement held beyond one second (31.782356ms)
+✔ mounted history: delete, keep=true, replacement held beyond one second (31.220243ms)
+✔ mounted history: legacy, keep=true, replacement held beyond one second (31.694394ms)
+✔ mounted history: malformed, keep=true, replacement held beyond one second (31.530197ms)
+✔ mounted history: opaque, keep=true, replacement held beyond one second (33.957926ms)
+✔ safe evidence retains through retry exhaustion; later revoking evidence still bounds it (178.072426ms)
+✔ facade-held A keeps its dependencies after source B changes tables (2.359507ms)
+✔ mutation acknowledgement: insert (14.260795ms)
+✔ mutation acknowledgement: delete (12.180225ms)
+✔ mutation acknowledgement: generation (11.845614ms)
+(node:1464782) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+﹣ published 0.2.33 capability fence: timeline-v2 (0.611937ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: recorded-attribution (0.105018ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: maintained-column (0.871536ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 control: capability-free bytes and stores stay compatible (0.09338ms) # the published 0.2.33 native witness requires darwin-arm64
+✔ RV publication allowance is confined to commit evidence (1.744875ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 685.237427

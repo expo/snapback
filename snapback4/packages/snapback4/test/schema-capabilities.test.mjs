@@ -23,8 +23,14 @@ const cache=fenceSetting==='off'||!fenceHost?undefined:fenceSetting||join(homedi
 const fenceSkip=fenceSetting==='off'?'SNAPBACK4_FENCE_PUBLISHED=off':!fenceHost&&'the published 0.2.33 native witness requires darwin-arm64';
 // Same-version device and client ship together, so a published client never
 // reads a current reply: `scopes` (LLP 3000.023 audience dependencies) is the
-// one additive key a current answer may carry. Every other key stays exact.
-function sameAnswer(actual,published,message) {
+// additive query key. RV additionally permits top-level commit certification on
+// apply/admit/settle only; their ok payloads and every query key stay exact.
+function sameAnswer(actual,published,message,operation='query') {
+  // LLP 3000.023 §12: private authority-preservation evidence, never query data.
+  if(['apply','admit','settle'].includes(operation)&&Object.hasOwn(actual,'preserved')&&!Object.hasOwn(published,'preserved')) {
+    assert.ok(Array.isArray(actual.preserved)&&actual.preserved.length<=256&&actual.preserved.every(t=>typeof t==='string'));
+    const {preserved:_preserved,...rest}=actual;actual=rest;
+  }
   if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
     const {scopes:_scopes,...rest}=actual.ok;actual={...actual,ok:rest};
   }
@@ -302,7 +308,8 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   assert.equal(reopened.replies.length,2);reopened.replies.forEach(ok);assert.deepEqual(reopened.replies[1],result.replies[2]);
   for(const Web of [legacy.wasm,current]) {
     const d=new Web(JSON.stringify(newApp.backend),'[]');
-    ok(JSON.parse(d.call(JSON.stringify(apply))));
+    const applied=JSON.parse(d.call(JSON.stringify(apply)));ok(applied);
+    sameAnswer(applied,result.replies[1],'capability-free apply payload','apply');
     const answer=JSON.parse(d.call(JSON.stringify(query)));assert.ok(ok(answer).data.length);
     ok(JSON.parse(d.call(JSON.stringify({op:'adopt',backend:newApp.backend}))));
     assert.deepEqual(JSON.parse(d.call(JSON.stringify(query))),answer);
@@ -357,4 +364,10 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   }
   assert.equal(storedSchema(join(newApp.cwd,'.snapback4/store.sqlite')),expectedSchema,'byte-for-byte stored 0.4 generation schema');
   assert.deepEqual(JSON.parse(expectedSchema),JSON.parse(pinned).schema);
+});
+
+test('RV publication allowance is confined to commit evidence', () => {
+  for(const op of ['apply','admit','settle']) sameAnswer({ok:null,preserved:['messages']},{ok:null},op,op);
+  assert.throws(()=>sameAnswer({ok:{data:[]},preserved:[]},{ok:{data:[]}}));
+  assert.throws(()=>sameAnswer({ok:{changed:true},preserved:[]},{ok:null},'payload','settle'));
 });

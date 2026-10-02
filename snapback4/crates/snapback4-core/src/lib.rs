@@ -27,6 +27,7 @@ pub mod meter;
 pub mod maintain;
 pub mod partition;
 pub mod rows;
+pub mod revocation;
 pub mod schema;
 pub mod small_map;
 #[cfg(feature = "server-search")]

@@ -35,6 +35,7 @@ mutation transfer():
   update rows['r'] { owner: 'dev:bob' }
 mutation add():
   insert notes { owner: viewer }
+  update rows['r'] { owner: 'dev:bob' }
 `;
 const op = { kind: 'query', name: 'remote' };
 const parked = signal => new Promise((_, reject) => {
@@ -125,6 +126,8 @@ for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined,
   assert.equal(episodeDeadline(f.watch.getSnapshot()), undefined);
   const blocks = await f.fill();
   await until(() => f.blocked === 7);
+  // RV: a certified insert no longer starts an episode. This batch also
+  // changes a read-rule column, preserving the original queue/bound proof.
   const result = await f.mutate('add');
   if (f.client.sync) await f.client.sync();
   else { f.change({ seq: result.seq, generation: 1, tables: ['notes'] }); await until(() => f.owner.dirty); }

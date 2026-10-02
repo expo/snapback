@@ -107,7 +107,7 @@ impl Store {
         // Repeat source-count admission under the writer lock, before any candidate writes.
         let preflight_catalog = catalog.clone();
         let (launches, sql) = {
-            let preflight = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
+            let preflight = Tx { changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
             let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
             let Tx { tx: sql, .. } = preflight;
             (launches, sql)
@@ -121,7 +121,7 @@ impl Store {
                 }
             }
         }
-        let tx = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &catalog };
+        let tx = Tx { changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &catalog };
         // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
         // never opening a legacy store that may subsequently refuse adoption.
         let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();

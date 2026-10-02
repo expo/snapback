@@ -137,12 +137,16 @@ for (const tier of ["wasm", "process", "online"]) {
     });
   }
   for (const mode of tier === "online" ? ["loading", "failure"] : ["failure"]) {
-    test(`${tier} keep: a ${mode} re-read after change evidence withdraws before expiry`, async t => {
+    test(`${tier} keep: a ${mode} re-read after non-policy change preserves the original expiry`, async t => {
       const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep: true });
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change("apply", mode);
       await until(() => f.failed() > 0);
-      await until(() => watch.getSnapshot().loading, "change evidence withdraws on failure or explicit loading");
+      if (mode === "failure") {
+        // RV: the body update cannot revoke; failed retries keep the old answer.
+        assert.equal(watch.getSnapshot().data?.body, "private answer");
+        assert.equal(watch.getSnapshot().revalidating, true);
+      } else await until(() => watch.getSnapshot().loading, "an explicit replacement loading remains authoritative");
       f.hold(true); f.expire();
       await until(() => watch.getSnapshot().loading, "failed/loading re-read left the old deadline armed");
     });

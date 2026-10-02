@@ -81441,3 +81441,36 @@ the new file passes 4/4 with the publication cache; the original file fails the
 same three cases in the same tree (control); with the variable unset the fence
 downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
 changed.
+
+## 2026-10-02 — RV round 0: only possible revocation bounds a live answer
+
+Compiled authorization dependencies and bounded net transaction evidence now
+certify ordinary inserts and non-policy updates across local commits, online
+acknowledgements, durable/ephemeral changes and sync publications. Those answers
+retain while revalidating, including through failed retries. Unknown evidence,
+deletes, policy inputs, scope loss and identity/expiry fences retain their
+existing protection. Facade-held answers retain their own dependency plans;
+failed evaluations do not replace a displayed plan. No author option was added.
+LLP 3000.023 §12 and LLP 3000.019 §3.3 record the narrowed premise; package and
+guide prose teach the same rule.
+
+The four-seed engine model covers 89 schemas and 11,392 commits: 300,666
+certified viewer/table checks, 485,915 retained authorized IDs, zero violations.
+Real Chromium/wasm qualification holds eight reads with 24 competitors beyond
+1.5 seconds: no loading, all surfaces revalidating, eventual convergence;
+delete/unsend/rule-column controls withdraw within the existing bound and
+membership loss is immediate. Whole guide: 110/110. Final affected retention
+checks: 95/95. Complete suite: `== 1 failure(s) in 1459 s` (the new regression
+ran before its final fix; its rebuilt follow-up passes). All 79 client-model
+tests pass. Every failure, including
+the capacity-interrupted initial invocation, are in the
+[report](./reports/20261001-rv-bound-only-revocation/REPORT.md) and its failure ledger.
+
+Wasm is 2,032,740 bytes raw / 610,046 gzip; the authorized ratchet is 610,546,
+leaving 500 bytes of headroom. **Publication fence:** only top-level `preserved`
+on successful apply/admit/settle is added to the reply allowance. Existing
+payloads and query replies stay exact. The operator must run the published
+0.2.33 comparison on darwin-arm64; Linux skips those four cases. Server evidence
+metadata is created on commit, so opening an old native device does not migrate
+its store. Committed locally with the requested Astra trailer; nothing pushed
+or published.

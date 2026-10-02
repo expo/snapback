@@ -1,3 +1,4 @@
+import { watchCanRevoke } from "./change-evidence.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import type { Queued } from "./local-types.ts";
 import type { Query, Refusal } from "./contract.ts";
@@ -40,6 +41,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   key: string;
   tables: Set<string>;
   scopes?: ReadScopes | undefined;
+  opaque?: () => boolean;
   /** A staged removal must publish before any local answer can return. */
   scopeCut?: number;
   setExistenceTables(tables: Set<string> | null): void;
@@ -330,7 +332,7 @@ export class LocalReads {
     }
     const affected: LocalWatch[] = [];
     const approvals = deferReadNotifications(() => { for (const watch of watches) {
-      if (!lost.some(loss => overlapsScope(watch.tables, watch.scopes, loss))) continue;
+      if (![watch, ...watch.protectedReads].some(read => lost.some(loss => overlapsScope(new Set(read.tables), read.scopes, loss)))) continue;
       this.changed(watch, page.watermark);
       if (!published) watch.scopeCut = Math.max(watch.scopeCut ?? 0, page.watermark);
       watch.waitingForSync = true;
@@ -354,20 +356,20 @@ export class LocalReads {
     deliver(); for (const watch of all) notifyLocalWatch(watch);
   }
 
-  // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
-  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+  // @ref LLP 3000.023#12 — commits revalidate; only possible revocation bounds the replacement attempt.
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], preserved?: unknown): void {
     // A partition footprint cannot certify server-only authorization, including recovery/no-op publication.
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation);
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation, preserved);
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset"): void {
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown): void {
     this.evidence();
     if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
       if (reset) { delete watch.scopeCut; delete watch.changeCut; delete watch.waitingForSync; }
-      if (reset) watch.reset({ loading: true }, false, cause); else watch.reload(true, { queued: true });
+      if (reset) watch.reset({ loading: true }, false, cause); else watch.reload(watchCanRevoke(watch, preserved), { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;
@@ -390,6 +392,7 @@ export function localWatch(keep: boolean | undefined, op: Query<unknown, unknown
   pending: (tables: Set<string> | null) => boolean): LocalWatch {
   const watch: LocalWatch = Object.assign(new ReadObservation<unknown>(keep), { op, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation,
     setExistenceTables(tables: Set<string> | null) { watch.pending = () => pending(tables); } });
+  watch.dependencies = () => ({ tables: watch.tables, scopes: watch.scopes });
   watch.setExistenceTables(null);
   return watch;
 }

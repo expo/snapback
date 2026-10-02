@@ -1,3 +1,4 @@
+import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
 import { readyRead } from "./read-existence.ts";
@@ -60,14 +61,18 @@ export interface ClientOptions {
 }
 
 interface QueryResult<R> {
+  generation?: number | undefined;
   deadlineWithdrawn?: () => boolean;
   delivery?: unknown; credential?: number | undefined;
-  read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null;
+  read: Read<R>; tables: string[];
+  scopes?: import("./local-reads.ts").ReadScopes | undefined; seq: number; epoch: number; nextExpiry: number | null;
   transportOffline?: boolean; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown;
   /** The server's presence refresh interval (LLP 3000.018). */
   refresh?: number | undefined;
 }
 interface Watch extends ReadObservation<unknown> {
+  answerGeneration?: number | undefined;
+  scopes?: import("./local-reads.ts").ReadScopes | undefined;
   op: Query<unknown, unknown>;
   args: unknown;
   key: string;
@@ -599,7 +604,7 @@ export function createClient(options: ClientOptions): Client {
     if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
   }
 
   const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
@@ -618,14 +623,14 @@ export function createClient(options: ClientOptions): Client {
   function watchEphemeral(watch: Watch) {
     const tables = ephemeralTables(watch.op);
     if (!tables.length) { ephemeralReads.remove(watch); return; }
-    ephemeralReads.add(watch, tables, (reset, changed) => {
+    ephemeralReads.add(watch, tables, (reset, changed, preserved) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
       if (reset) scheduleExpiry(watch, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void scheduleRead(watch, changed);
+        void scheduleRead(watch, changed, preserved);
       };
     });
   }
@@ -707,9 +712,9 @@ export function createClient(options: ClientOptions): Client {
     if (result.transportOffline || result.deadlineWithdrawn?.() || !currentRead(result, watch)) { schedulePresence(watch, false); return; }
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
     // An accepted reply is published whatever it says, loading and refusals included.
+    watch.tables = new Set(result.tables); watch.scopes = result.scopes; watch.answerGeneration = result.generation;
     watch.publish(result.read);
     acceptDelivery(result, watch.snapshot);
-    watch.tables = new Set(result.tables);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
     if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
     notify(watch);
@@ -717,10 +722,12 @@ export function createClient(options: ClientOptions): Client {
   }
 
   const readWork = new ObservationWork<Watch>(false);
-  function scheduleRead(watch: Watch, changed = false) {
+  function scheduleRead(watch: Watch, changed = false, preserved?: unknown, evidenceGeneration?: unknown) {
+    if (changed && typeof evidenceGeneration === "number" && watch.answerGeneration !== undefined && evidenceGeneration !== watch.answerGeneration) watch.reset({ loading: true }, false, "program-generation");
+    const bounded = changed && watchCanRevoke(watch, preserved);
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
     // Online change evidence may be revocation: its budget includes capacity wait.
-    watch.reload(changed, { queued: !changed }); notify(watch);
+    watch.reload(bounded, { queued: !bounded }); notify(watch);
     acquireRead(watch);
     if (changed) readWork.prioritize(watch);
   }
@@ -768,13 +775,13 @@ export function createClient(options: ClientOptions): Client {
         notify(watch);
         return;
       }
+      if (!result.transportOffline && !exhausted) { watch.tables = new Set(tables); watch.scopes = result.scopes; watch.answerGeneration = result.generation; }
       const previousDeadline = episodeDeadline(watch.snapshot);
       if (result.transportOffline || exhausted) watch.failed(result.transportOffline); else watch.publish(result.read);
       acceptDelivery(result, watch.snapshot);
       if (batchReady && !result.transportOffline && !exhausted && watch.deadlines?.server == null
         && "data" in watch.snapshot && watch.snapshot.existence === "present") notifyReady(watch, previousDeadline);
       else notify(watch);
-      watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
@@ -873,9 +880,8 @@ export function createClient(options: ClientOptions): Client {
         generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
-          const touched = new Set(json.tables);
           for (const watch of watches.values()) {
-            if (changedGeneration || !json.tables || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void scheduleRead(watch, true);
+            if (changedGeneration || evidenceTouches(watch, json.tables)) void scheduleRead(watch, true, json.preserved, json.generation);
           }
         }
       } catch (error) {
@@ -912,7 +918,7 @@ export function createClient(options: ClientOptions): Client {
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
-      for (const watch of watches.values()) void scheduleRead(watch, true);
+      for (const watch of watches.values()) void scheduleRead(watch, true, json.preserved, json.generation);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
@@ -1001,7 +1007,11 @@ export function createClient(options: ClientOptions): Client {
       const keep = options?.keep;
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
-        () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null }),
+        () => {
+          const watch: Watch = Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
+          watch.dependencies = () => ({ tables: watch.tables, scopes: watch.scopes });
+          return watch;
+        },
         watch => { watchEphemeral(watch); void scheduleRead(watch); void poll(); },
         watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
         watch => { watch.dirty = false; return readWork.cancel(watch); });

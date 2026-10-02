@@ -60,6 +60,8 @@ for (const tier of ["wasm", "process"]) for (const continuing of [false, true]) 
 table rows:
   owner: principal
   value: int
+  expiresAt: time default 4102444800000
+  expire at .expiresAt
   read <- .owner = viewer
   update <- allow
   sync to .owner
@@ -68,7 +70,7 @@ query read():
 mutation transfer():
   update rows['r'] { owner: 'dev:bob' }
 mutation edit():
-  update rows['r'] { value: 8 }
+  update rows['r'] { value: 8, expiresAt: 4102444801000 }
 `);
     await fetch(url + "/seed", { method: "POST", body: JSON.stringify([
       { table: "rows", row: { id: "r", owner: "dev:alice", value: 7 } },
@@ -96,6 +98,7 @@ mutation edit():
     }).then(r => r.json())).state, "sent");
     let originalDeadline;
     if (continuing) {
+      // RV: change an expiry input to keep this an existing revocation episode.
       hold = true; await mutate("edit"); await client.sync(); await until(() => starts > 0);
       originalDeadline = episodeDeadline(handle.getSnapshot());
       assert.ok(Number.isFinite(originalDeadline));

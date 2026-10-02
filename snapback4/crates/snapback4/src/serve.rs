@@ -3,7 +3,6 @@
 //! watermark; the online tier long-polls `GET /changes`. Typed states, no
 //! silent state (LLP 2000.000 §8). Development personas ride a header on
 //! loopback; `dev` re-compiles the schema when a `.q` file changes.
-
 use crate::project::{Project, persona_principal};
 use snapback4_core::error::Refusal;
 use snapback4_core::ir::ProgramKind;
@@ -17,29 +16,22 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
-
 #[path = "actions.rs"]
 mod actions;
-
 #[path = "effects.rs"]
 mod effects;
-
 #[path = "serve_token.rs"]
 pub(crate) mod token;
-
 #[path = "serve_routes.rs"]
 mod routes;
-
 #[path = "serve_ephemeral.rs"]
 mod ephemeral;
-
 #[path = "serve_read_scopes.rs"]
 mod read_scopes;
 #[path = "serve_changes.rs"]
 mod changes;
 #[path = "serve_sync.rs"]
 mod sync;
-
 #[path = "serve_maintenance.rs"]
 mod maintenance;
 use maintenance::maintain;
@@ -1303,7 +1295,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (outcome, metadata) = {
+                let (outcome, metadata, preserved, generation) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
                         drop(engine);
@@ -1317,12 +1309,15 @@ fn handle(mut request: Request, shared: &Shared) {
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
-                    (outcome, response_head(&mut engine))
+                    let preserved = changes::ack_preserved(&engine, outcome.as_ref().ok());
+                    (outcome, response_head(&mut engine), preserved, engine.generation())
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         let mut body = outcome.reply(id.as_deref());
+                        body["preserved"] = json!(preserved);
+                        body["generation"] = json!(generation);
                         body["store_id"] = json!(store_id);
                         body["head"] = json!(head);
                         respond_timed(request, shared, 200, body);

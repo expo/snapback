@@ -1,0 +1,15 @@
+✔ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (188.446538ms)
+✔ write authority: the client sends a queued unheld upsert without planting a pending row (5129.581349ms)
+✔ write authority: check --cost prints the bounded uniform pass and its examined ceiling (140.360466ms)
+✔ write authority: a lost readable key-collision reply cannot recover its key after revocation (140.333316ms)
+✔ replay card: online keeps a lost response's same-id receipt and fresh result (407.921197ms)
+✔ replay card: local keeps a lost response's same-id receipt and fresh result (1162.114413ms)
+✔ online sign-out revokes its bearer and clears the client even without a link (3.499457ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7282.238164
