@@ -81519,3 +81519,55 @@ Runtime ceilings are unchanged. The report and all failure/control evidence
 are in reports/20261001-rv-bound-only-revocation/REPORT.md and round1/.
 Committed locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-10-02 — RV round 2: initialize evidence before commits
+
+Astra's remaining P1 was ours. Round 1's “ours 0; baseline 2” attribution was
+wrong: 87ec64d872 already contained round 0's lazy `_change_evidence` DDL.
+That comparison excluded pruning as the cause but did not exclude this lane.
+Creating the table in the first commit invalidated SQLite read plans, causing
+the allocation probe's 13,240 B / 8,192 B failure and the search comparison's
+extra call, payload operation and four VM steps. The round-1 report and this
+journal's earlier entry remain intact; the round-2 report corrects them.
+
+Server writable open and in-memory creation now initialize the evidence table
+before returning the store. Native `open_shared` keeps common initialization
+without adding server evidence; read-only open also remains non-migrating.
+An existing server without evidence metadata gains the empty table at open.
+Insertion and pruning remain DML in the commit transaction. LLP 3000.023 §12
+now records this lifecycle.
+
+The new regressions failed on round-1 code: commit 1 changed schema version
+63 to 64, and legacy server open omitted the table. They now prove unchanged
+schema version and zero cached-statement reprepares across commits, pruning
+and rollback, plus legacy server migration, native/read-only preservation
+and idempotent reopen. All three history tests pass; the cost benchmark stays
+explicitly ignored. Both original performance tests pass unchanged on the
+fix and on freshly fetched main 0f516b3241200321d073861c75a3f1a9311ae04d.
+
+Soundness passes 5/5 with the same 11,520-commit corpus, including field sets;
+guide 110/110, classifier 3/3, codec 12/12, public RV 20/20, expiry 31/31 and
+the publication allowance pass. Four darwin-only comparisons skip on Linux.
+Real Chromium/wasm keeps eight held rereads and 24 competitors revalidating
+at 1,501 ms with no loading publication, then converges; all revocation
+controls withdraw. The operator supplied round 1's macOS fence 5/5 and
+610,238 B gzip. This round's Linux wasm is unchanged: 2,032,879 B raw /
+610,174 B gzip, against the unchanged 610,782 B cap.
+
+One full suite finished exactly `== 1 failure(s) in 1389 s`, naming
+`client tests`. All 283 Rust binaries / 996 executions plus doctests and all
+79 client-model tests pass, retaining 5,000 online + 5,000 local sequences and
+3,000 online-client interleavings. The client phase is 5,765 passed, one
+failed, ten skipped. The failure is `47 persistent: local.ts:850 follow`:
+the fault-matrix fixture injected zero faults. Its earlier delivery/recovery
+assertions passed. Whole-file follow-ups pass 321/321 on the lane and current
+main; three more main runs with `--test-force-exit` also pass. The cause is
+not established. Count it as ours/unresolved qualification, not baseline or
+environmental: ours 1 test / 1 phase, baseline 0, environmental 0. The full
+run remains red, and issues/20261002-snapback4-follow-fault-injection-miss.md
+records the follow-up. The ledger also records intentional negative controls
+and two interrupted diagnostic probes. No assertions or bounds were weakened.
+
+Evidence: reports/20261001-rv-bound-only-revocation/REPORT.md, FAILURES.md and
+round2/. Code/test digests stayed unchanged during qualification. Local commit
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed or published.

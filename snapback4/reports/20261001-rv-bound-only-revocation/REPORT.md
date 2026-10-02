@@ -178,3 +178,151 @@ The one failed phase contains the two baseline failures above. Final qualificati
 Locked Linux build: **2,032,879 B raw / 610,174 B gzip**, **+139 raw / +128 gzip** versus round 0. The growth is the missing field-owner walk required on the shared device/server classifier; server-only history pruning contributes no wasm code. The classifier stays on the device because local admit, settle and apply replay cannot be certified solely by a server interval.
 
 Budget: **610,782 B** (the macOS estimate remains unqualified). Round 0's measured macOS artifact was 108 B above Linux; applying this round's +128 B estimates **610,282 B**, with **500 B** reserved above that estimate. Round-1 macOS was not measured here: the local fleet file is absent, and no qualification host was supplied in response to the asynchronous request. The budget leaves 628 B over the supplied, actually measured round-0 macOS figure, and 500 B over the round-1 estimate; an operator must still check the actual round-1 macOS artifact before publication. No round-1 macOS fence pass is claimed. Runtime ceilings are unchanged. No push or publication.
+
+## Round 2 — create server evidence at open (2026-10-02)
+
+Base: `6aa14ff2c8`, branch `sb4-intent/rv-bound-only-revocation`. The operator
+qualified that round-1 commit on darwin-arm64: publication fence **5/5 pass**,
+wasm **610,238 B gzip** against the **610,782 B** cap. This is the supplied
+round-1 result, not a new round-2 macOS run.
+
+### Correction to round 1's attribution
+
+Round 1's **“ours 0; baseline 2” was wrong**. Both failures were **ours,
+introduced in round 0** by the lazy `CREATE TABLE IF NOT EXISTS
+_change_evidence` inside `record_commit`. The comparison against `87ec64d872`
+only showed that pruning had not introduced them: that commit already contained
+the offending DDL. It was not a pre-lane baseline. The corrected round-1
+qualification failure count is **ours 2 tests / 1 phase; baseline 0;
+environmental 0**. Round 1's text and logs above remain unchanged as history.
+
+The affected tests are `rows::word_heap::tests::sqlite_allocation_probes`
+(13,240 B versus the unchanged 8,192 B bound) and
+`search_heads_and_overlap_ignore_posting_population` (one extra physical call,
+one payload operation and four VM steps). Creating the table during the first
+commit changed SQLite's schema cookie and invalidated previously prepared read
+statements. Neither test's bounds, assertions nor implementation was changed.
+
+### Fix and regression
+
+`Store::open` / `open_with_busy_timeout` and `Store::memory` initialize evidence
+before returning a server store. The native device's `open_shared` retains the
+common open path without that server metadata initialization; read-only opens
+also create no metadata. Existing server stores without the table gain an
+empty table at writable open. Historical commits do not acquire invented
+summaries. The commit path now contains only evidence insertion and pruning
+DML; pruning remains inside the commit transaction.
+
+The two new `revocation_history` regressions check memory and disk stores,
+legacy server migration with existing rows/commits, legacy native and read-only
+opens, and idempotent server reopen. Across the first commit, pruning at the
+1,000-summary boundary and rollback, `PRAGMA schema_version` remains unchanged.
+A cached read's SQLite `RePrepare` counter stays zero; its `Run` counter proves
+that the assertion sees the same cached statement. A migrated server still
+widens missing historical evidence and certifies its retained recent interval.
+
+Before the production fix, both new tests failed against the round-1 code:
+commit 1 changed the schema version **63 → 64**, and server open returned without
+the evidence table (`round2/schema-before.log`, exit 101). After the fix all
+three history tests pass, with only the explicit write-cost benchmark ignored
+(`round2/schema-final.log`). The original pruning assertions remain unchanged.
+
+Scoped orientation is recorded in `round2/CONTEXT.md`; LLP 3000.023 §12 now
+states that evidence DDL belongs to server open.
+
+### Focused qualification and current-main control
+
+Both unchanged performance tests pass on this fix (`round2/allocation.log`,
+`round2/scale.log`). The resident allocation probe reports **3,536 B** for
+`first_native`, `next_fetch_native` and `next_read_native`, under the unchanged
+8,192 B bound. No search work-count mismatch remains.
+
+Current main was fetched at **`0f516b3241200321d073861c75a3f1a9311ae04d`** and
+checked out cleanly in the reused `rv-round1-baseline` worktree. Both tests also
+pass there, with its own target directory and four Cargo build jobs
+(`round2/main-source.txt`, `main-allocation.log`, `main-scale.log`, both exit 0).
+This corrects the earlier control's source selection; no remaining failure is
+being assigned to main. This lane was not rebased or merged with main.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `revocation_history` | 3 passed, one explicitly ignored measurement | `round2/schema-final.log` |
+| Shared classifier regressions | 3 passed | `round2/classifier.log` |
+| Device codec / old-store compatibility | 12 passed | `round2/codec.log` |
+| Soundness model | 5 passed | `round2/model.log` |
+| Whole guide | 110 passed | `round2/guide.log` |
+| Public RV + exact expiry + publication allowance | 52 passed, four darwin-only skips | `round2/client-rv.log` |
+| Chromium / real wasm | Pass | `round2/chromium.log` |
+
+The client run contains all **20 RV regressions**, **31 expiry cases**, and the
+publication allowance case. The four published-native comparisons skip on
+Linux; they are not counted as new macOS evidence.
+
+The model retained all four seeds and six viewers. The corpus again covers
+**90 schemas / 11,520 commits / 601,860 certified checks / 885,943 retained rows /
+3,254,742 retained fields**, with **8,062 row losses, 16 field losses and 242
+clock losses** accounted for and **zero failures**. The real-mutation model
+again covers **512 steps / 572 commits / 275 maintenance calls / 1,614 certified
+checks / 63 preserving limit changes**; the asset model covers **32 mutations /
+4 once consumptions / 216 access checks / 16 sweeps**, both with zero failures.
+
+Chromium **151.0.7922.34** held eight rereads with 24 competitors: all four
+surfaces stayed `revalidating`, **zero loading publications at 1,501 ms**, and
+release converged. Delete, unsend and rule-column change withdrew at
+**1,014 / 1,010 / 1,015 ms** from request start (**993 / 991 / 996 ms** after
+device commit). Membership removal withdrew at **21 ms** (**2 ms** after
+commit). These are observed wall timings; the controlled-clock cases check
+the precise deadline semantics.
+
+### Wasm
+
+The locked Linux build is unchanged from round 1: **2,032,879 B raw /
+610,174 B gzip**, delta **0 / 0**, against the unchanged **610,782 B** cap
+(`round2/wasm.log`). This change is in the SQLite store, excluded from the web
+device. The supplied round-1 macOS size is **610,238 B gzip**; no new round-2
+macOS artifact is claimed. Runtime ceilings and all test bounds are unchanged.
+
+### Complete suite and failure accounting
+
+Exactly one `bash scripts/test.sh` invocation completed (exit 1) with this exact
+summary, retained in `round2/test-sh.log.gz` and `round2/test-sh.exit`:
+
+```
+== 1 failure(s) in 1389 s
+   client tests
+```
+
+The Rust phase passes **283 binaries / 996 executions plus doctests**, including
+both unchanged performance tests and the new schema/plan regressions. The
+client phase reports **5,776 tests: 5,765 passed, one failed, ten skipped**.
+All **79 client-model tests** pass, with the full **5,000 online + 5,000 local
+three-runtime sequences and 3,000 online-client interleavings**. Build, wasm,
+docs budget, release guard, package checks, fixture wrappers and both app
+typechecks pass. The run exceeds the script's 60-second target; no performance
+attribution is made from its wall duration.
+
+The sole failure is **ours, unresolved test-harness qualification failure**:
+`47 persistent: local.ts:850 follow` in `delivery-fault-matrix.test.mjs:264`.
+Its assertion says **“the classified await must actually experience an injected
+fault”**; zero faults were injected. The preceding delivery, recovery and FIFO
+assertions passed. The ordinary whole-file follow-up passes **321/321** on the
+lane and **321/321** on freshly rebuilt current main. Three further main
+controls, each using `--test-force-exit` after all assertions completed, also
+pass **321/321**. No baseline failure was reproduced and the scheduling cause
+is unproven, so the lane retains this unresolved qualification failure rather
+than claiming it environmental or baseline. This is not a diagnosed product
+regression, and the original full run remains red.
+
+Final full-run accounting: **ours 1 test / 1 phase (unresolved harness coverage
+miss); baseline 0; environmental 0**. The two round-1 product failures are
+fixed. Follow-up ticket:
+[`20261002-snapback4-follow-fault-injection-miss.md`](../../../issues/20261002-snapback4-follow-fault-injection-miss.md).
+The [failure ledger](FAILURES.md) also records the two intentional pre-fix
+regression failures and two interrupted selected-site diagnostic invocations.
+No bounds, assertions, seeds or canonical suite settings were weakened.
+
+`round2/qualified-source.json` records the code/test digests before qualification;
+they stayed unchanged throughout the full run and follow-ups. Reference checking
+passes (`round2/ref-check-final.log`). Logs retain their output with trailing
+whitespace normalized; only the full suite log is compressed. One append-only
+journal entry accompanies this local commit. Nothing pushed or published.

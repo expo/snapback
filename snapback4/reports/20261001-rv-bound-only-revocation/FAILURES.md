@@ -74,3 +74,76 @@ Full-run Rust failures (**both baseline**, reproduced in a separate clean checko
 The hypothesis that the pruning statement introduced these two failures was rejected by those clean baseline controls. No unrelated implementation or assertion was changed to suppress them. Baseline checkout: `/home/ccheever/sb4-intent/rv-round1-baseline`, detached at `87ec64d872`; the lane's build artifacts were not reused by its compilation.
 
 Exact-source P1 controls were repeated on the separately rebuilt `87ec64d872`: the oracle loses the same `secret` field (exit 101, `round1/p1-clean-baseline.log`) and all four public-client transfers retain disclosure incorrectly (exit 1, `round1/client-clean-baseline.log`). These are intentional baseline failures. The temporarily injected model test was restored; the baseline checkout is clean.
+
+## Round 2 — correction and repair (2026-10-02)
+
+**Correction:** the round-1 “both baseline” and “ours 0; baseline 2” statements
+above are wrong. Both full-suite Rust failures were **ours, introduced in
+round 0**, because `87ec64d872` already included the per-commit evidence-table
+DDL. Reproducing them there excluded the new pruning DML as the cause but did
+not exclude the lane. Corrected round-1 count: **ours 2 tests / 1 phase;
+baseline 0; environmental 0**. Historical text and logs remain intact.
+
+- **Ours, product, fixed:** `sqlite_allocation_probes` measured 13,240 B against
+  8,192 B. Server-open initialization removes first-commit schema invalidation;
+  the unchanged test passes, with 3,536 B on the resident read probes
+  (`round2/allocation.log`, exit 0).
+- **Ours, product, fixed:** `search_heads_and_overlap_ignore_posting_population`
+  saw one extra call, one payload operation and four VM steps. The unchanged
+  test passes after the same fix (`round2/scale.log`, exit 0).
+- **Ours, intentional negative regression controls:** before the fix,
+  `commits_preserve_schema_and_cached_statements` fails because commit 1 changes
+  schema version 63 to 64; `server_open_migrates_evidence_before_commits` fails
+  because server open returns without the summary table. Both are expected
+  detections of the round-1 defect (`round2/schema-before.log`, exit 101).
+  The final tests pass (`round2/schema-final.log`, exit 0).
+
+Both performance tests were independently rerun on fetched current main
+`0f516b3241200321d073861c75a3f1a9311ae04d` in the clean reused control worktree
+with its own build artifacts. Both pass (`round2/main-allocation.log`,
+`round2/main-scale.log`, exit 0). No failure is attributed to baseline.
+
+Round-2 canonical client failure:
+
+- **Ours, unresolved test-harness qualification failure:**
+  `47 persistent: local.ts:850 follow`, at
+  `packages/snapback4/test/delivery-fault-matrix.test.mjs:264`, failed
+  `the classified await must actually experience an injected fault` (the armed
+  counter was zero). All earlier delivery/recovery/FIFO assertions in that case
+  passed. The client phase has **5,776 tests: 5,765 passed, one failed, ten
+  skipped**. The ordinary whole-file follow-up passes **321/321** on the lane
+  (`round2/fault-matrix-lane.log`, exit 0). Freshly built current main also
+  passes **321/321** (`round2/fault-matrix-main.log`, exit 0), followed by three
+  **321/321** main runs using `--test-force-exit` after all tests completed
+  (`round2/fault-matrix-main-repeat-{1,2,3}.log`). No baseline failure was
+  reproduced and no environmental cause was established, so this record keeps
+  ownership of the unresolved qualification failure. It does not claim a
+  diagnosed product regression. Follow-up:
+  `issues/20261002-snapback4-follow-fault-injection-miss.md`.
+
+Other round-2 unsuccessful diagnostics:
+
+- **Ours, interrupted diagnostic invocations:** the first site-47-only lane
+  and main probes passed both selected assertions but had not exited; they
+  were interrupted before completion. The lane runner reports one cancelled
+  file, `Promise resolution is still pending but the event loop has already
+  resolved` (exit 1). The main wrapper was interrupted with exit 130; its
+  runner also reports two passed assertions and one cancelled file. Logs:
+  `round2/follow-fault-lane.log`,
+  `round2/follow-fault-main.log`. Neither is counted as a completed pass or a
+  baseline failure. The subsequent ordinary whole-file invocations were left
+  to finish (about 140 seconds each) and both passed.
+
+The single completed round-2 full run (exit 1) ended exactly:
+
+```
+== 1 failure(s) in 1389 s
+   client tests
+```
+
+Full-run accounting: **ours 1 test / 1 phase (unresolved harness coverage miss);
+baseline 0; environmental 0**. The complete Rust inventory and all 79 client
+models pass, including the unchanged allocation/search tests. Follow-ups do
+not relabel this full run green. The two pre-fix regression failures are
+intentional lane-owned negative controls; the two interrupted probes are
+lane-owned diagnostic invocations, not additional canonical suite failures.

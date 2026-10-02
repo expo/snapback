@@ -17,6 +17,82 @@ fn write(store: &mut Store, schema: &Schema, n: u64, commit: bool) {
 fn stats(store: &Store) -> (i64,i64,i64) {
     store.conn().query_row("SELECT count(*), coalesce(sum(length(footprint)),0), coalesce((SELECT sum(pgsize) FROM dbstat WHERE name='_change_evidence'),0) FROM _change_evidence",[],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap()
 }
+
+fn schema_version(store: &Store) -> i64 {
+    store.conn().query_row("PRAGMA schema_version", [], |row| row.get(0)).unwrap()
+}
+
+fn evidence_exists(store: &Store) -> bool {
+    store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_change_evidence')", [], |row| row.get(0)).unwrap()
+}
+
+fn check_commits_reuse_plans(store: &mut Store, schema: &Schema) {
+    use rusqlite::StatementStatus::{RePrepare, Run};
+    let version = schema_version(store);
+    let sql = "SELECT count(*) FROM r";
+    store.conn().prepare_cached(sql).unwrap().query_row([], |row| row.get::<_, i64>(0)).unwrap();
+    for n in 1..=1002 {
+        // Include the first commit, the pruning boundary, and a rollback.
+        write(store, schema, n, n != 1002);
+        assert_eq!(schema_version(store), version, "commit {n} changed the SQLite schema");
+        let mut statement = store.conn().prepare_cached(sql).unwrap();
+        assert_eq!(statement.query_row([], |row| row.get::<_, i64>(0)).unwrap(), 1);
+        assert_eq!(statement.get_status(RePrepare), 0, "commit {n} invalidated a cached statement");
+        assert_eq!(statement.get_status(Run), n as i32 + 1, "the assertion must observe the same cached statement");
+    }
+    assert_eq!(stats(store).0, 1000);
+}
+
+#[test]
+fn commits_preserve_schema_and_cached_statements() {
+    let schema = schema();
+    let dir = std::env::temp_dir().join(format!("rv-commit-schema-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    for mut store in [Store::memory().unwrap(), Store::open(&dir.join("store.sqlite")).unwrap()] {
+        store.install(&schema).unwrap();
+        check_commits_reuse_plans(&mut store, &schema);
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn server_open_migrates_evidence_before_commits() {
+    let schema = schema();
+    let dir = std::env::temp_dir().join(format!("rv-open-evidence-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let mut store = Store::open(&path).unwrap();
+    store.install(&schema).unwrap();
+    write(&mut store, &schema, 0, true);
+    // Model the pre-RV layout without relying on a database artifact.
+    store.conn().execute_batch("DROP TABLE IF EXISTS _change_evidence").unwrap();
+    let version = schema_version(&store);
+    drop(store);
+    let inspection = Store::open_read_only(&path).unwrap();
+    assert!(!evidence_exists(&inspection));
+    assert_eq!(schema_version(&inspection), version);
+    drop(inspection);
+    #[cfg(unix)]
+    {
+        let device = Store::open_shared(&path).unwrap();
+        assert!(!evidence_exists(&device), "opening an old native device must not add evidence metadata");
+        assert_eq!(schema_version(&device), version);
+    }
+    let mut store = Store::open(&path).unwrap();
+    assert!(evidence_exists(&store), "server open must migrate before returning the store");
+    assert_eq!(stats(&store).0, 0);
+    assert!(preserved_between(store.conn(), &schema, 0, 1).is_empty());
+    check_commits_reuse_plans(&mut store, &schema);
+    let version = schema_version(&store);
+    drop(store);
+    let store = Store::open(&path).unwrap();
+    assert_eq!(schema_version(&store), version, "server reopen must be idempotent");
+    assert_eq!(stats(&store).0, 1000);
+    assert_eq!(preserved_between(store.conn(), &schema, 501, 1001), vec!["docs"]);
+    drop(store);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn pruning_is_atomic_and_old_or_missing_intervals_widen() {
     let schema = schema();
