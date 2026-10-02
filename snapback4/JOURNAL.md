@@ -81734,3 +81734,16 @@ keeps simctl's stderr private. The timeout message is unchanged; its exact text
 is asserted by `cli_preparation_timeout_still_records_failure_manifest`. The
 boot-failure assertion now prints the actual error when it fails. On the office
 M1, the whole `snapback4::witness` target passes 49/49.
+
+## 2026-10-02 — The app-lookup unit test expects the named subcommand
+
+6e0625f531 made failed simctl calls name their subcommand, but only the
+`--test witness` target was run on the M1. The `snapback4` binary's unit test
+`verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics`
+asserted the old generic sentence for a failed `get_app_container`, and the
+0.4.11 fourth cut's Linux qualification failed on it. The expected text now
+names `get_app_container`. Its privacy assertions are unchanged: no UDID,
+bundle ID or tool output appears. On the office M1, the binary's unit tests
+pass 217/217 and `--test witness` passes 49/49. A single in-suite failure of
+`cli_missing_app_never_starts_a_backend` passed three isolated reruns and a
+full rerun.

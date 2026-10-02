@@ -513,7 +513,7 @@ mod lookup_tests {
             let expected = match mode.as_str() {
                 "timeout" => "E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout",
                 "interrupted" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
-                "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime",
+                "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl get_app_container failed; check --udid, --bundle-id and the simulator/runtime",
                 "spawn" => "E_WITNESS_PROCESS:",
                 _ => panic!("unknown fixture mode"),
             };
