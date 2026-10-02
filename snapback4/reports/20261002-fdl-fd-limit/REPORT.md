@@ -228,3 +228,112 @@ Wasm remains **2,032,879 B raw / 610,171 B gzip**, against the unchanged
 [final source hashes](round1/final-source-hashes.json) were verified unchanged
 through the complete suite; [artifact hashes](round1/artifact-hashes.txt)
 identify the CLI and affected test binaries. Nothing pushed or published.
+
+## Round 2 — doctor remediation and UDP probes, 2026-10-02
+
+Base **00a96f16b7**, branch `sb4-intent/fdl-fd-limit`. Both round-1 reviews
+were READY WITH CHANGES. This round closes their unnecessary doctor restart
+advice and Astra's two UDP probe initialization gaps. Earlier sections remain
+the record of those revisions; the doctor rule below is the current behavior.
+
+### Changes and scope
+
+Doctor uses the live server's reported effective descriptor limits when present,
+without adding a warning based on doctor's own process. Without a live report,
+it labels its limits as inherited and explains the startup raise using the same
+target calculation as the server. Soft **1,024**, hard **1,048,576** gives target
+**65,536**, informationally, with no `E_HTTP_LIMIT` or restart instruction.
+Soft = hard = **1,024** still warns and names the hard-limit remedy. A platform
+ceiling below **2,048** names the host ceiling instead. A live server below the
+recommendation reports its effective value; if its hard/platform limits permit
+a raise, it directs inspection of the startup adjustment failure. Failed setters
+continue to report their OS cause, and startup remains nonfatal.
+
+Unit tests cover the Linux default, the hard cap, live effective limits,
+macOS's **10,240 OPEN_MAX** target, a lower host ceiling, and preservation of an
+already higher soft limit. The live process regression deliberately caps doctor
+itself at soft = hard = **1,024** while inspecting the independently initialized
+server. Offline subprocess checks cover inherited soft **1,024** with both the
+host's high hard limit and a hard cap of **1,024**. These tests also assert that
+offline doctor never performs the startup adjustment. macOS ceilings are tested
+as pure policy inputs on Linux; no new native macOS execution is claimed.
+
+Both UDP interface probes (`tests/latency.rs` and `tests/token_live.rs`) now
+call the shared initializer before binding. Listener setup and these UDP probes
+are independent of test order. No admission, backoff, socket ownership, hard
+limit, device behavior or wasm budget changes. LLP 3000 §7 and the tested guide
+state the corrected doctor rule; one journal entry records this round.
+
+### Qualification
+
+All commands run from `snapback4/`; each test invocation starts in a shell with
+soft **1,024**, hard **1,048,576**. [Environment](round2/environment.log).
+
+```sh
+ulimit -Sn 1024
+cargo test --no-fail-fast -p snapback4 --bin snapback4 --test http \
+  --test http_emfile --test lifecycle --test replay --test token_live \
+  --test witness --test latency -- --nocapture
+cargo test -p snapback4-lang --test guide
+bash scripts/test.sh
+```
+
+The [affected run](round2/affected.log) exits **0**: **373 passed, zero failed,
+four existing ignores** across eight targets. Counts: binary 242, HTTP 9,
+EMFILE 9, latency 19, lifecycle 27, replay 22, token-live 20, witness 25.
+The shared module contributes seven policy tests to each included integration
+binary. Four EMFILE child invocations are included in their parent regression,
+not counted again. The [guide](round2/guide.log) exits **0**, **110/110 passed**.
+
+The single final-source full suite exits **1** and prints exactly
+**`== 1 failure(s) in 1803 s`**, followed by **`client tests`**. All Rust
+targets/doctests (binary **242 passed, zero failed, four ignored**), build/budget
+checks, fixture checks, package/app typechecks and **79 final models** pass.
+Client tests report **5,766 passed, two failed, ten skipped**: one failed child
+and its parent, from the same baseline fixture defect described below. No test
+failure is attributed to this change or to the environment. The suite's wall
+time includes diagnosis and cleanup of the leaked fixture, not just test work.
+The invocation is retained in [full-suite.log](round2/full-suite.log), with its
+[entry limits](round2/full-suite-environment.log) and [exit status](round2/full-suite.exit).
+[Source hashes](round2/final-source-hashes.json) identify every changed Rust
+source, including the guide and tests; all six hashes match after the suite.
+The shell entry limit is the claim;
+Node and child processes retain the inherited/raised behavior described above.
+Every failure is classified in [the round-2 ledger](round2/FAILURES.md).
+The reference audit passes: **525 LLP documents, 10,085 references, zero errors
+or unchecked references**. Wasm remains **2,032,879 B raw / 610,171 B gzip**,
+611 B below the unchanged **610,782 B** budget. [Artifact hashes](round2/artifact-hashes.txt)
+identify the built CLI and wasm. Source and document whitespace checks pass.
+Nothing pushed or published.
+
+### Full-suite failure attribution
+
+The client category reports two failed tests from **one baseline fixture race**:
+`a hide during the startup probe waits for its observed-replacement decision`,
+and its parent `web admission review: recovery and transport respect the session
+boundary`. `replacementFor` at `web-admission-review.test.mjs:321` copies identity
+rows into a live replacement server's SQLite database. Its direct Node SQLite
+write raced the server writer and threw `ERR_SQLITE_ERROR`, errcode **5**,
+**database is locked**. The browser review finished in **121.665 s**, but the
+failed setup leaked its replacement server, preventing its Node process from
+exiting and withholding its failure from the suite reporter.
+
+The [stall record](round2/full-suite-stall.log) shows the browser and page listener
+gone, no active server connections, and only the replacement child still alive.
+Both Node and the server had soft/hard **1,048,576 / 1,048,576**; this was not
+descriptor exhaustion. After verifying suite ancestry, executable and cwd,
+only that leftover fixture (PID **1868381**) received SIGTERM. Its parent then
+emitted the already-failed child test and the suite continued to its models.
+The cleanup intervention and time spent diagnosing the stall are included in
+the full suite's wall time. No failed test was rerun, dropped or made to pass.
+
+The entire browser test file is byte-identical to **00a96f16b7**. A separate
+[controlled counterexample](round2/baseline-lock-repro.log) executes that exact
+baseline helper with a SQLite writer lock held by another connection. It asserts
+the same error and confirms that replacement cleanup never runs. It exits **0**;
+it is not a second full-suite run or a reproduction of the uncontrolled race's
+frequency. Both the lock race and cleanup leak are **baseline test-harness
+defects**, ticketed in
+[`issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../../../issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+There are no failures attributed to round-2 code. The unrelated unavailable
+orientation-file lookup is classified separately as environmental in the ledger.

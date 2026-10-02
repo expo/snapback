@@ -22,7 +22,7 @@ pub(crate) fn initialize() {
     STARTUP.get_or_init(|| {
         let result = raise();
         // Once per process, including a failed attempt. Startup always proceeds.
-        snapback4_core::diagnostic!("snapback4 host: {}", describe_adjustment(&result));
+        snapback4_core::diagnostic!("snapback4 host: {}", describe_adjustment(&result, platform_ceiling()));
         result
     });
 }
@@ -61,7 +61,7 @@ fn adjust(limit: libc::rlimit, ceiling: u64,
     let soft = limit.rlim_cur as u64;
     let hard = limit.rlim_max as u64;
     // Preserve a pre-existing higher soft limit and leave the hard limit intact.
-    let target = soft.max(hard.min(MAX_DESCRIPTORS).min(ceiling));
+    let target = startup_target(soft, hard, ceiling);
     let mut result = Adjustment { inherited_soft: Some(soft), hard: Some(hard),
         target: Some(target), soft: Some(soft), error: None };
     if target > soft {
@@ -91,8 +91,12 @@ fn raise() -> Adjustment {
         error: Some("RLIMIT_NOFILE unavailable on this platform".into()) }
 }
 
-fn describe_adjustment(result: &Adjustment) -> String {
-    let mut text = describe_limits(result.soft, result.hard);
+fn startup_target(soft: u64, hard: u64, ceiling: u64) -> u64 {
+    soft.max(hard.min(MAX_DESCRIPTORS).min(ceiling))
+}
+
+fn describe_adjustment(result: &Adjustment, ceiling: u64) -> String {
+    let mut text = describe_limits(result.soft, result.hard, ceiling, false);
     if let (Some(before), Some(target)) = (result.inherited_soft, result.target) {
         text.push_str(&format!("; startup soft={before} target={target}"));
     }
@@ -104,40 +108,65 @@ fn describe_adjustment(result: &Adjustment) -> String {
 
 pub(crate) fn diagnostics() -> serde_json::Value {
     serde_json::json!({ "description": STARTUP.get().map(|result| {
-        let mut line = describe();
+        let mut line = describe(false);
         if let (Some(before), Some(target)) = (result.inherited_soft, result.target) {
             line.push_str(&format!("; startup soft={before} target={target}"));
         }
         if let Some(error) = &result.error { line.push_str(&format!("; E_HTTP_LIMIT: {error}")); }
         line
-    }).unwrap_or_else(describe),
+    }).unwrap_or_else(|| describe(false)),
         "startup": STARTUP.get(), "recommendedSoft": RECOMMENDED_DESCRIPTORS,
         "descriptorExhaustions": tiny_http::descriptor_exhaustions() })
 }
 
-pub(crate) fn describe() -> String {
-    #[cfg(unix)]
-    match current() {
-        Ok(limit) => describe_limits(Some(limit.rlim_cur as u64), Some(limit.rlim_max as u64)),
-        Err(error) => format!("{} ({error})", describe_limits(None, None)),
+// Doctor's own inherited limit says nothing about a running server's headroom.
+pub(crate) fn describe_for_doctor(host: Option<&serde_json::Value>) -> String {
+    match host.and_then(|host| host["fileDescriptors"]["description"].as_str()) {
+        Some(description) => format!("server    {description}"),
+        None => format!("host      {}", describe(true)),
     }
-    #[cfg(not(unix))]
-    describe_limits(None, None)
 }
 
-fn describe_limits(soft: Option<u64>, hard: Option<u64>) -> String {
+fn describe(inherited: bool) -> String {
+    let ceiling = platform_ceiling();
+    #[cfg(unix)]
+    match current() {
+        Ok(limit) => describe_limits(Some(limit.rlim_cur as u64), Some(limit.rlim_max as u64), ceiling, inherited),
+        Err(error) => format!("{} ({error})", describe_limits(None, None, ceiling, inherited)),
+    }
+    #[cfg(not(unix))]
+    describe_limits(None, None, ceiling, inherited)
+}
+
+fn describe_limits(soft: Option<u64>, hard: Option<u64>, ceiling: u64, inherited: bool) -> String {
     let connections = tiny_http::ConnectionLimits::default().max_connections;
-    let prefix = format!("HTTP connections={connections}; uploads=2; file descriptors (this process)");
+    let source = if inherited { "inherited by doctor" } else { "this process" };
+    let prefix = format!("HTTP connections={connections}; uploads=2; file descriptors ({source})");
     let (Some(soft), Some(hard)) = (soft, hard) else { return format!("{prefix}: unavailable"); };
     let word = |value: u64| {
         #[cfg(unix)]
         if value == libc::RLIM_INFINITY as u64 { return "unlimited".to_owned(); }
         value.to_string()
     };
-    let mut line = format!("{prefix}: soft={} hard={}; descriptor_exhaustions={}",
-        word(soft), word(hard), tiny_http::descriptor_exhaustions());
-    if soft < RECOMMENDED_DESCRIPTORS {
-        line.push_str(&format!("; E_HTTP_LIMIT: effective soft limit {soft} is below recommended {RECOMMENDED_DESCRIPTORS} (measured parallel server tests: 1197 descriptors); raise the shell/container/service {}NOFILE limit to at least {RECOMMENDED_DESCRIPTORS} and restart", if hard < RECOMMENDED_DESCRIPTORS { "hard " } else { "soft " }));
+    let mut line = format!("{prefix}: soft={} hard={}", word(soft), word(hard));
+    let effective = if inherited {
+        let target = startup_target(soft, hard, ceiling);
+        line.push_str(&format!("; server raises its soft limit at startup when possible (target={})", word(target)));
+        target
+    } else {
+        line.push_str(&format!("; descriptor_exhaustions={}", tiny_http::descriptor_exhaustions()));
+        soft
+    };
+    if effective < RECOMMENDED_DESCRIPTORS {
+        let remedy = if hard < RECOMMENDED_DESCRIPTORS {
+            format!("raise the shell/container/service hard NOFILE limit to at least {RECOMMENDED_DESCRIPTORS} and restart the server")
+        } else if ceiling < RECOMMENDED_DESCRIPTORS {
+            format!("the platform ceiling {ceiling} prevents the startup raise; increase the host's descriptor ceiling to at least {RECOMMENDED_DESCRIPTORS} and restart the server")
+        } else {
+            "inspect the server's startup limit adjustment failure".to_owned()
+        };
+        let kind = if inherited { "server startup target" } else { "effective soft limit" };
+        line.push_str(&format!("; E_HTTP_LIMIT: {kind} {effective} is below recommended {RECOMMENDED_DESCRIPTORS} (measured parallel server tests: 1197 descriptors); {remedy}"));
     }
     line
 }
@@ -182,10 +211,10 @@ mod tests {
     fn hard_capped_1024_warns_without_attempting_a_setter() {
         let result = adjust(libc::rlimit { rlim_cur: 1024, rlim_max: 1024 }, MAX_DESCRIPTORS,
             |_| panic!("no raise is possible"));
-        let line = describe_adjustment(&result);
+        let line = describe_adjustment(&result, MAX_DESCRIPTORS);
         assert!(line.contains("soft=1024 hard=1024"), "{line}");
         assert!(line.contains("E_HTTP_LIMIT") && line.contains("hard NOFILE limit to at least 2048"), "{line}");
-        assert!(!describe_limits(Some(2048), Some(2048)).contains("E_HTTP_LIMIT"));
+        assert!(!describe_limits(Some(2048), Some(2048), MAX_DESCRIPTORS, false).contains("E_HTTP_LIMIT"));
     }
     #[test]
     fn refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause() {
@@ -193,9 +222,44 @@ mod tests {
             |_| Err(std::io::Error::from_raw_os_error(libc::EPERM)));
         assert_eq!(result.soft, Some(256));
         assert_eq!(result.target, Some(4096));
-        let line = describe_adjustment(&result);
+        let line = describe_adjustment(&result, MAX_DESCRIPTORS);
         assert!(line.contains("E_HTTP_LIMIT") && line.contains("continuing with inherited limit"), "{line}");
         assert!(result.error.unwrap().contains("setrlimit(RLIMIT_NOFILE)"));
+    }
+    #[test]
+    fn inherited_linux_default_needs_no_operator_remediation() {
+        let line = describe_limits(Some(1024), Some(1_048_576), MAX_DESCRIPTORS, true);
+        assert!(line.contains("inherited by doctor") && line.contains("soft=1024 hard=1048576"), "{line}");
+        assert!(line.contains("server raises its soft limit at startup") && line.contains("target=65536"), "{line}");
+        assert!(!line.contains("E_HTTP_LIMIT") && !line.contains("restart"), "{line}");
+    }
+    #[test]
+    fn inherited_hard_cap_requires_operator_remediation() {
+        let line = describe_limits(Some(1024), Some(1024), MAX_DESCRIPTORS, true);
+        assert!(line.contains("target=1024") && line.contains("server startup target 1024"), "{line}");
+        assert!(line.contains("E_HTTP_LIMIT") && line.contains("hard NOFILE limit to at least 2048"), "{line}");
+    }
+    #[test]
+    fn doctor_uses_the_live_servers_effective_limit() {
+        for (soft, hard, warning) in [(65_536, 1_048_576, false), (1024, 1024, true), (1024, 1_048_576, true)] {
+            let description = describe_limits(Some(soft), Some(hard), MAX_DESCRIPTORS, false);
+            let host = serde_json::json!({"fileDescriptors": {"description": description}});
+            let line = describe_for_doctor(Some(&host));
+            assert_eq!(line, format!("server    {description}"));
+            assert_eq!(line.contains("E_HTTP_LIMIT"), warning, "{line}");
+            assert!(!line.contains("inherited by doctor") && !line.contains("server raises"), "{line}");
+        }
+    }
+    #[test]
+    fn inherited_macos_limit_accounts_for_open_max_and_lower_host_ceilings() {
+        let line = describe_limits(Some(1024), Some(u64::MAX), 10_240, true);
+        assert!(line.contains("target=10240"), "{line}");
+        assert!(!line.contains("E_HTTP_LIMIT") && !line.contains("restart"), "{line}");
+        let line = describe_limits(Some(256), Some(u64::MAX), 1024, true);
+        assert!(line.contains("E_HTTP_LIMIT") && line.contains("platform ceiling 1024"), "{line}");
+        assert!(!line.contains("hard NOFILE"), "{line}");
+        let line = describe_limits(Some(4096), Some(u64::MAX), 1024, true);
+        assert!(line.contains("target=4096") && !line.contains("E_HTTP_LIMIT"), "{line}");
     }
 }
 

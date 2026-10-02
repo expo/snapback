@@ -64,13 +64,24 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
             assert!(soft >= 1024, "{text}");
         }
         if verb == "dev" {
-            let doctor = dir.run(&["doctor", "--url", &url, "--json"]);
+            let mut command = Command::new(BIN);
+            command.args(["doctor", "--url", &url, "--json"]).current_dir(&dir.0);
+            // Even a doctor that cannot raise its own limit must use the live server's.
+            unsafe { command.pre_exec(|| {
+                let limit = libc::rlimit { rlim_cur: 1024, rlim_max: 1024 };
+                if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+                Ok(())
+            }); }
+            let doctor = command.output().unwrap();
             let report: Value = serde_json::from_slice(&doctor.stdout).unwrap();
             let lines = report["lines"].as_array().unwrap();
+            assert!(!lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("host "))), "{report}");
             assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains(&format!("startup soft={initial_soft} target=")))), "{report}");
             if hard_low {
                 assert!(report.to_string().contains(&format!("hard={initial_soft}")), "{report}");
                 assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("hard NOFILE limit to at least 2048"))), "{report}");
+            } else {
+                assert!(!report.to_string().contains("E_HTTP_LIMIT"), "{report}");
             }
             assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("descriptor_exhaustions=0"))), "{report}");
         }
@@ -83,19 +94,25 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
 fn offline_doctor_reports_its_inherited_limit_without_raising_it() {
     use std::os::unix::process::CommandExt;
     let dir = Directory::new();
-    let mut command = Command::new(BIN);
-    command.arg("doctor").current_dir(&dir.0);
-    unsafe { command.pre_exec(|| {
-        let mut limit: libc::rlimit = std::mem::zeroed();
-        if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
-        limit.rlim_cur = 64.min(limit.rlim_max);
-        if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
-        Ok(())
-    }); }
-    let output = command.output().unwrap();
-    let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains("soft=64") && text.contains("E_HTTP_LIMIT"), "{text}");
-    assert!(!text.contains("startup soft="), "{text}");
+    for hard_low in [false, true] {
+        let mut command = Command::new(BIN);
+        command.arg("doctor").current_dir(&dir.0);
+        unsafe { command.pre_exec(move || {
+            let mut limit: libc::rlimit = std::mem::zeroed();
+            if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
+            limit.rlim_cur = 1024.min(limit.rlim_max);
+            if hard_low { limit.rlim_max = limit.rlim_cur; }
+            if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+            Ok(())
+        }); }
+        let output = command.output().unwrap();
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("inherited by doctor") && text.contains("soft=1024"), "{text}");
+        assert!(text.contains("server raises its soft limit at startup"), "{text}");
+        assert_eq!(text.contains("E_HTTP_LIMIT"), hard_low, "{text}");
+        assert_eq!(text.contains("restart"), hard_low, "{text}");
+        assert!(!text.contains("startup soft="), "{text}");
+    }
 }
 
 #[test]

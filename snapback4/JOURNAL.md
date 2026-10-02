@@ -82120,3 +82120,50 @@ classified in the [round-1 report and ledger](./reports/20261002-fdl-fd-limit/RE
 Wasm remains 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged ratchet.
 LLP 3000 §7, the guide, vendor patch record and scoped report accompany the code.
 Local commit with the requested Astra trailer; nothing pushed or published.
+
+
+## 2026-10-02 — FDL round 2: doctor advice follows server headroom
+
+Closed both round-1 review requests on 00a96f16b7. Doctor now uses the live
+server's effective descriptor report without adding advice from its own
+process. Without a live report, it labels its limits as inherited and explains
+the server's startup raise. Soft 1,024 / hard 1,048,576 targets 65,536 without
+warning or restart advice; hard or platform ceilings below 2,048 name the
+limiting host setting. An actual low live limit remains visible, with an
+otherwise possible raise directed to its startup failure. Startup is still
+best-effort, and admission, hard limits, backoff and socket ownership are
+unchanged. Both latency/token UDP route probes now initialize before binding.
+
+Unit tests cover the Linux default, hard cap, live reporting, macOS OPEN_MAX
+and a lower host ceiling. The subprocess regression caps doctor itself at
+soft=hard=1,024 while inspecting the independently initialized server. Native
+macOS was not rerun; its ceiling cases are pure policy tests on Linux.
+Direct affected tests from shell soft 1,024 pass 373 with zero failures and
+four existing ignores; the guide passes 110/110. The reference audit has
+525 LLP documents, 10,085 references and zero errors or unchecked references.
+
+The single final-source full suite, also launched from shell soft 1,024,
+reports exactly `== 1 failure(s) in 1803 s`, category `client tests`. All Rust
+targets/doctests, fixture/build/budget/typechecks and 79 models pass. Clients
+pass 5,766 with two failures and ten skips. The failures are one baseline
+fixture race and its parent: the browser admission review's observed-replacement
+case hit SQLite `database is locked` while copying identity tables directly
+into a live replacement server. Its failed setup leaked that server after the
+browser closed, delaying the failure report. Only the recorded leftover fixture
+received SIGTERM after ancestry/executable/cwd verification; the suite then
+reported its existing failure and continued. Wall time includes that diagnosis
+and cleanup. No failed suite test was retried or omitted.
+
+The exact, unchanged baseline helper from 00a96f16b7 reproduces the same SQLite
+refusal and absent cleanup under a controlled writer lock. Both are baseline
+fixture defects, ticketed in
+[`issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+No test failures are attributed to round-2 code or the environment. The
+unavailable local orientation-file lookup is separately classified environmental.
+The [round-2 report and ledger](./reports/20261002-fdl-fd-limit/REPORT.md#round-2--doctor-remediation-and-udp-probes-2026-10-02)
+retain every result, intervention and the baseline counterexample.
+
+All six changed Rust source hashes remained unchanged through qualification.
+Wasm remains 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged ratchet.
+LLP 3000 §7 and the guide state the corrected rule. Local commit with the
+requested Astra trailer; nothing pushed or published.

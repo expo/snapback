@@ -147,6 +147,7 @@ fn mint_paths(release: bool) {
 
 #[test]
 fn public_listeners_refuse_remote_peers_and_missing_wrong_duplicate_or_browser_proofs() {
+    host_limits::prepare_tests();
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
     socket.connect("192.0.2.1:9").unwrap(); // Determines our interface without sending a packet.
     let remote_ip = socket.local_addr().unwrap().ip(); assert!(!remote_ip.is_loopback());
