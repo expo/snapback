@@ -2,6 +2,12 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_JOB_VIEWER_CONTEXT", &["Put as recipient.principal: inside the recipient loop."]),
+    ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),
+    ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),
+    ("E_JOB_VIEWER_FLOW", &["Assign a local inside, then return outside; break and continue need a loop inside the block."]),
+    ("E_JOB_VIEWER_QUERY", &["Use all(query(...)) directly in a for domain with one cursor argument and a list return."]),
+    ("E_JOB_VIEWER_READ", &["Narrow the query; no partial digest commits. Follow every cursor; one page is a preview."]),
     ("N_RECEIPT_PREDICTION", &["Use only clean fields and stable ids to predict", "Remove an incompatible", "any refusal keeps custody"]),
     ("E_RECEIPTS_CLAUSE", &["Multiple distinct families may coexist", "at most 50 members", "64 disjoint runs per member"]),
     ("E_RECEIPTS_OWNED", &["Deleting a member retires their runs atomically"]),

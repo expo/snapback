@@ -1,0 +1,5 @@
+(node:1623100) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"tag":"legacy","firstPid":1623107,"secondPid":1623176,"counts":[["dev:d1",1,2,0,0],["dev:d3",0,2,3,1],["dev:d5",0,0,5,1]],"closedClients":true,"idleDigests":0,"duplicateKeys":0,"workerDeliveries":11}
+{"tag":"viewer","firstPid":1623203,"secondPid":1623273,"counts":[["dev:d1",1,2,0,0],["dev:d3",0,2,3,1],["dev:d5",0,0,5,1]],"closedClients":true,"idleDigests":0,"duplicateKeys":0,"workerDeliveries":11}
+host replay: PASS — legacy and viewer digest payloads match; closed clients, SIGTERM restart, idle period, durable worker ledger

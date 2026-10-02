@@ -331,6 +331,7 @@ fn pure_expr(expr: &Expr) -> bool {
 
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
+        Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
         Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens

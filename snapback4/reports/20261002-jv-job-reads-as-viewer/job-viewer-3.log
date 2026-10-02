@@ -1,0 +1,26 @@
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.92s
+     Running tests/job_viewer.rs (target/debug/deps/job_viewer-8ea11a7ff38f7263)
+
+running 5 tests
+test side_effects_and_invalid_scopes_refuse_with_repairs ... ok
+test calibration_28_builder_digest_matches_with_restart_and_idle_period ... FAILED
+test guide_digest_restart_closed_clients_idle_and_legacy_emissions ... ok
+test over_budget_recipient_parks_without_partial_effect_or_key ... ok
+test random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients ... ok
+
+failures:
+
+---- calibration_28_builder_digest_matches_with_restart_and_idle_period stdout ----
+
+thread 'calibration_28_builder_digest_matches_with_restart_and_idle_period' (1444563) panicked at crates/snapback4-lang/tests/job_viewer.rs:243:28:
+called `Result::unwrap()` on an `Err` value: Structural { code: "E_TIMELINE_IMPORT", message: "fixture imports cannot restore timeline history; seed the mapped rows through operations instead" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    calibration_28_builder_digest_matches_with_restart_and_idle_period
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+
+error: test failed, to rerun pass `-p snapback4-lang --test job_viewer`

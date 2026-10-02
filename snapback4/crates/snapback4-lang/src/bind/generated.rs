@@ -112,7 +112,7 @@ fn statement_sites(body: &mut [Stmt], target: &Site) {
                 statement_sites(else_body, target);
                 site
             }
-            Stmt::For { body, site, .. } => {
+            Stmt::As { body, site, .. } | Stmt::For { body, site, .. } => {
                 statement_sites(body, target);
                 site
             }

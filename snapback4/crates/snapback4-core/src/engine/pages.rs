@@ -104,6 +104,23 @@ pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
     sites
 }
 
+/// The one input cursor which owns every returned page of a list query.
+/// A cursor argument alone does not prove a truncated list can be drained.
+pub fn drain_cursor(program: &Program) -> Option<String> {
+    let mut cursor = None;
+    for origin in returned_origins(program, false, &mut BTreeMap::new()).into_values() {
+        match origin {
+            Origin::Empty => {},
+            Origin::Page(_, Some(input)) => {
+                if cursor.as_ref().is_some_and(|old| old != &input) { return None; }
+                cursor = Some(input);
+            }
+            _ => return None,
+        }
+    }
+    cursor
+}
+
 /// Cursorless pages returned as the whole answer, rather than a bounded field.
 // @ref LLP 3000.027#3 — composed previews state their whole intent and need no continuation advice.
 pub fn uncontinued_page_sites(program: &Program) -> BTreeSet<String> {

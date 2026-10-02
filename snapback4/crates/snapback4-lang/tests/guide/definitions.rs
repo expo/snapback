@@ -123,6 +123,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_JOB_VIEWER_CONTEXT", "as belongs inside a job sweep and cannot nest"),
+    ("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal"),
+    ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),
+    ("E_JOB_VIEWER_FLOW", "return cannot leave an as block"),
+    ("E_JOB_VIEWER_QUERY", "a job viewer call requires a declared durable Quarry query"),
+    ("E_JOB_VIEWER_READ", "the viewer query is unavailable or cannot certify exhaustion"),
+
     ("N_RECEIPT_PREDICTION", "N_RECEIPT_PREDICTION identifies the first static receipt dependency in a mutation; the whole mutation queues without a predicted row."),
     ("E_RECEIPTS_CLAUSE", "malformed declarations refuse `E_RECEIPTS_CLAUSE`"),
     ("E_RECEIPTS_OWNED", "Progress fields and runs refuse ordinary writes with `E_RECEIPTS_OWNED`"),

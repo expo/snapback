@@ -371,3 +371,21 @@ mod row_view_tests {
         }
     }
 }
+
+#[cfg(feature = "sqlite")]
+impl<'a> Runner<'a> {
+    /// Fresh read state over this exact transaction; move the guarded allowance
+    /// with the meter so nested queries cannot reset authorization work.
+    pub(super) fn job_read_child(&mut self, context: super::Context) -> Runner<'a> {
+        let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::job(), Cut::Abort));
+        let mut child = Runner::new(self.tx.raw, self.schema, context, meter, self.seq);
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        child.job_read_scope = 2;
+        child
+    }
+    pub(super) fn finish_job_read_child(&mut self, mut child: Runner<'a>) {
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        self.meter = child.meter;
+        self.read_tables.extend(child.read_tables);
+    }
+}

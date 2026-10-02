@@ -409,20 +409,20 @@ mutation post(bodies: [text <=500] <=10):
 
 mutation split(total: int, people: [principal] <=8):
   insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
-
-job nightly(periodStart: time, periodEnd: time):                    -- the server's own work: sweeps as the system principal, one engine-sized chunk per commit
-  end = periodEnd                                                   -- the prelude runs again at the start of every chunk, under that chunk's meter
+job nightly(periodStart: time, periodEnd: time):                    -- system sweeps; one chunk per commit
+  end = periodEnd                                                   -- replayed per chunk
   for r in rooms:                                -- the index's columns are id or immutable, so nothing moves under the cursor
     if r.createdAt >= end:
       break                                                          -- ends this sweep; `return` ends the job
     stamp(r.id)
   for p in posts:
+    as p.authorId:                                                   -- read-only; act outside
+      visible = exists posts[p.id]
     for i in range(0, 2):                                            -- int expressions, under the step meter
       update posts[id = p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
-
 effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
 table roomEntries:
   roomId: id

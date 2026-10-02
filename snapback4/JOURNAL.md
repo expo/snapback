@@ -81613,3 +81613,52 @@ and two interrupted diagnostic probes. No assertions or bounds were weakened.
 Evidence: reports/20261001-rv-bound-only-revocation/REPORT.md, FAILURES.md and
 round2/. Code/test digests stayed unchanged during qualification. Local commit
 with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed or published.
+
+
+## 2026-10-02 — JV round 0: job reads as the recipient
+
+LLP 3000.007 §21.12 extends §21.1's digest contract with a read-only
+`as p.principal:` block inside a job sweep. It calls the same declared Quarry
+query as the UI, through the ordinary server evaluator and authorization path.
+Fresh viewer frames share the chunk transaction, pinned clock, job meter and
+physical authorization allowance. Persona/user/guest/application/service
+principals work without live sessions; system is refused. Writes, emits, ID
+minting and once-consumption attempts receive compile-time repairs. Outer
+locals carry computed values to effects outside the block. `all(query(...))`
+streams the returned cursor to exhaustion, with no per-page meter reset and
+no partial digest on refusal. Called-query changes participate in the job's
+existing generation fence. Native, held and ephemeral-table queries remain
+outside this durable read form.
+
+The jobs card's digest now calls `unreadPreview` under its recipient rather
+than walking memberships as system. Jobs/actions distinguish body authority
+from schedule authority; the language card includes the syntax. All 110 guide
+tests and 142 affected tests pass. Nine new tests include 24 randomized worlds
+(22,680 messages, six principals), field disclosure, removed membership,
+expiry/tombstones, query pagination, earlier writes in the same transaction,
+compile/runtime refusals, generation changes and 17,000-row recipient parking
+without an effect or once key. The archived Calibration #28 schema also runs
+against both digest forms across a persisted restart and idle period.
+
+An additional real-host replay reproduces the calibration's five-person M8
+counts through the SDK worker's durable ledger, closes application connections,
+SIGTERMs/restarts at the 120-second period's midpoint and advances the next idle
+period. Both implementations deliver identical three digest payloads, zero idle
+digests and zero duplicate worker keys (11 effects including message pushes).
+
+The one full `scripts/test.sh` run reports exactly
+`== 0 failure(s) in 1561 s`, exit 0. Rust: 284 binaries / 997 executions and
+doctests pass. Clients: 5,768 passed, zero failed, 10 skipped. Models: 79 passed,
+with 5,000 online + 5,000 local sequences and 3,000 interleavings. Final failures:
+ours 0, baseline 0, environmental 0. Corrected development failures are all
+ours and retained in the report's failure ledger; no baseline claim is made.
+
+Locked Linux wasm measures 2,038,385 B raw / 611,844 B gzip. The new IR codecs
+and device refusal exceed the old 610,782 B cap by 1,062 B; execution itself is
+server-only. Under the user's explicit authorization, the ratchet is 612,474 B:
+Linux + 130 B estimated macOS difference + 500 B headroom. macOS was not
+measured here. Runtime meter ceilings remain unchanged.
+
+Evidence: reports/20261002-jv-job-reads-as-viewer/REPORT.md and FAILURES.md,
+with affected/full-suite/wasm logs and host-replay.mjs. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -28,7 +28,10 @@ pub mod prediction;
 pub mod admission;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 mod read_only;
+#[cfg(feature = "sqlite")]
+mod job_reads;
 mod pages;
+pub use pages::drain_cursor;
 pub use pages::expression_page_site;
 mod shaping;
 #[cfg(feature = "sqlite")]
@@ -915,12 +918,6 @@ impl Engine {
         }
         server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, &program, &mut context.args)?;
-        // @ref LLP 3000.028#3.3 — only server execution substitutes this
-        // audience plan. The stored/device body keeps its retained domain.
-        #[cfg(feature = "server-search")]
-        let inferred_search = (!context.is_system()).then(|| crate::search_plan::ordinary::plan(&self.schema, &program)).flatten();
-        #[cfg(feature = "server-search")]
-        let program = inferred_search.as_ref().map_or(&program, |plan| &plan.program);
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
         }
@@ -965,15 +962,13 @@ impl Engine {
         }
         let mut runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
         #[cfg(feature = "server-search")]
-        { runner.ordinary_search_cursor = inferred_search.as_ref().map(|plan| plan.cursor_indexes.clone()); }
-        #[cfg(feature = "server-search")]
         if let Some(ids) = _retained {
             let original = &self.programs[name];
             let descriptor = crate::search_plan::ordinary::composition(&self.schema, original)
                 .ok_or_else(|| RuntimeError::Input("this query does not support retained search overlap".into()))?;
             *_current = Some(runner.search_overlap(&descriptor, ids)?);
         }
-        let data = runner.run(&program)?;
+        let data = runner.run_server_query(&program)?;
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix

@@ -299,7 +299,9 @@ impl Engine {
             let seq = tx.next_seq()?;
             let mut context = Context::system().at(now).with_presence(presence.clone());
             context.args = head.args.clone();
+            context = context.with_generation(self.generation);
             let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+            runner.job_read_scope = 1;
 
             // The sweep's upper key is captured when it begins: a row the body
             // inserts beyond it is never visited, so a sweep over its own
