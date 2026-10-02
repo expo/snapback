@@ -54,3 +54,21 @@ Lane FD tried to raise delivery throughput on branch `sb4-intent/fd-following-de
 - **Round 0 (19ed7f0dec)** batched copies, follower pages and index writes, giving 1.26–1.48× the production fixture's copies per second. About 63% of the remaining per-copy cost is the durable FULL commit, because the cooperative slice forces a commit roughly every 24 copies.
 - **Round 1 (8f38c7a324)** let a delivery transaction run until other engine work queued. It reached only 1.27× idle and regressed writer p95 to 41 ms idle and 70 ms loaded. It did, however, keep zero pending Following work at every calibration checkpoint, while main and lane CT reproduced the backlog.
 - **Shelved:** neither round met the 3× gate. A future design needs delivery that keeps up during a replay without long, writer-blocking transactions, for example group commit with request writes, or delivery off the writer path.
+
+## Lane LM investigation, 2026-10-03
+
+Status remains **Open**. The [LM report](../snapback4/reports/20261003-lm-live-margin/REPORT.md)
+separates durable Following task delivery from the local client's `follow()`
+change-feed loop. Its two-device reaction/delete harness has no Following
+declaration or generated delivery work. It therefore measures direct committed
+row propagation without silently waiting for or conflating a Following backlog.
+At N=20 per operation and condition, 16 busy loops pinned with the harness to
+CPUs 80–83 increased reaction-removal commit-to-React p95 from 81.21 to 323.52 ms;
+none crossed ten seconds. These observations neither repair nor remeasure the
+6,507-task replay backlog above. The historical drain numbers and the distinction
+between `complete/fresh` and pending new-event delivery remain unchanged.
+
+The change-feed trace now stamps committed mutation completion, allowing a
+future replay investigation to distinguish delay before a derived delivery
+commit from delay carrying that commit to the device and UI. No delivery
+throughput, queue priority, transaction size or completeness change lands in LM.

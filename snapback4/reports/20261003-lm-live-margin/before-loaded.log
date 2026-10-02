@@ -1,0 +1,10 @@
+✔ React/IndexedDB live margin and two-device offline settlement (98237.865553ms)
+ℹ {"n":20,"pressure":120,"trials":120,"emptyDuringSettlement":0,"loadingDuringSettlement":0,"partialDuringSettlement":0,"clockUncertaintyMs":0.2259833812713623,"liveInspections":[{"persona":"alice","version":1,"supported":true,"totals":{"observations":122,"subscribers":124,"queued":19,"inFlight":8,"revalidating":27,"withdrawn":0,"loading":0},"queries":[{"name":"decoration","observations":120,"subscribers":120,"queued":18,"inFlight":8,"revalidating":26,"withdrawn":0,"loading":0},{"name":"history","observations":1,"subscribers":2,"queued":1,"inFlight":0,"revalidating":1,"withdrawn":0,"loading":0},{"name":"reactions","observations":1,"subscribers":2,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":256,"queueMs":{"p50":41.59999990463257,"p95":130.89999961853027,"max":133.90000009536743},"attemptMs":{"p50":0.7999997138977051,"p95":16.5,"max":18.699999809265137}}},{"persona":"bob","version":1,"supported":true,"totals":{"observations":122,"subscribers":124,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"decoration","observations":120,"subscribers":120,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},{"name":"history","observations":1,"subscribers":2,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},{"name":"reactions","observations":1,"subscribers":2,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":256,"queueMs":{"p50":59.59999990463257,"p95":113.40000009536743,"max":117.90000009536743},"attemptMs":{"p50":0.5,"p95":11.300000190734863,"max":41.40000009536743}}}]}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 99165.328821

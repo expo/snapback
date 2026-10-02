@@ -1,0 +1,140 @@
+{
+  "cpus": "80-83",
+  "workers": 0,
+  "started": "2026-10-02T22:45:48.456Z",
+  "loadBefore": "15.73 20.11 19.54 3/3226 2551951",
+  "pid": 2551939,
+  "command": [
+    "taskset",
+    "-c",
+    "80-83",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "--test",
+    "/home/ccheever/sb5-lanes/lane-lm/snapback4/packages/snapback4/test/lm-notification-2551931.mjs"
+  ],
+  "runs": [
+    {
+      "run": 0,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2551952
+    },
+    {
+      "run": 1,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2554016
+    },
+    {
+      "run": 2,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2557376
+    },
+    {
+      "run": 3,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2591657
+    },
+    {
+      "run": 4,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2595271
+    },
+    {
+      "run": 5,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2597457
+    },
+    {
+      "run": 6,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2599065
+    },
+    {
+      "run": 7,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2602254
+    },
+    {
+      "run": 8,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2603541
+    },
+    {
+      "run": 9,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2606340
+    },
+    {
+      "run": 10,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2608242
+    },
+    {
+      "run": 11,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2612180
+    },
+    {
+      "run": 12,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2653856
+    },
+    {
+      "run": 13,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2707168
+    },
+    {
+      "run": 14,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2717426
+    },
+    {
+      "run": 15,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2732063
+    },
+    {
+      "run": 16,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2745052
+    },
+    {
+      "run": 17,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2755269
+    },
+    {
+      "run": 18,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2762573
+    },
+    {
+      "run": 19,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2770164
+    }
+  ],
+  "ended": "2026-10-02T22:49:47.477Z",
+  "loadAfter": "116.24 61.61 35.46 96/3150 2780674",
+  "reaped": true
+}

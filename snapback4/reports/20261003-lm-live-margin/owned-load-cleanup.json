@@ -1,0 +1,108 @@
+[
+  {
+    "file": "before-loaded.host.json",
+    "workers": 16,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": 0
+  },
+  {
+    "file": "before-unloaded.host.json",
+    "workers": 0,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": 0
+  },
+  {
+    "file": "notification-loaded.host.json",
+    "workers": 16,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "file": "notification-unloaded.host.json",
+    "workers": 0,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "file": "pinned-loaded.host.json",
+    "workers": 16,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": [
+      0
+    ]
+  },
+  {
+    "file": "pinned-unloaded.host.json",
+    "workers": 0,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": [
+      0
+    ]
+  },
+  {
+    "file": "rendered-loaded.host.json",
+    "workers": 16,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": [
+      0
+    ]
+  },
+  {
+    "file": "rendered-unloaded.host.json",
+    "workers": 0,
+    "reaped": true,
+    "stillPresentWorkerPids": [],
+    "exitCodes": [
+      0
+    ]
+  }
+]

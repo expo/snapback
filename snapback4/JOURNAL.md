@@ -82679,3 +82679,49 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+## 2026-10-03 — LM: live margin and settlement investigation
+
+Investigated calibration #29 with standalone package fixtures, without the
+Clique instrument. Two React/IndexedDB devices render 120 competing reads each;
+the measured reads sit last in observation order. Twenty cycles per condition
+cover reaction set/replace/clear, text tombstone/restore and two-device offline
+settlement. The controlled condition adds 16 owned busy loops on CPUs 80–83,
+with the harness and descendants pinned there too. All workers were reaped.
+Removal commit-to-React p95 is 81.21 ms without burners / 323.52 ms with them;
+set is 79.27 / 402.83 ms. No ten-second miss was reproduced. The unchanged
+frozen-clock notification fixture also passes 400 cases, 200 per condition.
+These results do not close either original live-notification or Following ticket.
+
+A deterministic process/wasm paired control reproduces RV-permitted empty
+presentation during two offline sends settling: an unused nullable once column
+makes history preservation unknown; a held replacement crosses the existing
+one-second episode deadline, ReadEpisode withdraws to loading, and Pages exposes
+zero items. Both sends appear exactly once after release. Without the once
+column the previous complete answer remains. This explains an admissible path,
+not the exact unretained calibration frame. No authorization rule, scheduling
+policy, timeout or ceiling changes. LLP 3000.023 remains unchanged. The only
+runtime change is an opt-in mutation_commit qualification stamp before durable
+poll wakeup; LLP 3000.019 §3.7 documents its meaning and clock uncertainty.
+
+Affected clients: 449 passed, 0 failed; whole guide: 110 passed, 0 failed.
+Wasm: 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B cap;
+budget-helper tests 2/2. The complete suite ran once, exit 1:
+`== 2 failure(s) in 1893 s`. Its 25 Rust failures came from LM's target-directory
+symlink being rejected by the private-store guard; 36 witness CLI failures came
+from LM's relocated binary lacking a client-helper path. These are LM setup
+failures, individually classified, not a clean full run. A real local scratch
+directory with shared build-subdirectory links fixes the former setup; the
+existing SNAPBACK4_ACQUIRE_HELPER override fixes the latter (43/43 unchanged
+witness tests pass). Compilation remains in the requested shared Cargo target.
+The original client total is 5,753 passed / 36 failed / 10 skipped; final models
+79/79. Focused Rust correction results and every verbatim check are retained in
+[the LM report](./reports/20261003-lm-live-margin/REPORT.md) and its failure ledger.
+
+Both requested tickets are updated and remain open. No product latency fix or
+before/after-fix improvement is claimed. Local commit only, with the requested
+GPT-6 Astra co-author trailer; nothing pushed or published.
+
+Focused correction: the four Rust targets pass, 234 tests / 0 failures /
+1 ignored, plus the nested allocation probe. The full-suite red is retained.
+Reference validation: `ref-check: ok — 525 LLP docs, 10107 refs in 32478 files, 0 errors, 0 unchecked`. Staged diff whitespace check passes.

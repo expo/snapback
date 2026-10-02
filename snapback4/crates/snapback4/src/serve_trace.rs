@@ -33,7 +33,7 @@ pub(super) fn now() -> u64 {
 pub(super) struct Trace {
     id: u64, accepted: u64, dispatched: u64, started: u64,
     query_start: u64, query_end: u64, encode_start: u64, encode_end: u64,
-    write_start: u64, write_end: u64,
+    write_start: u64, write_end: u64, mutation_commit: u64,
     mutex_wait: u64, readers_wait: u64, engine_wait: u64,
     thread_id: u64, cpu_start: i32, cpu_end: i32, query_cpu_start: i32, query_cpu_end: i32,
     cpu_ns_start: u64, cpu_ns_end: u64,
@@ -46,7 +46,7 @@ impl Trace {
         let dispatched = now();
         Some(Self { id, accepted: dispatched.saturating_sub(request.accepted_at().elapsed().as_nanos() as u64),
             dispatched, started: 0, query_start: 0, query_end: 0, encode_start: 0, encode_end: 0,
-            write_start: 0, write_end: 0, mutex_wait: 0, readers_wait: 0, engine_wait: 0,
+            write_start: 0, write_end: 0, mutation_commit: 0, mutex_wait: 0, readers_wait: 0, engine_wait: 0,
             thread_id: 0, cpu_start: -1, cpu_end: -1, query_cpu_start: -1, query_cpu_end: -1, cpu_ns_start: 0, cpu_ns_end: 0 })
     }
     pub(super) fn run(mut self, body: impl FnOnce()) {
@@ -84,6 +84,7 @@ pub(super) fn mark(stage: &str) {
         let at = now();
         match stage { "query_start" => { t.query_start = at; t.query_cpu_start = cpu(); }, "query_end" => { t.query_end = at; t.query_cpu_end = cpu(); },
             "encode_start" => t.encode_start = at, "encode_end" => t.encode_end = at,
+            "mutation_commit" => t.mutation_commit = at,
             "write_start" => t.write_start = at, "write_end" if t.write_end == 0 => t.write_end = at, "write_end" => {}, _ => unreachable!() }
     } });
 }
