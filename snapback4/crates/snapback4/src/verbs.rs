@@ -763,6 +763,10 @@ pub fn doctor(options: &Options) -> i32 {
         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
     };
     if let Some(host) = &host {
+        if let Some(description) = host["fileDescriptors"]["description"].as_str() {
+            lines.push(format!("server    {description}"));
+        }
+        if host["fileDescriptors"]["startup"]["error"].as_str().is_some() { ok = false; }
         if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) + host["scheduling"]["niceFailures"].as_u64().unwrap_or(0) > 0 {
             ok = false;
             lines.push(format!("scheduling  {} QoS / {} nice setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["niceFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));

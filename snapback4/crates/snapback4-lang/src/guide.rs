@@ -455,6 +455,10 @@ view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue.
+At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
+hard limit, capped at 65,536 (also capped by macOS host limits). Failure is
+logged once and serving continues. Live `doctor` reports the server's attempt;
+a low hard limit needs a shell/container/service limit change and restart.
 The host admits 128 HTTP connections. Excess connections receive HTTP 503
 E_RATE_LIMIT before request admission; full request worker pools also refuse.
 The SDK retries explicit retryable admission refusals at most four times within

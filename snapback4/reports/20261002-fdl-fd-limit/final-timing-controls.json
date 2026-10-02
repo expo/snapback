@@ -1,0 +1,54 @@
+{
+  "binary": "target/debug/deps/fdl-final-unit",
+  "sha256": "918b025daa1cf2cd39c551c23a08b5137fcabe6d64d5a72cd7e307a69eed7453",
+  "soft": 1024,
+  "hard": 1048576,
+  "args": [
+    "blocked_poll_wakes_without_lost_notification_and_is_paced",
+    "changes_refresh_is_engine_work_but_poll_sleep_is_not"
+  ],
+  "exit": 0,
+  "timed_out": false,
+  "seconds": 1.082,
+  "peak_fds": 28,
+  "peak_active_tests": [
+    "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced",
+    "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not"
+  ],
+  "peak_fd_targets": {
+    "/dev/null": 1,
+    "pipe:[188747143]": 2,
+    "/tmp/sb4-eph-http-2469843-1801281455235516700/store.sqlite": 4,
+    "/tmp/snapback4-fresh-2469843-01M3Y7SKY272W82HYJFHE60BX5/store.db": 3,
+    "/tmp/sb4-eph-http-2469843-1801281455235516700/store.sqlite-wal": 3,
+    "/tmp/snapback4-fresh-2469843-01M3Y7SKY272W82HYJFHE60BX5/store.db-wal": 1,
+    "/tmp/sb4-eph-http-2469843-1801281455235516700/store.sqlite-shm": 1,
+    "/tmp/snapback4-fresh-2469843-01M3Y7SKY272W82HYJFHE60BX5/store.db-shm": 1,
+    "socket:[188691045]": 1,
+    "socket:[188691046]": 1,
+    "socket:[188703582]": 4,
+    "socket:[188695044]": 1,
+    "socket:[188668802]": 4,
+    "socket:[188691047]": 1
+  },
+  "summary": {
+    "type": "suite",
+    "event": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0,
+    "measured": 0,
+    "filtered_out": 239,
+    "exec_time": 1.034081989
+  },
+  "tests": {
+    "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced": {
+      "peak_process_fds": 28,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not": {
+      "peak_process_fds": 28,
+      "result": "ok"
+    }
+  }
+}

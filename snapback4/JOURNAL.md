@@ -82035,3 +82035,41 @@ the revised policy. The [round-4 report](./reports/20261001-ct-contended-reads/R
 retains every trial, failure, command and custody record. The Apartment mini
 timing remains with the operator. Local commit with the requested Astra trailer;
 nothing pushed or published.
+
+
+## 2026-10-02 — FDL round 0: descriptor headroom and fallible socket clones
+
+Measured the whole binary unit suite on eb1000 before changing limits: soft
+1024 failed five tests with EMFILE; soft 4096 passed 234 with four ignores,
+peaking at 1,197 descriptors with 96 tests active. Serial execution passed,
+peaked at 249 and returned to three descriptors in quiet intervals. The peak
+socket census shows 149 active sockets with five descriptors each. No lasting
+request-pool, connection or SQLite descriptor leak was found.
+
+`dev` and `serve` now attempt once to raise soft NOFILE to the hard limit,
+capped at 65,536 and additionally OPEN_MAX/kern.maxfilesperproc on Darwin.
+Higher existing soft limits, hard limits and admission caps are preserved.
+Failure is nonfatal and logged once; live dev doctor reports the same attempt.
+The shared server-test helpers apply the same policy through a Once. Vendored
+tiny_http closes a connection whose read/write or abort-handle clone fails,
+releases its lease and keeps accepting. Requests share one abort handle per
+connection, taking active bounded sockets from five descriptors to four.
+Real EMFILE subprocesses cover each clone stage; a child starting at soft 256
+holds over 1024 descriptors across eight servers and checks complete release
+through three cycles, including weak engine/admission owners.
+
+The single complete suite, launched from shell soft 1024, reports exactly
+`== 0 failure(s) in 1506 s`: all Rust targets/doctests, 110 guide tests,
+27 lifecycle tests, 5,768 client tests (ten skips), and 79 models pass. Its
+binary target passes 237/0 with four ignores. Five direct runs of that exact
+unit build at soft 1024 yield four passes and one baseline witness-lock failure;
+five at soft 256 yield three passes and two occurrences of the same baseline
+failure. No patched valid unit run hits EMFILE. The unchanged baseline
+reproduces that ownership refusal at soft 4096; it is ticketed. Every exploratory
+run, environmental timing failure and corrected development/harness mistake is
+retained in the [FDL report](./reports/20261002-fdl-fd-limit/REPORT.md).
+Darwin's exact limit module type-checks on Linux; no Mac runtime result is claimed.
+
+Wasm is 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged 610,782 B
+ratchet. LLP 3000 §7, the guide, vendor patch record and report land with the
+code. Local commit with the requested Astra trailer; nothing pushed or published.

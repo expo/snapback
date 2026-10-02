@@ -1,0 +1,1535 @@
+{
+  "binary": "target/debug/deps/fdl-final-unit",
+  "sha256": "918b025daa1cf2cd39c551c23a08b5137fcabe6d64d5a72cd7e307a69eed7453",
+  "soft": 1024,
+  "hard": 1048576,
+  "args": [],
+  "exit": 0,
+  "timed_out": false,
+  "seconds": 6.819,
+  "peak_fds": 920,
+  "peak_active_tests": [
+    "serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement",
+    "serve::maintenance::tests::stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued",
+    "serve::tests::a_poll_rechecks_session_liveness_after_waiting",
+    "serve::tests::a_refusal_names_the_cut_its_evaluation_read",
+    "serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops",
+    "serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes",
+    "serve::tests::adoption_tests::atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it",
+    "serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps",
+    "serve::tests::adoption_tests::failure::failed_candidate_clears_pending_names_and_allows_a_later_adoption",
+    "serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer",
+    "serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance",
+    "serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once",
+    "serve::tests::adoption_tests::reads::process_exit_during_build_retains_the_old_generation_and_restart_rebuilds",
+    "serve::tests::adoption_tests::saturation::saturated_mutation_admission_reserves_query_and_sync_capacity",
+    "serve::tests::adoption_tests::w8r1b_adoption_recovery_retires_a_query_already_in_flight",
+    "serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit",
+    "serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption",
+    "serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness",
+    "serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked",
+    "serve::tests::an_effect_claim_rechecks_service_session_after_waiting",
+    "serve::tests::asset_list_tests::image_list_http_once_is_per_element_and_survives_reorder",
+    "serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete",
+    "serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission",
+    "serve::tests::bound_session_http_requires_exact_shape_and_current_action_lease",
+    "serve::tests::catalog_and_changes_require_live_identity_and_release_refuses_dev_doors",
+    "serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding",
+    "serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer",
+    "serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body",
+    "serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters",
+    "serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work",
+    "serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance",
+    "serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check",
+    "serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty",
+    "serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock",
+    "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced",
+    "serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked",
+    "serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200",
+    "serve::tests::ephemeral_tests::legacy_poll_reply_has_base_shape_plus_preservation",
+    "serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock",
+    "serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve",
+    "serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock",
+    "serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all",
+    "serve::tests::full_poll_admission_preserves_short_request_progress",
+    "serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal",
+    "serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain",
+    "serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write",
+    "serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write",
+    "serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup",
+    "serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write",
+    "serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset",
+    "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not",
+    "serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait",
+    "serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine",
+    "serve::tests::latency_tests::headers::delayed_changes_open_is_wait",
+    "serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait",
+    "serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait",
+    "serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence",
+    "serve::tests::latency_tests::headers::maintenance_coordination_gate_does_not_claim_engine_ownership",
+    "serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait",
+    "serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer",
+    "serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work",
+    "serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending",
+    "serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals",
+    "serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine",
+    "serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection",
+    "serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads",
+    "serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction",
+    "serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine",
+    "serve::tests::pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes",
+    "serve::tests::pooled_readers_observe_new_commits_and_each_viewer",
+    "serve::tests::presence_tests::w15a_commit_wakes_all_49_recipients_and_their_next_polls_satisfy_without_attempts",
+    "serve::tests::presence_tests::w15a_vanished_held_poll_is_claimed_once_after_clock_advance_6s",
+    "serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative",
+    "serve::tests::raced_mutation_id_refusal_keeps_its_terminal_http_status",
+    "serve::tests::refresh_rotates_and_logout_all_revokes_every_session",
+    "serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication",
+    "serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes",
+    "serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause",
+    "serve::tests::review_changes::finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page",
+    "serve::tests::review_changes::finding_5_reordered_commit_notifications_cannot_report_a_restored_head",
+    "serve::tests::route_tests::registry_claim_retains_long_action_and_maximum_route_names_over_http",
+    "serve::tests::route_tests::registry_claims_have_bounded_input_and_recheck_worker_revision",
+    "serve::tests::route_tests::route_503_is_collectible_only_after_fresh_verification_of_the_same_body",
+    "serve::tests::route_tests::route_adoption_fences_old_supervised_verifier_before_child_shutdown",
+    "serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas",
+    "serve::tests::route_tests::route_invalid_delivery_never_admits_and_cannot_collect_a_settled_body",
+    "serve::tests::route_tests::route_seat_revocation_during_verification_cannot_be_undone_by_allow",
+    "serve::tests::route_tests::route_verifier_fences_wrong_tokens_and_expired_tickets_without_admission",
+    "serve::tests::route_tests::route_verifier_reclaims_expired_lease_but_old_callback_cannot_promote",
+    "serve::tests::route_tests::route_wait_capacity_leaves_verification_and_short_core_requests_available",
+    "serve::tests::route_tests::route_wire_retains_raw_bytes_and_independent_set_cookie_headers",
+    "serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution",
+    "serve::tests::slow_readers_cannot_pin_response_writers",
+    "serve::tests::store_tests::action_store_precondition_precedes_admission_and_replay",
+    "serve::tests::store_tests::an_idless_mutation_cannot_execute_on_the_wrong_store",
+    "serve::tests::store_tests::intent_store_precondition_fences_execution_and_replay_without_recording_a_refusal"
+  ],
+  "peak_fd_targets": {
+    "/dev/null": 2,
+    "pipe:[188576799]": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973732149-0/store.sqlite": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973757938-1/auth.sqlite": 3,
+    "socket:[188585990]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973918759-4/feed.sqlite": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973866190-3/failure.db": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974096355-5/reader.db": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974286040-8/reader.db": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974750165-11/store.sqlite": 3,
+    "socket:[188453734]": 4,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974259420-7/reads.db": 2,
+    "socket:[188496615]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974412329-9/restart.db": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974508733-10/saturated.db": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975334561-14/worker.db": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974989394-12/worker.db": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975057466-13/worker.db": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942134686674899-17/store.sqlite": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126228947123/store.sqlite-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942134686674899-17/store.sqlite-wal": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942134686674899-17/store.sqlite-shm": 1,
+    "socket:[188551389]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942134617001385-16/store.sqlite": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942134617001385-16/store.sqlite-wal": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPV9VGD1SV5YJYQBG9B/store.db-wal": 2,
+    "socket:[188492677]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942134617001385-16/store.sqlite-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975515422-15/rotation.sqlite": 3,
+    "socket:[188453758]": 4,
+    "socket:[188543625]": 1,
+    "socket:[188526949]": 1,
+    "socket:[188574802]": 4,
+    "socket:[188507076]": 4,
+    "socket:[188458885]": 1,
+    "socket:[188490666]": 4,
+    "/tmp/sb4-eph-http-2339774-1799594126265526199/store.sqlite": 4,
+    "socket:[188563872]": 4,
+    "socket:[188520998]": 4,
+    "/tmp/sb4-eph-http-2339774-1799594126259055424/store.sqlite": 3,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPV9VGD1SV5YJYQBG9B/store.db": 3,
+    "socket:[188528007]": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126263489513/store.sqlite": 3,
+    "/tmp/sb4-eph-http-2339774-1799594126265526199/store.sqlite-wal": 3,
+    "socket:[188507077]": 1,
+    "socket:[188531572]": 4,
+    "socket:[188496614]": 1,
+    "socket:[188570075]": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVQBBKRN5S0XH2GXKF/store.db": 3,
+    "/tmp/sb4-eph-http-2339774-1799594130011118059/store.sqlite": 2,
+    "socket:[188484608]": 4,
+    "/tmp/sb4-eph-http-2339774-1799594126225643876/store.sqlite": 4,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVBASXN643QZ5C8FTT/store.db": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPWT1A6GQ1K9JR8ENNZ/store.db": 2,
+    "socket:[188562756]": 1,
+    "socket:[188525362]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974750165-11/store.sqlite-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974750165-11/store.sqlite-wal": 2,
+    "socket:[188534125]": 4,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974508733-10/saturated.db-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973918759-4/feed.sqlite-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973866190-3/failure.db-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974508733-10/saturated.db-wal": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974096355-5/reader.db-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974286040-8/reader.db-wal": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974096355-5/reader.db-wal": 2,
+    "socket:[188549418]": 4,
+    "/tmp/sb4-reader-reuse-2339774-1790942136905264111-18/reader.db-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973918759-4/feed.sqlite-wal": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVDCD3DNPDTNM8QQ3J/store.db": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973866190-3/failure.db-wal": 1,
+    "socket:[188551388]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973757938-1/auth.sqlite-shm": 1,
+    "socket:[188576876]": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126228947123/store.sqlite": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975334561-14/worker.db-wal": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPV2C70YWT0186JKY7A/store.db": 3,
+    "/tmp/sb4-eph-http-2339774-1799594125862382922/store.sqlite": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975334561-14/worker.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPWN6AK25Y3BNC8BRYD/store.db": 3,
+    "socket:[188557496]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974989394-12/worker.db-wal": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVW501TVRMM61CW6R4/store.db": 3,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974989394-12/worker.db-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974286040-8/reader.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPXM47ANMV6WNFAEE8Q/store.db": 3,
+    "socket:[188513012]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974412329-9/restart.db-wal": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975515422-15/rotation.sqlite-wal": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975057466-13/worker.db-wal": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975515422-15/rotation.sqlite-shm": 1,
+    "socket:[188526947]": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126225643876/store.sqlite-wal": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133975057466-13/worker.db-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974412329-9/restart.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVQBBKRN5S0XH2GXKF/store.db-shm": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126263489513/store.sqlite-shm": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126225643876/store.sqlite-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVQBBKRN5S0XH2GXKF/store.db-wal": 2,
+    "/tmp/sb4-eph-http-2339774-1799594130011118059/store.sqlite-wal": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126263489513/store.sqlite-wal": 2,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974259420-7/reads.db-wal": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942133974259420-7/reads.db-shm": 1,
+    "/tmp/sb4-eph-http-2339774-1799594130011118059/store.sqlite-shm": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942136998253543-21/auth.db": 1,
+    "socket:[188450635]": 4,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPWN6AK25Y3BNC8BRYD/store.db-wal": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVDCD3DNPDTNM8QQ3J/store.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPV9VGD1SV5YJYQBG9B/store.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPWN6AK25Y3BNC8BRYD/store.db-shm": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126265526199/store.sqlite-shm": 1,
+    "/tmp/sb4-eph-http-2339774-1799594125862382922/store.sqlite-shm": 1,
+    "socket:[188528003]": 4,
+    "/tmp/sb4-eph-http-2339774-1799594126259055424/store.sqlite-wal": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVW501TVRMM61CW6R4/store.db-wal": 1,
+    "/tmp/sb4-eph-http-2339774-1799594125862382922/store.sqlite-wal": 1,
+    "socket:[188453757]": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVBASXN643QZ5C8FTT/store.db-wal": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVBASXN643QZ5C8FTT/store.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVW501TVRMM61CW6R4/store.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPXM47ANMV6WNFAEE8Q/store.db-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPVDCD3DNPDTNM8QQ3J/store.db-wal": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPV2C70YWT0186JKY7A/store.db-wal": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPXM47ANMV6WNFAEE8Q/store.db-wal": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPV2C70YWT0186JKY7A/store.db-shm": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126259055424/store.sqlite-shm": 1,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPWT1A6GQ1K9JR8ENNZ/store.db-wal": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126228947123/store.sqlite-wal": 1,
+    "socket:[188562745]": 2,
+    "/tmp/snapback4-fresh-2339774-01M3Y7GFPWT1A6GQ1K9JR8ENNZ/store.db-shm": 1,
+    "socket:[188516336]": 4,
+    "/tmp/snapback4-2339774-01M3Y7GFPT44K10DFGHA0B6RS9/01M3Y7GJP1F6XJNSJ96D61Q6PG.part": 1,
+    "socket:[188585989]": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126233840580/store.sqlite": 1,
+    "socket:[188534121]": 4,
+    "socket:[188484603]": 4,
+    "/tmp/sb4-reader-reuse-2339774-1790942136998253543-21/auth.db-shm": 1,
+    "socket:[188462030]": 1,
+    "socket:[188494646]": 4,
+    "socket:[188493701]": 4,
+    "socket:[188462031]": 1,
+    "socket:[188528009]": 1,
+    "socket:[188485309]": 1,
+    "socket:[188551376]": 4,
+    "socket:[188489308]": 4,
+    "socket:[188485310]": 1,
+    "socket:[188568951]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942136905264111-18/reader.db": 1,
+    "socket:[188520996]": 1,
+    "socket:[188520997]": 1,
+    "socket:[188587062]": 1,
+    "socket:[188572763]": 4,
+    "/tmp/sb4-reader-reuse-2339774-1790942136998253543-21/auth.db-wal": 1,
+    "socket:[188537677]": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126233840580/store.sqlite-shm": 1,
+    "socket:[188531571]": 4,
+    "socket:[188453724]": 4,
+    "socket:[188539475]": 1,
+    "socket:[188514981]": 1,
+    "socket:[188561716]": 4,
+    "socket:[188572027]": 1,
+    "socket:[188538242]": 1,
+    "socket:[188448686]": 1,
+    "socket:[188462038]": 4,
+    "socket:[188518805]": 1,
+    "socket:[188448687]": 1,
+    "socket:[188521006]": 1,
+    "socket:[188563870]": 4,
+    "socket:[188528000]": 4,
+    "socket:[188458875]": 1,
+    "socket:[188521981]": 1,
+    "socket:[188540123]": 1,
+    "socket:[188555259]": 4,
+    "socket:[188576870]": 1,
+    "socket:[188584035]": 1,
+    "socket:[188498853]": 1,
+    "socket:[188507078]": 4,
+    "socket:[188547422]": 1,
+    "socket:[188540122]": 4,
+    "socket:[188518799]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942136912316903-19/reader.db-shm": 1,
+    "socket:[188558442]": 1,
+    "socket:[188551378]": 1,
+    "socket:[188572755]": 1,
+    "socket:[188542649]": 1,
+    "socket:[188537678]": 1,
+    "socket:[188520139]": 4,
+    "socket:[188563866]": 1,
+    "socket:[188562751]": 1,
+    "socket:[188526943]": 1,
+    "socket:[188453733]": 4,
+    "socket:[188588167]": 1,
+    "socket:[188498849]": 1,
+    "socket:[188533401]": 1,
+    "socket:[188533406]": 4,
+    "socket:[188521979]": 1,
+    "socket:[188566792]": 1,
+    "socket:[188584038]": 4,
+    "socket:[188567721]": 1,
+    "socket:[188481476]": 1,
+    "socket:[188529272]": 4,
+    "socket:[188498856]": 1,
+    "socket:[188560649]": 1,
+    "socket:[188488407]": 1,
+    "socket:[188567699]": 4,
+    "socket:[188448690]": 1,
+    "socket:[188560650]": 1,
+    "socket:[188576829]": 1,
+    "socket:[188558441]": 1,
+    "socket:[188555257]": 1,
+    "socket:[188492680]": 1,
+    "socket:[188524037]": 4,
+    "socket:[188463018]": 1,
+    "pipe:[188524038]": 1,
+    "pipe:[188524039]": 1,
+    "socket:[188567702]": 1,
+    "socket:[188521001]": 4,
+    "socket:[188580927]": 1,
+    "socket:[188498851]": 1,
+    "/tmp/sb4-eph-http-2339774-1799594126233840580/store.sqlite-wal": 1,
+    "socket:[188567720]": 1,
+    "pipe:[188524040]": 1,
+    "socket:[188516335]": 1,
+    "socket:[188450626]": 4,
+    "socket:[188577970]": 1,
+    "socket:[188484604]": 4,
+    "socket:[188526946]": 1,
+    "socket:[188563862]": 4,
+    "socket:[188501691]": 1,
+    "socket:[188576875]": 1,
+    "socket:[188566791]": 1,
+    "socket:[188490670]": 1,
+    "socket:[188583391]": 4,
+    "socket:[188508921]": 1,
+    "socket:[188563873]": 1,
+    "socket:[188585996]": 1,
+    "socket:[188565700]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942136912316903-19/reader.db": 1,
+    "socket:[188566790]": 1,
+    "socket:[188450637]": 1,
+    "socket:[188448703]": 1,
+    "socket:[188550365]": 1,
+    "socket:[188490664]": 1,
+    "socket:[188527997]": 1,
+    "socket:[188551383]": 1,
+    "socket:[188562759]": 1,
+    "socket:[188453722]": 4,
+    "socket:[188507772]": 1,
+    "socket:[188587063]": 4,
+    "socket:[188566765]": 1,
+    "socket:[188453741]": 1,
+    "socket:[188453742]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942136905264111-18/reader.db-wal": 1,
+    "socket:[188566767]": 1,
+    "socket:[188492683]": 1,
+    "socket:[188572757]": 1,
+    "socket:[188489309]": 4,
+    "socket:[188453723]": 1,
+    "socket:[188502994]": 1,
+    "socket:[188453759]": 1,
+    "socket:[188453725]": 4,
+    "socket:[188572029]": 1,
+    "socket:[188453726]": 4,
+    "socket:[188576825]": 1,
+    "socket:[188453727]": 4,
+    "socket:[188453730]": 4,
+    "socket:[188516334]": 1,
+    "socket:[188453728]": 4,
+    "socket:[188525363]": 1,
+    "socket:[188453729]": 4,
+    "/tmp/sb4-reader-reuse-2339774-1790942133973757938-1/auth.sqlite-wal": 1,
+    "socket:[188502995]": 1,
+    "socket:[188562750]": 1,
+    "socket:[188507769]": 1,
+    "socket:[188453731]": 4,
+    "socket:[188453732]": 4,
+    "socket:[188471261]": 1,
+    "socket:[188542647]": 1,
+    "socket:[188527995]": 1,
+    "socket:[188562752]": 1,
+    "socket:[188453735]": 4,
+    "socket:[188525364]": 1,
+    "socket:[188527994]": 1,
+    "socket:[188453736]": 4,
+    "socket:[188453739]": 1,
+    "socket:[188453737]": 4,
+    "socket:[188453738]": 4,
+    "socket:[188556660]": 1,
+    "socket:[188540133]": 1,
+    "socket:[188567722]": 1,
+    "socket:[188471272]": 1,
+    "socket:[188507770]": 1,
+    "/tmp/sb4-reader-reuse-2339774-1790942136912316903-19/reader.db-wal": 1,
+    "socket:[188496618]": 1,
+    "socket:[188528008]": 4,
+    "socket:[188552456]": 1,
+    "socket:[188566787]": 4,
+    "socket:[188566766]": 1,
+    "socket:[188566768]": 4,
+    "socket:[188471262]": 1,
+    "socket:[188563865]": 1,
+    "socket:[188453745]": 3,
+    "socket:[188507082]": 1,
+    "socket:[188527999]": 1,
+    "socket:[188503787]": 1,
+    "socket:[188566769]": 4,
+    "socket:[188566770]": 4,
+    "socket:[188552457]": 1,
+    "socket:[188496619]": 1,
+    "socket:[188448705]": 1,
+    "socket:[188566771]": 4,
+    "socket:[188566772]": 4,
+    "socket:[188588168]": 1,
+    "socket:[188521982]": 1,
+    "socket:[188566773]": 4,
+    "socket:[188567710]": 1,
+    "socket:[188535233]": 1,
+    "socket:[188485312]": 1,
+    "socket:[188532592]": 4,
+    "socket:[188578883]": 1,
+    "socket:[188566774]": 4,
+    "socket:[188567711]": 1,
+    "socket:[188566779]": 4,
+    "socket:[188484605]": 4,
+    "socket:[188566775]": 4,
+    "pipe:[188453746]": 1,
+    "pipe:[188453747]": 1,
+    "socket:[188484606]": 4,
+    "socket:[188566776]": 4,
+    "socket:[188567712]": 1,
+    "socket:[188566777]": 4,
+    "socket:[188566778]": 4,
+    "socket:[188564834]": 1,
+    "socket:[188566780]": 4,
+    "socket:[188566782]": 4,
+    "pipe:[188453748]": 1,
+    "socket:[188524052]": 1,
+    "socket:[188484607]": 4,
+    "socket:[188566781]": 4,
+    "socket:[188576828]": 1,
+    "socket:[188588183]": 1,
+    "socket:[188513981]": 1,
+    "socket:[188489307]": 4,
+    "socket:[188576830]": 1,
+    "socket:[188576831]": 1,
+    "socket:[188535235]": 4,
+    "socket:[188576832]": 1,
+    "socket:[188535236]": 4,
+    "socket:[188576833]": 1,
+    "socket:[188576834]": 1,
+    "socket:[188576835]": 1,
+    "socket:[188535237]": 4,
+    "socket:[188576836]": 1,
+    "socket:[188576837]": 1,
+    "socket:[188535238]": 4,
+    "socket:[188576838]": 1,
+    "socket:[188576839]": 1,
+    "socket:[188576840]": 1,
+    "socket:[188576841]": 1,
+    "socket:[188576842]": 1,
+    "socket:[188576843]": 1,
+    "socket:[188535239]": 4,
+    "socket:[188576844]": 1,
+    "socket:[188576845]": 1,
+    "socket:[188535240]": 4,
+    "socket:[188576846]": 1,
+    "socket:[188576847]": 1,
+    "socket:[188535242]": 4,
+    "socket:[188576848]": 1,
+    "socket:[188576849]": 1,
+    "socket:[188535241]": 4,
+    "socket:[188576850]": 1,
+    "socket:[188576851]": 1,
+    "socket:[188576852]": 1,
+    "socket:[188576853]": 1,
+    "socket:[188576854]": 1,
+    "socket:[188576855]": 1,
+    "socket:[188535243]": 4,
+    "socket:[188576856]": 1,
+    "socket:[188576857]": 1,
+    "socket:[188576858]": 1,
+    "socket:[188535244]": 4,
+    "socket:[188576859]": 1,
+    "socket:[188576860]": 1,
+    "socket:[188535245]": 4,
+    "socket:[188535246]": 4,
+    "socket:[188535247]": 4,
+    "socket:[188535248]": 4,
+    "socket:[188535249]": 4,
+    "socket:[188535250]": 4,
+    "socket:[188535251]": 4,
+    "socket:[188535252]": 4,
+    "socket:[188535253]": 4,
+    "socket:[188535254]": 4,
+    "socket:[188535255]": 4,
+    "socket:[188535256]": 4,
+    "socket:[188535257]": 4,
+    "socket:[188535258]": 4,
+    "socket:[188535259]": 4,
+    "socket:[188535260]": 4,
+    "socket:[188535261]": 4,
+    "socket:[188535262]": 4,
+    "socket:[188535263]": 4,
+    "socket:[188535264]": 4,
+    "socket:[188535265]": 4,
+    "socket:[188578881]": 1,
+    "socket:[188493702]": 4,
+    "socket:[188576862]": 1,
+    "socket:[188450632]": 1,
+    "socket:[188450633]": 4,
+    "socket:[188588185]": 1,
+    "socket:[188489310]": 4,
+    "pipe:[188557497]": 2,
+    "pipe:[188557498]": 2,
+    "socket:[188557499]": 1,
+    "socket:[188448706]": 1,
+    "socket:[188489311]": 4,
+    "socket:[188529283]": 4,
+    "socket:[188529284]": 4,
+    "socket:[188529285]": 4,
+    "socket:[188529286]": 4,
+    "socket:[188529287]": 4,
+    "socket:[188529288]": 4,
+    "socket:[188529289]": 4,
+    "socket:[188524053]": 4,
+    "socket:[188541345]": 1,
+    "socket:[188539479]": 1,
+    "socket:[188481482]": 1,
+    "socket:[188485320]": 4,
+    "socket:[188485321]": 4,
+    "socket:[188535295]": 1,
+    "socket:[188448707]": 1,
+    "socket:[188485322]": 4,
+    "socket:[188543627]": 1,
+    "socket:[188566794]": 1,
+    "socket:[188501692]": 1,
+    "socket:[188485323]": 4,
+    "socket:[188551390]": 1,
+    "socket:[188543628]": 1,
+    "socket:[188564838]": 1,
+    "socket:[188485324]": 4,
+    "socket:[188543629]": 1,
+    "socket:[188485325]": 4,
+    "socket:[188485326]": 4,
+    "socket:[188485327]": 4,
+    "socket:[188485328]": 4,
+    "socket:[188485329]": 4,
+    "socket:[188485330]": 4
+  },
+  "summary": {
+    "type": "suite",
+    "event": "ok",
+    "passed": 237,
+    "failed": 0,
+    "ignored": 4,
+    "measured": 0,
+    "filtered_out": 0,
+    "exec_time": 6.696110036
+  },
+  "tests": {
+    "assets::tests::byte_ranges_distinguish_invalid_and_unsatisfiable_requests": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "auth::tests::an_exhausted_peer_cannot_fill_the_email_admission_table": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "auth::tests::password_slots_are_bounded_and_reusable_for_each_admission_class": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "auth::tests::rate_keys_expire_and_rotation_does_not_bypass_limits": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "dev_worker::environment::tests::secrets_are_redacted_across_chunks_newlines_and_prefixes": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "dev_worker::environment::tests::structured_logs_redact_json_escaped_secrets_across_chunks": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "native::tests::cargo_messages_refuse_missing_or_ambiguous_app_cdylibs": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "native::tests::cargo_messages_select_the_current_cdylib_over_a_later_stale_name": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema": {
+      "peak_process_fds": 60,
+      "result": "ok"
+    },
+    "scale::search::tests::certificate_uses_every_runtime_eligibility_condition": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair": {
+      "peak_process_fds": 121,
+      "result": "ok"
+    },
+    "scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration": {
+      "peak_process_fds": 141,
+      "result": "ok"
+    },
+    "serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::dev_refusals::tests::late_handoff_cannot_replace_a_newer_response": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::a_single_continuous_holder_cannot_defer_background_forever": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::a_waiting_request_behind_a_holder_admits_background_immediately": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::background_does_not_count_as_request_activity": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::background_takes_its_ticket_at_five_ms_despite_new_request_activity": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::busy_background_eventually_takes_a_ticket_behind_waiting_requests": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::panic_releases_ticket_and_poison_can_be_recovered": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::quiet_interval_ends_at_one_ms_on_the_injected_clock": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::engine_lock::tests::waiting_request_precedes_next_chunk_and_background_precedes_later_requests": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::latency::tests::latency_record_cost_and_memory": {
+      "peak_process_fds": 45,
+      "result": "ignored"
+    },
+    "serve::latency::tests::missing_cpu_clock_omits_header_metric_and_doctor_reports_unavailable": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::latency::tests::random_exact_nearest_rank_percentiles_are_within_five_percent": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::latency::tests::registry_bounds_unknown_names_adopts_and_excludes_old_arrivals_after_reset": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording": {
+      "peak_process_fds": 141,
+      "result": "ok"
+    },
+    "serve::latency::tests::zero_edges_and_extreme_durations_keep_the_error_bound": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::maintenance::tests::aged_bulk_progresses_when_the_bulk_thread_never_runs": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::maintenance::tests::clock_drain_unwind_releases_background_work": {
+      "peak_process_fds": 234,
+      "result": "ok"
+    },
+    "serve::maintenance::tests::pacing_charges_atomic_overruns_but_cannot_suppress_aged_service": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::maintenance::tests::pacing_does_not_charge_time_already_spent_off_cpu": {
+      "peak_process_fds": 83,
+      "result": "ok"
+    },
+    "serve::maintenance::tests::stalled_bulk_admission_does_not_stop_an_ordinary_expiry_slice": {
+      "peak_process_fds": 303,
+      "result": "ok"
+    },
+    "serve::maintenance::tests::stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::poison_tests::a_request_after_engine_poison_still_serves": {
+      "peak_process_fds": 212,
+      "result": "ok"
+    },
+    "serve::request_workers::tests::a_panic_outside_the_job_boundary_does_not_spend_capacity_forever": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::request_workers::tests::last_worker_exit_refuses_queued_requests": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::request_workers::tests::partial_worker_exit_refuses_queued_requests_while_another_worker_is_blocked": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::tests::a_poll_rechecks_session_liveness_after_waiting": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::a_presence_answer_asks_its_client_to_refresh": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::a_refusal_names_the_cut_its_evaluation_read": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::failure::failed_candidate_clears_pending_names_and_allows_a_later_adoption": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::reads::a_write_queued_behind_adoption_does_not_keep_expired_authority": {
+      "peak_process_fds": 587,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::reads::crash_during_adoption_child": {
+      "peak_process_fds": 45,
+      "result": "ignored"
+    },
+    "serve::tests::adoption_tests::reads::fresh_storage_has_independent_readers_and_is_removed_by_its_owner": {
+      "peak_process_fds": 212,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::reads::process_exit_during_build_retains_the_old_generation_and_restart_rebuilds": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::saturation::saturated_mutation_admission_reserves_query_and_sync_capacity": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::scale::scale_changes_waits_for_durable_adoption_while_query_and_sync_read": {
+      "peak_process_fds": 45,
+      "result": "ignored"
+    },
+    "serve::tests::adoption_tests::w8r1b_adoption_bounds_repeated_background_logs_and_resets_on_recovery": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::w8r1b_adoption_recovery_retires_a_query_already_in_flight": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::w8r1b_adoption_reports_different_background_reasons_and_failure_changes": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::w8r2_adoption_bounds_alternating_background_reasons": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::w8r2_adoption_rate_windows_are_per_code_and_do_not_slide_on_suppression": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::an_effect_claim_rechecks_service_session_after_waiting": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::asset_list_tests::image_list_http_once_is_per_element_and_survives_reorder": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::bound_session_http_refuses_stale_and_cancelled_claims_without_minting": {
+      "peak_process_fds": 829,
+      "result": "ok"
+    },
+    "serve::tests::bound_session_http_requires_exact_shape_and_current_action_lease": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::bounded_connections_do_not_queue_pipelined_requests": {
+      "peak_process_fds": 141,
+      "result": "ok"
+    },
+    "serve::tests::catalog_and_changes_require_live_identity_and_release_refuses_dev_doors": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::change_polls_and_effect_claims_share_the_bounded_wait_lane": {
+      "peak_process_fds": 45,
+      "result": "ok"
+    },
+    "serve::tests::connections_are_capped_before_slow_headers_and_idle_sockets_expire": {
+      "peak_process_fds": 141,
+      "result": "ok"
+    },
+    "serve::tests::continue_and_final_response_have_separate_write_deadlines": {
+      "peak_process_fds": 141,
+      "result": "ok"
+    },
+    "serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in": {
+      "peak_process_fds": 472,
+      "result": "ok"
+    },
+    "serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses": {
+      "peak_process_fds": 362,
+      "result": "ok"
+    },
+    "serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub": {
+      "peak_process_fds": 303,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::legacy_poll_reply_has_base_shape_plus_preservation": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate": {
+      "peak_process_fds": 587,
+      "result": "ok"
+    },
+    "serve::tests::full_poll_admission_preserves_short_request_progress": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::header_and_body_deadlines_are_absolute_despite_dribbling": {
+      "peak_process_fds": 141,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_query_total_includes_controlled_engine_work": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::delayed_changes_open_is_wait": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::maintenance_coordination_gate_does_not_claim_engine_ownership": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers": {
+      "peak_process_fds": 621,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_admission_refusals_do_not_disappear": {
+      "peak_process_fds": 472,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_recording_overhead_on_real_queries": {
+      "peak_process_fds": 0,
+      "result": "ignored"
+    },
+    "serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset": {
+      "peak_process_fds": 513,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window": {
+      "peak_process_fds": 362,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::latency_tests::latency_writer_admission_refuses_once_and_keeps_dev_inspection_available": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::opening_a_development_project_protects_its_data_directory_and_store": {
+      "peak_process_fds": 234,
+      "result": "ok"
+    },
+    "serve::tests::overload_tests::a_panicking_request_releases_its_slot_and_the_worker_serves_again": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::overload_tests::every_worker_pool_counts_and_returns_the_same_public_refusal": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit": {
+      "peak_process_fds": 798,
+      "result": "ok"
+    },
+    "serve::tests::overload_tests::fd_limits::many_servers_raise_a_low_soft_limit_and_release_their_descriptors": {
+      "peak_process_fds": 134,
+      "result": "ok"
+    },
+    "serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::pooled_readers_observe_new_commits_and_each_viewer": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::presence_tests::w15a_commit_wakes_all_49_recipients_and_their_next_polls_satisfy_without_attempts": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::presence_tests::w15a_vanished_held_poll_is_claimed_once_after_clock_advance_6s": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::raced_mutation_id_refusal_keeps_its_terminal_http_status": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::refresh_rotates_and_logout_all_revokes_every_session": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::review_changes::finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::review_changes::finding_5_reordered_commit_notifications_cannot_report_a_restored_head": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::registry_claim_retains_long_action_and_maximum_route_names_over_http": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::registry_claims_have_bounded_input_and_recheck_worker_revision": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_503_is_collectible_only_after_fresh_verification_of_the_same_body": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_adoption_fences_old_supervised_verifier_before_child_shutdown": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_invalid_delivery_never_admits_and_cannot_collect_a_settled_body": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_seat_revocation_during_verification_cannot_be_undone_by_allow": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_verifier_fences_wrong_tokens_and_expired_tickets_without_admission": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_verifier_reclaims_expired_lease_but_old_callback_cannot_promote": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_wait_capacity_leaves_verification_and_short_core_requests_available": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::route_wire_retains_raw_bytes_and_independent_set_cookie_headers": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::slow_readers_cannot_pin_response_writers": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::store_tests::action_store_precondition_precedes_admission_and_replay": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::store_tests::an_idless_mutation_cannot_execute_on_the_wrong_store": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::store_tests::intent_store_precondition_fences_execution_and_replay_without_recording_a_refusal": {
+      "peak_process_fds": 920,
+      "result": "ok"
+    },
+    "serve::tests::store_tests::query_and_mutation_replies_identify_the_evaluated_store_and_replay_head": {
+      "peak_process_fds": 911,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::concurrent::detached_sync_never_skips_a_commit_after_its_snapshot": {
+      "peak_process_fds": 911,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::failed_materialization_is_not_counted_and_unreadable_head_fails_discovery": {
+      "peak_process_fds": 911,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::generation_discovery_keeps_page_authorization": {
+      "peak_process_fds": 881,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::stale_generation_engine_snapshot": {
+      "peak_process_fds": 717,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::stale_generation_engine_stream": {
+      "peak_process_fds": 714,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::stale_generation_reader_snapshot": {
+      "peak_process_fds": 711,
+      "result": "ok"
+    },
+    "serve::tests::sync_generation_tests::stale_generation_reader_stream": {
+      "peak_process_fds": 695,
+      "result": "ok"
+    },
+    "serve::tests::sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "serve::tests::sync_stream_encoding_preserves_sequences_scopes_and_empty_groups": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "serve::tests::timeline_tests::paired_tombstoned_repost_identity_is_unobservable": {
+      "peak_process_fds": 695,
+      "result": "ok"
+    },
+    "serve::tests::unauthorized_large_posts_close_before_body_admission": {
+      "peak_process_fds": 688,
+      "result": "ok"
+    },
+    "serve::tests::unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "serve::tests::unsupported_http_versions_release_connection_slots": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "serve::tests::upload_disk_work_is_bounded_and_does_not_hold_the_query_engine": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "serve::token::protocol::tests::concurrent_completion_has_exactly_one_winner": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "serve::token::protocol::tests::expiry_and_pending_capacity_use_monotonic_time_without_sleep": {
+      "peak_process_fds": 514,
+      "result": "ok"
+    },
+    "serve::token::protocol::tests::known_hmac_vectors_and_direction_separation": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "serve::token::protocol::tests::nonce_is_single_use_even_after_invalid_proof_or_transcript": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "serve::token::protocol::tests::replies_require_the_secret_and_exact_transcript_and_authenticate_all_bytes": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "store_owner::tests::busy_missing_database_creates_nothing": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "store_owner::tests::database_ownership_preserves_sqlites_posix_locks": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "store_owner::tests::database_renamed_to_auxiliary_name_is_never_opened_or_truncated": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "store_owner::tests::doctor_dials_the_published_loopback_address": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "store_owner::tests::external_sqlite_writer": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "store_owner::tests::hard_linked_databases_refuse_both_paths_and_existing_owners": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "store_owner::tests::removed_or_replaced_sidecar_ends_exclusion_documented_boundary": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "store_owner::tests::replaced_canonical_path_cannot_be_opened_with_the_old_guard": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "store_owner::tests::sidecar_is_private_and_shared_devices_exclude_backend_owners": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "tests::development_binding_preserves_a_loopback_path_for_the_supervised_worker": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "tests::early_response_does_not_wait_for_an_unread_request_body": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "tests::help_names_every_dispatched_verb": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "tests::json_responses_preserve_framing_on_a_persistent_connection": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "tests::version_is_the_workspace_version": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "thread_priority::tests::background_priority_is_lower_without_changing_its_parent": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "thread_priority::tests::linux_setpriority_failure_is_counted_without_replacing_startup_readback": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "thread_priority::tests::maintenance_keeps_ordinary_priority": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "thread_priority::tests::watchdog_nice_failure_reaches_the_owning_host": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::adoption::tests::doctor_url_is_a_loopback_http_origin": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "verbs::doctor_tests::w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim": {
+      "peak_process_fds": 658,
+      "result": "ok"
+    },
+    "verbs::init::expo_core_derivation_removes_complete_server_declarations": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::releases::tests::serving_defaults_loopback_and_requires_cleartext_acknowledgement": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros": {
+      "peak_process_fds": 541,
+      "result": "ok"
+    },
+    "verbs::run_admission::tests::compilation_uses_captured_bytes_through_an_aba_source_edit": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::run_admission::tests::only_typed_sqlite_locks_are_retryable": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::test_fixture::column_tests::residency_fixture_import_rebuilds_poisoned_columns": {
+      "peak_process_fds": 541,
+      "result": "ok"
+    },
+    "verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics": {
+      "peak_process_fds": 476,
+      "result": "ok"
+    },
+    "verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::naming_tests::prepared_scenario_scope_is_explicit": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease": {
+      "peak_process_fds": 541,
+      "result": "ok"
+    },
+    "verbs::witness::preparation::tests::startup_binds_each_independent_identity": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime": {
+      "peak_process_fds": 0,
+      "result": "ok"
+    },
+    "verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock": {
+      "peak_process_fds": 541,
+      "result": "ok"
+    }
+  }
+}

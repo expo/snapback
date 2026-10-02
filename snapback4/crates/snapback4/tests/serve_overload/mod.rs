@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(unix)]
+mod fd_limits;
 
 #[test]
 fn a_thousand_sequential_reads_reuse_bounded_request_threads() {

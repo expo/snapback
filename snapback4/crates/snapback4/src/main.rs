@@ -173,6 +173,7 @@ mod tests {
         use std::net::TcpStream;
         use std::time::Duration;
         for (length, expect) in [(1, "Expect: 100-continue\r\n"), (2048, "")] {
+            crate::host_limits::prepare_tests();
             let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
             let address = server.server_addr().to_ip().unwrap();
             let worker = std::thread::spawn(move || {
@@ -207,6 +208,7 @@ mod tests {
             ("OPTIONS", 204, json!(null)),
             ("GET", 403, json!({ "denied": { "code": "E_AUTH" } })),
         ];
+        crate::host_limits::prepare_tests();
         let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
         let address = server.server_addr().to_ip().unwrap();
         let responses = cases.clone();

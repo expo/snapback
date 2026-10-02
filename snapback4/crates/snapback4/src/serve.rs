@@ -244,6 +244,7 @@ pub enum Mode {
 }
 
 pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited: Option<std::net::TcpListener>) -> Result<(), String> {
+    crate::host_limits::initialize();
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -255,7 +256,6 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         return Err(format!("{shown} problem{} in snapback/", if shown == 1 { "" } else { "s" }));
     }
     let dev = matches!(mode, Mode::Dev { .. });
-    snapback4_core::diagnostic!("snapback4 host: {}", crate::host_limits::describe());
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
     let replay = matches!(mode, Mode::Dev { replay: true, .. });
     let hold_effects = matches!(mode, Mode::Dev { hold_effects: true, .. });
@@ -939,7 +939,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let generation = *lock(&shared.generation);
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas, "scheduling":crate::thread_priority::diagnostics()}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
     if method == Method::Options {
         respond_empty(request, 204);

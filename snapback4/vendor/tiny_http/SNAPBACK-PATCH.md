@@ -89,3 +89,16 @@ pending-boundary cases together finished in 5.02 seconds; the corresponding
 wasm cases finished in 3.39 seconds. Parser/body limits, idle-poll detection,
 heartbeat recovery, revocation, fresh/replayed results and media checks passed.
 The complete output is `/tmp/sb4-excellence-native-boundary-full-green.log`.
+
+
+## Descriptor exhaustion (FDL, 2026-10-02)
+
+`RefinedTcpStream::new` and its abort-handle construction return I/O errors.
+The accept loop closes a connection that cannot duplicate its socket, dropping
+its connection lease and continuing to accept. Requests share one abort handle
+per connection; cloning that handle no longer duplicates an OS descriptor or
+panics while parsing a keep-alive request. Read/write shutdown semantics and
+TLS serialization remain unchanged. No connection or request admission cap is
+raised. `crates/snapback4/tests/http_emfile.rs` exhausts a subprocess's real fd
+table at the deadline, read/write and abort clone stages, then proves that the
+listener serves again. It runs in the ordinary workspace suite.

@@ -764,6 +764,7 @@ fn quick_limits() -> tiny_http::ConnectionLimits {
 
 #[test]
 fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
     let address = server.server_addr().to_ip().unwrap();
     let first = TcpStream::connect(address).unwrap();
@@ -790,6 +791,7 @@ fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
 #[test]
 fn header_and_body_deadlines_are_absolute_despite_dribbling() {
     for headers in [true, false] {
+        crate::host_limits::prepare_tests();
         let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
         let address = server.server_addr().to_ip().unwrap();
         let mut stream = TcpStream::connect(address).unwrap();
@@ -848,6 +850,7 @@ fn continue_and_final_response_have_separate_write_deadlines() {
         write_timeout: Duration::from_millis(100),
         ..quick_limits()
     };
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), limits).unwrap();
     let mut stream = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
     stream
@@ -911,6 +914,7 @@ fn unauthorized_large_posts_close_before_body_admission() {
 
 #[test]
 fn slow_readers_cannot_pin_response_writers() {
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
     let mut stream = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
     stream
@@ -940,6 +944,7 @@ fn slow_readers_cannot_pin_response_writers() {
 
 #[test]
 fn bounded_connections_do_not_queue_pipelined_requests() {
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
     let mut stream = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
     stream.write_all(b"GET /one HTTP/1.1\r\nHost: localhost\r\n\r\nGET /two HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").unwrap();

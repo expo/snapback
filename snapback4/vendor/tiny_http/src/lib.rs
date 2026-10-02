@@ -338,7 +338,7 @@ impl Server {
                             }
                         } else { None };
                         use util::RefinedTcpStream;
-                        let (read_closable, write_closable) = match ssl {
+                        let streams = match ssl {
                             None => RefinedTcpStream::new(sock),
                             #[cfg(any(feature = "ssl-openssl", feature = "ssl-rustls"))]
                             Some(ref ssl) => {
@@ -355,7 +355,17 @@ impl Server {
                             Some(ref _ssl) => unreachable!(),
                         };
 
-                        Ok(ClientConnection::new(write_closable.with_limits(state.clone()), read_closable.with_limits(state.clone()), state))
+                        // Socket duplication may fail under descriptor pressure.
+                        // Drop this connection and its lease, keeping the listener
+                        // alive; never unwind or strand recv() on a dead intake.
+                        let (read_closable, write_closable) = match streams {
+                            Ok(streams) => streams,
+                            Err(_) => continue,
+                        };
+                        match ClientConnection::new(write_closable.with_limits(state.clone()), read_closable.with_limits(state.clone()), state) {
+                            Ok(client) => Ok(client),
+                            Err(_) => continue,
+                        }
                     }
                     Err(e) => Err(e),
                 };

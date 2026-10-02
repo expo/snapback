@@ -26,40 +26,72 @@ const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
-fn dev_and_doctor_report_low_inherited_descriptor_limits() {
+fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     use std::os::unix::process::CommandExt;
     let dir = Directory::new();
-    for verb in ["doctor", "dev"] {
+    let deployment = dir.0.join("release");
+    let deployed = dir.run(&["deploy", deployment.to_str().unwrap()]);
+    assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
+    for (verb, hard_low) in [("dev", false), ("serve", false), ("dev", true)] {
         let mut command = Command::new(BIN);
-        command.arg(verb).current_dir(&dir.0);
-        if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch", "--port", "0"]); }
-        // Change only the child's inherited limit, never the test process.
-        unsafe { command.pre_exec(|| {
+        command.arg(verb).args(["--port", "0"]).current_dir(&dir.0);
+        if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch"]); }
+        else { command.arg(&deployment); }
+        unsafe { command.pre_exec(move || {
             let mut limit: libc::rlimit = std::mem::zeroed();
             if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
-            limit.rlim_cur = 64;
+            limit.rlim_cur = 64.min(limit.rlim_max);
+            if hard_low { limit.rlim_max = limit.rlim_cur; }
             if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
             Ok(())
         }); }
-        let log = dir.0.join(format!("{verb}-limits.log"));
-        let file = File::create(&log).unwrap();
-        let mut child = command.stdout(file.try_clone().unwrap()).stderr(file).spawn().unwrap();
-        if verb == "dev" {
-            let deadline = Instant::now() + SERVER_READINESS_TIMEOUT;
-            while !fs::read_to_string(&log).unwrap().contains("store: temporary") {
-                assert!(child.try_wait().unwrap().is_none(), "{}", fs::read_to_string(&log).unwrap());
-                if Instant::now() >= deadline { let _ = child.kill(); let _ = child.wait(); panic!("{}", fs::read_to_string(&log).unwrap()); }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            unsafe { libc::kill(child.id() as i32, libc::SIGTERM); }
-        }
-        wait(&mut child);
-        let text = fs::read_to_string(log).unwrap();
+        let stdout = dir.0.join("limit-stdout");
+        let stderr = dir.0.join("limit-stderr");
+        let child = command.stdout(File::create(&stdout).unwrap()).stderr(File::create(&stderr).unwrap()).spawn().unwrap();
+        let mut host = Host { child, stdout, stderr, port: 0 };
+        host.until(|h| fs::read_to_string(&h.stdout).unwrap().contains('\n'));
+        let url = fs::read_to_string(&host.stdout).unwrap().lines().next().unwrap().to_owned();
+        let text = host.log();
+        assert_eq!(text.matches("snapback4 host:").count(), 1, "{text}");
         assert!(text.contains("HTTP connections=128; uploads=2"), "{text}");
-        assert!(text.contains("soft=64"), "{text}");
-        assert!(text.contains("E_HTTP_LIMIT"), "{text}");
-        assert!(text.contains("ulimit -n 1024"), "{text}");
+        assert!(text.contains("startup soft=64 target="), "{text}");
+        if hard_low {
+            assert!(text.contains("soft=64 hard=64") && text.contains("E_HTTP_LIMIT"), "{text}");
+        } else {
+            assert!(!text.contains("E_HTTP_LIMIT"), "{text}");
+            let soft = text.split("file descriptors (this process): soft=").nth(1).unwrap()
+                .split_whitespace().next().unwrap().parse::<u64>().unwrap();
+            assert!(soft >= 1024, "{text}");
+        }
+        if verb == "dev" {
+            let doctor = dir.run(&["doctor", "--url", &url, "--json"]);
+            let report: Value = serde_json::from_slice(&doctor.stdout).unwrap();
+            let lines = report["lines"].as_array().unwrap();
+            assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("startup soft=64 target="))), "{report}");
+            if hard_low { assert!(report.to_string().contains("hard=64"), "{report}"); }
+        }
+        let status = host.signal(libc::SIGTERM);
+        assert!(status.code() == Some(128 + libc::SIGTERM) || status.signal() == Some(libc::SIGTERM), "{verb}: {status}");
     }
+}
+
+#[test]
+fn offline_doctor_reports_its_inherited_limit_without_raising_it() {
+    use std::os::unix::process::CommandExt;
+    let dir = Directory::new();
+    let mut command = Command::new(BIN);
+    command.arg("doctor").current_dir(&dir.0);
+    unsafe { command.pre_exec(|| {
+        let mut limit: libc::rlimit = std::mem::zeroed();
+        if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
+        limit.rlim_cur = 64.min(limit.rlim_max);
+        if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+        Ok(())
+    }); }
+    let output = command.output().unwrap();
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("soft=64") && text.contains("E_HTTP_LIMIT"), "{text}");
+    assert!(!text.contains("startup soft="), "{text}");
 }
 
 #[test]
