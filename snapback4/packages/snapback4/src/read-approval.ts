@@ -61,6 +61,8 @@ export class ReadApprovals {
     // Swap registrations without an intermediate loading notification.
     this.drops.get(owner)?.({ loading: true });
     answer.snapshot = read;
+    const dependency = owner.dependencies?.();
+    if (dependency) owner.protectedReads.add(dependency);
     const confirmedAt = owner.since;
     const held = answer, pending = owner.pending;
     const notify = () => this.notify(owner);
@@ -90,13 +92,14 @@ export class ReadApprovals {
       let retained = answerIdentity(next) === answerIdentity(held.snapshot) ? next
         : revalidatingAnswer(held.snapshot, false, pending?.());
       if (owner.transportOffline) retained = offlineAnswer(retained, confirmedAt);
-      // @ref LLP 3000.023#10 — evidence during an authority hold bounds the
+      // @ref LLP 3000.023#12 — possible revocation during an authority hold bounds the
       // displayed answer too, even if later source replacements are already ready.
       copyEpisode(next, retained);
       return update(retained);
     };
     const release = () => {
       held.generation++;
+      if (dependency) owner.protectedReads.delete(dependency);
       expiry.release(); episode.clear();
       owner.followers.delete(follow);
       this.releases.delete(release);

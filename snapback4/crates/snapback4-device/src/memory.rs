@@ -414,11 +414,12 @@ impl DeviceStore for MemoryStore {
     }
 
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
-        Ok(MemoryTx { store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()), replacing: Cell::new(false) })
+        Ok(MemoryTx { changes: Default::default(), store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()), replacing: Cell::new(false) })
     }
 }
 
 pub struct MemoryTx<'a> {
+    changes: RefCell<snapback4_core::revocation::Recorder>,
     store: &'a MemoryStore,
     undo: RefCell<Vec<Undo>>,
     savepoints: RefCell<Vec<(String, usize)>>,
@@ -428,6 +429,7 @@ pub struct MemoryTx<'a> {
 // @ref LLP 3000.007#20.4 — the pricing scanner requires canonical row images at entry.
 impl MemoryTx<'_> {
     fn put_image(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>, image: Image) -> Result<u64, RuntimeError> {
+        self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let id = row.field("id")?.as_str()?.to_owned(); #[cfg(debug_assertions)] debug_assert_eq!(&*image, stored(row));
         let keys = snapback4_core::rows::index_write(table_name, table, row, old, &id)?;
         let tails = Key::tails(&id);
@@ -579,6 +581,7 @@ impl MemoryTx<'_> {
 }
 
 impl Rows for MemoryTx<'_> {
+    fn change_footprint(&self) -> snapback4_core::revocation::Footprint { self.changes.borrow().footprint() }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.store.state.borrow().rows.get(&(table.to_owned(), id.to_owned())).map(|row| parsed("row", row)).transpose()
     }
@@ -644,6 +647,7 @@ impl Rows for MemoryTx<'_> {
         self.put_image(table_name, table, row, old, stored(row).into())
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?.to_owned();
         let mut removed = 0;
         for (index_name, index) in &table.indexes {
@@ -692,6 +696,7 @@ impl DeviceTx for MemoryTx<'_> {
         Ok(())
     }
     fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        self.changes.borrow_mut().widen();
         let mark = {
             let mut savepoints = self.savepoints.borrow_mut();
             let at = savepoints.iter().rposition(|(n, _)| n == name).ok_or_else(|| RuntimeError::Store(format!("no savepoint {name}")))?;
@@ -721,6 +726,7 @@ impl DeviceTx for MemoryTx<'_> {
         Ok(())
     }
     fn clear_rows(&self) -> Result<(), RuntimeError> {
+        self.changes.borrow_mut().widen();
         let keys: Vec<(String, String)> = self.store.state.borrow().rows.keys().cloned().collect();
         for key in keys {
             self.set_row(key, None);

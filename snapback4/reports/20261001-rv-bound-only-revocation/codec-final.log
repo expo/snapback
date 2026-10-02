@@ -1,0 +1,21 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 9.36s
+     Running tests/codec.rs (target/debug/deps/codec-4bf756b1631274cc)
+
+running 12 tests
+test cursor_tokens_keep_the_old_bytes_in_both_directions ... ok
+test owned_argument_errors_do_not_claim_positions_in_synthetic_text ... ok
+test counting_writer_keeps_exact_meter_bytes ... ok
+test old_store::literal_old_memory_store_opens_without_record_rewrites ... ok
+test old_store::newly_written_records_decode_with_the_old_plain_serde_apis ... ok
+test owned_adapters_keep_programmatically_built_deep_trees ... ok
+test defaults_custom_formats_variants_and_tagged_values ... ok
+test page_fast_path_keeps_json_validation_inside_unknown_fields ... ok
+test constructed_field_maps_keep_the_baseline_tagged_bytes ... ok
+test text_page_and_baseline_dispatch_agree_including_duplicate_keys_and_refusals ... ok
+test old_store::old_sqlite_store_opens_from_pre_funnel_values ... ok
+test reference_backends_and_loadable_corpus_keep_their_derive ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s

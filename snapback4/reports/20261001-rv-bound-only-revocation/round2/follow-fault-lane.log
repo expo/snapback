@@ -1,0 +1,17 @@
+✔ every delivery await is explicitly classified (148.158452ms)
+✔ 47 persistent: local.ts:850 follow (477.881223ms)
+✖ packages/snapback4/test/delivery-fault-matrix.test.mjs (112156.054279ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112160.757907
+
+✖ failing tests:
+
+test at packages/snapback4/test/delivery-fault-matrix.test.mjs:1:1
+✖ packages/snapback4/test/delivery-fault-matrix.test.mjs (112156.054279ms)
+  'Promise resolution is still pending but the event loop has already resolved'

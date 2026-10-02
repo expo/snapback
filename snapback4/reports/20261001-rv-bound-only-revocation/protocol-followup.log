@@ -1,0 +1,71 @@
+✔ web-reachable typed JSON calls all use the codec funnel (450.469067ms)
+✔ census kills parse, encoded, MQ components and container regressions (1730.563378ms)
+✔ allowlist binds the exact line to its sqlite function and consumes it once (0.630405ms)
+✔ census rejects typed imports, crate aliases, pretty writers and deserializer constructors (0.257507ms)
+✔ census includes wire and engine read mutants (873.297067ms)
+✔ census refuses an owned decode bypassing parse on the fast route (441.860258ms)
+✔ census refuses encoded reverting to an aliased owned serializer (425.018504ms)
+✔ module cfg declarations exclude only their files and subtrees (0.859649ms)
+✔ comments and literals are inert, dynamic envelope imports stay legal (0.627371ms)
+✔ every typed entry point is refused in qualified, imported and grouped forms (1.419528ms)
+✔ sqlite exceptions cannot move into a web function or lose their cfg (10559.118429ms)
+✔ existing refusal exceptions are exact, function-bound and consumed once (81.630108ms)
+✔ cfg quoted in a doc attribute cannot hide a web call (0.225198ms)
+✔ content representations require a decoder and cannot hide in whitespace or cfg_attr (30.509496ms)
+✔ representation exceptions require the exact sqlite decoder and are consumed once (298.692354ms)
+✔ the JSON funnel exception does not exempt content representations (0.228152ms)
+✔ content decoder aliases, qualified derives and macro output cannot evade the census (0.924847ms)
+✔ serde derive import policy refuses renames and re-exports at the import (0.36693ms)
+✔ three-file Deserialize collision is refused at its serde aliases (0.223655ms)
+✔ three-file indirect Serialize alias is refused at its serde re-export (0.202494ms)
+✔ macro representation refuses unresolvable derive crate::prelude::Deserialize (0.316795ms)
+✔ macro representation refuses unresolvable derive $derive (0.205618ms)
+✔ plain serde imports including trait paths stay accepted (0.173249ms)
+✔ derive classification is lexical per item and only restricts unknowns with representations (0.894531ms)
+✔ renaming the serde crate is refused, so a decoder cannot hide under a trusted name (0.394992ms)
+✔ a representation needs a visible, reviewed, decoder-free derive list on the same item or macro body (0.465478ms)
+✖ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (169.253324ms)
+✔ write authority: the client sends a queued unheld upsert without planting a pending row (5160.056804ms)
+✔ write authority: check --cost prints the bounded uniform pass and its examined ceiling (140.460891ms)
+✔ write authority: a lost readable key-collision reply cannot recover its key after revocation (144.758755ms)
+✔ replay card: online keeps a lost response's same-id receipt and fresh result (467.137898ms)
+✔ replay card: local keeps a lost response's same-id receipt and fresh result (1321.983364ms)
+✔ online sign-out revokes its bearer and clears the client even without a link (3.565727ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 32
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14979.95166
+
+✖ failing tests:
+
+test at packages/snapback4/test/write-authority.test.mjs:68:1
+✖ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (169.253324ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'generation',
+      'head',
+      'id',
+  +   'preserved',
+      'result',
+      'seq',
+      'state',
+      'store_id'
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/write-authority.test.mjs:74:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'generation', 'head', 'id', 'preserved', 'result', 'seq', 'state', 'store_id' ],
+    expected: [ 'head', 'id', 'result', 'seq', 'state', 'store_id' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,24 @@
+✔ durable-only dev adoption answers a held legacy poll with the new generation within 500 ms (494.234974ms)
+✔ online: durable-only changes retain base wire bytes plus the preservation certificate (2164.683247ms)
+✔ online: adoption replaces mounted ephemeral interests, including removal (1385.84876ms)
+✔ wasm: durable-only changes retain base wire bytes plus the preservation certificate (3739.306466ms)
+✔ wasm: adoption replaces mounted ephemeral interests, including removal (1007.219641ms)
+✔ a self-invalidating guard is sent twice and returns its second refusal (169.831566ms)
+✔ online: a durable mounted watch discovers ephemeral capability on adoption (745.496807ms)
+✔ wasm: a durable mounted watch discovers ephemeral capability on adoption (823.673078ms)
+✔ online capability discovery cannot swallow a generation invalidation for durable watches (23.631913ms)
+✔ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (236.485655ms)
+✔ write authority: the client sends a queued unheld upsert without planting a pending row (5198.394997ms)
+✔ write authority: check --cost prints the bounded uniform pass and its examined ceiling (173.829078ms)
+✔ write authority: a lost readable key-collision reply cannot recover its key after revocation (166.991408ms)
+✔ replay card: online keeps a lost response's same-id receipt and fresh result (425.927806ms)
+✔ replay card: local keeps a lost response's same-id receipt and fresh result (1233.452989ms)
+✔ online sign-out revokes its bearer and clears the client even without a link (2.005817ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10719.725822

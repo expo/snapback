@@ -1,0 +1,28 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 8.63s
+     Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-5400aed0af4b4cc4)
+
+running 5 tests
+
+thread 'asset_and_once_consumption_cover_every_viewer' (3327526) panicked at crates/snapback4-lang/tests/revocation_soundness.rs:320:9:
+MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_INPUT", family: "input", message: "E_INPUT: photo must be image <=1000, not an object", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 0, heap_bytes: 0, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test asset_and_once_consumption_cover_every_viewer ... FAILED
+test ownership_transfer_cannot_certify_previously_disclosed_fields ... ok
+test filter_exit_limit_displacement_and_private_value_edits_preserve_disclosure ... ok
+RV mutations: seeds=[52560001, 52560002, 5256cafe, 5256beef]; steps=512; commits=572; maintenance_calls=275; preserving_limit_changes=63; certified checks=1614; retained rows=3696; retained fields=19096; row losses=306; field losses=27; deadline losses=1002; failures=0
+test real_mutations_maintenance_and_ordered_limit_model ... ok
+test certified_commits_preserve_rows_and_fields_across_the_corpus has been running for over 60 seconds
+RV corpus: seeds=[52560001, 52560002, 5256cafe, 5256beef]; viewers=["a", "b", "dev:alice", "dev:bob", "outsider", "service:auditor"]; schemas=90; no-durable-table schemas=1; commits=11520; certified checks=601860; retained rows=885943; retained fields=3254742; row losses=8062; field losses=16; deadline losses=242; failures=0
+test certified_commits_preserve_rows_and_fields_across_the_corpus ... ok
+
+failures:
+
+failures:
+    asset_and_once_consumption_cover_every_viewer
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 94.19s
+
+error: test failed, to rerun pass `-p snapback4-lang --test revocation_soundness`

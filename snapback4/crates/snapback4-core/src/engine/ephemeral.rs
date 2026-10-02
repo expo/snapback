@@ -16,12 +16,14 @@ use std::{
 pub const RING_SIZE: usize = 256;
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct Change {
+    pub preserved: Vec<String>,
     pub epoch: u64,
     pub incarnation: String,
     pub tables: Vec<String>,
 }
 #[derive(Clone, Debug)]
 pub struct Snapshot {
+    pub preserved: VecDeque<(u64, Vec<String>)>,
     pub identity: String,
     pub generation: u64,
     pub version: Version,
@@ -29,6 +31,19 @@ pub struct Snapshot {
     pub tables: Vec<String>,
 }
 impl Snapshot {
+    pub fn preserved_since(&self, epoch: u64, incarnation: &str) -> Vec<String> {
+        if incarnation != self.version.incarnation || epoch >= self.version.epoch { return vec![]; }
+        let mut result: Option<Vec<String>> = None;
+        let mut previous = epoch;
+        for (at, tables) in self.preserved.iter().filter(|(at,_)| *at > epoch) {
+            if *at != previous + 1 { return vec![]; }
+            if let Some(result) = &mut result { result.retain(|t| tables.contains(t)); } else { result = Some(tables.clone()); }
+            previous = *at;
+        }
+        if previous != self.version.epoch { return vec![]; }
+        result.unwrap_or_default()
+    }
+
     pub fn changed(
         &self,
         epoch: u64,
@@ -217,6 +232,7 @@ pub struct HubState {
     accounting: Accounting,
     version: Version,
     ring: VecDeque<(u64, Vec<String>)>,
+    preserved: VecDeque<(u64, Vec<String>)>,
     publisher: Option<Arc<dyn Fn(Snapshot) + Send + Sync>>,
 }
 impl HubState {
@@ -237,6 +253,7 @@ impl HubState {
                 incarnation: incarnation(),
             },
             ring: VecDeque::new(),
+            preserved: VecDeque::new(),
             publisher: None,
         }
     }
@@ -249,6 +266,7 @@ impl HubState {
             generation: self.generation,
             version: self.version.clone(),
             ring: self.ring.clone(),
+            preserved: self.preserved.clone(),
             tables: self.tables.keys().cloned().collect(),
         }
     }
@@ -411,7 +429,7 @@ impl Engine {
         let mut hub = self.ephemeral.lock()?;
         self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
         hub.bind(&identity, generation, &self.schema)?;
-        hub.sweep(now)?;
+        let swept = hub.sweep(now)?;
         let epoch = hub
             .version
             .epoch
@@ -439,15 +457,19 @@ impl Engine {
         // End the durable read while the undo guard still exists. Dropping Tx
         // afterward is harmless: its SQLite transaction is already rolled back.
         tx.conn().execute_batch("ROLLBACK")?;
+        let preserved = if swept == 0 { layer.footprint().preserved(&self.schema) } else { vec![] };
         layer.commit();
         drop(layer);
         accounting.apply(plan);
         hub.version.epoch = epoch;
         hub.ring.push_back((epoch, tables.clone()));
+        hub.preserved.push_back((epoch, preserved.clone()));
         if hub.ring.len() > RING_SIZE {
             hub.ring.pop_front();
+            hub.preserved.pop_front();
         }
         let ephemeral = Change {
+            preserved,
             epoch,
             incarnation: hub.version.incarnation.clone(),
             tables,

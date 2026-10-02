@@ -1,0 +1,10 @@
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.38s
+     Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-5400aed0af4b4cc4)
+
+running 1 test
+RV soundness: seeds=[52560001, 52560002, 5256cafe, 5256beef]; schemas=89; no-durable-table schemas=1; commits=11392; certified viewer/table checks=300666; retained authorized ids=485915; revoking losses covered=4990; failures=0
+test certified_commits_preserve_authorized_row_ids_across_the_corpus ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.94s

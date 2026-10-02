@@ -1,0 +1,66 @@
+✔ wasm: a closed raw local observation still latches its row deadline (591.932349ms)
+✔ wasm: a closed raw local observation still latches its episode deadline (173.620868ms)
+✔ process: a closed raw local observation still latches its row deadline (219.062406ms)
+✔ process: a closed raw local observation still latches its episode deadline (210.178849ms)
+✔ wasm: preserving retention survives one second but not its exact row expiry (178.130609ms)
+✔ process: preserving retention survives one second but not its exact row expiry (240.441903ms)
+✔ online: preserving retention survives one second but not its exact row expiry (181.710475ms)
+✔ wasm keep=undefined: expiry withdraws across apply with the replacement held (187.820304ms)
+✔ wasm keep=undefined: expiry withdraws across admit with the replacement held (211.364566ms)
+✔ wasm keep=undefined: expiry withdraws across settle with the replacement held (189.237067ms)
+✔ wasm keep=true: expiry withdraws across apply with the replacement held (188.2379ms)
+✔ wasm keep=true: expiry withdraws across admit with the replacement held (191.683014ms)
+✔ wasm keep=true: expiry withdraws across settle with the replacement held (190.041192ms)
+✔ wasm keep: a failure re-read after non-policy change preserves the original expiry (185.895067ms)
+✔ wasm keep: remount keeps the lingering watch's deadline (169.761653ms)
+✔ wasm keep: remount rejects an expired answer (161.973338ms)
+✔ process keep=undefined: expiry withdraws across apply with the replacement held (234.938334ms)
+✔ process keep=undefined: expiry withdraws across admit with the replacement held (245.947516ms)
+✔ process keep=undefined: expiry withdraws across settle with the replacement held (248.708855ms)
+✔ process keep=true: expiry withdraws across apply with the replacement held (233.467228ms)
+✔ process keep=true: expiry withdraws across admit with the replacement held (233.907929ms)
+✔ process keep=true: expiry withdraws across settle with the replacement held (241.135623ms)
+✔ process keep: a failure re-read after non-policy change preserves the original expiry (227.484801ms)
+✔ process keep: remount keeps the lingering watch's deadline (208.006192ms)
+✔ process keep: remount rejects an expired answer (214.18229ms)
+✔ online keep=undefined: expiry withdraws across notification with the replacement held (177.726843ms)
+✔ online keep=true: expiry withdraws across notification with the replacement held (174.586096ms)
+✔ online keep: a loading re-read after non-policy change preserves the original expiry (166.335047ms)
+✔ online keep: a failure re-read after non-policy change preserves the original expiry (74.144864ms)
+✔ online keep: remount keeps the lingering watch's deadline (58.753983ms)
+✔ online keep: remount rejects an expired answer (71.481031ms)
+✔ mounted history: insert, keep=undefined, replacement held beyond one second (46.185102ms)
+✔ mounted history: delete, keep=undefined, replacement held beyond one second (33.283542ms)
+✔ mounted history: legacy, keep=undefined, replacement held beyond one second (32.12821ms)
+✔ mounted history: malformed, keep=undefined, replacement held beyond one second (32.220799ms)
+✔ mounted history: opaque, keep=undefined, replacement held beyond one second (32.606106ms)
+✔ mounted history: insert, keep=true, replacement held beyond one second (32.236863ms)
+✔ mounted history: delete, keep=true, replacement held beyond one second (31.116484ms)
+✔ mounted history: legacy, keep=true, replacement held beyond one second (32.083603ms)
+✔ mounted history: malformed, keep=true, replacement held beyond one second (33.380237ms)
+✔ mounted history: opaque, keep=true, replacement held beyond one second (33.605775ms)
+✔ safe evidence retains through retry exhaustion; later revoking evidence still bounds it (178.256347ms)
+✔ facade-held A keeps its dependencies after source B changes tables (3.913637ms)
+✔ mutation acknowledgement: insert (16.89756ms)
+✔ mutation acknowledgement: delete (12.517544ms)
+✔ mutation acknowledgement: generation (13.456842ms)
+✔ a failed safe reread preserves the displayed answer dependency plan for the next safe event (32.629682ms)
+✔ private-field transfer: real docs via ack withdraws disclosure (216.347515ms)
+✔ private-field transfer: real docs via changes withdraws disclosure (182.504425ms)
+✔ private-field transfer: real messages via ack withdraws disclosure (182.330414ms)
+✔ private-field transfer: real messages via changes withdraws disclosure (180.29354ms)
+(node:41214) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+﹣ published 0.2.33 capability fence: timeline-v2 (0.579989ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: recorded-attribution (0.099589ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: maintained-column (0.891656ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 control: capability-free bytes and stores stay compatible (0.074412ms) # the published 0.2.33 native witness requires darwin-arm64
+✔ RV publication allowance is confined to commit evidence (9.982173ms)
+ℹ tests 56
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 6408.323749

@@ -187,7 +187,11 @@ for (const boundary of ['row expiry', 'reset']) test(`queued observation still w
 });
 
 for (const tier of ['wasm', 'process']) test(`${tier}: a local active attempt has its own bounded episode and accepts late success`, async t => {
-  const { url, dir } = await server(t, '', readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8'));
+  // RV: this deadline control revokes ownership; ordinary label edits retain.
+  const schema = readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8')
+    .replace('update <- .owner = viewer', 'update <- allow')
+    .replace('update cards[id] { label }', "update cards[id] { label, owner: 'dev:bob' }");
+  const { url, dir } = await server(t, '', schema);
   await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'cards', row: { id: 'c0', slot: 0, owner: 'dev:alice', label: 'original' } }]) });
   const base = device(tier, dir), gate = Promise.withResolvers(); let hold = false, started;
   const client = await createLocalClient({ url, persona: 'alice', device: { async open(...args) {
@@ -213,7 +217,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: a local active attempt ha
   wall++; assert.deepEqual(watch.getSnapshot(), { loading: true });
   assert.equal(owner.resetVersion, reset, 'episode withdrawal does not reset the active attempt');
   hold = false; gate.resolve();
-  await until(() => watch.getSnapshot().data?.label === 'changed' && !watch.getSnapshot().revalidating);
+  await until(() => watch.getSnapshot().data === null && !watch.getSnapshot().revalidating);
 });
 
 for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, true]) {

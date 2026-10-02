@@ -190,8 +190,15 @@ fn text_page_and_baseline_dispatch_agree_including_duplicate_keys_and_refusals()
         let mut owned_current = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
         let expected = baseline_page_call(&mut owned, serde_json::from_str(text).unwrap());
         let actual = snapback4_device::call::call_text(&mut direct, text);
-        assert_eq!(actual, expected, "{text}");
-        assert_eq!(snapback4_device::call::call(&mut owned_current, serde_json::from_str(text).unwrap()), expected, "owned: {text}");
+        assert_eq!(snapback4_device::call::call(&mut owned_current, serde_json::from_str(text).unwrap()), actual, "owned: {text}");
+        let mut legacy = actual.clone();
+        // RV adds only this outer certificate to successful apply. Snapshots
+        // cannot certify retention; the frozen codec payload remains identical.
+        if let Some(preserved) = legacy.as_object_mut().and_then(|o| o.remove("preserved")) {
+            assert_eq!(preserved, json!([]), "snapshot certificate: {text}");
+            assert!(legacy.get("ok").is_some() && text.contains("apply"));
+        }
+        assert_eq!(legacy, expected, "{text}");
         assert_eq!(direct.state().unwrap(), owned.state().unwrap());
         let rows = |device: &Device<MemoryStore>| device.store().export().into_iter().filter(|c| c.s == 'r').collect::<Vec<_>>();
         assert_eq!(rows(&direct), rows(&owned));

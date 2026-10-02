@@ -81483,3 +81483,133 @@ headroom). No byte increase or budget raise was needed. Report, qualification
 scripts, stage tables, input checksums, negative controls and retained traces:
 reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-02 — RV round 0: only possible revocation bounds a live answer
+
+Compiled authorization dependencies and bounded net transaction evidence now
+certify ordinary inserts and non-policy updates across local commits, online
+acknowledgements, durable/ephemeral changes and sync publications. Those answers
+retain while revalidating, including through failed retries. Unknown evidence,
+deletes, policy inputs, scope loss and identity/expiry fences retain their
+existing protection. Facade-held answers retain their own dependency plans;
+failed evaluations do not replace a displayed plan. No author option was added.
+LLP 3000.023 §12 and LLP 3000.019 §3.3 record the narrowed premise; package and
+guide prose teach the same rule.
+
+The four-seed engine model covers 89 schemas and 11,392 commits: 300,666
+certified viewer/table checks, 485,915 retained authorized IDs, zero violations.
+Real Chromium/wasm qualification holds eight reads with 24 competitors beyond
+1.5 seconds: no loading, all surfaces revalidating, eventual convergence;
+delete/unsend/rule-column controls withdraw within the existing bound and
+membership loss is immediate. Whole guide: 110/110. Final affected retention
+checks: 95/95. Complete suite: `== 1 failure(s) in 1459 s` (the new regression
+ran before its final fix; its rebuilt follow-up passes). All 79 client-model
+tests pass. Every failure, including
+the capacity-interrupted initial invocation, are in the
+[report](./reports/20261001-rv-bound-only-revocation/REPORT.md) and its failure ledger.
+
+Wasm is 2,032,740 bytes raw / 610,046 gzip; the authorized ratchet is 610,546,
+leaving 500 bytes of headroom. **Publication fence:** only top-level `preserved`
+on successful apply/admit/settle is added to the reply allowance. Existing
+payloads and query replies stay exact. The operator must run the published
+0.2.33 comparison on darwin-arm64; Linux skips those four cases. Server evidence
+metadata is created on commit, so opening an old native device does not migrate
+its store. Committed locally with the requested Astra trailer; nothing pushed
+or published.
+
+## 2026-10-02 — RV round 1: preserving includes field disclosure
+
+Resolved Astra and Grok's round-0 findings on 87ec64d872. The shared classifier
+now treats each non-audience written-by owner column as an authorization input;
+private value edits remain ordinary staleness. The audit found no other missing
+per-reader field-disclosure decision. Server evidence retains the last 1,000
+commits, pruned in the committing transaction, with old intervals widening.
+The publication allowance requires successful apply/admit/settle envelopes,
+at most 256 strings, and at most 128 characters per string. Postgres still has
+no change summaries or preservation certificates. LLP 3000.023 §12 records all
+four corrections and the unchanged filter/limit and hard-expiry boundaries.
+
+The oracle now compares rows and disclosed field sets for six viewers across
+four seeds. The corpus covers 90 schemas / 11,520 physical commits / 3,254,742
+retained fields. Real mutation/maintenance coverage adds 572 commits, 27 field
+losses, 1,002 deadline losses and 63 preserving limit changes. Asset controls
+exercise 32 mutations, four once consumptions and 216 access checks. The new
+oracle and four real-server/public-client ownership cases fail exact round-0
+source in an isolated rebuilt checkout and pass the corrected lane. All 20
+RV client cases, 31 expiry cases and 110 guide cases pass. Chromium retains all
+four surfaces beyond 1.5 seconds and passes each revocation control.
+
+At 10,000 updates, evidence falls from 10,000 summaries / 909,993 JSON bytes /
+1,028,096 SQLite bytes to 1,000 / 91,000 / 110,592, staying there at 20,000.
+Three-trial steady segment means are 86.250 us/commit before, 72.519 after;
+shared-host timings are measurements, not causal speedup claims.
+
+The single full suite finished `== 1 failure(s) in 1429 s`, naming `cargo test`.
+Its two failures (allocation probe and search work count) reproduce identically
+on clean 87ec64d872. All 5,766 client tests and 79 client-model tests pass;
+ten client tests skip. Final qualification: ours 0, baseline 2 tests / 1 phase,
+environmental 0. The failure ledger also records corrected test-fixture errors
+and deliberate negative controls without relabeling the full run green.
+
+Locked wasm: 2,032,879 B raw / 610,174 B gzip (+139 / +128). The device needs
+the owner-column walk because local replay effects are invisible to a server
+interval. The authorized cap is 610,782 B: 500 B above an estimated 610,282 B
+macOS artifact using round 0's measured 108 B host difference. Round-1 macOS
+remains unmeasured in this Linux lane; the report distinguishes that estimate
+from the operator's actual round-0 610,154 B and 5/5 publication-fence result.
+Runtime ceilings are unchanged. The report and all failure/control evidence
+are in reports/20261001-rv-bound-only-revocation/REPORT.md and round1/.
+Committed locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-10-02 — RV round 2: initialize evidence before commits
+
+Astra's remaining P1 was ours. Round 1's “ours 0; baseline 2” attribution was
+wrong: 87ec64d872 already contained round 0's lazy `_change_evidence` DDL.
+That comparison excluded pruning as the cause but did not exclude this lane.
+Creating the table in the first commit invalidated SQLite read plans, causing
+the allocation probe's 13,240 B / 8,192 B failure and the search comparison's
+extra call, payload operation and four VM steps. The round-1 report and this
+journal's earlier entry remain intact; the round-2 report corrects them.
+
+Server writable open and in-memory creation now initialize the evidence table
+before returning the store. Native `open_shared` keeps common initialization
+without adding server evidence; read-only open also remains non-migrating.
+An existing server without evidence metadata gains the empty table at open.
+Insertion and pruning remain DML in the commit transaction. LLP 3000.023 §12
+now records this lifecycle.
+
+The new regressions failed on round-1 code: commit 1 changed schema version
+63 to 64, and legacy server open omitted the table. They now prove unchanged
+schema version and zero cached-statement reprepares across commits, pruning
+and rollback, plus legacy server migration, native/read-only preservation
+and idempotent reopen. All three history tests pass; the cost benchmark stays
+explicitly ignored. Both original performance tests pass unchanged on the
+fix and on freshly fetched main 0f516b3241200321d073861c75a3f1a9311ae04d.
+
+Soundness passes 5/5 with the same 11,520-commit corpus, including field sets;
+guide 110/110, classifier 3/3, codec 12/12, public RV 20/20, expiry 31/31 and
+the publication allowance pass. Four darwin-only comparisons skip on Linux.
+Real Chromium/wasm keeps eight held rereads and 24 competitors revalidating
+at 1,501 ms with no loading publication, then converges; all revocation
+controls withdraw. The operator supplied round 1's macOS fence 5/5 and
+610,238 B gzip. This round's Linux wasm is unchanged: 2,032,879 B raw /
+610,174 B gzip, against the unchanged 610,782 B cap.
+
+One full suite finished exactly `== 1 failure(s) in 1389 s`, naming
+`client tests`. All 283 Rust binaries / 996 executions plus doctests and all
+79 client-model tests pass, retaining 5,000 online + 5,000 local sequences and
+3,000 online-client interleavings. The client phase is 5,765 passed, one
+failed, ten skipped. The failure is `47 persistent: local.ts:850 follow`:
+the fault-matrix fixture injected zero faults. Its earlier delivery/recovery
+assertions passed. Whole-file follow-ups pass 321/321 on the lane and current
+main; three more main runs with `--test-force-exit` also pass. The cause is
+not established. Count it as ours/unresolved qualification, not baseline or
+environmental: ours 1 test / 1 phase, baseline 0, environmental 0. The full
+run remains red, and issues/20261002-snapback4-follow-fault-injection-miss.md
+records the follow-up. The ledger also records intentional negative controls
+and two interrupted diagnostic probes. No assertions or bounds were weakened.
+
+Evidence: reports/20261001-rv-bound-only-revocation/REPORT.md, FAILURES.md and
+round2/. Code/test digests stayed unchanged during qualification. Local commit
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed or published.

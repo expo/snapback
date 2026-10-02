@@ -5,7 +5,7 @@ interface Interest {
   tables: Set<string>;
   answer?: EphemeralVersion;
   floor?: EphemeralVersion;
-  invalidate(reset: boolean, changed: boolean): (() => void) | void;
+  invalidate(reset: boolean, changed: boolean, preserved?: unknown): (() => void) | void;
   incomplete?: ReturnType<typeof setInterval>;
 }
 export function ephemeralVersion(value: unknown): EphemeralVersion | undefined {
@@ -95,7 +95,7 @@ export class EphemeralReads {
       const tables = new Set((value as EphemeralVersion & { tables?: string[] }).tables ?? []);
       for (const interest of this.interests.values()) if ([...interest.tables].some(table => tables.has(table))) {
         if (interest.floor?.incarnation !== version.incarnation || interest.floor.epoch < version.epoch) interest.floor = version;
-        interest.invalidate(false, true)?.();
+        interest.invalidate(false, true, (value as { preserved?: unknown }).preserved)?.();
       }
     }
     return true;

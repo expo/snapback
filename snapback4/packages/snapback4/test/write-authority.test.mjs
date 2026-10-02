@@ -71,7 +71,10 @@ test("write authority: /m replay keeps only execution identity after hidden writ
   const first = await f.request("/m/put", "bob", input);
   assert.equal(first.state, "sent");
   assert.equal(first.result, null);
-  assert.deepEqual(Object.keys(first).sort(), ["head", "id", "result", "seq", "state", "store_id"]);
+  assert.deepEqual(Object.keys(first).sort(), ["generation", "head", "id", "preserved", "result", "seq", "state", "store_id"]);
+  // RV certifies only table names and generation; replay still exposes no result.
+  assert.equal(typeof first.generation, "number");
+  assert.ok(Array.isArray(first.preserved) && first.preserved.every(t => typeof t === "string"));
   const replay = await f.request("/m/put", "bob", input);
   assert.match(first.store_id, /^[0-9a-f]{32}$/);
   assert.deepEqual(replay, { state: "sent", id: "hidden", seq: first.seq, replayed: true, store_id: first.store_id, head: first.seq });

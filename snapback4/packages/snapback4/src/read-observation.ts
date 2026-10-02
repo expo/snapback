@@ -55,6 +55,9 @@ export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: 
 
 /** Retention and the subscriber-free lifetime are independent policies. */
 export class ReadObservation<T> {
+  // @ref LLP 3000.023#12 — source B cannot hide the dependencies of facade-held A.
+  dependencies?: () => { tables: ReadonlySet<string>; scopes?: import("./local-reads.ts").ReadScopes | undefined };
+  readonly protectedReads = new Set<{ tables: ReadonlySet<string>; scopes?: import("./local-reads.ts").ReadScopes | undefined }>();
   readonly retain: boolean;
   readonly linger: boolean;
   constructor(keep?: boolean) {
@@ -170,7 +173,7 @@ export class ReadObservation<T> {
     this.deliver("answer")();
   }
 
-  // Failure is not an answer. A known change still withdraws on failure;
+  // Failure is not an answer. Possible revocation still withdraws on failure;
   // plain revalidation keeps the displayed identity and all its row deadlines.
   // @ref LLP 3000.023#10 — transport loss marks existing freshness false, with no new flag.
   failed(offline = false): void {

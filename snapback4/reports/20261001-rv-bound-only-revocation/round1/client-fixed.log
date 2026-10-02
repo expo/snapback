@@ -1,0 +1,35 @@
+✔ mounted history: insert, keep=undefined, replacement held beyond one second (48.427816ms)
+✔ mounted history: delete, keep=undefined, replacement held beyond one second (31.84243ms)
+✔ mounted history: legacy, keep=undefined, replacement held beyond one second (31.744363ms)
+✔ mounted history: malformed, keep=undefined, replacement held beyond one second (31.934118ms)
+✔ mounted history: opaque, keep=undefined, replacement held beyond one second (30.993827ms)
+✔ mounted history: insert, keep=true, replacement held beyond one second (32.811384ms)
+✔ mounted history: delete, keep=true, replacement held beyond one second (31.663852ms)
+✔ mounted history: legacy, keep=true, replacement held beyond one second (30.671373ms)
+✔ mounted history: malformed, keep=true, replacement held beyond one second (31.819275ms)
+✔ mounted history: opaque, keep=true, replacement held beyond one second (31.031323ms)
+✔ safe evidence retains through retry exhaustion; later revoking evidence still bounds it (177.382924ms)
+✔ facade-held A keeps its dependencies after source B changes tables (3.694761ms)
+✔ mutation acknowledgement: insert (16.797364ms)
+✔ mutation acknowledgement: delete (13.614049ms)
+✔ mutation acknowledgement: generation (12.211065ms)
+✔ a failed safe reread preserves the displayed answer dependency plan for the next safe event (32.405905ms)
+✔ private-field transfer: real docs via ack withdraws disclosure (197.234408ms)
+✔ private-field transfer: real docs via changes withdraws disclosure (186.770563ms)
+✔ private-field transfer: real messages via ack withdraws disclosure (177.210485ms)
+✔ private-field transfer: real messages via changes withdraws disclosure (185.306167ms)
+(node:3387040) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+﹣ published 0.2.33 capability fence: timeline-v2 (0.605107ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: recorded-attribution (0.10014ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: maintained-column (0.077476ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 control: capability-free bytes and stores stay compatible (0.783586ms) # the published 0.2.33 native witness requires darwin-arm64
+✔ RV publication allowance is confined to commit evidence (7.087781ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 1680.637379

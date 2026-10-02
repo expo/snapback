@@ -68,6 +68,14 @@ impl<'a> Layered<'a> {
     pub(super) fn changed(&self) -> Vec<(String, String)> {
         self.journal.borrow().keys().cloned().collect()
     }
+    pub(super) fn footprint(&self) -> crate::revocation::Footprint {
+        let mut out = crate::revocation::Recorder::default();
+        for ((table, id), old) in self.journal.borrow().iter() {
+            let new = self.eph.get(table,id).expect("memory read");
+            out.record(table,&self.schema.tables[table],old.as_ref(),new.as_ref());
+        }
+        out.footprint()
+    }
     pub(super) fn commit(&self) {
         self.committed.set(true);
     }

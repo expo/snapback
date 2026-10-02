@@ -1,0 +1,9 @@
+    Finished `test` profile [optimized] target(s) in 0.04s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 3 tests
+test revocation::tests::widened_envelopes_never_regain_certification ... ok
+test revocation::tests::insert_body_update_and_net_prediction_replay_preserve_authority ... ok
+test revocation::tests::delete_rule_input_and_rule_column_stay_revoking ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
