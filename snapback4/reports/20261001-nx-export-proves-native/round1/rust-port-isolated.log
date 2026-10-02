@@ -1,0 +1,17 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.15s
+     Running tests/witness.rs (target/debug/deps/witness-7a40c661994c7d64)
+
+running 1 test
+test driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 8.13s
+

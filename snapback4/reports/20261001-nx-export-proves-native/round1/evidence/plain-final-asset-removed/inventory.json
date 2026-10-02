@@ -1,0 +1,207 @@
+[
+  {
+    "name": "before-install-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "before-install-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "build.json",
+    "sha256": "6845789de0a82ccb33f5e6a416f362ab66c9b0a033a8d212b5b2ed7628c1dea9",
+    "bytes": 37148
+  },
+  {
+    "name": "check-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "check-stdout.log",
+    "sha256": "7b7ba40cf4cd95a8bc52194cae0bed6ad728e3128b5faeda777e30f180339edf",
+    "bytes": 492
+  },
+  {
+    "name": "export-copy-base.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "export-developer.log",
+    "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+    "bytes": 93
+  },
+  {
+    "name": "export-pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "bytes": 7
+  },
+  {
+    "name": "export-ruby-version.log",
+    "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+    "bytes": 72
+  },
+  {
+    "name": "export-sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "bytes": 7
+  },
+  {
+    "name": "export-sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+    "bytes": 117
+  },
+  {
+    "name": "export-sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "bytes": 5
+  },
+  {
+    "name": "export-tool-ld.log",
+    "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+    "bytes": 90
+  },
+  {
+    "name": "export-tool-swift-frontend.log",
+    "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+    "bytes": 102
+  },
+  {
+    "name": "export-tool-swiftc.log",
+    "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+    "bytes": 94
+  },
+  {
+    "name": "export-xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "bytes": 33
+  },
+  {
+    "name": "finished.json",
+    "sha256": "4d16e1846d4b888b066e86dd7c660bc2652bfe9ab9733b2678f3661c915988dd",
+    "bytes": 28
+  },
+  {
+    "name": "installed.json",
+    "sha256": "fc7b126a3b147c51314fa10fd373f32b9b029aeafdefd207417fb30a320ed957",
+    "bytes": 20273
+  },
+  {
+    "name": "plugin-audit.json",
+    "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+    "bytes": 341713
+  },
+  {
+    "name": "preparation-phases.json",
+    "sha256": "0f992d2e939b93e44297ef86122fafb322c69e2348ef9056bac799cab65cdffb",
+    "bytes": 4706
+  },
+  {
+    "name": "preparation-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "preparation-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "proof.json",
+    "sha256": "3f52f166fc068e116a1817236711272e241fe5ec46ef6009e0931f8dde6db61a",
+    "bytes": 55022
+  },
+  {
+    "name": "smoke-ios-backend-stdout.log",
+    "sha256": "c1698799769ef8436839cb8e8ca9925fb30de3196e48dc2167d5a69ab34ed6d3",
+    "bytes": 46
+  },
+  {
+    "name": "smoke-ios-backend.log",
+    "sha256": "dc278882e6fe60f80244e2736bb46e6fe82da1e327cc395e5be069183794aae9",
+    "bytes": 1770
+  },
+  {
+    "name": "smoke-ios-device.log",
+    "sha256": "98507326d6db802ad51b323fc8e395a660764d7c95baf89d4e756f9eda76644c",
+    "bytes": 7908644
+  },
+  {
+    "name": "smoke-ios-launch.log",
+    "sha256": "7b67965441de183df88bf8680870399a915f526b22a0ae6e9ffd3b0b8856e095",
+    "bytes": 78
+  },
+  {
+    "name": "smoke-ios-log-stderr.log",
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "bytes": 44
+  },
+  {
+    "name": "smoke-ios-receipts.jsonl",
+    "sha256": "59762011c96889b1fedf6fef48447c95bd4d7ec9dac9a3d1c1bf19a6ec44c83e",
+    "bytes": 6168
+  },
+  {
+    "name": "smoke-ios-run.json",
+    "sha256": "f2308ba1cffab4408ccd8bd846f052a1f4102c3ddb7cada8249e63eb4a1961cc",
+    "bytes": 17531
+  },
+  {
+    "name": "smoke-ios-video.log",
+    "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954",
+    "bytes": 131
+  },
+  {
+    "name": "verify-collection-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-collection-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-install-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-install-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-offline-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-offline-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-prime-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-prime-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-restart-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-restart-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+]

@@ -339,7 +339,9 @@ mod driver {
             assert_eq!(receipt["simulator"]["selection"], "created");
             assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_SIMULATOR:"), "{mode}: {receipt}");
             let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
-            assert_eq!(calls.last().unwrap()[0], if mode.ends_with("boot-fails") { "boot" } else { "bootstatus" });
+            assert_eq!(calls[calls.len() - 2][0], if mode.ends_with("boot-fails") { "boot" } else { "bootstatus" });
+            assert_eq!(calls.last().unwrap()[0], "delete");
+            assert_eq!(receipt["simulator"]["deleted"], true);
             assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
             assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
             assert!(receipt["simulator"]["name"].as_str().unwrap().starts_with("snapback4-smoke-"));
@@ -434,6 +436,29 @@ mod driver {
         let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
         assert_ne!(receipt["phase"], "environment");
         assert!(receipt["error"].as_str().unwrap().contains("backend check failed"));
+    }
+    #[test]
+    fn export_selection_interrupt_and_ownership_failures_are_not_skips() {
+        for mode in ["interrupt-selection", "invalid-selection", "auto-create-owner-fails", "auto-create-delete-fails", "auto-create-interrupt"] {
+            let fixture = Fixture::new();
+            if mode.starts_with("auto-create") {
+                fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
+            let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"])
+                .env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert!(receipt["environmentCondition"].is_null(), "{mode}: {receipt}");
+            if mode.contains("interrupt") { assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_INTERRUPTED:"), "{receipt}"); }
+            if mode.starts_with("auto-create") {
+                if mode == "auto-create-delete-fails" {
+                    assert_eq!(receipt["simulator"]["deleted"], false);
+                    assert!(receipt["error"].as_str().unwrap().contains(fixture.0.file_name().unwrap().to_str().unwrap()));
+                } else { assert_eq!(receipt["simulator"]["deleted"], true, "{receipt}"); }
+            }
+            assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
+        }
     }
     #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {

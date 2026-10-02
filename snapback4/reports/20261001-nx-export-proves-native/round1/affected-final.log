@@ -1,0 +1,94 @@
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (37.842125ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.239542ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (120.774042ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (25.895208ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (126.792ms)
+✔ negative header topology follows SDK root aliases (1.380958ms)
+✔ audited resolved plugin bytes exclude JS; same-name forks and nonregistry installs bind it (1225.311333ms)
+✔ config file references bind excluded source bytes and refuse external paths (3.605333ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (7.386333ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (436.274583ms)
+✔ react-native.config.mjs refuses through the real static preparation adapter (50.473958ms)
+✔ Retired Following installer and orphan options preserve fresh and existing directory trees (435.538833ms)
+✔ Removed search recipe gets the ordinary unknown-recipe refusal (7.196666ms)
+✔ CCP expo generated intent transitions (169.030541ms)
+✔ CCP web generated intent transitions (21.689042ms)
+✔ dev: offline and live piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token (751.777541ms)
+ℹ token dev offline default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev offline --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev offline --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev offline --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev live default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev live --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev live --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev live --json: stdout 44 B; redeemed session queried as member:captured
+✔ serve: offline and live piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token (144.255208ms)
+ℹ token serve offline default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve offline --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve offline --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve offline --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve live default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve live --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve live --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve live --json: stdout 44 B; redeemed session queried as member:captured
+✔ types prints a capturable generated path with its status on stderr (15.427708ms)
+✔ init keeps the local default and makes a compiled online starter without sync (39.223541ms)
+✔ Expo starter copies reference pins, parses configs, and carries both client tiers (29.5225ms)
+✔ expo fresh template and generated server typecheck with only declared dependencies (910.061875ms)
+✔ web fresh template and generated server typecheck with only declared dependencies (870.210666ms)
+✔ check --fix preserves ambiguous positional intent and repairs an explicit cursor index (15.9095ms)
+✔ check --fix leaves unmarked rewrites and prints the diagnostic (6.2685ms)
+✔ an elif is repaired while an ambiguous positional key needs an author choice (15.727ms)
+✔ SQL reads chat views while dev writes in WAL, refuses raw access, and bounds rows (244.624708ms)
+ℹ SQL count of 205 messages with WAL writer held: 4.81 ms
+✔ SQL attaches to a release without source and never creates a missing store (57.467209ms)
+✔ check --fix repairs every remaining guessed spelling and the repaired program runs (43.569958ms)
+✔ check --cost describes expression ranges, filtered probes, pages and seeks (11.807417ms)
+✔ processDevice requires its directory synchronously before spawning (0.415917ms)
+✔ processDevice imports without Node builtins and opens with injected host functions (28.752834ms)
+✔ CLI and Node device share environment, platform-package and repository binary resolution (271.182375ms)
+✔ processDevice defaults to Node spawn and file writing in a new directory (58.57775ms)
+✔ Expo starter selects web, native and online app devices with explicit session stores (61.311583ms)
+✔ snapback4 README uses the qualified starter smoke measurements (0.57125ms)
+✔ snapback4-expo README uses the qualified starter smoke measurements (0.210041ms)
+✔ smoke origin preserves ordinary/remote app configuration and accepts only simulator loopback (4.435916ms)
+✔ new requires an explicit template and names what init creates (5.37775ms)
+✔ social starter native: cold owner keys prove old likes and unqueried absence offline (1300.040291ms)
+✔ social starter web: cold owner keys prove old likes and unqueried absence offline (1404.630375ms)
+✔ published social starter and guide snippets typecheck against generated operations (729.746917ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (903.937ms)
+✔ social DM native: concurrent opens converge, held keys resolve offline and an offline race settles (1369.855041ms)
+✔ social DM web: concurrent opens converge, held keys resolve offline and an offline race settles (314.145959ms)
+✔ guide aliases send schedules, DMs and Expo readers to their owning cards (55.699708ms)
+✔ social proposal associations are durable, account/backend scoped and preserve every send's arguments (44.809959ms)
+✔ social starter wasm: offline history predicts in compose order and settles once with receipts (541.204958ms)
+✔ native preparation refusals omit supplied paths, targets and unexpected exception text (42.121ms)
+✔ sibling Xcode output settings refuse raw overrides and resolved outside destinations (5.702292ms)
+✔ dangling final and ancestor output links refuse before an outside file can be created (2.448666ms)
+✔ Xcode shell environment keeps executable paths literal (4.620625ms)
+✔ output audits follow symlinks before parent traversal, including within link targets (6.1165ms)
+✔ installation accepts only the measured framework execute-bit normalization (0.359041ms)
+✔ payload inventory binds bytes, paths, modes and safe relative links (2.548958ms)
+✔ source, truncated and wrong magic bundles cannot masquerade as HBC (1.472375ms)
+✔ native Xcode sources, resources and build inputs outside covered roots refuse (8.101625ms)
+✔ preparation rejects wrong HBC versions and escaping outputs before issuing a build receipt (3203.246417ms)
+✔ compiler records cover spaced and macro includes, transitive dependencies and missing coverage (8.402875ms)
+✔ all target outputs and symlink parents must stay private (6.95375ms)
+✔ Pods graph audit refuses external search paths, config includes, phase lists and scripts (19.839208ms)
+✔ linker records require products and refuse external frameworks including missing probes (2.962333ms)
+✔ prepared launch requires a native observation and preserves its hashes in the strict envelope (23.232125ms)
+✔ witness is inert without a launch; a fake container preserves receipts and gates reconnect (102.685833ms)
+✔ witness refuses malformed receipts, failed and overlapping steps, and missing signals (102.411416ms)
+✔ Expo package exports the witness and its types (0.47875ms)
+✔ receipt serialization cannot replace the witness envelope (0.373ms)
+✔ only empty launcher/update manifests permit prepared startup (0.114541ms)
+✔ starter scene plugin migrates the installed Expo template, keeps its providers and refuses custom lifecycle (8.1465ms)
+✔ starter unattended guest waits for restoration and runs once only during smoke prime (1.544708ms)
+ℹ tests 69
+ℹ suites 0
+ℹ pass 69
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6904.881667

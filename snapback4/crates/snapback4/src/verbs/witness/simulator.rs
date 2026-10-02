@@ -3,12 +3,31 @@ use super::*;
 
 const SETUP: &str = "native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)";
 
-fn list(kind: &str, timeout: Duration) -> Result<Value> {
-    let output = simctl(&["list", kind, "--json"], timeout).map_err(|e| {
-        if e.starts_with("E_WITNESS_INTERRUPTED") || e.starts_with("E_WITNESS_TIMEOUT") { e }
-        else { error("E_WITNESS_PLATFORM", SETUP) }
+// Only failures of named environment operations earn a skip. Parsing, input,
+// ownership persistence, leases and interrupts never enter this allowlist.
+fn environment<T>(result: Result<T>, preparation: &mut Value, condition: &str) -> Result<T> {
+    result.map_err(|e| {
+        if ["E_WITNESS_PLATFORM:", "E_WITNESS_SIMULATOR:", "E_WITNESS_TIMEOUT:"].iter().any(|code| e.starts_with(code)) {
+            preparation["environmentCondition"] = json!(condition);
+        }
+        e
+    })
+}
+fn list(kind: &str, timeout: Duration, preparation: &mut Value) -> Result<Value> {
+    let output = environment(simctl(&["list", kind, "--json"], timeout), preparation, "simulator-list").map_err(|e| {
+        if e.starts_with("E_WITNESS_SIMULATOR:") || e.starts_with("E_WITNESS_PLATFORM:") { error("E_WITNESS_PLATFORM", SETUP) }
+        else { e }
     })?;
     serde_json::from_str(&output).map_err(|_| error("E_WITNESS_SIMULATOR", "simctl returned invalid JSON"))
+}
+
+fn delete_created(udid: &str, preparation: &mut Value) -> Result<()> {
+    // Cancellation must not cancel rollback. Restore the flag for the caller.
+    let was_interrupted = INTERRUPTED.swap(false, Ordering::Relaxed);
+    let result = simctl(&["delete", udid], Duration::from_secs(10));
+    if was_interrupted { INTERRUPTED.store(true, Ordering::Relaxed); }
+    preparation["simulator"]["deleted"] = json!(result.is_ok());
+    result.map(|_| ()).map_err(|_| error("E_WITNESS_SIMULATOR", format!("could not delete newly created simulator {udid}; delete this exact UDID manually")))
 }
 
 fn version(text: &str) -> Vec<u32> {
@@ -55,12 +74,12 @@ fn device_type<'a>(types: &'a [Value], supported: Option<&[Value]>) -> Option<&'
 }
 
 pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value> {
-    let runtimes = list("runtimes", options.timeout)?;
+    let runtimes = list("runtimes", options.timeout, preparation)?;
     let mut available: Vec<_> = runtimes["runtimes"].as_array().into_iter().flatten()
         .filter(|r| r["isAvailable"] == true && r["identifier"].as_str().is_some_and(|id| id.starts_with("com.apple.CoreSimulator.SimRuntime.iOS-"))).collect();
-    if available.is_empty() { return Err(error("E_WITNESS_PLATFORM", SETUP)); }
+    if available.is_empty() { return environment(Err(error("E_WITNESS_PLATFORM", SETUP)), preparation, "missing-runtime"); }
     available.sort_by_key(|r| std::cmp::Reverse(version(r["version"].as_str().unwrap_or_default())));
-    let devices = list("devices", options.timeout)?;
+    let devices = list("devices", options.timeout, preparation)?;
     if let Some(id) = &options.udid {
         let (udid, runtime) = device(&devices, Some(id))?;
         if !available.iter().any(|r| r["identifier"] == runtime) { return Err(error("E_WITNESS_SIMULATOR", "the requested device's iOS runtime is unavailable")); }
@@ -86,20 +105,30 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value
         }
     }
     let runtime = available[0];
-    let types = list("devicetypes", options.timeout)?;
-    let kind = device_type(types["devicetypes"].as_array().map(Vec::as_slice).unwrap_or_default(),
+    let types = list("devicetypes", options.timeout, preparation)?;
+    let kind = environment(device_type(types["devicetypes"].as_array().map(Vec::as_slice).unwrap_or_default(),
         runtime["supportedDeviceTypes"].as_array().map(Vec::as_slice))
-        .ok_or_else(|| error("E_WITNESS_PLATFORM", SETUP))?;
+        .ok_or_else(|| error("E_WITNESS_PLATFORM", SETUP)), preparation, "missing-device-type")?;
     owners.prepare()?;
     let name = format!("{prefix}{}-{}", now(), std::process::id());
     let runtime = runtime["identifier"].as_str().unwrap();
-    let udid = simctl(&["create", &name, kind["identifier"].as_str().unwrap(), runtime], options.timeout)?;
+    let udid = environment(simctl(&["create", &name, kind["identifier"].as_str().unwrap(), runtime], options.timeout), preparation, "simulator-create")?;
     if !super::name(&udid) { return Err(error("E_WITNESS_SIMULATOR", "simctl create returned no device identifier")); }
     // Record structured cleanup identity before any fallible persistence/boot step.
     let selected = remember(preparation, json!({ "udid": udid, "name": name, "runtime": runtime, "selection": "created", "prefix": prefix }));
-    owners.write(&udid, &selected)?;
+    if let Err(problem) = owners.write(&udid, &selected) {
+        delete_created(&udid, preparation)?;
+        return Err(problem);
+    }
     eprintln!("witness: created simulator {name} ({udid}), runtime {runtime}");
-    simctl(&["boot", &udid], options.timeout)?;
-    simctl(&["bootstatus", &udid, "-b"], options.timeout)?;
+    let boot = interrupted().and_then(|_| simctl(&["boot", &udid], options.timeout))
+        .and_then(|_| simctl(&["bootstatus", &udid, "-b"], options.timeout));
+    if let Err(problem) = boot {
+        // A device created during a failed selection has no future reuse value.
+        // Delete only this invocation's identity, including on cancellation.
+        delete_created(&udid, preparation)?;
+        owners.remove(&udid)?;
+        return environment(Err(problem), preparation, "simulator-boot");
+    }
     Ok(selected)
 }

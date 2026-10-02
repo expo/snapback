@@ -81484,3 +81484,55 @@ The one owned simulator and its creation record were deleted; all lane-created
 build products and installed worktree dependencies were removed after evidence
 verification. Nothing pushed or published. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-01 — NX round 1: conservative export reuse and bounded cleanup
+
+Resolved the round-0 review findings in LLP 3000.030 §15. Application JS is
+excluded only for content-pinned resolved plugin implementations at audited
+versions and registry provenance. Forks, aliases, git/path installs and unknown
+implementations bind JS. Static config references bind their in-tree bytes;
+external paths and react-native.config.mjs refuse through preparation.
+
+Overlays remove their recorded Metro resource set before installing current
+assets and main.jsbundle. The real fresh-build comparison caught an extra
+export-only worker HBC; Expo native embed omits it, and the overlay now does too.
+Native resource names cannot occupy the reserved Metro namespaces. Selection
+skips use explicit conditions; exited-child interrupts stay interrupts; failed
+owner writes delete the new device or fail loudly with its identity. The wrapper
+forwards SIGINT/SIGTERM and waits for cleanup. Cold misses explain their reason,
+three-to-four-minute cost and opt-out before Xcode. Temporary app copies,
+preparation directories and xcresults are removed on success/failure; five
+complete runs retain full evidence and older receipts are compressed. Warm
+receipts reference their immutable native producer instead of duplicating it.
+
+Final Apartment mini five-run complete-command warm medians: plain 18.041 s,
+social 23.663 s; cold 164.037 / 232.024 s. Both median targets are met; social
+warm sample 4 is 25.033 s and remains in the cohort. Asset-require removal is a
+cache hit, and both final resource inventories and complete app topologies match
+a fresh native build using the identical saved export. Actual git-installed
+forks rebuild when their JS config input changes. Both starters pass external
+config refusal, startup-throw failure, missing-runtime skip, opt-out, selection
+SIGINT (130, no new simulator/record left) and running SIGTERM (143, app/backend
+and temporary copies cleaned).
+
+Affected JavaScript 69/69, final export controls 11/11, Rust witness units 14/14,
+full-suite witness 51/51, whole guide 110/110. scripts/test.sh ran exactly once:
+`== 1 failure(s) in 2530 s` (`client tests`). Its only failure is the unchanged
+delivery-fault fixture's transient follow site 47 not injecting its intended
+fault; client inputs match bfe1d7d722. The isolated case passes 2/2, and an open
+filesystem follow-up retains the red and asks for deterministic injection.
+Client pool: 5758 pass / 1 fail / 5 external-fixture skips; final models 79/79.
+A separate parallel witness rerun encountered a loopback-port collision (50/51);
+that case passes 1/1 in isolation and in the full suite's serial witness target.
+No assertion, seed count, hang budget or wasm budget was reduced.
+Wasm remains 2,014,420 B raw / 604,666 B gzip, 559 B below the 605,225 B cap.
+
+All five tool-created simulators are absent after cleanup. Archived all 370
+receipt files and five full-evidence runs per starter with byte verification;
+43 plain and 35 social completed runs had zero temporary app copies/directories.
+Removed target/nx's generated native projects; ordinary build/dependency caches
+remain. Report, every failure, measurements and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 1).
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

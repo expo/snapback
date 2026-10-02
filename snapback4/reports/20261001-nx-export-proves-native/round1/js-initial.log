@@ -1,0 +1,37 @@
+✖ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (5.738958ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.231ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (99.138667ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (14.704208ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (90.777208ms)
+✔ negative header topology follows SDK root aliases (0.816375ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 260.031333
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-native.test.mjs:9:1
+✖ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (5.738958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'eaf707605e9b2acdde0eee3c3d10222e93a734d9699bc609f27f483df0449998'
+  - '6226c3cd9df7eec4e841b8575bf7538a64653a525065d233dfed8a99c370fcd0'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/export-native.test.mjs:19:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'eaf707605e9b2acdde0eee3c3d10222e93a734d9699bc609f27f483df0449998',
+    expected: '6226c3cd9df7eec4e841b8575bf7538a64653a525065d233dfed8a99c370fcd0',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

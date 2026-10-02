@@ -1,0 +1,56 @@
+{
+  "sourceManifest": "measured-source.json",
+  "unit": "ms",
+  "starters": {
+    "plain": {
+      "cold": 164037,
+      "warm": [
+        18234,
+        17700,
+        18549,
+        18041,
+        18022
+      ],
+      "median": 18041,
+      "nativeMedian": 15085,
+      "medianTargetMet": true,
+      "assetRemoved": 19206,
+      "freshResourceControl": 160350,
+      "exactExportResourceHash": "b670e2196174a12a4a3e893ba52475e550889f990c317927371c86b390db6b9f",
+      "appTopologyEntries": 100,
+      "metroInventoryEntries": 0,
+      "warmReceiptBytes": [
+        38434,
+        38434,
+        38434,
+        38434,
+        38433
+      ]
+    },
+    "social": {
+      "cold": 232024,
+      "warm": [
+        24066,
+        23060,
+        23387,
+        25033,
+        23663
+      ],
+      "median": 23663,
+      "nativeMedian": 19672,
+      "medianTargetMet": true,
+      "assetRemoved": 25815,
+      "freshResourceControl": 211346,
+      "exactExportResourceHash": "406e848fc0ac69fdda8555afd99c27387e419ebde43812f4afc84500cebcb1b8",
+      "appTopologyEntries": 126,
+      "metroInventoryEntries": 26,
+      "warmReceiptBytes": [
+        59617,
+        59618,
+        59617,
+        59617,
+        59617
+      ]
+    }
+  }
+}

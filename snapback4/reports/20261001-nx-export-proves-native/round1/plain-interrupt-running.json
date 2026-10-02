@@ -1,0 +1,322 @@
+{
+  "starter": "plain",
+  "stage": "running",
+  "status": 143,
+  "signal": null,
+  "durationMs": 13433,
+  "receipt": {
+    "appBuild": {
+      "CFBundleExecutable": "Snapback4chat",
+      "CFBundleIdentifier": "dev.snapback4.chat",
+      "CFBundleShortVersionString": "0.0.1",
+      "CFBundleVersion": "1"
+    },
+    "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/32D542F3-2E9E-4555-813D-2032D6243478/data/Containers/Bundle/Application/1E49B863-76C2-45E7-825F-179CA8BDF6BE/export.app",
+    "artifacts": {
+      "backend-stdout.log": {
+        "bytes": 23,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-backend-stdout.log",
+        "sha256": "fb55d81d98369497d848633553f92486879d68e6640ae448afba7f7b8e6e20b8"
+      },
+      "backend.log": {
+        "bytes": 885,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-backend.log",
+        "sha256": "12143c728f7064fdac6797697c6c4cf12091955fd80ad340305002523d32e320"
+      },
+      "device.log": {
+        "bytes": 61,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-device.log",
+        "sha256": "97bcb119add265a345015d85e6eae6571693d927375ec96ffdec58c287c4e665"
+      },
+      "launch.log": {
+        "bytes": 26,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-launch.log",
+        "sha256": "40253d6812253e0c9e03dcd78581eb127ccea66194f245ef37e605c8c0b18809"
+      },
+      "log-stderr.log": {
+        "bytes": 44,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-log-stderr.log",
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523"
+      },
+      "receipts.jsonl": {
+        "bytes": 2004,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-receipts.jsonl",
+        "sha256": "183e3c7e68fc5460b32c6eee5b9925767214a95b428f8ce96fe5fc4047bef78b"
+      },
+      "screen.mp4": {
+        "bytes": 412595,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-screen.mp4",
+        "sha256": "b6939e2bde014f29d0ec16dfaea4397a3169c2f04599438522ed922a679dbb8c"
+      },
+      "video.log": {
+        "bytes": 131,
+        "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-video.log",
+        "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954"
+      }
+    },
+    "backend": {
+      "command": [
+        "/Users/ccheever/sb4-np/lane-nx/snapback4/target/production/snapback4",
+        "dev",
+        "--port",
+        "59157",
+        "--no-watch"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+      "origin": "http://127.0.0.1:59157",
+      "port": 59157,
+      "store": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4/store.sqlite"
+    },
+    "bundleId": "dev.snapback4.chat",
+    "cliVersion": "0.4.10",
+    "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/32D542F3-2E9E-4555-813D-2032D6243478/data/Containers/Data/Application/439210EE-9A53-4627-9BC3-0B218E7BC654",
+    "durationMs": 10418,
+    "endedAt": 1790910439908,
+    "error": "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+    "events": [
+      {
+        "at": 1790910437297,
+        "step": "backend-ready"
+      },
+      {
+        "at": 1790910437510,
+        "step": "recording-started"
+      },
+      {
+        "at": 1790910438240,
+        "pid": 10708,
+        "step": "prime-launched"
+      },
+      {
+        "at": 1790910438240,
+        "step": "waiting-primed"
+      },
+      {
+        "at": 1790910438524,
+        "step": "recording-stopped"
+      },
+      {
+        "at": 1790910439386,
+        "pid": 10708,
+        "step": "app-terminated"
+      },
+      {
+        "at": 1790910439502,
+        "step": "backend-refuses-connections"
+      }
+    ],
+    "exitStatus": 1,
+    "exported": {
+      "assets": [
+        {
+          "path": "main.jsbundle",
+          "sha256": "4197474a4949e1ee5f90bb873b8a2b68231b6637ae6ab7c3ffbf88302183dbbd"
+        }
+      ],
+      "inventory": {
+        "bytes": 2821501,
+        "files": [
+          {
+            "mode": 493,
+            "path": "_expo",
+            "type": "directory"
+          },
+          {
+            "mode": 493,
+            "path": "_expo/static",
+            "type": "directory"
+          },
+          {
+            "mode": 493,
+            "path": "_expo/static/js",
+            "type": "directory"
+          },
+          {
+            "mode": 493,
+            "path": "_expo/static/js/ios",
+            "type": "directory"
+          },
+          {
+            "bytes": 2610144,
+            "mode": 420,
+            "path": "_expo/static/js/ios/index-a022886e16e3960bc055accb84842ada.hbc",
+            "sha256": "4197474a4949e1ee5f90bb873b8a2b68231b6637ae6ab7c3ffbf88302183dbbd",
+            "type": "file"
+          },
+          {
+            "bytes": 211213,
+            "mode": 420,
+            "path": "_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc",
+            "sha256": "19ed6989e397332d724ecab8c671984134924723ebfc7fa2c71f9d68a59caafc",
+            "type": "file"
+          },
+          {
+            "bytes": 2,
+            "mode": 420,
+            "path": "assetmap.json",
+            "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "type": "file"
+          },
+          {
+            "bytes": 142,
+            "mode": 420,
+            "path": "metadata.json",
+            "sha256": "58371c19345b96e45279dddd0b38d8556aaf44c479801e012cb1f82c373715fa",
+            "type": "file"
+          }
+        ],
+        "sha256": "ff0102d9ee23d613179bc6dc117b71fd6dccf53804081737d07d26bdda3ca0a4"
+      },
+      "javascript": {
+        "bytes": 2610144,
+        "sha256": "4197474a4949e1ee5f90bb873b8a2b68231b6637ae6ab7c3ffbf88302183dbbd",
+        "version": 98
+      },
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist"
+    },
+    "installed": {
+      "executable": {
+        "bytes": 5898320,
+        "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/32D542F3-2E9E-4555-813D-2032D6243478/data/Containers/Bundle/Application/1E49B863-76C2-45E7-825F-179CA8BDF6BE/export.app/Snapback4chat",
+        "sha256": "5fdc9a265ea9d18d085980d59fcc3a6f5721b7b48d90fba43313c21d9505a1c2"
+      },
+      "javascript": {
+        "bytes": 2610144,
+        "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/32D542F3-2E9E-4555-813D-2032D6243478/data/Containers/Bundle/Application/1E49B863-76C2-45E7-825F-179CA8BDF6BE/export.app/main.jsbundle",
+        "sha256": "4197474a4949e1ee5f90bb873b8a2b68231b6637ae6ab7c3ffbf88302183dbbd"
+      }
+    },
+    "invokedAt": 1790910429490,
+    "mode": "smoke",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "09e2c48febbe1cb1ab39ba73c88b439f2cbec2f1fbe7021685bdfc733faec8cb"
+        }
+      },
+      "hit": true
+    },
+    "outputs": [
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-run.json",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-screen.mp4",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-receipts.jsonl",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-device.log",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-video.log",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-launch.log",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-backend.log",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-backend-stdout.log",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-log-stderr.log",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-prime.png",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-offline.png",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-restart.png"
+    ],
+    "prime": true,
+    "proof": {
+      "bytes": 55019,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/proof.json",
+      "sha256": "e6039de426813950c6286545d2544f2c990fc731921803fabfbe11d232c7703a"
+    },
+    "proofKind": "application-export",
+    "queryFacts": {
+      "inbox": {
+        "held": false,
+        "runs": "device"
+      }
+    },
+    "queryGeneration": 1,
+    "relaunch": false,
+    "reservation": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910429464-9872/smoke-ios-reserved",
+    "run": "1790910436854-9902",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "segment": "smoke",
+    "segments": {
+      "offline": {
+        "status": "not-run"
+      },
+      "prime": {
+        "durationMs": 898,
+        "endedAt": 1790910438408,
+        "error": "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+        "receipt": {
+          "acquired": true,
+          "backendRequired": false,
+          "durationMs": 189,
+          "endedAt": 1790910438842,
+          "errors": [],
+          "generation": 1,
+          "link": "online",
+          "origin": "http://127.0.0.1:59157",
+          "pass": true,
+          "queries": [],
+          "queryFacts": {
+            "inbox": {
+              "held": false,
+              "runs": "device"
+            }
+          },
+          "queryGeneration": 1,
+          "rows": {
+            "conversations": 0,
+            "memberships": 0,
+            "messageCounts": 0,
+            "messages": 0,
+            "profiles": 0
+          },
+          "segment": "prime",
+          "startedAt": 1790910438653,
+          "storeId": "f5cb915d1872e0033b210c2132401599",
+          "viewer": "guest:01M3X9978Y91W53Z03CAS01R9B",
+          "watermark": 28
+        },
+        "receipts": [
+          {
+            "acquired": true,
+            "backendRequired": false,
+            "durationMs": 189,
+            "endedAt": 1790910438842,
+            "errors": [],
+            "generation": 1,
+            "link": "online",
+            "origin": "http://127.0.0.1:59157",
+            "pass": true,
+            "queries": [],
+            "queryFacts": {
+              "inbox": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "conversations": 0,
+              "memberships": 0,
+              "messageCounts": 0,
+              "messages": 0,
+              "profiles": 0
+            },
+            "segment": "prime",
+            "startedAt": 1790910438653,
+            "storeId": "f5cb915d1872e0033b210c2132401599",
+            "viewer": "guest:01M3X9978Y91W53Z03CAS01R9B",
+            "watermark": 28
+          }
+        ],
+        "startedAt": 1790910437510,
+        "status": "failed"
+      },
+      "restart": {
+        "status": "not-run"
+      }
+    },
+    "simulator": {
+      "name": "sb4-nx-r1-1790906194044-44566",
+      "prefix": "sb4-nx-r1-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "32D542F3-2E9E-4555-813D-2032D6243478"
+    },
+    "startedAt": 1790910436854,
+    "timestampUnit": "unix-ms",
+    "udid": "32D542F3-2E9E-4555-813D-2032D6243478"
+  }
+}

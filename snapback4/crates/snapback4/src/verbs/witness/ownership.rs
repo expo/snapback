@@ -70,6 +70,14 @@ impl Records {
         }
         Ok(())
     }
+    pub(super) fn remove(&self, udid: &str) -> Result<()> {
+        let directory = self.directory.as_ref().unwrap();
+        let name = CString::new(format!("{udid}.json")).unwrap();
+        if unsafe { libc::unlinkat(directory.as_raw_fd(), name.as_ptr(), 0) } != 0 {
+            return Err(error("E_WITNESS_SIMULATOR", std::io::Error::last_os_error()));
+        }
+        Ok(())
+    }
     pub(super) fn write(&self, udid: &str, selected: &Value) -> Result<()> {
         let mut file = self.file(udid, libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL)
             .map_err(|e| error("E_WITNESS_SIMULATOR", e))?;

@@ -12,7 +12,7 @@ npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --
 ```
 
 For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm, 170–244 s cold on this mini).
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm medians, 164–232 s cold on this mini).
 Both starters provide these scripts. Unavailable hosts skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
 
 The build route chooses a free backend port and writes fresh artifacts under
@@ -131,15 +131,15 @@ passing smoke receipt. `proof.json` binds installation and that receipt before
 launch; native startup, exact installed inventory and artifact hashes are
 rechecked during execution and collection. CoreSimulator 27's measured
 framework execute-bit normalization is explicitly recorded; bytes must match.
-Project/simulator leases preserve concurrent owners through bounded process cleanup.
+SIGINT/SIGTERM wait for bounded cleanup and return 130/143. Project/simulator leases remain held until cleanup finishes.
 
 After a JS edit, repeat `npm run export:ios`: matching native inputs reuse a private
 Release app, replacing its bundle/assets with the exact export. Dependencies and
 lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
-bound; uncertain inputs rebuild. The app reports the selected file's SHA-256 on
+bound; only audited registry plugin bytes exclude JS. Out-of-tree config files refuse. The app reports the selected file's SHA-256 on
 all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
-`npm run native:smoke` retains the explicit full build, even with a warm cache.
-The first native build prepares CocoaPods dependencies; reuse needs no downloads.
+`export:ios` removes temporary app copies, keeps five runs’ full evidence and compresses older receipts; asset removals match fresh builds. `native:smoke` always builds.
+A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
 
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;
 custom native lifecycle projects should keep their own configuration.

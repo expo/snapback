@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { auditedPlugins } from './plugin-audit.mjs';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { hash, inventory, readJSON, hbc, nativeFiles, differences, fail, seal } from './payload.mjs';
 
@@ -11,8 +12,8 @@ export function nativeFingerprint(project, toolchain, adapter, nativeEnvironment
   // can exclude application JS. Existing native projects/codegen are conservative.
   const manifest = readJSON(path.join(project, 'package.json'));
   const config = fs.existsSync(path.join(project, 'app.json')) ? readJSON(path.join(project, 'app.json')) : {};
-  const knownPlugins = new Set(['expo-router', 'expo-sqlite', 'expo-secure-store', 'expo-status-bar', 'expo-image-picker', 'snapback4-expo/plugin']);
-  const customPlugin = config.expo?.plugins?.some(p => !knownPlugins.has(Array.isArray(p) ? p[0] : p));
+  const customPlugin = !auditedPlugins(project, manifest, config.expo?.plugins ?? []);
+  const references = configFiles(project, config);
   const dynamic = customPlugin || fs.readdirSync(project).some(n => /^app\.config\./.test(n))
     || fs.existsSync(path.join(project, 'ios')) || manifest.codegenConfig
     || fs.existsSync(path.join(project, 'modules'))
@@ -30,8 +31,44 @@ export function nativeFingerprint(project, toolchain, adapter, nativeEnvironment
   // or TMPDIR in native configuration. Preserve the whole sanitized environment
   // for those shapes; the bounded static starter plugins have no such inputs.
   const environment = dynamic ? nativeEnvironment : null;
-  return { format: 1, hash: hash(JSON.stringify({ inputs: inputs.sha256, toolchain, adapter, ...(dynamic ? { environment } : {}) })), inputs, toolchain, adapter, environment };
+  return { format: 1, hash: hash(JSON.stringify({ inputs: inputs.sha256, references, toolchain, adapter, ...(dynamic ? { environment } : {}) })), inputs, references, toolchain, adapter, environment };
 }
+// A static config can name a file outside the snapshot or an otherwise excluded
+// JS file. Refuse external paths; bind every existing in-tree file it names.
+export function configFiles(project, config) {
+  const root = fs.realpathSync(project), files = [];
+  function visit(value) {
+    if (typeof value === 'string') {
+      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) && !value.startsWith('file:')) return;
+      const file = path.resolve(root, value);
+      if (value.startsWith('file:') || value.split(/[\\/]/).includes('..') || path.win32.isAbsolute(value) || !file.startsWith(root + path.sep)) {
+        fail('E_WITNESS_NATIVE_COMPAT', 'out-of-tree config paths are not supported by export caching; copy the file into the project or use installed-app mode');
+      }
+      if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+        if (!fs.realpathSync(file).startsWith(root + path.sep)) fail('E_WITNESS_NATIVE_COMPAT', 'config file escapes the project');
+        files.push({ path: path.relative(root, file), sha256: hash(fs.readFileSync(file)) });
+      }
+    } else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+  }
+  visit(config); return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+export function cacheMissReason(cache, fingerprint) {
+  const file = path.join(cache, 'export-base.json');
+  if (!fs.existsSync(file)) return 'no cached Release app';
+  try {
+    const before = readJSON(file).exportFingerprint;
+    const changed = differences(before.inputs.files, fingerprint.inputs.files)[0];
+    if (changed) return `input changed: ${changed.path}`;
+    for (const field of ['references', 'adapter', 'toolchain', 'environment']) {
+      if (JSON.stringify(before[field]) !== JSON.stringify(fingerprint[field])) return `${field} changed`;
+    }
+  } catch {}
+  return 'cached app or native build inputs no longer validate';
+}
+// The audited Expo embed writes Metro resources in these two namespaces.
+// Keep the exact set in the base/overlay receipt, never infer removals from the
+// new export (which cannot name resources it no longer contains).
+export const metroResources = inv => inv.files.filter(r => r.path === 'assets' || r.path.startsWith('assets/') || r.path === '_expo' || r.path.startsWith('_expo/'));
 export function toolIdentity(command, project) {
   const req = createRequire(path.join(project, 'package.json'));
   const compiler = req.resolve('hermes-compiler/hermesc/osx-bin/hermesc');
@@ -69,6 +106,13 @@ export function overlayExport(project, exported, base, destination, command) {
   if (javascript.version !== base.executedApp.javascript.version) fail('E_WITNESS_HERMES', 'export HBC version differs from the native base');
   if (inventory(base.executedApp.path).sha256 !== base.executedApp.inventory.sha256) fail('E_WITNESS_PROOF', 'cached native base changed');
   command('export-copy-base', '/bin/cp', ['-cR', base.executedApp.path, destination], project);
+  const previous = base.metroResources;
+  if (!Array.isArray(previous)) fail('E_WITNESS_PROOF', 'native base has no Metro resource inventory');
+  for (const row of [...previous].reverse()) {
+    const file = within(destination, row.path);
+    if (row.type === 'directory') fs.rmdirSync(file);
+    else fs.unlinkSync(file);
+  }
   fs.copyFileSync(within(exported, ios.bundle), path.join(destination, 'main.jsbundle'));
   const map = readJSON(path.join(exported, 'assetmap.json'));
   const req = createRequire(path.join(project, 'package.json'));
@@ -76,13 +120,9 @@ export function overlayExport(project, exported, base, destination, command) {
   const { getAssetLocalPath } = expoReq('@expo/cli/build/src/export/metroAssetLocalPath.js');
   const { filterPlatformAssetScales } = expoReq('@expo/cli/build/src/export/persistMetroAssets.js');
   const copied = new Map([['main.jsbundle', javascript.sha256]]);
-  const chunks = path.join(exported, '_expo/static/js/ios');
-  for (const row of inventory(chunks).files.filter(r => r.type === 'file')) {
-    const relative = path.posix.join('_expo/static/js/ios', row.path);
-    const target = within(destination, relative);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(within(exported, relative), target); copied.set(relative, row.sha256);
-  }
+  // Expo 57 exportEmbedBundleAndAssetsAsync saves its first JS artifact as the
+  // main bundle plus native assets. It does not embed export-only worker HBCs
+  // from _expo/static/js/ios; copying them changes Paths.bundle observability.
   // RN resolves embedded Image/font assets by Metro's native path, not EAS's hash
   // filenames. Copy bytes FROM the export, with names from that export's asset map.
   for (const asset of Object.values(map)) {
@@ -102,18 +142,18 @@ export function overlayExport(project, exported, base, destination, command) {
       fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, bytes); copied.set(relative, sha256);
     }
   }
-  // Preserve all native/configuration bytes. Asset removals may leave unused base
-  // resources, but a newly referenced asset must always come from this export.
+  // Only recorded Metro resources may disappear. Native/configuration bytes stay exact.
   const inv = inventory(destination);
   for (const diff of differences(base.executedApp.inventory.files, inv.files)) {
+    if (!diff.actual && previous.some(r => r.path === diff.path)) continue;
     if (diff.actual?.type === 'directory' && (diff.path === 'assets' || diff.path.startsWith('assets/') || diff.path === '_expo' || diff.path.startsWith('_expo/'))) continue;
-    if (diff.actual?.sha256 !== copied.get(diff.path)) fail('E_WITNESS_PROOF', 'unexpected native change while replacing export');
+    if (!copied.has(diff.path) || diff.actual?.sha256 !== copied.get(diff.path)) fail('E_WITNESS_PROOF', 'unexpected native change while replacing export');
   }
   const native = nativeFiles(destination, inv);
   if (JSON.stringify(native) !== JSON.stringify(base.executedApp.native)) fail('E_WITNESS_PROOF', 'native executable changed while replacing export');
   if (inventory(exported).sha256 !== exportedInventory.sha256) fail('E_WITNESS_PROOF', 'export changed while copying');
-  return { nativeBase: { app: base.executedApp.inventory.sha256, build: base.buildResult?.sha256,
-      fingerprint: base.exportFingerprint?.hash },
+  return { metroResources: metroResources(inv), nativeBase: { app: base.executedApp.inventory.sha256, build: base.buildResult?.sha256,
+      fingerprint: base.exportFingerprint?.hash, receipt: base.nativeReceipt },
     executedApp: { ...base.executedApp, path: destination, inventory: inv, javascript, native },
     exported: { path: exported, inventory: exportedInventory, javascript, assets: [...copied].map(([path, sha256]) => ({ path, sha256 })) } };
 }
@@ -172,13 +212,15 @@ export async function readBase(cache, fingerprint) {
     return base;
   } catch { return null; }
 }
-export function saveBase(cache, base, fingerprint) {
+export function saveBase(cache, base, fingerprint, artifacts) {
   const destination = path.join(cache, 'export-base.app');
   fs.rmSync(destination, { recursive: true, force: true });
   fs.cpSync(base.executedApp.path, destination, { recursive: true, verbatimSymlinks: true });
-  const record = { ...base, executedApp: { ...base.executedApp, path: destination }, exportFingerprint: fingerprint,
+  const record = { ...base, metroResources: metroResources(base.executedApp.inventory), executedApp: { ...base.executedApp, path: destination }, exportFingerprint: fingerprint,
     lookupTopology: lookupTopology([path.join(cache, 'DerivedData'), fingerprint.toolchain.sdkPath, path.resolve(path.dirname(fingerprint.toolchain.developer), '../lib/clang')]),
     generatedNative: generatedInventory(cache) };
+  const receipt = path.join(artifacts, 'native-base.json'); seal(receipt, record);
+  record.nativeReceipt = { path: receipt, sha256: hash(fs.readFileSync(receipt)) };
   const file = path.join(cache, 'export-base.json'); fs.rmSync(file, { force: true }); seal(file, record);
   return record;
 }

@@ -2,6 +2,23 @@
 use super::*;
 use std::os::unix::process::CommandExt;
 
+// Drops after bounded child/app/backend cleanup on every export outcome.
+pub(super) struct ExportTemporary(Option<PathBuf>);
+impl ExportTemporary {
+    pub(super) fn new(options: &Options) -> Self { Self(options.export.as_ref().map(|_| options.artifacts.clone())) }
+}
+impl Drop for ExportTemporary {
+    fn drop(&mut self) {
+        if let Some(root) = &self.0 {
+            for name in ["preparation-tmp", "base.app", "export.app", "build.xcresult"] {
+                if let Err(e) = fs::remove_dir_all(root.join(name)) {
+                    if e.kind() != std::io::ErrorKind::NotFound { eprintln!("witness: could not remove temporary {}: {e}", root.join(name).display()); }
+                }
+            }
+        }
+    }
+}
+
 pub(super) fn lease(path: &Path) -> Result<File> {
     if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|e| error("E_WITNESS_ARTIFACT", e))?; }
     let file = OpenOptions::new().create(true).truncate(false).read(true).write(true).open(path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -58,7 +75,15 @@ fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
         .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?);
     let mut child = PreparationProcess { child: cmd.spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?, cleaned: false };
     let end = Instant::now() + Duration::from_secs(900);
+    let mut announced = false;
     let result = loop {
+        let notice = options.artifacts.join("cache-miss.json");
+        if !announced && label == "preparation" && notice.is_file() {
+            let reason = fs::read(&notice).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).unwrap_or(Value::Null);
+            eprintln!("native-cache miss: {}; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off.", reason["reason"].as_str().unwrap_or("native inputs changed"));
+            announced = true;
+        }
+        if let Err(e) = interrupted() { break Err(e); }
         if let Some(status) = child.status()? { break if status.success() { Ok(()) } else {
             let detail = fs::read_to_string(options.artifacts.join(format!("{label}-stderr.log"))).unwrap_or_default();
             // Helper/tool prose stays in its separate raw log, never in a refusal.
@@ -113,7 +138,7 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     fs::write(&helper, include_str!("prepare.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("payload.mjs"), include_str!("payload.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("native-inputs.mjs"), include_str!("native-inputs.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs")), ("export-cache.mjs", include_str!("export-cache.mjs"))] {
+    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs")), ("export-cache.mjs", include_str!("export-cache.mjs")), ("plugin-audit.mjs", include_str!("plugin-audit.mjs")), ("plugin-audit.json", include_str!("plugin-audit.json"))] {
         fs::write(options.artifacts.join(name), contents).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     }
     let origin = format!("http://127.0.0.1:{}", options.port);

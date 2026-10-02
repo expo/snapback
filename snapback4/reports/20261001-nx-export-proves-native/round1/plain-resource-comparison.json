@@ -1,0 +1,810 @@
+{
+  "equal": true,
+  "completeAppTopologyEqual": true,
+  "cachedAppTopology": [
+    {
+      "path": "AppIcon60x60@2x.png",
+      "type": "file"
+    },
+    {
+      "path": "AppIcon76x76@2x~ipad.png",
+      "type": "file"
+    },
+    {
+      "path": "Assets.car",
+      "type": "file"
+    },
+    {
+      "path": "EXConstants.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "EXConstants.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "EXConstants.bundle/app.config",
+      "type": "file"
+    },
+    {
+      "path": "Expo.plist",
+      "type": "file"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "ExpoFileSystem_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "ExpoFileSystem_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/ExpoFont",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/React.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/React.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/React.framework/React",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/React.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/React.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/hermesvm",
+      "type": "file"
+    },
+    {
+      "path": "Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "PkgInfo",
+      "type": "file"
+    },
+    {
+      "path": "PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "React-Core_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "React-Core_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "React-Core_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "React-timing_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "React-timing_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "React-timing_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Snapback4chat",
+      "type": "file"
+    },
+    {
+      "path": "SplashScreen.storyboardc",
+      "type": "directory"
+    },
+    {
+      "path": "SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib",
+      "type": "file"
+    },
+    {
+      "path": "SplashScreen.storyboardc/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "SplashScreen.storyboardc/SplashScreenViewController.nib",
+      "type": "file"
+    },
+    {
+      "path": "_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "main.jsbundle",
+      "type": "file"
+    }
+  ],
+  "freshAppTopology": [
+    {
+      "path": "AppIcon60x60@2x.png",
+      "type": "file"
+    },
+    {
+      "path": "AppIcon76x76@2x~ipad.png",
+      "type": "file"
+    },
+    {
+      "path": "Assets.car",
+      "type": "file"
+    },
+    {
+      "path": "EXConstants.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "EXConstants.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "EXConstants.bundle/app.config",
+      "type": "file"
+    },
+    {
+      "path": "Expo.plist",
+      "type": "file"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "ExpoFileSystem_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "ExpoFileSystem_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/ExpoFont",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/React.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/React.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/React.framework/React",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/React.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/React.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/hermesvm",
+      "type": "file"
+    },
+    {
+      "path": "Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "PkgInfo",
+      "type": "file"
+    },
+    {
+      "path": "PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "React-Core_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "React-Core_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "React-Core_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "React-timing_privacy.bundle",
+      "type": "directory"
+    },
+    {
+      "path": "React-timing_privacy.bundle/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "React-timing_privacy.bundle/PrivacyInfo.xcprivacy",
+      "type": "file"
+    },
+    {
+      "path": "Snapback4chat",
+      "type": "file"
+    },
+    {
+      "path": "SplashScreen.storyboardc",
+      "type": "directory"
+    },
+    {
+      "path": "SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib",
+      "type": "file"
+    },
+    {
+      "path": "SplashScreen.storyboardc/Info.plist",
+      "type": "file"
+    },
+    {
+      "path": "SplashScreen.storyboardc/SplashScreenViewController.nib",
+      "type": "file"
+    },
+    {
+      "path": "_CodeSignature",
+      "type": "directory"
+    },
+    {
+      "path": "_CodeSignature/CodeResources",
+      "type": "file"
+    },
+    {
+      "path": "main.jsbundle",
+      "type": "file"
+    }
+  ],
+  "cachedOverlay": [],
+  "freshXcodeProduct": []
+}

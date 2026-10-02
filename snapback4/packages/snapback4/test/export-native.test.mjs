@@ -11,7 +11,7 @@ test('native fingerprint binds native, config, lock, plugin, SDK and package inp
   try {
     const put = (p, data = 'first') => { fs.mkdirSync(path.dirname(path.join(root, p)), { recursive: true }); fs.writeFileSync(path.join(root, p), data); };
     put('package.json', JSON.stringify({ dependencies: { 'snapback4-expo': '0.4.10', snapback4: '0.4.10' } }));
-    put('package-lock.json'); put('app.json', JSON.stringify({ expo: { plugins: ['expo-status-bar', 'snapback4-expo/plugin'] } })); put('src/App.tsx');
+    put('package-lock.json'); put('app.json', JSON.stringify({ expo: { plugins: [] } })); put('src/App.tsx');
     put('node_modules/plugin/index.js'); put('node_modules/native/ios/module.swift');
     for (const name of ['snapback4', 'snapback4-expo']) put(`node_modules/${name}/package.json`, '{"version":"0.4.10"}');
     const key = (toolchain = { xcode: '27', sdk: '27' }, adapter = 'adapter') => nativeFingerprint(root, toolchain, adapter).hash;
@@ -42,11 +42,13 @@ test('only opt-out and unavailable environments skip; product failures remain fa
   assert.equal(skipReason('linux', {}), 'macOS is required');
   assert.equal(skipReason('darwin', { SNAPBACK4_NATIVE_SMOKE: 'off' }), 'SNAPBACK4_NATIVE_SMOKE=off');
   assert.equal(skipReason('darwin', { SNAPBACK4_NATIVE_SMOKE: 'false' }), null);
-  for (const reason of ['no Xcode', 'no runtime', 'cannot create', 'cannot boot']) {
-    assert.equal(smokeResult(1, { phase: 'environment', error: reason }).status, 0);
+  for (const environmentCondition of ['simulator-list', 'missing-runtime', 'simulator-create', 'simulator-boot']) {
+    assert.equal(smokeResult(1, { phase: 'environment', environmentCondition, error: 'E_WITNESS_PLATFORM: unavailable' }).status, 0);
   }
   for (const error of ['E_WITNESS_PROCESS: app died', 'E_WITNESS_ORIGIN', 'E_WITNESS_STEP', 'E_WITNESS_PROOF', 'E_WITNESS_SIMULATOR: install failed']) {
     assert.equal(smokeResult(1, { phase: 'preparation', error }).status, 1);
+    assert.equal(smokeResult(1, { phase: 'environment', error }).status, 1);
+    assert.equal(smokeResult(1, { phase: 'environment', environmentCondition: 'missing-runtime', error: 'E_WITNESS_INTERRUPTED: cancelled' }).status, 1);
   }
   assert.equal(smokeResult(null).status, 1);
   assert.equal(smokeResult(1).status, 1);
@@ -82,7 +84,7 @@ test('export overlay binds exact HBC/assets, preserves native bytes, and rejects
     const bytecode = Buffer.alloc(128); Buffer.from('c61fbc03c103191f', 'hex').copy(bytecode); bytecode.writeUInt32LE(98, 8);
     put('base/main.jsbundle', bytecode); put('base/App', Buffer.from('cffaedfe00112233', 'hex')); put('base/Info.plist', 'identity');
     const basePath = path.join(root, 'base'), inv = inventory(basePath);
-    const base = { executedApp: { path: basePath, inventory: inv, javascript: hbc(path.join(basePath, 'main.jsbundle')), native: nativeFiles(basePath, inv) } };
+    const base = { metroResources: [], executedApp: { path: basePath, inventory: inv, javascript: hbc(path.join(basePath, 'main.jsbundle')), native: nativeFiles(basePath, inv) } };
     bytecode[127] = 99; put('dist/_expo/static/js/ios/new.hbc', bytecode); put('dist/assets/abc', 'fresh pixels');
     put('dist/metadata.json', JSON.stringify({ fileMetadata: { ios: { bundle: '_expo/static/js/ios/new.hbc', assets: [{ path: 'assets/abc', ext: 'png' }] } } }));
     put('dist/assetmap.json', JSON.stringify({ image: { name: 'picture', type: 'png', fileHashes: ['unused-first-1x', 'abc', 'unused-4x'], scales: [1, 1, 4] } }));
@@ -92,6 +94,17 @@ test('export overlay binds exact HBC/assets, preserves native bytes, and rejects
     assert.notEqual(result.executedApp.javascript.sha256, base.executedApp.javascript.sha256);
     assert.deepEqual(result.executedApp.native, base.executedApp.native);
     assert.equal(fs.readFileSync(path.join(root, 'output/assets/picture.png'), 'utf8'), 'fresh pixels');
+    put('empty/_expo/static/js/ios/new.hbc', bytecode);
+    put('empty/_expo/static/js/ios/web-worker-entry.hbc', bytecode);
+    put('empty/metadata.json', JSON.stringify({ fileMetadata: { ios: { bundle: '_expo/static/js/ios/new.hbc', assets: [] } } }));
+    put('empty/assetmap.json', '{}');
+    const removed = overlayExport(root, path.join(root, 'empty'), result, path.join(root, 'removed'), copy);
+    const fresh = overlayExport(root, path.join(root, 'empty'), base, path.join(root, 'fresh'), copy);
+    assert.deepEqual(removed.executedApp.inventory, fresh.executedApp.inventory, 'removal matches a fresh base, including directories');
+    assert.equal(fs.existsSync(path.join(root, 'removed/assets/picture.png')), false);
+    assert.deepEqual(removed.metroResources, []);
+    assert.equal(fs.existsSync(path.join(root, 'removed/_expo')), false, 'export-only worker chunks are absent from native embed');
+    assert.throws(() => overlayExport(root, path.join(root, 'dist'), base, path.join(root, 'removed-config'), (...args) => { copy(...args); fs.unlinkSync(path.join(root, 'removed-config/Info.plist')); }), /unexpected native change/);
     assert.throws(() => overlayExport(root, path.join(root, 'dist'), base, path.join(root, 'raced'), (...args) => { copy(...args); put('dist/assets/abc', 'changed mid-copy'); }), /export changed/);
     fs.rmSync(path.join(root, 'dist/assets/abc'));
     assert.throws(() => overlayExport(root, path.join(root, 'dist'), base, path.join(root, 'missing'), copy));
@@ -132,5 +145,104 @@ test('negative header topology follows SDK root aliases', async () => {
     const before = lookupTopology([path.join(root, 'alias')]);
     fs.writeFileSync(path.join(root, 'sdk/new.h'), 'new previously absent header');
     assert.notEqual(lookupTopology(before.roots).sha256, before.sha256);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('audited resolved plugin bytes exclude JS; same-name forks and nonregistry installs bind it', async () => {
+  const { auditedPlugins } = await import('../../../crates/snapback4/src/verbs/witness/plugin-audit.mjs');
+  const audit = JSON.parse(fs.readFileSync(new URL('../../../crates/snapback4/src/verbs/witness/plugin-audit.json', import.meta.url)));
+  const workspace = new URL('../../../', import.meta.url).pathname;
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-plugin-audit-')));
+  try {
+    for (const file of audit['expo-status-bar'][0].files) {
+      const dest = path.join(root, 'node_modules', file); fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(path.join(workspace, 'node_modules', file), dest);
+    }
+    const version = audit['expo-status-bar'][0].version;
+    const manifest = { dependencies: { 'expo-status-bar': version } };
+    const put = (file, value) => fs.writeFileSync(path.join(root, file), typeof value === 'string' ? value : JSON.stringify(value));
+    put('package.json', manifest);
+    put('package-lock.json', { packages: { 'node_modules/expo-status-bar': { version, resolved: `https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-${version}.tgz` } } });
+    put('app.json', { expo: { plugins: ['expo-status-bar'] } });
+    fs.mkdirSync(path.join(root, 'src')); put('src/native-mode.js', 'first');
+    assert.equal(auditedPlugins(root, manifest, ['expo-status-bar']), true);
+    const key = () => nativeFingerprint(root, {}, 'adapter').hash;
+    const before = key(); put('src/native-mode.js', 'second'); assert.equal(key(), before);
+    const entry = 'node_modules/expo-status-bar/app.plugin.js', original = fs.readFileSync(path.join(root, entry));
+    put(entry, `module.exports = config => { config.ios ??= {}; config.ios.infoPlist ??= {}; config.ios.infoPlist.NXNativeMode = require('fs').readFileSync('src/native-mode.js','utf8'); return config; };`);
+    assert.equal(auditedPlugins(root, manifest, ['expo-status-bar']), false);
+    const fork = key(); put('src/native-mode.js', 'third'); assert.notEqual(key(), fork);
+    fs.writeFileSync(path.join(root, entry), original);
+    for (const spec of ['git+https://example.com/fork.git', 'file:../fork', 'npm:fork@57.0.1', 'latest', '99.0.0']) {
+      put('package.json', { dependencies: { 'expo-status-bar': spec } });
+      if (spec === '99.0.0') put('node_modules/expo-status-bar/package.json', { name: 'expo-status-bar', version: spec });
+      const a = key(); put('src/native-mode.js', spec); assert.notEqual(key(), a, spec);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('config file references bind excluded source bytes and refuse external paths', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-config-file-'));
+  try {
+    fs.writeFileSync(path.join(root, 'package.json'), '{}');
+    fs.mkdirSync(path.join(root, 'src')); fs.writeFileSync(path.join(root, 'src/native.js'), 'first');
+    const config = value => fs.writeFileSync(path.join(root, 'app.json'), JSON.stringify({ expo: { ios: { googleServicesFile: value } } }));
+    config('src/native.js'); const before = nativeFingerprint(root, {}, '').hash;
+    fs.writeFileSync(path.join(root, 'src/native.js'), 'second'); assert.notEqual(nativeFingerprint(root, {}, '').hash, before);
+    for (const value of ['/tmp/external.plist', '../external.plist', 'file:///tmp/external.plist', 'src/link/../native.js']) {
+      config(value); assert.throws(() => nativeFingerprint(root, {}, ''), /out-of-tree config paths/);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('retention keeps five completed runs, compresses older receipts and leaves active runs alone', async () => {
+  const { retainEvidence } = await import('../../snapback4-expo/export-ios.mjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-retention-'));
+  try {
+    for (let i = 1; i <= 8; i++) {
+      const dir = path.join(root, `${i}-123`); fs.mkdirSync(dir);
+      fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), '{"exitStatus":1}');
+      fs.writeFileSync(path.join(dir, 'smoke-ios-screen.mp4'), 'video');
+      if (i === 1) fs.writeFileSync(path.join(dir, 'proof.json.gz'), 'already archived before interruption');
+      if (i !== 2) retainEvidence(root, dir);
+    }
+    assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-run.json.gz')), true);
+    assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-screen.mp4')), false);
+    assert.equal(fs.readFileSync(path.join(root, '1-123/proof.json.gz'), 'utf8'), 'already archived before interruption');
+    assert.equal(fs.existsSync(path.join(root, '2-123/smoke-ios-screen.mp4')), true);
+    assert.equal(fs.existsSync(path.join(root, '4-123/smoke-ios-screen.mp4')), true);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('wrapper forwards both signals and waits for child cleanup before returning signal status', async () => {
+  const { spawn } = await import('node:child_process');
+  const { once } = await import('node:events');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-export-interrupt-'));
+  try {
+    const helper = path.join(root, 'parent.mjs');
+    const module = new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).href;
+    fs.writeFileSync(helper, `import {runChild} from ${JSON.stringify(module)}; const result = await runChild(process.execPath, ['-e', process.argv[2]]); process.exitCode = result.status;`);
+    for (const signal of ['SIGINT', 'SIGTERM']) {
+      const code = `const fs=require('fs'); process.on('${signal}',()=>setTimeout(()=>{fs.writeFileSync(${JSON.stringify(path.join(root, signal))},'cleaned');process.exit(1)},150)); console.log('ready'); setInterval(()=>{},1000);`;
+      const child = spawn(process.execPath, [helper, code], { stdio: ['ignore', 'pipe', 'pipe'] });
+      await once(child.stdout, 'data'); child.kill(signal);
+      const [status] = await once(child, 'close');
+      assert.equal(status, signal === 'SIGINT' ? 130 : 143);
+      assert.equal(fs.readFileSync(path.join(root, signal), 'utf8'), 'cleaned');
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('react-native.config.mjs refuses through the real static preparation adapter', { skip: process.platform !== 'darwin' }, async () => {
+  const { spawnSync } = await import('node:child_process');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-native-config-'));
+  try {
+    fs.writeFileSync(path.join(root, 'react-native.config.mjs'), 'export default {}');
+    const out = path.join(root, 'out'); fs.mkdirSync(out);
+    const helper = new URL('../../../crates/snapback4/src/verbs/witness/prepare.mjs', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [helper, 'build', root, out, 'no-device', 'http://127.0.0.1:4400', 'dist'], { encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /E_WITNESS_NATIVE_COMPAT: react-native.config.mjs/);
+    assert.equal(fs.existsSync(path.join(root, '.snapback4-witness/DerivedData')), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

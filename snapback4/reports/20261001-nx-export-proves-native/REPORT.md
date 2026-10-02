@@ -256,3 +256,228 @@ and other sessions' processes/devices were left alone. The report retains
 1,064 verified evidence files and their SHA-256 inventory; no app or xcresult
 build product is committed. Data-volume free space after cleanup was
 203,879,546,880 bytes.
+
+## Round 1 — review corrections (2026-10-01)
+
+Apartment Mac mini; same lane/branch; local candidate only. Round 0's timings,
+three-launch binding, same-export claim and post-hash crash detection remain
+accepted evidence. This round addresses the seven review findings without
+changing the engine, package versions, wasm budget or simulator ownership scope.
+
+### Corrections
+
+1. **Audited plugin implementation, not name.** The exclusion gate checks the
+   plugin's resolved entry, exact version and registry provenance, plus a content
+   digest of its resolved implementation closure: source and helper files, lazy
+   literal imports, package resolution manifests and missing optional imports.
+   The pins cover the installed workspace and npm starter variants; changing a
+   pin requires re-auditing config/native reads. Forks, aliases, git/path installs,
+   unrecognized versions and changed implementation bytes keep application JS
+   and the full sanitized native environment in the key. The positive control
+   proves stock implementations still exclude JS; the installed git-fork control
+   consumes `src/native-mode.js` into `NXNativeMode` and must rebuild on its edit.
+2. **Exact resources.** Native bases and overlays record their Metro resource
+   sets. Each overlay removes the recorded prior set, including empty
+   directories, before installing current native assets; the main HBC appears
+   only as `main.jsbundle`, matching native embed. Export-only worker HBCs are
+   omitted, as they are by Expo 57 native embed. The native graph refuses resources
+   named `assets` or `_expo`, reserving those namespaces for Metro. Fresh Xcode embeds also clear
+   old Metro output. Changes outside that set are rejected, including deletion
+   of configuration files. Native bytes and the existing export/hash checks stay
+   bound. Resource-removal controls compare against the raw fresh Xcode product,
+   before its own overlay can conceal a retained asset.
+3. **Explicit skips.** Only named simulator-list, missing-runtime/device-type,
+   create and boot conditions can produce an environment skip. Invalid JSON,
+   ownership-record failures, interrupts and later product/lease/proof failures
+   remain nonzero. Rust checks interruption even after a simctl child has exited and before
+   reporting spawn/poll failures.
+   Creation returns its identity before cancellation so the newly created
+   simulator can be recorded and deleted. Failed ownership writes roll back
+   creation; a failed rollback names the exact UDID and fails loudly. Failed boot
+   also deletes this invocation's new device and removes its ownership record.
+4. **Config references.** The key hashes files named by static config even when
+   they are otherwise excluded application JS. Absolute, parent-traversing and
+   file-URL paths are refused for export caching. `react-native.config.mjs` and
+   the other dynamic native-config forms refuse through the preparation adapter.
+5. **Cold progress.** Before Xcode, the terminal prints `native-cache miss`, its
+   reason (the changed input where known), the approximate three-to-four-minute
+   Release build cost and `SNAPBACK4_NATIVE_SMOKE=off`.
+6. **Bounded evidence.** The driver removes per-run preparation temporaries,
+   `.app` copies and xcresults after collection, on success and failure. It also
+   removes simulator-side staging. The wrapper keeps five completed runs' full
+   evidence, compresses older receipts, records removed media/logs, and leaves
+   active runs alone. A warm preparation receipt references the immutable native
+   producer receipt by hash instead of copying the complete native closure on
+   every run. The current native base and its bounded build workspace remain.
+7. **Cancellation.** The asynchronous export wrapper forwards SIGINT/SIGTERM,
+   waits for the driver's bounded cleanup and returns 130/143. Both unit and
+   real installed-run controls exercise forwarding and cleanup. No PID is killed
+   by name or pattern.
+
+### Measurements and controls
+
+All durations below are complete `npm run export:ios` wall time, in seconds.
+
+| Starter | Cold | Five JS-only warm runs | Warm median | Remove asset require (hit) |
+|---|---:|---|---:|---:|
+| plain | 164.037 | 18.234, 17.700, 18.549, 18.041, 18.022 | **18.041** | 19.206 |
+| social | 232.024 | 24.066, 23.060, 23.387, 25.033, 23.663 | **23.663** | 25.815 |
+
+Both medians meet the **25 s** target. Social warm sample 4 is 25.033 s and
+its separate asset-removal control is 25.815 s; neither is omitted.
+The final fresh comparators reuse the preceding export byte-for-byte and pass:
+plain has **100 complete app topology entries / 0 Metro resource entries** after
+removal; social has **126 / 26**. The comparison checks each Metro entry's bytes,
+mode and type, plus every app path/type, against the raw fresh Xcode product
+before overlay. Full inventories and exact export hashes are in the
+[plain](round1/plain-final-resource-comparison.json) and
+[social](round1/social-final-resource-comparison.json) comparison records.
+Fresh comparator driver times are 160.350 / 211.346 s, excluding a second Metro
+export. Final warm receipts are about **38 KB plain / 60 KB social raw**; their
+immutable native producer references also verify after receipt compression.
+
+| Control | Plain | Social |
+|---|---|---|
+| Git-installed plugin fork | `expo-status-bar`: first/second both miss, plist changes first → second (99.007 / 97.197 s) | `expo-secure-store`: first/second both miss, plist changes first → second (167.714 / 142.156 s) |
+| Absolute `ios.googleServicesFile`, before/after replacing bytes | Both refuse, exit 1, `E_WITNESS_NATIVE_COMPAT` (6.310 / 6.040 s) | Both refuse, exit 1, `E_WITNESS_NATIVE_COMPAT` (7.172 / 6.502 s) |
+| SIGINT during real simulator creation/selection | Exit 130; created device and record absent (4.524 s) | Exit 130; created device and record absent (5.023 s) |
+| SIGTERM after real app launch | Exit 143; app stopped, backend port released, temporary copies absent (13.433 s) | Same checks pass (17.098 s) |
+| Startup throw | Cache hit; exit 1, `E_WITNESS_STEP` (14.040 s) | Cache hit; exit 1, `E_WITNESS_STEP` (16.113 s) |
+| Missing runtime | Explicit `missing-runtime` skip; wrapper 0 / receipt 1 (3.766 s) | Same (4.363 s) |
+| Opt-out | Export succeeds, no native receipt (3.215 s) | Same (3.663 s) |
+
+Both startup-failure receipts and device logs contain the intended
+`NX_R1_STARTUP_THROW`. The fork's second miss explicitly names
+`src/native-mode.js` before Xcode starts. Rust integration controls additionally
+exercise exited-child interruption, invalid simulator JSON, failed owner writes
+and failed deletion; preparation tests refuse `react-native.config.mjs`.
+The [plugin audit summary](round1/plugin-audit-summary.json) records every audited
+version, resolved entry and closure digest; the content pins are in the source.
+
+
+Cold means this starter's native cache, Pods and DerivedData were removed;
+npm dependencies and shared Metro/system caches remained. The five warm runs
+make distinct JS-only edits; each checks a cache hit, three passing lifecycle
+segments and equality of exported and loaded HBC hashes. Final warm samples run
+without this lane's other builds or tests. Controls run under their own labels;
+none replaces a failed timing sample. The report's `measured-source.json` binds
+the measured CLI and adapter/wrapper bytes; `final-source.json` binds the final
+source. No publication, physical-device, M6/M8 or nonempty application-scenario
+claim is made.
+
+### Verification and failures
+
+- **Affected checks:** 69/69 JavaScript cases in `affected-final.log`, followed
+  by 11/11 final export controls after the resource correction; Rust witness
+  units 14/14. The full suite's witness target passes 51/51. The separate
+  parallel witness run's port-contention failure and isolated 1/1 pass remain
+  recorded below. No assertion or hang budget was weakened.
+- **Guide:** 110/110 in the complete suite; the earlier whole-guide run also
+  passed 110/110. Final documentation budget and reference checks: budget passes; `ref-check` passes with 525 LLP docs, 10,181 refs,
+  0 errors and 0 unchecked references (`ref-check-final.log`).
+- **`scripts/test.sh`, exactly once:** exit 1, exact final summary
+  **`== 1 failure(s) in 2530 s`**, category `client tests`. Rust: 4,566 passed,
+  33 ignored across 994 target/shard summaries. Client pool: 5,758 passed,
+  1 failed, 5 skipped. Final model slot: 79/79, with unchanged seed counts.
+  The full suite and phase timings are retained in `round1/full-suite.log` and
+  `round1/suite-summary.json`. The complete suite still exceeds the repository's
+  60-second goal; this round does not change that suite or reduce its counts.
+- **Wasm:** **2,014,420 B raw / 604,666 B gzip**, unchanged cap **605,225 B**;
+  **559 B** headroom. Both the dedicated build and the complete suite record
+  the same values. No core/runtime or wasm-budget source changed.
+
+The five client skips require external pinned managed-auth, identity-profile,
+0.2.27 bounds, 0.2.33 F2 legacy and 0.2.32 legacy-server fixtures. Their exact
+conditions are retained in the suite summary; no coverage is claimed for them.
+
+Development failures, attributed to this lane and corrected:
+
+- The first setup invocation exported before generating the plain starter's
+  `snapback/generated/api.ts`; Expo correctly failed module resolution. Running
+  the scaffold's prescribed `check` fixed setup. Its original log and driver
+  error are retained as `plain-dev-*`.
+- Four initial `init-recipe.test.mjs` cases ran before the debug CLI existed:
+  retired Following options, removed search recipe, CCP Expo transitions and
+  CCP web transitions. Their subprocess statuses were null. After the debug
+  build, all four pass within the affected 68-test cohort. These were setup
+  sequencing failures, not baseline product failures.
+- The first fingerprint fixture had an invalid placeholder lockfile; the empty
+  plugin case now needs no plugin registry check. The first audited-plugin
+  positive fixture then exposed missing lazy helper/resolution metadata in the
+  draft pin capture. The final content closure includes these files and package
+  manifests, and its positive/fork controls pass. Original failing logs remain.
+- A few shell setup commands used the wrong working-directory prefix, and an
+  initial Cargo unit invocation selected a nonexistent library target. These
+  invocation errors are ours; corrected commands and results are retained.
+
+- **Ours, resource-control failure:** the first raw fresh-Xcode comparison found
+  an extra `_expo/static/js/ios/web-worker-entry-…hbc` and its parent directories
+  in the overlay. Expo 57 native embed saves only its first JS artifact and native
+  assets. The overlay now follows that policy; a regression assertion rejects the
+  extra resource, and the final full app topology / Metro-byte comparisons use
+  the exact same saved export. The original failing comparison remains under
+  `pre-resource-fix/`. That earlier cohort is not the final performance claim.
+- **Environmental, with our overlapping test scheduling:** the final parallel
+  Rust witness rerun passed 50/51;
+  `driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts`
+  encountered `E_WITNESS_PORT` after probing a free loopback port. The driver
+  refused the occupied port and stopped no existing owner. The full suite's
+  serial witness target passes 51/51. The isolated unchanged case
+  passes 1/1 in `rust-port-isolated.log`; no port assertion or ownership check
+  was removed.
+
+**Every complete-suite failure (one, baseline):**
+`47 transient: local.ts:850 follow`, in `delivery-fault-matrix.test.mjs:264`,
+failed `the classified await must actually experience an injected fault`
+(`injected === 0`). The local client and all delivery-fault fixtures/instrumentation
+match base `bfe1d7d722` byte-for-byte; the hash ledger records this. The isolated
+site passes 2/2 including classification. That retry does not turn the original
+suite green. [The open follow-up](../../../issues/20261001-snapback4-delivery-fault-follow-injection-flake.md)
+asks for deterministic fault-arm ordering while retaining every assertion.
+There were no other complete-suite failures.
+
+The initial plain pilot, intermediate and pre-resource-fix cohorts are separately
+labelled under `pilot/`, `intermediate/` and `pre-resource-fix/`; they are excluded
+from final medians.
+They motivated smaller warm receipts and tighter rejection of unexpected
+resource/configuration deletion. Their summaries, run receipts and retention
+records remain; no failed sample is silently retried into the final cohort.
+
+### Ownership, cleanup and reproduction
+
+The one normal simulator, `32D542F3-2E9E-4555-813D-2032D6243478`, was shut down
+and deleted only after validating this tool's exact creation record. Its record
+was removed. Both final selection-cancellation devices and both earlier selection
+controls were already deleted; the final simulator list confirms all five IDs
+are absent. No unowned simulator, including `mini-verify-iphone`, was targeted;
+no system setting was changed. [Cleanup commands and ownership hash](round1/cleanup.json)
+record the exact actions.
+
+Retention was verified over **43 plain / 35 social completed runs**, including
+the exploratory cohorts: **five full-evidence runs each**, **zero per-run app
+copies**, **zero private preparation directories**. All **370 receipt files**
+and the last five runs' complete evidence for each starter were archived with
+byte verification; the archive indexes reference already captured receipts by
+hash to avoid duplicate copies. See [the archive summary](round1/retained-evidence/summary.json)
+and its per-starter indexes. The generated `target/nx` projects and private
+native workspaces were then removed. Ordinary compiler/dependency caches remain
+for subsequent work. The cold native producer receipts are substantial; ordinary
+warm runs now add only their compact receipt plus the bounded media window.
+
+Run the retained `resource-controls.mjs`, `interrupt.mjs` and `confirm-warm.mjs`
+from `snapback4/`
+after generating/installing both candidates, running `check`, and overlaying
+local sources/client/wasm/XCFramework with the round-0 `setup-candidates.py`.
+The fixed `target/nx/timing-cli` copy prevents a concurrent local CLI rebuild
+from changing a cohort's executable. `run.mjs` records complete command wall
+latency, status, cache decision, hashes, resources and compressed receipts/logs;
+resource comparisons and fork provenance are separate JSON records. The fresh
+resource comparator calls the same native driver directly with the saved `dist`,
+so it cannot change the export by running Metro again; its command is recorded.
+The final `confirmed-*` cohort runs only after verification drains. Final
+metric prose and self-contained PNG fixture initialization were completed after
+measurement; the native adapter, witness driver and wrapper bytes are unchanged
+from the measured source manifest. The suite
+runner refuses to overwrite its log and records one invocation and its PID.
+Nothing is pushed or published. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

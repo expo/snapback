@@ -490,6 +490,16 @@ test('Pods graph audit refuses external search paths, config includes, phase lis
     const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
     const audit = (g = graph, extra = {}) => auditNativeProject(g, dir, [{ target: 'Pod', buildSettings: { ...settings, ...extra } }], root, cache, [], 'App');
     assert.equal(audit().sources.length, 0);
+    for (const name of ['assets', '_expo', 'ASSETS', 'images']) {
+      const resource = structuredClone(graph);
+      resource.objects.target.buildPhases = ['resources'];
+      resource.objects.resources = { isa: 'PBXResourcesBuildPhase', files: ['buildFile'] };
+      resource.objects.buildFile = { isa: 'PBXBuildFile', fileRef: 'resource' };
+      resource.objects.resource = { isa: 'PBXFileReference', path: name, sourceTree: 'SOURCE_ROOT' };
+      if (name === 'images') assert.doesNotThrow(() => audit(resource));
+      else assert.throws(() => audit(resource), /native resource collides with Metro resource namespace/);
+    }
+
     assert.throws(() => audit(graph, { HERMES_CLI_PATH: root + '/node_modules/other-compiler' }), /unsupported HERMES_CLI_PATH/);
     assert.ok(audit(graph, { HERMES_CLI_PATH: root + '/node_modules/hermes-compiler/hermesc/osx-bin/hermesc' }));
     fs.mkdirSync(root + '/shared'); fs.symlinkSync('../shared', cache + '/link');

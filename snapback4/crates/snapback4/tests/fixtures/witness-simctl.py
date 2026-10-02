@@ -17,6 +17,12 @@ assert a[0] == 'simctl'
 a = a[1:]
 with (root / 'simctl-calls.jsonl').open('a') as f:
     f.write(json.dumps(a) + '\n')
+if mode == 'interrupt-selection' and a[0] == 'list':
+    os.kill(os.getppid(), signal.SIGINT)
+    sys.exit(1)
+if mode == 'invalid-selection' and a[0] == 'list':
+    print('invalid JSON')
+    sys.exit(0)
 if a[0] == 'list':
     if mode == 'timeout-prepare':
         # Withhold readiness until the driver times out and reaps us.
@@ -57,7 +63,16 @@ if a[0] == 'list':
 elif a[0] == 'create':
     assert a[1].startswith(os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-'))
     assert a[3] == 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+    if mode in ['auto-create-owner-fails', 'auto-create-delete-fails']:
+        state = Path(os.environ['XDG_STATE_HOME']) / 'snapback4/witness/simulators'
+        (state / (udid + '.json')).write_text('collision after successful create')
+    if mode == 'auto-create-interrupt':
+        os.kill(os.getppid(), signal.SIGINT)
     print(udid)
+elif a[0] == 'delete':
+    assert a[1] == udid
+    if mode == 'auto-create-delete-fails': sys.exit(1)
+    (root / 'deleted-simulator').write_text(udid)
 elif a[0] in ['boot', 'bootstatus']:
     assert a[1] == udid
     if mode == 'auto-create-' + a[0] + '-fails':

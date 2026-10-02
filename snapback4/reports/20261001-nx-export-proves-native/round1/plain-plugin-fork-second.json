@@ -1,0 +1,31 @@
+{
+  "starter": "plain",
+  "label": "plugin-fork-second",
+  "startedAt": 1790909165012,
+  "durationMs": 97197,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "b1f0d76d3e7efec876c51ea97f757957b78956c16721edba7ca6a83a60da268f",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790909167948-59062/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "0c4e3457f06f74a630562ec94412487bf7741b3fa38b584c2d0ed2d0da3a02b6"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 93711,
+  "loadedHash": "b1f0d76d3e7efec876c51ea97f757957b78956c16721edba7ca6a83a60da268f",
+  "metroResources": [],
+  "nativeMarker": "second",
+  "cacheMiss": "native-cache miss: input changed: src/native-mode.js; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

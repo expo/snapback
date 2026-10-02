@@ -12,9 +12,11 @@ use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 extern "C" fn interrupt(_: libc::c_int) { INTERRUPTED.store(true, Ordering::Relaxed); }
-fn tick() -> Result<()> {
+fn interrupted() -> Result<()> {
     if INTERRUPTED.load(Ordering::Relaxed) { return Err(error("E_WITNESS_INTERRUPTED", "witness interrupted; stopping its owned processes")); }
-    sleep(Duration::from_millis(100)); Ok(())
+    Ok(())
+}
+fn tick() -> Result<()> { interrupted()?; sleep(Duration::from_millis(100)); Ok(())
 }
 
 struct Options {
@@ -102,17 +104,25 @@ impl Drop for Owned { fn drop(&mut self) { let _ = self.stop(libc::SIGTERM); } }
 fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
     let mut command = Command::new("xcrun");
     command.arg("simctl").args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = Owned::spawn(&mut command)?;
+    let mut child = Owned(command.spawn().map_err(|e| interrupted().err().unwrap_or_else(|| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            error("E_WITNESS_PLATFORM", "xcrun is unavailable; install Xcode and its command line tools")
+        } else { error("E_WITNESS_PROCESS", e) }
+    }))?);
+    let creating = args.first() == Some(&"create");
     let stdout = child.0.stdout.take().unwrap(); let stderr = child.0.stderr.take().unwrap();
     let read = |mut pipe: Box<dyn Read + Send>| std::thread::spawn(move || { let mut text = String::new(); let _ = pipe.read_to_string(&mut text); text });
     let out = read(Box::new(stdout)); let err = read(Box::new(stderr));
     let end = Instant::now() + timeout;
     let status = loop {
-        if let Some(status) = child.status()? { break status; }
-        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "xcrun simctl timed out; check --udid and --timeout")); }
-        tick()?;
+        if let Some(status) = child.status().map_err(|e| interrupted().err().unwrap_or(e))? { break status; }
+        if Instant::now() >= end { interrupted()?; return Err(error("E_WITNESS_TIMEOUT", "xcrun simctl timed out; check --udid and --timeout")); }
+        // Creation must return its identity before cancellation can delete it.
+        // Its existing timeout still bounds a stuck simctl.
+        if creating { sleep(Duration::from_millis(50)); } else { tick()?; }
     };
     let text = out.join().unwrap_or_default(); let _ = err.join();
+    if !creating || !status.success() { interrupted()?; }
     if !status.success() { return Err(error("E_WITNESS_SIMULATOR", "xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime")); }
     Ok(text.trim().to_owned())
 }
@@ -391,6 +401,7 @@ impl Drop for Run {
         let _ = self.finish_capture();
         if self.app_pid.is_some() { let _ = self.terminate(false); }
         if let Some(mut backend) = self.backend.take() { let _ = backend.stop(libc::SIGTERM); }
+        if self.options.export.is_some() { let _ = fs::remove_dir_all(&self.dir); }
     }
 }
 
@@ -404,7 +415,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     // App/install/SDK errors after selection always remain failures.
     let simulator = match simulator::select(&options, preparation) {
         Ok(value) => value,
-        Err(problem) => { if options.export.is_some() && !problem.starts_with("E_WITNESS_INPUT") && !problem.starts_with("E_WITNESS_INTERRUPTED") { preparation["phase"] = json!("environment"); } return Err(problem); }
+        Err(problem) => { if options.export.is_some() && preparation["environmentCondition"].is_string() { preparation["phase"] = json!("environment"); } return Err(problem); }
     };
     let udid = simulator["udid"].as_str().unwrap().to_owned();
     let runtime = simulator["runtime"].as_str().unwrap().to_owned();
@@ -471,6 +482,7 @@ pub fn run(args: &[String]) -> i32 {
             "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
             "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
             "events": [], "artifacts": {} });
+        let _temporary = preparation::ExportTemporary::new(&options);
         let mut run = match prepare(options, &mut preparation) {
             Ok(run) => run,
             Err(problem) => {
@@ -512,7 +524,7 @@ mod lookup_tests {
         const MODE: &str = "SNAPBACK4_TEST_APP_LOOKUP";
         if let Ok(mode) = std::env::var(MODE) {
             // A separate test process owns PATH and the interruption flag.
-            if mode == "interrupted" { INTERRUPTED.store(true, Ordering::Relaxed); }
+            if mode.starts_with("interrupted") { INTERRUPTED.store(true, Ordering::Relaxed); }
             let timeout = if mode == "timeout" { Duration::ZERO } else { Duration::from_secs(30) };
             let result = installed_app("private-udid-value", "private-bundle-value", timeout);
             if mode == "success" {
@@ -522,9 +534,9 @@ mod lookup_tests {
             let problem = result.unwrap_err();
             let expected = match mode.as_str() {
                 "timeout" => "E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout",
-                "interrupted" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+                "interrupted" | "interrupted-spawn" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
                 "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime",
-                "spawn" => "E_WITNESS_PROCESS:",
+                "spawn" => "E_WITNESS_PLATFORM:",
                 _ => panic!("unknown fixture mode"),
             };
             assert!(problem.starts_with(expected), "{mode}: {problem}");
@@ -547,10 +559,10 @@ esac
 "#).unwrap();
         fs::set_permissions(&tool, fs::Permissions::from_mode(0o755)).unwrap();
         let mut failures = Vec::new();
-        for mode in ["success", "timeout", "interrupted", "unavailable", "missing", "spawn"] {
+        for mode in ["success", "timeout", "interrupted", "interrupted-spawn", "unavailable", "missing", "spawn"] {
             let output = Command::new(std::env::current_exe().unwrap())
                 .args(["--exact", "verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics", "--nocapture"])
-                .env(MODE, mode).env("PATH", if mode == "spawn" { dir.join("absent") } else { dir.clone() })
+                .env(MODE, mode).env("PATH", if mode.ends_with("spawn") { dir.join("absent") } else { dir.clone() })
                 .output().unwrap();
             if !output.status.success() {
                 failures.push(format!("{mode}: {}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)));
