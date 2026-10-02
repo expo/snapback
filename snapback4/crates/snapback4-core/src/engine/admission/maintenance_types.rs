@@ -3,6 +3,22 @@
 // @ref LLP 3000.015#3 — maintenance fields are query output, never computation.
 use super::*;
 
+// The only whole-value forwarding primitives. Unknown future builtins deny by
+// default; the census test forces their author to record an explicit decision.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Inspection { Inspecting, NonInspecting }
+fn builtin_inspection(builtin: &Builtin) -> Option<Inspection> {
+    use Builtin::*;
+    #[allow(unreachable_patterns)]
+    match builtin {
+        OptionalField { .. } | Len | Count | CountCapped | First | Last | At | Slice | Concat => Some(Inspection::NonInspecting),
+        ProjectFields { .. } | ReceiptSettled { .. } | Calendar { .. } | Lower | Trim | Sha256 | Join
+        | Group { .. } | Min | Max | Extremum { .. } | ExtremumOf { .. } | Divmod { .. }
+        | Sort { .. } | MentionTokens | SearchPresent | DeterministicShare | Sum | Connected => Some(Inspection::Inspecting),
+        _ => None,
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 enum Type {
     #[default]
@@ -36,6 +52,8 @@ impl Type {
         }
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Output { Query, Forward, Effect }
 struct Check<'a> {
     schema: &'a Schema,
     env: BTreeMap<String, Type>,
@@ -51,12 +69,12 @@ pub(super) fn check(schema: &Schema, program: &Program) -> Result<()> {
     if !schema.maintains.iter().any(|m| m.row_key.is_some()) { return Ok(()); }
     let arguments: BTreeMap<_, _> = program.args.iter().map(|(name, ty)| (name.clone(), argument_type(ty))).collect();
     let mut check = Check { schema, env: arguments.clone(), uses: BTreeMap::new(), outputs: BTreeSet::new(), validate: false };
-    let query = program.kind == ProgramKind::Query;
-    check.body(&program.body, query)?;
+    let output = if program.kind == ProgramKind::Query { Output::Query } else { Output::Effect };
+    check.body(&program.body, output)?;
     check.outputs = check.uses.iter().filter(|(_, data)| **data).map(|(name, _)| name.clone()).collect();
     check.env = arguments;
     check.validate = true;
-    check.body(&program.body, query).map(|_| ())
+    check.body(&program.body, output).map(|_| ())
 }
 impl Check<'_> {
     fn use_name(&mut self, name: &str, data: bool) -> Type {
@@ -78,25 +96,32 @@ impl Check<'_> {
             _ => Ok(Type::Unknown),
         }
     }
-    // Whole-value comparison/order would implicitly inspect every row field.
-    // Null tests and cardinality inspect presence only and do not use this path.
-    fn comparable(&self, ty: &Type) -> Result<()> {
+    // Every inspecting use checks the complete structural type, not just its
+    // outermost value or the result type of the consuming operation.
+    fn inspect(&self, ty: &Type) -> Result<()> {
         if !self.validate { return Ok(()); }
         match ty {
-            Type::Row(table) => if let Some(message) = self.schema.row_view_predicate_field(table, "recountPending") { return Err(message); },
-            Type::Object(fields) => for value in fields.values() { self.comparable(value)?; },
-            Type::Shape(base, fields) => { self.comparable(base)?; for value in fields.values() { self.comparable(value)?; } },
-            Type::List(item) => self.comparable(item)?,
+            Type::Row(table) => if self.schema.row_view_predicate_field(table, "recountPending").is_some() {
+                return Err(format!("E_VIEW_KEY: value contains {table}.recountPending/pending maintenance state; project the field you need first (value, member identity or copied member fields), then compute; return maintenance state only as query data (guide maintains)"));
+            },
+            Type::Object(fields) => for value in fields.values() { self.inspect(value)?; },
+            Type::Shape(base, fields) => { self.inspect(base)?; for value in fields.values() { self.inspect(value)?; } },
+            Type::List(item) => self.inspect(item)?,
             Type::Unknown => { self.field(Type::Unknown, "recountPending", false)?; },
             _ => {},
         }
         Ok(())
     }
+    fn inspected(&mut self, expr: &Expr) -> Result<Type> {
+        let ty = self.expr(expr, false)?;
+        self.inspect(&ty)?;
+        Ok(ty)
+    }
     fn read(&mut self, read: &Read) -> Result<Type> {
         if self.schema.is_recount_work(&read.table) && self.validate {
             return Err(format!("E_VIEW_KEY: {} is private maintenance state; use value or member fields of the public view (guide maintains)", read.table));
         }
-        for e in &read.key { self.expr(e, false)?; }
+        for e in &read.key { self.inspected(e)?; }
         if let Some(index) = self.schema.table(&read.table).and_then(|t| t.index(&read.index)) {
             for field in index.columns() { self.field(Type::Row(read.table.clone()), &field, false)?; }
         }
@@ -104,14 +129,14 @@ impl Check<'_> {
     }
     fn scan(&mut self, scan: &Scan) -> Result<Type> {
         let row = self.read(&Read { site: scan.site.clone(), table: scan.table.clone(), index: scan.index.clone(), key: vec![], provenance: scan.provenance })?;
-        if let Bound::Arg { name, .. } = &scan.take { self.use_name(name, false); }
+        if let Bound::Arg { name, .. } = &scan.take { let ty = self.use_name(name, false); self.inspect(&ty)?; }
         let mut values: Vec<&Expr> = scan.prefix.iter().map(|p| match p { IndexKeyExpr::Scalar(e) | IndexKeyExpr::WordPrefix(e) => e }).collect();
         values.extend(scan.after.as_deref()); values.extend(scan.before.as_deref());
         if let Some(range) = &scan.range { values.extend(range.gt.iter().chain(&range.gte).chain(&range.lt).chain(&range.lte).map(Box::as_ref)); }
-        for e in values { self.expr(e, false)?; }
+        for e in values { self.inspected(e)?; }
         if let Some(filter) = &scan.filter {
             let old = self.env.insert("$filter".into(), row.clone());
-            self.expr(filter, false)?;
+            self.inspected(filter)?;
             if let Some(old) = old { self.env.insert("$filter".into(), old); } else { self.env.remove("$filter"); }
         }
         Ok(row.list())
@@ -128,7 +153,7 @@ impl Check<'_> {
             Expr::Block { body, value } => {
                 // Blocks may hide helpers: every access inside is computation.
                 // Row-valued helper results still keep their receiver type.
-                let returned = self.body(body, false)?;
+                let returned = self.body(body, Output::Forward)?;
                 Ok(returned.join(self.expr(value, false)?))
             },
             Expr::Array(values) => { let mut item = Type::Empty; for value in values { item = item.join(self.expr(value, data)?); } Ok(item.list()) },
@@ -138,23 +163,47 @@ impl Check<'_> {
                 for (name, value) in fields { types.insert(name.clone(), self.expr(value, data)?); }
                 Ok(match base { Some(base) => Type::Shape(Box::new(base), types), None => Type::Object(types) })
             },
-            Expr::Unary { value, .. } => { let ty = self.expr(value, false)?; self.comparable(&ty)?; Ok(Type::Scalar) },
-            Expr::Binary { left, right, .. } => {
+            Expr::Unary { value, .. } => { let ty = self.expr(value, false)?; self.inspect(&ty)?; Ok(Type::Scalar) },
+            Expr::Binary { op, left, right } => {
                 let a = self.expr(left, false)?; let b = self.expr(right, false)?;
-                if !matches!(a, Type::Empty) && !matches!(b, Type::Empty) { self.comparable(&a)?; self.comparable(&b)?; }
+                let presence = matches!(op, BinaryOp::Eq | BinaryOp::Ne | BinaryOp::SameValueZero)
+                    && (matches!(a, Type::Empty) || matches!(b, Type::Empty));
+                if !presence { self.inspect(&a)?; self.inspect(&b)?; }
                 Ok(Type::Scalar)
             },
             Expr::Builtin { builtin, args } => {
                 let first = args.first().map(|arg| self.expr(arg, false)).transpose()?.unwrap_or(Type::Unknown);
                 if matches!(builtin, Builtin::Sum | Builtin::ExtremumOf { .. }) {
+                    self.inspect(&first)?;
                     let old = self.env.insert("$filter".into(), first.item());
                     let mut projection = Type::Scalar;
-                    for arg in args.iter().skip(1) { projection = self.expr(arg, false)?; }
+                    for arg in args.iter().skip(1) { projection = self.inspected(arg)?; }
                     if let Some(old) = old { self.env.insert("$filter".into(), old); } else { self.env.remove("$filter"); }
                     return Ok(if matches!(builtin, Builtin::ExtremumOf { .. }) { projection } else { Type::Scalar });
                 }
                 let mut types = vec![first.clone()];
                 for arg in args.iter().skip(1) { types.push(self.expr(arg, false)?); }
+                // Preserve specific field diagnostics before the whole-value
+                // refusal (including undeclared/private sort and group keys).
+                match builtin {
+                    Builtin::Sort { keys } => for key in keys { self.field(first.clone().item(), &key.field, false)?; },
+                    Builtin::Group { field, .. } | Builtin::Extremum { field, .. } => { self.field(first.clone().item(), field, false)?; },
+                    _ => {},
+                }
+                let non_inspecting = builtin_inspection(builtin) == Some(Inspection::NonInspecting);
+                for (index, ty) in types.iter().enumerate() {
+                    let forwards = non_inspecting && match builtin {
+                        // The text overload invokes concat_text/canonical_json.
+                        Builtin::Concat => types.len() == 2 && types.iter().all(|t| matches!(t, Type::List(_))),
+                        Builtin::OptionalField { .. } => index == 0,
+                        // Len also accepts maps at runtime: a row's optional
+                        // pending key must not become observable via map size.
+                        Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::First
+                        | Builtin::Last | Builtin::At | Builtin::Slice => index == 0 && matches!(ty, Type::List(_)),
+                        _ => false,
+                    };
+                    if !forwards { self.inspect(ty)?; }
+                }
                 match builtin {
                     Builtin::OptionalField { field } => self.field(first, field, data),
                     Builtin::ProjectFields { .. } => Ok(first),
@@ -162,13 +211,13 @@ impl Check<'_> {
                     Builtin::Slice => Ok(first),
                     Builtin::Concat => Ok(types.into_iter().fold(Type::Empty, Type::join)),
                     Builtin::Sort { keys } => {
-                        for key in keys { let ty = self.field(first.clone().item(), &key.field, false)?; self.comparable(&ty)?; }
+                        for key in keys { let ty = self.field(first.clone().item(), &key.field, false)?; self.inspect(&ty)?; }
                         Ok(first)
                     },
                     Builtin::Group { field, .. } => {
                         let item = first.item();
                         let key = self.field(item.clone(), field, false)?;
-                        self.comparable(&key)?;
+                        self.inspect(&key)?;
                         Ok(Type::Object(BTreeMap::from([("key".into(), key), ("items".into(), item.list())])).list())
                     },
                     Builtin::Extremum { field, .. } => self.field(first.item(), field, false),
@@ -178,21 +227,21 @@ impl Check<'_> {
                 }
             },
             Expr::Merge(merge) => {
-                if let Some(position) = &merge.position { for e in position.after.iter() { self.expr(e, false)?; } }
+                if let Some(position) = &merge.position { for e in position.after.iter() { self.inspected(e)?; } }
                 let mut item = Type::Empty;
                 for lane in &merge.lanes {
                     let source = match &lane.source {
                         None => self.scan(&lane.scan)?.item(), Some(LaneSource::Scan(scan)) => self.scan(scan)?.item(),
                         Some(LaneSource::List { value, .. }) => self.expr(value, false)?.item(),
-                        Some(LaneSource::Range { start, end_exclusive, .. }) => { self.expr(start, false)?; self.expr(end_exclusive, false)?; Type::Scalar },
+                        Some(LaneSource::Range { start, end_exclusive, .. }) => { self.inspected(start)?; self.inspected(end_exclusive)?; Type::Scalar },
                     };
                     self.env.insert(lane.binding.clone(), source);
-                    self.body(&lane.setup, false)?;
-                    for e in lane.guard.iter().chain(&lane.distinct) { self.expr(e, false)?; }
+                    self.body(&lane.setup, Output::Effect)?;
+                    for e in lane.guard.iter().chain(&lane.distinct) { self.inspected(e)?; }
                     let row = self.scan(&lane.scan)?.item();
                     self.env.insert("$project".into(), row.clone());
                     let projected = if let Some(project) = &lane.project { self.expr(project, data && merge.order_keys.is_empty())? } else { row };
-                    for key in &merge.order_keys { self.field(projected.clone(), key, false)?; }
+                    for key in &merge.order_keys { let ty = self.field(projected.clone(), key, false)?; self.inspect(&ty)?; }
                     item = item.join(projected);
                 }
                 Ok(item.list())
@@ -200,21 +249,26 @@ impl Check<'_> {
         }
     }
     fn bind(&mut self, name: &str, ty: Type) { let old = self.env.remove(name).unwrap_or_default(); self.env.insert(name.into(), old.join(ty)); }
-    fn body(&mut self, body: &[Stmt], query: bool) -> Result<Type> {
+    fn body(&mut self, body: &[Stmt], output: Output) -> Result<Type> {
+        let query = output == Output::Query;
         let mut returned = Type::Empty;
         for stmt in body {
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => { let ty = self.expr(value, false)?; self.env.insert(name.clone(), ty); },
                 Stmt::Push { target, value } => { let ty = self.expr(value, query && self.outputs.contains(target))?; self.bind(target, ty.list()); },
-                Stmt::Return(e) => returned = returned.join(self.expr(e, query)?),
-                Stmt::Require { condition, .. } => { self.expr(condition, false)?; },
-                Stmt::Check { condition, current } => { self.read(current)?; self.expr(condition, false)?; },
+                Stmt::Return(e) => {
+                    let ty = self.expr(e, query)?;
+                    if output == Output::Effect { self.inspect(&ty)?; }
+                    returned = returned.join(ty);
+                },
+                Stmt::Require { condition, .. } => { self.inspected(condition)?; },
+                Stmt::Check { condition, current } => { self.read(current)?; self.inspected(condition)?; },
                 Stmt::If { condition, then_body, else_body } => {
-                    self.expr(condition, false)?;
+                    self.inspected(condition)?;
                     let before = self.env.clone();
-                    returned = returned.join(self.body(then_body, query)?);
+                    returned = returned.join(self.body(then_body, output)?);
                     let then = std::mem::replace(&mut self.env, before);
-                    returned = returned.join(self.body(else_body, query)?);
+                    returned = returned.join(self.body(else_body, output)?);
                     for (name, ty) in then { self.bind(&name, ty); }
                 },
                 Stmt::For { binding, domain, body } => {
@@ -222,29 +276,29 @@ impl Check<'_> {
                         LoopDomain::Page(scan) => self.scan(scan)?.item(),
                         LoopDomain::DerivedArray { value, .. } => self.expr(value, false)?.item(),
                         LoopDomain::ArgList { name, .. } => self.use_name(name, false).item(),
-                        LoopDomain::Recurse(r) => { self.expr(&r.seed, false)?; self.field(Type::Row(r.table.clone()), &r.next_field, false)?; Type::Row(r.table.clone()) },
-                        LoopDomain::ExpressionRange { start, end_exclusive } => { self.expr(start, false)?; self.expr(end_exclusive, false)?; Type::Scalar },
+                        LoopDomain::Recurse(r) => { self.inspected(&r.seed)?; self.field(Type::Row(r.table.clone()), &r.next_field, false)?; Type::Row(r.table.clone()) },
+                        LoopDomain::ExpressionRange { start, end_exclusive } => { self.inspected(start)?; self.inspected(end_exclusive)?; Type::Scalar },
                         LoopDomain::LiteralRange { .. } => Type::Scalar,
                     };
                     self.bind(binding, ty);
                     loop {
                         let prior = self.env.clone();
-                        returned = returned.join(self.body(body, query)?);
+                        returned = returned.join(self.body(body, output)?);
                         for (name, ty) in &prior { self.bind(name, ty.clone()); }
                         if self.env == prior { break; }
                     }
                 },
                 Stmt::WriteTarget { target, patch, condition, result, .. } => {
-                    let row = self.read(target)?; self.expr(patch, false)?;
-                    if let Some(c) = condition { self.bind(&c.old, row.clone()); self.body(&c.setup, false)?; self.expr(&c.value, false)?; }
+                    let row = self.read(target)?; self.inspected(patch)?;
+                    if let Some(c) = condition { self.bind(&c.old, row.clone()); self.body(&c.setup, Output::Effect)?; self.inspected(&c.value)?; }
                     if let Some(name) = result { self.bind(name, row); }
                 },
-                Stmt::Insert { row, .. } => { self.expr(row, false)?; },
-                Stmt::InsertIfAbsent { table, row, result } => { self.expr(row, false)?; self.bind(result, Type::Row(table.clone())); },
-                Stmt::Update { key, patch, .. } | Stmt::Upsert { key, row: patch, .. } => { self.expr(key, false)?; self.expr(patch, false)?; },
-                Stmt::Delete { key, .. } => { self.expr(key, false)?; },
+                Stmt::Insert { row, .. } => { self.inspected(row)?; },
+                Stmt::InsertIfAbsent { table, row, result } => { self.inspected(row)?; self.bind(result, Type::Row(table.clone())); },
+                Stmt::Update { key, patch, .. } | Stmt::Upsert { key, row: patch, .. } => { self.inspected(key)?; self.inspected(patch)?; },
+                Stmt::Delete { key, .. } => { self.inspected(key)?; },
                 Stmt::DeleteTarget { target } => { self.read(target)?; },
-                Stmt::Emit { payload, once, .. } => { self.expr(payload, false)?; if let Some(e) = once { self.expr(e, false)?; } },
+                Stmt::Emit { payload, once, .. } => { self.inspected(payload)?; if let Some(e) = once { self.inspected(e)?; } },
                 Stmt::Break | Stmt::Continue => {},
             }
         }
@@ -273,4 +327,41 @@ fn argument_type(argument: &ArgType) -> Type {
 }
 fn asset_type() -> Type {
     Type::Object(["id", "width", "height", "duration", "bytes", "type"].map(|name| (name.into(), Type::Scalar)).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::{Deserialize, Deserializer, de::{Visitor, value::Error}};
+
+    // Ask the actual derived IR deserializer for its variant census. Adding a
+    // builtin without a test specimen or an explicit classification fails here.
+    struct Census<'a>(&'a mut Vec<&'static str>);
+    impl<'de> Deserializer<'de> for Census<'_> {
+        type Error = Error;
+        fn deserialize_enum<V: Visitor<'de>>(self, _: &'static str, variants: &'static [&'static str], _: V) -> std::result::Result<V::Value, Error> {
+            self.0.extend_from_slice(variants);
+            Err(serde::de::Error::custom("census only"))
+        }
+        fn deserialize_any<V: Visitor<'de>>(self, _: V) -> std::result::Result<V::Value, Error> { Err(serde::de::Error::custom("enum only")) }
+        serde::forward_to_deserialize_any! { bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf option unit unit_struct newtype_struct seq tuple tuple_struct map struct identifier ignored_any }
+    }
+    #[test]
+    fn every_builtin_has_an_explicit_inspection_classification() {
+        use Builtin::*;
+        let builtins = [ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into() },
+            Calendar { millis: 1 }, Len, Slice, Concat, Lower, Trim, Sha256, Join, Group { field: "id".into(), optional: false },
+            First, Last, At, Min, Max, Extremum { field: "id".into(), max: false, domain: false }, ExtremumOf { max: false, domain: false },
+            Divmod { remainder_sink: "r".into() }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected];
+        let mut variants = vec![];
+        let _ = Builtin::deserialize(Census(&mut variants));
+        let mut covered = BTreeSet::new();
+        for builtin in builtins {
+            assert!(builtin_inspection(&builtin).is_some(), "unclassified builtin: {builtin:?}; default is inspecting");
+            let encoded = serde_json::to_value(&builtin).unwrap();
+            covered.insert(encoded.as_str().map(str::to_owned).unwrap_or_else(|| encoded.as_object().unwrap().keys().next().unwrap().clone()));
+        }
+        assert_eq!(covered, variants.iter().map(|name| name.to_string()).collect());
+        eprintln!("BG round7 builtin census: {} variants, all explicitly classified", variants.len());
+    }
 }

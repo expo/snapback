@@ -81,6 +81,57 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
         let mut program=programs[0].clone(); program.body=vec![Stmt::Return(expr)];
         out.push((name.into(),base.clone(),vec![program]));
     }
+    // Every inspecting builtin, including compiler-only primitives and text
+    // conversion. These feed the shared six-boundary server/device matrix.
+    let row = Expr::Get(Read { site:"builtin".into(), table:"unread".into(), index:"byId".into(), key:vec![Expr::Literal(Value::Id("u".into()))], provenance:KeyProvenance::Const });
+    let nested = Expr::Object([("nested".into(), row.clone())].into());
+    let list = Expr::Array(vec![nested.clone()]);
+    for builtin in [Builtin::ProjectFields {table:"unread".into()}, Builtin::ReceiptSettled {table:"unread".into()},
+        Builtin::Calendar {millis:1}, Builtin::Lower, Builtin::Trim, Builtin::Sha256, Builtin::Join,
+        Builtin::Group {field:"nested".into(),optional:false}, Builtin::Min, Builtin::Max,
+        Builtin::Extremum {field:"nested".into(),max:false,domain:false}, Builtin::ExtremumOf {max:true,domain:false},
+        Builtin::Divmod {remainder_sink:"r".into()}, Builtin::Sort {keys:vec![SortKey {field:"nested".into(),order:Order::Asc,optional:false}]},
+        Builtin::MentionTokens, Builtin::SearchPresent, Builtin::DeterministicShare, Builtin::Sum, Builtin::Connected] {
+        for slot in 0..builtin.arity() {
+            let mut args = vec![Expr::Literal(Value::Int(1)); builtin.arity()];
+            args[slot] = list.clone();
+            let mut program=programs[0].clone();
+            program.body=vec![Stmt::Return(Expr::Builtin {builtin:builtin.clone(),args})];
+            out.push((format!("inspecting/{builtin:?}/arg{slot}"),base.clone(),vec![program]));
+        }
+    }
+    for (name,expr) in [
+        ("concat-json-right", Expr::Builtin {builtin:Builtin::Concat,args:vec![Expr::Literal(Value::String("".into())),nested.clone()]}),
+        ("concat-json-left", Expr::Builtin {builtin:Builtin::Concat,args:vec![list.clone(),Expr::Literal(Value::String("".into()))]}),
+        ("len-row-metadata", Expr::Builtin {builtin:Builtin::Len,args:vec![row.clone()]}),
+        ("at-index", Expr::Builtin {builtin:Builtin::At,args:vec![list.clone(),row.clone()]}),
+        ("slice-start", Expr::Builtin {builtin:Builtin::Slice,args:vec![list.clone(),row.clone(),Expr::Literal(Value::Int(1))]}),
+        ("slice-end", Expr::Builtin {builtin:Builtin::Slice,args:vec![list.clone(),Expr::Literal(Value::Int(0)),row.clone()]}),
+        ("ordering-null", Expr::Binary {op:BinaryOp::Lt,left:Box::new(row.clone()),right:Box::new(Expr::Literal(Value::Null))}),
+    ] {
+        let mut program=programs[0].clone();program.body=vec![Stmt::Return(expr)];
+        out.push((name.into(),base.clone(),vec![program]));
+    }
+    for (name,stmt) in [
+        ("condition",Stmt::If {condition:row.clone(),then_body:vec![],else_body:vec![]}),
+        ("require",Stmt::Require {condition:row.clone(),code:"NO".into(),site:None}),
+        ("insert",Stmt::Insert {table:"gates".into(),row:nested.clone()}),
+        ("emit",Stmt::Emit {effect:"probe".into(),payload:nested,once:None}),
+    ] {
+        let mut program=programs[0].clone();program.body=vec![stmt];
+        out.push((format!("consuming/{name}"),base.clone(),vec![program]));
+    }
+    let scan = match &programs.iter().find(|p| p.name == "rows").unwrap().body[0] {
+        Stmt::Return(Expr::Scan(scan)) => scan.clone(), other => panic!("rows scan: {other:?}"),
+    };
+    for order in [false,true] {
+        let merge = Expr::Merge(Merge { position:None,view:None,order_keys:if order {vec!["nested".into()]} else {vec![]},site:"whole-value-set".into(),variant:None,
+            lanes:vec![MergeLane {guard:None,distinct:if order {None} else {Some(Expr::Variable("item".into()))},branch:None,
+                project:Some(Expr::Object([("nested".into(),row.clone())].into())),setup:vec![],scan:scan.clone(),
+                source:Some(LaneSource::List {value:Expr::Array(vec![row.clone()]),max:1}),binding:"item".into()}] });
+        let mut program=programs[0].clone();program.body=vec![Stmt::Return(merge)];
+        out.push((format!("merge/{}",if order {"whole-value-order"} else {"distinct-json-key"}),base.clone(),vec![program]));
+    }
     // Generated nested structural types: every wrapper must survive until the
     // leaf access, including helper Block results and element-selection calls.
     for seed in [7u64, 20261002, 0xdeadbeef, 0x5eed] {

@@ -1,0 +1,9 @@
+{
+  "cohorts": 98,
+  "passes_failures_ignored": [
+    1294,
+    0,
+    11
+  ],
+  "command": "cargo test -p snapback4-lang --no-fail-fast"
+}

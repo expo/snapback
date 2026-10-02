@@ -69,6 +69,18 @@ impl Binder<'_> {
         self.returned_data &= matches!(expr, A::Array { .. } | A::Object { .. } | A::Shape { .. } | A::ShapeUse { .. } | A::Member { .. } | A::Name { .. } | A::Focal { .. });
         let result = self.expr_inner(expr, out);
         self.returned_data = prior;
+        // Even a builtin's ordinary type refusal should explain why a whole
+        // maintained value cannot be consumed. Successful calls are checked by
+        // the shared IR allowlist; this only improves already-failing calls.
+        if result.as_ref().is_err_and(|d| d.code == "E_QUARRY_TYPE") {
+            let args: Vec<&A> = match expr { A::Call { args, .. } => args.iter().collect(), A::Binary { left, right, .. } => vec![left, right], _ => vec![] };
+            let mut probe = self.clone();
+            for arg in args {
+                if let Ok((_, ty)) = probe.expr(arg, &mut setup::Body::default()) {
+                    self.maintenance_operand(&ty, arg.site())?;
+                }
+            }
+        }
         let result = result?;
         if !self.schema.receipts.is_empty() {
             let site = self.call_chain.iter().find(|(name, _)| self.catalog.documents.iter().flat_map(|d| &d.tables).filter_map(|t| t.receipts.as_ref()).any(|clause| &clause.operations[0] == name))
@@ -76,6 +88,21 @@ impl Binder<'_> {
             self.receipt_sources.push((result.0.clone(), site.clone()));
         }
         Ok(result)
+    }
+
+    fn maintenance_operand(&self, ty: &Ty, site: &Site) -> Fallible<()> {
+        match ty {
+            Ty::Row(table) | Ty::WriteRow(table) | Ty::Page(table, _) => {
+                if self.schema.row_view_predicate_field(table, "recountPending").is_some() {
+                    return Err(Diagnostic::new(site, "E_VIEW_KEY", format!("value contains {table}.recountPending/pending maintenance state"),
+                        "project the field you need first (value, member identity or copied member fields); return maintenance state only as query data").guide("maintains"));
+                }
+            },
+            Ty::Optional(item) | Ty::List(item, _) | Ty::Collection(item, _) => self.maintenance_operand(item, site)?,
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => for ty in fields.values() { self.maintenance_operand(ty, site)?; },
+            _ => {},
+        }
+        Ok(())
     }
 
     pub(super) fn computation(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {

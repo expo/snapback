@@ -1787,3 +1787,109 @@ reference validation: **525 LLPs, 10,080 refs, 0 errors, 0 unchecked**. LLP
 limits. One journal entry records the round. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
 no new independent-review approval, main integration or merged wasm claim.
+
+## Round 7 — default-deny whole-value inspection (2026-10-02)
+
+**Decision and scope.** Starts at `9e517196d3` after reading round 6. Both
+round-6 reviews are **NOT READY, one Medium**: Astra demonstrates `share`,
+`min` and `max` examining whole maintained rows; Grok additionally identifies
+`sorted`, mutation consumers, and the optional `pending` key preserved by row
+shapes. Neither review approves this revision. The operator's default-deny
+rule replaces the incomplete whole-value comparison restriction. No interpreter,
+count, deadline, reservation, window, prediction reconstruction or ceiling changes.
+
+**Implementation.** The existing structural type checker recursively checks
+rows, objects, lists and shapes at every inspecting consumer. Its explicit
+builtin classification allows only `OptionalField`, `Len`, `Count`,
+`CountCapped`, `First`, `Last`, `At`, `Slice` and array-only `Concat` to forward
+maintenance-bearing values. Field access still checks the selected field and
+returned-data position. The other forwarding primitives require a statically
+known list; indices and bounds are inspecting operands. `Len(row)` refuses:
+counting a map's optional keys could reveal `pending`. The text overload of
+`Concat` also refuses because it invokes text/JSON conversion. Every other
+builtin, including compiler-only primitives, defaults to inspecting.
+
+This closes `Min`, `Max`, `DeterministicShare`, sort/group, extrema, sum, hashing,
+text consumers, set membership and distinct/JSON keys. An ordinary sort key does
+not bless an entire maintained row; first construct ordinary scalar data.
+Conditions, read/range keys, merge ordering, write/effect payloads and non-query
+returns receive the same check. Presence equality/inequality against null remains
+non-inspecting. Aliases, helpers and containers retain their structural type;
+selecting `.value` after an inspecting call cannot make that call legal.
+Diagnostics name `recountPending/pending` and say to project the needed ordinary
+field first. Quarry also improves already-failing type diagnostics without
+masking the earlier field-specific refusal. Each mutation return is checked
+before joining its type, so unrelated ordinary return branches stay legal.
+No flat provenance or scalar taint is added.
+
+**Regression coverage.** The previous 36 compiler tests remain, including the
+seeded nested containers, helpers, aliases, projections, private fields and exact
+returned data. New probes cover Astra's argument-based `share`, both literal
+status guesses, a two-recipient guess comparison with the real row as recipient,
+`min(row, row)`, nested `max`, list/shape extrema, membership, equality, sort/group,
+hashing, text consumers and conversion. Grok's `min`, `max` and `sorted` cases
+run as queries and mutations, consuming either the chosen id or its value under
+a condition; projected rows remain restricted because their base carries
+`pending`. The accepted selector/list/cardinality forms return exact whole rows
+at clocks 2, 10, 20 and back to 2. Projected scalar operations still work.
+`min`, `max` and `sorted` of `unread['u']` and `unread['v']` return the expected
+certified integers at those same clocks.
+
+The raw matrix adds every inspecting builtin in every argument slot, text/JSON
+concatenation, optional-key length, inspecting selector operands, null ordering,
+conditions, insert/effect payloads, distinct keys and whole-value merge ordering.
+The shared cases exercise engine creation/adoption and Memory/SQLite device
+opening/adoption, retaining generation 1 after refusal. The builtin census asks
+the actual derived `Builtin` deserializer for all enum variants and checks each
+against its specimen and explicit inspection classification. A future variant
+is denied by default and fails the test until classified.
+
+**Affected checks.** Final compiler tests **39/39** (all previous 36 retained),
+full language run **98 cohorts / 1,294 passes / 0 failures / 11 ignored**,
+guide **110/110**, enum census **28/28 variants**, native witness/deadline
+**6/6**, and device expiry/prediction/admission **14/14** pass. The matrix is
+**803 cases × six native boundaries = 4,818 refused admissions**. The core
+row-view cohort passes **56/56**, including the independent lifetime/count
+properties. Development failures are listed individually as ours in
+`round7/FAILURES.md`; no baseline or environmental exception is used to waive them.
+
+**Work and wasm.** The unchanged 50-member work regression reports
+**(0 re-certified source rows, 100 examined, 100 steps)** at both **10,000 and
+100,000 history rows**. Wasm is **2,012,674 B raw / 605,008 B gzip**, byte-identical
+to round 6 (SHA-256
+`233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164`).
+The branch cap remains **605,225 B**, leaving **217 B** headroom. No new
+busy-group or LL latency measurement, loaded parity/speedup, merged size or
+cross-platform qualification is claimed; round 5's mixed loaded results remain
+the latest latency evidence.
+
+**Final-source suite.** `scripts/test.sh` ran **once**, with Node 24.13.1 and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Its exact summary is:
+
+```text
+== 0 failure(s) in 1434 s
+```
+
+Exit **0**. All **281 Rust binaries / 994 scheduled executions and workspace
+doctests** pass. Clients: **5,746 passed / 0 failed / 10 skipped**. Serial models:
+**79 passed / 0 failed**. Every final-suite failure: **none — ours 0, baseline 0,
+environmental 0**. The known `48 transient: local.ts:855 follow` injection case
+passes in this run; its existing nondeterminism ticket remains open, since this
+passing run does not repair or explain that flake. No second full-suite run,
+weakened assertion or increased timeout.
+
+`round7/full-suite.log.gz` preserves the unabridged output. The final receipt
+verifies all **1,790 frozen input hashes unchanged** and the suite's rebuilt wasm
+byte-identical to the measured artifact. `client-input-equivalence.json` also
+confirms all 495 tracked client source/test files match round 6. The toolchain,
+wasm measurements, command wrapper, affected logs and source digests are retained
+under `round7/`; large logs are lossless gzip archives.
+
+**Record.** LLP 3000.015 §3 and the compiled maintains card describe the
+allowlist, inspecting arguments and conservative limits. The guide remains at
+its unchanged **879-line** cap. One append-only journal entry records round 7.
+Root reference validation: **525 LLP documents, 10,080 refs, 0 errors,
+0 unchecked**. `round7/SHA256SUMS` binds the evidence, changed source, governing
+LLP, report and journal. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
+no round-7 independent approval or main integration is claimed.

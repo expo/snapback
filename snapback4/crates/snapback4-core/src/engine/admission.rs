@@ -89,7 +89,7 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
 pub fn check_detail_with_statements(schema: &Schema, program: &Program, statement_ends: &[usize]) -> Result<(), Problem> {
     maintenance_types::check(schema, program).map_err(|message| Problem {
         code: "E_VIEW_KEY", site: program.name.clone(), page_site: None, message,
-        rewrite: "predicate on value or member fields; project recountPending as data and check complete".into(),
+        rewrite: "project the field you need first: value or member fields; project recountPending as data and check complete".into(),
     })?;
     let mut fact = schema.operations.get(&program.name).cloned().unwrap_or_default();
     crate::schema::ephemeral::execution(schema, program, &mut fact).map_err(|message| Problem {

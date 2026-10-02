@@ -99,3 +99,92 @@ fn ordinary_objects_and_copied_member_total_are_not_maintenance_state() {
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
 }
+
+#[test]
+fn whole_value_builtins_and_both_status_guesses_refuse() {
+    for expected in ["false", "true", "expected"] {
+        let guess = format!("{{ id: row.id, member: row.member, value: row.value, recountPending: {expected} }}");
+        for expr in [format!("share(1, [row], {guess})"), format!("row = {guess}"), format!("min(row, row) = {guess}")] {
+            refuse(&format!("query probe(expected: bool):\n  for row in unread first 10:\n    return {expr}\n  return 0\n"), "recountPending");
+        }
+    }
+    refuse("query twoGuesses():\n  for row in unread first 10:\n    no = { id: row.id, member: row.member, value: row.value, recountPending: false }\n    yes = { id: row.id, member: row.member, value: row.value, recountPending: true }\n    return share(1, [no, yes], row)\n  return 0\n", "recountPending");
+    // Whole rows, nested objects, lists and projections: even a later safe
+    // projection cannot authorize the preceding inspection.
+    for expr in [
+        "min(row, row)", "max({nested: row}, {nested: row})", "min([row], [row])",
+        "max(row { nested: . }, row { nested: . })", "(min(row, row)).value",
+        "share(1, [row], row)", "share(1, [{nested: row}], {nested: row})",
+        "sort([{nested: row}], 'nested')", "group([{nested: row}], 'nested')",
+        "sort([row], 'id')", "group([row], 'id')", "min([row], .value)",
+        "max([row], .value + 1)", "sum([row])", "sha256(row)", "join([row], '')",
+        "lower(row)", "trim(row)", "tokens(row)", "day(row)",
+        "row in [row]", "[row] = [row]", "row < row", "{nested: row} != {nested: row}",
+        "'' + row", // already a type refusal; the diagnostic must name the field
+    ] {
+        refuse(&format!("query probe():\n  for row in unread first 10:\n    return {expr}\n  return null\n"), "recountPending");
+    }
+}
+
+#[test]
+fn non_inspecting_selectors_and_projected_computation_preserve_exact_data() {
+    let mut source = base();
+    for (name, expr) in [
+        ("firstRow", "first([row])"), ("lastRow", "last([row])"), ("atRow", "at([row], 0)"),
+        ("sliceRow", "first(slice([row], 0, 1))"), ("concatRow", "first([row] + [row])"),
+        ("nestedRow", "({nested: [row]}).nested"), ("countRows", "count([row])"),
+        ("compareValue", "min(row.value, row.value)"), ("shareIds", "share(1, [row.id], row.id)"),
+        ("sortIds", "count(sort([{id: row.id}], 'id'))"), ("groupIds", "count(group([{id: row.id}], 'id'))"),
+    ] {
+        source += &format!("query {name}():\n  for row in unread first 10:\n    return {expr}\n  return null\n");
+    }
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let rows = [("rooms", json!({"id":"r"})), ("members", json!({"id":"u","room":"r","until":null})),
+        ("messages", json!({"id":"m","room":"r","until":10}))].into_iter().map(|(table, row)|
+        (table.to_string(), wire::row_from_json(&engine.schema().tables[table], &row).unwrap())).collect::<Vec<_>>();
+    engine.seed_at(rows, 1).unwrap();
+    for now in [2, 10, 20, 2] {
+        let query = |engine: &mut Engine, op| engine.query(op, Context::new("reader", Default::default()).at(now)).unwrap();
+        let whole = query(&mut engine, "rows").data.as_array().unwrap()[0].clone();
+        for op in ["firstRow", "lastRow", "atRow", "sliceRow", "concatRow"] {
+            let r = query(&mut engine, op);
+            assert!(r.complete);
+            assert_eq!(r.data, whole, "{op} at {now}");
+        }
+        assert_eq!(query(&mut engine, "nestedRow").data, Value::Array(vec![whole]));
+        for op in ["countRows", "shareIds", "sortIds", "groupIds"] { assert_eq!(query(&mut engine, op).data, Value::Int(1)); }
+        assert_eq!(query(&mut engine, "compareValue").data, Value::Int(if now < 10 {1} else {0}));
+    }
+}
+
+#[test]
+fn grok_sorted_and_inspecting_mutations_refuse_but_point_extrema_stay_scalar() {
+    for kind in ["query", "mutation"] {
+        for choice in ["chosen = min(a, b)", "chosen = max(a, b)", "(discarded, chosen) = sorted(a, b)",
+            "chosen = max(a { id, value }, b { id, value })"] {
+            for result in ["return chosen.id", "if chosen.value > 0:\n        return chosen.value"] {
+                let tail = format!("{kind} probe():\n  for a in unread first 10:\n    for b in unread first 10:\n      {choice}\n      {result}\n  return null\n");
+                refuse(&tail, "recountPending");
+            }
+        }
+    }
+    let source = base() + "query scalar():\n  return min(unread['u'], unread['v'])\nquery scalarMax():\n  return max(unread['u'], unread['v'])\nquery scalarSorted():\n  (lo, hi) = sorted(unread['u'], unread['v'])\n  return {lo, hi}\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let rows = [("rooms", json!({"id":"r"})), ("members", json!({"id":"u","room":"r","until":null})),
+        ("members", json!({"id":"v","room":"r","until":null})), ("messages", json!({"id":"m","room":"r","until":10}))]
+        .into_iter().map(|(table, row)| (table.to_string(), wire::row_from_json(&engine.schema().tables[table], &row).unwrap())).collect::<Vec<_>>();
+    engine.seed_at(rows, 1).unwrap();
+    for now in [2, 10, 20, 2] {
+        let expected = Value::Int(if now < 10 {1} else {0});
+        for op in ["scalar", "scalarMax", "scalarSorted"] {
+            let r = engine.query(op, Context::new("reader", Default::default()).at(now)).unwrap();
+            assert!(r.complete);
+            if op == "scalarSorted" { for field in ["lo", "hi"] { assert_eq!(r.data.field(field), Ok(&expected)); } }
+            else { assert_eq!(r.data, expected); }
+        }
+    }
+}

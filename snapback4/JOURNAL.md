@@ -81772,3 +81772,43 @@ the unchanged 605,225 B branch ratchet. No new latency or merged-size claim.
 Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md, round6/.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published; no new reviewer approval claimed.
+
+
+## 2026-10-02 — BG round 7: default-deny whole-value inspection
+
+Astra and Grok both marked round 6 NOT READY with one Medium: whole-value
+min/max/share bypassed the maintenance-field restriction; Grok also demonstrated
+sorted and mutation consumers. Round 7 makes the existing structural checker
+default-deny inspecting uses of values containing maintained-row state at any
+depth. Only an explicit field/selector/list/cardinality allowlist forwards them.
+Text/JSON concatenation and map length refuse: the latter can expose optional
+pending keys. Inspecting selector arguments, distinct keys, comparisons, merge
+ordering, write/effect payloads and mutation results follow the same rule.
+Mutation returns are checked individually before type joins; row-valued helpers
+still forward their static type. No flat provenance, scalar taint, runtime count,
+deadline, reservation, window or ceiling change. LLP 3000.015 §3 records the rule.
+
+All 36 earlier compiler tests remain; 39/39 now pass, including both reviews'
+probes, both status guesses, sorted queries/mutations, shapes carrying pending,
+non-inspecting selectors and exact certified min/max/sorted point reads across
+expiry and rollback. Native matrix: 803 cases × six boundaries = 4,818 refusals,
+with failed device adoption retaining generation 1. A census from the actual
+Builtin deserializer checks all 28 variants for an explicit classification;
+future unclassified variants are denied and fail the test. Language: 98 cohorts,
+1,294 passes, 0 failures, 11 ignored. Guide 110/110, witness/deadline 6/6, device
+14/14, core row-view regressions 56/56; maintains stays at 879 lines.
+
+The final-source scripts/test.sh ran once: `== 0 failure(s) in 1434 s`, exit 0.
+All 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,746 passed, 0 failed, 10 skipped; serial models 79/79. Final failures: ours 0,
+baseline 0, environmental 0. The known site-48 injection flake passed; its ticket
+remains open. All 1,790 frozen inputs remain unchanged and the suite's wasm is
+byte-identical to measurement. Development failures and corrections are listed
+as ours in round7/FAILURES.md; none is waived.
+
+10k/100k work remains (0 re-certified rows, 100 examined, 100 steps). Wasm is
+unchanged from round 6: 2,012,674 B raw / 605,008 B gzip, 217 B below the unchanged
+605,225 B cap. No new latency/parity, merged-size or cross-platform claim.
+Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md and round7/.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no new reviewer approval claimed.
