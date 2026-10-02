@@ -459,6 +459,7 @@ impl<'a> Runner<'a> {
                 Stmt::For { binding, domain, body } => {
                     #[cfg(feature = "sqlite")]
                     if let LoopDomain::DerivedArray { value: Expr::Builtin { builtin: Builtin::JobQuery { program, cursor, all: true }, args }, .. } = domain {
+                        if self.device { return Err(RuntimeError::Input("job viewer reads require a server job scope".into())); }
                         return self.job_query_rows(program, cursor.as_deref(), args, binding, body, &site);
                     }
                     let mut values = self.domain(domain)?;
@@ -861,10 +862,18 @@ impl<'a> Runner<'a> {
             }
             Expr::Builtin { builtin, args } => {
                 #[cfg(feature = "sqlite")]
+                if self.device && matches!(builtin, Builtin::JobAs | Builtin::JobQuery { .. }) {
+                    return Err(RuntimeError::Input("job viewer reads require a server job scope".into()));
+                }
+                #[cfg(feature = "sqlite")]
                 match builtin {
                     Builtin::JobAs => return self.job_as(args),
                     Builtin::JobQuery { program, all: false, .. } => return self.job_query_value(program, args),
                     _ => {}
+                }
+                #[cfg(feature = "sqlite")]
+                if matches!(builtin, Builtin::JobAs | Builtin::JobQuery { .. }) {
+                    return Err(RuntimeError::Input("job viewer reads require a server job scope; use all(query(...)) only as a for domain".into()));
                 }
                 if let Builtin::Extremum { max, domain, .. } | Builtin::ExtremumOf { max, domain } = builtin {
                     if args.len() != builtin.arity() { return Err(RuntimeError::Input("min/max needs its source and projection".into())); }
@@ -937,7 +946,8 @@ impl<'a> Runner<'a> {
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
-            Builtin::JobAs | Builtin::JobQuery { .. } => Err(RuntimeError::Input("job viewer reads require a server job scope; use all(query(...)) only as a for domain".into())),
+            #[cfg(feature = "sqlite")]
+            Builtin::JobAs | Builtin::JobQuery { .. } => unreachable!("job builtins dispatch before evaluating arguments"),
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
                 // This primitive remains for settled-only query accounting.

@@ -28,8 +28,11 @@ impl Runner<'_> {
             return Err(refusal("E_JOB_VIEWER_READ_ONLY", "compute inside as; act outside the read-only block"));
         }
         let principal = self.expr(&args[0])?;
-        let principal = match &principal { Value::Id(value) | Value::String(value) => value.as_str(), _ => "" };
-        if principal == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(principal) {
+        let principal = match &principal {
+            Value::Id(value) | Value::String(value) => value.as_str(),
+            _ => return Err(refusal("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal")),
+        };
+        if principal.is_empty() || principal == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(principal) {
             return Err(refusal("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal; keep system reads outside as"));
         }
         let mut context = Context::new(principal, BTreeMap::new());
@@ -41,7 +44,7 @@ impl Runner<'_> {
         child.env = std::mem::take(&mut self.env);
         child.consts = std::mem::take(&mut self.consts);
         let result = child.expr(&args[1]);
-        let result = result.and_then(|value| child.job_read_available().map(|()| value));
+        let result = child.job_read_result(result);
         self.env = std::mem::take(&mut child.env);
         self.consts = std::mem::take(&mut child.consts);
         self.finish_job_read_child(child);
@@ -49,10 +52,23 @@ impl Runner<'_> {
     }
 
     fn job_read_available(&self) -> Result<(), RuntimeError> {
-        if self.query_unavailable || self.page_overflow || self.value_source_incomplete || self.page_position_lost() || self.timeline_pending || self.word_cut_at.is_some() || self.meter.capped_at.is_some() {
+        if self.non_uniform || self.scalar_unavailable || self.query_unavailable || self.page_overflow || self.value_source_incomplete || self.page_position_lost() || self.timeline_pending || self.word_cut_at.is_some() || self.meter.capped_at.is_some() {
             return Err(refusal("E_JOB_VIEWER_READ", "viewer read is unavailable or incomplete; narrow the query before computing a digest"));
         }
         Ok(())
+    }
+
+    // Scalar reads may refuse before returning a value. Give every incomplete
+    // read the same job diagnostic, without masking budgets (adaptive retry).
+    fn job_read_result(&self, result: Result<Value, RuntimeError>) -> Result<Value, RuntimeError> {
+        match result {
+            Ok(value) => self.job_read_available().map(|()| value),
+            Err(RuntimeError::Prediction(_)) if self.scalar_unavailable => {
+                self.job_read_available()?;
+                unreachable!("an unavailable scalar must refuse")
+            }
+            Err(error) => Err(error),
+        }
     }
 
     fn job_query(&mut self, program: &Program, mut args: BTreeMap<String, Value>) -> Result<(Value, Option<String>), RuntimeError> {
@@ -72,12 +88,9 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let mut child = self.job_read_child(context);
         let result = (|| {
-            let data = child.run_server_query(program)?;
-            child.job_read_available()?;
+            let result = child.run_server_query(program);
+            let data = child.job_read_result(result)?;
             let next = child.outcome_next_cursor()?;
-            // A non-uniform query deliberately withholds exhaustion. Never turn
-            // that preview into an exact background total.
-            if child.non_uniform { return Err(refusal("E_JOB_VIEWER_READ", "query does not certify exhaustion; use a uniformly authorized viewer query")); }
             Ok((data, next))
         })();
         self.finish_job_read_child(child);

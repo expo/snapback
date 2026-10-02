@@ -365,7 +365,7 @@ impl Engine {
                 Err(error) if error.is_refusal() => {
                     tx.rollback_to("job_chunk")?;
                     // @ref LLP 3000.013#5.2 — retry the same atomic chunk; only a one-item meter refusal parks an adaptive sweep.
-                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. }) {
+                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. } | RuntimeError::AuthorizationBudget { .. }) {
                         size /= 2;
                         head.run.retries += 1;
                         continue;

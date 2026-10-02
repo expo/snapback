@@ -95,7 +95,7 @@ Seek the period, filter the ordinal. The UI and job call the same paged
 cursor and releases each page. Follow every cursor; one page is a preview.
 `all` belongs directly in a `for` domain and needs a list query with one cursor
 argument. Start with null for the whole result. It refuses an unavailable read
-or a query that cannot certify exhaustion, rather than emitting a partial total.
+or any direct/helper/query read that cannot certify exhaustion; no partial total commits.
 
 Declare totals before `as`, update them inside, and emit afterward. `viewer`
 is the recipient throughout the block and its helpers. Persona, user, guest,
@@ -105,12 +105,11 @@ Writes, `emit`, minting `new` and once asset consumption refuse at compile time:
 compute inside, act outside. Reading an asset reference does not consume it.
 Nested `as`, a block outside a job sweep, and a return leaving the block refuse.
 Declared calls must be Quarry queries over durable data, with ordinary server
-availability; native, held and ephemeral-only queries cannot run here.
-All reads share the chunk's transaction, pinned clock and meter. An oversized
-recipient parks without a partial digest.
+availability; native, held queries and all ephemeral reads refuse.
+Reads see earlier uncommitted chunk writes; separate client transactions do not.
+The clock and meter are shared. Oversized recipients park without partial digests.
 
-An all-history total can exceed this period's digest. Keep `inbox` locally
-complete: an unavailable unread total is unknown, not zero. Expired rows are
+Keep `inbox` locally complete: unavailable unread totals are unknown, not zero. Expired rows are
 absent from their expiry instant; tombstoned, own, already-read and out-of-period
 messages do not contribute. For system reads intentionally spanning principals,
 keep the old pattern outside `as` and prove recipient authority before emitting.
@@ -188,9 +187,8 @@ schedule daily every 1d at 08:00: digest
 The viewer query owns authorization and the period predicate. The job has no
 membership walk. `all` retains one page, while the helper's streaming count
 releases each decoded message. All examinations, steps and retained values count
-against the job's meters. A meter refusal rolls back the attempted chunk before
-retrying fewer recipients. One recipient that cannot fit parks with E_BOUND;
-inspect `snapback4 doctor` and the named read before rerunning.
+against the job's meters. Meter and authorization-budget refusals roll back before retrying fewer recipients.
+One that cannot fit parks with E_BOUND or E_RULE; inspect `snapback4 doctor`.
 
 Each recipient's live total and emission key commit together. A crash before
 commit leaves both absent; a crash after it leaves both durable. Rerunning the

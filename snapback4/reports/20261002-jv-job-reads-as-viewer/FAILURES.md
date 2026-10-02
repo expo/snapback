@@ -40,3 +40,48 @@ No failed phases or tests: **ours 0, baseline 0, environmental 0**. Rust's
 zero failed, 10 skipped. Models: 79 passed, zero failed. Their E_AUTH messages
 are expected injected faults, not failed assertions. No baseline claim was
 needed or made; therefore no current-main reproduction is presented as evidence.
+
+## Round 1
+
+The development failures below are **ours**, corrected before final
+qualification. Expected failures on exact round-0 source are negative controls,
+not baseline claims.
+
+| Evidence | Failure | Resolution |
+| --- | --- | --- |
+| `round1/regressions-first.log` | `every_direct_read_and_helper_refuses_incomplete_results`: non-uniform unbounded aggregate rejected at compile time. `point_reads_and_uniform_domains_keep_ordinary_complete_answers`: fixture owner index omitted its trailing id. | Use bounded non-uniform aggregates and the valid owner/id prefix index. |
+| `round1/regressions-second.log` | Property fixture initialized a loop accumulator to nullable; `exists` fixture included a forbidden `first` clause. | Initialize the carried scalar to zero; use the ordinary domain-existence spelling. |
+| `round1/regressions-third.log` | Property compared the oldest retained effect instead of the new effect. | Identify the emission by the difference in effect IDs, independent of ordering. |
+| `round1/wasm-device.log` | Hand-built witness used `Job`, but serialized ProgramKind is `job`. | Correct the witness spelling; actual wasm check passes in `wasm-device-final.log`. |
+| Shell edit preparation | A Python edit command ran with root-relative paths from the Snapback 4 directory and found no file. It made no edits; the following build merely repeated the intermediate measurement. | Re-run the edit from the repository root. `wasm-lane-final.log` is the repeated intermediate build; `wasm-lane-gated.log` is the final feature-gated build. |
+| `round1/wasm-main.log`, empty `wasm-main-rebuild.log` | Initial baseline command/session ended without a completion record; a background attempt also produced no completion record. No resulting artifact was used. | Foreground rebuilt baseline completed with exit 0 in `wasm-main-final.log` / `wasm-main.exit`. The interruption cause is not established; count these orchestration failures as ours, without inferring a product or baseline failure. |
+
+Final artifact hygiene: `git diff --cached --check` found trailing blank
+lines in four captured logs (`affected-final.log`, `affected.log`,
+`cache-boundary.log`, `wasm-main.log`). This was ours; only terminal blank
+lines were removed. The final whitespace check is clean.
+
+`round1/negative-round0.log`: expected 9 failing tests (five Astra findings,
+the property extension, ephemeral refusal, stub identity and early device
+refusal), 9 passing controls. `round1/negative-cache.log`: expected cache-boundary
+failure. Production code in that detached checkout is exact 5e51108213; only
+tests were transplanted. No baseline qualification claim comes from this run.
+
+`round1/negative-wasm.log`: expected failure on rebuilt round-0 Wasm. All
+three server-only builtin forms decode and execute ARGUMENT_EXECUTED before
+refusing; round 1 rejects them at decode. The reproducible witness is
+`round1/wasm-fence.mjs`.
+
+The one full-suite invocation exits **0**. Exact summary:
+
+```text
+== 0 failure(s) in 1843 s
+```
+
+Every phase passes: **ours 0, baseline 0, environmental 0**. No baseline
+failure claim is made. Rust: 284 binaries / 997 executions and doctests.
+Clients: 5,768 passed, zero failed, 10 skipped. Models: 79 passed, zero failed,
+with 5,000 online + 5,000 local sequences and 3,000 interleavings. Their
+injected E_AUTH refusals are expected model faults, not assertion failures.
+The final affected integration run passes 197 tests (including 110 guide);
+the cache-boundary unit test and actual Wasm witness also pass.

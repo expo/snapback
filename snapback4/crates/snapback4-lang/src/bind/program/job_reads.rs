@@ -20,14 +20,30 @@ impl Binder<'_> {
         }
         let loops = self.loops;
         self.loops = 0;
+        self.caller_loops += loops;
+        self.clear_authority_refinements();
         self.viewer_depth = Some(self.depth);
         let mut code = setup::Body::default();
         let result = self.block(body, &mut code, false);
+        self.clear_authority_refinements();
         self.viewer_depth = None;
         self.loops = loops;
+        self.caller_loops -= loops;
         result?;
         out.push(Stmt::Let { name: self.temp("as"), value: Expr::Builtin { builtin: Builtin::JobAs, args: vec![value, Expr::Block { body: code.code, value: Box::new(ir::lit(Value::Null)) }] } });
         Ok(())
+    }
+
+    // @ref LLP 3000.007#21.12 — calls are reevaluated under the new viewer,
+    // including implicit/transitive helper dependencies. Snapshot fields stay
+    // valid. Conservatively discard all call facts at both authority edges.
+    fn clear_authority_refinements(&mut self) {
+        self.call_types.clear();
+        for scope in &mut self.scopes {
+            for binding in scope.values_mut() {
+                binding.fields.retain(|path, _| path.first().is_none_or(|part| part != "$pureCall"));
+            }
+        }
     }
 
     pub(super) fn job_query_call(&mut self, name: &str, args: &[A], site: &Site, out: &mut setup::Body) -> Option<Fallible<(Expr, Ty)>> {

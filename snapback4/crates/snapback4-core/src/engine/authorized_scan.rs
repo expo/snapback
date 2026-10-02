@@ -243,6 +243,24 @@ mod tests {
     use crate::{Context, Store, meter::Meter, schema::Schema};
 
     #[test]
+    fn job_authority_edges_clear_raw_cache_but_keep_the_allowance() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        let schema = Schema::default();
+        let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::job(), Cut::Abort), 0);
+        runner.tx.remaining.set(17);
+        *runner.tx.lookup_cache.borrow_mut() = Some(("t".into(), "byId".into(), vec![], None));
+        let child = runner.job_read_child(Context::new("user:alice", Default::default()));
+        assert!(child.tx.lookup_cache.borrow().is_none());
+        assert_eq!(child.tx.remaining(), 17);
+        child.tx.remaining.set(13);
+        *child.tx.lookup_cache.borrow_mut() = Some(("t".into(), "byId".into(), vec![], None));
+        runner.finish_job_read_child(child);
+        assert!(runner.tx.lookup_cache.borrow().is_none());
+        assert_eq!(runner.tx.remaining(), 13);
+    }
+
+    #[test]
     fn raw_write_fetches_reserve_before_even_an_absent_candidate() {
         use crate::{rows::MemoryRows, schema::{ColumnType, FieldAuthority, public_table}, Value};
         let rows = MemoryRows::new();
@@ -377,6 +395,7 @@ impl<'a> Runner<'a> {
     /// Fresh read state over this exact transaction; move the guarded allowance
     /// with the meter so nested queries cannot reset authorization work.
     pub(super) fn job_read_child(&mut self, context: super::Context) -> Runner<'a> {
+        self.tx.lookup_cache.borrow_mut().take();
         let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::job(), Cut::Abort));
         let mut child = Runner::new(self.tx.raw, self.schema, context, meter, self.seq);
         std::mem::swap(&mut child.tx, &mut self.tx);
@@ -384,6 +403,7 @@ impl<'a> Runner<'a> {
         child
     }
     pub(super) fn finish_job_read_child(&mut self, mut child: Runner<'a>) {
+        child.tx.lookup_cache.borrow_mut().take();
         std::mem::swap(&mut child.tx, &mut self.tx);
         self.meter = child.meter;
         self.read_tables.extend(child.read_tables);

@@ -64,6 +64,7 @@ job observe(r: conversations, periodStart: time, periodEnd: time):
     let people = ["dev:alice", "user:bob", "guest:carol", "service:reader", "user:none", "user:removed"];
     let mut random = 0x8197_abcd_8765_u64;
     for seed in 0..24 {
+        round1::compare_hidden_rows(seed);
         let mut next = || { random ^= random << 13; random ^= random >> 7; random ^= random << 17; random };
         let mut e = engine(&source);
         let mut rows: Vec<_> = people.iter().map(|p| profile(p)).collect();
@@ -359,3 +360,6 @@ fn changing_a_called_query_parks_an_already_queued_job() {
     e.run_job_chunk(10).unwrap();
     assert!(e.job(&run).unwrap().unwrap().error.unwrap().starts_with("E_JOB_GENERATION"));
 }
+
+#[path = "job_viewer/round1.rs"]
+mod round1;

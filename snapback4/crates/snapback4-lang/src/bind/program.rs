@@ -298,6 +298,9 @@ impl<'a> Binder<'a> {
     }
 
     fn table(&self, name: &str, site: &Site) -> Fallible<&'a TableInfo> {
+        if self.viewer_depth.is_some() && self.schema.table(name).is_some_and(|table| table.ephemeral.is_some()) {
+            return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_QUERY", "job viewer reads require durable data", "keep ephemeral reads in a client query; persist the state the job needs"));
+        }
         self.catalog.tables.get(name).ok_or_else(|| unknown(site, format!("unknown table {name}"), name_rewrite(name, self.catalog.tables.keys().map(String::as_str), None)))
     }
 

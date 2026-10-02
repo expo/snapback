@@ -1,0 +1,134 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling typenum v1.20.1
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling find-msvc-tools v0.1.12
+   Compiling shlex v2.0.1
+   Compiling subtle v2.6.1
+   Compiling libm v0.2.16
+   Compiling cc v1.4.5
+   Compiling pkg-config v0.3.34
+   Compiling vcpkg v0.2.15
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling wasmi_ir v2.0.0
+   Compiling foldhash v0.2.0
+   Compiling libc v0.2.189
+   Compiling wasmparser v0.228.0
+   Compiling bitflags v2.13.2
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.5
+   Compiling hashbrown v0.17.1
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling cfg-if v1.0.4
+   Compiling wasmi_core v2.0.0
+   Compiling cpufeatures v0.2.17
+   Compiling getrandom v0.3.4
+   Compiling thiserror v2.0.20
+   Compiling libsqlite3-sys v0.38.2
+   Compiling serde v1.0.229
+   Compiling rand_core v0.6.4
+   Compiling tinyvec_macros v0.1.1
+   Compiling base64ct v1.8.3
+   Compiling wasmi v2.0.0
+   Compiling serde_json v1.0.151
+   Compiling password-hash v0.5.0
+   Compiling tinyvec v1.13.2
+   Compiling hashlink v0.12.2
+   Compiling blake2 v0.10.6
+   Compiling itoa v1.0.18
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling wasmi_collections v2.0.0
+   Compiling smallvec v1.16.1
+   Compiling memchr v2.8.3
+   Compiling spin v0.9.9
+   Compiling argon2 v0.5.3
+   Compiling unicode-normalization v0.1.25
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/jv-r1-negative/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/jv-r1-negative/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/jv-r1-negative/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 1m 08s
+     Running tests/job_viewer.rs (snapback4/target/debug/deps/job_viewer-8ea11a7ff38f7263)
+
+running 18 tests
+
+thread 'round1::device_refuses_job_builtins_before_evaluating_their_arguments' (2555783) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:249:9:
+None: Refusal { code: "E_JOB_VIEWER_CONTEXT", family: "schema", message: "E_JOB_VIEWER_CONTEXT: as requires a server job sweep; it cannot nest", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'round1::device_job_stubs_decode_and_retain_content_identity_without_server_bodies' (2555782) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:221:5:
+assertion `left == right` failed
+  left: [For { binding: "$p1", domain: Page(Scan { site: "programs.inspect.0", table: "profiles", index: "byId", prefix: [], order: Asc, take: Meter, existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: Shape, variant: None, cursor_pins: 0 }), body: [Let { name: "$n2", value: Literal(Int(0)) }, Let { name: "$as3", value: Builtin { builtin: JobAs, args: [Field { base: Variable("$p1"), name: "principal" }, Block { body: [Assign { name: "$n2", value: Field { base: Builtin { builtin: JobQuery { program: Program { name: "ordinary", kind: Query, args: {}, read_time_granularity_ms: None, body: [Return(Literal(Int(1)))], returned_shapes: {}, native: false }, cursor: None, all: false }, args: [Object({})] }, name: "data" } }], value: Literal(Null) }] } }, Emit { effect: "push", payload: Object({"n": Variable("$n2")}), once: None }] }]
+ right: [Return(Literal(String("a7b0ddbb9271f138e04e72ec636122499475ac1efeab3afd6640f1e23af04e8d")))]
+
+thread 'round1::inner_loops_keep_sweep_placement_and_jumps_stay_lexical' (2555791) panicked at crates/snapback4-lang/tests/job_viewer.rs:16:5:
+[Diagnostic { site: Site { file: "schema.q", line: 14, col: 7 }, code: "E_QUARRY_PLACEMENT", message: "automatic sweep carries local total across iterations, but chunks commit independently", rewrite: "declare total inside the `for row in table:` body for per-item work, or store cross-chunk progress in a table", guide: "jobs", mechanical: false, cascade_of: None }]
+test round1::device_refuses_job_builtins_before_evaluating_their_arguments ... FAILED
+test all_refuses_a_cursor_argument_that_does_not_continue_the_returned_page ... ok
+test round1::device_job_stubs_decode_and_retain_content_identity_without_server_bodies ... FAILED
+test round1::inner_loops_keep_sweep_placement_and_jumps_stay_lexical ... FAILED
+
+thread 'round1::viewer_dependent_refinements_do_not_cross_either_authority_edge' (2555793) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:124:9:
+who(): []
+
+thread 'round1::ephemeral_direct_and_helper_reads_refuse_with_query_diagnostic' (2555786) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:207:9:
+typing[owner = viewer]: [Diagnostic { site: Site { file: "schema.q", line: 14, col: 1 }, code: "E_QUARRY_EPHEMERAL", message: "job, schedule or action cannot read or write an ephemeral table", rewrite: "call an ephemeral mutation from the client", guide: "ephemeral", mechanical: false, cascade_of: None }]
+test round1::viewer_dependent_refinements_do_not_cross_either_authority_edge ... FAILED
+test round1::ephemeral_direct_and_helper_reads_refuse_with_query_diagnostic ... FAILED
+test side_effects_and_invalid_scopes_refuse_with_repairs ... ok
+
+thread 'random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients' (2555780) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:192:21:
+assertion `left == right` failed: 0/n = docs first 100/user:p0/inspect: JobRun { id: "0000000000DYDYARK8BNF1V0FD", name: "inspect", state: Done, sweep: 1, chunks: 1, chunk_size: 64, retries: 0, heap_peak: 31354, rows_written: 0, created_at: 0, updated_at: 0, error: None }
+  left: Done
+ right: Parked
+test random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients ... FAILED
+
+thread 'round1::forged_non_principal_values_refuse_before_entering_scope' (2555790) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:153:9:
+assertion `left == right` failed: Null: JobRun { id: "00000000007N71HZCNWJFE8FEB", name: "inspect", state: Done, sweep: 1, chunks: 1, chunk_size: 64, retries: 0, heap_peak: 13145, rows_written: 1, created_at: 0, updated_at: 0, error: None }
+  left: Done
+ right: Parked
+test round1::forged_non_principal_values_refuse_before_entering_scope ... FAILED
+test changing_a_called_query_parks_an_already_queued_job ... ok
+test service_seats_direct_reads_query_calls_and_prior_chunk_writes_share_clock_and_transaction ... ok
+
+thread 'round1::every_direct_read_and_helper_refuses_incomplete_results' (2555787) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:77:13:
+assertion `left == right` failed: page/false: JobRun { id: "0000000000K6Y5J3GYAB9FJMXN", name: "inspect", state: Done, sweep: 1, chunks: 1, chunk_size: 64, retries: 0, heap_peak: 31304, rows_written: 2, created_at: 0, updated_at: 0, error: None }
+  left: Done
+ right: Parked
+test round1::every_direct_read_and_helper_refuses_incomplete_results ... FAILED
+test runtime_refuses_system_viewer_and_forged_effectful_blocks ... ok
+test guide_digest_restart_closed_clients_idle_and_legacy_emissions ... ok
+test round1::point_reads_and_uniform_domains_keep_ordinary_complete_answers ... ok
+test calibration_28_builder_digest_matches_with_restart_and_idle_period ... ok
+
+thread 'round1::authorization_budget_retries_smaller_chunks_and_preserves_single_item_diagnostic' (2555781) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:35:5:
+assertion `left == right` failed: JobRun { id: "0000000001TJN3EGCKW65N1SZ2", name: "inspect", state: Parked, sweep: 0, chunks: 0, chunk_size: 64, retries: 0, heap_peak: 481607, rows_written: 0, created_at: 1, updated_at: 1, error: Some("E_RULE: comments's read rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count") }
+  left: Parked
+ right: Done
+test round1::authorization_budget_retries_smaller_chunks_and_preserves_single_item_diagnostic ... FAILED
+test over_budget_recipient_parks_without_partial_effect_or_key ... ok
+
+failures:
+
+failures:
+    random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients
+    round1::authorization_budget_retries_smaller_chunks_and_preserves_single_item_diagnostic
+    round1::device_job_stubs_decode_and_retain_content_identity_without_server_bodies
+    round1::device_refuses_job_builtins_before_evaluating_their_arguments
+    round1::ephemeral_direct_and_helper_reads_refuse_with_query_diagnostic
+    round1::every_direct_read_and_helper_refuses_incomplete_results
+    round1::forged_non_principal_values_refuse_before_entering_scope
+    round1::inner_loops_keep_sweep_placement_and_jumps_stay_lexical
+    round1::viewer_dependent_refinements_do_not_cross_either_authority_edge
+
+test result: FAILED. 9 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.46s
+
+error: test failed, to rerun pass `-p snapback4-lang --test job_viewer`

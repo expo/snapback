@@ -247,6 +247,7 @@ impl Binder<'_> {
             }
             S::Break { site } => {
                 if self.loops == 0 {
+                    if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "break cannot leave an as block or helper", "put break in a loop inside this block or helper")); }
                     return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 out.push(Stmt::Break);
@@ -254,6 +255,7 @@ impl Binder<'_> {
             }
             S::Continue { site } => {
                 if self.loops == 0 {
+                    if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "continue cannot leave an as block or helper", "put continue in a loop inside this block or helper")); }
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.

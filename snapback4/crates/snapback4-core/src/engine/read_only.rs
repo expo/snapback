@@ -37,6 +37,7 @@ fn scan<const ALLOW_EMIT: bool>(scan: &Scan) -> bool {
 pub(super) fn expression<const ALLOW_EMIT: bool>(value: &Expr) -> bool {
     match value {
         Expr::Block { body, value } => statements::<ALLOW_EMIT>(body) && expression::<ALLOW_EMIT>(value),
+        #[cfg(feature = "sqlite")]
         Expr::Builtin { builtin: crate::ir::Builtin::JobQuery { program, .. }, args } => statements::<false>(&program.body) && args.iter().all(expression::<ALLOW_EMIT>),
         Expr::Input(crate::ir::Input::NewId) => false,
         Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().all(expression::<ALLOW_EMIT>),
