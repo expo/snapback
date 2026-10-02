@@ -82679,3 +82679,50 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+
+## 2026-10-02 — X27R: one published Expo scene lifecycle
+
+On the Apartment M5 Pro mini, reproduce the unchanged reference chat Release
+launch trap at NoSceneLifecycleAdoption under Xcode 27A266a / iOS SDK 27.0.
+Retain the published snapback4-expo/plugin on the existing Expo 57.0.22 pin;
+add it to apps/chat-expo and have init --expo inherit it exactly once. Social
+keeps that same entry. Expo's supported alternative needs 57.0.23 plus
+expo-build-properties 57.0.20; replacing the published plugin would require an
+SDK migration for existing consumers or a second fallback. LLP 3000.030 §13
+records the choice. Plugin behavior/export, client/engine and versions stay
+unchanged. Baseline/fixed reference products have byte-identical JavaScript.
+
+Salvage the named scene-crash diagnostic, producing Xcode/SDK manifest fields
+and relevant tests from sb4/xcode27-uiscene, without merging or importing its
+logs. Preserve main's value-free refusals and ownership checks. Also admit the
+two exact generated Expo dSYM forms for npm's nested package layout; comparison
+with the admitted forms finds only the package path difference. Their regression
+still refuses custom scripts.
+
+Dedicated iPhone 17e only: reference offline and restart scenarios pass;
+fresh plain and social npm native:smoke pass in 171.820 / 223.500 s, and a
+standalone copy of the reference chat passes own-build smoke in 114.850 s.
+All smoke prime/offline/restart segments pass. Independent checks rehash all
+run artifacts and all 326 files in the three sealed app inventories. The
+repository Bun workspace remains outside the existing --build adapter; the
+standalone copy's exact changes and lock are retained, not called workspace
+support. Xcode 26.6 was not run; the report provides an asserting supervisor
+command for that host.
+
+Affected Rust init 22, witness integration 65 and units 14 pass; JavaScript
+witness/periphery/preparation/scenes 44 pass, and the subsequent preparation
+regression 15 pass. Whole guide 111 passes after keeping its existing line
+budget. Wasm remains 2,029,315 B raw / 609,893 B gzip against 610,782 B.
+The required complete suite ran once: `== 2 failure(s) in 2601 s`
+(`cargo test`, `client tests`). Two replay startup-log assertions failed;
+the unchanged replay target subsequently passed all 22 tests in 1.74 s.
+The known browser replacement fixture hit SQLite's writer lock and leaked
+its server. Only that verified suite-owned child was terminated so the
+existing failure could report; no test was omitted. The serial models passed
+all 79 tests. Both failures have filesystem follow-up tickets; the full result
+remains red. The Xcode 27 lifecycle ticket is closed with those limits stated.
+
+Local evidence lives only under ~/x27r-evidence/, with per-file SHA-256 and
+summaries in ~/x27r.final.md. No raw simulator, build or crash logs in git;
+no push, publication, tag, other host or other worktree mutation.
