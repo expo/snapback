@@ -1,4 +1,4 @@
-import { withDecorations, currentDecorations } from "./read-decoration.ts";
+import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
@@ -61,8 +61,7 @@ export interface ClientOptions {
   readonly onStoreChange?: (why: Refusal) => void;
 }
 
-interface QueryResult<R> {
-  decorationExpiry?: number | null | undefined;
+interface QueryResult<R> extends ValueDeadlines {
   generation?: number | undefined;
   deadlineWithdrawn?: () => boolean;
   delivery?: unknown; credential?: number | undefined;
@@ -592,24 +591,25 @@ export function createClient(options: ClientOptions): Client {
   }
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
-    if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
-    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal);
-    if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
-    if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
-    if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
+    if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null, transportOffline: true };
     const json = result.json;
     const refresh = typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined;
-    if (json.denied) return { ephemeral: json.ephemeral, read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null, refresh };
+    if (json.denied) return { ephemeral: json.ephemeral, read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, valueDevice: null, valueServer: null, nextExpiry: null, refresh };
+    const values: ValueDeadlines = { valueDevice: null, valueServer: valueDeadline(json.decorationExpiry, Array.isArray(json.decorationPaths)) };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, decorationExpiry: json.decorationExpiry === undefined && Array.isArray(json.decorationFields) ? NaN : json.decorationExpiry as number | null | undefined, refresh };
+    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, valueDevice: null, valueServer: null, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
     const read = readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter });
-    withDecorations(read, Array.isArray(json.decorationFields) ? json.decorationFields as string[] : [], null,
-      json.decorationExpiry === undefined ? NaN : json.decorationExpiry as number | null, clock.issuedDeviceNow, clock.estimatedServerNow);
-    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, decorationExpiry: json.decorationExpiry === undefined && Array.isArray(json.decorationFields) ? NaN : json.decorationExpiry as number | null | undefined, refresh };
+    withDecorations(read, Array.isArray(json.decorationPaths) ? json.decorationPaths as DecorationPaths : [], values.valueDevice,
+      values.valueServer, clock.issuedDeviceNow, clock.estimatedServerNow);
+    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, ...values, refresh };
   }
 
   const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
@@ -722,7 +722,7 @@ export function createClient(options: ClientOptions): Client {
     watch.publish(result.read);
     acceptDelivery(result, watch.snapshot);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry, result.decorationExpiry);
+    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry, result.valueServer);
     notify(watch);
     schedulePresence(watch, true, result.refresh);
   }
@@ -763,7 +763,7 @@ export function createClient(options: ClientOptions): Client {
         if (!result.transportOffline) {
           // Do not move either side of a row-expiry boundary into a UI batch.
           batchReady &&= watch.deadlines?.server == null && result.nextExpiry === null;
-          scheduleExpiry(watch, result.nextExpiry, result.decorationExpiry);
+          scheduleExpiry(watch, result.nextExpiry, result.valueServer);
         }
         return true;
       } }), signal);

@@ -1,3 +1,4 @@
+import { valueDeadline, type ValueDeadlines } from "./read-decoration.ts";
 import { readyRead } from "./read-existence.ts";
 // @ref LLP 3000.028#3.3 — SDK-owned merge, one remote invocation, combined keyset continuation.
 import type { SearchComposition } from "./backend.ts";
@@ -148,13 +149,11 @@ function sourceCursor(plan: SearchComposition, row: Row, generation: number, led
   if (token.length > maxCursor) throw new SearchBound("cursor");
   return token;
 }
-export interface SearchResult {
+export interface SearchResult extends ValueDeadlines {
   read: Read<unknown>;
   transportOffline?: boolean;
   nextExpiry: number | null;
   serverExpiry?: number | null;
-  valueDevice?: number | null | undefined;
-  valueServer?: number | null | undefined;
   credential?: number;
   seq?: number | undefined;
   served?: boolean;
@@ -165,7 +164,7 @@ export interface SearchResult {
 export async function ordinarySearch(env: QueryEnvironment, name: string, input: unknown, plan: SearchComposition,
   checkpoint: () => void, blocked: () => Promise<boolean>): Promise<SearchResult> {
   const decorated = !!env.backend.schema?.operations?.[name]?.search_decoration;
-  const loading: SearchResult = { read: { loading: true }, nextExpiry: null, searchAttempt: true };
+  const loading: SearchResult = { read: { loading: true }, nextExpiry: null, valueDevice: null, valueServer: null, searchAttempt: true };
   const stateReply = await env.call({ op: "search_state", name }); checkpoint();
   const state = stateReply.ok as State | undefined;
   if (stateReply.denied) return { ...loading, read: { denied: stateReply.denied as Refusal } };
@@ -370,7 +369,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
       ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) }),
       nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
-      valueDevice: decorated && retainedPositions.length > 0 && after.decorationExpiry === undefined ? NaN : after.decorationExpiry, valueServer: decorated && remote.decorationExpiry === undefined ? NaN : remote.decorationExpiry,
+      valueDevice: valueDeadline(after.decorationExpiry, decorated && retainedPositions.length > 0), valueServer: valueDeadline(remote.decorationExpiry, decorated),
       credential, seq, served: true, searchAttempt: true };
   } catch (error) {
     if (error instanceof SearchBound) return { ...loading, read: { denied: error.refusal } };

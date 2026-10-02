@@ -460,3 +460,196 @@ keeps the generic row-expiry and authority fences; all full-suite changes after
 qualification are this report, the receipt and the append-only journal entry.
 The local commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 Nothing pushed or published.
+
+## Round 3 — structural value deadlines and nested placeholders (2026-10-03)
+
+Starting commit: `1202d4cb56`, branch `sb4-intent/sj-decorated-search`.
+Read both complete round-2 reviews from `~/sb4-intent/reviews/sj-r2.astra.md`
+and `sj-r2.grok.md` (both READY WITH CHANGES, one finding each). All work and
+qualification ran locally on Linux `expose-builder-pixel`; neither the office
+M1 nor M5 was used. Nothing merged, pushed or published.
+
+### Corrections and policy
+
+Astra's nested-type mismatch is fixed by static output paths, replacing the
+round-2 top-level field list. Server replies carry `decorationPaths`; local
+clients derive the same paths from the compiled projection. Masking copies
+only the containers along those paths, preserving object shape and every
+point-independent sibling at every depth. A complete point-read row is a
+nullable leaf; an authored object containing that row is not. Selections from
+constructed objects resolve to the selected expression, so an unused lookup in
+another sibling cannot make a selected literal nullable. Earlier read objects
+are not mutated.
+
+The compiler's existing generated types were already correct for these forms;
+no type widening is needed. Executed generated-output assertions require
+`bundle: { deep: { label: string | null; stable: string }; label: string | null;
+stable: string }`, with a nullable whole point-read value. The matching runtime
+witnesses access both stable fields after masking and restore the nested values
+when a subsequent answer proves a later deadline.
+
+Grok's two composition returns now use `mergeValueDeadlines`: retain the earliest
+device deadline and earliest server deadline independently. `null` is no
+upcoming value deadline; `NaN` is unknown and dominates a merge. The shared
+`ValueDeadlines` interface requires both fields as `number | null`, with neither
+optional nor `undefined`, in `Result<R>`, `SearchResult` and `QueryResult<R>`.
+Loading and refusal constructors explicitly provide nulls. Publication wrappers
+spread a typed result rather than reconstructing partial metadata. Recovery
+has no device-derived values and carries its remembered server value deadline.
+Three deliberate compiler mutations, each removing `valueServer` from one of
+these result types' constructors, all fail typecheck. Restoring the sources
+passes typecheck.
+
+LLP 3000.028 §3.3.1 and `guide search_all` now say plainly that a masked decoration
+is a placeholder, not proof of absence; page freshness does not prove every
+decoration is current; a refresh restores values once a later deadline is
+proven. The policy remains conservative across all hits and dependent leaves
+under each page-wide deadline. There are no per-row/per-field clocks, new
+requests, extra authority, or changes to source-page withdrawal/retry rules.
+
+### Exhaustive internal result return-site audit
+
+Line numbers below identify this round's final sources. This lists every
+query-result/candidate return and its base constructor, including early exits;
+Boolean, cursor, ledger, transport and comparison helpers return other types.
+The common interface is in `packages/snapback4/src/read-decoration.ts`.
+
+| File / sites | How both value deadlines are carried |
+|---|---|
+| `local-query.ts:99` loading base; `109–113` fallback/localCandidate | Base explicitly sets both null; fallback chooses a typed latest result or that base, and localCandidate spreads it. |
+| `local-query.ts:118,120–122` checkpoint interruptions | Denial spreads loading; other interruptions hold loading. `Interrupted<R>` accepts only `Result<R>`. |
+| `local-query.ts:138` ephemeral recovery | Spreads loading, both null. |
+| `local-query.ts:139,141` recovery without usable memory / blocked memory | Forwards localCandidate unchanged. |
+| `local-query.ts:153` remembered recovery | Explicit device null; remembered server deadline normalized from `decorationExpiry`, including unknown; absent memory gives server null. |
+| `local-query.ts:169` device preflight refusal | Returns latest containing the typed loading base. |
+| `local-query.ts:175–176` ordinary device result | Explicit device deadline from the evaluated outcome (unknown if decorated and missing), server null; no data gives both null. |
+| `local-query.ts:180,193` server blocked / transport failure | Forwards the typed recovery candidate, adding only the transport flag. |
+| `local-query.ts:205` accepted server candidate | Explicit device null, normalized server deadline; no data gives both null. |
+| `local-query.ts:210–211` watch-fetch wrapper / server return | Spreads the candidate for observation and forwards its complete result. |
+| `local-query.ts:217,225,236,237,239,241,253` local routing exits | Forwards localCandidate, preserving its complete typed result. |
+| `local-query.ts:227` blocked routing | Forwards recovery. |
+| `local-query.ts:230,233,240,252` remote routing exits | Forwards remote, including both deadlines. |
+| `local-query.ts:245–249` retained-row merge | Spreads `mergeValueDeadlines(second.result, remote.result)`, earliest per authority. |
+| `local-query.ts:257` object-component merge | The same merge constructor, independent of which components are kept. |
+| `local-query.ts:263` cold route | Typed loading candidate if held; otherwise server result. |
+| `local-query.ts:264,272` ephemeral / unavailable device routes | Forward server result. |
+| `local-query.ts:279` ordinary-search route | Spreads required `SearchResult` fields, changing only read typing and tables. |
+| `local-query.ts:282` normal route | Forwards routeLocal's typed candidate. |
+| `local-query.ts:310,348–349,351,352` publication withdrawal / stale ephemeral / credentials | Every branch uses or spreads loading, with explicit null value deadlines; the remembered-source withdrawal preserves only its local source wakeup. |
+| `local-query.ts:367,369` non-local / local publication | Both spread the complete result; freshness bookkeeping cannot omit either deadline. |
+| `local-query.ts:377` outer success | Spreads published result; installs paths using its required deadlines without `?? null` defaults. |
+| `local-query.ts:379,381` interruption returns | Spread the checkpoint's typed `Interrupted<R>.result`. Other exceptions throw. |
+| `local-search.ts:167` loading base | Required `SearchResult` with both null. |
+| `local-search.ts:170,171,174,189,192,205,206,209` state, ledger, cursor and local-source early exits | Return loading or spread it for a refusal. |
+| `local-search.ts:222,223,228,229,232,235,240` HTTP, authority, remote-source and source-key early exits | Return/spread loading, retaining both null fields. |
+| `local-search.ts:244,246,252,258,262` audience/scope early exits | Return loading. |
+| `local-search.ts:265,268` source expiry / unsafe remote prefix | Spread loading; retry flag or empty cut page cannot omit the null value fields. |
+| `local-search.ts:281,282,289` invalid-overlap helper and both callers | Helper spreads loading; both callers return its complete result. |
+| `local-search.ts:349,351,353,355` final device/state/decoration checks | Return/spread loading. |
+| `local-search.ts:368–373` successful merged page | Explicit normalized device deadline from final retained decoration evaluation, and server deadline from the remote page; no retained decorations requires no device value deadline. |
+| `local-search.ts:375` metering refusal | Spreads loading. Other exceptions throw. |
+| `client.ts:594,595,597,598,599,602` closed/refused/auth/offline/server-denied results | Every object explicitly constructs both null fields under `QueryResult<R>`. |
+| `client.ts:606` loading / absent data | Explicitly constructs both null fields. |
+| `client.ts:603,610–612` online ready result | A typed pair sets device null and normalizes server expiry; that pair supplies both synchronous masking and the returned result. |
+| `client.ts:589` runQuery wrapper | Spreads the complete typed runQueryOnce result. One-shots and watches consume it; watch scheduling uses `valueServer`. |
+| `local.ts:896,899,900,902,907,909,914` unchanged outer evaluation wrapper | Every success, denial, stale-ephemeral, search-race and identity branch spreads the inferred evaluateLocal result; the outer return forwards that promise. |
+
+### Regression evidence
+
+- Nested and doubly nested object projections run on **process, Wasm, and the
+  online client**. They hold a refresh in flight while the old page remains
+  `fresh: true`, retain both stable siblings, mask nullable leaves and a whole
+  point row, preserve selected literals, and restore values under a later
+  proven deadline. Process/Wasm remembered-offline witnesses also check the
+  nested object shape.
+- **16 live local-client browse cases**: process/Wasm × watch/one-shot × empty,
+  whitespace, punctuation-only and emoji-only needles. These use the existing
+  read-through device protocol to create retained history during a partial
+  rejoin before an unacquired parent arrives. A new server row plus the retained
+  row reaches `routeLocal`'s actual row merge: the raw local reply must name
+  `unknown: true`, retained provenance and a value deadline; the HTTP request
+  must request provenance. Crossing expiry keeps both rows and page facts,
+  masks nested leaves while watch HTTP is held, triggers refresh, and returns
+  one-shots in one call. This fixture pins the composed return, rather than
+  assuming every unscoped browse happens to reach it.
+- **32 routing cases** exercise both row and object-component merges with null,
+  past, future and unknown deadlines on each authority. A separate combinatorial
+  merge check verifies earliest-per-authority and unknown dominance.
+- Deliberately collapsing paths back to the top-level object fails all three
+  nested tests. Deliberately discarding composed deadlines fails all eight
+  one-shot browse cases, exposing `Label` where null is required. Sources and
+  built modules are restored before qualification.
+- The oracle retains the original eight word-search seeds and adds four seeds
+  for empty, whitespace, punctuation and emoji browse. Every seed still crosses
+  seeded profile/room/card deadlines and compares decoration values with ordinary
+  authorized point reads on the actual authority host. Each host checks
+  **1,475 pages**, including **490 browse pages**, **379 browse pages after profile
+  expiry**, **1,143 total pages after profile expiry**, and **526 explicit expired
+  labels before deletion**. Totals across both hosts: **2,950 pages / 758 browse
+  expiry pages / 1,052 explicit expired-label checks**.
+
+### Qualification
+
+The final affected client selection passes **955/955**, with zero skips or
+failures, in 622.327 seconds. This includes the 12-seed decorated oracle on
+both hosts, all 600 seeds of the existing ordinary-search oracle, both search
+ledgers, deadline/clock/recovery/approval/publication paths, read-through
+provenance and the delivery-fault matrix. Guide **110/110**, existing Rust
+decorated-search **11/11**, package typecheck and the await-boundary check pass.
+
+Locked Wasm is **2,048,753 B raw / 617,410 B gzip**, byte-identical to round 2,
+SHA-256 `6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8`.
+The unchanged **618,040 B** budget has **630 B** remaining. No Mac measurement
+or budget increase. Static leaf paths add **30 B/page** for one top-level leaf,
+**71 B/page** for the four-field oracle and **112 B/page** for the five-path
+nested/selected-object fixture, including the property and comma. They add no
+per-hit deadline bytes. `round3-wasm.json` records the command and accounting.
+
+The single full suite, run with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh`
+from `snapback4/`, exits **0** with exactly:
+
+```text
+== 0 failure(s) in 1509 s
+```
+
+It passes **4,729 Rust tests** (34 ignored), **5,882 client tests** (10 explicit
+platform/legacy/identity-fixture skips), and **79/79 client models**. Rust
+inventory: **286 binaries / 999 executions plus doctests**. Full-suite failures:
+**ours 0, baseline 0, environmental 0**. No full-suite rerun, waived failure,
+or publication claim. The affected selection and full suite both reproduce the
+same decorated-oracle counts. All **11** qualified source hashes match after
+the suite; its Wasm remains byte-identical to the measured artifact.
+
+`round3-verification.json`, `round3-wasm.json`, `round3-source-sha256.txt` and
+`round3-log-sha256.json` retain small receipts and custody. Full raw logs remain
+at `~/sb4-intent/reviews/sj-r3-evidence/`. Final `ref-check --verbose` passes: **525 LLP docs, 10,112 refs, zero errors
+or unchecked refs**. `git diff --check` passes. The local commit carries the
+requested Astra co-author trailer. Nothing pushed or published.
+
+### Development failure classification
+
+All development failures below are ours, not baseline failures or waived
+infrastructure problems:
+
+- Initial TypeScript inference rejected the masking reducer's `unknown` result;
+  its explicit accumulator type fixes it.
+- The first 16 browse fixture attempts assumed a remote reply from a complete
+  local source. The next 16 horizon-based cases (and one diagnostic rerun) returned only the current row:
+  that unscoped source did not emit retained-row provenance. Both were fixture
+  errors. The permanent read-through witness asserts actual retained provenance
+  and an actual composed request; all 16 cases pass.
+- One build command was invoked from the repository root and refused the
+  uninitialized Snapback 1 Ibex dependency. No root runtime was built. The
+  corrected command uses `snapback4/` and passes.
+- The first deadline-drop mutation waited for a deliberately disabled refresh
+  before asserting stale values, so its harness timed out at 70 seconds. The
+  permanent watch asserts masked data before waiting, and the completed mutation
+  uses all eight one-shots to produce direct stale-label assertion failures.
+  This was a mutation-harness error, not a product qualification failure.
+
+Intentional negative evidence is separate: three omitted-field typechecks,
+three collapsed-shape cases and eight discarded-deadline cases must fail.
+The changed `client.ts` await-expression hash is refreshed because the existing
+callback now schedules `valueServer`; all **58 awaits** and all classified site
+IDs, recipes and required/optional assignments remain unchanged.

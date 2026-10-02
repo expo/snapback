@@ -113,11 +113,19 @@ pub fn order_key(value: &serde_json::Value) -> Option<i64> {
     (key.to_string() == text).then_some(key)
 }
 
-// @ref LLP 3000.028#3.3.1 — one field-name list per page, no per-row deadlines.
+// @ref LLP 3000.028#3.3.1 — one static leaf-path list per page, no per-row deadlines.
 #[cfg(feature = "server-search")]
-pub fn fields(program: &Program) -> Vec<String> {
+pub fn paths(program: &Program) -> Vec<Vec<String>> {
+    fn output(value: &Expr) -> &Expr {
+        if let Expr::Field { base, name } = value {
+            if let Expr::Shape { fields, .. } | Expr::Object(fields) = output(base) {
+                if let Some(field) = fields.get(name) { return output(field); }
+            }
+        }
+        value
+    }
     fn point(value: &Expr) -> bool {
-        match value {
+        match output(value) {
             Expr::Get(_) => true,
             Expr::Field { base, .. } => point(base),
             Expr::Shape { fields, .. } | Expr::Object(fields) => fields.values().any(point),
@@ -125,10 +133,20 @@ pub fn fields(program: &Program) -> Vec<String> {
             _ => false,
         }
     }
-    let Some(parts) = parts(program) else { return Vec::new() };
-    match parts.value {
-        Expr::Shape { fields, .. } | Expr::Object(fields) => fields.iter()
-            .filter(|(_, value)| point(value)).map(|(name, _)| name.clone()).collect(),
-        _ => Vec::new(),
+    fn visit(value: &Expr, path: &mut Vec<String>, paths: &mut Vec<Vec<String>>) {
+        match output(value) {
+            Expr::Shape { fields, .. } | Expr::Object(fields) => {
+                for (name, value) in fields {
+                    path.push(name.clone());
+                    visit(value, path, paths);
+                    path.pop();
+                }
+            }
+            _ if point(value) => paths.push(path.clone()),
+            _ => {},
+        }
     }
+    let mut paths = Vec::new();
+    if let Some(parts) = parts(program) { visit(parts.value, &mut Vec::new(), &mut paths); }
+    paths
 }

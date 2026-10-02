@@ -82819,3 +82819,47 @@ unchanged 618,040 B budget. No macOS measurement or budget raise. The
 and small receipts retain commands, byte accounting and log/source hashes.
 Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No merge, push or publication in this round.
+
+## 2026-10-03 — SJ round 3: nested placeholders and structural value deadlines
+
+Read both complete round-2 reviews (Astra READY WITH CHANGES/P2, Grok READY
+WITH CHANGES/Medium), starting at 1202d4cb56. Mask point-dependent output paths
+at any depth, keeping constructed objects, literal/source siblings and generated
+client types aligned. Whole point-read values remain nullable. Selecting a
+literal from an object with an unused point-read sibling keeps that literal.
+Server replies name static paths; local clients derive the same paths. No
+per-row/per-field clocks, extra requests or authority changes.
+
+Both value deadlines are now required `number | null` fields in local, ordinary
+search and online query results. Retained-row and object-component composition
+merge the earliest deadline per authority, preserving unknown deadlines.
+Three deliberate omitted-field mutations fail TypeScript. Recovery, loading,
+refusals and forwarding returns explicitly construct or preserve both fields;
+the Round 3 report lists every internal query-result return site. Source-page
+withdrawal remains independent. LLP 3000.028 §3.3.1 and the guide explain that
+masked values are placeholders, not absence; page freshness does not certify
+every decoration; a refresh restores values after proving a later deadline.
+
+Nested/doubly nested projections pass on process, Wasm and the online client,
+including held refresh, stable siblings, generated types and restored values.
+Sixteen live process/Wasm browse regressions cover empty, whitespace,
+punctuation and emoji needles, watches and one-shots, with actual retained-row
+provenance and composition. Twelve oracle seeds per host check 2,950 pages,
+including 758 browse pages after profile expiry and 1,052 explicit expired-label
+checks before deletion. Mutation controls detect both reviewed defects.
+
+Affected clients: 955/955; guide: 110/110; Rust decorated search: 11/11.
+The single final suite exits 0: `== 0 failure(s) in 1509 s`. All 4,729 Rust tests
+(34 ignored), 5,882 client tests (10 explicit platform/fixture skips) and 79
+models pass. Full-suite failures: ours 0, baseline 0, environmental 0. The report
+classifies corrected fixture/type/build-invocation/mutation-harness failures
+separately from the intentional negative controls. All 11 qualified source hashes
+remain unchanged after the suite.
+
+Locked Linux Wasm is byte-identical to round 2: 2,048,753 B raw / 617,410 B gzip,
+630 B below the unchanged 618,040 B budget. No Mac measurement. Only the local
+Linux host was used; neither the office M1 nor M5. The
+[Round 3 report](./reports/20261002-sj-decorated-search/REPORT.md#round-3--structural-value-deadlines-and-nested-placeholders-2026-10-03)
+retains return-site audit, commands, byte accounting and small verification
+receipts. Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing merged, pushed or published.
