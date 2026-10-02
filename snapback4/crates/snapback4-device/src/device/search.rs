@@ -15,7 +15,15 @@ impl<S: DeviceStore> Device<S> {
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let reading = history::Reading { scopes: Some(&self.read_scopes), tx: &tx, schema: &self.schema,
             groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
-        let values = values.iter().map(|v| wire::row_from_json(&self.schema.tables[&plan.table], v).map_err(RuntimeError::Input)).collect::<Result<Vec<_>, _>>()?;
+        let values = values.iter().map(|v| {
+            let mut value = v.clone();
+            if let Some(key) = value[&plan.column].as_str() {
+                let key = snapback4_core::search_decoration::order_key(&serde_json::Value::String(key.to_owned()))
+                    .ok_or_else(|| RuntimeError::Input("invalid retained ordering key".into()))?;
+                value[&plan.column] = serde_json::json!(key);
+            }
+            wire::row_from_json(&self.schema.tables[&plan.table], &value).map_err(RuntimeError::Input)
+        }).collect::<Result<Vec<_>, _>>()?;
         let now = expiry_clock::now(&tx, request["now"].as_i64().unwrap_or(0))?;
         let viewer = request["viewer"].as_str().ok_or_else(|| RuntimeError::Input("viewer required".into()))?;
         let context = Context::new(viewer, BTreeMap::new()).at(now).with_generation(self.generation);

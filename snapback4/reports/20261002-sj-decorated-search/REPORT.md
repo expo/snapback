@@ -194,3 +194,138 @@ One intermediate concurrent CLI unit run additionally hit
 reacquiring the fixture store. Classification: **environmental/transient store
 ownership conflict in an unchanged test**; the complete CLI rerun passed all
 848 tests, including it. No baseline product failure was identified or waived.
+
+## Round 1 — expiry, exact ordering and main integration
+
+Read both complete round-0 reviews: Astra READY/P3 and Grok READY WITH
+CHANGES/Medium+Low. Merged `origin/main` at `e15de2e49a` with the real merge
+commit `878da80018` (parents `90c6b168b6` and `e15de2e49a`). The only textual
+conflict was the JOURNAL tail; both entries survive. The automatic core,
+runner, compiler, SDK descriptor and boundary-manifest merges retain SJ's
+projection and BG's count/maintenance semantics. CT, FDL and FIM remain intact.
+No push or publication.
+
+### Corrections
+
+Decoration expiry is now `decorationExpiry`, separate from the bare page's
+`nextExpiry`. The decoration child contributes its value wakeup and read
+dependencies, never its deadline or coverage to the source page. Local,
+composed and online watches schedule a value refresh: they keep the existing
+rows, continuation, completeness and freshness while the ordinary interpreter
+re-evaluates the fields to null. Both device/server wakeups are consumed once;
+a later source deadline still withdraws normally. One-shot publication rejects
+an in-flight expired decoration attempt through its existing bounded retry,
+without publishing loading or an empty page. Each attempt retains one original
+server query, the source merge fence and its own shared allowance. The LLP
+§3.3.1 and guide state the distinction.
+
+Internal source-order keys outside JavaScript's exact-number range travel as
+canonical decimal strings. Server selection keeps i64 comparison; the SDK uses
+BigInt and emits canonical numeric i64 cursor tokens without Number conversion.
+Bare server pages supply separate keys only when required; retained candidate
+rows carry exact keys in their existing body, and the device restores their typed
+order before projection. Serialization and comparison costs use the existing
+meters. This does **not** expand the public numeric domain: ordinary writes
+already reject values outside signed 53-bit range. The Rust regression therefore
+uses a storage-level i64 fixture. Eight SDK cases cover both directions, adjacent
+keys around positive/negative 2^53 and the signed-i64 extrema, opposing ID ties,
+selected current decorations and exact continuation tokens.
+
+Astra's P3 is implemented. Ordinary devices neither construct nor meter nor
+serialize unused `searchRows`. Server replies retain those source keys for the
+coordinator. Retained candidate queries already return bare rows and keep that
+path. The isolated merged-tree cleanup saves **400 B gzip**.
+
+### Measurements
+
+Locked `build-wasm.sh` builds, Rust 1.97.0 / wasm-bindgen 0.2.127 / workspace
+Binaryen 132.0.0, on Linux:
+
+| Tree | Raw Wasm B | Gzip B |
+| --- | ---: | ---: |
+| Rebuilt shared base `96ae8da9a5` | 2,032,879 | 610,147 |
+| Rebuilt incoming main `e15de2e49a` | 2,030,224 | 610,085 |
+| SJ round 0 merged with that main | 2,047,686 | 616,742 |
+| Same merged tree with only P3 | 2,046,217 | 616,342 |
+| Final round 1 | 2,048,753 | 617,410 |
+
+The base/main controls use the same separate worktree and toolchain. Attribution
+is successive whole-artifact deltas: incoming main/BG **−2,655 raw / −62 gzip**;
+SJ on incoming main **+18,529 raw / +7,325 gzip**; total versus rebuilt base
+**+15,874 raw / +7,263 gzip**. Within the merged SJ correction, P3 saves 400 gzip
+and the correctness changes add 1,068 gzip. These are conditional build deltas,
+not additive function-size estimates. Historical round-0 receipts are not
+substituted for rebuilt controls.
+
+The cap is **618,040 B**: measured Linux **617,410** + estimated macOS **130** +
+requested headroom **500**. Estimated macOS is **617,540 B**; no macOS measurement
+is claimed. This raises round 0's 617,581 B cap by 459 B to preserve the reserve.
+The budget file, final commit and JOURNAL record that reason. Runtime ceilings
+are unchanged. `round1-wasm.json` retains the small measurement receipt.
+
+The scale assertions remain **2,040 → 2,061 examined rows** for W13's 30,030
+messages/1,000 rooms: 20 distinct rooms and one sender. Source-key validation
+adds bounded steps, not point reads. Selection, physical authorization and
+explicit exhaustion behavior remain covered by the same integration target.
+
+### Verification
+
+- `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --lib --bins --tests --no-fail-fast`: **4,713 passed, 0 failed, 34 ignored**, 286 logged summaries, exit 0. This includes the CLI binary units and all five crates' integration targets; the guide target is **110/110**.
+- Final `cargo test -p snapback4-sim --test decorated_search -- --nocapture`: **11/11**, including expiry, exact one-slot selection and both scale corpora. W13 uses 20,216 → 32,957 steps with unchanged examined/index/probe/heap/output counts versus round 0.
+- Focused JS selection: 539 passed and one stale hash check, corrected with its targeted 1/1 rerun as detailed below. Final expiry/watch/scheduler regressions: **6/6**; final generic deadline/recovery/retention selection: **64/64**. Both expanded generated oracles and the eight exact-order protocol cases passed.
+- Client typecheck/build, docs budget and reference audit pass. The measured source and packaged Wasm SHA-256 are identical. All product source remained frozen during the full suite. Final diff review restored the pre-existing W13 fixture's normal seed path (only the unsafe-i64 regression needs direct storage seeding); its already-compiled full-suite binary used the earlier equivalent fixture, and a final affected-target run verifies the restored test. Final source/test hashes cover 23 changed files.
+
+The single final `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh`
+run exits 0 and reports exactly **`== 0 failure(s) in 1394 s`**. The Rust runner
+covers 286 test binaries / 999 executions plus doctests; clients report
+**5,816 passed, 0 failed, 10 skipped**, and models **79/79**. All build, docs,
+release, typecheck, app and fixture stages pass. The ten client skips are explicit
+macOS, legacy-binary or managed-identity fixture gates. The final restored-fixture
+rerun passes **11/11** with unchanged W13 query meters. `round1-verification.json`
+and `round1-source-sha256.txt` retain compact receipts; raw logs remain outside git.
+
+The oracle still checks 985 pages per host (**1,970 total**, process and Wasm),
+with 686 online/299 offline and eight short pages per host. Decoration tables
+now declare expiry; every generated comparison also checks raw `nextExpiry`.
+Four explicit process/Wasm deadline witnesses require both current and retained
+rows to survive with identical freshness, completeness, cut and normalized cursor.
+The two watch cases hold the refresh in flight and require the old rows to remain
+published throughout. All four require expired
+fields—including nested owner reads—to become null and `nextExpiry` to stay
+null. One-shot boundary witnesses require exactly two publication attempts.
+Two independent scheduler cases consume each authority's value wakeup without
+withdrawing rows, preserve the other authority's later value wakeup, then require
+the later bare deadline to withdraw. Rust checks
+the exact before/at/after deadline and unchanged bare metadata.
+
+### Failure classification
+
+All development failures below are **ours**, and corrected before the final
+suite; none is waived as baseline or environmental:
+
+- Two Cargo commands were accidentally launched from the repository root and
+  stopped at the uninitialized Snapback 1 Ibex dependency. No root runtime was
+  built; subsequent commands use the Snapback 4 workspace.
+- Initial edits failed TypeScript's exact optional-property checks and Rust's
+  private-field/import/type-inference checks; corrected declarations, accessor,
+  qualification and explicit fixture types compile.
+- Initial integer fixtures tried to seed values the existing public signed-53
+  domain refuses: one Rust case and four process/Wasm cases returned NOT_FOUND.
+  Replaced invalid public fixtures with a storage-level Rust case and eight SDK
+  protocol regressions; the public limit remains unchanged.
+- The first two watched-expiry tests timed out because their frozen wall clock
+  jumped without changing its offset or delivering the hour-away timer. The
+  corrected witness exercises the synchronous snapshot deadline check before
+  holding the real refresh; both hosts pass. The two one-shot cases passed in
+  that initial run too.
+- One docs command named a nonexistent script; the actual `docs-budget.mjs`
+  command passes.
+- Focused JS initially passed 539/540: the only failure was the stale `client.ts`
+  await-boundary hash after adding value-refresh scheduling inside its existing
+  awaited observation callback. All 58 awaits and every classified site ID,
+  recipe, required/optional classification and absorption rule are unchanged.
+  Updated that one hash; the classification check passes. All fault cases had
+  already passed and the final suite repeats them.
+
+Final full-suite failures: **ours 0, baseline 0, environmental 0**. No rerun
+of `scripts/test.sh`, failure waiver, or runtime ceiling increase.

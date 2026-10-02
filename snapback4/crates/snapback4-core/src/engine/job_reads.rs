@@ -17,7 +17,10 @@ impl Runner<'_> {
         let program = search.as_ref().map_or(program, |plan| &plan.program);
         #[cfg(feature = "server-search")]
         { self.ordinary_search_cursor = search.as_ref().map(|plan| plan.cursor_indexes.clone()); }
-        self.run(program)
+        let data = self.run(program)?;
+        #[cfg(feature = "server-search")]
+        if let Value::Array(rows) = &data { self.search_source_keys(program, rows, false)?; }
+        Ok(data)
     }
 
     // @ref LLP 3000.007#21.12 — no authority cache crosses a viewer boundary.

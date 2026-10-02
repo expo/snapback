@@ -82722,3 +82722,51 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+## 2026-10-02 — SJ round 1: preserve search pages across decoration expiry
+
+Read both complete round-0 reviews (Astra READY/P3; Grok READY WITH CHANGES,
+Medium and Low). Merge origin/main e15de2e49a with real merge commit 878da80018;
+retain both JOURNAL tails and BG count/maintenance rules alongside SJ's lift.
+CT, FDL and FIM semantics remain intact. Decoration children now return a
+separate value-refresh deadline: watches keep current and retained rows and
+bare-page freshness while fields re-evaluate to null. Only source deadlines
+withdraw the page. One-shots reject crossed decoration deadlines through their
+existing bounded publication retry. LLP 3000.028 §3.3.1 and the guide record it.
+
+Internal order keys outside the exact JavaScript integer range travel as decimal
+strings and compare with BigInt; cursor tokens retain exact i64 numeric text.
+Public numeric writes retain their signed-53 restriction. The unsafe-key Rust
+witness uses storage seeding, and eight SDK witnesses cover adjacent +/-2^53
+keys, both directions and i64 extrema. Ordinary devices stop constructing,
+metering and serializing unused searchRows: isolated saving 400 B gzip.
+
+Linux locked Wasm measures 2,048,753 B raw / 617,410 B gzip. Raise the cap from
+617,581 to 618,040 B: Linux +130 B estimated macOS offset +500 B reserve.
+MacOS is estimated at 617,540 B, not measured. Same-host rebuilt base 96ae8da9a5
+is 2,032,879 / 610,147, incoming main e15de2e49a is 2,030,224 / 610,085.
+Thus BG/incoming main saves 2,655 raw / 62 gzip; SJ on that main adds 18,529 raw /
+7,325 gzip. Net versus rebuilt base is +15,874 raw / +7,263 gzip. These are
+successive whole-artifact deltas; runtime ceilings are unchanged. The budget
+file and commit record the same reason.
+
+Affected Rust: 4,713 passed, 0 failed, 34 ignored across 286 summaries, including
+binary units, all integration targets, and guide 110. Decorated search is 11/11;
+the 30,030-message/1,000-room case remains 2,040 -> 2,061 examined rows. Generated
+process/Wasm oracles check 1,970 pages plus mixed current/retained expiry witnesses
+and independent device/server wakeup cases. Focused JS initially passed 539/540;
+only the changed client await-boundary hash needed refreshing (all 58 awaits and
+classified site IDs unchanged); its targeted rerun passes. Final generic deadline
+selection is 64/64. All development failures are ours and corrected; the report
+classifies them individually.
+
+The single final scripts/test.sh run exits 0: `== 0 failure(s) in 1394 s`.
+Rust: 286 binaries / 999 executions plus doctests; clients 5,816 passed, 0 failed,
+10 explicit platform/fixture skips; models 79/79. Full-suite failure classification:
+ours 0, baseline 0, environmental 0. No full-suite rerun or waiver.
+
+Final diff review restored the W13 fixture's original public seed setup; a final
+11/11 affected-target run verifies it after the full suite. Product sources and
+measured Wasm stayed unchanged throughout qualification. The report's Round 1
+section and small hash/verification/measurement receipts retain the evidence.
+No push or publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

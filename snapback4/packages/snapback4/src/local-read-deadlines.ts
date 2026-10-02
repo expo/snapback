@@ -13,15 +13,15 @@ export function withdrawnLocalResult(watches: Iterable<Watch>, watch: Watch,
 
 export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalReads, clock: ServerClock,
   closed: () => boolean, unavailable: () => Refusal | null, acquireRead: (watch: Watch) => void) {
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
-    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false, valueDevice?: number | null, valueServer?: number | null) {
+    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup, valueDevice, valueServer };
     armReadExpiry(watch, deadlines, clock,
       () => !closed() && watches.get(watch.key) === watch, sweepExpiries,
       (serverDue, now) => answers.expire(watch, serverDue, now));
   }
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
+      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer),
       watch => { if (watches.get(watch.key) === watch) acquireRead(watch); });
   }
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
@@ -32,7 +32,7 @@ export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalRe
     let deliver: (() => void) | undefined;
     if (denied) deliver = watch.reset({ denied }, true);
     else if (reset) deliver = watch.expire();
-    else scheduleExpiry(watch, null, d.server, d.localWakeup); // A local wakeup preserves the server deadline.
+    else scheduleExpiry(watch, null, d.server, d.localWakeup, d.valueDevice, d.valueServer); // A local wakeup preserves the server deadline.
     return () => { deliver?.(); if (reset && watches.get(watch.key) === watch) notify(watch); };
   }
   return { scheduleExpiry, sweepExpiries };

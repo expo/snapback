@@ -1,6 +1,9 @@
 import type { ServerClock } from "./clock.ts";
 
 export interface ReadDeadlines {
+  /** Presentation-only deadlines reobserve values without withdrawing rows. */
+  valueDevice?: number | null | undefined;
+  valueServer?: number | null | undefined;
   device: number | null;
   server: number | null;
   /** A remembered server answer can have a local reobservation wakeup. */
@@ -34,7 +37,7 @@ export function holdReadExpiry(owner: ExpiringRead, withdraw: () => () => void):
   const context = expiryOwners.get(owner), original = owner.deadlines;
   if (!context || !original) return { check() {}, release() {} };
   // A local wakeup reobserves remembered server data; it does not expire that data.
-  const deadlines = { ...original, device: original.localWakeup ? null : original.device };
+  const deadlines = { ...original, device: original.localWakeup ? null : original.device, valueDevice: null, valueServer: null };
   const held: HeldExpiry = { deadlines, expiryTimer: null, withdraw };
   let group = heldExpiries.get(owner);
   if (!group) heldExpiries.set(owner, group = new Set());
@@ -57,10 +60,12 @@ export function checkReadExpiry(watch: ExpiringRead & { expire(): () => void }):
   const context = expiryOwners.get(watch), d = watch.deadlines;
   if (!context || !d) return;
   const serverDue = d.server !== null && context.clock.serverDelay(d.server) === 0;
-  if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)) {
+  if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)
+    || (d.valueDevice != null && context.clock.deviceDelay(d.valueDevice) === 0)
+    || (d.valueServer != null && context.clock.serverDelay(d.valueServer) === 0)) {
     if (context.current()) context.expired(serverDue);
     // A closed local handle has left the live sweep, but can still be read.
-    else if (serverDue || !d.localWakeup) {
+    else if (serverDue || !d.localWakeup && d.device !== null && context.clock.deviceDelay(d.device) === 0) {
       if (serverDue) rememberDeadline(watch, d.server);
       context.withdrawHeld?.(serverDue, context.clock.estimatedServerNow());
       watch.deadlines = undefined;
@@ -102,6 +107,11 @@ export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>
       watch.expiryTimer = null;
       watch.deadlines = undefined;
       deliveries.push(withdraw(watch, d, serverDue, serverNow)); due.add(watch);
+    } else if ((d.valueDevice != null && d.valueDevice <= deviceNow) || (d.valueServer != null && d.valueServer <= serverNow)) {
+      // @ref LLP 3000.028#3.3.1 — values refresh under the still-published bare page.
+      rearm(watch, { ...d, valueDevice: d.valueDevice != null && d.valueDevice <= deviceNow ? null : d.valueDevice,
+        valueServer: d.valueServer != null && d.valueServer <= serverNow ? null : d.valueServer });
+      due.add(watch);
     } else rearm(watch, d);
   }
   for (const deliver of deliveries) deliver();
@@ -119,15 +129,16 @@ export function armReadExpiry(watch: ExpiringRead, deadlines: ReadDeadlines | un
   watch.expiryTimer = null;
   watch.deadlines = deadlines;
   if (!deadlines || !current()) return;
-  const { device, server } = deadlines;
-  if (device === null && server === null) return;
-  const delay = Math.min(device === null ? Infinity : clock.deviceDelay(device), server === null ? Infinity : clock.serverDelay(server), 2_147_483_647);
+  const { device, server, valueDevice, valueServer } = deadlines;
+  if (device === null && server === null && valueDevice == null && valueServer == null) return;
+  const delay = Math.min(device === null ? Infinity : clock.deviceDelay(device), server === null ? Infinity : clock.serverDelay(server), valueDevice == null ? Infinity : clock.deviceDelay(valueDevice), valueServer == null ? Infinity : clock.serverDelay(valueServer), 2_147_483_647);
   watch.expiryTimer = setTimeout(() => {
     watch.expiryTimer = null;
     if (!current()) return;
     const deviceDue = device !== null && clock.deviceDelay(device) === 0;
     const serverDue = server !== null && clock.serverDelay(server) === 0;
-    if (!deviceDue && !serverDue) { armReadExpiry(watch, deadlines, clock, current, expired, withdrawHeld); return; }
+    const valueDue = valueDevice != null && clock.deviceDelay(valueDevice) === 0 || valueServer != null && clock.serverDelay(valueServer) === 0;
+    if (!deviceDue && !serverDue && !valueDue) { armReadExpiry(watch, deadlines, clock, current, expired, withdrawHeld); return; }
     // The sweep must still see this deadline when it captures all due watches.
     expired(serverDue);
   }, delay);

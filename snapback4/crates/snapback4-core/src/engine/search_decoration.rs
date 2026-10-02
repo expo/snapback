@@ -16,17 +16,30 @@ impl Runner<'_> {
         };
         if self.context.retained_search { return Ok(Some(data)); }
         let Value::Array(rows) = data else { return Ok(Some(data)); };
-        if let Some(plan) = self.schema.operations.get(&program.name).and_then(|f| f.search.as_ref()) {
+        #[cfg(feature = "server-search")]
+        self.search_source_keys(program, &rows, true)?;
+        self.decorate_search_values(program, rows).map(Some)
+    }
+
+    #[cfg(feature = "server-search")]
+    pub(super) fn search_source_keys(&mut self, program: &Program, rows: &[Value], always: bool) -> Result<(), RuntimeError> {
+        if !self.device && let Some(plan) = self.schema.operations.get(&program.name).and_then(|f| f.search.as_ref()) {
+            if self.search_rows.is_some() { return Ok(()); }
+            self.meter.step(rows.len() as u64)?;
+            if !always && !rows.iter().any(|row| matches!(row.field(&plan.column), Ok(Value::Int(key)) if !(crate::value::I53_MIN..=crate::value::I53_MAX).contains(key))) { return Ok(()); }
             self.meter.heap(rows.len() as u64 * (512 + plan.column.len() as u64) + rows.iter().map(|r| expression_heap(r.field("id").unwrap())).sum::<u64>())?;
             let keys = rows.iter().map(|row| crate::value::object([
                 ("id", row.field("id").unwrap().clone()),
-                (plan.column.as_str(), row.field(&plan.column).unwrap().clone()),
+                (plan.column.as_str(), match row.field(&plan.column).unwrap() {
+                    Value::Int(key) if !(crate::value::I53_MIN..=crate::value::I53_MAX).contains(key) => Value::String(key.to_string()),
+                    value => value.clone(),
+                }),
             ])).collect();
             let keys = Value::Array(keys);
             self.charge_output(&keys)?;
             self.search_rows = Some(keys);
         }
-        self.decorate_search_values(program, rows).map(Some)
+        Ok(())
     }
 
     pub(crate) fn decorate_search_values(&mut self, program: &Program, rows: Vec<Value>) -> Result<Value, RuntimeError> {

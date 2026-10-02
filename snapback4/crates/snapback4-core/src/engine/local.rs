@@ -67,7 +67,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { search_rows: runner.search_rows.take(), search_scopes: None,
+    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None,
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
         unavailable: runner.query_unavailable,
@@ -193,7 +193,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
         };
         let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
-        Ok(QueryOutcome { search_rows: runner.search_rows.take(), search_scopes: None,
+        Ok(QueryOutcome { decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None,
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
             unavailable: runner.query_unavailable,
@@ -266,5 +266,5 @@ pub fn decorate_search(rows: &dyn Rows, schema: &Schema, program: &Program, cont
     runner.device = true;
     let data = runner.decorate_search_values(program, values)?;
     runner.charge_output(&data)?;
-    Ok((data, runner.meter.used, runner.next_expiry.get()))
+    Ok((data, runner.meter.used, runner.decoration_expiry))
 }

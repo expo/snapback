@@ -143,3 +143,58 @@ fn device_word_cut_preserves_metadata_with_point_decorations() {
     assert_eq!((&a.next,a.complete,&a.cut),(&b.next,b.complete,&b.cut));
     assert_eq!(a.data.as_array().unwrap().iter().map(|v|v.field("id").unwrap()).collect::<Vec<_>>(),b.data.as_array().unwrap().iter().map(|v|v.field("id").unwrap()).collect::<Vec<_>>());
 }
+
+#[test]
+fn decoration_deadline_is_a_value_refresh_not_a_page_expiry() {
+    let source = SOURCE.replace("  name: text", "  expires: time ?\n  expire at .expires\n  name: text");
+    assert_ne!(source, SOURCE);
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let seed: Vec<(String,Value)> = [
+        ("members", serde_json::json!({"id":"u","room":"r","principal":"alice"})),
+        ("rooms", serde_json::json!({"id":"r","title":"Room"})),
+        ("profiles", serde_json::json!({"id":"p","principal":"alice","name":"Alice","expires":200})),
+        ("messages", serde_json::json!({"id":"m","room":"r","author":"alice","body":"coffee","at":1})),
+    ].into_iter().map(|(table,row)| (table.into(),wire::row_from_json(&b.schema.tables[table],&row).unwrap())).collect();
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap(); e.seed_at(seed,100).unwrap();
+    for now in [199,200,201] {
+        let a=e.query("bare",cx(None).at(now)).unwrap();let b=e.query("decorated",cx(None).at(now)).unwrap();
+        assert_eq!((a.complete,a.cut,a.next,a.next_expiry),(b.complete,b.cut,b.next,b.next_expiry));
+        assert_eq!(b.next_expiry,None);
+        assert_eq!(b.decoration_expiry,(now<200).then_some(200));
+        let hit=&b.data.as_array().unwrap()[0];
+        assert_eq!(hit.field("id").unwrap().as_str().unwrap(),"m");
+        assert_eq!(hit.field("sender").unwrap(),&if now<200 {Value::String("Alice".into())} else {Value::Null});
+    }
+}
+
+#[test]
+fn unsafe_integer_order_keys_are_exact_in_selection_and_source_wire() {
+    let source=SOURCE.replace("at: time", "at: int").replace("last 20", "last 1");
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let high=9_007_199_254_740_993_i64;
+    let seed: Vec<(String,Value)>=[
+        ("members",serde_json::json!({"id":"u","room":"r","principal":"alice"})),
+        ("rooms",serde_json::json!({"id":"r","title":"Room"})),
+        ("profiles",serde_json::json!({"id":"p","principal":"alice","name":"Alice"})),
+        ("messages",serde_json::json!({"id":"a","room":"r","author":"alice","body":"coffee","at":high})),
+    ].into_iter().map(|(t,r)| (t.into(),wire::row_from_json(&b.schema.tables[t],&r).unwrap())).collect();
+    // Public writes remain restricted to signed 53-bit values. Exercise the
+    // internal i64 protocol with a storage-level fixture, not a widened type.
+    let schema=b.schema.clone();
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let tx=e.store_mut().transaction().unwrap();
+    for (name,row) in seed { snapback4_core::Rows::put(&tx,&name,&schema.tables[&name],&row,None).unwrap(); }
+    tx.commit().unwrap();
+    let mut context=cx(None);context.search_retained_order=Some((vec![high-1],true));
+    let out=e.query_search_at("decorated",context,Some(&["z".into()])).0.unwrap();
+    assert_eq!(out.data.as_array().unwrap()[0].field("sender").unwrap().as_str().unwrap(),"Alice");
+    assert_eq!(wire::to_json(&out.search_rows.unwrap())[0]["at"],high.to_string());
+    let bare=e.query("bare",cx(None)).unwrap();
+    assert_eq!(wire::to_json(&bare.search_rows.unwrap())[0]["at"],high.to_string());
+    for key in [i64::MIN, -high, high, i64::MAX] {
+        assert_eq!(snapback4_core::search_decoration::order_key(&serde_json::json!(key.to_string())),Some(key));
+        assert_eq!(snapback4_core::search_decoration::order_key(&serde_json::json!(key)),None);
+    }
+}

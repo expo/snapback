@@ -267,6 +267,9 @@ pub struct QueryOutcome {
     /// Source ordering keys, separate from an arbitrary presentation projection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub search_rows: Option<Value>,
+    /// Value reobservation only; never withdraws the source page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decoration_expiry: Option<i64>,
     #[cfg(feature = "sqlite")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delivery: Option<delivery::Manifest>,
@@ -959,7 +962,7 @@ impl Engine {
                 let data = value?;
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-                let outcome = QueryOutcome { search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -992,7 +995,7 @@ impl Engine {
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
         let outcome = QueryOutcome {
-            search_rows: runner.search_rows.take(),
+            decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(),
             #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
             #[cfg(not(feature = "server-search"))] search_scopes: None,
             delivery, delivery_meter, ephemeral: version,

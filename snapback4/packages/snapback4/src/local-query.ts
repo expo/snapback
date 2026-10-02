@@ -28,10 +28,10 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { valueDevice?: number | null | undefined; valueServer?: number | null | undefined; heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
-type Outcome = Coverage & { scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+type Outcome = Coverage & { decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
@@ -149,7 +149,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // Its wakeup is separate from the remembered answer's server-clock expiry.
     // Absent memory is an explicit replacement (including an ordered denial),
     // not a transport failure that may retain the previously displayed value.
-    return { origin: "remembered", result: { scopes: last?.scopes, transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
+    return { origin: "remembered", result: { scopes: last?.scopes, transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null, valueServer: last?.decorationExpiry } };
   };
   const local = async () => {
     checkpoint();
@@ -171,7 +171,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // are filtered separately. Local freshness is assigned only at publication.
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true }
       : readyRead({ data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null });
-    latest = { outcome, result: { read, tables, nextExpiry, scopes: outcome.scopes } };
+    latest = { outcome, result: { read, tables, nextExpiry, valueDevice: outcome.decorationExpiry, scopes: outcome.scopes } };
     return latest;
   };
   const server = async (provenance = false, retain = true): Promise<Candidate<R>> => {
@@ -201,7 +201,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null });
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
-        return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
+        return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, valueServer: json.decorationExpiry as number | null | undefined, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
@@ -354,7 +354,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       if (origin === "server" || origin === "composed") {
         checkpoint();
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
-        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, scopes: result.scopes, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
+        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, scopes: result.scopes, at: Date.now(), nextExpiry: result.serverExpiry ?? null, decorationExpiry: result.valueServer, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
       if (followingPending && "data" in result.read) result.read = readyRead<R>({ ...result.read, complete: false }, pendingHere);

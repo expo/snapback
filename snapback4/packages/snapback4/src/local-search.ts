@@ -82,8 +82,9 @@ export class SearchLedger {
 const prefix = "sb4s:";
 const maxCursor = 4096;
 export const combinedCursor = (value: unknown): value is string => typeof value === "string" && value.startsWith(prefix);
-function encoded(value: unknown): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
+function encoded(value: unknown): string { return encodedText(JSON.stringify(value)); }
+function encodedText(value: string): string {
+  const bytes = new TextEncoder().encode(value);
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -93,8 +94,8 @@ function decoded(value: string): unknown {
   return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0))));
 }
 type Row = Record<string, unknown> & { id: string };
-type Page = { searchRows?: Row[]; data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
-type State = { decorations?: Row[]; decorationExpiry?: number | null; metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
+type Page = { decorationExpiry?: number | null | undefined; searchRows?: Row[]; data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
+type State = { decorations?: Row[]; decorationExpiry?: number | null | undefined; metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
 type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; after: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
@@ -127,13 +128,23 @@ function jsonBound(value: unknown, ledger: SearchLedger): number {
   return bytes;
 }
 
+// Exact signed i64 order keys: unsafe JSON numbers are never accepted as hints.
+function orderKey(value: unknown): value is number | string {
+  if (typeof value === "number") return Number.isSafeInteger(value);
+  if (typeof value !== "string" || !/^-?(0|[1-9][0-9]{0,18})$/.test(value) || value === "-0") return false;
+  const key = BigInt(value);
+  return key >= -9223372036854775808n && key <= 9223372036854775807n;
+}
 function sourceCursor(plan: SearchComposition, row: Row, generation: number, ledger: SearchLedger) {
+  if (!orderKey(row[plan.column])) throw new SearchBound("invalid source ordering key");
   ledger.text(512 + 6 * (plan.table.length + plan.index.length + plan.column.length + row.id.length));
   const value: unknown[] = [plan.variant ? 2 : 1, plan.table, plan.index, plan.order,
     [{ name: plan.column, kind: plan.kind }, { name: "id", kind: "Id" }],
     [{ Int: row[plan.column] }, { Id: row.id }]];
   if (plan.variant) value.push({ generation, prefix: [], variant: plan.variant });
-  const token = encoded(value);
+  // Cursor v1/v2 has a tagged i64 JSON number. Write this one validated
+  // numeric token directly; JSON.stringify(Number(key)) would round it.
+  const token = encodedText(JSON.stringify(value).replace(/"Int":"(-?[0-9]+)"/, '"Int":$1'));
   if (token.length > maxCursor) throw new SearchBound("cursor");
   return token;
 }
@@ -142,6 +153,8 @@ export interface SearchResult {
   transportOffline?: boolean;
   nextExpiry: number | null;
   serverExpiry?: number | null;
+  valueDevice?: number | null | undefined;
+  valueServer?: number | null | undefined;
   credential?: number;
   seq?: number | undefined;
   served?: boolean;
@@ -224,7 +237,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     if (decorated) {
       ledger.charge("steps", remote.data.length);
       if (!Array.isArray(remote.searchRows) || remote.searchRows.length !== remote.data.length
-        || !remote.searchRows.every(row => row && typeof row.id === "string" && Number.isSafeInteger(row[plan.column]))) {
+        || !remote.searchRows.every(row => row && typeof row.id === "string" && orderKey(row[plan.column]))) {
         return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support lifted search source keys" } } };
       }
     }
@@ -288,7 +301,12 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     let consumed = false;
     const before = (a: Row, b: Row) => {
       ledger.charge("steps", 2);
-      let cmp = Number(a[plan.column]) - Number(b[plan.column]);
+      const ak = a[plan.column], bk = b[plan.column];
+      if (!orderKey(ak) || !orderKey(bk)) throw new SearchBound("invalid source ordering key");
+      ledger.charge("steps", (typeof ak === "string" ? ak.length * 2 : 0) + (typeof bk === "string" ? bk.length * 2 : 0));
+      ledger.charge("heap_bytes", 128); // bounded i64 validation and comparison
+      const av = BigInt(ak), bv = BigInt(bk);
+      let cmp = av < bv ? -1 : av > bv ? 1 : 0;
       if (!cmp) {
         // Rust strings order Unicode scalar values (UTF-8), not UTF-16 units.
         ledger.charge("steps", a.id.length + b.id.length + 1);
@@ -337,7 +355,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     if (decorated) {
       if (!after.decorations || after.decorations.length !== retainedPositions.length) return loading;
       for (let k = 0; k < retainedPositions.length; k++) data[retainedPositions[k]!] = after.decorations[k]!;
-      if (after.decorationExpiry != null) local.nextExpiry = Math.min(local.nextExpiry ?? Infinity, after.decorationExpiry);
+
     }
     const more = i < left.length || j < right.length || !!local.next || !!remote.next;
     let next: string | null = null;
@@ -352,6 +370,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
       ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) }),
       nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
+      valueDevice: after.decorationExpiry, valueServer: remote.decorationExpiry,
       credential, seq, served: true, searchAttempt: true };
   } catch (error) {
     if (error instanceof SearchBound) return { ...loading, read: { denied: error.refusal } };

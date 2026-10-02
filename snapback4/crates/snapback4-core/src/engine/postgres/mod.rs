@@ -162,7 +162,7 @@ impl PostgresEngine {
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-        let outcome = QueryOutcome { search_rows: runner.search_rows.take(), search_scopes: None, delivery, delivery_meter, ephemeral: None,
+        let outcome = QueryOutcome { decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None, delivery, delivery_meter, ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()

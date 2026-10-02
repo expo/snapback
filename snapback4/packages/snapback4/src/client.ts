@@ -61,6 +61,7 @@ export interface ClientOptions {
 }
 
 interface QueryResult<R> {
+  decorationExpiry?: number | null | undefined;
   generation?: number | undefined;
   deadlineWithdrawn?: () => boolean;
   delivery?: unknown; credential?: number | undefined;
@@ -601,15 +602,16 @@ export function createClient(options: ClientOptions): Client {
     if (json.denied) return { ephemeral: json.ephemeral, read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null, refresh };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
+    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, decorationExpiry: json.decorationExpiry as number | null | undefined, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, decorationExpiry: json.decorationExpiry as number | null | undefined, refresh };
   }
 
   const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
     const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
+      && (result.decorationExpiry == null || result.decorationExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
       && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
     return current;
@@ -671,14 +673,14 @@ export function createClient(options: ClientOptions): Client {
     for (const subscriber of watch.subscribers) subscriber();
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
-    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false }, clock,
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer?: number | null) {
+    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false, valueServer }, clock,
       () => !closed && watches.get(watch.key) === watch, sweepExpiries);
   }
 
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.server),
+      (watch, d) => scheduleExpiry(watch, d.server, d.valueServer),
       watch => { if (watches.get(watch.key) === watch) void acquireRead(watch); });
   }
 
@@ -716,7 +718,7 @@ export function createClient(options: ClientOptions): Client {
     watch.publish(result.read);
     acceptDelivery(result, watch.snapshot);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
+    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry, result.decorationExpiry);
     notify(watch);
     schedulePresence(watch, true, result.refresh);
   }
@@ -757,7 +759,7 @@ export function createClient(options: ClientOptions): Client {
         if (!result.transportOffline) {
           // Do not move either side of a row-expiry boundary into a UI batch.
           batchReady &&= watch.deadlines?.server == null && result.nextExpiry === null;
-          scheduleExpiry(watch, result.nextExpiry);
+          scheduleExpiry(watch, result.nextExpiry, result.decorationExpiry);
         }
         return true;
       } }), signal);

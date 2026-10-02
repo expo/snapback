@@ -101,3 +101,14 @@ fn point_value(schema: &Schema, value: &Expr, binding: &str, reads: &mut BTreeSe
         _ => false,
     }
 }
+
+// @ref LLP 3000.028#3.3.1 — JSON numbers outside the exact JS range travel as
+// canonical decimal strings in the internal source-order protocol.
+pub fn order_key(value: &serde_json::Value) -> Option<i64> {
+    if let Some(key) = value.as_i64() {
+        return (crate::value::I53_MIN..=crate::value::I53_MAX).contains(&key).then_some(key);
+    }
+    let text = value.as_str()?;
+    let key: i64 = text.parse().ok()?;
+    (key.to_string() == text).then_some(key)
+}

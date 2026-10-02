@@ -202,3 +202,22 @@ test('merge seen set is defense in depth for a same-page pair unmarked by overla
   const {read}=await f.run();
   assert.deepEqual(read.data,[row]);assert.equal(read.next,null);assert.equal(f.calls(),1);
 });
+
+for (const order of ['Asc','Desc']) for (const key of [9007199254740993n,-9007199254740992n,9223372036854775807n,-9223372036854775807n]) test(`exact source-order protocol ${order} ${key}`,async()=>{
+  const higher={id:'a',at:String(key)},lower={id:'z',at:String(key-1n)};
+  const current=order==='Desc'?higher:lower,retained=order==='Desc'?lower:higher;
+  let received;
+  const env={backend:{generation:1,schema:{operations:{decorated:{search_decoration:true}}}},principal:'bob',link:'online',lastSyncAt:1,credentialRevision:0,deviceNow:()=>1,serverNow:()=>1,
+    async call(r){
+      if(r.op==='query')return {ok:{data:[retained],complete:true,next:null,metered:r.spent}};
+      return {ok:{epoch:'a',delivery:'a',left:['["left"]'],ceilings,metered:r.spent??counts(),decorations:[]}};
+    },
+    async searchPost(path,body,decode){received=body;return {ok:true,obsoleteAuth:false,searchIdentity:'store:1',json:await decode(new Response(JSON.stringify({searchScopes:['["live"]'],searchCurrent:[],searchRows:[current],data:[{id:current.id,sender:'Alice'}],complete:true,next:null})))}}};
+  const out=await ordinarySearch(env,'decorated',{q:'coffee'},{...plan,kind:'Int',order,limit:1},()=>{},async()=>false);
+  assert.deepEqual(out.read.data,[{id:current.id,sender:'Alice'}]);
+  assert.deepEqual(received.searchRetainedOrder,[retained.at]);
+  const cursor=position(out.read.next).after;
+  const text=Buffer.from(cursor,'base64url').toString();
+  assert.ok(text.includes(`{"Int":${current.at}}`),text);
+  assert.ok(!text.includes(`"Int":"`),'tagged i64 cursor remains numeric and canonical');
+});

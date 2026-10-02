@@ -1208,9 +1208,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     None => None,
                 };
                 if let Some(value) = payload.get("searchRetainedOrder") {
-                    let order: Vec<i64> = match serde_json::from_value(value.clone()) {
-                        Ok(order) => order,
-                        Err(_) => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetainedOrder must contain integer ordering keys")),
+                    let order: Vec<i64> = match value.as_array().and_then(|values| values.iter().map(snapback4_core::search_decoration::order_key).collect()) {
+                        Some(order) => order,
+                        None => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetainedOrder must contain integer ordering keys")),
                     };
                     if retained.as_ref().is_none_or(|ids| ids.len() != order.len()) {
                         return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "retained search ordering keys require matching candidate IDs"));
@@ -1276,6 +1276,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             next: &'a Option<String>,
                             #[serde(rename = "nextExpiry")]
                             next_expiry: Option<i64>,
+                            #[serde(rename = "decorationExpiry", skip_serializing_if = "Option::is_none")]
+                            decoration_expiry: Option<i64>,
                             seq: u64,
                             store_id: String,
                             tables: &'a [String],
@@ -1307,7 +1309,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: outcome.decoration_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {

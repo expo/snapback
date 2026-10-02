@@ -434,8 +434,6 @@ impl<'a> Runner<'a> {
         self.read_tables.extend(child.read_tables);
         // Decoration expiry invalidates the value, but never changes freshness
         // or the page's completeness. Re-evaluation substitutes null after expiry.
-        let expiry = self.next_expiry.scope();
-        self.next_expiry.note_option(child.next_expiry.get());
-        expiry.emit();
+        self.decoration_expiry = child.next_expiry.get();
     }
 }

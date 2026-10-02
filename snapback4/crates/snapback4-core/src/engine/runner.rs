@@ -135,6 +135,7 @@ pub struct Runner<'a> {
     /// How deep inside page loops the runner is; a scan at depth 0 may own
     /// the program's `next`.
     pub(crate) search_rows: Option<Value>,
+    pub(crate) decoration_expiry: Option<i64>,
     pub(crate) retained_seen: bool,
     pub(super) decoration_cache: Option<BTreeMap<(String, String, Vec<u8>), Value>>,
     pub(crate) page_depth: usize,
@@ -296,6 +297,7 @@ impl<'a> Runner<'a> {
             outbox: Vec::new(),
             effect_presence: Default::default(),
             search_rows: None,
+            decoration_expiry: None,
             retained_seen: false,
             decoration_cache: None,
             page_depth: 0,
