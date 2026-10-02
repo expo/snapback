@@ -3,6 +3,9 @@
 use std::sync::OnceLock;
 
 const MAX_DESCRIPTORS: u64 = 65_536;
+// The measured parallel server workload peaked at 1,197; leave headroom above
+// that observed demand. This warning threshold is not a capacity guarantee.
+const RECOMMENDED_DESCRIPTORS: u64 = 2_048;
 static STARTUP: OnceLock<Adjustment> = OnceLock::new();
 
 #[derive(Debug, serde::Serialize)]
@@ -89,7 +92,7 @@ fn raise() -> Adjustment {
 }
 
 fn describe_adjustment(result: &Adjustment) -> String {
-    let mut text = describe();
+    let mut text = describe_limits(result.soft, result.hard);
     if let (Some(before), Some(target)) = (result.inherited_soft, result.target) {
         text.push_str(&format!("; startup soft={before} target={target}"));
     }
@@ -100,35 +103,56 @@ fn describe_adjustment(result: &Adjustment) -> String {
 }
 
 pub(crate) fn diagnostics() -> serde_json::Value {
-    serde_json::json!({ "description": STARTUP.get().map(describe_adjustment).unwrap_or_else(describe),
-        "startup": STARTUP.get() })
+    serde_json::json!({ "description": STARTUP.get().map(|result| {
+        let mut line = describe();
+        if let (Some(before), Some(target)) = (result.inherited_soft, result.target) {
+            line.push_str(&format!("; startup soft={before} target={target}"));
+        }
+        if let Some(error) = &result.error { line.push_str(&format!("; E_HTTP_LIMIT: {error}")); }
+        line
+    }).unwrap_or_else(describe),
+        "startup": STARTUP.get(), "recommendedSoft": RECOMMENDED_DESCRIPTORS,
+        "descriptorExhaustions": tiny_http::descriptor_exhaustions() })
 }
 
 pub(crate) fn describe() -> String {
-    let connections = tiny_http::ConnectionLimits::default().max_connections;
-    let prefix = format!("HTTP connections={connections}; uploads=2; file descriptors (this process)");
     #[cfg(unix)]
-    {
-        let limit = match current() {
-            Ok(limit) => limit,
-            Err(error) => return format!("{prefix}: unavailable ({error})"),
-        };
-        let word = |value| if value == libc::RLIM_INFINITY { "unlimited".into() } else { format!("{value}") };
-        let mut line = format!("{prefix}: soft={} hard={}", word(limit.rlim_cur), word(limit.rlim_max));
-        if limit.rlim_cur < 1024 {
-            line.push_str("; E_HTTP_LIMIT: low descriptor limit; dev/serve attempt to raise it at startup");
-            if limit.rlim_max < 1024 { line.push_str("; raise the shell/container/service hard NOFILE limit to at least 1024 and restart"); }
-        }
-        line
+    match current() {
+        Ok(limit) => describe_limits(Some(limit.rlim_cur as u64), Some(limit.rlim_max as u64)),
+        Err(error) => format!("{} ({error})", describe_limits(None, None)),
     }
     #[cfg(not(unix))]
-    format!("{prefix}: unavailable on this platform")
+    describe_limits(None, None)
+}
+
+fn describe_limits(soft: Option<u64>, hard: Option<u64>) -> String {
+    let connections = tiny_http::ConnectionLimits::default().max_connections;
+    let prefix = format!("HTTP connections={connections}; uploads=2; file descriptors (this process)");
+    let (Some(soft), Some(hard)) = (soft, hard) else { return format!("{prefix}: unavailable"); };
+    let word = |value: u64| {
+        #[cfg(unix)]
+        if value == libc::RLIM_INFINITY as u64 { return "unlimited".to_owned(); }
+        value.to_string()
+    };
+    let mut line = format!("{prefix}: soft={} hard={}; descriptor_exhaustions={}",
+        word(soft), word(hard), tiny_http::descriptor_exhaustions());
+    if soft < RECOMMENDED_DESCRIPTORS {
+        line.push_str(&format!("; E_HTTP_LIMIT: effective soft limit {soft} is below recommended {RECOMMENDED_DESCRIPTORS} (measured parallel server tests: 1197 descriptors); raise the shell/container/service {}NOFILE limit to at least {RECOMMENDED_DESCRIPTORS} and restart", if hard < RECOMMENDED_DESCRIPTORS { "hard " } else { "soft " }));
+    }
+    line
 }
 
 #[cfg(test)]
 pub(crate) fn prepare_tests() {
     static BEFORE_SERVERS: std::sync::Once = std::sync::Once::new();
     BEFORE_SERVERS.call_once(initialize);
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn test_listener(address: impl std::net::ToSocketAddrs) -> std::io::Result<std::net::TcpListener> {
+    prepare_tests();
+    std::net::TcpListener::bind(address)
 }
 
 #[cfg(all(test, unix))]
@@ -153,6 +177,15 @@ mod tests {
             assert_eq!(result.soft, Some(expected));
             assert!(result.error.is_none());
         }
+    }
+    #[test]
+    fn hard_capped_1024_warns_without_attempting_a_setter() {
+        let result = adjust(libc::rlimit { rlim_cur: 1024, rlim_max: 1024 }, MAX_DESCRIPTORS,
+            |_| panic!("no raise is possible"));
+        let line = describe_adjustment(&result);
+        assert!(line.contains("soft=1024 hard=1024"), "{line}");
+        assert!(line.contains("E_HTTP_LIMIT") && line.contains("hard NOFILE limit to at least 2048"), "{line}");
+        assert!(!describe_limits(Some(2048), Some(2048)).contains("E_HTTP_LIMIT"));
     }
     #[test]
     fn refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause() {

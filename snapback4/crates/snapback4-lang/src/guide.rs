@@ -455,10 +455,6 @@ view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue.
-At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
-hard limit, capped at 65,536 (also capped by macOS host limits). Failure is
-logged once and serving continues. Live `doctor` reports the server's attempt;
-a low hard limit needs a shell/container/service limit change and restart.
 The host admits 128 HTTP connections. Excess connections receive HTTP 503
 E_RATE_LIMIT before request admission; full request worker pools also refuse.
 The SDK retries explicit retryable admission refusals at most four times within
@@ -480,6 +476,17 @@ retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership.
+
+At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
+hard limit, capped at 65,536 (also capped by macOS host limits). Failure is
+logged once and serving continues. Startup and live `doctor` report the effective
+soft/hard limits and warn below 2,048 descriptors (the parallel server tests
+peaked at 1,197). A low hard limit needs a shell/container/service limit change
+and restart. Children inherit the raised soft limit; Node can raise its own
+further, up to the hard limit. `doctor` also reports cumulative descriptor
+exhaustions from accept/socket clones. These close transports without an
+admission refusal; intake retries with 1–100 ms backoff, reset after a connection
+is fully constructed.
 
 Removing an element releases it; reordering keeps its home and view history;
 deleting the row releases all.

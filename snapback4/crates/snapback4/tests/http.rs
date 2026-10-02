@@ -1,5 +1,7 @@
 //! The streaming host keeps write deadlines per frame and owns its request
 //! until the terminator, including when another request is already pipelined.
+#[allow(dead_code)]
+#[path = "../src/host_limits.rs"] mod host_limits;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;
@@ -8,6 +10,7 @@ use tiny_http::{ConnectionLimits, Response, Server};
 
 #[test]
 fn heartbeat_frames_survive_waits_without_spending_the_next_write_deadline() {
+    host_limits::prepare_tests();
     let limits = ConnectionLimits { write_timeout: Duration::from_millis(100), header_timeout: Duration::from_millis(100), ..ConnectionLimits::default() };
     let server = Server::http_with_limits(("127.0.0.1", 0), limits).unwrap();
     let address = server.server_addr().to_ip().unwrap();
@@ -33,6 +36,7 @@ fn heartbeat_frames_survive_waits_without_spending_the_next_write_deadline() {
 
 #[test]
 fn a_stalled_frame_retains_the_absolute_write_deadline_and_aborts_the_connection() {
+    host_limits::prepare_tests();
     let limits = ConnectionLimits { write_timeout: Duration::from_millis(100), ..ConnectionLimits::default() };
     let server = Server::http_with_limits(("127.0.0.1", 0), limits).unwrap();
     let address = server.server_addr().to_ip().unwrap();

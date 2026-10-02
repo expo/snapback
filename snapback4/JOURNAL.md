@@ -82073,3 +82073,50 @@ Darwin's exact limit module type-checks on Linux; no Mac runtime result is claim
 Wasm is 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged 610,782 B
 ratchet. LLP 3000 §7, the guide, vendor patch record and report land with the
 code. Local commit with the requested Astra trailer; nothing pushed or published.
+
+
+## 2026-10-02 — FDL round 1: paced exhaustion and visible effective limits
+
+Addressed both READY WITH CHANGES reviews of f3870cd985. Vendored tiny_http
+now releases a failed connection before sleeping on EMFILE/ENFILE. The accept
+thread starts at 1 ms, doubles to a 100 ms cap and resets only when a complete
+connection is constructed. Accept exhaustion also retries when no descriptor
+is free. A separate process-wide saturating exhaustion counter reaches live
+doctor; clone failures close transports and never become admission refusals.
+Startup and doctor warn below effective soft 2,048, including soft=hard=1,024
+where no setter can run, and name the operator's hard-limit remedy. That is
+headroom over the measured parallel-server workload, not a per-server minimum.
+Direct listener helpers now initialize every affected test binary independently,
+including HTTP, constrained latency sockets and replay/token/witness mocks.
+
+The real Linux backlog regression holds the child at its descriptor limit while
+an independent parent replenishes the backlog. At zero/one/two/three free slots,
+final accept-thread CPU was 0.354/1.162/1.760/1.900 ms per one wall second, with
+16 counted attempts in every case and subsequent serving restored. Removing
+only the sleep failed all four cases: 1,000.093/543.976/598.837/703.394 ms CPU,
+with 1,979,922/24,216/24,800/25,296 attempts. The negative control is retained.
+
+Claims are limited to observed workloads: Astra's round-0 live probe returned
+from 268 to 12 descriptors across 30 cycles and 38,400 keep-alive requests,
+including idle expiry; no hours-long stability claim. The operator's office M1
+ran the whole binary unit suite on f3870cd985 at soft 256, passing 238/238 in
+three of three runs, with unlimited hard NOFILE, launchd soft 256 and
+kern.maxfilesperproc 245,760. This is operator-supplied round-0 runtime evidence.
+Children inherit the raised soft limit; Node raises its own further up to the
+unchanged hard limit (Astra observed server/watchdog 65,536, Node 1,048,576).
+
+The one complete final-source suite at shell soft 1,024 reports exactly
+`== 0 failure(s) in 1634 s`: all Rust targets/doctests, fixture checks, both
+app typechecks, 5,768 client tests (ten skips), and 79 models pass. The final
+direct affected run also starts at soft 1,024: 342 passed, zero failed, four
+existing ignores across eight targets; the guide passes 110/110. No baseline
+or environmental failure occurred in these final validations. Our first guide
+edit displaced asset-recovery excerpt facts and failed one test; moving the
+paragraph fixed it. An early suite launched before inspecting that result was
+stopped, exited 143 and has no summary; it is kept separately from final proof.
+The initial command-path mistake and expected sleep-removal failures are also
+classified in the [round-1 report and ledger](./reports/20261002-fdl-fd-limit/REPORT.md#round-1--review-corrections-2026-10-02).
+
+Wasm remains 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged ratchet.
+LLP 3000 §7, the guide, vendor patch record and scoped report accompany the code.
+Local commit with the requested Astra trailer; nothing pushed or published.

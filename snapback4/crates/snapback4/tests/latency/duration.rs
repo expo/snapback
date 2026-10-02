@@ -163,6 +163,7 @@ type Stream = TcpStream;
 // the JSON response below tiny_http's chunking threshold on every host.
 #[cfg(target_os = "macos")]
 fn constrained_socket() -> (Server, Stream) {
+    crate::host_limits::prepare_tests();
     use std::os::{fd::AsRawFd, unix::net::{UnixListener, UnixStream}};
     static SERIAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let path = std::env::temp_dir().join(format!("sb4-lt-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
@@ -191,6 +192,7 @@ fn constrained_socket() -> (Server, Stream) {
 // need not inherit the listener's), so the reply cannot fit and the write blocks.
 #[cfg(not(target_os = "macos"))]
 fn constrained_socket() -> (Server, Stream) {
+    crate::host_limits::prepare_tests();
     use std::os::fd::{AsRawFd, FromRawFd};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let buffer: libc::c_int = 1024;

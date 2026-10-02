@@ -14,7 +14,8 @@ handles. The same suite at soft 1,024 failed five tests, including an unchecked
 socket clone panic with EMFILE. Its sampled peak of 956 is a lower bound: a
 10 ms sampler misses shorter exhaustion bursts. Serial execution passed with
 a peak of 249; late quiet intervals returned to three descriptors. No lasting
-socket, pooled-request, or SQLite descriptor leak was found. Idle pooled jobs
+socket, pooled-request, or SQLite descriptor leak was found in these observed
+workloads; this was not an hours-long soak. Idle pooled jobs
 are consumed (`FnOnce`), request guards release permits, and the ephemeral
 publisher holds a weak owner reference. The new repeated lifecycle regression
 also checks weak engine/admission owners and a return to its initial fd count.
@@ -106,3 +107,124 @@ failures, environmental timing failures and our harness mistakes are not merged
 into a green result. Detailed result tables follow.
 
 Final reference audit: 525 LLP documents, 10,084 references, zero errors or unchecked references (`ref-check-final.log`). Source/document whitespace checks pass; raw libtest logs retain their original trailing blank lines, which produce nine `git diff --check` blank-at-EOF warnings when raw logs are included.
+
+
+## Round 1 — review corrections, 2026-10-02
+
+Base `f3870cd985`, same branch and Linux lane. Both complete round-0 reviews
+are retained: [Astra](round1/astra-round0.md) and [Grok](round1/grok-round0.md).
+The scope remains host limits, transport construction, tests and their docs.
+`llp-orient` used the existing sibling skill at
+`/home/ccheever/lanes/landingA/vendor/llp/skills/llp-orient/SKILL.md` because
+this lane's submodule link is uninitialized. Governing policy remains
+LLP 3000 (in `current/`, not `foundation/`), especially
+[HTTP overload diagnostics](../../../llp/3000-snapback4.explainer.md#http-overload-diagnostics)
+and [contended read serving](../../../llp/3000-snapback4.explainer.md#contended-read-serving).
+The guide's current assets card was read before editing. Admission caps,
+nonfatal startup and the Snapback 4 fence bind; no core/device or publication
+change. Open risk: low hard limits still constrain available resources.
+Doc updates: this report, LLP 3000 §7, assets guide, vendor patch record and
+one append-only journal entry. Orientation hand-off: none.
+
+### Changes
+
+- Intake backs off after EMFILE/ENFILE from `accept()` or any of the three
+  clone stages. The delay starts at 1 ms, doubles to 100 ms and resets after
+  full connection construction. Failed connections and their leases drop
+  before sleeping. Retrying accept exhaustion also covers zero free slots.
+  Other listener errors retain `E_HTTP_LISTENER`.
+- A process-wide saturating `descriptor_exhaustions` counter appears in live
+  doctor's server description and as `fileDescriptors.descriptorExhaustions`
+  in `/dev/status`. It counts failed attempts, including accept calls that
+  could not obtain a socket. Clone failures close transports; they do not send
+  an admission refusal or increment the admission counters.
+- Startup and doctor show effective soft/hard limits. Below 2,048 they warn
+  with the operator remedy, including soft=hard=1,024 without a setter call.
+  The threshold leaves headroom above measured parallel test demand of 1,197;
+  it is not a claim that every single dev server requires 1,197 or 2,048.
+- Direct test listeners now initialize independently: HTTP and EMFILE
+  integration binaries, constrained latency sockets, overload helpers, and
+  replay/token/witness mocks. Process tests use child dev/serve initialization.
+  Every relevant helper initializes before its own listener; no test ordering
+  is required. Intentional EMFILE tests lower limits afterward in isolated
+  children. Hard limits and HTTP admission limits are unchanged.
+
+### Scope and operator evidence
+
+Descriptor stability was measured over observed workloads, not hours.
+Astra's round-0 probe served **38,400 keep-alive requests in 30 cycles**;
+descriptors rose from **12 to 268 and returned to 12**, including idle expiry.
+The original three-cycle multi-server test and parallel-suite measurements
+remain additional scoped evidence. The pre-existing witness failure remains
+tracked by the original issue; this round does not repair or reinterpret it.
+
+The operator supplied native macOS evidence on **f3870cd985**: on the office
+M1, `ulimit -Hn` was **unlimited**, launchd's soft limit was **256**, and
+`kern.maxfilesperproc` was **245,760**. The binary's whole unit suite started
+at soft **256** and passed **238/238 in three of three runs**. These are the
+operator's round-0 runtime results, not new Mac runs performed from this Linux
+lane or evidence for round 1's Linux-only CPU regression.
+
+Child processes inherit the server's raised soft limit and unchanged hard
+limit. Astra measured the server/watchdog at **65,536** and Node at
+**1,048,576** after Node's own raise. Node may raise its own soft limit up to
+the hard limit; the server's 65,536 target does not cap the process tree.
+
+### Qualification
+
+The Linux backlog regression uses an independent parent to keep replenishing
+the child's TCP backlog. The child fills its descriptor table to EMFILE and
+frees 0/1/2/3 slots (accept, deadline clone, read/write split, abort clone),
+then measures the accept thread's POSIX CPU clock for one wall second. It
+checks separate exhaustion/admission counters and serves a real HTTP request
+after restoring descriptors. A 100 ms CPU bound and at most 32 attempts refuse
+a spin even if host contention slows the producer. The positive run and
+sleep-removal control show:
+
+| Free slots / failure site | Backoff: accept CPU in 1 s | Backoff: attempts | No sleep: accept CPU in 1 s | No sleep: attempts |
+| --- | ---: | ---: | ---: | ---: |
+| 0 / accept | 0.354 ms | 16 | 1,000.093 ms | 1,979,922 |
+| 1 / deadline clone | 1.162 ms | 16 | 543.976 ms | 24,216 |
+| 2 / read/write split | 1.760 ms | 16 | 598.837 ms | 24,800 |
+| 3 / abort clone | 1.900 ms | 16 | 703.394 ms | 25,296 |
+
+Positive evidence: [final affected run](round1/affected-final.log). Negative evidence:
+[sleep-removal control](round1/backoff-negative.log), exit 101 with all four
+child cases detected. The earlier [development run](round1/emfile-development.log)
+also passes. These are short exhaustion/recovery regressions, not long-duration
+stability measurements.
+
+The direct affected command is `cargo test --no-fail-fast -p snapback4
+--bin snapback4 --test http --test http_emfile --test lifecycle --test replay
+--test token_live --test witness --test latency -- --nocapture`. The guide
+command is `cargo test -p snapback4-lang --test guide`. Both start from a shell
+at soft 1,024; the final guide passes 110/110. [Environment](round1/environment.log).
+The [final direct affected run](round1/affected-final.log), after the guide
+paragraph correction and complete suite, exited 0: **342 passed, zero failed**
+and four existing ignores across eight targets. Counts: binary 238, HTTP 5,
+EMFILE 5, latency 12, lifecycle 27, replay 18, token-live 16 and witness 21.
+The shared host-limit module contributes three policy tests to each included
+integration binary. The [earlier affected run](round1/affected.log) also passed
+before the guide paragraph placement was corrected; it remains separate.
+
+Final reference audit: **525 LLP documents, 10,085 references, zero errors
+or unchecked references**. Source/document whitespace checks pass. Raw test
+logs preserve libtest's trailing blank lines.
+
+Every failed attempt is classified in [the round-1 ledger](round1/FAILURES.md),
+including the detected sleep mutation, corrected guide regression and early
+interrupted suite. The one **complete final-source** `bash scripts/test.sh`
+invocation started from shell soft **1,024**, hard **1,048,576**, exited **0**,
+and printed exactly **`== 0 failure(s) in 1634 s`**. All Rust targets/doctests
+(including binary **238 passed, 0 failed, four ignored**), fixture checks,
+both app typechecks, **5,768 client tests** (ten skipped), and **79 final models**
+passed. **No final full-suite failures**, whether ours, baseline or environmental.
+See [full log](round1/full-suite.log), [entry limits](round1/full-suite-environment.log)
+and [exit status](round1/full-suite.exit). The earlier interrupted attempt is
+explicitly separate, not hidden or counted as a completed run.
+
+Wasm remains **2,032,879 B raw / 610,171 B gzip**, against the unchanged
+**610,782 B** budget (611 B headroom). No device source changed. The
+[final source hashes](round1/final-source-hashes.json) were verified unchanged
+through the complete suite; [artifact hashes](round1/artifact-hashes.txt)
+identify the CLI and affected test binaries. Nothing pushed or published.

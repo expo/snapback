@@ -32,7 +32,7 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     let deployment = dir.0.join("release");
     let deployed = dir.run(&["deploy", deployment.to_str().unwrap()]);
     assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
-    for (verb, hard_low) in [("dev", false), ("serve", false), ("dev", true)] {
+    for (verb, initial_soft, hard_low) in [("dev", 64, false), ("serve", 64, false), ("dev", 64, true), ("dev", 1024, true), ("serve", 1024, true)] {
         let mut command = Command::new(BIN);
         command.arg(verb).args(["--port", "0"]).current_dir(&dir.0);
         if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch"]); }
@@ -40,7 +40,7 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
         unsafe { command.pre_exec(move || {
             let mut limit: libc::rlimit = std::mem::zeroed();
             if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
-            limit.rlim_cur = 64.min(limit.rlim_max);
+            limit.rlim_cur = initial_soft.min(limit.rlim_max);
             if hard_low { limit.rlim_max = limit.rlim_cur; }
             if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
             Ok(())
@@ -54,9 +54,9 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
         let text = host.log();
         assert_eq!(text.matches("snapback4 host:").count(), 1, "{text}");
         assert!(text.contains("HTTP connections=128; uploads=2"), "{text}");
-        assert!(text.contains("startup soft=64 target="), "{text}");
+        assert!(text.contains(&format!("startup soft={initial_soft} target=")), "{text}");
         if hard_low {
-            assert!(text.contains("soft=64 hard=64") && text.contains("E_HTTP_LIMIT"), "{text}");
+            assert!(text.contains(&format!("soft={initial_soft} hard={initial_soft}")) && text.contains("E_HTTP_LIMIT"), "{text}");
         } else {
             assert!(!text.contains("E_HTTP_LIMIT"), "{text}");
             let soft = text.split("file descriptors (this process): soft=").nth(1).unwrap()
@@ -67,8 +67,12 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
             let doctor = dir.run(&["doctor", "--url", &url, "--json"]);
             let report: Value = serde_json::from_slice(&doctor.stdout).unwrap();
             let lines = report["lines"].as_array().unwrap();
-            assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("startup soft=64 target="))), "{report}");
-            if hard_low { assert!(report.to_string().contains("hard=64"), "{report}"); }
+            assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains(&format!("startup soft={initial_soft} target=")))), "{report}");
+            if hard_low {
+                assert!(report.to_string().contains(&format!("hard={initial_soft}")), "{report}");
+                assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("hard NOFILE limit to at least 2048"))), "{report}");
+            }
+            assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("descriptor_exhaustions=0"))), "{report}");
         }
         let status = host.signal(libc::SIGTERM);
         assert!(status.code() == Some(128 + libc::SIGTERM) || status.signal() == Some(libc::SIGTERM), "{verb}: {status}");
