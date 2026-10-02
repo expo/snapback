@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { channel } from 'node:diagnostics_channel';
 import { once } from 'node:events';
-import { openSync, closeSync, readFileSync } from 'node:fs';
+import { openSync, closeSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdir, readFile, writeFile, cp, access } from 'node:fs/promises';
 import { availableParallelism, cpus, hostname, loadavg, platform } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
@@ -16,6 +16,11 @@ import { createHash } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
+if (argv.includes('--mixed')) {
+  const { runMixed } = await import('./contended-mixed.mjs');
+  await runMixed(argv);
+  process.exit(0);
+}
 const option = (name, fallback) => { const i = argv.indexOf(name); return i < 0 ? fallback : argv[i + 1]; };
 const work = resolve(option('--work', '/tmp/snapback4-contended-reads'));
 const binary = resolve(option('--binary', join(here, '../target/production/snapback4')));
@@ -29,6 +34,9 @@ const url = `http://127.0.0.1:${port}`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ns = () => Number(process.hrtime.bigint());
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+const threadCounters = pid => platform() !== 'linux' ? null : readdirSync(`/proc/${pid}/task`).flatMap(tid => {
+  try { return [{tid:Number(tid),sched:readFileSync(`/proc/${pid}/task/${tid}/sched`,'utf8')}]; } catch { return []; }
+});
 const hostLoad = () => ({ load:loadavg(),
   cpuCounters:platform()==='linux' ? readFileSync('/proc/stat','utf8').split('\n').filter(s=>/^cpu/.test(s)) : null,
   busiest:execFileSync('ps',['-Ao','pid=,pcpu=,comm='],{encoding:'utf8'}).trim().split('\n')
@@ -182,7 +190,7 @@ try {
         ]);
       }
       await sleep(2000);
-      loadSamples.push({ level, phase:'start', at:new Date().toISOString(), ...hostLoad(),
+      loadSamples.push({ level, phase:'start', at:new Date().toISOString(), ...hostLoad(), threads:threadCounters(server.pid),
         processes:execFileSync('ps',['-o','pid=,ppid=,pcpu=,comm=','-p',[process.pid,server.pid,...children.map(p=>p.pid)].join(',')],{encoding:'utf8'}) });
       for (let round = 0; round < rounds; round++) for (const [endpoint, actor, op, args] of endpoints) {
         for (let i = 0; i < 23; i++) {
@@ -196,7 +204,7 @@ try {
         }
       }
       assert(children.every(p => p.exitCode === null && p.signalCode === null), 'a busy process exited');
-      loadSamples.push({ level, phase:'end', at:new Date().toISOString(), ...hostLoad(),
+      loadSamples.push({ level, phase:'end', at:new Date().toISOString(), ...hostLoad(), threads:threadCounters(server.pid),
         processes:execFileSync('ps',['-o','pid=,ppid=,pcpu=,comm=','-p',[process.pid,server.pid,...children.map(p=>p.pid)].join(',')],{encoding:'utf8'}) });
       console.log(JSON.stringify({level,busy,samples:samples.length,load:loadavg()}));
     } finally { await Promise.all(children.map(stop)); }

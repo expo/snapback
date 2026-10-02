@@ -762,6 +762,12 @@ pub fn doctor(options: &Options) -> i32 {
         Ok(host) => host,
         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
     };
+    if let Some(host) = &host {
+        if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) > 0 {
+            ok = false;
+            lines.push(format!("scheduling  QoS calls failed {} times; last errno {}; HTTP inheritance is default or higher; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["lastQosError"]));
+        }
+    }
     if host.is_none() && !options.flags.contains_key("release") {
         lines.push(format!("latency   {}", adoption::NO_HOST));
     }

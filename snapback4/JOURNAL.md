@@ -81485,3 +81485,64 @@ Full tables, commands, source custody, qualification limitations, and every
 failed invocation/classification are in
 [`reports/20261001-ct-contended-reads/REPORT.md`](./reports/20261001-ct-contended-reads/REPORT.md).
 Committed on `sb4-intent/ct-contended-reads`; nothing pushed or published.
+
+## 2026-10-02 — CT round 1: intake and child QoS, inline comparison, live background qualification
+
+Resolved Astra and Grok's scheduling defects from b0e606306e. Darwin's listener
+creator, accept, parser, dispatcher and request workers now establish
+user-initiated QoS; a failed raise cannot admit utility/unknown inheritance.
+Failures are counted in host status and reported by doctor. Supervised Node
+uses posix_spawnp with a utility task clamp, preserving its process group,
+stdio and watchdog-only ownership flock; Linux retains inherited nice 5.
+The Mac test loads an N-API probe inside executed Node and reads every Mach
+thread's effective base priority, with an ordinary-exec control. The modules,
+tests and addon compile-check for aarch64-apple-darwin; runtime is operator work.
+Every pool-worker exit now repairs live/idle accounting, including unwind
+outside the request catch. A destructor-panic witness verifies replacement.
+
+Measured parser-inline short execution against the pool with the original
+32-short permits, refusal accounting, panic isolation and deadlines. Four
+ABBA matrices retain 58,880 answers: 96-CPU and ten-CPU, traced and untraced.
+Whole-host untraced idle following-500 is 4.335 ms pooled versus 5.070 inline;
+at 96 busy it is 3.119 versus 3.004, with the inline p95 worse (9.633 versus
+8.783). Keep the pool; preserve the runnable alternative patch. CPU identity,
+thread CPU time and migration evidence did not establish an idle fix; hardware
+cycles were denied by perf_event_paranoid=4. The idle/loaded trade-off remains
+for the operator. All answers match within matrices; a calendar-day control
+explains Insights' exact hash change across UTC midnight. A final 3,680-sample
+untraced control on the restored candidate also matches the current-day hashes.
+
+Added real-clock mixed reads, minute jobs, supervised effects, retries,
+fixed-lease abandonment and physical expiry at 0/48/96/144 busy processes,
+before CT, demoted and restored. Every expected boundary completed; each cell
+delivered 507 effects, handled one deliberate deadline failure and 106 retries,
+verified a 1,000 ms clock extension, and cleared expiry/abandoned leases.
+Worker HTTP is paused during lease recovery observations. Maintenance is back
+to ordinary priority (Linux inherited, Darwin default), covering schedules,
+expiry and requeue. Exact maxima still vary: restored recovery reaches 5.227 s
+and reclamation 1.136 s. This shared host had another lane's tests running;
+no causal timing-equivalence claim is made. Development clock maintenance/jobs
+intentionally remain synchronous at request QoS because the developer awaits
+them. Ordinary effect leases have no heartbeat.
+
+Fixture review found the first deliberate deadline probe could be expired by
+clock advancement. Retain that source/evidence, move its emission after the
+advance, and supplement with twelve real-clock deadline-only cells: all workers
+claim before the deadline, reads run, and all late effects fail as documented
+without clock advancement. The corrected complete-mode 65-second smoke passes.
+
+Final serving tests: 222 passed, four inherited ignores; lifecycle: 23 passed;
+guide: 110 passed; separate KA/transport: 61 passed. The single complete suite
+reports exactly `== 0 failure(s) in 1411 s`: client tests 5,742 passed with ten
+conditional skips; all 79 client models passed. Earlier failures and their
+ours/environmental classifications are retained in the report's round-1
+ledger, including the corrected inline refusal-latency sample and loaded wall-
+clock assertions that pass in final qualification and a focused unloaded check.
+No baseline product failure remains. Wasm is unchanged: 2,015,329 B raw /
+605,001 B gzip, cap 605,225 B, headroom 224 B; no ratchet increase.
+
+LLP 3000 §7 and the guide record the policy. Tables, raw samples, commands,
+source/binary custody, limitations and the Mac operator commands are in
+[`reports/20261001-ct-contended-reads/REPORT.md`](./reports/20261001-ct-contended-reads/REPORT.md).
+This round does not claim the idle target or Mac runtime qualification. Commit
+locally with the requested Astra trailer; push and publish nothing.

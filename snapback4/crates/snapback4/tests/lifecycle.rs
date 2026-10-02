@@ -388,7 +388,7 @@ fn abort_profile_reports_an_off_thread_panic_to_redirected_stderr() {
     let lifecycle = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lifecycle.rs");
     // This standalone abort witness never calls lifecycle::background; its
     // scheduling dependency is covered by the host's priority/readback tests.
-    fs::write(&source, format!("mod thread_priority {{ pub fn background() {{}} }} #[path = {lifecycle:?}] mod lifecycle; fn main() {{ eprintln!(\"{MAIN_REACHED}\"); lifecycle::install(\"serve\").unwrap(); lifecycle::generation(9); std::thread::Builder::new().name(\"maintenance\".into()).spawn(|| panic!(\"abort witness\")).unwrap().join().unwrap(); }}")).unwrap();
+    fs::write(&source, format!("mod thread_priority {{ pub fn background() {{}} pub fn maintenance() {{}} }} #[path = {lifecycle:?}] mod lifecycle; fn main() {{ eprintln!(\"{MAIN_REACHED}\"); lifecycle::install(\"serve\").unwrap(); lifecycle::generation(9); std::thread::Builder::new().name(\"maintenance\".into()).spawn(|| panic!(\"abort witness\")).unwrap().join().unwrap(); }}")).unwrap();
     let deps = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
     let libc = fs::read_dir(&deps).unwrap().map(|e| e.unwrap().path()).find(|p| p.file_name().unwrap().to_string_lossy().starts_with("liblibc-") && p.extension().is_some_and(|s| s == "rlib")).unwrap();
     let built = Command::new("rustc").args(["--edition=2024", "-C", "panic=abort", "-A", "dead_code", "--extern"]).arg(format!("libc={}", libc.display())).arg(&source).arg("-o").arg(&executable).output().unwrap();

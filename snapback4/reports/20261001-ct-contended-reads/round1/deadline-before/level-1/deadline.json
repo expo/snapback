@@ -1,0 +1,15 @@
+{
+  "level": 1,
+  "busy": 96,
+  "reads": 715,
+  "id": "effect-0000000000000002-0000000000000000",
+  "state": "failed",
+  "at": 1790903107367,
+  "deadline": 1790903108367,
+  "settled_at": 1790903108777,
+  "error_code": "E_EFFECT_DEADLINE",
+  "claimAt": 1790903107465,
+  "observed": 1790903108790,
+  "delay": 423,
+  "clockAdvanced": false
+}

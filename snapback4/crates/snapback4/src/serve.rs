@@ -466,17 +466,10 @@ impl RequestAdmission {
 #[path = "request_workers.rs"]
 mod request_workers;
 
-fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
-    dispatch_with_builder(request, shared, admission, loopback_listener, std::thread::Builder::new().name("request".into()));
-}
-
-fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool, builder: std::thread::Builder) {
-    // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
-    let trace = trace::Trace::capture(&request, shared.personas && loopback_listener);
-    let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
+fn request_class(request: &Request, shared: &Shared) -> RequestClass {
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
-    let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
+    if request.method() == &Method::Post && routes::declared(shared, request.url()).is_some() { RequestClass::Route }
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
         else if is_waiter(request.method(), path) { RequestClass::Wait }
@@ -486,7 +479,19 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         // consume read slots. Authentication uses the same detached-read policy.
         else if detached_request(request.method(), path)
             || shared.personas && matches!((request.method(), path), (Method::Get, "/dev/latency") | (Method::Post, "/dev/latency/reset")) { RequestClass::Short }
-        else { RequestClass::Mutation };
+        else { RequestClass::Mutation }
+
+}
+
+fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
+    dispatch_with_builder(request, shared, admission, loopback_listener, std::thread::Builder::new().name("request".into()));
+}
+
+fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool, builder: std::thread::Builder) {
+    // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
+    let trace = trace::Trace::capture(&request, shared.personas && loopback_listener);
+    let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
+    let class = request_class(&request, &shared);
     let Some(permit) = admission.acquire(class) else {
         admission.refuse(request, class);
         return;
@@ -938,7 +943,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let generation = *lock(&shared.generation);
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas, "scheduling":{"qosFailures":crate::thread_priority::diagnostics().0,"lastQosError":crate::thread_priority::diagnostics().1}}));
     }
     if method == Method::Options {
         respond_empty(request, 204);

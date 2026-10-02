@@ -1,0 +1,19 @@
+(node:2188228) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: server exited: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+    at runMixed (file:///home/ccheever/sb4-intent/lane-ct/snapback4/scripts/contended-mixed.mjs:104:5)
+    at async file:///home/ccheever/sb4-intent/lane-ct/snapback4/scripts/contended-reads.mjs:21:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

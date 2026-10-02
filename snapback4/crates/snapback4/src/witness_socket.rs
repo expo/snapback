@@ -40,6 +40,7 @@ pub fn take(verb: &str) -> Result<Option<TcpListener>, String> {
 }
 
 pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>) -> Result<tiny_http::Server, String> {
+    crate::thread_priority::request_parent()?;
     let limits = tiny_http::ConnectionLimits { thread_start: Some(crate::thread_priority::dispatcher), ..Default::default() };
     let result = if let Some(listener) = inherited {
         let fd = listener.as_raw_fd();

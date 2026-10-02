@@ -272,3 +272,251 @@ the separately scheduled client models passed all 79. All other suite steps
 passed. The recorded elapsed time exceeds the repository’s 60-second suite
 budget; this cold/shared-host run is not a suite-budget qualification. [FAILURES.md](./FAILURES.md) lists every failed development
 invocation and its classification; logs retain the full errors.
+
+## Round 1 — Astra and Grok review follow-up (2026-10-02)
+
+**The Darwin intake and executed-child QoS defects are corrected. The idle
+performance target remains unmet.** Retain the round-0 request pools; running
+short requests on their connection parsers did not win on both idle and loaded
+axes. No affinity, governor, real-time priority or utilization-clamp change is
+shipped. Both round-0 reviews remain historical NOT READY reviews; no round-1
+external review is claimed. Nothing is pushed or published.
+
+### Intake, executed children and failures
+
+Before opening the listener, the Darwin creator establishes user-initiated
+QoS. The serve loop, accept thread, parsers and request workers use that class;
+none is deliberately set to utility. If the setter fails, a readback must prove
+default-or-higher inheritance or startup refuses before opening the listener.
+Failures are logged, counted and exposed by the live dev host to `doctor`,
+which reports the count and last errno as a scheduling problem. The Mac tests
+cover intake/request inheritance and an injected failed raise from utility
+versus default. Linux never nices the request creator.
+
+The watchdog now launches Node through `posix_spawnp` on Darwin with
+`posix_spawnattr_set_qos_class_np(QOS_CLASS_UTILITY)`, a fresh process group,
+explicit stdio actions and close-on-exec-by-default descriptors. The watchdog
+retains the ownership flock; Node does not inherit it. Linux retains the
+ordinary spawn and its inherited nice 5. The design follows Apple's
+[spawn QoS clamp implementation](https://github.com/apple-oss-distributions/libpthread/blob/main/src/qos.c).
+The readback loads a Rust N-API probe **inside the executed Node**, after its
+V8, libuv and two JavaScript workers exist, enumerates Mach threads and checks
+all effective base priorities against utility's priority 20. An ordinary Node
+exec is the negative control. Requested pthread QoS alone cannot establish a
+task clamp, so that is not used as the child oracle.
+
+The scheduling, spawn, request-pool and trace modules, their Mac tests and the
+standalone Node addon compile-check for `aarch64-apple-darwin`. This is not a
+Mac runtime or performance qualification. Run the operator commands below.
+
+Worker exits now decrement live/idle accounting even outside the request
+`catch_unwind`. A caught panic payload whose destructor panics exercises this
+case. If the last worker dies with queued requests, their existing guards
+refuse them and release their permits; later submissions can replace the
+worker. Production still aborts on panic.
+
+Development clock advancement intentionally runs its synchronous jobs and
+maintenance at request QoS: it is completion the developer is awaiting.
+Ordinary effect leases have no heartbeat; only explicit clock advancement
+extends them. The guide and LLP 3000 §7 now say so.
+
+### Pool versus connection-parser execution
+
+[READS.md](./round1/READS.md) contains every endpoint/load comparison. Each
+series is pool/inline/inline/pool, five 23-call cohorts per cell, with the
+first three retained but excluded from each cohort's ranks. Both traced and
+untraced matrices cover 0/48/96/144 busy processes on 96 available CPUs; a
+second pair covers 0/5/10/15 on CPUs 0–9. Percentiles below pool 200 retained
+samples per design/cell; the per-cohort ranks remain in each summary.
+
+| Untraced, 96 CPUs | Pool p50 / p95 ms | Inline p50 / p95 ms |
+|---|---:|---:|
+| Idle following-500 | 4.335 / 5.878 | 5.070 / 5.726 |
+| Idle following-5 | 4.097 / 5.702 | 4.396 / 5.714 |
+| Idle search | 3.513 / 5.821 | 5.488 / 7.464 |
+| 96 busy, following-500 | 3.119 / 8.783 | 3.004 / 9.633 |
+| 96 busy, following-5 | 2.985 / 8.001 | 2.975 / 8.295 |
+| 96 busy, search | 4.240 / 9.810 | 4.039 / 9.992 |
+
+The traced whole-host series favors inline more strongly under contention;
+for example search at 96 busy processes is 5.113/11.101 pooled versus
+4.155/6.891 inline. The untraced series does not reproduce that tail win.
+Ten-CPU untraced idle following-500 improves 5.127→4.298 ms, but search
+regresses 3.360→3.695 ms and Insights 1.156→1.211 ms. At ten-CPU full load,
+several inline tails regress. These results do not support choosing inline
+or an endpoint-dependent hybrid as a general idle fix. The host remains
+shared; no exclusive-host or fixed-frequency qualification is claimed.
+
+The preserved [inline experiment patch](./round1/inline-experiment.patch)
+can be applied to this round's final tree. It executes only admitted short
+requests on their own parser, never on the central dispatcher. The original
+32-short permit, refusal bytes/counters, unwind boundary and absolute
+body/write deadlines still own execution. The parser already waits for each
+response, so the patch adds no connection concurrency. Its scoped Darwin
+QoS guard raises a default caller and restores it on unwind; normal intake
+is already user-initiated. A 1,000-request keep-alive witness confirms one
+parser thread, and the admission/panic tests exercise the alternative.
+A test caught a missing refusal-latency sample in the first experiment; the
+preserved patch creates that sample before admission, matching the pool.
+
+[CPU.md](./round1/CPU.md) retains CPU identities, per-thread kernel migration
+counts and handler CPU time. At ten-CPU idle, following-500 query wall time is
+2.109 ms pooled versus 2.935 ms inline, while handler CPU time is
+2.929 versus 4.005 ms. Neither design changed CPU during any of those 200
+query spans. Across the two complete idle cells, serving-thread migrations
+fall from 31 pooled to 7 inline. Fewer migrations did not remove the running-
+time increase. The host uses `schedutil`; a later frequency snapshot is
+retained but is not per-query frequency evidence. Hardware-cycle collection
+was attempted directly and denied with errno 13 at `perf_event_paranoid=4`;
+`perf` is also absent. No cycle count is inferred from CPU time or wall time.
+The exact frequency/cache cause therefore remains unqualified. **The operator
+must decide whether the loaded improvement justifies the idle cost; this round
+does not label that trade-off as resolved.**
+
+All 58,880 sampled answers agree across designs and loads within each ABBA
+matrix. Seven endpoints also agree across all matrices. Insights' seven
+`day(now)` buckets changed across UTC midnight between the whole-host and
+ten-CPU series. A separate [-1d/current-day control](./round1/insights-day-control.json)
+reproduces the two exact hashes on the same binary/store. No additional answer
+field was excluded to obtain equality.
+
+### Mixed-load qualification
+
+`node scripts/contended-reads.mjs --mixed` uses a separate real-clock fixture,
+without replay. One-minute scheduled jobs run alongside continuous reads,
+four expiring writes/effects per second, a supervised Node worker, intentional
+first-attempt retries and deadline failures, and the ordinary maintenance loop.
+Read-only SQLite observation records physical deletion, durable job timestamps,
+backlog and effect states. Job runtime below is creation-to-completion at
+millisecond resolution, including queue time; reclamation/requeue delay has
+about 50 ms polling uncertainty plus observer scheduling. These are measured
+observations, not new product deadlines.
+
+A two-second abandoned claim pauses **all** worker HTTP traffic for eight
+seconds, so claim/settlement sweeps cannot mask maintenance-only recovery.
+The harness verifies that no worker HTTP interval overlaps each observed
+expiry-to-requeue interval. Each cell separately checks one exact 1,000 ms
+lease extension before its real-clock observation window; no clock advance
+is used to manufacture scheduled firings or reclamation during the window.
+Every expected minute boundary is checked for exactly one completed run;
+normal deliveries must be sent, the intentional slow effect must fail with
+E_EFFECT_DEADLINE, and every observed expiry and abandoned lease must clear.
+
+The demoted comparison raised idle maximum maintenance-only lease recovery
+from 4.659 to 4.872 seconds. Sweep phase affects that maximum, so it does not
+isolate a nice-policy cause. The candidate nevertheless restores maintenance
+to ordinary priority (inherited on Linux, default on Darwin), covering jobs,
+schedules, expiry and lease recovery together. Worker processes retain their
+specified nice/QoS policy. Both the demoted observations and the restored
+candidate qualification are retained; no unfavorable cell is discarded.
+
+[MIXED.md](./round1/MIXED.md) lists every observed schedule firing delay and
+run time for the before-CT, demoted and restored candidates. At each of
+0/48/96/144 busy processes, all three designs completed the expected minute
+boundaries exactly once, delivered 507 normal/probe effects, recorded the one
+intentional E_EFFECT_DEADLINE, and completed 106 retries (100 injected failures
+plus six abandoned leases). Maximum backlog was 34 throughout; each explicit
+clock extension was exactly 1,000 ms, with no unexpected lease changes during
+observation. All expired rows were physically reclaimed.
+
+| Busy | Before lease recovery max, ms | Demoted | Restored | Before expiry max, ms | Demoted | Restored |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 4659 | 4872 | 5227 | 1110 | 1070 | 1094 |
+| 48 | 3967 | 3683 | 4307 | 1082 | 1084 | 1130 |
+| 96 | 4722 | 4883 | 5169 | 1087 | 1126 | 1136 |
+| 144 | 5066 | 4931 | 4575 | 1098 | 1121 | 1113 |
+
+Restored schedule firing delays range from 22 to 1,054 ms; observed job elapsed
+time is 0–4 ms. Restoring priority does not make every measured maximum lower:
+lease recovery still reaches 5.227 seconds idle, and expiry reaches 1.136
+seconds at full contention. These observations retain phase and scheduler
+variation rather than asserting timing equivalence from twelve short cells.
+The documented schedule/lease/deadline/expiry outcomes passed, and the suspect
+maintenance demotion is removed. Exploratory builds/tests overlapped parts of
+the before/demoted runs; this is not an isolated causal estimate of nice 5.
+A later process snapshot confirmed another lane's Rust suite overlapped the
+restored comparison; this lane's own full suite starts after all owned load
+stops. No other lane was stopped. The Node policy remains subject to the Mac
+mixed-load qualification.
+
+Inspection caught a qualification gap in those first matrices: the slow effect
+was emitted together with the lease-extension probe, before the clock advance.
+That advance could trigger its deadline, so those twelve deliberate failures
+are **not** isolated real-clock deadline evidence. Normal deliveries still met
+their real deadlines throughout observation. The corrected mixed harness emits
+the slow effect after advancement, while reads are active. Its earlier source
+is retained in `round1/inputs/contended-mixed-before-deadline-fix.mjs.txt`.
+
+The added `--mixed --deadline-only` control passes at every load on all three
+binaries: every supervised worker claims the effect before its one-second
+deadline, concurrent reads succeed, and the effect reaches E_EFFECT_DEADLINE
+without any clock advance. Each cell is one probe; the following are observed
+failure delays after the deadline, not distribution estimates, with about
+25 ms polling uncertainty plus observer scheduling.
+
+| Busy | Before delay, ms | Demoted | Restored |
+|---:|---:|---:|---:|
+| 0 | 418 | 329 | 328 |
+| 48 | 335 | 409 | 308 |
+| 96 | 423 | 330 | 343 |
+| 144 | 337 | 341 | 69 |
+
+Raw claim/deadline/failure timestamps and read counts are retained under
+`round1/deadline-{before,demoted,restored}/`. Corrected complete-mode smoke:
+65 seconds idle passed: 264 delivered effects, one intentional deadline failure,
+55 retries, three maintenance-only lease recoveries, one completed schedule
+boundary, exact 1,000 ms lease extension and every expired row reclaimed.
+
+A final untraced matrix on the exact restored production binary retains another
+3,680 samples. Idle following-500/following-5/search p50s are
+3.802/3.790/3.221 ms; at 96 busy they are 3.325/2.931/6.312 ms. This is a
+post-change control, not a replacement ABBA comparison or an idle-target claim.
+Its answers match the ten-CPU matrices' current-day hashes.
+
+### Tests, size and operator commands
+
+The one full `scripts/test.sh` invocation ended **`== 0 failure(s) in 1411 s`**
+(exit 0). All stages passed: build, wasm, docs budget, release guard, package and
+app checks, Rust, fixture wrappers, client tests and the full seeded models.
+The client pool reported 5,742 passed / 0 failed / 10 conditional skips; the
+separate model phase reported 79 passed / 0 failed. This shared-host duration
+is not a qualification of the script's 60-second budget.
+
+| Check | Result |
+|---|---|
+| Final serving binary in full suite | 222 passed, 0 failed, 4 pre-existing ignored |
+| Final lifecycle in full suite | 23 passed, 0 failed |
+| Complete guide, also run separately | 110 passed, 0 failed |
+| Unloaded focused latency recheck | 1 passed, 0 failed |
+| KA/transport, seven files separately | 61 passed, 0 failed |
+| Corrected inline alternative latency cases | 28 passed, 0 failed, 2 ignored |
+| Darwin serving modules/tests and Node addon metadata | aarch64-apple-darwin checks pass; runtime awaits Mac |
+| LLP reference check | 0 errors, 0 unchecked |
+
+Wasm measures **2,015,329 B raw / 605,001 B gzip**, unchanged from round 0.
+The **605,225 B** ratchet remains unchanged, with **224 B** headroom on this
+host. No increase is needed, so the conditional request for about 500 B of
+headroom on an increased cap does not apply.
+
+The [failure ledger](./round1/FAILURES.md) names every failed development or
+qualification invocation, its classification and disposition. The full suite
+is run once; a later focused repair/recheck is reported separately.
+
+From `snapback4/`, on a Mac with Node 24 and the pinned dependencies:
+
+```sh
+cargo test -p snapback4 --bin snapback4 thread_priority::tests -- --nocapture
+cargo test -p snapback4 --bin snapback4 executed_node_and_its_threads_have_utility_task_priority -- --nocapture
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build --profile production
+node scripts/contended-reads.mjs --prepare --work /tmp/ct-store --binary target/production/snapback4 --out /tmp/ct-prepare
+node scripts/contended-reads.mjs --work /tmp/ct-store --binary target/production/snapback4 --out /tmp/ct-pool
+node scripts/contended-reads.mjs --mixed --binary target/production/snapback4 --out /tmp/ct-mixed-pool
+node scripts/contended-reads.mjs --mixed --deadline-only --binary target/production/snapback4 --out /tmp/ct-deadlines
+```
+
+Preserve the pool binary, apply `round1/inline-experiment.patch` from the repo
+root, rebuild, and run pool/inline/inline/pool with fresh `--out` directories,
+then repeat with `--no-trace`. Preparation is done only once. The same mixed
+mode is runnable on macOS; the native Node QoS readback runs independently.
+Linux target-check inputs and exact logs are retained under `round1/inputs/`
+and `round1/qualification/`. No test or benchmark ran on a Mac in this round.

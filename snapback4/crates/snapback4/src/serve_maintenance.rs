@@ -154,6 +154,8 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         Ok(now) => now,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
+    // @ref LLP 3000#contended-read-serving — a developer is awaiting this
+    // request; synchronous clock-advance work intentionally keeps request QoS.
     match work(shared, true, 0) {
         Ok(work) => respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "work":work})),
         // Time remains advanced if maintenance fails; callers must not

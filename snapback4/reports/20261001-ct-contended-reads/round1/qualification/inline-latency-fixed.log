@@ -1,0 +1,47 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:171:7
+    |
+171 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 5.31s
+     Running unittests src/main.rs (snapback4/target/debug/deps/snapback4-50da437481e8fbdd)
+
+running 30 tests
+test serve::latency::tests::latency_record_cost_and_memory ... ignored, measurement: one million bounded recordings, no timing gate
+test serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal ... ok
+test serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain ... ok
+test serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write ... ok
+test serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write ... ok
+test serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup ... ok
+test serve::tests::latency_tests::duration::latency_query_total_includes_controlled_engine_work ... ok
+test serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write ... ok
+test serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset ... ok
+test serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not ... ok
+test serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait ... ok
+test serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine ... ok
+test serve::tests::latency_tests::headers::delayed_changes_open_is_wait ... ok
+test serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait ... ok
+test serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait ... ok
+test serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence ... ok
+test serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait ... ok
+test serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer ... ok
+test serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work ... ok
+test serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending ... ok
+test serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers ... ok
+test serve::tests::latency_tests::latency_admission_refusals_do_not_disappear ... ok
+test serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals ... ok
+test serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine ... ok
+test serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits ... ok
+test serve::tests::latency_tests::latency_recording_overhead_on_real_queries ... ignored, measurement: repeated real HTTP reads, no timing gate on a shared host
+test serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset ... ok
+test serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window ... ok
+test serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured ... ok
+test serve::tests::latency_tests::latency_writer_admission_refuses_once_and_keeps_dev_inspection_available ... ok
+
+test result: ok. 28 passed; 0 failed; 2 ignored; 0 measured; 195 filtered out; finished in 7.37s
+

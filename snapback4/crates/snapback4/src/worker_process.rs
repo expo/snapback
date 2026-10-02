@@ -1,7 +1,10 @@
 //! One watchdog per worker: the pipe is held only by its server owner.
 //! EOF also covers SIGKILL and works on both Linux and macOS.
 // @ref LLP 3000.009#5.3 — the whole worker process group belongs to the host lifetime.
-use std::{fs::File, os::{fd::{AsRawFd, FromRawFd}, unix::process::CommandExt}, process::{Command, Stdio}, sync::Arc, time::{Duration, Instant}};
+use std::{fs::File, os::{fd::{AsRawFd, FromRawFd}, unix::process::CommandExt}, process::Command, sync::Arc, time::{Duration, Instant}};
+
+#[path = "worker_spawn.rs"]
+mod spawn;
 
 static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 extern "C" fn stop_signal(_: libc::c_int) { STOP.store(true, std::sync::atomic::Ordering::Relaxed); }
@@ -57,9 +60,7 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
             if libc::sigaction(signal, &action, std::ptr::null_mut()) != 0 { return 1; }
         }
     }
-    let mut command = Command::new(&args[0]);
-    isolate(&mut command);
-    let mut child = match command.arg(&args[1]).stdin(Stdio::null()).stdout(Stdio::piped()).spawn() {
+    let mut child = match spawn::spawn(&args[0], &args[1]) {
         Ok(child) => child,
         Err(error) => { eprintln!("snapback4 worker: cannot start: {error}"); return 1; }
     };

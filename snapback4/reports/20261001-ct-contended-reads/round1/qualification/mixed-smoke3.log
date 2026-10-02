@@ -1,0 +1,19 @@
+(node:2188308) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"head":3,"id":"add-0","result":{"id":"01M3WYJKRQSZ237FYHY52ZJ7M2","until":1790899214055},"seq":3,"state":"sent","store_id":"ec4c3238997d4bdf485c9483e51c1a3c"}
+    at runMixed (file:///home/ccheever/sb4-intent/lane-ct/snapback4/scripts/contended-mixed.mjs:133:6)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-ct/snapback4/scripts/contended-reads.mjs:21:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.13.1
