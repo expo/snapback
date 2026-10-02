@@ -1,0 +1,18 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 7.88s
+     Running tests/revocation_history.rs (target/debug/deps/revocation_history-98649e4153a7d9fc)
+
+running 1 test
+RV history: trial=0 commits=1000 segment_us_per_commit=119.530 summaries=1000 json_bytes=90993 evidence_sqlite_bytes=106496
+RV history: trial=0 commits=10000 segment_us_per_commit=85.471 summaries=10000 json_bytes=909993 evidence_sqlite_bytes=1028096
+RV history: trial=0 commits=20000 segment_us_per_commit=87.656 summaries=20000 json_bytes=1819993 evidence_sqlite_bytes=2052096
+RV history: trial=1 commits=1000 segment_us_per_commit=127.857 summaries=1000 json_bytes=90993 evidence_sqlite_bytes=106496
+RV history: trial=1 commits=10000 segment_us_per_commit=86.507 summaries=10000 json_bytes=909993 evidence_sqlite_bytes=1028096
+RV history: trial=1 commits=20000 segment_us_per_commit=86.007 summaries=20000 json_bytes=1819993 evidence_sqlite_bytes=2052096
+RV history: trial=2 commits=1000 segment_us_per_commit=115.039 summaries=1000 json_bytes=90993 evidence_sqlite_bytes=106496
+RV history: trial=2 commits=10000 segment_us_per_commit=87.206 summaries=10000 json_bytes=909993 evidence_sqlite_bytes=1028096
+RV history: trial=2 commits=20000 segment_us_per_commit=85.088 summaries=20000 json_bytes=1819993 evidence_sqlite_bytes=2052096
+test measure_history ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 5.38s

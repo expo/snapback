@@ -28,7 +28,8 @@ const fenceSkip=fenceSetting==='off'?'SNAPBACK4_FENCE_PUBLISHED=off':!fenceHost&
 function sameAnswer(actual,published,message,operation='query') {
   // LLP 3000.023 §12: private authority-preservation evidence, never query data.
   if(['apply','admit','settle'].includes(operation)&&Object.hasOwn(actual,'preserved')&&!Object.hasOwn(published,'preserved')) {
-    assert.ok(Array.isArray(actual.preserved)&&actual.preserved.length<=256&&actual.preserved.every(t=>typeof t==='string'));
+    assert.ok(Object.hasOwn(actual,'ok')&&Object.hasOwn(published,'ok')&&!Object.hasOwn(actual,'denied')&&!Object.hasOwn(published,'denied'),'commit evidence requires successful replies');
+    assert.ok(Array.isArray(actual.preserved)&&actual.preserved.length<=256&&actual.preserved.every(t=>typeof t==='string'&&t.length<=128));
     const {preserved:_preserved,...rest}=actual;actual=rest;
   }
   if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
@@ -368,6 +369,16 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
 
 test('RV publication allowance is confined to commit evidence', () => {
   for(const op of ['apply','admit','settle']) sameAnswer({ok:null,preserved:['messages']},{ok:null},op,op);
+  for(const op of ['apply','admit','settle']) {
+    for(const reply of [{},{denied:{code:'E_RULE'}},{ok:null,denied:{code:'E_RULE'}}]) {
+      assert.throws(()=>sameAnswer({...reply,preserved:[]},reply,'unsuccessful',op));
+    }
+    for(const preserved of [['x'.repeat(129)],['x'.repeat(1_000_000)],Array(257).fill('docs'),[null],'docs']) {
+      assert.throws(()=>sameAnswer({ok:null,preserved},{ok:null},'unbounded',op));
+    }
+    sameAnswer({ok:null,preserved:Array(256).fill('x'.repeat(128))},{ok:null},'bounded',op);
+  }
+  for(const op of ['query','state','adopt','clear_rows']) assert.throws(()=>sameAnswer({ok:null,preserved:[]},{ok:null},op,op));
   assert.throws(()=>sameAnswer({ok:{data:[]},preserved:[]},{ok:{data:[]}}));
   assert.throws(()=>sameAnswer({ok:{changed:true},preserved:[]},{ok:null},'payload','settle'));
 });

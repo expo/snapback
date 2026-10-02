@@ -133,6 +133,12 @@ impl Dependencies {
             if let Some(t) = schema.table(input) { self.table(schema,input,t); } else { self.unknown = true; }
         }
         self.rule(schema,name,&table.rules.read);
+        // Row readability is insufficient: ownership also decides disclosure.
+        // Private values may change without revoking any field; only their
+        // non-audience owner columns participate in this authorization decision.
+        for authority in table.written_by.values().filter(|a| !a.audience) {
+            self.column(name,&authority.owner);
+        }
         if let Some(sync) = &table.sync {
             match &sync.audience {
                 Audience::Public => (),

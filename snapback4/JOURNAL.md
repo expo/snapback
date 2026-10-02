@@ -81474,3 +81474,48 @@ payloads and query replies stay exact. The operator must run the published
 metadata is created on commit, so opening an old native device does not migrate
 its store. Committed locally with the requested Astra trailer; nothing pushed
 or published.
+
+## 2026-10-02 — RV round 1: preserving includes field disclosure
+
+Resolved Astra and Grok's round-0 findings on 87ec64d872. The shared classifier
+now treats each non-audience written-by owner column as an authorization input;
+private value edits remain ordinary staleness. The audit found no other missing
+per-reader field-disclosure decision. Server evidence retains the last 1,000
+commits, pruned in the committing transaction, with old intervals widening.
+The publication allowance requires successful apply/admit/settle envelopes,
+at most 256 strings, and at most 128 characters per string. Postgres still has
+no change summaries or preservation certificates. LLP 3000.023 §12 records all
+four corrections and the unchanged filter/limit and hard-expiry boundaries.
+
+The oracle now compares rows and disclosed field sets for six viewers across
+four seeds. The corpus covers 90 schemas / 11,520 physical commits / 3,254,742
+retained fields. Real mutation/maintenance coverage adds 572 commits, 27 field
+losses, 1,002 deadline losses and 63 preserving limit changes. Asset controls
+exercise 32 mutations, four once consumptions and 216 access checks. The new
+oracle and four real-server/public-client ownership cases fail exact round-0
+source in an isolated rebuilt checkout and pass the corrected lane. All 20
+RV client cases, 31 expiry cases and 110 guide cases pass. Chromium retains all
+four surfaces beyond 1.5 seconds and passes each revocation control.
+
+At 10,000 updates, evidence falls from 10,000 summaries / 909,993 JSON bytes /
+1,028,096 SQLite bytes to 1,000 / 91,000 / 110,592, staying there at 20,000.
+Three-trial steady segment means are 86.250 us/commit before, 72.519 after;
+shared-host timings are measurements, not causal speedup claims.
+
+The single full suite finished `== 1 failure(s) in 1429 s`, naming `cargo test`.
+Its two failures (allocation probe and search work count) reproduce identically
+on clean 87ec64d872. All 5,766 client tests and 79 client-model tests pass;
+ten client tests skip. Final qualification: ours 0, baseline 2 tests / 1 phase,
+environmental 0. The failure ledger also records corrected test-fixture errors
+and deliberate negative controls without relabeling the full run green.
+
+Locked wasm: 2,032,879 B raw / 610,174 B gzip (+139 / +128). The device needs
+the owner-column walk because local replay effects are invisible to a server
+interval. The authorized cap is 610,782 B: 500 B above an estimated 610,282 B
+macOS artifact using round 0's measured 108 B host difference. Round-1 macOS
+remains unmeasured in this Linux lane; the report distinguishes that estimate
+from the operator's actual round-0 610,154 B and 5/5 publication-fence result.
+Runtime ceilings are unchanged. The report and all failure/control evidence
+are in reports/20261001-rv-bound-only-revocation/REPORT.md and round1/.
+Committed locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

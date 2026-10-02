@@ -108,3 +108,83 @@ test('a failed safe reread preserves the displayed answer dependency plan for th
   changes.shift()({seq:3,tables:['messages'],preserved:['messages']});await until(()=>reads>=3);
   now+=2000;assert.equal(watch.getSnapshot().data?.[0].id,'old');assert.equal(watch.getSnapshot().revalidating,true);
 });
+
+// Both round-0 counterexamples use real mutations and real wire certificates.
+// Only replacement delivery and the client wall clock are controlled.
+for (const schema of ['docs', 'messages']) for (const channel of ['ack', 'changes']) {
+  test(`private-field transfer: real ${schema} via ${channel} withdraws disclosure`, async t => {
+    const { server } = await import('./helpers/app-server.mjs');
+    const member = schema === 'messages';
+    const owner = member ? 'author' : 'owner', field = member ? 'note' : 'secret', value = member ? 'private note' : 42;
+    const source = `use personas alice, bob
+${member ? `table members:
+  room: text <=40
+  principal: principal
+  unique room, principal
+  immutable room, principal
+  read <- exists members[.room, viewer]
+  sync to members[.room]
+` : ''}table ${schema}:
+  ${owner}: principal
+  ${field}: ${member ? 'text default ""' : 'int default 0'} written by .${owner}
+${member ? '  room: text <=40\n  body: text\n  read <- exists members[.room, viewer]\n  sync to members[.room]' : '  public\n  sync public'}
+  update <- allow
+query row():
+  return ${schema}['row1']
+query selected():
+  row = ${schema}['row1']
+  return row if row.${field} = ${JSON.stringify(value)} else null
+mutation transfer():
+  update ${schema}['row1'] { ${owner}: 'dev:bob' }
+`;
+    const f = await server(t, undefined, source);
+    const headers = { 'x-snapback-persona': 'alice' };
+    const post = async (path, body) => {
+      const reply = await fetch(f.url+path,{ method:'POST', headers, body:JSON.stringify(body) });
+      assert.equal(reply.status,200); return reply.json();
+    };
+    const rows = [{table:schema,row:{id:'row1',[owner]:'dev:alice',[field]:value,...(member?{room:'room',body:'public body'}:{})}},
+      ...(member?['alice','bob'].map(p=>({table:'members',row:{id:p,room:'room',principal:`dev:${p}`}})):[])];
+    assert.equal((await post('/seed',rows)).seeded,rows.length);
+    const before = await post('/q/row',{args:{}});
+    let now=Date.now(), hold=false, held=0, delivered=false, evidence, ack;
+    t.mock.method(Date,'now',()=>now);
+    const gate=Promise.withResolvers(),change=Promise.withResolvers();
+    const client=createClient({url:f.url,persona:'alice',fetch:async(input,init)=>{
+      const path=new URL(input).pathname;
+      if(path==='/probe')return parked(init.signal);
+      if(path==='/changes') {
+        if(channel==='ack'||delivered)return parked(init.signal);
+        await Promise.race([change.promise,parked(init.signal)]); delivered=true;
+        return Response.json(evidence);
+      }
+      const response=await fetch(input,init),json=await response.json();
+      if(path.startsWith('/m/'))ack=json;
+      if(hold&&path.startsWith('/q/')) { held++; await Promise.race([gate.promise,parked(init.signal)]); }
+      return Response.json(json,{status:response.status});
+    }});
+    t.after(async()=>{gate.resolve();change.resolve();await client.close();});
+    const watches=['row','selected'].map(name=>client.observe(q(name),{}));
+    await until(()=>watches.every(w=>w.getSnapshot().data?.[field]===value));
+    hold=true;
+    if(channel==='ack')await client.mutate({kind:'mutation',name:'transfer'},{});
+    else ack=await post('/m/transfer',{id:'transfer',args:{}});
+    evidence=await fetch(`${f.url}/changes?since=${before.seq}&wait=0`,{headers}).then(r=>r.json());
+    assert.equal(ack.state,'sent');
+    change.resolve();
+    await until(()=>held>=2);
+    now+=1600;
+    for(const watch of watches) {
+      assert.equal(watch.getSnapshot().loading,true,'previously disclosed private field must withdraw');
+      assert.equal(watch.getSnapshot().data,undefined);
+    }
+    assert.ok(!ack.preserved.includes(schema),'acknowledgement must classify field revocation');
+    assert.ok(!evidence.preserved.includes(schema),'changes must classify field revocation');
+    const fresh=await post('/q/row',{args:{}});
+    assert.equal(Object.hasOwn(fresh.data,field),false);
+    assert.equal((await post('/q/selected',{args:{}})).data,null);
+    hold=false;gate.resolve();
+    await until(()=>watches[0].getSnapshot().data?.[owner]==='dev:bob'&&watches[1].getSnapshot().data===null);
+    assert.equal(Object.hasOwn(watches[0].getSnapshot().data,field),false);
+  });
+}

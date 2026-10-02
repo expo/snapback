@@ -46,3 +46,31 @@ The previously timed-out process row-existence test passes unchanged in this bro
 - A ref-check invocation from `snapback4/` incorrectly selected an empty LLP root and reported 1,354 missing references. **Ours, invocation.** The required root-level invocation passes; no reference rules were loosened.
 
 The publication comparison's four Linux skips are a platform limitation, not passing macOS evidence. The darwin-arm64 run remains the operator's pre-landing check.
+
+## Round 1 (2026-10-02)
+
+- **Baseline, intentional negative controls:** the new field-disclosure oracle fails the unchanged `87ec64d872` implementation on Alice losing `docs.secret`. The four new real-server/public-client ownership-transfer cases (docs/messages × acknowledgement/changes) fail against the retained round-0 binary, while its original 16 cases pass. Logs: `round1/p1-baseline.log`, `round1/client-baseline.log`. All four pass after rebuilding (`round1/client-fixed.log`).
+- **Ours, test fixture, fixed:** the first history benchmark omitted `Store::install`, producing `Schema("docs is not installed in this store")` (`round1/history-before.log`). The corrected baseline and bounded-history runs pass (`history-before-2.log`, `history-after.log`).
+- **Ours, test fixture, fixed:** the first asset model used a row object instead of the Map asset argument and received `E_INPUT: photo must be image <=1000, not an object` (`round1/model-first.log`). The second used `once` in a mutation argument type, receiving `E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint` (`round1/model-second.log`). Corrected placement/consumption/access/sweep tests pass (`round1/model-assets.log`), and all five final model tests pass in the complete suite's Rust inventory.
+- **Ours, command setup, corrected:** three commands combined repository-root edit paths with Snapback-workspace test paths. The first could not open the intended test source and then ran zero matching tests (`round1/setup-path-error.log`); the other two failed opening their redirected logs before running a test. Each intended command was rerun from the correct working directory. None is counted as test evidence.
+- **Environmental availability, not a failed test:** `~/Dropbox/APIKeys/MACHINE_FLEET.md` is absent on this Linux host. The four native published-0.2.33 comparisons skip because they require darwin-arm64. The operator's 5/5 round-0 macOS result is preserved separately from round-1 Linux qualification.
+
+The single complete run (exit 1, `round1/test-sh.log.gz`) ended:
+
+```
+== 1 failure(s) in 1429 s
+   cargo test
+```
+
+The failed phase contains exactly the two baseline failures detailed below.
+All 5,766 client tests and 79 client-model tests pass; ten client tests skip.
+Final qualification failures: **ours 0; baseline 2 tests / 1 phase; environmental 0**.
+
+Full-run Rust failures (**both baseline**, reproduced in a separate clean checkout of `87ec64d872`, with its own Cargo target directory and four build jobs):
+
+1. `rows::word_heap::tests::sqlite_allocation_probes`, `snapback4-core/src/engine/word_heap/tests.rs:407`: native allocation is **13,240 B** against **8,192 B** (`2 * page_size`) in the resident payload probe. Its parent at line 479 reports the same child's failure, not a second independent failure. Identical measured values and assertion fail on round 0. Command: `cargo test -p snapback4-core --lib sqlite_allocation_probes -- --nocapture`; baseline log `round1/baseline-allocation.log` (exit 101).
+2. `search_heads_and_overlap_ignore_posting_population`, `snapback4/tests/scale_curves.rs:239`: at population 50, the exact work tuple has **967 calls / 479 payloads / 22,359 VM steps** versus **968 / 480 / 22,363**; logical meters and returned-row counts match. Round 0 reproduces the identical tuples. Command: `cargo test -p snapback4 --test scale_curves search_heads_and_overlap_ignore_posting_population -- --nocapture`; baseline log `round1/baseline-scale.log` (exit 101).
+
+The hypothesis that the pruning statement introduced these two failures was rejected by those clean baseline controls. No unrelated implementation or assertion was changed to suppress them. Baseline checkout: `/home/ccheever/sb4-intent/rv-round1-baseline`, detached at `87ec64d872`; the lane's build artifacts were not reused by its compilation.
+
+Exact-source P1 controls were repeated on the separately rebuilt `87ec64d872`: the oracle loses the same `secret` field (exit 101, `round1/p1-clean-baseline.log`) and all four public-client transfers retain disclosure incorrectly (exit 1, `round1/client-clean-baseline.log`). These are intentional baseline failures. The temporarily injected model test was restored; the baseline checkout is clean.

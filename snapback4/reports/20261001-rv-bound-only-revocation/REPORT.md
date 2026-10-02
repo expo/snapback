@@ -85,3 +85,96 @@ The complete Rust inventory passed (282 binaries, 995 executions and doctests), 
 Locked size-first build: **2,032,740 bytes raw / 610,046 bytes gzip**. The prior budget was 605,225 bytes gzip; this artifact exceeds it by 4,821 bytes. With the user's explicit authorization, the same commit raises `metrics/wasm-budget.json` to **610,546 bytes**, measured size plus **500 bytes** cross-host headroom, with the reason in the ratchet record.
 
 Against the recorded starting artifact (2,015,329 raw / 604,725 gzip), the whole-artifact delta is +17,411 raw / +5,321 gzip. That control was not rebuilt here. No per-feature size attribution is claimed. Runtime meter, row, heap and batching ceilings are unchanged.
+
+## Round 1 — Astra and Grok review corrections (2026-10-02)
+
+Base: `87ec64d87247cb76be768530e51c1e9464a41062`, same lane and branch. The operator reports the round-0 darwin-arm64 publication fence passed **5/5**, with macOS wasm **610,154 B gzip**. That supersedes the round-0 report's pending-fence note; it is not a round-1 macOS qualification.
+
+### Changes and authorization audit
+
+**P1:** the shared classifier now walks each `Table.written_by` authority whose `audience` flag is false and records its **owner column** using the same dependency operation as a read-rule field. It does not depend on the private value. A private value edit remains preserving; an owner transfer may revoke disclosure even on a public row. `readable by audience` fields do not acquire an owner dependency. No client timer or invalidation implementation changed.
+
+The scoped orientation used LLP 3000 (the Snapback 4 root), LLP 2000.000, LLP 3000.023 §12, LLP 3000.015 §1, and the current client, reads, rules and assets guide. Both .023 and .015 are in `llp/current/`. The audit followed compiled `Schema`/`Table`, `Disclosed::visible`, `authorize_image`, rule evaluation, field delivery, `recorded::public_image`, asset access and the existing classifier. Findings:
+
+| Decision/input | Coverage and disposition |
+| --- | --- |
+| Private field ownership (`written_by.owner`) | **Missing in round 0; fixed.** Includes owner defaults: an override or removal still changes the owner column. |
+| `written_by.audience`; table `public`/read markers | Compiled schema facts, not per-commit values. Audience-readable fields have no owner-dependent read restriction; schema/program changes keep the existing hard fence. Private-value-only edits remain ordinary staleness. |
+| Row read rules, service grants, positive/negative `exists` probes | Existing exhaustive `RuleExpr` walk records local terms and conservatively depends on whole target tables. Viewer/credential changes are already hard boundaries. |
+| Sync audience columns and membership targets | Existing column/whole-target dependencies, including recursively encountered field owners. |
+| `through`, inherited residency, maintained sources, row-key owners and captured parents | Existing recursive whole-input dependencies and reference-column walk. Maintained values can change without removing disclosure. |
+| Row and witness expiry, inherited deadlines, ephemeral lifetime | Existing expiry-column, `$deadline` and `$parentDeadline` dependencies plus independent published `nextExpiry` fences. Time passing does not need a row commit. |
+| Image/video references, including optional/nested lists | Existing recursive asset-column dependency. Placement/removal can revoke asset access even while the row field remains present. |
+| `once` per-reader consumption ledger | Already unknown, including a zero-length commit interval. Real consumption has no public row commit; no certificate is invented for it. |
+| Recorded captures, event slots and internal deadline fields | Query output hides these by schema-defined projection; they are not separately disclosed per reader. Dynamic inherited authority is covered above; device coverage/program boundaries stay unchanged. |
+| Defaults, sequences, indexes, constraints, update rules, leave/horizon metadata | No additional per-reader field projection decision. Their effects on row images flow through the existing read/audience/expiry dependencies; ordering and filtering remain answer replacement. |
+
+No additional omitted per-reader field-disclosure input was found. The missing owner dependency is shared by ordinary values and private asset fields. The Postgres evaluation adapter remains conservative: its transaction tail records commits without `_change_evidence`, so it emits no preservation certificates. A missing-summary-table control verifies widening; this round does not claim a new live Postgres qualification.
+
+**P2:** `record_commit` deletes evidence at or before `seq - 1000` inside the same transaction. This retains twice the 500-commit certification window. Rollback restores both the pruned summaries and the attempted insert. Missing/pruned/overlong intervals certify nothing; the latest 500-commit interval still certifies. Opening an old native device still creates no evidence metadata.
+
+**P3:** the publication comparison strips `preserved` only for successful `apply`, `admit` or `settle` envelopes (both replies have `ok`, neither has `denied`). It keeps the 256-entry limit and bounds each string to 128 characters. Controls reject missing/denied/mixed envelopes, 129-character and million-character names, 257 entries, malformed lists and other operations; exact boundary sizes pass.
+
+### Stronger model and regressions
+
+The oracle now stores, for each viewer/table/id, the **set of disclosed field names** and the engine's deadline. Every certified commit must retain each authorized row and every previously disclosed field. Values may change. Unconditional point reads prove authorization independently of ordered/filtered query membership.
+
+Seeds: `0x52560001`, `0x52560002`, `0x5256cafe`, `0x5256beef`. Viewers: `a`, `b`, `dev:alice`, `dev:bob`, `outsider`, `service:auditor`.
+
+- Guide/fixture corpus: **90 schemas**, one no-durable-table schema skipped; **11,520 physical commits**, **601,860 certified viewer/table checks**, **885,943 retained rows**, **3,254,742 retained fields**, **8,062 revoking row losses**, **16 field losses**, **242 clock-induced losses** covered by deadlines.
+- Real mutation model: **512 steps**, **572 commits**, **275 expiry-maintenance calls**, **1,614 certified checks**, **3,696 retained rows**, **19,096 retained fields**, **306 row losses**, **27 field losses**, **1,002 clock-induced losses**, **63 preserving ordered-limit changes**. These counts exclude the 16 initial seeding mutations.
+- Asset model: four type shapes (optional image/video, nested images, nested once images), **32 real placement/removal mutations**, **4 per-viewer once consumptions**, **216 access checks**, **16 asset sweeps**. Asset inventory is fixture-supplied; placement, access, consumption and cleanup use engine APIs.
+- Directed controls prove owner transfer revokes private disclosure, private-value edits preserve it, audience-readable owner transfers preserve it, same-ID filter exit preserves it, and limit displacement preserves it while the next query returns the new selection.
+
+Time advances between corpus/model commits. A time-only loss must have a previously published deadline at or before the new clock; the subsequent commit is compared at that same advanced clock. This tests the separate hard expiry boundary instead of treating time loss as a commit certificate. The model still uses bounded generated values and physical states, not an exhaustive proof of every application/program. Failed point reads cannot establish a before-authority claim; loss of a previously successful result under certified evidence fails the oracle.
+
+**Negative controls:** before changing production code, the stronger oracle ran on the `87ec64d872` implementation and failed exactly on Alice losing `secret` from the still-readable P1 row (`round1/p1-baseline.log`). Both review schemas also fail through the retained round-0 server binary and public online client over each channel: four failures, with the original 16 tests passing (`round1/client-baseline.log`). A second control rebuilt exact `87ec64d872` in a clean detached checkout with its own target directory: the new oracle fails on the same missing `secret`, and all four public-client cases fail on the same retained-field assertion (`round1/p1-clean-baseline.log`, `round1/client-clean-baseline.log`). The injected model test was then restored, leaving that checkout clean. After rebuilding the lane, all **20** public-client RV cases pass, including withdrawal after 1,600 ms with replacement reads held, fresh-query redaction, and convergence after release. Both the acknowledgement and real `/changes` response exclude the affected table.
+
+Expiry controls pass on online, native and wasm clients: a preserving answer remains visible at 2,999 ms and one millisecond before its row deadline, then withdraws at that deadline while replacement reads remain held. All **31** cases in `keep-expiry.test.mjs` pass. The 500/501-commit history boundary, rollback and missing metadata controls pass.
+
+### Evidence history measurements
+
+Command, before and after: `cargo test -p snapback4-core --test revocation_history measure_history -- --ignored --nocapture`. Three fresh on-disk SQLite stores per version, 20,000 transactions updating one row, same optimized test profile. The transaction includes the row write, evidence and commit metadata. JSON totals and `dbstat` pages below count **only `_change_evidence`**, not `_commits`, indexes or WAL. No vacuum is required for the steady-state result.
+
+| Commits | Before summaries / JSON B / SQLite B | After summaries / JSON B / SQLite B |
+| --- | --- | --- |
+| 1,000 | 1,000 / 90,993 / 106,496 | 1,000 / 90,993 / 106,496 |
+| 10,000 | 10,000 / 909,993 / 1,028,096 | 1,000 / 91,000 / 110,592 |
+| 20,000 | 20,000 / 1,819,993 / 2,052,096 | 1,000 / 91,000 / 110,592 |
+
+Mean microseconds per commit across three trials:
+
+| Segment | Before | After |
+| --- | ---: | ---: |
+| 1–1,000 | 120.809 | 90.280 |
+| 1,001–10,000 | 86.395 | 71.611 |
+| 10,001–20,000 | 86.250 | 72.519 |
+
+The bounded version adds one indexed deletion per transaction and shows no write-cost regression in these samples. These are sequential measurements on a shared host, not a claim that pruning alone causes the observed speedup. Raw trials: `round1/history-before-2.log`, `round1/history-after.log`.
+
+### Qualification
+
+- Whole guide: **110 passed**, zero failed (`round1/guide.log`).
+- Public-client RV plus publication allowance: **21 passed**, four darwin-only comparisons skipped on Linux (`round1/client-fixed.log`).
+- Exact expiry/retention suite: **31 passed** (`round1/expiry.log`).
+- Chromium 151.0.7922.34 on real wasm: eight held rereads, 24 competitors, all four surfaces `revalidating`, **zero loading publications after 1,501 ms**, successful convergence. Delete/unsend/rule-column withdrawal took **1,007/1,006/1,012 ms** from request start (**993/994/999 ms** after device commit); membership loss **14 ms** (**1 ms** after commit). `round1/chromium.log`.
+- Reference check: **525 LLP docs, 10,069 refs in 31,489 files, zero errors/unchecked** (`round1/ref-check-final.log`, including report/journal additions).
+
+The complete Rust inventory ran **283 test binaries / 996 executions plus doctests**, including **5/5 final soundness-model tests** and the bounded-history test. It reports two failures, both reproduced with identical values in a separate clean `87ec64d872` checkout: `sqlite_allocation_probes` (13,240 B versus an 8,192 B bound) and `search_heads_and_overlap_ignore_posting_population` (one extra physical call/payload and four VM steps in its comparison baseline). See the [failure ledger](FAILURES.md) and `round1/baseline-allocation.log` / `round1/baseline-scale.log`. No related implementation or assertion was relaxed.
+
+The full client phase passes: **5,776 tests, 5,766 passed, zero failed, 10 skipped**. This includes the four ownership regressions, three exact-expiry controls and publication allowance. All **79 client-model tests** pass, retaining the full configured seed counts. Both app typechecks, fixture wrappers, package checks, release guard, wasm and docs budgets pass.
+
+One complete `bash scripts/test.sh` run (exit 1) finished with this **exact** summary:
+
+```
+== 1 failure(s) in 1429 s
+   cargo test
+```
+
+The one failed phase contains the two baseline failures above. Final qualification failures: **ours 0; baseline 2 tests / 1 phase; environmental 0**. The four platform-dependent publication comparisons are skips, not passes or failures. The full run exceeds the script's 60-second target; no timing regression or performance attribution is claimed. Every development fixture failure and intentional negative control is retained and attributed in [FAILURES.md](FAILURES.md). Final production code was unchanged throughout this complete run. Logs have only trailing whitespace/newline normalization; the full log is `round1/test-sh.log.gz` and its exit status is `round1/test-sh.exit`.
+
+### Wasm and scope
+
+Locked Linux build: **2,032,879 B raw / 610,174 B gzip**, **+139 raw / +128 gzip** versus round 0. The growth is the missing field-owner walk required on the shared device/server classifier; server-only history pruning contributes no wasm code. The classifier stays on the device because local admit, settle and apply replay cannot be certified solely by a server interval.
+
+Budget: **610,782 B** (the macOS estimate remains unqualified). Round 0's measured macOS artifact was 108 B above Linux; applying this round's +128 B estimates **610,282 B**, with **500 B** reserved above that estimate. Round-1 macOS was not measured here: the local fleet file is absent, and no qualification host was supplied in response to the asynchronous request. The budget leaves 628 B over the supplied, actually measured round-0 macOS figure, and 500 B over the round-1 estimate; an operator must still check the actual round-1 macOS artifact before publication. No round-1 macOS fence pass is claimed. Runtime ceilings are unchanged. No push or publication.

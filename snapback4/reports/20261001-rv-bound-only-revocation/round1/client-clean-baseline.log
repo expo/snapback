@@ -1,0 +1,91 @@
+✖ private-field transfer: real docs via ack withdraws disclosure (184.967153ms)
+✖ private-field transfer: real docs via changes withdraws disclosure (164.571396ms)
+✖ private-field transfer: real messages via ack withdraws disclosure (157.880805ms)
+✖ private-field transfer: real messages via changes withdraws disclosure (157.732684ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 777.085721
+
+✖ failing tests:
+
+test at packages/snapback4/test/revocation-retention.test.mjs:115:3
+✖ private-field transfer: real docs via ack withdraws disclosure (184.967153ms)
+  AssertionError [ERR_ASSERTION]: previously disclosed private field must withdraw
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:178:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/revocation-retention.test.mjs:115:3
+✖ private-field transfer: real docs via changes withdraws disclosure (164.571396ms)
+  AssertionError [ERR_ASSERTION]: previously disclosed private field must withdraw
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:178:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/revocation-retention.test.mjs:115:3
+✖ private-field transfer: real messages via ack withdraws disclosure (157.880805ms)
+  AssertionError [ERR_ASSERTION]: previously disclosed private field must withdraw
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:178:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/revocation-retention.test.mjs:115:3
+✖ private-field transfer: real messages via changes withdraws disclosure (157.732684ms)
+  AssertionError [ERR_ASSERTION]: previously disclosed private field must withdraw
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:178:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -608,6 +608,9 @@ impl<'a> Tx<'a> {
         // not migrate its store merely to read or refuse a backend adoption.
         self.tx.execute_batch("CREATE TABLE IF NOT EXISTS _change_evidence (seq INTEGER PRIMARY KEY, footprint TEXT NOT NULL)")?;
         self.tx.execute("INSERT INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", params![seq as i64, canonical_json(&self.changes.borrow().footprint())])?;
+        // @ref LLP 3000.023#12 — retain twice the 500-commit certification
+        // window. Pruning rolls back with the commit; older intervals widen.
+        self.tx.prepare_cached("DELETE FROM _change_evidence WHERE seq <= ?1")?.execute([seq.saturating_sub(1000) as i64])?;
         self.tx.prepare_cached("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![seq as i64, at, program, principal, kind, canonical_json(&touched), writes as i64],
         )?;
         Ok(())

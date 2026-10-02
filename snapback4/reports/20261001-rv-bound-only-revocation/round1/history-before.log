@@ -1,0 +1,20 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 9.88s
+     Running tests/revocation_history.rs (target/debug/deps/revocation_history-98649e4153a7d9fc)
+
+running 1 test
+
+thread 'measure_history' (3317657) panicked at crates/snapback4-core/tests/revocation_history.rs:11:37:
+called `Result::unwrap()` on an `Err` value: Schema("docs is not installed in this store")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test measure_history ... FAILED
+
+failures:
+
+failures:
+    measure_history
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p snapback4-core --test revocation_history`
