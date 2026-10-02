@@ -13,6 +13,9 @@ root = Path(os.environ['WITNESS_TEST_DIR'])
 mode = os.environ['WITNESS_TEST_MODE']
 udid = os.environ.get('WITNESS_TEST_UDID', 'dedicated')
 a = sys.argv[1:]
+if a == ['--sdk', 'iphonesimulator', '--show-sdk-version']:
+    print('27.0')
+    sys.exit(0)
 assert a[0] == 'simctl'
 a = a[1:]
 with (root / 'simctl-calls.jsonl').open('a') as f:
@@ -99,6 +102,16 @@ elif a[0] == 'launch':
     def emit(step):
         with receipt.open('a') as f:
             f.write(json.dumps({'own': {'keep': True}, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step}}) + '\n')
+    if mode in ['scene-exit', 'scene-exit-after-prime']:
+        if mode == 'scene-exit-after-prime':
+            emit('primed')
+        reports = root / 'Library/Logs/DiagnosticReports'
+        reports.mkdir(parents=True)
+        (reports / 'App.ips').write_text(json.dumps({'bundleID': 'dev.test'}) + '\n' + json.dumps({
+            'pid': pid, 'procPath': '/CoreSimulator/Devices/' + udid + '/data/App', 'faultingThread': 0,
+            'threads': [{'frames': [{'symbol': '___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke'}]}]}))
+        (root / 'app-pid').unlink()
+        sys.exit(0)
     if config.get('smoke'):
         (root / 'smoke-folder').write_text(str(folder))
         segment = config['segment']

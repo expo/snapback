@@ -552,6 +552,7 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         let config: Value = serde_json::from_slice(&fs::read(root.join("app.json")).unwrap()).unwrap();
         assert_eq!(config["expo"]["newArchEnabled"], true);
         assert!(config["expo"]["plugins"].as_array().unwrap().contains(&json!("snapback4-expo/plugin")));
+        assert_eq!(config["expo"]["plugins"].as_array().unwrap().iter().filter(|p| **p == json!("snapback4-expo/plugin")).count(), 1);
         assert!(root.join("src/native-smoke.ts").exists());
         let readme = fs::read_to_string(root.join("README.md")).unwrap();
         for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "about 3 minutes warm", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {

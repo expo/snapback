@@ -217,6 +217,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_PORT", &["Stop that server if it is yours, or choose a free `--port`", "rebuild/configure the app for that origin"]),
     ("E_WITNESS_PROCESS", &["Preserve the failed run's logs and stop only its recorded child processes"]),
     ("E_WITNESS_RECEIPT", &["Await receipt writes and keep one complete object per JSONL line", "rather than editing a receipt after the driver has observed it"]),
+    ("E_WITNESS_SCENE_LIFECYCLE", &["regenerate with `expo prebuild --platform ios`, then rebuild and reinstall Release", "matches the bundle, launch PID, simulator and report time; unrelated exits retain the ordinary app-exit diagnostic"]),
     ("E_WITNESS_SIMULATOR", &["boot the intended dedicated device, and pass its exact `--udid`", "do not let the witness choose someone else's device"]),
     ("E_WITNESS_STEP", &["Await `w.step('offline-done', ...)`, then `w.waitFor('reconnect')`, then `w.step('done', ...)`", "skipping the assertion does not establish the promised scenario"]),
     ("E_WITNESS_TIMEOUT", &["Inspect the last receipt and app log, repair the missing step or connection, and retry", "Increase `--timeout` only after measuring a slow but progressing run"]),

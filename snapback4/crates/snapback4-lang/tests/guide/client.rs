@@ -126,3 +126,12 @@ fn native_smoke_is_the_milestone_path_with_honest_limits() {
         assert!(!text.contains("in this source revision"));
     }
 }
+
+#[test]
+fn witness_card_explains_scene_adoption_and_product_toolchain() {
+    let card = snapback4_lang::guide::card("witness").unwrap();
+    for text in ["E_WITNESS_SCENE_LIFECYCLE", "NoSceneLifecycleAdoption", "snapback4-expo/plugin",
+        "57.0.22", "xcodeBuild", "iosSdkVersion", "expo prebuild --platform ios"] {
+        assert!(card.contains(text), "missing {text}");
+    }
+}

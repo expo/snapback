@@ -1,4 +1,4 @@
-// @ref LLP 3000.030#13 — the pinned Expo starter must launch on iOS 27 without a manual migration.
+// @ref LLP 3000.030#13 — one published lifecycle for reference and generated Expo 57.0.22 apps; preserve existing plugin configs.
 const { withAppDelegate, withInfoPlist } = require('expo/config-plugins');
 const marker = '// Snapback4 starter scene lifecycle';
 const legacy = `#if os(iOS) || os(tvOS)

@@ -107,6 +107,47 @@ fn artifacts_require_bytes_and_bind_the_digest() {
     std::fs::remove_file(path).unwrap();
 }
 
+#[test]
+fn scene_report_requires_the_latest_bundle_report_and_owned_launch() {
+    use serde_json::json;
+    use std::fs;
+    let dir = std::env::temp_dir().join(format!("sb4-scene-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let report = |name: &str, bundle: &str, pid: u32, device: &str, symbol: &str, age: u64| {
+        let p = dir.join(name);
+        fs::write(&p, format!("{}\n{}", json!({"bundleID": bundle}), json!({"pid": pid,
+            "procPath": format!("/CoreSimulator/Devices/{device}/data/App"), "faultingThread": 0,
+            "threads": [{"frames": [{"symbol": symbol}]}]}))).unwrap();
+        fs::File::options().write(true).open(p).unwrap().set_times(std::fs::FileTimes::new()
+            .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(age))).unwrap();
+    };
+    let symbol = "___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke";
+    report("old.ips", "dev.test", 42, "ours", symbol, 1);
+    assert!(protocol::scene_crash(&dir, "dev.test", 42, "ours", 2000).is_none());
+    report("new.ips", "dev.test", 42, "ours", symbol, 3);
+    report("unrelated.ips", "other.app", 42, "ours", "OtherCrash", 4);
+    assert!(protocol::scene_crash(&dir, "dev.test", 42, "ours", 2000).is_some());
+    assert!(protocol::scene_crash(&dir, "dev.test", 43, "ours", 2000).is_none());
+    assert!(protocol::scene_crash(&dir, "dev.test", 42, "theirs", 2000).is_none());
+    report("latest.ips", "dev.test", 42, "ours", "OtherCrash", 5);
+    assert!(protocol::scene_crash(&dir, "dev.test", 42, "ours", 2000).is_none());
+    fs::write(dir.join("partial.ips"), "{unfinished").unwrap();
+    assert!(protocol::scene_crash(&dir, "dev.test", 42, "ours", 2000).is_none());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn witness_toolchain_comes_from_the_product_and_keeps_unknowns_explicit() {
+    use serde_json::json;
+    let toolchain = protocol::app_toolchain(&json!({"DTXcodeBuild": "27A266a", "DTSDKName": "iphonesimulator27.0"}));
+    assert_eq!(toolchain["xcodeBuild"], "27A266a");
+    assert_eq!(toolchain["iosSdkVersion"], "27.0");
+    assert_eq!(protocol::app_toolchain(&json!({"DTSDKName": "iphoneos26.5"}))["iosSdkVersion"], "26.5");
+    let unknown = protocol::app_toolchain(&json!({}));
+    assert!(unknown.get("xcodeBuild").unwrap().is_null());
+    assert!(unknown.get("iosSdkVersion").unwrap().is_null());
+}
+
 // The process choreography uses a fake simctl and a real `snapback4 dev`.
 // It is a driver test, never native execution evidence.
 #[cfg(target_os = "macos")]
@@ -123,7 +164,7 @@ mod driver {
                 fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(name)).unwrap();
             }
             fs::write(dir.join("snapback/schema.q"), "use personas alice\ntable rows:\n  body: text <=40\n  public 'fixture'\nquery rows():\n  return rows first 10\n").unwrap();
-            fs::write(dir.join("app/Info.plist"), r#"<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.test</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleExecutable</key><string>TestApp</string></dict></plist>"#).unwrap();
+            fs::write(dir.join("app/Info.plist"), r#"<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.test</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleExecutable</key><string>TestApp</string><key>DTXcodeBuild</key><string>27A266a</string><key>DTSDKName</key><string>iphonesimulator27.0</string></dict></plist>"#).unwrap();
             fs::write(dir.join("app/TestApp"), "fake app for driver tests").unwrap();
             fs::write(dir.join("app/main.jsbundle"), "fake bundle for driver tests").unwrap();
             fs::write(dir.join("xcrun"), include_str!("fixtures/witness-simctl.py")).unwrap();
@@ -153,7 +194,7 @@ mod driver {
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
                 .env("XDG_STATE_HOME", self.0.with_extension("state")).env("WITNESS_TEST_PORT", port.to_string())
-                .env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
+                .env("HOME", &self.0).env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
             command
         }
         fn run(&self, mode: &str, port: u16) -> std::process::Output {
@@ -413,6 +454,29 @@ mod driver {
         }
     }
     #[test]
+    fn early_scene_exit_has_a_named_diagnostic_and_product_toolchain() {
+        let fixture = Fixture::new();
+        let output = fixture.command("scene-exit", Fixture::port(), std::path::Path::new("artifacts"))
+            .output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_SCENE_LIFECYCLE"), "{}", String::from_utf8_lossy(&output.stderr));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["exitStatus"], 1);
+        assert_eq!(manifest["xcodeBuild"], "27A266a");
+        assert_eq!(manifest["iosSdkVersion"], "27.0");
+        assert_eq!(manifest["sceneCrash"]["pid"], 7001);
+        assert!(manifest["error"].as_str().unwrap().contains("snapback4-expo/plugin"));
+    }
+    #[test]
+    fn a_scene_report_after_the_priming_receipt_keeps_the_ordinary_exit_diagnostic() {
+        let fixture = Fixture::new();
+        let output = fixture.run("scene-exit-after-prime", Fixture::port());
+        assert!(!output.status.success());
+        let text = String::from_utf8_lossy(&output.stderr);
+        assert!(text.contains("E_WITNESS_APP:"), "{text}");
+        assert!(!text.contains("E_WITNESS_SCENE_LIFECYCLE"), "{text}");
+    }
+    #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
         let fixture = Fixture::new();
         let output = fixture.run("smoke-source-race", Fixture::port());
@@ -576,6 +640,9 @@ mod driver {
         let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).expect("preparation failure must have a manifest")).unwrap();
         assert_eq!(manifest["exitStatus"], 1);
         assert_eq!(manifest["phase"], "preparation");
+        assert!(manifest.get("xcodeBuild").is_some());
+        assert_eq!(manifest["iosSdkVersion"], "27.0");
+        assert_eq!(manifest["toolchainSource"], "selected host; no installed product inspected");
         assert!(manifest["error"].as_str().unwrap().contains("E_WITNESS_TIMEOUT"));
     }
     fn invalid_protocol(mode: &str, code: &str) {

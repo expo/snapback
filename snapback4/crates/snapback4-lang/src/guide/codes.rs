@@ -123,6 +123,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_WITNESS_PROOF", "prepared, installed or native startup payload identity differs. Preserve the failed evidence and rebuild from verified inputs. guide witness."),
     ("E_WITNESS_ORIGIN", "the actual client origin differs from the owned backend. Rebundle for the printed origin or select the matching free port. guide witness."),
     ("E_WITNESS_PLATFORM", "witness ios requires macOS, Xcode and an installed iOS simulator. guide witness."),
+    ("E_WITNESS_SCENE_LIFECYCLE", "the owned app stopped before priming and its crash report names NoSceneLifecycleAdoption: the iOS SDK requires UIScene. For the pinned Expo 57 starter add snapback4-expo/plugin to app.json plugins; run expo prebuild --platform ios, rebuild Release and reinstall. guide witness."),
     ("E_WITNESS_SIMULATOR", "a simulator could not be selected or simctl failed. Boot a dedicated iOS simulator and pass its --udid; never select an ambiguous booted set. guide witness."),
     ("E_WITNESS_APP", "the app is missing, its installed Info.plist could not be read, or process ownership could not be established. Quit an already running app before starting; replacement instances are left running. Build and install a missing app using the printed command. guide witness."),
     ("E_WITNESS_PORT", "the requested backend port is unavailable. Choose a free --port and build the app for that origin; the witness never stops an existing listener. guide witness."),

@@ -10,6 +10,39 @@ pub fn platform(os: &str) -> Result<()> {
 }
 pub fn name(value: &str) -> bool { !value.is_empty() && value.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') }
 
+pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoSceneLifecycleAdoption). For the pinned Expo 57 starter, add snapback4-expo/plugin to app.json plugins, regenerate the iOS project with expo prebuild --platform ios, then rebuild and reinstall the Release app. See snapback4 why E_WITNESS_SCENE_LIFECYCLE";
+
+// @ref LLP 3000.030#13 — diagnose only this launch, never a neighbouring simulator.
+pub fn scene_crash(dir: &Path, bundle: &str, pid: u32, udid: &str, since: u128) -> Option<Value> {
+    let mut reports = Vec::new();
+    for entry in fs::read_dir(dir).ok()?.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("ips") { continue; }
+        let Ok(meta) = entry.metadata() else { continue; };
+        let Some(modified) = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|t| t.as_millis()) else { continue; };
+        if modified < since || meta.len() > 16 * 1024 * 1024 { continue; }
+        let Ok(text) = fs::read_to_string(&path) else { continue; };
+        let Some((header, body)) = text.split_once('\n') else { continue; };
+        let Ok(header) = serde_json::from_str::<Value>(header) else { continue; };
+        if header["bundleID"] != bundle { continue; }
+        let Ok(body) = serde_json::from_str::<Value>(body) else { continue; };
+        reports.push((modified, path, body));
+    }
+    let (_, path, body) = reports.into_iter().max_by_key(|(time, _, _)| *time)?;
+    if body["pid"].as_u64() != Some(pid as u64)
+        || !body["procPath"].as_str()?.contains(&format!("/Devices/{udid}/")) { return None; }
+    let thread = body["faultingThread"].as_u64()? as usize;
+    let frames = body["threads"].get(thread)?.get("frames")?.as_array()?;
+    if !frames.iter().any(|f| f["symbol"].as_str().is_some_and(|s| s.contains("NoSceneLifecycleAdoption"))) { return None; }
+    Some(json!({ "report": artifact(&path).ok()?, "pid": pid, "exception": body["exception"], "frames": frames }))
+}
+
+pub fn app_toolchain(info: &Value) -> Value {
+    let sdk = info["DTSDKName"].as_str().and_then(|s| s.strip_prefix("iphonesimulator").or_else(|| s.strip_prefix("iphoneos")));
+    json!({ "xcodeBuild": info["DTXcodeBuild"], "iosSdkVersion": sdk,
+        "toolchainSource": "installed Info.plist; absent values are unknown" })
+}
+
 pub fn device(list: &Value, requested: Option<&str>) -> Result<(String, String)> {
     let mut booted = Vec::new();
     let runtimes = list["devices"].as_object().ok_or_else(|| error("E_WITNESS_SIMULATOR", "simctl returned no device list"))?;
