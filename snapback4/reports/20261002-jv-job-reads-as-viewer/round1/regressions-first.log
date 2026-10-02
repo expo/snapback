@@ -1,0 +1,32 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 31.86s
+     Running tests/job_viewer.rs (snapback4/target/debug/deps/job_viewer-8ea11a7ff38f7263)
+
+running 6 tests
+test round1::viewer_dependent_refinements_do_not_cross_either_authority_edge ... ok
+test round1::inner_loops_keep_sweep_placement_and_jumps_stay_lexical ... ok
+
+thread 'round1::every_direct_read_and_helper_refuses_incomplete_results' (2339030) panicked at crates/snapback4-lang/tests/job_viewer.rs:16:5:
+[Diagnostic { site: Site { file: "schema.q", line: 11, col: 13 }, code: "E_QUARRY_BOUND", message: "docs by byId: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", rewrite: "use `first N`: `docs[] after c first 50 by byId` (declare `c: cursor ?` and follow its cursor); for a complete read, scan by an index leading with owner, id and pin the deciding columns (N_NEVER_COMPLETE)", guide: "bounds", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test round1::every_direct_read_and_helper_refuses_incomplete_results ... FAILED
+
+thread 'round1::point_reads_and_uniform_domains_keep_ordinary_complete_answers' (2339033) panicked at crates/snapback4-lang/tests/job_viewer.rs:16:5:
+[Diagnostic { site: Site { file: "schema.q", line: 11, col: 10 }, code: "E_QUARRY_TYPE", message: "docs.byOwner takes (owner: principal); supplied (owner = viewer: principal) pins every key, leaving no column to range over", rewrite: "add id as the final column of byOwner to range over this prefix", guide: "indexes", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 16, col: 11 }, code: "E_QUARRY_TYPE", message: "docs.byOwner takes (owner: principal); supplied (owner = viewer: principal) pins every key, leaving no column to range over", rewrite: "add id as the final column of byOwner to range over this prefix; in a chunk, use `chunk row in docs first 100 by byId:` then `if row.owner != viewer: continue`", guide: "indexes", mechanical: false, cascade_of: None }]
+test round1::point_reads_and_uniform_domains_keep_ordinary_complete_answers ... FAILED
+test round1::forged_non_principal_values_refuse_before_entering_scope ... ok
+authorization fitting run: JobRun { id: "0000000001PVDDZPKJECQPS0XC", name: "inspect", state: Done, sweep: 1, chunks: 2, chunk_size: 8, retries: 3, heap_peak: 481607, rows_written: 32, created_at: 1, updated_at: 1, error: None }
+authorization oversized run: JobRun { id: "000000000140FJAA2W9H2HE5DA", name: "inspect", state: Parked, sweep: 0, chunks: 0, chunk_size: 1, retries: 6, heap_peak: 435518, rows_written: 0, created_at: 1, updated_at: 1, error: Some("E_RULE: comments's read rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count") }
+test round1::authorization_budget_retries_smaller_chunks_and_preserves_single_item_diagnostic ... ok
+
+failures:
+
+failures:
+    round1::every_direct_read_and_helper_refuses_incomplete_results
+    round1::point_reads_and_uniform_domains_keep_ordinary_complete_answers
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 9 filtered out; finished in 9.45s
+
+error: test failed, to rerun pass `-p snapback4-lang --test job_viewer`

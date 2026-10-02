@@ -179,7 +179,16 @@ fn string_literal(value: &str) -> String {
 /// The wire adds execution words without changing the interpreter's IR.
 pub fn backend_programs(bound: &Bound) -> Vec<serde_json::Value> {
     bound.programs.iter().map(|program| {
-        let mut value = serde_json::to_value(&program.program).expect("program JSON");
+        // @ref LLP 3000.007#21.12 — server jobs have no device execution.
+        // Keep their content identity in ordinary IR, without shipping the body
+        // or linking its server-only codecs into the web interpreter.
+        let mut device_program = program.program.clone();
+        if device_program.kind == snapback4_core::ir::ProgramKind::Job {
+            device_program.body = vec![snapback4_core::ir::Stmt::Return(snapback4_core::ir::lit(
+                snapback4_core::Value::String(snapback4_core::value::digest(&program.program)),
+            ))];
+        }
+        let mut value = serde_json::to_value(&device_program).expect("program JSON");
         let facts = serde_json::to_value(&bound.schema.operations[&program.program.name]).expect("execution JSON");
         value.as_object_mut().expect("program object").extend(facts.as_object().expect("execution object").clone());
         value

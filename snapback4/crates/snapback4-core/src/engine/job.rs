@@ -299,7 +299,9 @@ impl Engine {
             let seq = tx.next_seq()?;
             let mut context = Context::system().at(now).with_presence(presence.clone());
             context.args = head.args.clone();
+            context = context.with_generation(self.generation);
             let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+            runner.job_read_scope = 1;
 
             // The sweep's upper key is captured when it begins: a row the body
             // inserts beyond it is never visited, so a sweep over its own
@@ -363,7 +365,7 @@ impl Engine {
                 Err(error) if error.is_refusal() => {
                     tx.rollback_to("job_chunk")?;
                     // @ref LLP 3000.013#5.2 — retry the same atomic chunk; only a one-item meter refusal parks an adaptive sweep.
-                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. }) {
+                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. } | RuntimeError::AuthorizationBudget { .. }) {
                         size /= 2;
                         head.run.retries += 1;
                         continue;

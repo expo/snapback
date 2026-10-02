@@ -1,0 +1,26 @@
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.82s
+     Running tests/job_viewer.rs (target/debug/deps/job_viewer-8ea11a7ff38f7263)
+
+running 4 tests
+test side_effects_and_invalid_scopes_refuse_with_repairs ... ok
+
+thread 'guide_digest_restart_closed_clients_idle_and_legacy_emissions' (1420109) panicked at crates/snapback4-lang/tests/job_viewer.rs:162:52:
+called `Result::unwrap()` on an `Err` value: Store("private store: Operation not permitted (os error 1)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test guide_digest_restart_closed_clients_idle_and_legacy_emissions ... FAILED
+
+thread 'over_budget_recipient_parks_without_partial_effect_or_key' (1420110) panicked at crates/snapback4-lang/tests/job_viewer.rs:140:108:
+called `Result::unwrap()` on an `Err` value: SqliteFailure(Error { code: Unknown, extended_code: 1 }, Some("no such table: _effect_once"))
+test over_budget_recipient_parks_without_partial_effect_or_key ... FAILED
+test random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients ... ok
+
+failures:
+
+failures:
+    guide_digest_restart_closed_clients_idle_and_legacy_emissions
+    over_budget_recipient_parks_without_partial_effect_or_key
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.43s
+
+error: test failed, to rerun pass `-p snapback4-lang --test job_viewer`

@@ -220,6 +220,7 @@ impl Binder<'_> {
                 Ok((Expr::Input(Input::Now), Ty::Time))
             }
             "new" => {
+                if self.viewer_depth.is_some() { return Err(job_reads::read_only(site)); }
                 if self.kind == ProgramKind::Query {
                     return Err(unknown(site, "queries cannot mint ids", "mint ids in a mutation"));
                 }
@@ -492,6 +493,7 @@ impl Binder<'_> {
     }
 
     pub(super) fn call(&mut self, name: &str, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if let Some(result) = self.job_query_call(name, args, site, out) { return result; }
         // Compiler-only references bypass the function catalog entirely.
         let primitive = name.strip_prefix("$builtin:");
         if primitive.is_none() && let Some(function) = self.catalog.functions.get(name).cloned() {

@@ -81613,3 +81613,106 @@ and two interrupted diagnostic probes. No assertions or bounds were weakened.
 Evidence: reports/20261001-rv-bound-only-revocation/REPORT.md, FAILURES.md and
 round2/. Code/test digests stayed unchanged during qualification. Local commit
 with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed or published.
+
+
+## 2026-10-02 — JV round 0: job reads as the recipient
+
+LLP 3000.007 §21.12 extends §21.1's digest contract with a read-only
+`as p.principal:` block inside a job sweep. It calls the same declared Quarry
+query as the UI, through the ordinary server evaluator and authorization path.
+Fresh viewer frames share the chunk transaction, pinned clock, job meter and
+physical authorization allowance. Persona/user/guest/application/service
+principals work without live sessions; system is refused. Writes, emits, ID
+minting and once-consumption attempts receive compile-time repairs. Outer
+locals carry computed values to effects outside the block. `all(query(...))`
+streams the returned cursor to exhaustion, with no per-page meter reset and
+no partial digest on refusal. Called-query changes participate in the job's
+existing generation fence. Native, held and ephemeral-table queries remain
+outside this durable read form.
+
+The jobs card's digest now calls `unreadPreview` under its recipient rather
+than walking memberships as system. Jobs/actions distinguish body authority
+from schedule authority; the language card includes the syntax. All 110 guide
+tests and 142 affected tests pass. Nine new tests include 24 randomized worlds
+(22,680 messages, six principals), field disclosure, removed membership,
+expiry/tombstones, query pagination, earlier writes in the same transaction,
+compile/runtime refusals, generation changes and 17,000-row recipient parking
+without an effect or once key. The archived Calibration #28 schema also runs
+against both digest forms across a persisted restart and idle period.
+
+An additional real-host replay reproduces the calibration's five-person M8
+counts through the SDK worker's durable ledger, closes application connections,
+SIGTERMs/restarts at the 120-second period's midpoint and advances the next idle
+period. Both implementations deliver identical three digest payloads, zero idle
+digests and zero duplicate worker keys (11 effects including message pushes).
+
+The one full `scripts/test.sh` run reports exactly
+`== 0 failure(s) in 1561 s`, exit 0. Rust: 284 binaries / 997 executions and
+doctests pass. Clients: 5,768 passed, zero failed, 10 skipped. Models: 79 passed,
+with 5,000 online + 5,000 local sequences and 3,000 interleavings. Final failures:
+ours 0, baseline 0, environmental 0. Corrected development failures are all
+ours and retained in the report's failure ledger; no baseline claim is made.
+
+Locked Linux wasm measures 2,038,385 B raw / 611,844 B gzip. The new IR codecs
+and device refusal exceed the old 610,782 B cap by 1,062 B; execution itself is
+server-only. Under the user's explicit authorization, the ratchet is 612,474 B:
+Linux + 130 B estimated macOS difference + 500 B headroom. macOS was not
+measured here. Runtime meter ceilings remain unchanged.
+
+Evidence: reports/20261002-jv-job-reads-as-viewer/REPORT.md and FAILURES.md,
+with affected/full-suite/wasm logs and host-replay.mjs. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-02 — JV round 1: complete reads and bounded authority
+
+Addressed Astra's five round-0 findings and Grok's overlapping findings plus
+its direct-ephemeral, flow-diagnostic, cache, device-dispatch and transaction
+clarifications. Adaptive jobs now halve chunks on internal authorization-budget
+exhaustion, retaining E_RULE at size one. Direct reads and declared-query calls
+share the incomplete-result refusal, including non-uniform pages and unavailable
+scalars. Loop placement inherits the sweep while break/continue remain lexical;
+escaping jumps report E_JOB_VIEWER_FLOW. Both authority edges discard pure-call
+refinements, preserving snapshot facts. Forged non-string/non-ID and empty
+principals refuse with E_JOB_VIEWER_PRINCIPAL. Ephemeral reads refuse during
+binding, and each read frame clears its raw lookup cache without replenishing
+its physical allowance or public meter. The jobs guide explicitly states that
+reads see earlier uncommitted chunk writes. LLP 3000.007 §21.12 and LLP
+3000.013 §5.2 record the corrections.
+
+The 300 independent through chains and 16 recipients finish in two chunks of
+eight after three retries, with n=300 for each recipient and 32 unique before/
+after emissions. A recipient doing sixteen such calls parks at size one after
+six retries with E_RULE, no effects and no once keys. Read regressions cover
+point reads, pages, loops, count, sum, exists and helpers. The existing randomized
+property adds 24 owner-ruled worlds and 1,680 direct/query outcomes: 960 incomplete
+answers refuse and 720 complete answers match ordinary queries. Affected tests:
+197 passed, including 110 guide tests, plus the cache-boundary unit test. Exact
+round-0 source rebuilt with the new tests has nine expected failures, including
+all five Astra regressions and the expanded property; the cache test separately
+fails. No new independent-review verdict is claimed.
+
+Device backend jobs now carry an ordinary-IR digest stub of the complete server
+program. Job/query/helper edits still change backend identity; stored server
+bodies and generation hashes stay complete. Web builds omit the two server-only
+builtin variants, and native devices refuse them before argument evaluation,
+including all-loop domains. The actual Wasm witness opens/reopens the stubs and
+rejects the builtins at decode. On freshly rebuilt round-0 Wasm, that same witness
+executes the poison argument for all three forms and fails as expected.
+
+Paired locked Linux builds: main 738d45830c is 2,032,879 B raw / 610,174 B gzip;
+round 1 is 2,032,879 / 610,170, a -4 B gzip delta. Rebuilt round 0 confirms
+2,038,385 / 611,844, so round 1 reclaims 1,674 B gzip. Restore the pre-JV ratchet
+of 610,782 B, leaving 612 B Linux headroom. macOS was not measured; the existing
+cross-host reserve is retained. Runtime ceilings are unchanged.
+
+The single full-suite run exits zero and reports exactly
+`== 0 failure(s) in 1843 s`. Rust: 284 binaries / 997 executions and doctests.
+Clients: 5,768 passed, zero failed, ten skipped. Models: 79 passed, retaining
+5,000 online + 5,000 local sequences and 3,000 interleavings. Final qualification:
+ours 0, baseline 0, environmental 0. No baseline failure claim is made. The
+failure ledger retains corrected development failures and expected negative
+controls. The final reference audit has zero errors and zero unchecked refs.
+
+Evidence: reports/20261002-jv-job-reads-as-viewer/REPORT.md, FAILURES.md and
+round1/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

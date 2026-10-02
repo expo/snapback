@@ -124,6 +124,10 @@ fn body(stmts: &mut [Stmt], inputs: &mut Inputs, functions: &BTreeMap<String, Fu
                     if let (Some(a), Some(b)) = (yes.get(name), no.get(name)) { *optional = *a || *b; true } else { false }
                 });
             }
+            Stmt::As { principal, body: stmts, .. } => {
+                expression(principal, inputs, functions, tables, notes);
+                body(stmts, inputs, functions, tables, notes);
+            }
             Stmt::For { name, domain, body: stmts, .. } => {
                 expression(domain, inputs, functions, tables, notes);
                 let mut changed = BTreeSet::new();
@@ -140,7 +144,7 @@ fn assignments(stmts: &[Stmt], names: &mut BTreeSet<String>) {
     for stmt in stmts { match stmt {
         Stmt::Bind { names: bound, .. } => names.extend(bound.iter().cloned()),
         Stmt::If { then_body, else_body, .. } => { assignments(then_body, names); assignments(else_body, names); }
-        Stmt::For { body, .. } => assignments(body, names), _ => {},
+        Stmt::As { body, .. } | Stmt::For { body, .. } => assignments(body, names), _ => {},
     } }
 }
 fn expression(value: &mut Expr, inputs: &Inputs, functions: &BTreeMap<String, FunctionDecl>, tables: &BTreeMap<String, TableInfo>, notes: &mut Vec<Diagnostic>) {

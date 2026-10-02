@@ -128,7 +128,7 @@ fn adjacent(body: &[S], name: &str, left: &A, right: &A) -> bool {
                 || (else_body.len() == 1 && then_body.is_empty() && assigns(&else_body[0], right))))
     }) || body.iter().any(|statement| match statement {
         S::If { then_body, else_body, .. } => adjacent(then_body, name, left, right) || adjacent(else_body, name, left, right),
-        S::For { body, .. } => adjacent(body, name, left, right),
+        S::As { body, .. } | S::For { body, .. } => adjacent(body, name, left, right),
         _ => false,
     })
 }
