@@ -140,6 +140,7 @@ impl crate::schema::Schema {
                     ("parked".into(), C::Bool),
                     ("at".into(), C::Time),
                     ("deadline".into(), C::Optional(Box::new(C::Time))),
+                    ("version".into(), C::Optional(Box::new(C::Text { max: 64 }))),
                 ]),
                 BTreeMap::from([
                     ("byId".into(), Index::of(&["id"], true)),

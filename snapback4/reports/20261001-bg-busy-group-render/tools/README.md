@@ -140,3 +140,21 @@ This validates the retained final traces and writes `round1/qualification-final.
 It accepts raw or gzip-compressed JSON. Rebuild the normal SDK and server after
 measurement to remove ignored instrumentation artifacts. Qualification does not
 publish or push anything.
+
+## Round 2
+
+The fixture, sample counts, profiles and idle p95 assertion are unchanged. Use
+`/tmp/bg-round2-production` and `/tmp/bg-round2-dev` for the instrumented binaries,
+with outputs under `round2/`. The candidate can reuse a copy of the round-0
+`BG_SEED_CACHE`; adding the optional work version causes atomic count adoption.
+Round 2's negative control is `python3 tools/negative-control-round2.py` (paths
+relative to this report). It installs the relevant `4277a65cf4` production files,
+requires both property tests and the exact-page regression to fail assertions,
+and restores the candidate. Run without concurrent builds or source edits.
+
+After the two BG scenarios, their summaries and the unchanged LL harness, run
+`BG_ROUND=round2 python3 reports/20261001-bg-busy-group-render/tools/qualify-round1.py`
+from `snapback4/`; the original trace validator now accepts the report subdirectory.
+The full suite runs once with ordinary sources/client artifacts restored. Its
+wasm digest must equal the artifact used by the measurements; retain its exact
+terminal summary and every failed test even when a later affected rerun repairs it.

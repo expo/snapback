@@ -54,6 +54,7 @@ fn durable_schema_and_types_keep_base_bytes() {
         assert_eq!(*columns, serde_json::json!({"at": "Time", "id": "Id"}));
         columns["deadline"] = serde_json::json!({"Optional": "Time"});
         columns["version"] = serde_json::json!({"Optional": {"Text": {"max": 64}}});
+        schema["tables"]["$recount:unread"]["columns"]["version"] = serde_json::json!({"Optional": {"Text": {"max": 64}}});
         *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap();
     }
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());

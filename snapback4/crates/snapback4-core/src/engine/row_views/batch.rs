@@ -101,7 +101,10 @@ impl Runner<'_> {
         let scratch = self.rule_scratch(&source.rules.read);
         let internal = (self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes);
         let caller = self.caller_heap_ceiling;
-        let (limit, used) = caller.unwrap_or(internal);
+        // Prepaid scopes relax the ceiling, but retain the occupied heap.
+        // The saved caller usage predates the batch vectors/member images.
+        let limit = caller.map_or(internal.0, |(limit, _)| limit);
+        let used = internal.1;
         let reuse = probe_small && self.certification_scratch(m) <= limit.saturating_sub(used);
         let certificate = if reuse { self.certification_scratch(m) } else { 0 };
         let single_bytes = decoder.saturating_add(scratch).max(certificate);
@@ -111,7 +114,6 @@ impl Runner<'_> {
             .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32)).max(certificate);
         let page = if page_bytes <= limit.saturating_sub(used) { 32 } else { 1 };
         self.meter.ceilings.heap_bytes = limit;
-        self.meter.used.heap_bytes = used;
         let result = (|| {
             self.meter.heap(if page == 32 { page_bytes } else { single_bytes })?;
             // Nested public witnesses must see the reservation as occupied too.

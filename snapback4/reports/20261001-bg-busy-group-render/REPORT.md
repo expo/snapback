@@ -612,3 +612,211 @@ matches the corrected focused-test artifact stated above. `round1/final-artifact
 binds source inputs, measurement binaries and wasm; `SHA256SUMS` covers the report
 and retained evidence. LLP 3000.015 §3 owns the count design, LLP 3000.013 §6 owns
 the concurrent authority-read rule, and one dated journal entry records this round.
+
+## Round 2 — rollback-safe counts and occupied heap admission
+
+Base: `4277a65cf4`. Astra's two new high-severity count findings and Grok's
+inherited heap-admission finding are reproduced before the fixes. The round-1
+client batching change is unchanged. This round has no push or publication.
+
+**Rule and tradeoff.** A reusable numerical certificate now requires a
+non-expiring member table. Maintenance's live-recipient index deliberately skips
+expired members; a later rollback can revive a member after arbitrarily many
+missed inserts, edits, deletes, moves or sweeps. Neither its old basis timestamp
+nor its next source deadline accounts for those omissions. Every expiring-member
+read therefore uses the existing authorized walk, including members with a null
+current deadline and inherited-expiry tables. The rule is based on the declaration,
+requires no traversal of an unbounded expired-member backlog, and preserves the
+non-expiring-member fast path used by the busy-group fixture. Fresh member/group
+authority remains in the delivery transaction, including expiring grants.
+
+A recount restarts its cursor, total and deadline when `now < work.at`, as well
+as when its contributing deadline becomes due. Its saved time is the latest
+clock that built the prefix. Both completed evidence and private recount work
+carry the `count-basis-v2` digest. A legacy prefix could already be incomplete
+before this fix, so missing or mismatched work versions also restart. The work
+version is optional during legacy validation; changed private work schemas
+trigger the existing atomic adoption rebuild. A source delta never upgrades
+old evidence. Separate tests reject a corrupted round-1 completed certificate
+and a persisted old partial prefix whose time had already moved backwards.
+
+Page and certificate admission retain the outer caller ceiling but use the
+current heap occupancy, including the batch's vectors, output reservation and
+member images. They no longer assign the saved caller usage back to the meter.
+The new boundary regression pins **716,544 B** for the declared 32-row page and
+**9,441 B** of intervening batch occupancy. Direct and nested calls both use one
+row at page-minus-one and 32 rows at the exact page size and page-plus-one;
+this also runs with 17,000 B already occupied before the batch. Existing large
+payload, witness, finite-heap and stream cases remain in the affected cohort.
+Scalar certificate selection uses current occupancy too.
+
+**Clock inputs actually exposed by the server.** Release serving reads
+`SystemTime` through `now_ms()`, so a backwards wall-clock correction from NTP
+or around a VM resume can be visible. Resume alone does not imply a rollback.
+A running dev clock uses `Instant` elapsed time and rejects negative
+`clock advance`; that control cannot rewind it. Restarting dev with a different
+`--clock-offset`, explicit `run --now` values, and core `Context::at` / recount
+inputs can supply earlier times across durable operations. Transactions pin
+their operation time; the implementation assumes no cross-transaction monotonicity.
+The code audit and chosen rule are recorded in LLP 3000.015 §3.
+
+**Independent proof and negative controls.** The two literal review reproductions
+fail on unchanged round 1: stream 0 versus independently expected/full-acquisition
+1 at time 9, and 1,100 versus 1,101 at time 2. The exact-page test fails because
+the nested caller admits 32 rows with one byte too little remaining space.
+These are assertion failures (exit 101), not build errors. Retained evidence:
+`round2/rollback-round1-control.log`, `heap-round1-control.log`.
+
+The extended property uses the same eight seeds, now with 1,225–2,192 initial
+sources, generated review-counterexample prefixes, and 300 steps per seed:
+
+| Member declaration | Seeds | Model/scalar comparisons | Full-acquisition comparisons |
+| --- | --- | ---: | ---: |
+| Non-expiring | 1, 28, 195939070, 305419896 | 22,530 | 1,200 |
+| Expiring | 7, 20261002, 3735928559, 24301 | 21,759 | 1,200 |
+
+Across **2,400 steps** (80 generated-prefix steps, 2,320 random actions), it
+executes **638 committed recount chunks**, **138 interrupted chunks**, 61 random
+backward and 76 random forward clock moves, 163 failed source transactions,
+and **330 actual SQLite close/reopens**. Expiring grants, member deadlines,
+source expiry, tombstones, sender exclusion, joined/seen floors, rule adoption,
+ordinary message/reaction aggregates and deliveries interleave with that work.
+Interrupted source writes inject an error after ordinary contribution maintenance;
+interrupted recounts drop their transaction before commit. Durable source, member,
+count, basis and work rows must match their before-images after rollback. This
+is transaction interruption/reopen coverage, not a power-loss hardware claim.
+
+The oracle owns independent maps of source, member, grant and reaction facts.
+It evaluates the fixture's comparisons and lifetimes directly; it never uses
+`RowKey::matches`, cached counts, evidence deadlines or the engine's live-row
+selector to compute expected values. Stream delivery is additionally compared
+with scalar reads and full authorized acquisition in the same transaction.
+Expired unswept members/grants stay in the model so rollback can revive them.
+
+The expanded properties fail on round 1 for **both** counterexamples: seed 7,
+step 2 gives 0 versus 1,328, and seed 1, step 8 gives 1,761 versus 1,762.
+`tools/negative-control-round2.py` restores the exact relevant round-1 production
+sources for these runs, requires the intended assertion failures, and restores
+all candidate files in `finally`. The final negative controls and final affected
+suite are retained. **42/42** affected Rust tests pass. The 50-member 10k/100k
+work regression remains **(recertified source rows, public examined, public steps)
+= (0, 100, 100)** at both populations. Guide **110/110** and frozen-schema
+compatibility pass without changing a budget.
+
+**Busy-group remeasurement.** Same production flags, copied round-0 seed,
+50 members, 10,000 messages, three Chromium wasm devices, mounted 20-row history,
+500-row acquisition, automatic delivery/seen reporting and 50 sends per condition.
+The new work schema is adopted on startup. Each run yields 100 remote renders
+and 150 active-device notification observations, with no timeout or browser error.
+No BG build/test runs during measurement. Milliseconds, median / p95 / maximum:
+
+| Condition | Round 0 | Round 1 | Round 2 |
+| --- | ---: | ---: | ---: |
+| Idle | 330.6 / 377.8 / 433.5 | 132.5 / 187.0 / 250.3 | 136.4 / 203.5 / 225.2 |
+| 96 burners | 706.8 / 1,075.2 / 1,202.9 | 234.3 / 328.3 / 449.4 | 238.6 / 339.6 / 346.3 |
+
+Round 1's large improvement is preserved; this is not a claim of identical
+latency. P95 is 16.5 ms (+8.8%) higher idle and 11.3 ms (+3.4%) higher loaded
+than the recorded round-1 runs, with lower maxima. Idle still passes p95 <250 ms.
+Both conditions recertify zero history rows in all 100 remote deliveries.
+CPU during measured sends is 7.03 / 7.89 / 9.14% idle (21 samples) and
+99.57 / 99.84 / 99.88% loaded (40 samples). All 96 normal-priority burners
+remain alive for the loaded scenario and are reaped afterward. The host is shared,
+not exclusively reserved. Toolchain/profile/environment and binary hashes are
+retained under `round2/`; these are Linux EPYC measurements, not Mac predictions.
+
+| Stage | Idle round 1 p95 | Idle round 2 p95 | Loaded round 1 p95 | Loaded round 2 p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Send → request | 62.9 | 70.8 | 147.5 | 154.6 |
+| Request → commit | 7.8 | 8.0 | 19.7 | 21.3 |
+| Commit → notification | 10.9 | 13.2 | 144.5 | 64.5 |
+| Notification → sync request | 43.4 | 44.6 | 67.6 | 73.1 |
+| Sync request → EOF | 12.9 | 15.3 | 31.2 | 26.4 |
+| Live-count certification | 1.088 | 1.066 | 4.205 | 2.343 |
+| Response → apply start | 3.3 | 3.3 | 7.8 | 6.8 |
+| Device apply | 16.0 | 16.0 | 20.9 | 24.1 |
+| Apply end → history end | 30.1 | 26.6 | 54.8 | 52.2 |
+| History query | 25.1 | 23.8 | 17.0 | 18.1 |
+| Decorations query | 27.0 | 23.9 | 50.1 | 42.8 |
+| History end → public observation | 49.3 | 48.6 | 98.3 | 68.1 |
+| Publication → React | 1.1 | 1.1 | 3.2 | 4.5 |
+
+Send stages have 50 samples, remote stages 100. Overlapping intervals and
+percentiles are not additive; notification may follow an already-active sync.
+Complete stage summaries and client attribution remain beside each trace.
+
+**LL control.** Unchanged harness, `LL_KEEP=viewed`, wasm, matching debug server,
+20 repetitions of each flow: 160 samples, no timeout. Commit → React milliseconds:
+
+| Flow | Round 1 median / p95 / max | Round 2 median / p95 / max |
+| --- | ---: | ---: |
+| profile | 37.6 / 45.0 / 45.0 | 34.5 / 40.0 / 41.9 |
+| reaction-add | 39.6 / 44.2 / 102.5 | 34.7 / 41.3 / 42.1 |
+| reaction-replace | 38.6 / 41.5 / 41.7 | 36.7 / 40.5 / 40.6 |
+| reaction-remove | 40.2 / 48.3 / 48.4 | 37.9 / 42.5 / 44.2 |
+| reply | 82.7 / 89.8 / 95.6 | 77.0 / 86.3 / 100.3 |
+| photo | 87.8 / 95.9 / 98.5 | 79.3 / 89.0 / 90.7 |
+| feed-image | 43.1 / 48.3 / 51.1 | 34.0 / 44.1 / 46.0 |
+| once-photo | 84.5 / 90.6 / 93.9 | 71.5 / 89.0 / 102.2 |
+
+LL has neither a row-keyed count view nor the app authority facade. It remains
+a control for incidental effects, not a measurement of either BG optimization.
+Media readiness is separate and retained in the unchanged harness output.
+
+**Wasm.** 2,015,329 B raw / **605,005 B gzip**, measured with the build script's
+`gzip -9 -c FILE`: +0 raw / +2 gzip versus round 1. The unchanged ratchet is
+605,225 B, leaving 220 B on Linux; the reported 110–130 B macOS difference
+would leave 90–110 B. No ceiling is raised and no Mac measurement is claimed.
+`round2/wasm.json` binds the measured artifact. The full suite rebuild
+matches its SHA-256, binding these measurements to the final artifact.
+
+**Failures and dispositions.** Expected red controls are listed above. All
+unexpected development failures are retained and classified in
+`round2/failure-ledger.json`:
+
+- **Ours, corrected:** the first heap test draft called a nonexistent footprint
+  helper (`test-draft-compile.log`). It now prices the member through the authorized
+  image boundary plus the declared batch allocations. Two setup edit attempts also
+  used repository-relative paths from the nested workspace and were rerun correctly.
+- **Ours, corrected:** the first expanded property wrongly removed born-expired
+  members from its model (seed 3735928559, step 259, `row-views-first.log`). Such
+  recipients and grants stay physically stored until retirement and can revive.
+  The corrected full property and final 42-test cohort both pass, with no production
+  change made to accommodate that incorrect model assumption.
+- **Ours, corrected:** staging flagged three raw tool logs with trailing blank
+  lines. Their exact bytes are preserved as gzip files; the staged whitespace
+  check then passes.
+- **Environmental measurement-condition failure:** the first attempted idle run
+  completed all 50 sends at 177.8 / 273.0 / 309.2 ms, then failed the p95 <250
+  assertion. CPU samples during sends are 99.19% median / 99.66% p95, with another
+  lane's `node scripts/contended-reads.mjs` owning the burner workers (parent
+  PID 352240, lane CT). It is retained as `external-load-attempt`, not silently
+  counted as idle or discarded. All 100 deliveries still recertify zero history
+  rows. After that load ended, the complete idle phase was repeated and passes
+  with the utilization recorded above. No other lane's processes were stopped.
+
+**Complete suite (one invocation).** Exact terminal summary:
+
+```text
+== 0 failure(s) in 1635 s
+```
+
+All original phases ran. Rust passed (634 s); the client pool passed **5,745**
+tests with ten existing skips, zero failures and zero cancellations out of 5,755
+(597 s); all **79** serial model cases passed (307 s). No full-suite correction
+or affected-phase rerun was needed. Full-suite failures: **ours 0, baseline 0,
+environmental 0**. The complete guide/compatibility run and final affected Rust
+cohort passed before this invocation. Reference validation also passes.
+
+The suite's rebuilt wasm is byte-identical to the measured artifact, and the
+restored normal client `app.js` digest remains
+`d998f75a5141cf077a42c855bc444ec9b2d3c02b70f5d352e6778e1fe147d260`, matching
+round 1. Temporary server instrumentation was restored before the suite; the
+ignored client instrumentation was removed by the ordinary SDK build.
+
+
+The scenario validator passes (`round2/qualification-final.json`), including
+all renders, notifications, windows, zero history work, owned/reaped burners,
+idle p95 assertion and all LL samples. LLP 3000.015 §3 and the guide describe
+the revised rule; one append-only journal entry records this round. Source and
+artifact hashes and the complete evidence set are bound by the report checksums.

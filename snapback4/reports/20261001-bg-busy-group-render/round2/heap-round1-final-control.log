@@ -1,0 +1,18 @@
+    Finished `test` profile [optimized] target(s) in 0.04s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+thread 'engine::row_views::batch::tests::batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers' (349346) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:632:17:
+page=716544 occupied=9441 extra=0 remaining=716543 nested=true: [32, 32, 32, 32, 32]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::batch::tests::batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::batch::tests::batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

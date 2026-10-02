@@ -706,9 +706,9 @@ recounts use the null and future ranges of the parent/expiry index, seeking past
 expired inputs. An abandoned probe stays charged against the writer's recount
 allowance; a count that cannot finish leaves a pending recount and commits the mark.
 Server reads certify the current live range, including counts above the
-writer allowance. A settled server basis can reuse its count while its schema,
-rule and disclosure version matches and its earliest contributing deadline has
-not arrived. Source writes maintain that proof with the count. Every read still
+writer allowance. For non-expiring members, a settled server basis can reuse its
+count while its version matches, its basis is not in the future, and its deadline
+has not arrived. A recount restarts its prefix on clock rollback. Source writes maintain that proof with the count. Every read still
 checks current member and source-group authority. Pending, due or unsupported
 row-dependent disclosure cases use the full authorized live recount.
 Historical pending work never selects completeness or count-dependent refusal.

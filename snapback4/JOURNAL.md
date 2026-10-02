@@ -81507,3 +81507,59 @@ No ratchet increase. Final scenario qualification passes, including idle p95 <25
 Report, before/after stage tables, all failure dispositions, seeds, binary/source
 hashes and traces: reports/20261001-bg-busy-group-render/REPORT.md. Local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-02 — BG round 2: count correctness across clock rollback
+
+Resolved both round-1 count regressions and the inherited heap rewind. Numerical
+certificates now apply only to non-expiring member tables: expired recipients
+can miss arbitrary source deltas and then revive after rollback, so their reads
+always use the authorized live walk. Recounts discard cursor/total/deadline when
+now precedes their saved time. Completed evidence and pending prefixes carry
+count-basis-v2; missing/old work versions restart, and private work schema changes
+use the existing atomic adoption rebuild. Scalar and batch certificate/page
+admission use current occupied heap with the saved caller ceiling. The direct
+and nested page boundary is 716,544 B plus 9,441 B of live batch allocations;
+page-minus-one uses one row, exact and plus-one use 32. LLP 3000.015 §3 and the
+guide state the rule. Release SystemTime can move backwards; running dev uses
+Instant and positive advances, while restart offsets and explicit run --now
+can supply earlier operation times. No cross-transaction monotonicity is assumed.
+
+Both literal review reproductions and both expanded properties fail on 4277a65cf4
+for count mismatches, and the heap regression fails at its intended boundary.
+The final affected cohort passes 42 tests. Eight seeds × 300 steps, 1,225–2,192
+initial sources: 44,289 model/scalar comparisons and 2,400 full-acquisition
+comparisons, 638 committed and 138 interrupted recount chunks, 61 random backward
+and 76 forward moves, 163 interrupted source transactions and 330 actual SQLite
+reopens. The oracle keeps independent row facts, including unswept expired members
+and grants. Interrupted count/evidence/work state must equal its before-image.
+The 10k/100k work regression remains (0 source certifications, 100 examined,
+100 steps) at both sizes. Guide 110/110 and frozen-schema compatibility pass.
+
+Final production Chromium BG send-to-slower-render median/p95/max is
+136.4/203.5/225.2 ms idle and 238.6/339.6/346.3 ms under 96 owned burners,
+versus round 1's 132.5/187.0/250.3 and 234.3/328.3/449.4. The large round-1
+improvement is retained; p95 increases 16.5 and 11.3 ms, with lower maxima.
+Each condition has 50 sends, 100 remote renders, all active-device notifications
+and zero history rows recertified. Measured CPU is 7.03% median idle and 99.57%
+loaded; all 96 burners are reaped. The unchanged LL harness passes 160 samples
+with no timeout; once-photo p95 is 89.0 ms (round 1: 90.6).
+
+An initial purported idle measurement actually ran under lane CT's 99% CPU load:
+177.8/273.0/309.2 ms, failing p95 <250. Its complete trace and CPU/process evidence
+are retained as environmental evidence; the quiet-window repeat above passes.
+Development errors were ours and corrected: a nonexistent test footprint helper,
+two setup cwd errors, and a model that incorrectly removed born-expired recipients.
+No production change accommodates that model error. All dispositions are retained.
+
+scripts/test.sh ran once: `== 0 failure(s) in 1635 s`. Rust passes; the client
+pool passes 5,745 tests with ten existing skips and zero failures/cancellations;
+all 79 serial models pass. Full-suite failures: ours 0, baseline 0, environmental 0.
+No post-suite code correction or affected-phase rerun was necessary.
+
+Wasm is 2,015,329 B raw / 605,005 B gzip, +2 gzip versus round 1, within the
+unchanged 605,225 B ratchet. Linux headroom is 220 B; the reported macOS difference
+would leave 90–110 B. The full-suite rebuild is byte-identical to the measured
+artifact. Client app.js remains byte-identical to round 1. Report, exact suite
+summary, seeds, negative controls, all traces and artifact hashes:
+reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

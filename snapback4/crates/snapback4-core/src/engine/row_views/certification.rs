@@ -9,7 +9,7 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         // Includes rules, audience, field disclosure, defaults, effective expiry
         // and the predicate. Witness *data* is checked fresh, never cached here.
-        let version = crate::value::digest(&("count-basis-v1", m,
+        let version = crate::value::digest(&("count-basis-v2", m,
             &self.schema.tables[&m.source], &self.schema.tables[&k.table]));
         self.count_version = Some((m.target.clone(), version.clone()));
         version
@@ -32,7 +32,10 @@ impl Runner<'_> {
         // sealed per-source path. Recorded member inputs are stripped by the
         // query projection too. Private member predicates already require an
         // owner-only read rule at schema admission.
-        if self.device || source.through.is_some() || !source.recorded.is_empty()
+        // Expiring recipients can miss source deltas while absent, then become
+        // live again after rollback. Their stored numerical basis is not proof.
+        // This includes inherited expiry and avoids walking expired recipients.
+        if self.device || self.schema.tables[&k.table].is_expiring() || source.through.is_some() || !source.recorded.is_empty()
             || !self.schema.tables[&k.table].recorded.is_empty()
             || source.written_by.values().any(|field| !field.audience)
             || self.schema.maintain_for(&m.source).is_some()

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Check the retained final BG/LL traces and report CPU during measured sends."""
-import gzip, json, math
+import gzip, json, math, os
 from pathlib import Path
 
-root = Path(__file__).resolve().parents[1] / 'round1'
+root = Path(__file__).resolve().parents[1] / os.environ.get('BG_ROUND', 'round1')
 
 def read(name):
     path = root / (name + '.json')

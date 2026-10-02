@@ -257,6 +257,7 @@ pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &cra
     #[cfg(feature = "sqlite")]
     if maintain.row_key.is_some()
         && (from.table(&maintain.source) != to.table(&maintain.source)
+            || from.table(&maintain.work_table()) != to.table(&maintain.work_table())
             || from.table(&format!("$basis:{}", maintain.target)) != to.table(&format!("$basis:{}", maintain.target))) {
         return true;
     }

@@ -508,7 +508,9 @@ impl Runner<'_> {
                     self.view_delete(&work_name, &work, true)?;
                 }
             } else {
+                let version = self.view_certification_version(m);
                 let next = object([
+                    ("version", Value::String(version)),
                     ("id", Value::Id(id.into())),
                     ("cursor", Value::Null),
                     ("total", Value::Int(0)),
@@ -604,7 +606,8 @@ impl Runner<'_> {
                                 // value through bounded work, never an unreserved hidden source scan.
                                 let row=r.view_image(m,&member,0,true)?;
                                 r.view_put(&m.target,&row,None,false)?;
-                                let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
+                                let version = r.view_certification_version(m);
+                                let work=object([("version",Value::String(version)),("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
                                 r.view_put(&m.work_table(),&work,None,true)?;
                             }
                         }
@@ -742,7 +745,8 @@ impl Runner<'_> {
         if self.schema.tables[&m.source].is_expiring() {
             #[cfg(feature = "sqlite")]
             if !self.device {
-                let (limit, used) = self.caller_heap_ceiling.unwrap_or((self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes));
+                let limit = self.caller_heap_ceiling.map_or(self.meter.ceilings.heap_bytes, |(limit, _)| limit);
+                let used = self.meter.used.heap_bytes;
                 let reuse = self.certification_scratch(m) <= limit.saturating_sub(used);
                 let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source])
                     .max(if reuse { self.certification_scratch(m) } else { 0 });
@@ -802,7 +806,10 @@ impl Runner<'_> {
         let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
         let existing = self.view_get(&m.target, id)?;
         let now = self.context.now.unwrap_or(0);
-        let restart = work.field("deadline").ok().and_then(|v|v.as_int().ok()).is_some_and(|until|until<=now);
+        let version = self.view_certification_version(m);
+        // Old work can already contain a prefix miscertified across rollback.
+        let restart = work.field("version").ok().and_then(|v| v.as_str().ok()) != Some(version.as_str())
+            || now < number(work, "at") || work.field("deadline").ok().and_then(|v|v.as_int().ok()).is_some_and(|until|until<=now);
         let cursor = if restart { &Value::Null } else { work.field("cursor")? };
         let bounds = match cursor {
             Value::Id(id) => Bounds { after: Some(vec![Value::Id(id.clone()),Value::Id(id.clone())]), ..Default::default() },
@@ -826,6 +833,7 @@ impl Runner<'_> {
             self.view_delete(&m.work_table(), work, true)
         } else {
             let next = object([
+                ("version", Value::String(version)),
                 ("id", Value::Id(id.into())),
                 (
                     "cursor",
