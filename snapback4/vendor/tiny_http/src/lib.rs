@@ -113,7 +113,7 @@ use util::MessagesQueue;
 pub use common::{HTTPVersion, Header, HeaderField, Method, StatusCode};
 pub use connection::{ConfigListenAddr, ListenAddr, Listener};
 pub use request::{ReadWrite, Request};
-pub use limits::{AdmissionRefusals, ConnectionLimits};
+pub use limits::{descriptor_exhaustions, AdmissionRefusals, ConnectionLimits};
 pub use response::{Response, ResponseBox};
 pub use test::TestRequest;
 
@@ -320,6 +320,7 @@ impl Server {
             let tasks_pool = limits.is_none().then(util::TaskPool::new);
 
             log::debug!("Running accept thread");
+            let mut backoff = limits::AcceptBackoff::new();
             while !inside_close_trigger.load(Relaxed) {
                 let new_client = match server.accept() {
                     Ok((sock, _)) => {
@@ -334,11 +335,15 @@ impl Server {
                             };
                             match limits::ConnectionState::new(&sock, limits.clone(), lease) {
                                 Ok(state) => Some(state),
-                                Err(_) => continue,
+                                Err(error) => {
+                                    drop(sock);
+                                    backoff.exhausted(&error);
+                                    continue;
+                                }
                             }
                         } else { None };
                         use util::RefinedTcpStream;
-                        let (read_closable, write_closable) = match ssl {
+                        let streams = match ssl {
                             None => RefinedTcpStream::new(sock),
                             #[cfg(any(feature = "ssl-openssl", feature = "ssl-rustls"))]
                             Some(ref ssl) => {
@@ -355,13 +360,36 @@ impl Server {
                             Some(ref _ssl) => unreachable!(),
                         };
 
-                        Ok(ClientConnection::new(write_closable.with_limits(state.clone()), read_closable.with_limits(state.clone()), state))
+                        // Socket duplication may fail under descriptor pressure.
+                        // Drop this connection and its lease, keeping the listener
+                        // alive; never unwind or strand recv() on a dead intake.
+                        let (read_closable, write_closable) = match streams {
+                            Ok(streams) => streams,
+                            Err(error) => {
+                                drop(state);
+                                backoff.exhausted(&error);
+                                continue;
+                            }
+                        };
+                        match ClientConnection::new(write_closable.with_limits(state.clone()), read_closable.with_limits(state.clone()), state) {
+                            Ok(client) => Ok(client),
+                            Err(error) => {
+                                backoff.exhausted(&error);
+                                continue;
+                            }
+                        }
                     }
-                    Err(e) => Err(e),
+                    Err(e) => {
+                        if backoff.exhausted(&e) { continue; }
+                        Err(e)
+                    },
                 };
 
                 match new_client {
                     Ok(client) => {
+                        // An accepted socket alone is not recovery: every clone
+                        // must succeed before resetting the exhaustion delay.
+                        backoff.reset();
                         let messages = inside_messages.clone();
                         let mut client = Some(client);
                         let bounded = limits.is_some();

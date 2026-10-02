@@ -82035,3 +82035,135 @@ the revised policy. The [round-4 report](./reports/20261001-ct-contended-reads/R
 retains every trial, failure, command and custody record. The Apartment mini
 timing remains with the operator. Local commit with the requested Astra trailer;
 nothing pushed or published.
+
+
+## 2026-10-02 — FDL round 0: descriptor headroom and fallible socket clones
+
+Measured the whole binary unit suite on eb1000 before changing limits: soft
+1024 failed five tests with EMFILE; soft 4096 passed 234 with four ignores,
+peaking at 1,197 descriptors with 96 tests active. Serial execution passed,
+peaked at 249 and returned to three descriptors in quiet intervals. The peak
+socket census shows 149 active sockets with five descriptors each. No lasting
+request-pool, connection or SQLite descriptor leak was found.
+
+`dev` and `serve` now attempt once to raise soft NOFILE to the hard limit,
+capped at 65,536 and additionally OPEN_MAX/kern.maxfilesperproc on Darwin.
+Higher existing soft limits, hard limits and admission caps are preserved.
+Failure is nonfatal and logged once; live dev doctor reports the same attempt.
+The shared server-test helpers apply the same policy through a Once. Vendored
+tiny_http closes a connection whose read/write or abort-handle clone fails,
+releases its lease and keeps accepting. Requests share one abort handle per
+connection, taking active bounded sockets from five descriptors to four.
+Real EMFILE subprocesses cover each clone stage; a child starting at soft 256
+holds over 1024 descriptors across eight servers and checks complete release
+through three cycles, including weak engine/admission owners.
+
+The single complete suite, launched from shell soft 1024, reports exactly
+`== 0 failure(s) in 1506 s`: all Rust targets/doctests, 110 guide tests,
+27 lifecycle tests, 5,768 client tests (ten skips), and 79 models pass. Its
+binary target passes 237/0 with four ignores. Five direct runs of that exact
+unit build at soft 1024 yield four passes and one baseline witness-lock failure;
+five at soft 256 yield three passes and two occurrences of the same baseline
+failure. No patched valid unit run hits EMFILE. The unchanged baseline
+reproduces that ownership refusal at soft 4096; it is ticketed. Every exploratory
+run, environmental timing failure and corrected development/harness mistake is
+retained in the [FDL report](./reports/20261002-fdl-fd-limit/REPORT.md).
+Darwin's exact limit module type-checks on Linux; no Mac runtime result is claimed.
+
+Wasm is 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged 610,782 B
+ratchet. LLP 3000 §7, the guide, vendor patch record and report land with the
+code. Local commit with the requested Astra trailer; nothing pushed or published.
+
+
+## 2026-10-02 — FDL round 1: paced exhaustion and visible effective limits
+
+Addressed both READY WITH CHANGES reviews of f3870cd985. Vendored tiny_http
+now releases a failed connection before sleeping on EMFILE/ENFILE. The accept
+thread starts at 1 ms, doubles to a 100 ms cap and resets only when a complete
+connection is constructed. Accept exhaustion also retries when no descriptor
+is free. A separate process-wide saturating exhaustion counter reaches live
+doctor; clone failures close transports and never become admission refusals.
+Startup and doctor warn below effective soft 2,048, including soft=hard=1,024
+where no setter can run, and name the operator's hard-limit remedy. That is
+headroom over the measured parallel-server workload, not a per-server minimum.
+Direct listener helpers now initialize every affected test binary independently,
+including HTTP, constrained latency sockets and replay/token/witness mocks.
+
+The real Linux backlog regression holds the child at its descriptor limit while
+an independent parent replenishes the backlog. At zero/one/two/three free slots,
+final accept-thread CPU was 0.354/1.162/1.760/1.900 ms per one wall second, with
+16 counted attempts in every case and subsequent serving restored. Removing
+only the sleep failed all four cases: 1,000.093/543.976/598.837/703.394 ms CPU,
+with 1,979,922/24,216/24,800/25,296 attempts. The negative control is retained.
+
+Claims are limited to observed workloads: Astra's round-0 live probe returned
+from 268 to 12 descriptors across 30 cycles and 38,400 keep-alive requests,
+including idle expiry; no hours-long stability claim. The operator's office M1
+ran the whole binary unit suite on f3870cd985 at soft 256, passing 238/238 in
+three of three runs, with unlimited hard NOFILE, launchd soft 256 and
+kern.maxfilesperproc 245,760. This is operator-supplied round-0 runtime evidence.
+Children inherit the raised soft limit; Node raises its own further up to the
+unchanged hard limit (Astra observed server/watchdog 65,536, Node 1,048,576).
+
+The one complete final-source suite at shell soft 1,024 reports exactly
+`== 0 failure(s) in 1634 s`: all Rust targets/doctests, fixture checks, both
+app typechecks, 5,768 client tests (ten skips), and 79 models pass. The final
+direct affected run also starts at soft 1,024: 342 passed, zero failed, four
+existing ignores across eight targets; the guide passes 110/110. No baseline
+or environmental failure occurred in these final validations. Our first guide
+edit displaced asset-recovery excerpt facts and failed one test; moving the
+paragraph fixed it. An early suite launched before inspecting that result was
+stopped, exited 143 and has no summary; it is kept separately from final proof.
+The initial command-path mistake and expected sleep-removal failures are also
+classified in the [round-1 report and ledger](./reports/20261002-fdl-fd-limit/REPORT.md#round-1--review-corrections-2026-10-02).
+
+Wasm remains 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged ratchet.
+LLP 3000 §7, the guide, vendor patch record and scoped report accompany the code.
+Local commit with the requested Astra trailer; nothing pushed or published.
+
+
+## 2026-10-02 — FDL round 2: doctor advice follows server headroom
+
+Closed both round-1 review requests on 00a96f16b7. Doctor now uses the live
+server's effective descriptor report without adding advice from its own
+process. Without a live report, it labels its limits as inherited and explains
+the server's startup raise. Soft 1,024 / hard 1,048,576 targets 65,536 without
+warning or restart advice; hard or platform ceilings below 2,048 name the
+limiting host setting. An actual low live limit remains visible, with an
+otherwise possible raise directed to its startup failure. Startup is still
+best-effort, and admission, hard limits, backoff and socket ownership are
+unchanged. Both latency/token UDP route probes now initialize before binding.
+
+Unit tests cover the Linux default, hard cap, live reporting, macOS OPEN_MAX
+and a lower host ceiling. The subprocess regression caps doctor itself at
+soft=hard=1,024 while inspecting the independently initialized server. Native
+macOS was not rerun; its ceiling cases are pure policy tests on Linux.
+Direct affected tests from shell soft 1,024 pass 373 with zero failures and
+four existing ignores; the guide passes 110/110. The reference audit has
+525 LLP documents, 10,085 references and zero errors or unchecked references.
+
+The single final-source full suite, also launched from shell soft 1,024,
+reports exactly `== 1 failure(s) in 1803 s`, category `client tests`. All Rust
+targets/doctests, fixture/build/budget/typechecks and 79 models pass. Clients
+pass 5,766 with two failures and ten skips. The failures are one baseline
+fixture race and its parent: the browser admission review's observed-replacement
+case hit SQLite `database is locked` while copying identity tables directly
+into a live replacement server. Its failed setup leaked that server after the
+browser closed, delaying the failure report. Only the recorded leftover fixture
+received SIGTERM after ancestry/executable/cwd verification; the suite then
+reported its existing failure and continued. Wall time includes that diagnosis
+and cleanup. No failed suite test was retried or omitted.
+
+The exact, unchanged baseline helper from 00a96f16b7 reproduces the same SQLite
+refusal and absent cleanup under a controlled writer lock. Both are baseline
+fixture defects, ticketed in
+[`issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+No test failures are attributed to round-2 code or the environment. The
+unavailable local orientation-file lookup is separately classified environmental.
+The [round-2 report and ledger](./reports/20261002-fdl-fd-limit/REPORT.md#round-2--doctor-remediation-and-udp-probes-2026-10-02)
+retain every result, intervention and the baseline counterexample.
+
+All six changed Rust source hashes remained unchanged through qualification.
+Wasm remains 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged ratchet.
+LLP 3000 §7 and the guide state the corrected rule. Local commit with the
+requested Astra trailer; nothing pushed or published.

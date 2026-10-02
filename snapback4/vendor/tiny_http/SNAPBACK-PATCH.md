@@ -89,3 +89,26 @@ pending-boundary cases together finished in 5.02 seconds; the corresponding
 wasm cases finished in 3.39 seconds. Parser/body limits, idle-poll detection,
 heartbeat recovery, revocation, fresh/replayed results and media checks passed.
 The complete output is `/tmp/sb4-excellence-native-boundary-full-green.log`.
+
+
+## Descriptor exhaustion (FDL, 2026-10-02)
+
+`RefinedTcpStream::new` and its abort-handle construction return I/O errors.
+The accept loop closes a connection that cannot duplicate its socket, dropping
+its connection lease and continuing to accept. Requests share one abort handle
+per connection; cloning that handle no longer duplicates an OS descriptor or
+panics while parsing a keep-alive request. Read/write shutdown semantics and
+TLS serialization remain unchanged. No connection or request admission cap is
+raised. `crates/snapback4/tests/http_emfile.rs` exhausts a subprocess's real fd
+table at the deadline, read/write and abort clone stages, then proves that the
+listener serves again. It runs in the ordinary workspace suite.
+
+Local change, 2026-10-02 (FDL round 1): EMFILE/ENFILE from accept and all
+three connection-clone stages releases the failed connection and uses an
+exponential 1–100 ms accept-thread backoff. Only a fully constructed connection
+resets the delay. The process-wide saturating `descriptor_exhaustions()` counter
+reports these transport failures separately from admission refusals. Other
+accept errors retain the listener-error path. The Unix `libc` dependency names
+the platform errno constants. Snapback's Linux subprocess regression maintains
+a real backlog at zero through three spare descriptors, measures accept-thread
+CPU, checks diagnostics/refusal separation and resumes serving after release.

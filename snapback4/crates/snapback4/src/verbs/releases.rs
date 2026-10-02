@@ -138,6 +138,7 @@ pub fn rollback(options: &Options) -> i32 {
 pub fn serve_release(options: &Options) -> Result<(), String> {
     let bind = release_bind(options)?;
     let dir = directory(options)?;
+    crate::host_limits::initialize();
     snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;

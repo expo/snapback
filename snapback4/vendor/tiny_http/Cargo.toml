@@ -80,3 +80,6 @@ ssl-rustls = [
     "rustls-pemfile",
     "zeroize",
 ]
+
+[target."cfg(unix)".dependencies.libc]
+version = "0.2"

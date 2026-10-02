@@ -1,0 +1,20 @@
+{
+  "base": "f3870cd9852fc6d2665499837939a47938263e21",
+  "files": {
+    "snapback4/Cargo.lock": "d3a93557ff7a7443959a82d898431a8a025d450f44552b071814de548e9fd972",
+    "snapback4/crates/snapback4-lang/src/guide.rs": "4449d5cbe204b318aeae98f520aa46efd818468f5db30a0a0221bf2ad28751a8",
+    "snapback4/crates/snapback4/src/host_limits.rs": "bbefe287e7364e79f777a5270fa418fff5fa8fd43c8e4c4c33b7de76f5467234",
+    "snapback4/crates/snapback4/src/verbs/witness/protocol.rs": "244e9ef3ab6cb2a3fbf3d9794241220a0250f54c9c733996e178a11833f9b40a",
+    "snapback4/crates/snapback4/tests/http.rs": "8ad40b8a68c569e3d0252d2882aed83d4d0f5968565680e2f5b921fef2abb5d2",
+    "snapback4/crates/snapback4/tests/http_emfile.rs": "b4ba6686e9eb923e329d4231b558d4291f48521a586489f77f9e66abb96d05d8",
+    "snapback4/crates/snapback4/tests/latency/duration.rs": "5d53fd76a1e996cd278ec2d06fe7fc479a7be99551ba8d8425054f813a8790ee",
+    "snapback4/crates/snapback4/tests/lifecycle.rs": "eb3ed12aa5bc615190c3748f4d702a2c5e47072cf9750cfe42bbec406164a429",
+    "snapback4/crates/snapback4/tests/replay.rs": "a4d7fd39de8cc4ebae6b0432bbd1a6b088be1f2348a105632e9961bfe40d03d1",
+    "snapback4/crates/snapback4/tests/serve_overload/mod.rs": "2df8ee99be791089ae020d86bf340aa569608e114172c21b906e384159d0296e",
+    "snapback4/crates/snapback4/tests/token_live.rs": "7b6effe1720a39528f7a9c86a2a559e8e388a7d9f77e945b364f664f0523cf02",
+    "snapback4/crates/snapback4/tests/witness.rs": "ccf0d15758c434f94ed55c3bc9634f00a529613384b856b4b2d8a8b6b88ab821",
+    "snapback4/vendor/tiny_http/Cargo.toml": "340dfab7d60a246140fa8e37456fd03b999841a9bb92595aa645d8d9f43434b3",
+    "snapback4/vendor/tiny_http/src/lib.rs": "924cd3ac959ae4ddf518de669d1d48bd3966794eae379eef0ad1627dd24cfbe5",
+    "snapback4/vendor/tiny_http/src/limits.rs": "c03e612cf938efb6df865191017e7319e60b5de6661a42ef30fb974debab0bb4"
+  }
+}

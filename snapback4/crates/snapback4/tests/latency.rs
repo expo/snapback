@@ -1,4 +1,6 @@
 //! Doctor's documented commands against the real dev process and lifetime lock.
+#[allow(dead_code)]
+#[path = "../src/host_limits.rs"] mod host_limits;
 use serde_json::{Value, json};
 use std::{fs, io::{BufRead, BufReader, Read, Write}, net::TcpStream, path::PathBuf, process::{Child, Command, Output, Stdio}, time::{Duration, Instant}};
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
@@ -57,6 +59,7 @@ fn dev_process_wildcard_listener_omits_timing_for_loopback_and_external_peers() 
     let host = fixture.start_with(&["--bind", "0.0.0.0", "--i-understand-cleartext"]);
     let bound: std::net::SocketAddr = host.address.parse().unwrap();
     assert!(bound.ip().is_unspecified(), "{}", host.address);
+    host_limits::prepare_tests();
     let route = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
     route.connect("192.0.2.1:9").unwrap(); // Choose an interface; send no packet.
     let external = route.local_addr().unwrap().ip();

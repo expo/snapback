@@ -1,5 +1,7 @@
 //! CLI minting on the actual dev/serve owner, including the public-listener boundary.
 #![cfg(unix)]
+#[allow(dead_code)]
+#[path = "../src/host_limits.rs"] mod host_limits;
 use std::{fs, io::{BufRead, BufReader, Read, Write}, net::{SocketAddr, TcpStream, UdpSocket},
     os::unix::fs::{PermissionsExt, symlink}, path::PathBuf, process::{Child, Command, Output, Stdio},
     sync::{atomic::{AtomicUsize, Ordering}, mpsc}, time::Duration};
@@ -145,6 +147,7 @@ fn mint_paths(release: bool) {
 
 #[test]
 fn public_listeners_refuse_remote_peers_and_missing_wrong_duplicate_or_browser_proofs() {
+    host_limits::prepare_tests();
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
     socket.connect("192.0.2.1:9").unwrap(); // Determines our interface without sending a packet.
     let remote_ip = socket.local_addr().unwrap().ip(); assert!(!remote_ip.is_loopback());
@@ -198,7 +201,7 @@ fn unreachable_old_and_wrong_store_listeners_refuse_without_offline_writes() {
     let p = Project::new(false); let _host = Host::start(&p, "127.0.0.1");
     let other = Project::new(false); let other_host = Host::start(&other, "127.0.0.1");
     let record = p.store().parent().unwrap().join("serve.lock");
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = host_limits::test_listener("127.0.0.1:0").unwrap();
     let unavailable = listener.local_addr().unwrap(); drop(listener);
     for address in [unavailable, other_host.address, "192.0.2.1:4400".parse().unwrap()] {
         fs::write(&record, format!("{}\nhttp://{address}\n", address.port())).unwrap();
@@ -306,7 +309,7 @@ fn impostor_captures_only_a_nonce_and_cannot_mint_or_elicit_a_client_proof() {
     // OS. This exercises the BSD interception outcome without requiring Linux
     // to permit a second bind to a wildcard listener's port.
     for variant in ["forged", "stale", "service", "days", "store"] {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = host_limits::test_listener("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         fs::write(p.store().with_file_name("serve.lock"), format!("{}\nhttp://{address}\n", address.port())).unwrap();
         let secret = p.secret(); let real = host.address;
@@ -350,7 +353,7 @@ fn impostor_captures_only_a_nonce_and_cannot_mint_or_elicit_a_client_proof() {
 #[test]
 fn a_forwarding_impostor_cannot_read_the_minted_token_or_replay_completion() {
     let p = Project::new(false); let host = Host::start(&p, "0.0.0.0");
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let address = listener.local_addr().unwrap();
+    let listener = host_limits::test_listener("127.0.0.1:0").unwrap(); let address = listener.local_addr().unwrap();
     fs::write(p.store().with_file_name("serve.lock"), format!("{}\nhttp://{address}\n", address.port())).unwrap();
     let real = host.address;
     let thread = std::thread::spawn(move || {

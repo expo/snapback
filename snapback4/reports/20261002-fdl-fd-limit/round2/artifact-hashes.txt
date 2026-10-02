@@ -1,0 +1,2 @@
+a237579f9a78f72bb239dfea662a654feb2cf447e2b3c4219dd915f33412dd52  target/debug/snapback4
+def8d3bf6bf0f1d9fa3f4906a4459eddb9c3cfdfdb43d21e60b55992bd96b693  packages/snapback4/src/wasm/snapback4_device_bg.wasm

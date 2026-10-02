@@ -122,6 +122,7 @@ fs.renameSync('ready.tmp', 'ready');
 setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, exitDelay); process.exit(17); } }, 10);
 "#).unwrap();
     let project = crate::project::Project { root: dir.0.clone() };
+    crate::host_limits::prepare_tests();
     let server = Arc::new(Server::http(("127.0.0.1", 0)).unwrap());
     let address = server.server_addr().to_ip().unwrap();
     let url = format!("http://{address}");

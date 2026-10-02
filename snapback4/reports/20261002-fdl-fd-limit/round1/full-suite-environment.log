@@ -1,0 +1,4 @@
+Fri Oct  2 13:16:20 UTC 2026
+soft=1024
+hard=1048576
+invocation=bash scripts/test.sh (one complete final-source run)

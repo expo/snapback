@@ -8,6 +8,33 @@ use std::time::{Duration, Instant};
 
 use crate::connection::Connection;
 
+// @ref LLP 3000#http-overload-diagnostics — descriptor exhaustion closes the
+// transport; it is not an admission refusal. Count it once per failed attempt.
+static DESCRIPTOR_EXHAUSTIONS: AtomicUsize = AtomicUsize::new(0);
+
+/// Process-wide cumulative count of EMFILE/ENFILE from accept or socket clones.
+pub fn descriptor_exhaustions() -> usize {
+    DESCRIPTOR_EXHAUSTIONS.load(Ordering::Relaxed)
+}
+
+pub(crate) struct AcceptBackoff(Duration);
+impl AcceptBackoff {
+    pub(crate) fn new() -> Self { Self(Duration::from_millis(1)) }
+    pub(crate) fn reset(&mut self) { *self = Self::new(); }
+    pub(crate) fn exhausted(&mut self, error: &io::Error) -> bool {
+        #[cfg(unix)]
+        if matches!(error.raw_os_error(), Some(libc::EMFILE | libc::ENFILE)) {
+            let _ = DESCRIPTOR_EXHAUSTIONS.fetch_update(Ordering::Relaxed, Ordering::Relaxed,
+                |n| Some(n.saturating_add(1)));
+            std::thread::sleep(self.0);
+            self.0 = (self.0 * 2).min(Duration::from_millis(100));
+            return true;
+        }
+        let _ = error;
+        false
+    }
+}
+
 // @ref LLP 3000#http-overload-diagnostics — refuse before allocating a parser or thread.
 // A single nonblocking, fixed-size reply cannot park the accept loop behind a
 // peer that does not read. Failure to deliver it remains a transport failure.

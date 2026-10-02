@@ -47,6 +47,7 @@ fn a_request_after_engine_poison_still_serves() {
     }).join().is_err());
     assert!(shared.engine.is_poisoned());
 
+    crate::host_limits::prepare_tests();
     let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
     let address = server.server_addr().to_ip().unwrap();
     let serving = shared.clone();

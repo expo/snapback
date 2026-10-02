@@ -715,7 +715,6 @@ pub fn doctor(options: &Options) -> i32 {
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
-    lines.push(format!("host      {}", crate::host_limits::describe()));
     lines.push(format!("worker    dev entry: {}; serve entry: --worker <path>", crate::dev_worker::source(&project).map(|p| p.display().to_string()).unwrap_or_else(|| "none (add snapback/worker.ts, .mts or .mjs)".into())));
     match crate::dev_worker::declared(&project) {
         Ok(workers) => for (name, path) in workers { lines.push(format!("worker    {name}: {} (dev and serve)", path.display())); },
@@ -762,7 +761,9 @@ pub fn doctor(options: &Options) -> i32 {
         Ok(host) => host,
         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
     };
+    lines.push(crate::host_limits::describe_for_doctor(host.as_ref()));
     if let Some(host) = &host {
+        if host["fileDescriptors"]["startup"]["error"].as_str().is_some() { ok = false; }
         if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) + host["scheduling"]["niceFailures"].as_u64().unwrap_or(0) > 0 {
             ok = false;
             lines.push(format!("scheduling  {} QoS / {} nice setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["niceFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));

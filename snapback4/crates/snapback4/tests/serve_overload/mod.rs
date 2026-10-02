@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(unix)]
+mod fd_limits;
 
 #[test]
 fn a_thousand_sequential_reads_reuse_bounded_request_threads() {
@@ -93,6 +95,7 @@ fn every_worker_pool_counts_and_returns_the_same_public_refusal() {
 #[test]
 fn failed_thread_spawn_refuses_unfinished_upload_and_releases_permit() {
     let host = Host::new(true);
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits("127.0.0.1:0", tiny_http::ConnectionLimits::default()).unwrap();
     let address = server.server_addr().to_ip().unwrap();
     let peer = thread::spawn(move || {

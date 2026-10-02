@@ -1,7 +1,7 @@
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::connection::Connection;
 #[cfg(any(feature = "ssl-openssl", feature = "ssl-rustls"))]
@@ -14,20 +14,20 @@ pub(crate) enum Stream {
 }
 
 #[derive(Clone)]
-pub(crate) struct ConnectionAbort(Stream);
+pub(crate) struct ConnectionAbort(Arc<Mutex<Stream>>);
 
 impl ConnectionAbort {
     pub(crate) fn abort(&mut self) {
-        self.0.shutdown(Shutdown::Both).ok();
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).shutdown(Shutdown::Both).ok();
     }
 }
 
-impl Clone for Stream {
-    fn clone(&self) -> Self {
+impl Stream {
+    fn try_clone(&self) -> IoResult<Self> {
         match self {
-            Stream::Http(tcp_stream) => Stream::Http(tcp_stream.try_clone().unwrap()),
+            Stream::Http(tcp_stream) => tcp_stream.try_clone().map(Stream::Http),
             #[cfg(any(feature = "ssl-openssl", feature = "ssl-rustls"))]
-            Stream::Https(ssl_stream) => Stream::Https(ssl_stream.clone()),
+            Stream::Https(ssl_stream) => Ok(Stream::Https(ssl_stream.clone())),
         }
     }
 }
@@ -100,13 +100,13 @@ pub struct RefinedTcpStream {
 }
 
 impl RefinedTcpStream {
-    pub(crate) fn new<S>(stream: S) -> (RefinedTcpStream, RefinedTcpStream)
+    pub(crate) fn new<S>(stream: S) -> IoResult<(RefinedTcpStream, RefinedTcpStream)>
     where
         S: Into<Stream>,
     {
         let stream: Stream = stream.into();
 
-        let (read, write) = (stream.clone(), stream);
+        let (read, write) = (stream.try_clone()?, stream);
 
         let read = RefinedTcpStream {
             stream: read,
@@ -122,7 +122,7 @@ impl RefinedTcpStream {
             limits: None,
         };
 
-        (read, write)
+        Ok((read, write))
     }
 
     pub(crate) fn with_limits(mut self, limits: Option<Arc<crate::limits::ConnectionState>>) -> Self {
@@ -140,8 +140,10 @@ impl RefinedTcpStream {
         self.stream.peer_addr()
     }
 
-    pub(crate) fn abort_handle(&self) -> ConnectionAbort {
-        ConnectionAbort(self.stream.clone())
+    pub(crate) fn abort_handle(&self) -> IoResult<ConnectionAbort> {
+        // One fallible socket clone per connection. Requests share this handle,
+        // so parsing another keep-alive request cannot panic on EMFILE.
+        Ok(ConnectionAbort(Arc::new(Mutex::new(self.stream.try_clone()?))))
     }
 }
 

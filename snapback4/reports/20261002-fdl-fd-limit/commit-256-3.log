@@ -1,0 +1,540 @@
+{ "type": "suite", "event": "started", "test_count": 241 }
+{ "type": "test", "event": "started", "name": "assets::tests::byte_ranges_distinguish_invalid_and_unsatisfiable_requests" }
+{ "type": "test", "event": "started", "name": "auth::tests::an_exhausted_peer_cannot_fill_the_email_admission_table" }
+{ "type": "test", "event": "started", "name": "auth::tests::password_slots_are_bounded_and_reusable_for_each_admission_class" }
+{ "type": "test", "event": "started", "name": "auth::tests::rate_keys_expire_and_rotation_does_not_bypass_limits" }
+{ "type": "test", "event": "started", "name": "dev_worker::environment::tests::secrets_are_redacted_across_chunks_newlines_and_prefixes" }
+{ "type": "test", "event": "started", "name": "dev_worker::environment::tests::structured_logs_redact_json_escaped_secrets_across_chunks" }
+{ "type": "test", "event": "started", "name": "host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits" }
+{ "type": "test", "event": "started", "name": "host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause" }
+{ "type": "test", "event": "started", "name": "native::tests::cargo_messages_refuse_missing_or_ambiguous_app_cdylibs" }
+{ "type": "test", "event": "started", "name": "native::tests::cargo_messages_select_the_current_cdylib_over_a_later_stale_name" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::certificate_uses_every_runtime_eligibility_condition" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair" }
+{ "type": "test", "event": "started", "name": "scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names" }
+{ "type": "test", "event": "started", "name": "serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::tests::late_handoff_cannot_replace_a_newer_response" }
+{ "type": "test", "event": "started", "name": "serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::a_single_continuous_holder_cannot_defer_background_forever" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::a_waiting_request_behind_a_holder_admits_background_immediately" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::background_does_not_count_as_request_activity" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::background_takes_its_ticket_at_five_ms_despite_new_request_activity" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::busy_background_eventually_takes_a_ticket_behind_waiting_requests" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::panic_releases_ticket_and_poison_can_be_recovered" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::quiet_interval_ends_at_one_ms_on_the_injected_clock" }
+{ "type": "test", "event": "started", "name": "serve::engine_lock::tests::waiting_request_precedes_next_chunk_and_background_precedes_later_requests" }
+{ "type": "test", "event": "started", "name": "serve::latency::tests::latency_record_cost_and_memory" }
+{ "type": "test", "event": "started", "name": "serve::latency::tests::missing_cpu_clock_omits_header_metric_and_doctor_reports_unavailable" }
+{ "type": "test", "event": "started", "name": "serve::latency::tests::random_exact_nearest_rank_percentiles_are_within_five_percent" }
+{ "type": "test", "event": "started", "name": "serve::latency::tests::registry_bounds_unknown_names_adopts_and_excludes_old_arrivals_after_reset" }
+{ "type": "test", "event": "started", "name": "serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording" }
+{ "type": "test", "event": "started", "name": "serve::latency::tests::zero_edges_and_extreme_durations_keep_the_error_bound" }
+{ "type": "test", "event": "started", "name": "serve::maintenance::tests::aged_bulk_progresses_when_the_bulk_thread_never_runs" }
+{ "type": "test", "event": "started", "name": "serve::maintenance::tests::clock_drain_unwind_releases_background_work" }
+{ "type": "test", "event": "started", "name": "serve::maintenance::tests::pacing_charges_atomic_overruns_but_cannot_suppress_aged_service" }
+snapback4: recovered a mutex after a request panicked
+{ "type": "test", "event": "started", "name": "serve::maintenance::tests::pacing_does_not_charge_time_already_spent_off_cpu" }
+{ "type": "test", "event": "started", "name": "serve::maintenance::tests::stalled_bulk_admission_does_not_stop_an_ordinary_expiry_slice" }
+{ "type": "test", "event": "started", "name": "serve::maintenance::tests::stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued" }
+{ "type": "test", "event": "started", "name": "serve::poison_tests::a_request_after_engine_poison_still_serves" }
+{ "type": "test", "event": "started", "name": "serve::request_workers::tests::a_panic_outside_the_job_boundary_does_not_spend_capacity_forever" }
+{ "type": "test", "event": "started", "name": "serve::request_workers::tests::last_worker_exit_refuses_queued_requests" }
+{ "type": "test", "event": "started", "name": "serve::request_workers::tests::partial_worker_exit_refuses_queued_requests_while_another_worker_is_blocked" }
+{ "type": "test", "event": "started", "name": "serve::tests::a_poll_rechecks_session_liveness_after_waiting" }
+{ "type": "test", "event": "started", "name": "serve::tests::a_presence_answer_asks_its_client_to_refresh" }
+{ "type": "test", "event": "started", "name": "serve::tests::a_refusal_names_the_cut_its_evaluation_read" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::failure::failed_candidate_clears_pending_names_and_allows_a_later_adoption" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reads::a_write_queued_behind_adoption_does_not_keep_expired_authority" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reads::crash_during_adoption_child" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reads::fresh_storage_has_independent_readers_and_is_removed_by_its_owner" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::reads::process_exit_during_build_retains_the_old_generation_and_restart_rebuilds" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::saturation::saturated_mutation_admission_reserves_query_and_sync_capacity" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::scale::scale_changes_waits_for_durable_adoption_while_query_and_sync_read" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::w8r1b_adoption_bounds_repeated_background_logs_and_resets_on_recovery" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::w8r1b_adoption_recovery_retires_a_query_already_in_flight" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::w8r1b_adoption_reports_different_background_reasons_and_failure_changes" }
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::w8r2_adoption_bounds_alternating_background_reasons" }
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: adoption failure changed; suppressed 2 repeated background failures
+snapback4 dev: the new schema was not adopted: E_GENERATION: second owner; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::w8r2_adoption_rate_windows_are_per_code_and_do_not_slide_on_suppression" }
+snapback4 dev: the new schema was not adopted: E_STORE: expiry phase is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption" }
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness" }
+snapback4 dev: the new schema was not adopted: E_STORE: expiry phase; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+{ "type": "test", "event": "started", "name": "serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked" }
+{ "type": "test", "event": "started", "name": "serve::tests::an_effect_claim_rechecks_service_session_after_waiting" }
+{ "type": "test", "event": "started", "name": "serve::tests::asset_list_tests::image_list_http_once_is_per_element_and_survives_reorder" }
+{ "type": "test", "event": "started", "name": "serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete" }
+{ "type": "test", "event": "started", "name": "serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission" }
+{ "type": "test", "event": "started", "name": "serve::tests::bound_session_http_refuses_stale_and_cancelled_claims_without_minting" }
+{ "type": "test", "event": "started", "name": "serve::tests::bound_session_http_requires_exact_shape_and_current_action_lease" }
+{ "type": "test", "event": "started", "name": "serve::tests::bounded_connections_do_not_queue_pipelined_requests" }
+{ "type": "test", "event": "started", "name": "serve::tests::catalog_and_changes_require_live_identity_and_release_refuses_dev_doors" }
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; startup soft=256 target=65536
+{ "type": "test", "event": "started", "name": "serve::tests::change_polls_and_effect_claims_share_the_bounded_wait_lane" }
+{ "type": "test", "event": "started", "name": "serve::tests::connections_are_capped_before_slow_headers_and_idle_sockets_expire" }
+{ "type": "test", "event": "started", "name": "serve::tests::continue_and_final_response_have_separate_write_deadlines" }
+{ "type": "test", "event": "started", "name": "serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding" }
+{ "type": "test", "event": "started", "name": "serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer" }
+{ "type": "test", "event": "started", "name": "serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in" }
+{ "type": "test", "event": "started", "name": "serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body" }
+{ "type": "test", "event": "started", "name": "serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses" }
+{ "type": "test", "event": "started", "name": "serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters" }
+{ "type": "test", "event": "started", "name": "serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity" }
+{ "type": "test", "event": "started", "name": "serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance" }
+{ "type": "test", "name": "assets::tests::byte_ranges_distinguish_invalid_and_unsatisfiable_requests", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check" }
+{ "type": "test", "name": "auth::tests::rate_keys_expire_and_rotation_does_not_bypass_limits", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty" }
+{ "type": "test", "name": "auth::tests::password_slots_are_bounded_and_reusable_for_each_admission_class", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock" }
+{ "type": "test", "name": "dev_worker::environment::tests::secrets_are_redacted_across_chunks_newlines_and_prefixes", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced" }
+{ "type": "test", "name": "host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub" }
+{ "type": "test", "name": "native::tests::cargo_messages_refuse_missing_or_ambiguous_app_cdylibs", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked" }
+{ "type": "test", "name": "dev_worker::environment::tests::structured_logs_redact_json_escaped_secrets_across_chunks", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200" }
+{ "type": "test", "name": "native::tests::cargo_messages_select_the_current_cdylib_over_a_later_stale_name", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::legacy_poll_reply_has_base_shape_plus_preservation" }
+{ "type": "test", "name": "host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock" }
+{ "type": "test", "name": "serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve" }
+{ "type": "test", "name": "auth::tests::an_exhausted_peer_cannot_fill_the_email_admission_table", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock" }
+{ "type": "test", "name": "serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second" }
+{ "type": "test", "name": "serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all" }
+{ "type": "test", "name": "serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate" }
+{ "type": "test", "name": "serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::full_poll_admission_preserves_short_request_progress" }
+{ "type": "test", "name": "serve::engine_lock::tests::a_waiting_request_behind_a_holder_admits_background_immediately", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::header_and_body_deadlines_are_absolute_despite_dribbling" }
+{ "type": "test", "name": "serve::engine_lock::tests::background_does_not_count_as_request_activity", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal" }
+{ "type": "test", "name": "scale::search::tests::certificate_uses_every_runtime_eligibility_condition", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain" }
+{ "type": "test", "name": "serve::engine_lock::tests::background_takes_its_ticket_at_five_ms_despite_new_request_activity", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write" }
+{ "type": "test", "name": "serve::engine_lock::tests::quiet_interval_ends_at_one_ms_on_the_injected_clock", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write" }
+{ "type": "test", "name": "serve::latency::tests::latency_record_cost_and_memory", "event": "ignored", "message": "measurement: one million bounded recordings, no timing gate" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup" }
+{ "type": "test", "name": "serve::latency::tests::missing_cpu_clock_omits_header_metric_and_doctor_reports_unavailable", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_query_total_includes_controlled_engine_work" }
+{ "type": "test", "name": "serve::latency::tests::zero_edges_and_extreme_durations_keep_the_error_bound", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write" }
+{ "type": "test", "name": "scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset" }
+{ "type": "test", "name": "serve::engine_lock::tests::panic_releases_ticket_and_poison_can_be_recovered", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not" }
+{ "type": "test", "name": "serve::engine_lock::tests::busy_background_eventually_takes_a_ticket_behind_waiting_requests", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait" }
+{ "type": "test", "name": "serve::latency::tests::registry_bounds_unknown_names_adopts_and_excludes_old_arrivals_after_reset", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine" }
+{ "type": "test", "name": "serve::maintenance::tests::pacing_charges_atomic_overruns_but_cannot_suppress_aged_service", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::delayed_changes_open_is_wait" }
+{ "type": "test", "name": "scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait" }
+{ "type": "test", "name": "serve::request_workers::tests::last_worker_exit_refuses_queued_requests", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait" }
+{ "type": "test", "name": "serve::request_workers::tests::a_panic_outside_the_job_boundary_does_not_spend_capacity_forever", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence" }
+{ "type": "test", "name": "serve::request_workers::tests::partial_worker_exit_refuses_queued_requests_while_another_worker_is_blocked", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::maintenance_coordination_gate_does_not_claim_engine_ownership" }
+{ "type": "test", "name": "scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait" }
+{ "type": "test", "name": "serve::tests::adoption_tests::reads::crash_during_adoption_child", "event": "ignored", "message": "child process for the atomic adoption restart witness" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer" }
+{ "type": "test", "name": "serve::tests::adoption_tests::scale::scale_changes_waits_for_durable_adoption_while_query_and_sync_read", "event": "ignored", "message": "requires SNAPBACK4_ADOPTION_HTTP_DB pointing at the prepared M7 fixture" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work" }
+{ "type": "test", "name": "scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending" }
+{ "type": "test", "name": "serve::tests::adoption_tests::w8r1b_adoption_bounds_repeated_background_logs_and_resets_on_recovery", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers" }
+{ "type": "test", "name": "serve::tests::adoption_tests::w8r1b_adoption_reports_different_background_reasons_and_failure_changes", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_admission_refusals_do_not_disappear" }
+{ "type": "test", "name": "serve::tests::adoption_tests::w8r2_adoption_bounds_alternating_background_reasons", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals" }
+{ "type": "test", "name": "serve::tests::adoption_tests::w8r2_adoption_rate_windows_are_per_code_and_do_not_slide_on_suppression", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine" }
+{ "type": "test", "name": "serve::engine_lock::tests::a_single_continuous_holder_cannot_defer_background_forever", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits" }
+{ "type": "test", "name": "scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_recording_overhead_on_real_queries" }
+{ "type": "test", "name": "serve::tests::change_polls_and_effect_claims_share_the_bounded_wait_lane", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset" }
+{ "type": "test", "name": "serve::latency::tests::random_exact_nearest_rank_percentiles_are_within_five_percent", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_recording_overhead_on_real_queries", "event": "ignored", "message": "measurement: repeated real HTTP reads, no timing gate on a shared host" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::latency_writer_admission_refuses_once_and_keeps_dev_inspection_available" }
+{ "type": "test", "name": "serve::engine_lock::tests::waiting_request_precedes_next_chunk_and_background_precedes_later_requests", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection" }
+{ "type": "test", "name": "scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::opening_a_development_project_protects_its_data_directory_and_store" }
+{ "type": "test", "name": "serve::maintenance::tests::pacing_does_not_charge_time_already_spent_off_cpu", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::overload_tests::a_panicking_request_releases_its_slot_and_the_worker_serves_again" }
+dev refusal: newer:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M3Y98CC3PRNDPK90WHTNST15"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1790943965571; first response 2; `snapback4 why recent --instance 01M3Y98CC3PRNDPK90WHTNST15`
+dev refusal: older:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M3Y98CC3PRNDPK90WHTNST15"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790943965571; first response 1; `snapback4 why recent --instance 01M3Y98CC3PRNDPK90WHTNST15`
+{ "type": "test", "name": "serve::dev_refusals::tests::late_handoff_cannot_replace_a_newer_response", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads" }
+{ "type": "test", "name": "scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::overload_tests::every_worker_pool_counts_and_returns_the_same_public_refusal" }
+{ "type": "test", "name": "serve::tests::bounded_connections_do_not_queue_pipelined_requests", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit" }
+{ "type": "test", "name": "serve::tests::connections_are_capped_before_slow_headers_and_idle_sockets_expire", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::overload_tests::fd_limits::many_servers_raise_a_low_soft_limit_and_release_their_descriptors" }
+{ "type": "test", "name": "serve::tests::continue_and_final_response_have_separate_write_deadlines", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction" }
+{ "type": "test", "name": "serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine" }
+{ "type": "test", "name": "serve::tests::overload_tests::fd_limits::many_servers_raise_a_low_soft_limit_and_release_their_descriptors", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes" }
+{ "type": "test", "name": "serve::tests::header_and_body_deadlines_are_absolute_despite_dribbling", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::pooled_readers_observe_new_commits_and_each_viewer" }
+{ "type": "test", "name": "serve::maintenance::tests::clock_drain_unwind_releases_background_work", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::presence_tests::w15a_commit_wakes_all_49_recipients_and_their_next_polls_satisfy_without_attempts" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::presence_tests::w15a_vanished_held_poll_is_claimed_once_after_clock_advance_6s" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_admission_refusals_do_not_disappear", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative" }
+{ "type": "test", "name": "serve::tests::opening_a_development_project_protects_its_data_directory_and_store", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::raced_mutation_id_refusal_keeps_its_terminal_http_status" }
+snapback4: recovered a mutex after a request panicked
+
+running 1 test
+{ "type": "test", "name": "serve::tests::a_poll_rechecks_session_liveness_after_waiting", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::refresh_rotates_and_logout_all_revokes_every_session" }
+snapback4: job catchup done: 1 chunks, 0 rows written
+{ "type": "test", "name": "serve::poison_tests::a_request_after_engine_poison_still_serves", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::legacy_poll_reply_has_base_shape_plus_preservation", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes" }
+snapback4: cannot start request thread: Resource temporarily unavailable (os error 11)
+{ "type": "test", "name": "serve::maintenance::tests::aged_bulk_progresses_when_the_bulk_thread_never_runs", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause" }
+{ "type": "test", "name": "serve::maintenance::tests::stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::review_changes::finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page" }
+{ "type": "test", "name": "serve::tests::overload_tests::every_worker_pool_counts_and_returns_the_same_public_refusal", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::review_changes::finding_5_reordered_commit_notifications_cannot_report_a_restored_head" }
+{ "type": "test", "name": "serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::registry_claim_retains_long_action_and_maximum_route_names_over_http" }
+snapback4: atomic feed adoption: view feed: 1 source rows, 1 events, 0 follows; 1 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+{ "type": "test", "name": "serve::tests::asset_list_tests::image_list_http_once_is_per_element_and_survives_reorder", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::registry_claims_have_bounded_input_and_recheck_worker_revision" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576243376-12/worker.mjs (pid 3060136)
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576752439-14/worker.mjs (pid 3060158)
+{ "type": "test", "name": "serve::tests::overload_tests::a_panicking_request_releases_its_slot_and_the_worker_serves_again", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_503_is_collectible_only_after_fresh_verification_of_the_same_body" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_adoption_fences_old_supervised_verifier_before_child_shutdown" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576802564-15/worker.mjs (pid 3060224)
+{ "type": "test", "name": "serve::tests::latency_tests::latency_writer_admission_refuses_once_and_keeps_dev_inspection_available", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_invalid_delivery_never_admits_and_cannot_collect_a_settled_body" }
+{ "type": "test", "name": "serve::tests::adoption_tests::reads::fresh_storage_has_independent_readers_and_is_removed_by_its_owner", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_seat_revocation_during_verification_cannot_be_undone_by_allow" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_verifier_fences_wrong_tokens_and_expired_tickets_without_admission" }
+{ "type": "test", "name": "serve::tests::a_presence_answer_asks_its_client_to_refresh", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_verifier_reclaims_expired_lease_but_old_callback_cannot_promote" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_wait_capacity_leaves_verification_and_short_core_requests_available" }
+{ "type": "test", "name": "serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::route_wire_retains_raw_bytes_and_independent_set_cookie_headers" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution" }
+{ "type": "test", "name": "serve::maintenance::tests::stalled_bulk_admission_does_not_stop_an_ordinary_expiry_slice", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::slow_readers_cannot_pin_response_writers" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::maintenance_coordination_gate_does_not_claim_engine_ownership", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::store_tests::action_store_precondition_precedes_admission_and_replay" }
+{ "type": "test", "name": "serve::tests::adoption_tests::reads::a_write_queued_behind_adoption_does_not_keep_expired_authority", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::store_tests::an_idless_mutation_cannot_execute_on_the_wrong_store" }
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+{ "type": "test", "name": "serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::store_tests::intent_store_precondition_fences_execution_and_replay_without_recording_a_refusal" }
+{ "type": "test", "name": "serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::store_tests::query_and_mutation_replies_identify_the_evaluated_store_and_replay_head" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576373551-13/worker.mjs (pid 3060661)
+{ "type": "test", "name": "serve::tests::foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::concurrent::detached_sync_never_skips_a_commit_after_its_snapshot" }
+{ "type": "test", "name": "serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::failed_materialization_is_not_counted_and_unreadable_head_fails_discovery" }
+{ "type": "test", "name": "serve::tests::full_poll_admission_preserves_short_request_progress", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::generation_discovery_keeps_page_authorization" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::stale_generation_engine_snapshot" }
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::stale_generation_engine_stream" }
+{ "type": "test", "name": "serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::stale_generation_reader_snapshot" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_generation_tests::stale_generation_reader_stream" }
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls" }
+{ "type": "test", "name": "serve::tests::sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::sync_stream_encoding_preserves_sequences_scopes_and_empty_groups" }
+{ "type": "test", "name": "serve::tests::sync_stream_encoding_preserves_sequences_scopes_and_empty_groups", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::timeline_tests::paired_tombstoned_repost_identity_is_unobservable" }
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::unauthorized_large_posts_close_before_body_admission" }
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::delayed_changes_open_is_wait", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::unsupported_http_versions_release_connection_slots" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::tests::upload_disk_work_is_bounded_and_does_not_hold_the_query_engine" }
+{ "type": "test", "name": "serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::token::protocol::tests::concurrent_completion_has_exactly_one_winner" }
+{ "type": "test", "name": "serve::token::protocol::tests::concurrent_completion_has_exactly_one_winner", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::token::protocol::tests::expiry_and_pending_capacity_use_monotonic_time_without_sleep" }
+{ "type": "test", "name": "serve::token::protocol::tests::expiry_and_pending_capacity_use_monotonic_time_without_sleep", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::token::protocol::tests::known_hmac_vectors_and_direction_separation" }
+{ "type": "test", "name": "serve::token::protocol::tests::known_hmac_vectors_and_direction_separation", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::token::protocol::tests::nonce_is_single_use_even_after_invalid_proof_or_transcript" }
+{ "type": "test", "name": "serve::token::protocol::tests::nonce_is_single_use_even_after_invalid_proof_or_transcript", "event": "ok" }
+{ "type": "test", "event": "started", "name": "serve::token::protocol::tests::replies_require_the_secret_and_exact_transcript_and_authenticate_all_bytes" }
+{ "type": "test", "name": "serve::token::protocol::tests::replies_require_the_secret_and_exact_transcript_and_authenticate_all_bytes", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::busy_missing_database_creates_nothing" }
+{ "type": "test", "name": "store_owner::tests::busy_missing_database_creates_nothing", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::database_ownership_preserves_sqlites_posix_locks" }
+{ "type": "test", "name": "serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::database_renamed_to_auxiliary_name_is_never_opened_or_truncated" }
+{ "type": "test", "name": "serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::doctor_dials_the_published_loopback_address" }
+{ "type": "test", "name": "store_owner::tests::doctor_dials_the_published_loopback_address", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::external_sqlite_writer" }
+{ "type": "test", "name": "store_owner::tests::external_sqlite_writer", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::hard_linked_databases_refuse_both_paths_and_existing_owners" }
+{ "type": "test", "name": "serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::removed_or_replaced_sidecar_ends_exclusion_documented_boundary" }
+{ "type": "test", "name": "serve::tests::bound_session_http_requires_exact_shape_and_current_action_lease", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::replaced_canonical_path_cannot_be_opened_with_the_old_guard" }
+{ "type": "test", "name": "store_owner::tests::replaced_canonical_path_cannot_be_opened_with_the_old_guard", "event": "ok" }
+{ "type": "test", "event": "started", "name": "store_owner::tests::sidecar_is_private_and_shared_devices_exclude_backend_owners" }
+{ "type": "test", "name": "store_owner::tests::sidecar_is_private_and_shared_devices_exclude_backend_owners", "event": "ok" }
+{ "type": "test", "event": "started", "name": "tests::development_binding_preserves_a_loopback_path_for_the_supervised_worker" }
+{ "type": "test", "name": "tests::development_binding_preserves_a_loopback_path_for_the_supervised_worker", "event": "ok" }
+{ "type": "test", "event": "started", "name": "tests::early_response_does_not_wait_for_an_unread_request_body" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait", "event": "ok" }
+{ "type": "test", "event": "started", "name": "tests::help_names_every_dispatched_verb" }
+{ "type": "test", "name": "tests::help_names_every_dispatched_verb", "event": "ok" }
+{ "type": "test", "event": "started", "name": "tests::json_responses_preserve_framing_on_a_persistent_connection" }
+{ "type": "test", "name": "tests::early_response_does_not_wait_for_an_unread_request_body", "event": "ok" }
+{ "type": "test", "event": "started", "name": "tests::version_is_the_workspace_version" }
+{ "type": "test", "name": "tests::version_is_the_workspace_version", "event": "ok" }
+{ "type": "test", "event": "started", "name": "thread_priority::tests::background_priority_is_lower_without_changing_its_parent" }
+{ "type": "test", "name": "thread_priority::tests::background_priority_is_lower_without_changing_its_parent", "event": "ok" }
+{ "type": "test", "event": "started", "name": "thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class" }
+{ "type": "test", "name": "thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class", "event": "ok" }
+{ "type": "test", "event": "started", "name": "thread_priority::tests::linux_setpriority_failure_is_counted_without_replacing_startup_readback" }
+snapback4: setpriority nice 5 failed (thread class background-nice, errno 22, at unix ms 1790943969013); inspect doctor host.scheduling: Invalid argument (os error 22)
+{ "type": "test", "name": "thread_priority::tests::linux_setpriority_failure_is_counted_without_replacing_startup_readback", "event": "ok" }
+{ "type": "test", "event": "started", "name": "thread_priority::tests::maintenance_keeps_ordinary_priority" }
+{ "type": "test", "name": "thread_priority::tests::maintenance_keeps_ordinary_priority", "event": "ok" }
+{ "type": "test", "event": "started", "name": "thread_priority::tests::watchdog_nice_failure_reaches_the_owning_host" }
+snapback4: setpriority nice 5 failed (thread class worker-nice, errno 1, at unix ms 1790943969014); inspect doctor host.scheduling: Operation not permitted (os error 1)
+{ "type": "test", "name": "thread_priority::tests::watchdog_nice_failure_reaches_the_owning_host", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::adoption::tests::doctor_url_is_a_loopback_http_origin" }
+{ "type": "test", "name": "verbs::adoption::tests::doctor_url_is_a_loopback_http_origin", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::doctor_tests::w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::init::expo_core_derivation_removes_complete_server_declarations" }
+{ "type": "test", "name": "verbs::init::expo_core_derivation_removes_complete_server_declarations", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::releases::tests::serving_defaults_loopback_and_requires_cleartext_acknowledgement" }
+{ "type": "test", "name": "verbs::releases::tests::serving_defaults_loopback_and_requires_cleartext_acknowledgement", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros" }
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+{ "type": "test", "name": "serve::tests::a_refusal_names_the_cut_its_evaluation_read", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::run_admission::tests::compilation_uses_captured_bytes_through_an_aba_source_edit" }
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+{ "type": "test", "name": "verbs::run_admission::tests::compilation_uses_captured_bytes_through_an_aba_source_edit", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::run_admission::tests::only_typed_sqlite_locks_are_retryable" }
+{ "type": "test", "name": "verbs::run_admission::tests::only_typed_sqlite_locks_are_retryable", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::test_fixture::column_tests::residency_fixture_import_rebuilds_poisoned_columns" }
+{ "type": "test", "name": "verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics" }
+snapback4 worker: supervision window ended; replacing child
+{ "type": "test", "name": "serve::tests::adoption_tests::reads::process_exit_during_build_retains_the_old_generation_and_restart_rebuilds", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names" }
+{ "type": "test", "name": "verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::naming_tests::prepared_scenario_scope_is_explicit" }
+{ "type": "test", "name": "verbs::witness::naming_tests::prepared_scenario_scope_is_explicit", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid" }
+{ "type": "test", "name": "verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop" }
+{ "type": "test", "name": "verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::preparation::tests::startup_binds_each_independent_identity" }
+{ "type": "test", "name": "verbs::witness::preparation::tests::startup_binds_each_independent_identity", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not" }
+{ "type": "test", "name": "verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values" }
+{ "type": "test", "name": "verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value" }
+{ "type": "test", "name": "verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution" }
+{ "type": "test", "name": "verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query" }
+{ "type": "test", "name": "verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime" }
+{ "type": "test", "name": "verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime", "event": "ok" }
+{ "type": "test", "event": "started", "name": "verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200", "event": "ok" }
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+{ "type": "test", "name": "serve::tests::bound_session_http_refuses_stale_and_cancelled_claims_without_minting", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::w8r1b_adoption_recovery_retires_a_query_already_in_flight", "event": "ok" }
+snapback4 worker: cannot record status: E_STORE: database is locked
+{ "type": "test", "name": "serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete", "event": "ok" }
+{ "type": "test", "name": "serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters", "event": "ok" }
+{ "type": "test", "name": "serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait", "event": "ok" }
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+{ "type": "test", "name": "serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock", "event": "ok" }
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+{ "type": "test", "name": "serve::tests::slow_readers_cannot_pin_response_writers", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_query_total_includes_controlled_engine_work", "event": "ok" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576802564-15/worker.mjs (pid 3061615)
+{ "type": "test", "name": "serve::tests::adoption_tests::failure::failed_candidate_clears_pending_names_and_allows_a_later_adoption", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty", "event": "ok" }
+{ "type": "test", "name": "tests::json_responses_preserve_framing_on_a_persistent_connection", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait", "event": "ok" }
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write", "event": "ok" }
+{ "type": "test", "name": "serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads", "event": "ok" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576752439-14/worker.mjs (pid 3062105)
+{ "type": "test", "name": "verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics", "event": "ok" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576373551-13/worker.mjs (pid 3062118)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+{ "type": "test", "name": "serve::tests::pooled_readers_observe_new_commits_and_each_viewer", "event": "ok" }
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+{ "type": "test", "name": "serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness", "event": "ok" }
+{ "type": "test", "name": "serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance", "event": "ok" }
+{ "type": "test", "name": "serve::tests::an_effect_claim_rechecks_service_session_after_waiting", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not", "event": "ok" }
+{ "type": "test", "name": "serve::tests::pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all", "event": "ok" }
+{ "type": "test", "name": "serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection", "event": "ok" }
+{ "type": "test", "name": "serve::tests::raced_mutation_id_refusal_keeps_its_terminal_http_status", "event": "ok" }
+{ "type": "test", "name": "serve::tests::refresh_rotates_and_logout_all_revokes_every_session", "event": "ok" }
+{ "type": "test", "name": "serve::tests::store_tests::action_store_precondition_precedes_admission_and_replay", "event": "ok" }
+{ "type": "test", "name": "serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative", "event": "ok" }
+{ "type": "test", "name": "serve::tests::presence_tests::w15a_vanished_held_poll_is_claimed_once_after_clock_advance_6s", "event": "ok" }
+{ "type": "test", "name": "serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_seat_revocation_during_verification_cannot_be_undone_by_allow", "event": "ok" }
+{ "type": "test", "name": "serve::tests::store_tests::an_idless_mutation_cannot_execute_on_the_wrong_store", "event": "ok" }
+snapback4 dev: read costly (guest:01M3Y98HEQY1H0RQK4BZKDRRVD) cut by heap bytes at costly:2:1; examined=0 index_entries=0 rule_probes=0 steps=1838 heap_bytes=16808700 output_bytes=6 rows_written=0; snapback4 why costly
+{ "type": "test", "name": "serve::tests::route_tests::route_wait_capacity_leaves_verification_and_short_core_requests_available", "event": "ok" }
+{ "type": "test", "name": "serve::tests::store_tests::intent_store_precondition_fences_execution_and_replay_without_recording_a_refusal", "event": "ok" }
+{ "type": "test", "name": "serve::tests::review_changes::finding_5_reordered_commit_notifications_cannot_report_a_restored_head", "event": "ok" }
+{ "type": "test", "name": "serve::tests::catalog_and_changes_require_live_identity_and_release_refuses_dev_doors", "event": "ok" }
+{ "type": "test", "name": "serve::tests::unauthorized_large_posts_close_before_body_admission", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::failed_materialization_is_not_counted_and_unreadable_head_fails_discovery", "event": "ok" }
+{ "type": "test", "name": "serve::tests::upload_disk_work_is_bounded_and_does_not_hold_the_query_engine", "event": "ok" }
+{ "type": "test", "name": "serve::tests::unsupported_http_versions_release_connection_slots", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_invalid_delivery_never_admits_and_cannot_collect_a_settled_body", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::registry_claim_retains_long_action_and_maximum_route_names_over_http", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_wire_retains_raw_bytes_and_independent_set_cookie_headers", "event": "ok" }
+{ "type": "test", "name": "verbs::doctor_tests::w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::stale_generation_engine_stream", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::stale_generation_engine_snapshot", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve", "event": "ok" }
+{ "type": "test", "name": "verbs::test_fixture::column_tests::residency_fixture_import_rebuilds_poisoned_columns", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock", "event": "ok" }
+{ "type": "test", "name": "verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_verifier_fences_wrong_tokens_and_expired_tickets_without_admission", "event": "ok" }
+{ "type": "test", "name": "serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock", "event": "ok" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943969356720666-28/snapback/workers/push.mjs (pid 3063125)
+{ "type": "test", "name": "verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_503_is_collectible_only_after_fresh_verification_of_the_same_body", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::stale_generation_reader_snapshot", "event": "ok" }
+snapback4 worker: supervision window ended; replacing child
+{ "type": "test", "name": "serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once", "event": "ok" }
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+{ "type": "test", "name": "serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::stale_generation_reader_stream", "event": "ok" }
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot record status: E_STORE: database is locked
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+{ "type": "test", "name": "serve::tests::review_changes::finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page", "event": "ok" }
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943969356720666-28/snapback/workers/push.mjs (pid 3063206)
+{ "type": "test", "name": "serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine", "event": "ok" }
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+{ "type": "test", "name": "serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked", "event": "ok" }
+{ "type": "test", "name": "store_owner::tests::database_renamed_to_auxiliary_name_is_never_opened_or_truncated", "event": "ok" }
+{ "type": "test", "name": "serve::tests::unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters", "event": "ok" }
+{ "type": "test", "name": "store_owner::tests::hard_linked_databases_refuse_both_paths_and_existing_owners", "event": "ok" }
+{ "type": "test", "name": "store_owner::tests::database_ownership_preserves_sqlites_posix_locks", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::generation_discovery_keeps_page_authorization", "event": "ok" }
+{ "type": "test", "name": "serve::tests::store_tests::query_and_mutation_replies_identify_the_evaluated_store_and_replay_head", "event": "ok" }
+{ "type": "test", "name": "serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding", "event": "ok" }
+{ "type": "test", "name": "store_owner::tests::removed_or_replaced_sidecar_ends_exclusion_documented_boundary", "event": "ok" }
+{ "type": "test", "name": "verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution", "event": "ok" }
+snapback4 worker: /tmp/sb4-reader-reuse-3057836-1790943965576243376-12/worker.mjs (pid 3063497)
+{ "type": "test", "name": "serve::tests::presence_tests::w15a_commit_wakes_all_49_recipients_and_their_next_polls_satisfy_without_attempts", "event": "ok" }
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+{ "type": "test", "name": "serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit", "event": "ok" }
+{ "type": "test", "name": "serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::registry_claims_have_bounded_input_and_recheck_worker_revision", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_verifier_reclaims_expired_lease_but_old_callback_cannot_promote", "event": "ok" }
+{ "type": "test", "name": "serve::tests::route_tests::route_adoption_fences_old_supervised_verifier_before_child_shutdown", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::saturation::saturated_mutation_admission_reserves_query_and_sync_capacity", "event": "ok" }
+{ "type": "test", "name": "serve::tests::timeline_tests::paired_tombstoned_repost_identity_is_unobservable", "event": "ok" }
+dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "deb34bd8c573c766f3f1cfee8494a4e0"; instance "01M3Y98HEZXF6SF3NHHSNYD1DP"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790943971873; first response 1; `snapback4 why recent --instance 01M3Y98HEZXF6SF3NHHSNYD1DP`
+{ "type": "test", "name": "serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer", "event": "ok" }
+dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "df4965942d7c5f215a493ffcf9183b64"; instance "01M3Y98HECP22VKYDE8223DAYQ"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790943972007; first response 1; `snapback4 why recent --instance 01M3Y98HECP22VKYDE8223DAYQ`
+dev refusal: /uninstrumented:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "df4965942d7c5f215a493ffcf9183b64"; instance "01M3Y98HECP22VKYDE8223DAYQ"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1790943972009; first response 2; `snapback4 why recent --instance 01M3Y98HECP22VKYDE8223DAYQ`
+{ "type": "test", "name": "serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause", "event": "ok" }
+{ "type": "test", "name": "serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps", "event": "ok" }
+{ "type": "test", "name": "serve::tests::sync_generation_tests::concurrent::detached_sync_never_skips_a_commit_after_its_snapshot", "event": "ok" }
+{ "type": "suite", "event": "ok", "passed": 237, "failed": 0, "ignored": 4, "measured": 0, "filtered_out": 0, "exec_time": 7.006849983 }
