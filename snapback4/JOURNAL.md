@@ -81592,3 +81592,63 @@ reports/20261001-nx-export-proves-native/REPORT.md (round 2). New follow-up:
 issues/20261001-snapback4-mixed-evidence-wasm-timeout.md.
 Nothing pushed or published. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 3: honest-project cache and verified recovery custody
+
+Addressed the nine round-2 findings under the operator's explicit boundary:
+the native cache is a correctness optimization for honest projects, not a
+sandbox; config plugins already execute arbitrary code. Deliberately evasive
+registration stacks and forged plugin result lines are outside that boundary.
+The child nevertheless returns its evaluated config on a parent-owned descriptor.
+Per-export evaluation remains. Expo's resolved plugin file now makes every
+project-local plugin conservative independently of registration stacks, including
+`plugins/x.js` and plugins whose native reads depend on `ios/` existing. Remote
+URI config resources refuse, fingerprint/build pin the image implementation,
+and unobserved mod assignments are checked after deferred compilation too.
+
+Preparation workers start only after a persistent group leader's birth identity
+is journaled. Recovery verifies that leader, drains its descendants, and finishes
+cleanup before output removal or reuse. A surviving wrapper cannot mark its dead
+driver's run complete. Exports use private directories and atomically publish
+dist after proof. Buffered simulator creation reconciles the exact journaled
+name/runtime and prefix against simctl's listing; prefix alone never permits
+deletion. Both starters pass every requested detecting control, including live
+TERM-resistant preparation children, driver-only SIGKILL, simultaneous distinct
+exports and real create with its UUID withheld from stdout. LLP 3000.030 §15 and
+the guide record the boundary and resulting behavior.
+
+Final Apartment mini cold commands: **174.512 s plain / 229.510 s social**.
+Five-run warm medians: **15.820 s / 21.073 s**; all ten samples are below 25 s,
+cache hits, exact distinct loaded bundles and three passing smoke segments.
+No cohort sample was discarded. Cold removes the native cache/snapshot/Pods/
+DerivedData, with installed dependencies, Metro/system caches, the already booted
+tool-owned simulator and six verified dependency archives disclosed in the report.
+Config evaluation medians are **167.000 / 218.476 ms per call**, about **0.334 /
+0.437 s per export** for the two mandatory calls. Long batches use temporary
+command-scoped caffeinate assertions; no persistent power setting changed.
+
+The canonical scripts/test.sh ran exactly once on the final implementation:
+`== 0 failure(s) in 2174 s`. Witness integration 53/53, guide 110/110, client pool
+5,761 passed / five fixture skips / no failures or cancellations, final models
+79/79. Affected JavaScript 50/50 and witness Rust units 18/18 pass. Both 300-history
+mixed-evidence oracles pass this time; the earlier intermittent failure remains
+an open issue. All development failures are retained and classified in the
+report: our completion fixture/command/harness errors, the baseline namespace
+fixture's invalid UUID (fixed without weakening contention assertions), its
+separate baseline empty-PID race under noncanonical parallel execution, and the
+environmental Maven reset and two Xcode deadlines overlapping recorded sleep.
+No engine/contract source, timeout, model count or budget was relaxed. Wasm is
+unchanged at **2,014,420 B raw / 604,666 B gzip**, 559 B below its cap.
+
+Archived and byte-verified 371 retained receipt files from 23 plain / 17 social
+completed runs, five full each, with no per-run apps or preparation directories.
+The malformed development shim's empty unstarted directory is recorded separately
+without invented completion. Six remaining owned devices were deleted under
+verified custody; the two buffered-create devices had already been rolled back.
+All eight recorded devices are absent. No unowned simulator or unrelated process
+was touched. Candidates/caches remain locally for review. Report and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 3). This is no new
+independent review, physical-device or application-scenario claim.
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

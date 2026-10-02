@@ -11,6 +11,7 @@ function mockExpo(root) {
   put('expo/package.json', '{"name":"expo"}');
   put('@expo/config-plugins/package.json', '{"name":"@expo/config-plugins","main":"index.js"}');
   put('@expo/config-plugins/index.js', 'exports.compileModsAsync=async config=>config');
+  put('@expo/config-plugins/build/utils/plugin-resolver.js', 'exports.resolveConfigPluginFunction=()=>{}');
   put('@expo/config-plugins/build/plugins/withMod.js', 'exports.withMod=exports.withBaseMod=config=>config');
   put('@expo/prebuild-config/index.js', 'exports.getPrebuildConfigAsync=async root=>({exp:JSON.parse(require("fs").readFileSync(require("path").join(root,"app.json"))).expo})');
 }
@@ -180,7 +181,7 @@ test('retention keeps five completed runs, compresses older receipts and leaves 
   try {
     for (let i = 1; i <= 8; i++) {
       const dir = path.join(root, `${i}-123`); fs.mkdirSync(dir);
-      fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), '{"exitStatus":1}');
+      fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), JSON.stringify({ exitStatus: 1, ...(i !== 2 ? { endedAt: 1 } : {}) }));
       fs.writeFileSync(path.join(dir, 'smoke-ios-screen.mp4'), 'video');
       if (i === 1) fs.writeFileSync(path.join(dir, 'proof.json.gz'), 'already archived before interruption');
       if (i !== 2) retainEvidence(root, dir, binary);

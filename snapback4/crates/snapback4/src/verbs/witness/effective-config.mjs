@@ -23,6 +23,16 @@ export async function evaluate(project) {
   const req = createRequire(path.join(project, 'package.json'));
   const expo = createRequire(req.resolve('expo/package.json'));
   const pluginsRoot = path.dirname(expo.resolve('@expo/config-plugins/package.json'));
+  // Observe Expo's resolved plugin file, independently of mod-registration
+  // stacks. This includes bare shadows, auto plugins and plugins/x.js.
+  const resolver = expo(path.join(pluginsRoot, 'build/utils/plugin-resolver.js'));
+  const resolvedPlugins = new Set();
+  const resolvePlugin = resolver.resolveConfigPluginFunction;
+  resolver.resolveConfigPluginFunction = function(root, reference) {
+    const { filePath } = resolver.resolvePluginForModule(root, reference);
+    resolvedPlugins.add(fs.realpathSync(filePath));
+    return resolvePlugin(root, reference);
+  };
   const prebuild = expo('@expo/prebuild-config');
   const registration = expo(path.join(pluginsRoot, 'build/plugins/withMod.js'));
   const pins = JSON.parse(fs.readFileSync(new URL('./native-mods.json', import.meta.url)));
@@ -63,18 +73,25 @@ export async function evaluate(project) {
   }
   let { exp } = await prebuild.getPrebuildConfigAsync(project, { platforms: ['ios'] });
   const mods = Object.keys(exp.mods?.ios ?? {});
-  const unknown = [...new Set([...untracked, ...mods.filter(name => tracked.get(name) !== exp.mods.ios[name])])];
+  const unknown = new Set([...untracked, ...mods.filter(name => tracked.get(name) !== exp.mods.ios[name])]);
   const { compileModsAsync } = expo('@expo/config-plugins');
   const before = registrations.slice();
   exp = await compileModsAsync(exp, { projectRoot: project, platforms: ['ios'], introspect: true, ignoreExistingNativeFiles: true });
+  for (const name of Object.keys(exp.mods?.ios ?? {})) if (tracked.get(name) !== exp.mods.ios[name]) unknown.add(name);
+  for (const name of untracked) unknown.add(name);
+  const dependencyRoot = path.join(project, 'node_modules') + path.sep;
+  const conservativePlugins = [...resolvedPlugins].filter(file => !file.startsWith(dependencyRoot) || !identify(file)?.audited)
+    .map(file => path.relative(project, file)).sort();
   const { mods: ignored, _internal, ...config } = exp;
   // Keep the whole serializable evaluated configuration and actual mod results.
   // Internal paths/history describe the evaluation machinery, not native output.
   return { config, modResults: _internal?.modResults?.ios ?? {}, mods: before,
-    unobserved: unknown, retainApplicationJs: unknown.length > 0 || before.some(r => !r.audited) };
+    conservativePlugins, unobserved: [...unknown].sort(),
+    retainApplicationJs: conservativePlugins.length > 0 || unknown.size > 0 || before.some(r => !r.audited) };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  // Plugins may log; keep the machine-readable result on its own final line.
-  try { console.log('SNAPBACK4_EFFECTIVE_CONFIG=' + JSON.stringify(await evaluate(fs.realpathSync(process.argv[2])))); }
+  // The parent owns this descriptor. Plugin logging/beforeExit output is not
+  // the result channel. This is cheap hardening, not an arbitrary-code sandbox.
+  try { fs.writeFileSync(3, JSON.stringify(await evaluate(fs.realpathSync(process.argv[2])))); }
   catch (error) { console.error(error); process.exitCode = 1; }
 }

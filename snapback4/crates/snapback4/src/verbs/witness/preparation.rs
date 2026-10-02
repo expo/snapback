@@ -28,10 +28,29 @@ pub(super) fn lease(path: &Path) -> Result<File> {
 
 // Keep the unreaped leader (and thus its process-group identity) until every
 // live member has stopped. Parent exit alone says nothing about compilers.
-struct PreparationProcess { child: Child, cleaned: bool }
+struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf }
 impl PreparationProcess {
+    fn spawn(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
+        let runner = options.artifacts.join("preparation-runner.mjs");
+        fs::write(&runner, include_str!("preparation-runner.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let result = options.artifacts.join(format!("{label}-status.json"));
+        let _ = fs::remove_file(&result);
+        let child = Command::new("node").arg(runner).arg(&result).arg(command).args(args)
+            .process_group(0).stdin(Stdio::piped())
+            .stdout(output(&options.artifacts.join(format!("{label}-stdout.log")))?)
+            .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?)
+            .spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?;
+        let mut owned = Self { child, cleaned: false, result };
+        recovery::group(options, "preparation", owned.child.id())?;
+        owned.child.stdin.take().unwrap().write_all(b"start\n").map_err(|e| error("E_WITNESS_PROCESS", e))?;
+        Ok(owned)
+    }
     fn status(&self) -> Result<Option<ExitStatus>> {
         use std::os::unix::process::ExitStatusExt;
+        if let Ok(bytes) = fs::read(&self.result) {
+            let value: Value = serde_json::from_slice(&bytes).map_err(|e| error("E_WITNESS_PROCESS", e))?;
+            if let Some(status) = value["status"].as_i64() { return Ok(Some(ExitStatus::from_raw((status as i32) << 8))); }
+        }
         let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
         if unsafe { libc::waitid(libc::P_PID, self.child.id(), &mut info, libc::WEXITED | libc::WNOHANG | libc::WNOWAIT) } != 0 {
             return Err(error("E_WITNESS_PROCESS", std::io::Error::last_os_error()));
@@ -69,12 +88,8 @@ impl PreparationProcess {
 impl Drop for PreparationProcess { fn drop(&mut self) { let _ = self.cleanup(); } }
 
 fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
-    let mut cmd = Command::new("node");
-    cmd.args(args).process_group(0).stdin(Stdio::null())
-        .stdout(output(&options.artifacts.join(format!("{label}-stdout.log")))?)
-        .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?);
-    let mut child = PreparationProcess { child: cmd.spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?, cleaned: false };
-    recovery::child(options, "preparation", child.child.id())?;
+    let args: Vec<_> = args.iter().map(std::ffi::OsStr::new).collect();
+    let mut child = PreparationProcess::spawn(options, std::ffi::OsStr::new("node"), &args, label)?;
     let end = Instant::now() + Duration::from_secs(900);
     let mut announced = false;
     let result = loop {
@@ -112,12 +127,7 @@ pub(super) fn check_project(options: &Options) -> Result<Vec<File>> {
     roots.sort(); roots.dedup();
     let leases = roots.iter().map(|p| lease(&p.join(".snapback4-witness/owner.lock"))).collect::<Result<Vec<_>>>()?;
     let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BUILD", e))?;
-    let mut command = Command::new(binary);
-    command.arg("check").process_group(0).stdin(Stdio::null())
-        .stdout(output(&options.artifacts.join("check-stdout.log"))?)
-        .stderr(output(&options.artifacts.join("check-stderr.log"))?);
-    let mut child = PreparationProcess { child: command.spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?, cleaned: false };
-    recovery::child(options, "preparation", child.child.id())?;
+    let mut child = PreparationProcess::spawn(options, binary.as_os_str(), &[std::ffi::OsStr::new("check")], "check")?;
     let end = Instant::now() + Duration::from_secs(900);
     loop {
         if let Some(status) = child.status()? {

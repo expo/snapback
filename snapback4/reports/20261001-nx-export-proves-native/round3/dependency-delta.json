@@ -1,0 +1,490 @@
+[
+  {
+    "starter": "plain",
+    "digest": "37df8c6640c986afaef8c3befb5196717a53d3f72f225e1c689641dcb7e2067d",
+    "delta": [
+      {
+        "path": "node_modules/.package-lock.json",
+        "before": {
+          "path": "node_modules/.package-lock.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 237023,
+          "sha256": "0798ffb5ca16d870794b5da9b3d6e3f17b9fa5806a09a29ae2339776a3093e9e"
+        },
+        "after": {
+          "path": "node_modules/.package-lock.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 237014,
+          "sha256": "03d63490b6bddb7d0bcb84f5a4b86f8229e4583c24b94c603884af8004d61096"
+        }
+      },
+      {
+        "path": "node_modules/@expo/devcert/README.md",
+        "before": {
+          "path": "node_modules/@expo/devcert/README.md",
+          "mode": 420,
+          "type": "file",
+          "bytes": 13133,
+          "sha256": "c980ed5689e71b4b689f65f18b6c1c7b0fbcf8218442eb1b746e06a3746ab88b"
+        },
+        "after": {
+          "path": "node_modules/@expo/devcert/README.md",
+          "mode": 420,
+          "type": "file",
+          "bytes": 13214,
+          "sha256": "c8ef2aa899ba4adff78db82a5e8e10766d2c1fb7b998bbc7ae98cf4760e152f3"
+        }
+      },
+      {
+        "path": "node_modules/@expo/devcert/package.json",
+        "before": {
+          "path": "node_modules/@expo/devcert/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 913,
+          "sha256": "24c8a135698c6ac92d0148c372195cbbb5b2fd3ccd4f91729115eb33a6d89555"
+        },
+        "after": {
+          "path": "node_modules/@expo/devcert/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 873,
+          "sha256": "d975162d95b98d13144643fb37c33d96fbbf049b5a6e4065399422902874153b"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1123,
+          "sha256": "054af4af35564abc7805a5cc913b78cf6c64a83faeacf6ca840d125d5f9ff4a7"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1138,
+          "sha256": "dc9d56147b9bb7ab3fc2900c04139d2a0164ab729ed7478b7a9f6687f20732bd"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js.map",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 947,
+          "sha256": "acd2f61956089ad1f542a692e848028d5523b41df10d2a55ed1187f4ec9db26f"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 962,
+          "sha256": "a8a3d1d1509200e5395a59c0291211bb8d5b50a412519049dc38fb791bb87f92"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/index.js",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1022,
+          "sha256": "f73592b8eec2cf04ecd93d5a116702e4bf8ac0f9c824ae667c27aa99260cae3c"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1034,
+          "sha256": "8d965d7fe0452a3268b6a4c90f91b7b4c57fdb8259f68e36756e8f5054f5dc4c"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/index.js.map",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 552,
+          "sha256": "9563f465dcaa1eda6aed2f5b51604564e5b86160793f0c6020536b136c786fa2"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 557,
+          "sha256": "2b0ededf4f5b0f974deff4b52f1407270d8cb9f440f547382c474b74f64fd0c4"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/package.json",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 667,
+          "sha256": "788cef7d11723e19e3484b1660c1b413072faccef0c68f4d99e79a48b493023d"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 823,
+          "sha256": "333432fff61366c2ea917cb8590aaf997b25bdd5e249e1f746cfd49b640a5700"
+        }
+      },
+      {
+        "path": "node_modules/@expo/xcpretty/package.json",
+        "before": {
+          "path": "node_modules/@expo/xcpretty/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1023,
+          "sha256": "192db9a858b7251722e8ab55d12348e00a35624cf9ab9393eda1e606dd4b9861"
+        },
+        "after": {
+          "path": "node_modules/@expo/xcpretty/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 903,
+          "sha256": "60608860e53c4adec3e8ffb9fae8b1597988b21c69c598ffe8fdf6eaad6813d5"
+        }
+      },
+      {
+        "path": "node_modules/expo/node_modules/@expo/ws-tunnel/build/utils/url.d.ts",
+        "before": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/build/utils/url.d.ts",
+          "mode": 420,
+          "type": "file",
+          "bytes": 472,
+          "sha256": "876631b268e02e03722b25635f67b2f74faa994abb5fbc15fcaadd2ca4f13454"
+        }
+      },
+      {
+        "path": "node_modules/expo/node_modules/@expo/ws-tunnel/package.json",
+        "before": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1113,
+          "sha256": "9e6b13ea32272bebf28798d8cad23602e27c54b00e8e7646960f0d891cee7d96"
+        },
+        "after": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1112,
+          "sha256": "6d12d55d9484ae502b3cd44b92f29a3ea6aa55153e4d53b656d2a21b7ac28c30"
+        }
+      },
+      {
+        "path": "node_modules/snapback4-expo/export-ios.mjs",
+        "before": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 4364,
+          "sha256": "9110ee8e4dd7ecbbfc92d53c71e918ee77e08211d15fdde91b54d7d12c25b138"
+        },
+        "after": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 4995,
+          "sha256": "cd6af2fe8ae70758d4e92cc3a618cdc03133cf909698333eabbb525e406e67ab"
+        }
+      },
+      {
+        "path": "node_modules/@expo/devcert/LICENSE",
+        "after": {
+          "path": "node_modules/@expo/devcert/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1137,
+          "sha256": "ddd64c9417c74998fe7d0bed6faaf7466bcbe4772bb2b52e7fc9815e33455921"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/LICENSE",
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1106,
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93"
+        }
+      },
+      {
+        "path": "node_modules/@expo/xcpretty/LICENSE",
+        "after": {
+          "path": "node_modules/@expo/xcpretty/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1142,
+          "sha256": "051e2d2738b442a8a8403194f485deeacd9a7e895c08ffbf9e600a9dae858dcc"
+        }
+      },
+      {
+        "path": "node_modules/expo/node_modules/@expo/ws-tunnel/LICENSE",
+        "after": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1106,
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93"
+        }
+      }
+    ],
+    "package": "4d116e1feb7f0bd9cbb80eaeb24ea65b793382eabf016f77b20e3f401dc613ce"
+  },
+  {
+    "starter": "social",
+    "digest": "ad7fd540019309f374b5abcb6132c5d9751baee61cf26e77b2acbfe926864e3a",
+    "delta": [
+      {
+        "path": "node_modules/.package-lock.json",
+        "before": {
+          "path": "node_modules/.package-lock.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 288073,
+          "sha256": "cc9a22c5502e5b7916b6ada48db8669c571f78d3aba1fc0516b2725aafb6a999"
+        },
+        "after": {
+          "path": "node_modules/.package-lock.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 288064,
+          "sha256": "74c5e38eaf095d47275762c36efa4a71485179656331f55a146c7fcfb88de6a1"
+        }
+      },
+      {
+        "path": "node_modules/@expo/devcert/README.md",
+        "before": {
+          "path": "node_modules/@expo/devcert/README.md",
+          "mode": 420,
+          "type": "file",
+          "bytes": 13133,
+          "sha256": "c980ed5689e71b4b689f65f18b6c1c7b0fbcf8218442eb1b746e06a3746ab88b"
+        },
+        "after": {
+          "path": "node_modules/@expo/devcert/README.md",
+          "mode": 420,
+          "type": "file",
+          "bytes": 13214,
+          "sha256": "c8ef2aa899ba4adff78db82a5e8e10766d2c1fb7b998bbc7ae98cf4760e152f3"
+        }
+      },
+      {
+        "path": "node_modules/@expo/devcert/package.json",
+        "before": {
+          "path": "node_modules/@expo/devcert/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 913,
+          "sha256": "24c8a135698c6ac92d0148c372195cbbb5b2fd3ccd4f91729115eb33a6d89555"
+        },
+        "after": {
+          "path": "node_modules/@expo/devcert/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 873,
+          "sha256": "d975162d95b98d13144643fb37c33d96fbbf049b5a6e4065399422902874153b"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1123,
+          "sha256": "054af4af35564abc7805a5cc913b78cf6c64a83faeacf6ca840d125d5f9ff4a7"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1138,
+          "sha256": "dc9d56147b9bb7ab3fc2900c04139d2a0164ab729ed7478b7a9f6687f20732bd"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js.map",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 947,
+          "sha256": "acd2f61956089ad1f542a692e848028d5523b41df10d2a55ed1187f4ec9db26f"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/__tests__/index-test.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 962,
+          "sha256": "a8a3d1d1509200e5395a59c0291211bb8d5b50a412519049dc38fb791bb87f92"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/index.js",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1022,
+          "sha256": "f73592b8eec2cf04ecd93d5a116702e4bf8ac0f9c824ae667c27aa99260cae3c"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1034,
+          "sha256": "8d965d7fe0452a3268b6a4c90f91b7b4c57fdb8259f68e36756e8f5054f5dc4c"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/build/index.js.map",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 552,
+          "sha256": "9563f465dcaa1eda6aed2f5b51604564e5b86160793f0c6020536b136c786fa2"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/build/index.js.map",
+          "mode": 420,
+          "type": "file",
+          "bytes": 557,
+          "sha256": "2b0ededf4f5b0f974deff4b52f1407270d8cb9f440f547382c474b74f64fd0c4"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/package.json",
+        "before": {
+          "path": "node_modules/@expo/sdk-runtime-versions/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 667,
+          "sha256": "788cef7d11723e19e3484b1660c1b413072faccef0c68f4d99e79a48b493023d"
+        },
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 823,
+          "sha256": "333432fff61366c2ea917cb8590aaf997b25bdd5e249e1f746cfd49b640a5700"
+        }
+      },
+      {
+        "path": "node_modules/@expo/xcpretty/package.json",
+        "before": {
+          "path": "node_modules/@expo/xcpretty/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1023,
+          "sha256": "192db9a858b7251722e8ab55d12348e00a35624cf9ab9393eda1e606dd4b9861"
+        },
+        "after": {
+          "path": "node_modules/@expo/xcpretty/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 903,
+          "sha256": "60608860e53c4adec3e8ffb9fae8b1597988b21c69c598ffe8fdf6eaad6813d5"
+        }
+      },
+      {
+        "path": "node_modules/expo/node_modules/@expo/ws-tunnel/build/utils/url.d.ts",
+        "before": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/build/utils/url.d.ts",
+          "mode": 420,
+          "type": "file",
+          "bytes": 472,
+          "sha256": "876631b268e02e03722b25635f67b2f74faa994abb5fbc15fcaadd2ca4f13454"
+        }
+      },
+      {
+        "path": "node_modules/expo/node_modules/@expo/ws-tunnel/package.json",
+        "before": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1113,
+          "sha256": "9e6b13ea32272bebf28798d8cad23602e27c54b00e8e7646960f0d891cee7d96"
+        },
+        "after": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/package.json",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1112,
+          "sha256": "6d12d55d9484ae502b3cd44b92f29a3ea6aa55153e4d53b656d2a21b7ac28c30"
+        }
+      },
+      {
+        "path": "node_modules/snapback4-expo/export-ios.mjs",
+        "before": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 4364,
+          "sha256": "9110ee8e4dd7ecbbfc92d53c71e918ee77e08211d15fdde91b54d7d12c25b138"
+        },
+        "after": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 4995,
+          "sha256": "cd6af2fe8ae70758d4e92cc3a618cdc03133cf909698333eabbb525e406e67ab"
+        }
+      },
+      {
+        "path": "node_modules/@expo/devcert/LICENSE",
+        "after": {
+          "path": "node_modules/@expo/devcert/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1137,
+          "sha256": "ddd64c9417c74998fe7d0bed6faaf7466bcbe4772bb2b52e7fc9815e33455921"
+        }
+      },
+      {
+        "path": "node_modules/@expo/sdk-runtime-versions/LICENSE",
+        "after": {
+          "path": "node_modules/@expo/sdk-runtime-versions/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1106,
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93"
+        }
+      },
+      {
+        "path": "node_modules/@expo/xcpretty/LICENSE",
+        "after": {
+          "path": "node_modules/@expo/xcpretty/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1142,
+          "sha256": "051e2d2738b442a8a8403194f485deeacd9a7e895c08ffbf9e600a9dae858dcc"
+        }
+      },
+      {
+        "path": "node_modules/expo/node_modules/@expo/ws-tunnel/LICENSE",
+        "after": {
+          "path": "node_modules/expo/node_modules/@expo/ws-tunnel/LICENSE",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1106,
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93"
+        }
+      }
+    ],
+    "package": "4d116e1feb7f0bd9cbb80eaeb24ea65b793382eabf016f77b20e3f401dc613ce"
+  }
+]

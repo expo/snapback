@@ -1,0 +1,37 @@
+{
+  "starter": "plain",
+  "label": "ios-context-second-retry2",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790948473414,
+  "durationMs": 91963,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "36d1188695aeaa07d25e1c85247f1faf3eaf74c9aae3e07f7362d89576d27969",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948473516-32319/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "dded83dab7dbf82c8441d5971dc51acde6221ea1b5b80cf9cb56080589ef022f"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 88948,
+  "loadedHash": "36d1188695aeaa07d25e1c85247f1faf3eaf74c9aae3e07f7362d89576d27969",
+  "metroResources": [],
+  "nativeMarker": "second",
+  "cacheMiss": "native-cache miss: input changed: src/native-mode.js; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

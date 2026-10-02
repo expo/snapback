@@ -41,6 +41,11 @@ pub(super) fn child(options: &Options, label: &str, pid: u32) -> Result<()> {
     let id = identity(pid);
     update(options, |value| value["children"][label] = id.map_or(Value::Null, |id| id))
 }
+pub(super) fn group(options: &Options, label: &str, pid: u32) -> Result<()> {
+    let leader = identity(pid).ok_or_else(|| error("E_WITNESS_PROCESS", "cannot record process group birth"))?;
+    if unsafe { libc::getpgid(pid as i32) } != pid as i32 { return Err(error("E_WITNESS_PROCESS", "child is not its process group leader")); }
+    update(options, |value| value["children"][label] = json!({ "group": pid, "leader": leader }))
+}
 pub(super) fn simulator(options: &Options, simulator: &Value) -> Result<()> {
     update(options, |value| value["simulator"] = simulator.clone())
 }
@@ -53,7 +58,7 @@ pub(super) fn app(options: &Options, pid: Option<u32>, udid: &str, bundle: &str,
 pub(super) fn begin(options: &Options) -> Result<Option<File>> {
     if options.export.is_none() { return Ok(None); }
     if let Some(root) = options.artifacts.parent() {
-        if let Err(e) = cleanup(root, None) { eprintln!("witness: evidence cleanup deferred: {e}"); }
+        cleanup(root, None)?;
     }
     let lease = preparation::lease(&options.artifacts.join("run.lock"))?;
     let owner = identity(std::process::id()).ok_or_else(|| error("E_WITNESS_PROCESS", "cannot record driver process start time"))?;
@@ -62,6 +67,7 @@ pub(super) fn begin(options: &Options) -> Result<Option<File>> {
     Ok(Some(lease))
 }
 fn stop(record: &Value, signal: i32) -> Result<()> {
+    if record["group"].is_number() { return stop_group(record); }
     if !alive(record) { return Ok(()); }
     let pid = record["pid"].as_u64().unwrap() as i32;
     unsafe { libc::kill(pid, signal); }
@@ -78,6 +84,47 @@ fn stop(record: &Value, signal: i32) -> Result<()> {
         sleep(Duration::from_millis(50));
     }
     Ok(())
+}
+fn members(group: u32) -> Result<Vec<Value>> {
+    let output = Command::new("ps").args(["-axo", "pid=,pgid=,stat="]).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
+    if !output.status.success() { return Err(error("E_WITNESS_PROCESS", "cannot inspect abandoned process group")); }
+    Ok(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| {
+        let mut fields = line.split_whitespace();
+        let pid = fields.next()?.parse::<u32>().ok()?;
+        if fields.next()?.parse::<u32>().ok()? != group || fields.next()?.starts_with('Z') { return None; }
+        identity(pid)
+    }).collect())
+}
+fn stop_group(record: &Value) -> Result<()> {
+    let group = record["group"].as_u64().unwrap() as u32;
+    if members(group)?.is_empty() { return Ok(()); }
+    // A persistent preparation leader stays alive even after its worker exits.
+    // Never infer custody from a recycled group number if that anchor is lost.
+    if !alive(&record["leader"]) || unsafe { libc::getpgid(group as i32) } != group as i32 {
+        return Err(error("E_WITNESS_PROCESS", "abandoned process group has no matching birth record; workspace cleanup refused"));
+    }
+    // Keep the verified leader alive while draining descendants. Re-enumerate
+    // before each signal: a compiler may fork while termination is underway.
+    for signal in [libc::SIGTERM, libc::SIGKILL] {
+        let end = Instant::now() + Duration::from_secs(2);
+        loop {
+            if !alive(&record["leader"]) { return Err(error("E_WITNESS_PROCESS", "lost custody of abandoned process group")); }
+            let children: Vec<_> = members(group)?.into_iter().filter(|p| p["pid"] != group).collect();
+            if children.is_empty() {
+                stop(&record["leader"], libc::SIGTERM)?;
+                if members(group)?.is_empty() { return Ok(()); }
+                return Err(error("E_WITNESS_PROCESS", "abandoned process group did not drain"));
+            }
+            for child in children {
+                if alive(&child) && unsafe { libc::getpgid(child["pid"].as_u64().unwrap() as i32) } == group as i32 {
+                    unsafe { libc::kill(child["pid"].as_u64().unwrap() as i32, signal); }
+                }
+            }
+            if Instant::now() >= end { break; }
+            sleep(Duration::from_millis(50));
+        }
+    }
+    Err(error("E_WITNESS_PROCESS", "abandoned process group survived cleanup"))
 }
 fn recover(dir: &Path) -> Result<bool> {
     let mut record = read(&dir.join("live.json"));
@@ -101,7 +148,8 @@ fn recover(dir: &Path) -> Result<bool> {
     if record["simulator"]["selection"] == "created" && record["simulator"]["udid"].is_null() {
         stop(&record["children"]["create"], libc::SIGTERM)?;
         let text = fs::read_to_string(dir.join("simulator-create.stdout")).unwrap_or_default();
-        if let Some(id) = simulator::created_udid(&text) {
+        let id = match simulator::created_udid(&text) { Some(id) => Some(id.to_owned()), None => simulator::reconcile_created(&record["simulator"])? };
+        if let Some(id) = id {
             record["simulator"]["udid"] = json!(id);
             write(&dir.join("live.json"), &record)?;
         }
@@ -109,27 +157,42 @@ fn recover(dir: &Path) -> Result<bool> {
     let simulator = &record["simulator"];
     let mut owners = ownership::Records::open(simulator::owners()?);
     let udid = simulator["udid"].as_str().filter(|s| name(s));
-    let _simulator_lease = match udid { Some(id) => match owners.lease(id) { Ok(l) => Some(l), Err(_) => return Ok(false) }, None => None };
+    let _simulator_lease = match udid { Some(id) => Some(owners.lease(id)?), None => None };
     // Do not stop a replacement app, even on our simulator. Both PID and birth
     // time must match, and the simulator lease stays held through shutdown.
+    let mut active = alive(&record["app"]);
     if let Some(children) = record["children"].as_object() {
+        for process in children.values() {
+            active |= if let Some(group) = process["group"].as_u64() { !members(group as u32)?.is_empty() } else { alive(process) };
+        }
         for process in children.values() { stop(process, libc::SIGTERM)?; }
     }
     if let Some(udid) = udid {
         let mut owned = owners.read(udid);
-        if owned.is_null() && simulator["selection"] == "created" && simulator["ready"] == false {
-            owners.write(udid, simulator)?;
-            owned = simulator.clone();
+        if simulator["selection"] == "created" && simulator["ready"] == false {
+            match simulator::reconcile_created(simulator)? {
+                Some(id) if id == udid => {
+                    if owned.is_null() { owners.write(udid, simulator)?; owned = simulator.clone(); }
+                }
+                None => {
+                    // Normal rollback may already have deleted it before the
+                    // driver exited. Do not recreate an ownership tombstone.
+                    if owned["udid"] == udid && owned["name"] == simulator["name"] && owned["ready"] == false { owners.remove(udid)?; }
+                    owned = Value::Null;
+                }
+                _ => return Err(error("E_WITNESS_SIMULATOR", "creation identity differs from its journal; leaving devices untouched")),
+            }
         }
         if owned["udid"] == udid && owned["name"] == simulator["name"] && owned["runtime"] == simulator["runtime"] && !owned["prefix"].is_null() {
             if owned["ready"] == false {
                 simctl(&["delete", udid], Duration::from_secs(10))?;
                 owners.remove(udid)?;
-            } else {
+            } else if active {
             // Respect the legacy simulator-home lease as well as the lease
             // available before boot. If HOME cannot be resolved, no shutdown.
-            if let Ok(home) = simctl(&["getenv", udid, "HOME"], Duration::from_secs(10)) {
-                let Ok(_home_lease) = preparation::lease(&Path::new(&home).join(".snapback4-witness-owner.lock")) else { return Ok(false); };
+            let home = simctl(&["getenv", udid, "HOME"], Duration::from_secs(10))?;
+            {
+                let _home_lease = preparation::lease(&Path::new(&home).join(".snapback4-witness-owner.lock"))?;
                 if alive(&record["app"]) {
                     let bundle = record["bundle"].as_str().unwrap_or_default();
                     if app_pid(&simctl(&["spawn", udid, "launchctl", "list"], Duration::from_secs(10))?, bundle)? == record["app"]["pid"].as_u64().map(|n| n as u32) {
@@ -142,11 +205,13 @@ fn recover(dir: &Path) -> Result<bool> {
                     let path = Path::new(staging);
                     if path.starts_with(Path::new(&home)) && staging.contains("/Documents/.snapback4-witness/") { let _ = fs::remove_dir_all(path); }
                 }
+                if alive(&record["app"]) { return Err(error("E_WITNESS_PROCESS", "recorded app survived recovery")); }
                 simctl(&["shutdown", udid], Duration::from_secs(10))?;
             }
             }
         }
     }
+    if alive(&record["app"]) { return Err(error("E_WITNESS_PROCESS", "cannot clean up recorded app without simulator custody")); }
     for entry in fs::read_dir(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -158,6 +223,29 @@ fn recover(dir: &Path) -> Result<bool> {
     eprintln!("witness: recovered abandoned export {}", dir.display());
     Ok(true)
 }
+// Darwin's swap makes a complete directory visible in one operation, including
+// to simultaneous wrappers. No observer sees another run's partial export.
+pub(super) fn publish(args: &[String]) -> i32 {
+    let result = (|| -> Result<()> {
+        if args.len() != 2 { return Err(error("E_WITNESS_INPUT", "export-publish requires private and visible export directories")); }
+        #[cfg(target_os = "macos")]
+        {
+            use std::ffi::CString;
+            let source = CString::new(args[0].as_str()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+            let target = CString::new(args[1].as_str()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+            // RENAME_EXCL handles a simultaneous first publisher without
+            // replacing a nonempty directory. Retry as an atomic exchange.
+            if unsafe { libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_EXCL) } == 0 { return Ok(()); }
+            if unsafe { libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_SWAP) } != 0 {
+                return Err(error("E_WITNESS_ARTIFACT", std::io::Error::last_os_error()));
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "macos"))]
+        { Err(error("E_WITNESS_PLATFORM", "native export publication requires macOS")) }
+    })();
+    match result { Ok(()) => 0, Err(e) => { eprintln!("{e}"); 1 } }
+}
 fn remove(path: &Path) -> Result<()> {
     let result = if path.is_dir() && !path.is_symlink() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
     result.or_else(|e| if e.kind() == std::io::ErrorKind::NotFound { Ok(()) } else { Err(e) }).map_err(|e| error("E_WITNESS_ARTIFACT", e))
@@ -168,7 +256,9 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     // Blocking OS lock: no PID-file takeover race, and SIGKILL releases it.
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     lock.lock().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    if let Some(dir) = completed { write(&dir.join("finished.json"), &json!({ "finishedAt": now() }))?; }
+    // A wrapper reporting driver exit does not establish cleanup. In particular
+    // SIGKILL leaves owned backend/compilers and app copies behind.
+    if let Some(dir) = completed { recover(dir)?; }
     let mut runs = Vec::new();
     for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -235,6 +325,35 @@ mod tests {
         assert!(!dir.join("export.app").exists()); assert!(!dir.join("build.xcresult").exists()); assert!(!dir.join("preparation-tmp").exists());
         assert_eq!(read(&dir.join("finished.json"))["abandoned"], true);
         assert!(backend.status().unwrap().is_some());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper() {
+        use std::os::unix::process::CommandExt;
+        let root = std::env::temp_dir().join(format!("sb4-group-recover-{}-{}", std::process::id(), now()));
+        let dir = root.join("1-123"); fs::create_dir_all(dir.join("export.app")).unwrap();
+        let runner = dir.join("runner.mjs"); fs::write(&runner, include_str!("preparation-runner.mjs")).unwrap();
+        let heartbeat = dir.join("heartbeat");
+        let code = "const fs=require('fs');process.on('SIGTERM',()=>{});setInterval(()=>fs.appendFileSync(process.argv[1],'x'),20)";
+        let mut keeper = Command::new("node").arg(runner).arg(dir.join("status.json")).args(["node", "-e", code]).arg(&heartbeat)
+            .process_group(0).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let leader = identity(keeper.id()).unwrap();
+        let group = json!({ "group": keeper.id(), "leader": leader });
+        let mut invalid = group.clone(); invalid["leader"]["start"] = json!([0,0]);
+        assert!(stop_group(&invalid).is_err(), "recycled leader must not authorize group signals");
+        write(&dir.join("live.json"), &json!({ "owner": null, "wrapper": identity(std::process::id()), "children": { "preparation": group } })).unwrap();
+        keeper.stdin.take().unwrap().write_all(b"start\n").unwrap();
+        let end = Instant::now() + Duration::from_secs(5);
+        while !heartbeat.exists() && Instant::now() < end { sleep(Duration::from_millis(20)); }
+        assert!(heartbeat.exists());
+        cleanup(&root, Some(&dir)).unwrap();
+        keeper.wait().unwrap();
+        assert!(members(keeper.id()).unwrap().is_empty());
+        assert!(!dir.join("export.app").exists());
+        assert_eq!(read(&dir.join("finished.json"))["recovered"], true);
+        let bytes = fs::read(&heartbeat).unwrap(); sleep(Duration::from_millis(100));
+        assert_eq!(bytes, fs::read(&heartbeat).unwrap());
         fs::remove_dir_all(root).unwrap();
     }
 

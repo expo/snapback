@@ -19,6 +19,7 @@ const started = Date.now(), deadline = started + 900_000, phases = [];
 const cache = path.join(project, '.snapback4-witness'), snapshot = path.join(cache, 'snapshot');
 const env = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'DEVELOPER_DIR', 'LANG'].filter(k => process.env[k]).map(k => [k, process.env[k]]));
 Object.assign(env, { CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1', NODE_ENV: 'production',
+  EXPO_IMAGE_UTILS_NO_SHARP: '1',
   EXPO_PUBLIC_SNAPBACK_URL: origin, CP_HOME_DIR: path.join(cache, 'pods-home'), CP_CACHE_DIR: path.join(cache, 'pods-cache'),
   HOME: path.join(cache, 'home'), npm_config_cache: path.join(cache, 'npm-cache'), TMPDIR: path.join(out, 'preparation-tmp') });
 // Expo's CI embed keeps Metro transforms, including inlined EXPO_PUBLIC values.

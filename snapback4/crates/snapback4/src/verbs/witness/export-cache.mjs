@@ -15,11 +15,11 @@ export function nativeFingerprint(project, toolchain, adapter, nativeEnvironment
   const config = fs.existsSync(path.join(project, 'app.json')) ? readJSON(path.join(project, 'app.json')) : {};
   const references = configFiles(project, config);
   const child = spawnSync(process.execPath, [fileURLToPath(new URL('./effective-config.mjs', import.meta.url)), project], {
-    cwd: project, env: Object.keys(nativeEnvironment).length ? nativeEnvironment : process.env, encoding: 'utf8', timeout: 30_000, maxBuffer: 16 * 1024 * 1024,
+    cwd: project, env: { ...(Object.keys(nativeEnvironment).length ? nativeEnvironment : process.env), EXPO_IMAGE_UTILS_NO_SHARP: '1' },
+    stdio: ['ignore', 'pipe', 'pipe', 'pipe'], encoding: 'utf8', timeout: 30_000, maxBuffer: 16 * 1024 * 1024,
   });
-  const line = child.stdout?.split('\n').findLast(line => line.startsWith('SNAPBACK4_EFFECTIVE_CONFIG='));
-  if (child.status !== 0 || !line) fail('E_WITNESS_NATIVE_COMPAT', 'cannot evaluate effective Expo prebuild config; use installed-app mode');
-  const effective = JSON.parse(line.slice('SNAPBACK4_EFFECTIVE_CONFIG='.length));
+  if (child.status !== 0 || !child.output?.[3]) fail('E_WITNESS_NATIVE_COMPAT', 'cannot evaluate effective Expo prebuild config; use installed-app mode');
+  const effective = JSON.parse(child.output[3]);
   references.push(...configFiles(project, effective.config), ...configFiles(project, effective.modResults));
   let dynamic = effective.retainApplicationJs || fs.readdirSync(project).some(n => /^app\.config\./.test(n))
     || fs.existsSync(path.join(project, 'ios')) || manifest.codegenConfig
@@ -59,7 +59,9 @@ export function configFiles(project, config) {
   const root = fs.realpathSync(project), files = [];
   function visit(value) {
     if (typeof value === 'string') {
-      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) && !/^file:/i.test(value)) return;
+      if (/^[a-z][a-z0-9+.-]*:/i.test(value) && !/^file:/i.test(value)) {
+        fail('E_WITNESS_NATIVE_COMPAT', 'remote or URI config resources are not supported by export caching; use in-tree files or installed-app mode');
+      }
       const file = path.resolve(root, value);
       if (/^file:/i.test(value) || value.split(/[\\/]/).includes('..') || path.win32.isAbsolute(value) || !file.startsWith(root + path.sep)) {
         fail('E_WITNESS_NATIVE_COMPAT', 'out-of-tree config paths are not supported by export caching; copy the file into the project or use installed-app mode');

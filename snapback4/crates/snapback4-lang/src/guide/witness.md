@@ -106,7 +106,7 @@ uncovered references, custom build scripts/Podfile/environment hooks, and scheme
 actions are refused. Its native inventories are provenance, not a complete
 compatibility key for arbitrary projects. `native:smoke` always invokes Xcode; automatic export smoke uses the separate conservative key below.
 Dynamic config, fingerprint overrides,
-local workspaces/modules/plugins and linked `expo-updates` are refused; prepare
+unsupported local workspace/module/plugin forms and linked `expo-updates` are refused; prepare
 those projects yourself and use installed-app mode. The witness makes no
 compatibility claim for them. It never migrates your native lifecycle for you.
 
@@ -136,9 +136,9 @@ SIGINT/SIGTERM wait for bounded cleanup and return 130/143. Project/simulator le
 After a JS edit, repeat `npm run export:ios`: matching native inputs reuse a private
 Release app, replacing its bundle/assets with the exact export. Dependencies and
 lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
-bound with evaluated Expo prebuild config; unknown file-writing mods retain JS. Out-of-tree config files refuse. The app reports the selected file's SHA-256 on
+bound with per-export evaluated Expo prebuild config; all project-local plugins and unknown mods retain JS. Remote/URI resources and out-of-tree config files refuse; the image toolchain is pinned. This cache optimizes correctness for honest projects; a plugin already runs arbitrary code during prebuild, so it is not a sandbox. The app reports the selected file's SHA-256 on
 all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
-`export:ios` recovers abandoned owned runs, removes temporary app copies and keeps five full plus twenty compressed runs; asset removals match fresh builds. `native:smoke` always builds.
+`export:ios` proves a private export before atomically updating `dist/`, recovers abandoned owned process groups, removes temporary app copies and keeps five full plus twenty compressed runs; asset removals match fresh builds. `native:smoke` always builds.
 A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
 
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;

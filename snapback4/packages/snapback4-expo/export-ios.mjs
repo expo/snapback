@@ -49,18 +49,28 @@ export function retainEvidence(root, completed, binary = 'snapback4') {
 }
 export async function main() {
   const req = createRequire(path.resolve('package.json'));
-  const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap']);
-  if (exported.status !== 0) return exported.status;
   const skip = skipReason(process.platform, process.env);
-  if (skip) { console.log(`native smoke skipped: ${skip}`); return 0; }
+  if (skip) {
+    const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap']);
+    if (exported.status !== 0) return exported.status;
+    console.log(`native smoke skipped: ${skip}`); return 0;
+  }
   const root = path.resolve('artifacts/native-smoke');
   const artifacts = path.join(root, `${Date.now()}-${process.pid}`);
+  const privateExport = path.join(artifacts, 'export');
   const receiptPath = path.join(artifacts, 'smoke-ios-run.json');
   fs.mkdirSync(artifacts, { recursive: true });
-  const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', 'dist', '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
+  const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
+  if (exported.status !== 0) return exported.status;
+  const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', privateExport, '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
   let receipt;
   try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
   const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);
+  if (outcome.status === 0) {
+    const published = await runChild('snapback4', ['witness', 'export-publish', privateExport, path.resolve('dist')]);
+    if (published.status !== 0) { outcome.status = published.status; outcome.message = 'export output publication failed'; }
+  }
+  fs.rmSync(privateExport, { recursive: true, force: true });
   retainEvidence(root, artifacts);
   console.log(`${outcome.message}; receipt: ${receiptPath}`);
   return outcome.status;

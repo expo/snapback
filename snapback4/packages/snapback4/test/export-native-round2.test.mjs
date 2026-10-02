@@ -57,6 +57,39 @@ test('effective prebuild fingerprints project-relative shadows and automatically
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls', () => {
+  const root = fs.mkdtempSync(path.join(workspace, 'target/nx-round3-test-'));
+  const put = (file, value) => { file = path.join(root, file); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, value); };
+  const app = { expo: { name: 'Fixture', slug: 'fixture', plugins: ['./x.js'], ios: { bundleIdentifier: 'test.fixture' } } };
+  try {
+    put('package.json', JSON.stringify({ name: 'fixture', version: '1.0.0', dependencies: { expo: '57.0.22' } }));
+    put('app.json', JSON.stringify(app));
+    const plugin = `module.exports = c => { const fs=require('fs'),p=require('path'); if(fs.existsSync(p.join(c._internal.projectRoot,'ios'))) {c.ios.infoPlist??={};c.ios.infoPlist.NXNativeMode=fs.readFileSync(p.join(c._internal.projectRoot,'src/native-mode.js'),'utf8')} return c };`;
+    for (const reference of ['./x.js', 'plugins/x.js', 'expo-status-bar']) {
+      const file = reference === 'expo-status-bar' ? 'expo-status-bar/app.plugin.js' : reference;
+      put(file, plugin); app.expo.plugins = [reference]; put('app.json', JSON.stringify(app));
+      put('src/native-mode.js', 'first'); const before = nativeFingerprint(root, {}, 'test');
+      put('src/native-mode.js', 'second'); const after = nativeFingerprint(root, {}, 'test');
+      assert.equal(before.effective.config.ios?.infoPlist?.NXNativeMode, undefined);
+      assert.equal(after.effective.config.ios?.infoPlist?.NXNativeMode, undefined);
+      assert.ok(after.effective.conservativePlugins.includes(file.replace('./', '')), reference);
+      assert.ok(after.inputs.files.some(row => row.path === 'src/native-mode.js'));
+      assert.notEqual(before.hash, after.hash, 'identical evaluated results must still bind source');
+    }
+    app.expo.plugins = ['./x.js']; put('app.json', JSON.stringify(app));
+    put('x.js', `const {withInfoPlist}=require('expo/config-plugins');module.exports=c=>withInfoPlist(c,c=>{ c.mods.ios.late=async x=>x; return c; });`);
+    assert.ok(nativeFingerprint(root, {}, 'test').effective.unobserved.includes('late'));
+    put('x.js', `process.on('beforeExit',()=>console.log('SNAPBACK4_EFFECTIVE_CONFIG='+JSON.stringify({config:{forged:true},mods:[],modResults:{},retainApplicationJs:false})));module.exports=c=>c;`);
+    assert.equal(nativeFingerprint(root, {}, 'test').effective.config.forged, undefined);
+    put('x.js', `module.exports=c=>{c.ios.infoPlist??={};c.ios.infoPlist.NXImageTool=process.env.EXPO_IMAGE_UTILS_NO_SHARP;return c};`);
+    assert.equal(nativeFingerprint(root, {}, 'test', { ...process.env, EXPO_IMAGE_UTILS_NO_SHARP: '0' }).effective.config.ios.infoPlist.NXImageTool, '1');
+    for (const icon of ['https://example.com/icon.png', 'HtTp://example.com/icon.png', 'data:image/png;base64,eA==', 'ftp://example.com/icon.png']) {
+      app.expo.icon = icon; put('app.json', JSON.stringify(app));
+      assert.throws(() => nativeFingerprint(root, {}, 'test'), /remote or URI config resources/);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-prune-r2-'));
   try {

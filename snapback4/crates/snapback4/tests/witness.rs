@@ -498,7 +498,7 @@ mod driver {
 
     #[test]
     fn export_create_partial_output_rolls_back_on_failure_timeout_and_group_interrupt() {
-        for mode in ["auto-create-printed-fails", "auto-create-printed-timeout", "auto-create-group-interrupt"] {
+        for mode in ["auto-create-printed-fails", "auto-create-printed-timeout", "auto-create-buffered-timeout", "auto-create-group-interrupt"] {
             let fixture = Fixture::new();
             fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
             let mut command = build_command(&fixture);
@@ -751,7 +751,8 @@ mod driver {
         let first = Fixture::new(); let second = Fixture::new(); let artifacts = first.0.join("artifacts");
         let mut one = first.command("normal", Fixture::port(), &artifacts);
         let mut two = second.command("normal", Fixture::port(), &artifacts);
-        two.env("WITNESS_TEST_UDID", "another-simulator");
+        // Each fixture already has a distinct UUID and matching ownership
+        // record. Replacing it with a non-UUID breaks the second winner.
         let mut one = watchdog::Guarded::spawn(&mut one, &first.0, watchdog::SCENARIO_GUARD);
         let mut two = watchdog::Guarded::spawn(&mut two, &second.0, watchdog::SCENARIO_GUARD);
         let outputs = [one.finish(), two.finish()];

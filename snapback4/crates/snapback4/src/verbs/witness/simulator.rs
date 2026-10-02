@@ -27,6 +27,26 @@ pub(super) fn created_udid(text: &str) -> Option<&str> {
     }))
 }
 
+// A durable, run-specific intent plus an exact name/runtime match establishes
+// creation custody even if simctl buffered its UUID when it was killed.
+pub(super) fn reconcile_created(intent: &Value) -> Result<Option<String>> {
+    let prefix = intent["prefix"].as_str().unwrap_or_default();
+    let wanted = intent["name"].as_str().unwrap_or_default();
+    let runtime = intent["runtime"].as_str().unwrap_or_default();
+    if intent["selection"] != "created" || intent["ready"] != false || !name(prefix) || !prefix.ends_with('-')
+        || !wanted.starts_with(prefix) || wanted.len() <= prefix.len() || runtime.is_empty() {
+        return Err(error("E_WITNESS_SIMULATOR", "missing valid run creation intent; cannot reconcile simulator"));
+    }
+    let interrupted = INTERRUPTED.swap(false, Ordering::Relaxed);
+    let output = simctl(&["list", "devices", "--json"], Duration::from_secs(10));
+    if interrupted { INTERRUPTED.store(true, Ordering::Relaxed); }
+    let devices: Value = serde_json::from_str(&output?).map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
+    let matches: Vec<_> = devices["devices"][runtime].as_array().into_iter().flatten()
+        .filter(|device| device["name"] == wanted).collect();
+    if matches.len() > 1 { return Err(error("E_WITNESS_SIMULATOR", "ambiguous run creation intent; leaving devices untouched")); }
+    Ok(matches.first().and_then(|device| device["udid"].as_str()).filter(|id| created_udid(id).is_some()).map(str::to_owned))
+}
+
 fn delete_created(udid: &str, _lease: &File, preparation: &mut Value) -> Result<()> {
     // Cancellation must not cancel rollback. Restore the flag for the caller.
     let was_interrupted = INTERRUPTED.swap(false, Ordering::Relaxed);
@@ -124,9 +144,10 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<(Valu
     owners.prepare()?;
     let name = format!("{prefix}{}-{}", now(), std::process::id());
     let runtime = runtime["identifier"].as_str().unwrap();
-    recovery::simulator(options, &json!({ "name": name, "runtime": runtime, "prefix": prefix, "selection": "created", "ready": false }))?;
+    let intent = json!({ "name": name, "runtime": runtime, "prefix": prefix, "selection": "created", "ready": false });
+    recovery::simulator(options, &intent)?;
     let (printed, created) = create(&["create", &name, kind["identifier"].as_str().unwrap(), runtime], options);
-    let udid = created_udid(&printed).unwrap_or_default().to_string();
+    let udid = match created_udid(&printed) { Some(id) => id.to_owned(), None => reconcile_created(&intent)?.unwrap_or_default() };
     if udid.is_empty() {
         // A timeout is never an environment skip, even without an identifier.
         created?;

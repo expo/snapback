@@ -473,6 +473,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
 }
 
 pub fn run(args: &[String]) -> i32 {
+    if args.first().is_some_and(|arg| arg == "export-publish") { return recovery::publish(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {

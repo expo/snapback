@@ -57,6 +57,10 @@ if a[0] == 'list':
             devices[0]['name'] = record['name']
         devices += [{'udid': 'someone-else', 'name': 'mini-verify-iphone', 'state': 'Booted', 'isAvailable': True},
                     {'udid': 'near-prefix', 'name': 'other-snapback4-smoke-not-ours', 'state': 'Booted', 'isAvailable': True}]
+        if (root / 'buffered-create-intent.json').exists() and not (root / 'deleted-simulator').exists():
+            created = json.loads((root / 'buffered-create-intent.json').read_text())
+            devices += [dict(created, state='Shutdown', isAvailable=True),
+                        {'udid': 'same-prefix-unrecorded', 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'unrecorded', 'state': 'Shutdown', 'isAvailable': True}]
         groups = {runtime: devices}
         if mode == 'reuse-order':
             # Lexically 18 < 26 < 9, numerically 26 > 18 > 9.
@@ -71,6 +75,10 @@ elif a[0] == 'create':
         (state / (udid + '.json')).write_text('collision after successful create')
     if mode == 'auto-create-interrupt':
         os.kill(os.getppid(), signal.SIGINT)
+    if mode == 'auto-create-buffered-timeout':
+        (root / 'buffered-create-intent.json').write_text(json.dumps({'name': a[1], 'udid': udid}))
+        print(udid)  # fully buffered; SIGKILL loses these bytes
+        while True: signal.pause()
     print(udid, flush=True)
     if mode == 'auto-create-printed-fails': sys.exit(1)
     if mode == 'auto-create-printed-timeout':

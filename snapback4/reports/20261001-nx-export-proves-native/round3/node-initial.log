@@ -1,0 +1,42 @@
+✔ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (1247.835166ms)
+✔ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (943.17375ms)
+native smoke evidence cleanup deferred: spawnSync /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-prune-r2-WkBDQV/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (142.523958ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (1154.092917ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.162625ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (87.728417ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (14.210375ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (90.451167ms)
+✔ negative header topology follows SDK root aliases (0.743708ms)
+✔ config file references bind excluded source bytes and refuse external paths (54.022333ms)
+✖ retention keeps five completed runs, compresses older receipts and leaves active runs alone (580.615667ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (392.538041ms)
+✔ react-native.config.mjs refuses through the real static preparation adapter (29.046084ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2437.687459
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/export-native.test.mjs:178:1
+✖ retention keeps five completed runs, compresses older receipts and leaves active runs alone (580.615667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/export-native.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

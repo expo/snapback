@@ -1,0 +1,22 @@
+[
+  {
+    "name": "finished.json",
+    "sha256": "b3b9a665ae9ec5aefaca476df9b22c0c0ac42961e357a068c3c01f9d8244b38d",
+    "bytes": 62
+  },
+  {
+    "name": "live.json",
+    "sha256": "c337d3a119c01592f408a27e416459ec4da832abe89dd79830f09a863743945f",
+    "bytes": 436
+  },
+  {
+    "name": "simulator-create.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "simulator-create.stdout",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+]

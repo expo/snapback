@@ -1,0 +1,24 @@
+Starting Metro Bundler
+
+iOS Bundled 2058ms index.js (725 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-a022886e16e3960bc055accb84842ada.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790949268365-54513/export
+  File "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/control-shim/node", line 6
+    code="import signal,time;from pathlib import Path;signal.signal(signal.SIGTERM,signal.SIG_IGN);p=Path("/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/control-shim/heartbeat");\nwhile True: p.open('a').write('x');time.sleep(.02)"
+                                                                                                                                                                                                    ^
+SyntaxError: invalid syntax
+native smoke evidence cleanup deferred:   File "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/control-shim/node", line 6
+    code="import signal,time;from pathlib import Path;signal.signal(signal.SIGTERM,signal.SIG_IGN);p=Path("/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/control-shim/heartbeat");\nwhile True: p.open('a').write('x');time.sleep(.02)"
+                                                                                                                                                                                                    ^
+SyntaxError: invalid syntax
+
+native smoke failed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790949268365-54513/smoke-ios-run.json
