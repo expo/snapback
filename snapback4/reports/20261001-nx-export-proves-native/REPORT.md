@@ -4,6 +4,16 @@
 `sb4-np/nx-export-proves-native`. No push or publication. Governing design:
 [LLP 3000.030 §15](../../../llp/3000.030-native-proof-in-minutes.rfc.md#15-export-proves-native-nx-round-0-2026-10-01).
 
+> **Evidence archive.** Raw compressed dumps (`*.gz`) and screen recordings
+> (`*.mp4`) under this directory, 6,402 paths and 1.31 GB, are not in git. They live
+> in a content-addressed archive on the apartment Mac mini
+> (`~/sb4-np/evidence-archive/20261001-nx-export-proves-native/`), and
+> [`EVIDENCE-ARCHIVE.tsv`](EVIDENCE-ARCHIVE.tsv) lists each one's sha256, size
+> and path. The branch was rewritten to drop them; every other byte is
+> unchanged, and the manifest header maps the original commits to the
+> rewritten ones. To restore them, run this from this directory:
+> `grep -v '^#' EVIDENCE-ARCHIVE.tsv | while IFS=$'\t' read -r s n p; do mkdir -p "$(dirname "$p")"; cp "$ARCHIVE/blobs/$s" "$p"; done`
+
 ## Result
 
 Both Expo starters now run the same Hermes export into `dist/`, followed by an
