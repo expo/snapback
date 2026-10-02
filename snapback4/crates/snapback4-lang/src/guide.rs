@@ -356,7 +356,7 @@ partial source coverage or a cut cannot supply an exact aggregate. Physical zero
 exists at one rule-probe unit, regardless of expired sources. A rule equality
 on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
 view in the program; its live value cannot be probed at one unit. Value
-equalities on non-expiring maintains and ordinary tables remain supported.
+equalities on non-expiring maintains and ordinary tables remain supported. Row-keyed counts certify predicates separately (guide maintains).
 Value-order indexes over expiring sources are refused by check
 (E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use the fresh live bounded query
 on guide feeds. It sorts live counts with no schedule lag or writable score table;

@@ -6,6 +6,7 @@ pub(super) fn predicates(tx: &crate::store::Tx<'_>, schema: &Schema, c: Config, 
     count: Option<i64>, now: i64, label: &str) -> usize {
     let mut comparisons = 0;
     for (field, kind) in &schema.tables["unread"].columns {
+        if field == "recountPending" { continue; }
         let value = match field.as_str() {
             "member" | "id" => member.field("id").unwrap().clone(),
             "value" => Value::Int(count.unwrap_or(0)),
@@ -58,8 +59,8 @@ table messages:
 view unread: count messages by members m where .room = m.room
 table gates:
   member: members
-  read <- exists unread[member = .member, recountPending = true]
-  insert <- exists unread[member = .member, recountPending = true]
+  read <- exists unread[member = .member, value = 0]
+  insert <- exists unread[member = .member, value = 0]
 query pair():
   return { count: unread['u'], rows: unread where .principal = viewer first 100, gate: gates['g'] }
 mutation attempt():
@@ -89,7 +90,7 @@ mutation attempt():
         let insert=e.mutate("fields.attempt",None,Context::new("reader",Default::default()).at(2)).unwrap();
         assert!(matches!(&insert.state,crate::WriteState::Failed { why,.. } if why.code=="E_RULE"),"settled={settled} {insert:?}");
         let schema=e.schema().clone(); let tx=e.store_mut().transaction().unwrap();
-        assert_eq!(predicates(&tx,&schema,config(Lifetime::Direct),&member,Some(1),2,"owned copy"),20);
+        assert_eq!(predicates(&tx,&schema,config(Lifetime::Direct),&member,Some(1),2,"owned copy"),16);
     }
     assert_eq!(after_source,cached,"source event must change only private evidence, not replace a cache by a placeholder");
 }
@@ -116,7 +117,7 @@ fn every_field_rule_certifies_absent_and_legacy_pending_cache() {
         }
         let want=expected(c,&member,&messages,2);
         assert_eq!(want,Some(1100));
-        assert_eq!(predicates(&tx,&schema,c,&member,want,2,"absent/legacy cache"),schema.tables["unread"].columns.len()*4);
+        assert_eq!(predicates(&tx,&schema,c,&member,want,2,"absent/legacy cache"),(schema.tables["unread"].columns.len()-1)*4);
     }
 }
 

@@ -253,6 +253,7 @@ impl Binder<'_> {
             }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
+                if name != "id" && name != "count" && !info.columns.contains_key(name) { super::super::row_views::predicate_field(info, name, site)?; }
                 // @ref LLP 3000.007#23 — count rows expose count as an authoring alias, without a stored column.
                 if name == "count" && !info.columns.contains_key(name)
                     && info.maintained.as_ref().is_some_and(|m| m.aggregate == "count") {

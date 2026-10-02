@@ -81,6 +81,9 @@ impl Walk<'_> {
         if let Some(owner) = self.schema.private_owner(table) { self.issue(path, &owner.label()); }
     }
     fn field(&mut self, table: &str, field: &str, path: &str) {
+        if let Some(message) = self.schema.row_view_predicate_field(table, field) {
+            self.issues.push(SchemaIssue { path: path.into(), message });
+        }
         if self.schema.table(table).is_some_and(|t| t.maintained.contains_key(field)) { self.issue(path, &format!("{table}.{field}")); }
     }
     fn term(&mut self, table: &str, term: &RuleTerm, path: &str) {
@@ -90,6 +93,11 @@ impl Walk<'_> {
         self.target(table, path);
         if let Some(definition) = self.schema.table(table) && let Some(index) = definition.index(index) {
             for field in definition.maintained.keys().filter(|field| index.uses_column(field)) { self.field(table, field, path); }
+            for field in index.columns() {
+                if let Some(message) = self.schema.row_view_predicate_field(table, &field) {
+                    self.issues.push(SchemaIssue { path: path.into(), message });
+                }
+            }
         }
     }
     fn rule(&mut self, table: &str, rule: &RuleExpr, path: &str) {

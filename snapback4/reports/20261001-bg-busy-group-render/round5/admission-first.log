@@ -1,0 +1,23 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 29.56s
+     Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-965b020b853cdfb5)
+
+running 1 test
+
+thread 'maintenance_fields_refuse_in_all_authored_predicates_and_helpers' (2435888) panicked at crates/snapback4-lang/tests/row_keyed_views.rs:30:9:
+query good():
+  return unread where .value = 0 first 10
+: [Diagnostic { site: Site { file: "schema.q", line: 15, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: row-keyed counts may be pending or awaiting expiry; read the value by member and check complete instead of indexing, ranking or probing by value/recountPending (guide maintains)", rewrite: "view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo and .senderId != m.principal and not .tombstone; declare cap 100 by conversationId on members", guide: "maintains", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 43, col: 17 }, code: "E_QUARRY_MAINTAIN", message: "read or declaration on unread (value, id) at schema.q:43:10 needs every ranking scope field pinned: ", rewrite: "pin  with where equalities, then read unread last 10 by .value after c; omit the scope predicate for a global ranking", guide: "maintains", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test maintenance_fields_refuse_in_all_authored_predicates_and_helpers ... FAILED
+
+failures:
+
+failures:
+    maintenance_fields_refuse_in_all_authored_predicates_and_helpers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p snapback4-lang --test row_keyed_views`

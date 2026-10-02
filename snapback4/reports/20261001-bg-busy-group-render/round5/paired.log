@@ -1,0 +1,34 @@
+START idle-1-base
+END idle-1-base 0
+START idle-1-base-summarize
+END idle-1-base-summarize 0
+START idle-1-base-attribute-client
+END idle-1-base-attribute-client 0
+START idle-2-candidate
+END idle-2-candidate 0
+START idle-2-candidate-summarize
+END idle-2-candidate-summarize 0
+START idle-2-candidate-attribute-client
+END idle-2-candidate-attribute-client 0
+START idle-3-base
+END idle-3-base 0
+START idle-3-base-summarize
+END idle-3-base-summarize 0
+START idle-3-base-attribute-client
+END idle-3-base-attribute-client 0
+START idle-4-candidate
+END idle-4-candidate 0
+START idle-4-candidate-summarize
+END idle-4-candidate-summarize 0
+START idle-4-candidate-attribute-client
+END idle-4-candidate-attribute-client 0
+START loaded-batch
+END loaded-batch 0
+START ll-base
+END ll-base 0
+START ll-base-summary
+END ll-base-summary 0
+START ll-candidate
+END ll-candidate 0
+START ll-candidate-summary
+END ll-candidate-summary 0

@@ -237,7 +237,7 @@ fn unchanged_mark_after_clock_expiry_sqlite() {
 
 // @ref LLP 3000.015#3 — rejected candidates retain an index cursor, never a payload cursor.
 fn durable_source_rule_budget<H: Host>(host: &mut H) {
-    let source=SOURCE.replace("  expire at .until\n", "")
+    let source=SOURCE.replace("return unread first 100", "return unread where .conversationId = 'c' first 100").replace("  expire at .until\n", "")
         .replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  until: time ?\n  expire at .until")
         .replace("  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public",
             "  read <- exists access[.conversationId, viewer]\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync to access[.conversationId]")
@@ -256,12 +256,15 @@ fn durable_source_rule_budget<H: Host>(host: &mut H) {
         // The first prefix is Astra's literal: one matching provisional durable source.
         let population=if step==0 {1} else {1+(state%5) as usize};
         let mut facts=Vec::new();
+        let mut predicted=Vec::new();
         for n in 0..population {
             let sender=if n==0 || (state>>(n+1))&1==0 {"alice"} else {"bob"};
             let ordinal=if n==0 {1} else {(state>>(n+8)) as i64 % 3};
             let id=format!("pred-{n}");
-            device.predict("send","bob",&json!({"id":id,"conversationId":"c","ordinal":ordinal,"senderId":sender,"until":null}),
+            let prediction=device.predict("send","bob",&json!({"id":id,"conversationId":"c","ordinal":ordinal,"senderId":sender,"until":null}),
                 2,vec![id],n as u64+1).unwrap();
+            assert!(prediction.predicted.iter().any(|row|row=="unread/b"),"{prediction:?}");
+            predicted.extend(prediction.predicted);
             facts.push((sender.to_string(),ordinal));
         }
         for now in [2,99,100,9] {
@@ -269,6 +272,15 @@ fn durable_source_rule_budget<H: Host>(host: &mut H) {
             let full=device.query("unreadFor","bob",&json!({"member":"b"}),now).unwrap();
             assert!(full.complete,"{} step={step} {full:?}",host.label());
             assert_eq!(full.data,Value::Int(expected));
+            assert_eq!(full.next_expiry,(now<100).then_some(100));
+            let rows=device.query("unreadRows","bob",&json!({}),now).unwrap();
+            assert!(rows.complete);
+            let rows=rows.data.as_array().unwrap();
+            if now < 100 {
+                assert_eq!(rows.len(),1);
+                assert_eq!(rows[0].field("value"),Ok(&Value::Int(expected)));
+                assert_eq!(rows[0].field("pending"),Ok(&Value::Bool(true)),"prediction metadata: {} step={step} clock={now}",host.label());
+            } else { assert!(rows.is_empty()); }
             for remaining in [0,1,2,3,4,5,6,7,8,12,32] {
                 let result=snapback4_device::call::call(&mut device,json!({"op":"query","name":"unreadFor",
                     "viewer":"bob","args":{"member":"b"},"now":now,
@@ -286,9 +298,28 @@ fn durable_source_rule_budget<H: Host>(host: &mut H) {
                 }
             }
         }
+        predicted.sort();predicted.dedup();device.withdraw(&predicted).unwrap();
+        let rows=device.query("unreadRows","bob",&json!({}),2).unwrap();
+        assert!(rows.data.as_array().unwrap().iter().all(|row|row.field("pending")!=Ok(&Value::Bool(true))));
         host.close(&format!("budget-{step}"),device);
     }
     eprintln!("BG round4 {} device property: seed=20261002, 16 populations, 64 unrestricted + 704 budget observations",host.label());
 }
 #[test] fn durable_source_rule_budget_memory() { durable_source_rule_budget(&mut Memory::new()); }
 #[test] fn durable_source_rule_budget_sqlite() { durable_source_rule_budget(&mut Sqlite::new("durable-budget")); }
+
+#[path = "../../snapback4-core/tests/row_view_witness/admission_cases.rs"] mod admission_cases;
+fn maintenance_admission<H: Host>(host: &mut H) {
+    let (schema,programs)=admission_cases::base();
+    let mut device=host.open("admitted",Some(snapback4_device::device::Backend {generation:1,schema,programs})).unwrap();
+    for (n,(name,schema,programs)) in admission_cases::cases().into_iter().enumerate() {
+        let backend=snapback4_device::device::Backend {generation:2,schema,programs};
+        let error=device.adopt(backend.clone()).unwrap_err();
+        assert!(error.to_string().contains("E_VIEW_KEY"),"{} adopt {name}: {error}",host.label());
+        assert_eq!(device.backend().generation,1,"refused adoption must preserve the prior backend");
+        let error=host.open(&format!("bad-{n}"),Some(backend)).err().expect(&name);
+        assert!(error.to_string().contains("E_VIEW_KEY"),"{} {name}: {error}",host.label());
+    }
+}
+#[test] fn maintenance_admission_memory() { maintenance_admission(&mut Memory::new()); }
+#[test] fn maintenance_admission_sqlite() { maintenance_admission(&mut Sqlite::new("maintenance-admission")); }

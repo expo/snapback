@@ -50,7 +50,8 @@ pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> 
     if table.through.as_ref().is_some_and(|t| pinned.contains_key(&t.reference)) { return Some(table.rules.read.clone()); }
     let rule = simplify_prefix(&table.rules.read, &scan.table, table, &pinned);
     if matches!(rule, RuleExpr::Allow) { return None; }
-    let terms = conjuncts(rule);
+    let mut terms = Vec::new();
+    conjuncts(rule, &mut terms);
     let decided: Vec<_> = terms.into_iter().take_while(|term| {
         let mut fields = BTreeSet::new();
         term.fields(&mut fields);
@@ -60,14 +61,19 @@ pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> 
 }
 
 // Flatten only conjunctions, preserving left-to-right short-circuit order.
-fn conjuncts(rule: RuleExpr) -> Vec<RuleExpr> {
-    match rule { RuleExpr::And(terms) => terms.into_iter().flat_map(conjuncts).collect(), rule => vec![rule] }
+fn conjuncts(rule: RuleExpr, out: &mut Vec<RuleExpr>) {
+    match rule { RuleExpr::And(terms) => for term in terms { conjuncts(term, out); }, rule => out.push(rule) }
 }
 
 fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
     if rule_true(rule, name, table, &|name| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value))) { return RuleExpr::Allow; }
     match rule {
-        RuleExpr::And(terms) => RuleExpr::And(terms.iter().map(|term| simplify_prefix(term, name, table, pinned)).flat_map(conjuncts).filter(|term| !matches!(term, RuleExpr::Allow)).collect()),
+        RuleExpr::And(terms) => {
+            let mut out = Vec::new();
+            for term in terms { conjuncts(simplify_prefix(term, name, table, pinned), &mut out); }
+            out.retain(|term| !matches!(term, RuleExpr::Allow));
+            RuleExpr::And(out)
+        },
         RuleExpr::Or(_) => {
             // Use the same self-witness absorption as uniformity, but remove
             // the absorbed field read from the expression we actually run.
@@ -217,6 +223,8 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
+    /// Exact count-predicate transitions, distinct from ordinary witness expiry.
+    fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { None }
     /// Exchange the private expiry accumulator; ordinary probes have none.
     fn replace_expiry(&mut self, _expiry: Option<i64>) -> Option<i64> { None }
     /// Coverage of the most recent leaf, consumed once by the shared evaluator.
@@ -228,7 +236,7 @@ pub trait Probe {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum Verdict { Readable, Denied, #[default] Unknown }
+pub enum Verdict { Readable, Denied, #[default] Unknown }
 
 impl Verdict {
     fn not(self) -> Self {
@@ -275,13 +283,13 @@ impl Timeline {
         let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
         result.invariant = (self.invariant && left == decisive)
             || (other.invariant && right == decisive) || (self.invariant && other.invariant);
-        let (mut a, mut b) = (self.changes.into_iter().peekable(), other.changes.into_iter().peekable());
+        let (mut a, mut b) = (self.changes.as_slice(), other.changes.as_slice());
         let mut previous = result.value;
-        while let Some(time) = earliest(a.peek().map(|(t, _)| *t), b.peek().map(|(t, _)| *t)) {
+        while let Some(time) = earliest(a.first().map(|(t, _)| *t), b.first().map(|(t, _)| *t)) {
             // All rows expiring at the same instant disappear together. This
             // preserves correlations, including A or not A and A and not A.
-            if a.peek().is_some_and(|(t, _)| *t == time) { left = a.next().unwrap().1; }
-            if b.peek().is_some_and(|(t, _)| *t == time) { right = b.next().unwrap().1; }
+            if let Some((head, tail)) = a.split_first() && head.0 == time { left = head.1; a = tail; }
+            if let Some((head, tail)) = b.split_first() && head.0 == time { right = head.1; b = tail; }
             let value = left.combine(right, conjunction);
             if value != previous { result.changes.push((time, value)); previous = value; }
         }
@@ -291,8 +299,8 @@ impl Timeline {
 
 // @ref LLP 3000.015#2 — next_expiry is the first expiry boundary that changes
 // the complete bound rule's verdict, not a branch or first witness lifetime.
-// Probe leaves are evaluated once at the current clock, within their original
-// allowance. Combining their timelines performs no further storage reads.
+// Leaves prove their timeline within the original shared allowance. Combining
+// those timelines performs no further storage reads.
 fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<Timeline, crate::error::RuntimeError> {
     match rule {
         RuleExpr::And(terms) | RuleExpr::Or(terms) => {
@@ -316,9 +324,15 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
             Ok(answer)
         }
         _ => {
+            probe.take_changes();
             let value = evaluate_leaf(rule, viewer, old, next, created_allowed, probe)?;
             let expiry = probe.replace_expiry(None);
             let mut answer = Timeline::constant(if probe.take_unknown() { Verdict::Unknown } else if value { Verdict::Readable } else { Verdict::Denied });
+            if let Some(changes) = probe.take_changes() {
+                answer.changes = changes;
+                answer.invariant = false;
+                return Ok(answer);
+            }
             // An absent witness stays absent as rows expire. Positive probes
             // (including created facts with extra tests) need their alternatives
             // in both lifetime worlds; the observed deadline cannot decide this.
@@ -343,18 +357,17 @@ fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Valu
                 crate::ir::BinaryOp::Lte => a <= b, crate::ir::BinaryOp::Lt => a < b, _ => false })
         }
         RuleExpr::And(_) | RuleExpr::Or(_) | RuleExpr::Not(_) => unreachable!("compound rule"),
-        RuleExpr::Exists { table, index, key, equalities, .. } => {
-            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
-            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
-            probe.exists(table, index, &key, &equalities)
-        }
-        RuleExpr::Created { table, index, key, equalities, .. } => {
-            if !created_allowed {
+        RuleExpr::Exists { table, index, key, equalities, .. } | RuleExpr::Created { table, index, key, equalities, .. } => {
+            // Bind each operand once, through one codec/allocation path for both leaves.
+            let created = matches!(rule, RuleExpr::Created { .. });
+            if created && !created_allowed {
                 return Err(crate::error::RuntimeError::Schema("created probes are valid only in insert rules".into()));
             }
             let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
-            if !probe.created(table, index, &key) { return Ok(false); }
-            if equalities.is_empty() { return Ok(true); }
+            if created {
+                if !probe.created(table, index, &key) { return Ok(false); }
+                if equalities.is_empty() { return Ok(true); }
+            }
             let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
             probe.exists(table, index, &key, &equalities)
         }

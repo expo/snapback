@@ -13,6 +13,15 @@ pub(super) fn refusal(site: &Site, message: impl Into<String>) -> Diagnostic {
         "view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo and .senderId != m.principal and not .tombstone; declare cap 100 by conversationId on members").guide("maintains")
 }
 
+pub(super) fn predicate_field(info: &TableInfo, field: &str, site: &Site) -> Fallible<()> {
+    if info.maintained.as_ref().is_some_and(|m| m.row_key.is_some())
+        && (matches!(field, "recountPending" | "pending") || (field != "id" && !info.columns.contains_key(field))) {
+        return Err(Diagnostic::new(site, "E_VIEW_KEY", format!("{}.{} is maintenance or private state and cannot decide a predicate", info.decl.name, field),
+            "predicate on value, member identity or copied member fields; project recountPending as data and check complete").guide("maintains"));
+    }
+    Ok(())
+}
+
 fn member_field<'a>(e: &'a Expr, alias: &str) -> Option<&'a str> {
     match e {
         Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Name { name, .. } if name == alias) => {

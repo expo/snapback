@@ -169,6 +169,14 @@ impl crate::schema::Schema {
             .iter()
             .any(|m| m.row_key.is_some() && (m.work_table() == name || format!("$basis:{}", m.target) == name))
     }
+
+    // @ref LLP 3000.015#3 — maintenance state is data, never authority or a predicate.
+    pub fn row_view_predicate_field(&self, table: &str, field: &str) -> Option<String> {
+        let view = self.maintain_for(table).is_some_and(|m| m.row_key.is_some());
+        (self.is_recount_work(table) || (view && (matches!(field, "recountPending" | "pending")
+            || self.table(table).is_none_or(|t| !t.columns.contains_key(field))))).then(||
+            format!("E_VIEW_KEY: {table}.{field} is maintenance or private state; predicate on value, member identity or copied member fields instead; project recountPending as data and check complete (guide maintains)"))
+    }
 }
 
 impl RowKey {

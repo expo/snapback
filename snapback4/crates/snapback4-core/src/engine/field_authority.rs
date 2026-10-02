@@ -13,6 +13,7 @@ struct DeliveryProbe<'a, 'b> {
 }
 
 impl Probe for DeliveryProbe<'_, '_> {
+    fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }

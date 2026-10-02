@@ -1,0 +1,25 @@
+START core-final
+END core-final 0
+START witness-final
+END witness-final 0
+START device-final
+END device-final 0
+START admission-final
+END admission-final 0
+START http-final
+END http-final 0
+START scale-final
+END scale-final 0
+START guide-final
+END guide-final 0
+START wasm-final
+END wasm-final 0
+START sdk-measurement
+END sdk-measurement 0
+START instrument-client
+END instrument-client 0
+START instrument-server-dev
+END instrument-server-dev 0
+START instrument-server-production
+END instrument-server-production 0
+READY: final affected checks and artifacts; sources restored

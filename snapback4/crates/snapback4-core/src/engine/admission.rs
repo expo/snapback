@@ -10,6 +10,11 @@ use crate::value::Value;
 use crate::error::RuntimeError;
 use crate::engine::rules::scan_visibility;
 use std::collections::{BTreeMap, BTreeSet};
+mod state_predicates;
+
+pub fn check_state_predicates(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
+    state_predicates::check(schema, program).map_err(|message| RuntimeError::Structural { code: "E_VIEW_KEY", message })
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Origin {
@@ -82,6 +87,10 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
 /// can only shorten eligibility: every statement in each group is still checked.
 // @ref LLP 3000.025#3-proposed-rule — hoisted setup belongs to its entire source statement.
 pub fn check_detail_with_statements(schema: &Schema, program: &Program, statement_ends: &[usize]) -> Result<(), Problem> {
+    state_predicates::check(schema, program).map_err(|message| Problem {
+        code: "E_VIEW_KEY", site: program.name.clone(), page_site: None, message,
+        rewrite: "predicate on value or member fields; project recountPending as data and check complete".into(),
+    })?;
     let mut fact = schema.operations.get(&program.name).cloned().unwrap_or_default();
     crate::schema::ephemeral::execution(schema, program, &mut fact).map_err(|message| Problem {
         code: "E_QUARRY_EPHEMERAL", site: program.name.clone(), page_site: None,

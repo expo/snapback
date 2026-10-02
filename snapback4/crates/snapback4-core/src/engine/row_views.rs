@@ -174,12 +174,11 @@ impl Runner<'_> {
                 column: "value".into(),
             });
         }
-        let mut fields = member
+        let mut fields = crate::small_map::collect(member
             .as_object()?
             .iter()
             .filter(|(name, _)| self.schema.tables[&m.target].columns.contains_key(*name))
-            .map(|(name, value)| (name.clone(), value.clone()))
-            .collect::<std::collections::BTreeMap<_, _>>();
+            .map(|(name, value)| (name.clone(), value.clone())));
         fields.insert("member".into(), member.field("id")?.clone());
         fields.insert("value".into(), Value::Int(total));
         fields.insert("recountPending".into(), Value::Bool(pending));
@@ -762,7 +761,13 @@ impl Runner<'_> {
         row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
         let mark = self.meter.mark();
-        let result = self.live_row_view_inner(m, row);
+        // Pending belongs to this predicted view row, not its member image.
+        // @ref LLP 3000.015#3 — reconstruction preserves public prediction metadata.
+        let pending = match row.field("pending") { Ok(Value::Bool(flag)) => Some(*flag), _ => None };
+        let mut result = self.live_row_view_inner(m, row);
+        if let (Some(pending), Ok(Some(Value::Row(fields)))) = (pending, &mut result) {
+            fields.insert("pending".into(), Value::Bool(pending));
+        }
         // Drop the member and decode scratch, retaining the peak and any cut.
         self.meter.release_heap(mark);
         result

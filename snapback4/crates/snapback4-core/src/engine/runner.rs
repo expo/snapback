@@ -110,6 +110,7 @@ pub struct Runner<'a> {
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: super::expiry::Expiry,
     pub(super) witness_cache: Option<(super::read::WitnessKey, (bool, bool, Option<i64>))>,
+    pub(super) witness_changes: Option<Vec<(i64, super::rules::Verdict)>>,
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
     pub(crate) events: PendingEvents,
@@ -274,6 +275,7 @@ impl<'a> Runner<'a> {
             rows_written: 0,
             next_expiry: Default::default(),
             witness_cache: None,
+            witness_changes: None,
             #[cfg(feature = "sqlite")]
             events: PendingEvents::default(),
             #[cfg(feature = "sqlite")]

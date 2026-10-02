@@ -81678,3 +81678,57 @@ gzip over rebuilt round 2, with only 10 B Linux headroom under the unchanged
 ledger, raw traces, source digests and checksums:
 reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-02 — BG round 5: refuse maintenance predicates, preserve deadlines and prediction metadata
+
+The operator supersedes round 4's certification of recountPending after Astra's
+NOT READY review. Only value is certified. E_VIEW_KEY refuses maintenance/private
+fields in read/insert/update/delete rules, sync, through chains and query/helper
+predicates, including undeclared fields and private work columns. Exact
+recountPending remains count-status data; full reconstructed rows preserve the
+prediction contract's pending marker on Memory, SQLite and wasm. Native raw
+opening/adoption shares the refusal; web keeps its server-admitted-backend boundary.
+
+The value regression also exposed an older timeline assumption: a count equality
+can become true as sources expire. Row-keyed value witnesses now prove actual
+future truth transitions in the same transaction and physical allowance; a basis
+expiry is not permanent falsity. The permit's deadline survives negation, OR,
+two read-through links and HTTP. Ordinary expiring aggregate value rules remain
+refused. LLP 3000.015 §3 and the maintains guide record the policy and bounded
+proof. No allowance, window, fanout or budget was raised.
+
+Six seeds / 180 formulas produce 8,640 exact model deadline/visibility comparisons
+before and after private settlement. The 220-case reachable-field matrix refuses
+creation and adoption across engine, Memory and SQLite (1,320 decisions); 38
+compiled predicate/projection checks also pass. Prediction properties cover
+expiry, rollback and withdrawal; a wasm wire check names messages/m1 and unread/u0.
+Three round-4 rollback controls detect the lost deadline and missing metadata.
+Final affected cohorts pass: core 56, witnesses 6, device 14, compiler 32, HTTP 1,
+scale 13, guide 110 plus compatibility 1, wasm metadata 1.
+
+The final-source scripts/test.sh ran once: `== 0 failure(s) in 1957 s`.
+All 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,746 passed with 10 skips; serial models 79/79. Final failures: ours 0, baseline 0,
+environmental 0. All 1,789 input digests are unchanged. Development failures are
+marked ours in the report's round5/FAILURES.md; none was waived as a baseline.
+
+Fresh BG pairs reuse 228 hash-verified exact-round-2 artifacts and separately
+built round-5 artifacts. Shared-host load caused logged admission waits; no
+saturated sample is labelled idle. Idle p95 pairs: 216.8→182.4 and 207.1→179.3 ms,
+all below 250 ms. With 96 continuous normal-priority burners: 342.4→328.0 and
+342.2→430.8 ms. Loaded pooled median/p95 rises 242.8/342.2→269.2/372.1 ms
+(+10.9%/+8.7%). The second loaded pair is worse; no latency-parity or speedup claim.
+Count-certification p95 falls in that pair, but that does not explain the overall
+rise. All renders/notifications/windows remain intact; all workers are reaped.
+10k/100k work remains (0 re-certified rows, 100 examined, 100 steps). LL has
+320 observations and zero timeouts, with all eight flow comparisons retained.
+
+Wasm is 2,012,674 B raw / 605,008 B gzip: −207 gzip versus round 4, +3 versus
+round 2, and 217 B under the unchanged 605,225 B branch ratchet. Shared rule
+operand binding and conjunction/timeline traversal pay for the deadline proof.
+Main's 610,782 B budget is informational; merged size still needs the landing
+check. The suite reproduces the measured wasm byte-for-byte. Complete report,
+source custody and raw evidence: reports/20261001-bg-busy-group-render/REPORT.md.
+Local commit uses Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no new reviewer approval or main integration claimed.

@@ -15,7 +15,7 @@ partial source coverage or a cut cannot supply an exact aggregate. Physical zero
 exists at one rule-probe unit, regardless of expired sources. A rule equality
 on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
 view in the program; its live value cannot be probed at one unit. Value
-equalities on non-expiring maintains and ordinary tables remain supported.
+equalities on non-expiring maintains and ordinary tables remain supported. Row-keyed counts certify predicates separately (guide maintains).
 Value-order indexes over expiring sources are refused by check
 (E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use the fresh live bounded query
 on guide feeds. It sorts live counts with no schedule lag or writable score table;
@@ -23,10 +23,8 @@ if candidates or their contributions exceed the meter, the ranking is incomplete
 The optional scheduled ranked-table recipe trades fresh scores for stored paging.
 The sweep already updates aggregates and indexes transactionally, but stored order
 is stale between expiry and the physical sweep or after a partial sweep. Taking
-stored top-N and rechecking only those winners can miss the live winner. A server
-count index could bound a live threshold scan, but that read form is not built;
-it would have to refuse on devices, whose snapshots deliver live values rather
-than physical upper bounds. Signed sums have no such upper bound.
+stored top-N and rechecking only those winners can miss the live winner. A count-index threshold scan is not built: it could use server physical upper
+bounds, which device snapshots lack. Signed sums have no upper bound.
 A partial device counts only held live
 sources and says `complete: false`. A meter cut of an ordinary aggregate returns `data: null, complete: false`.
 An expiring row-keyed range read returns `{ value: L, recountPending: true }`

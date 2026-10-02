@@ -91,10 +91,10 @@ fn optional_row_key_operands_keep_scalar_type_checks() {
 }
 
 #[test]
-fn count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness() {
+fn row_keyed_value_rule_is_certified_and_never_reported_as_a_pure_witness() {
     let source = SOURCE.to_owned() + "\ntable gated:\n  member: members\n  read <- exists unread[member = .member, value = 0]\nquery guarded(id: gated):\n  return gated[id]\n";
-    let refused = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
-    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_LIVE_MAINTAIN_PROBE"));
+    let compiled = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(compiled.diagnostics.is_empty(), "{:?}", compiled.diagnostics);
     // The analyzer also accepts schemas from the core IR; keep that witness
     // distinction even when it did not come through Quarry's admission check.
     let mut b = bound(&source.replace("  expire at .until\n", ""));
@@ -104,7 +104,7 @@ fn count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness() {
     assert_eq!(result.class, Class::Grows, "{result:?}");
     assert!(result.line().contains("whole live basis"), "{result:?}");
     for source_expiry in [true, false] {
-        for predicate in ["value = 0", "recountPending = false"] {
+        for predicate in ["value = 0"] {
             let mut source = SOURCE.replace("  expire at .until\n", "");
             if !source_expiry {
                 source = source.replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  until: time ?\n  expire at .until")

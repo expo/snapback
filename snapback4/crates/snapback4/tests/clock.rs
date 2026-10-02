@@ -9,6 +9,33 @@ const SOURCE: &str = "use personas alice\ntable stories:\n  at: time\n  expiresA
 struct Fixture(PathBuf);
 
 #[test]
+fn maintained_value_rule_keeps_permit_deadline_over_http_and_two_read_through_links() {
+    let f=Fixture::new("count-deadline");
+    let schema=include_str!("../../snapback4-core/tests/row_view_witness/schema.q")
+        .replace("MEMBER_EXPIRY", "").replace("  public", "  public\n  insert <- allow")
+        .replace("PREDICATE","not exists unread[member = .member, value = 0] or exists permits[member = .member]");
+    let source=format!("use personas alice\n{schema}\nmutation setup():\n  insert rooms {{id:'r'}}\n  insert members {{id:'u',room:'r'}}\n  insert messages {{id:'m',room:'r',until:now+10000}}\n  insert permits {{id:'p',member:'u',until:now+20000}}\n  insert gates {{id:'g',member:'u'}}\n  insert links {{id:'l',gate:'g'}}\n  insert leaves {{id:'z',link:'l'}}\n  return now+20000\n")
+        .replace("table gates:\n", "table gates:\n  insert <- allow\n")
+        .replace("table links:\n", "table links:\n  insert <- allow\n")
+        .replace("table leaves:\n", "table leaves:\n  insert <- allow\n");
+    fs::write(f.0.join("snapback/schema.q"),source).unwrap();
+    let host=f.start(&["dev","--no-watch","--hold-schedules"]);
+    let setup=host.post("/m/setup",json!({"id":"seed","args":{}}));
+    assert_eq!(setup["state"],"sent","{setup}");
+    let deadline=setup["result"].clone();assert!(deadline.is_i64(),"{setup}");
+    for advanced in [false,true] {
+        if advanced {host.post("/dev/clock/advance",json!({"duration":"11s"}));}
+        for name in ["direct","linked","leaf"] {
+            let r=host.post(&format!("/q/{name}"),json!({"args":{}}));
+            assert_eq!(r["complete"],true,"{r}");assert!(!r["data"].is_null(),"{r}");
+            assert_eq!(r["nextExpiry"],deadline,"{name} advanced={advanced}: {r}");
+        }
+    }
+    host.post("/dev/clock/advance",json!({"duration":"10s"}));
+    for name in ["direct","linked","leaf"] {assert!(host.query(name).is_null());}
+}
+
+#[test]
 fn doctor_reports_the_exact_schedule_period_without_minute_truncation() {
     for (period, shown) in [("90s", "90s"), ("90001ms", "90001ms"), ("120s", "2m")] {
         let f = Fixture::new(&format!("period-{period}"));

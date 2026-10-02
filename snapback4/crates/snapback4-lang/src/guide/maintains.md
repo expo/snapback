@@ -711,7 +711,7 @@ count while its version matches, its basis is not in the future, and its deadlin
 has not arrived. A recount restarts its prefix on clock rollback. Source writes maintain that proof with the count. Every read still
 checks current member and source-group authority. Pending, due or unsupported
 row-dependent disclosure cases use the full authorized live recount.
-`value` and `recountPending` share live certification in queries and rules; incomplete values cannot decide a rule. Identity and copied read-rule fields follow the member transactionally.
+Only `value` is certified for predicates; incomplete values cannot decide a rule. `recountPending` describes this read's incompleteness as result data; predicates on maintenance/private state refuse at admission. Identity and copied read-rule fields follow the member transactionally.
 Private work never flips those cached fields; bounded durable chunks reconcile them
 without publishing redundant recount commits or changing watermarks. Each
 private chunk counts against the maintenance allowance and releases the
@@ -808,8 +808,8 @@ a count: an uncovered device reports a pending count until it can
 certify that live input. A device mutation that cannot certify the count,
 including an already settled count above its local allowance, enters the
 outbox without a predicted result; the server decides and settles it.
-Server writers and rules on `value` or `recountPending` refuse uncertified fields;
-ordinary queries compute pending from their read's completeness. Indexes/ranking by `value` or `recountPending` refuse
+Rules and writers on `value` require certification; composed rule deadlines follow count-predicate truth transitions, within the shared physical allowance.
+`recountPending`, device `pending`, and private work/basis fields cannot decide rules, sync, through, query predicates or helpers: use `value` or member fields. Queries may project exact `recountPending` data; full rows preserve device `pending`. Indexes/ranking by `value` or `recountPending` refuse
 with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
 when its count is zero. `online only` on the view opts
 out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.

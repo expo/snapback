@@ -857,12 +857,12 @@ impl Analysis<'_> {
     fn rule(&mut self, rule: &RuleExpr, site: &str, times: u64) {
         match rule {
             RuleExpr::Exists { table, index, equalities, .. } => {
-                self.lookup_growth(table, index, site, !equalities.iter().any(|(field, _)| matches!(field.as_str(), "value" | "recountPending")));
+                self.lookup_growth(table, index, site, !equalities.iter().any(|(field, _)| field == "value"));
                 // Static reservation and evaluation can both charge a probe.
                 self.probes(times.saturating_mul(2));
             }
             RuleExpr::Created { table, index, equalities, .. } if !equalities.is_empty() => {
-                self.lookup_growth(table, index, site, !equalities.iter().any(|(field, _)| matches!(field.as_str(), "value" | "recountPending"))); self.probes(times.saturating_mul(2));
+                self.lookup_growth(table, index, site, !equalities.iter().any(|(field, _)| field == "value")); self.probes(times.saturating_mul(2));
             }
             RuleExpr::And(parts) | RuleExpr::Or(parts) => { for part in parts { self.rule(part, site, times); } }
             RuleExpr::Not(part) => self.rule(part, site, times),

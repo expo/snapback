@@ -3,6 +3,22 @@
 use disclosure::*;
 use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Value, WriteState};
+#[path="row_view_witness/deadlines.rs"] mod deadlines;
+#[path="row_view_witness/admission_cases.rs"] mod admission_cases;
+
+#[test]
+fn every_reachable_maintenance_field_refuses_raw_engine_admission() {
+    let cases=admission_cases::cases();
+    let (base,programs)=admission_cases::base();
+    let mut admitted=snapback4_core::Engine::memory(base,programs).unwrap();
+    for (name,schema,programs) in &cases {
+        let error=snapback4_core::Engine::memory(schema.clone(),programs.clone()).err().expect(name);
+        assert!(error.to_string().contains("E_VIEW_KEY"),"{name}: {error}");
+        let error=admitted.adopt_at(schema.clone(),programs.clone(),2).unwrap_err();
+        assert!(error.to_string().contains("E_VIEW_KEY"),"adopt {name}: {error}");
+    }
+    eprintln!("BG round5 raw server admission: {} cases, each refused at creation and adoption",cases.len());
+}
 
 #[test]
 fn hidden_member_payload_through_witness() { witness_case(false); }

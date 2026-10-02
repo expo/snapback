@@ -1429,3 +1429,222 @@ the historical content at `587b83d7c8`; it is not rewritten to describe round 4.
 One journal entry records this round. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push, publication, main merge,
 ratchet increase or round-4 reviewer approval is claimed.
+
+
+## Round 5 — maintenance predicates refused; composed deadlines and prediction metadata (2026-10-02)
+
+**Decision and source.** This round starts at `0da1777252`, reads round 4 first,
+and implements the operator's structural refusal. Round 4's Grok READY / Astra
+NOT READY record is retained above; neither is a review of round 5. Only `value`
+selects numerical certification in a rule. `recountPending`, `pending`, private
+`$basis`/`$recount` fields and other undeclared fields cannot participate in
+maintained-view predicates. `E_VIEW_KEY` identifies the field and directs the
+caller to `value`, member identity or copied member fields. No publication,
+main merge or budget increase is part of this round.
+
+The compiler and raw-schema walk cover read, insert, update and delete rules,
+sync audiences, indexes and resolved `through` chains. A program flow analysis
+tracks reads and status through aliases, optional fields, helper blocks,
+objects, loops and control flow. A status returned by a helper cannot become a
+predicate outside it. Mixed shaped containers are conservatively tainted;
+maintenance computations/guards refuse instead of acquiring rule semantics.
+Native backend creation/adoption and Memory/SQLite device opening/adoption
+apply the same checks. Web retains the existing server-admitted-backend trust
+boundary; this change does not ship the compiler/admission walker inside wasm.
+
+`recountPending` **may be projected as data**. It exactly describes this read's
+count incompleteness, with the existing `complete` contract; it never exposes private
+worker progress. Full-row results also retain `pending`; it is engine metadata,
+not a newly declared Quarry column. The prediction contract exposes
+this additional row marker, and live reconstruction now retains it from the
+predicted view row, including explicit false. It does not copy arbitrary metadata
+from the member. Unknown/private bookkeeping fields refuse as data as well.
+
+**Deadline repair.** Astra's literal rule over `recountPending` now refuses at
+admission. Merely removing that certificate was insufficient for the requested
+`value` regression: a count equality can become true when a source expires. The
+old rule timeline assumed an absent positive witness stayed absent forever.
+For `not exists unread[member = .member, value = 0] or exists permits[member =
+.member]`, the initial count is one, becomes zero at 10, and the permit lasts to
+20. The row must therefore carry deadline 20 at clock 2, even though the value
+witness is initially false. Round 5 admits this row-keyed value rule and proves
+its future truth transitions, including false-to-true and true-to-false.
+Ordinary non-row-keyed expiring aggregates retain their existing refusal.
+
+The count witness evaluates certified dependency boundaries in the same
+transaction and shared physical authorization allowance, restoring the original
+clock and discarding temporary witness caches afterward. Only actual predicate
+truth transitions enter rule composition; a source expiry is never assumed to
+mean permanent falsity. AND, OR and NOT merge simultaneous boundaries together,
+preserving correlations. Every added transition reserves caller scratch. No
+allowance, fanout, acquisition window, mounted window or count limit changes.
+The proof may exhaust the existing allowance when many future boundaries need
+certification; that fails closed rather than publishing a guessed deadline.
+
+The same shared reconstruction preserves prediction metadata on Memory, SQLite
+and the rebuilt web wasm device. The generated native property checks both the
+count and row marker before expiry, exactly at expiry, after a backward clock
+jump, and after withdrawing predictions. A separate wasm wire regression uses
+durable messages and a member expiring at 100, populations 1/2/5, literal
+`messages/m1` and `unread/u0` prediction identities, all four clocks and withdrawal.
+
+**Detecting controls and properties.** Restoring only round 4's `witness.rs`
+while retaining this round's compiler/test causes the permit-deadline assertion
+to fail (`nextExpiry` is missing). Restoring only its `row_views.rs` makes the
+Memory and SQLite prediction-metadata assertions fail. Both native controls exit 101; the saved round-4 wasm independently fails the
+same new web assertion (exit 1), and the final wasm passes. The scripts restore the current source in `finally`. These are expected detecting
+controls, not passing product tests (`round5/negative-controls.json`).
+
+The deadline property uses six fixed seeds and 180 rule/count cases: four
+messages, permanent/finite permits, optional member expiry, wanted counts 0–4,
+and six composed formulas including negation and correlated operands. Eight
+clock positions, direct plus two linked routes, and pre/post private settlement
+produce **8,640 independent-model comparisons** of row visibility and exact
+`nextExpiry`. The literal admitted rule is also checked through the public HTTP
+endpoint, both before and after message expiry, then withdrawn at permit expiry.
+
+The admission matrix enumerates 20 reachable table/field pairs: public status,
+every actual private-work column, undeclared shadows and an unknown private
+name. Four rule effects, sync and six program/helper shapes make **220 refusals**
+at each of engine creation/adoption and both native devices' opening/adoption
+(**1,320 admission decisions**). Adoption must retain generation 1 on refusal.
+The compiled matrix adds 32 rule-effect refusals, four query/helper refusals and
+two accepted value/data controls. The existing generated field/maintenance and
+allowance properties remain active; maintenance flags are tested as exact data
+and refused predicates, never as newly certified authorization facts.
+
+**Final affected checks.** All pass on the frozen implementation:
+
+| Cohort | Result |
+| --- | --- |
+| Core live views, field properties, accounting and 10k/100k work | 56 / 56 |
+| Witness privacy, admission and composed deadline model | 6 / 6 |
+| Memory/SQLite lifetime, prediction, allowance and admission | 14 / 14 |
+| Compiler row-keyed views (including 38 new admission/data checks) | 32 / 32 |
+| Public HTTP maintained-value deadline regression | 1 / 1 |
+| CLI scale/receipt certificates | 13 / 13 |
+| Guide cards / ephemeral compatibility | 110 / 110 and 1 / 1 |
+| Rebuilt wasm reconstruction/metadata regression | 1 / 1 |
+
+The 10k and 100k regressions both report **(0 re-certified source rows,
+100 examined, 100 steps)** for the unchanged 50-member busy group. The retained
+maintenance properties perform 44,289 independent scalar comparisons, 2,400
+full acquisitions, 650 committed and 141 interrupted chunks. The direct/inherited/
+through lifetime properties perform 128,353 field comparisons and 96 overlapping
+recount cases. Device properties retain 64 unrestricted and 704 budget checks
+per host, now also checking full-row prediction metadata and exact deadlines.
+
+**Wasm and custody.** Round 5 is **2,012,674 B raw / 605,008 B gzip**,
+compared with round 4's 2,015,799 / 605,215 B: **−3,125 raw / −207 gzip**.
+The saved round-2 baseline is 2,015,329 / 605,005 B: **−2,655 raw / +3 gzip**.
+The unchanged **605,225 B** branch ratchet has **217 B headroom** on this Linux
+build. Main's **610,782 B** budget after RV is informational; merged size still
+needs the landing check. No cross-platform or merged-artifact size claim.
+
+Candidate wasm SHA-256:
+`233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164`.
+The added future-transition proof is paid for by sharing Exists/Created operand
+binding, merging timeline slices without duplicate iterator state, collecting
+conjuncts into one buffer, and using the existing compact field-map collector.
+No ratchet was edited. `wasm.json` and `toolchain.json` record the exact inputs.
+
+The comparison reuses **228 hash-verified saved round-2 artifacts**, including
+each profile's server and its own SDK/wasm (`baseline-reuse.json`). New candidate
+artifacts are built separately. The same production fixture uses three wasm
+viewers, 50 members, 10,000 initial messages and 50 sends, mounted history 20 and
+acquisition 500. Each condition alternates base/candidate/base/candidate. Loaded
+runs share 96 normal-priority CPU burners across all four runs; LL separately
+uses 20 repeats of eight flows per variant. No lane-BG build or test overlaps
+these measurements. Host samples and admission logs accompany every run.
+
+An initial attempt reached only the quiet-host gate while other lanes' load
+runs saturated the host. It was stopped before any latency sample or full-suite
+invocation, and the suite was moved ahead of measurements. Its admission log is
+retained; no latency observation was discarded by that scheduling change.
+
+**Final-source full suite.** `scripts/test.sh` ran **once** on the final source,
+with Node 24.13.1 and `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Exact
+summary (unabridged output in `round5/full-suite.log.gz`):
+
+```text
+== 0 failure(s) in 1957 s
+```
+
+All **281 Rust test binaries / 994 scheduled executions**, plus workspace
+doctests, pass. Clients: **5,746 passed, 0 failed, 10 skipped**. Serial models:
+**79 passed, 0 failed**, with full seeded sequence counts. Every final-suite
+failure: **none — ours 0, baseline 0, environmental 0**. Shared-host contention
+lengthened the run but is not claimed as an exception or used to waive a failure.
+All **1,789** captured source/input digests are unchanged; the suite's wasm is
+byte-identical to the measured artifact. `final-verification.json` binds the
+summary, log digest, source custody and byte comparison. The development failures
+and expected negative controls are fully listed in `round5/FAILURES.md`.
+
+**Paired busy-group results.** Each row is 50 sends; latency is send to the
+slowest remote React render. CPU samples below are restricted to the send window.
+
+| Condition / order | Variant | p50 / p95 / max (ms) | CPU p50 / p95 / max (%) | Count certification p95 (ms) |
+| --- | --- | --- | --- | --- |
+| idle 1 | base | 139.5 / 216.8 / 228.2 | 10.1 / 12.3 / 12.5 | 1.015 |
+| idle 2 | candidate | 128.3 / 182.4 / 208.7 | 10.3 / 11.8 / 13.0 | 0.887 |
+| idle 3 | base | 130.3 / 207.1 / 231.0 | 9.4 / 11.0 / 11.7 | 1.029 |
+| idle 4 | candidate | 140.7 / 179.3 / 192.4 | 7.2 / 8.3 / 8.9 | 1.091 |
+| loaded 1 | base | 239.8 / 342.4 / 580.7 | 99.7 / 99.9 / 99.9 | 4.321 |
+| loaded 2 | candidate | 243.9 / 328.0 / 366.2 | 99.7 / 99.9 / 100.0 | 4.151 |
+| loaded 3 | base | 248.6 / 342.2 / 583.0 | 99.7 / 99.9 / 100.0 | 3.756 |
+| loaded 4 | candidate | 276.9 / 430.8 / 503.2 | 99.7 / 99.9 / 99.9 | 1.363 |
+
+Both idle pairs pass the unchanged **250 ms p95** bar. Their p95 comparisons are
+**216.8→182.4** and **207.1→179.3 ms**. The loaded pairs are **342.4→328.0**
+and **342.2→430.8 ms**. Pooling 100 sends per variant gives idle median / p95
+**138.1 / 207.1→136.8 / 179.3 ms**, and loaded median / p95
+**242.8 / 342.2→269.2 / 372.1 ms**: loaded median **+10.9%**, p95 **+8.7%**.
+
+The second loaded pair is visibly worse; this round **does not establish loaded
+latency parity or a speedup**. Its increase spans request, notification and client
+query stages. Count-certification p95 instead falls from **3.756 to 1.363 ms**
+in that pair, and its certified-history count remains zero. Those observations
+exclude a renewed history walk in this fixture; they do not identify the cause
+of the latency increase. Two pairs on a shared host cannot separate a small
+implementation effect from scheduling variation. No baseline or environmental
+exception is asserted for this observed increase.
+
+Every run preserves **100 remote renders / 150 notifications**, history window
+20, acquisition window 500, and **zero re-certified history rows**. All eight
+run exits are zero. All **96** continuous normal-priority burners are reaped.
+The second idle candidate waited through additional CT load runs; no saturated
+sample was admitted as idle. Waiting gaps and host samples are retained rather
+than hidden. These are alternating paired measurements, not a randomized trial
+or an exclusive reservation of the shared host.
+
+**LL control.** Both variants complete **20 repeats of all eight flows**
+(**320 observations**, **zero timeouts**). Commit-to-React milliseconds:
+
+| Flow | Round 2 p50 / p95 / max | Round 5 p50 / p95 / max |
+| --- | --- | --- |
+| profile | 31.8 / 44.1 / 46.5 | 33.6 / 42.3 / 51.0 |
+| reaction-add | 37.5 / 44.5 / 47.5 | 35.0 / 40.2 / 42.4 |
+| reaction-replace | 37.4 / 44.7 / 107.5 | 36.5 / 43.3 / 60.8 |
+| reaction-remove | 37.0 / 46.1 / 46.1 | 38.6 / 44.4 / 45.5 |
+| reply | 80.7 / 94.2 / 97.3 | 73.6 / 84.7 / 85.1 |
+| photo | 84.6 / 96.7 / 101.6 | 81.8 / 89.8 / 98.0 |
+| feed-image | 36.5 / 45.0 / 52.5 | 38.8 / 47.0 / 49.0 |
+| once-photo | 70.7 / 96.4 / 97.5 | 82.6 / 93.6 / 93.9 |
+
+This checks unrelated live flows; it is not a claim that every median or tail
+improved. `round5/paired-validation.json` binds the statistics and verifies the
+render, notification, window, worker and LL invariants. `tools/validate-paired-round5.py`
+also reads the archived gzip traces. Measurement-only stamps were restored before
+the frozen source snapshot; each saved binary/SDK carries the same instrumentation.
+The ordinary SDK was restored again after measurements.
+
+**Record.** Root reference validation passes: **525 LLP documents, 10,079 refs,
+0 errors, 0 unchecked**. The round-5 context, refusal/deadline/metadata controls, final affected
+cohorts, full-suite output, host admission logs, exact artifacts and raw traces are
+under `round5/`. Large traces/logs are gzip archives. `round5/SHA256SUMS` binds the
+evidence, report, governing LLP, journal, tools and changed source. Earlier-round
+manifests remain historical records of their own revisions. One journal entry
+records this round. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published;
+no round-5 independent review, main integration or merged wasm qualification is
+claimed.
