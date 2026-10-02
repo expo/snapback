@@ -21,7 +21,7 @@ impl Runner<'_> {
     fn live_batch(&mut self, name: &str, rows: &[Value], probe_small: bool) -> Result<Vec<Option<Value>>, RuntimeError> {
         assert!(rows.len() <= 256);
         let Some(m) = self.schema.maintain_for(name).filter(|m|
-            !self.device && m.row_key.is_some() && self.schema.tables[&m.source].is_expiring()) else {
+            !self.device && m.row_count_needs_live_basis(self.schema)) else {
             return rows.iter().cloned().map(|row| self.live_aggregate(name, row)).collect();
         };
         let mark = self.meter.mark();
@@ -99,23 +99,27 @@ impl Runner<'_> {
         let source = &self.schema.tables[&m.source];
         let decoder = crate::rows::disclosed::decode_reservation(source);
         let scratch = self.rule_scratch(&source.rules.read);
-        let single_bytes = decoder.saturating_add(scratch);
+        let internal = (self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes);
+        let caller = self.caller_heap_ceiling;
+        // Prepaid scopes relax the ceiling, but retain the occupied heap.
+        // The saved caller usage predates the batch vectors/member images.
+        let limit = caller.map_or(internal.0, |(limit, _)| limit);
+        let used = internal.1;
+        let reuse = probe_small && self.certification_scratch(m) <= limit.saturating_sub(used);
+        let certificate = if reuse { self.certification_scratch(m) } else { 0 };
+        let single_bytes = decoder.saturating_add(scratch).max(certificate);
         let page_bytes = decoder.saturating_mul(32)
             .saturating_add(scratch)
             .saturating_add(crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32))
-            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32));
-        let internal = (self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes);
-        let caller = self.caller_heap_ceiling;
-        let (limit, used) = caller.unwrap_or(internal);
+            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32)).max(certificate);
         let page = if page_bytes <= limit.saturating_sub(used) { 32 } else { 1 };
         self.meter.ceilings.heap_bytes = limit;
-        self.meter.used.heap_bytes = used;
         let result = (|| {
             self.meter.heap(if page == 32 { page_bytes } else { single_bytes })?;
             // Nested public witnesses must see the reservation as occupied too.
             self.caller_heap_ceiling = Some((limit, self.meter.used.heap_bytes));
             self.prepaid_scan(&[(MeterKind::Examined, members.len() as u64), (MeterKind::Steps, members.len() as u64)], false,
-                |runner, _| runner.certify_group_mode(m, parent, members, probe_small, page))
+                |runner, _| runner.certify_group_mode(m, parent, members, probe_small, page, reuse))
         })();
         self.caller_heap_ceiling = caller;
         self.meter.ceilings.heap_bytes = internal.0;
@@ -123,7 +127,20 @@ impl Runner<'_> {
         result
     }
 
-    fn certify_group_mode(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool, _page: usize) -> Result<(), RuntimeError> {
+    fn certify_group_mode(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool, _page: usize, reuse: bool) -> Result<(), RuntimeError> {
+        // Partition the batch in-place: only uncertified members need a walk.
+        // Current member and source-group authority was checked before entry.
+        let mut missing = 0;
+        for at in 0..members.len() {
+            if reuse && let Some(total) = self.certified_view_count(m, &members[at].1)? {
+                members[at].2 = total;
+            } else {
+                members.swap(at, missing);
+                missing += 1;
+            }
+        }
+        let members = &mut members[..missing];
+        if members.is_empty() { return Ok(()); }
         // Receipt changes commonly leave only a few unread positions. Every
         // member is authorized before these bounded, private probes.
         let mut small = probe_small;
@@ -137,13 +154,16 @@ impl Runner<'_> {
         for (_, _, total) in &mut *members { *total = 0; }
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
-        let index = k.range_index(source.expiry_column().unwrap());
+        let index = source.expiry_column().map_or_else(|| k.source_index(), |expiry| k.range_index(expiry));
         let prefix = std::slice::from_ref(parent);
         self.meter.heap(crate::rows::word_heap::key_decode(source.indexes[&index].components.len() + 1,
             crate::rows::MAX_INDEX_KEY_BYTES).saturating_mul(2))?;
         let predicate_steps = k.predicate.steps() * 2 + 4;
-        for mut bounds in [Bounds { lte: Some(Value::Null), ..Default::default() },
-            Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Default::default() }] {
+        let ranges = if source.is_expiring() {
+            [Some(Bounds { lte: Some(Value::Null), ..Default::default() }),
+                Some(Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Default::default() })]
+        } else { [Some(Bounds::default()), None] };
+        for mut bounds in ranges.into_iter().flatten() {
             loop {
                 self.meter.charge(MeterKind::Examined, 1)?;
                 let mark = self.meter.mark();

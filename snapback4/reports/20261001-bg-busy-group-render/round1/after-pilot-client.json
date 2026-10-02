@@ -1,0 +1,122 @@
+{
+  "send_to_request_prediction_cpu_ms": {
+    "n": 50,
+    "p50": 0.10009765625,
+    "p95": 0.300048828125,
+    "max": 0.5
+  },
+  "send_to_request_decorations_cpu_ms": {
+    "n": 50,
+    "p50": 14.300048828125,
+    "p95": 31.2001953125,
+    "max": 40.699951171875
+  },
+  "send_to_request_other_queries_cpu_ms": {
+    "n": 50,
+    "p50": 1.39990234375,
+    "p95": 2.50048828125,
+    "max": 4.69970703125
+  },
+  "send_to_request_other_vm_cpu_ms": {
+    "n": 50,
+    "p50": 0.899658203125,
+    "p95": 2,
+    "max": 3.89990234375
+  },
+  "send_to_request_device_idb_elapsed_ms": {
+    "n": 50,
+    "p50": 1.7001953125,
+    "p95": 7.699951171875,
+    "max": 17.39990234375
+  },
+  "send_to_request_authority_idb_elapsed_ms": {
+    "n": 50,
+    "p50": 2.10009765625,
+    "p95": 24.400146484375,
+    "max": 40.500244140625
+  },
+  "send_to_request_facade_checks_elapsed_ms": {
+    "n": 50,
+    "p50": 32.10009765625,
+    "p95": 61.000244140625,
+    "max": 81
+  },
+  "send_to_request_authority_transactions": {
+    "n": 50,
+    "p50": 5,
+    "p95": 9,
+    "max": 9
+  },
+  "send_to_request_lock_queue_ms": {
+    "n": 50,
+    "p50": 17.599853515625,
+    "p95": 37.2998046875,
+    "max": 42.10009765625
+  },
+  "history_to_raw_ms": {
+    "n": 100,
+    "p50": 0.400146484375,
+    "p95": 42.5,
+    "max": 45.39990234375
+  },
+  "raw_to_public_ms": {
+    "n": 100,
+    "p50": 6,
+    "p95": 12.5,
+    "max": 27.199951171875
+  },
+  "history_to_public_prediction_cpu_ms": {
+    "n": 100,
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+  },
+  "history_to_public_decorations_cpu_ms": {
+    "n": 100,
+    "p50": 0,
+    "p95": 37.2998046875,
+    "max": 40.7001953125
+  },
+  "history_to_public_other_queries_cpu_ms": {
+    "n": 100,
+    "p50": 1.199951171875,
+    "p95": 4,
+    "max": 4.800048828125
+  },
+  "history_to_public_other_vm_cpu_ms": {
+    "n": 100,
+    "p50": 0.30029296875,
+    "p95": 0.800048828125,
+    "max": 0.900146484375
+  },
+  "history_to_public_device_idb_elapsed_ms": {
+    "n": 100,
+    "p50": 1.699951171875,
+    "p95": 4.500244140625,
+    "max": 7.39990234375
+  },
+  "history_to_public_authority_idb_elapsed_ms": {
+    "n": 100,
+    "p50": 3.7998046875,
+    "p95": 17.500244140625,
+    "max": 31
+  },
+  "history_to_public_facade_checks_elapsed_ms": {
+    "n": 100,
+    "p50": 7.10009765625,
+    "p95": 50.300048828125,
+    "max": 61.699951171875
+  },
+  "history_to_public_authority_transactions": {
+    "n": 100,
+    "p50": 1,
+    "p95": 2,
+    "max": 3
+  },
+  "history_to_public_lock_queue_ms": {
+    "n": 100,
+    "p50": 0.400146484375,
+    "p95": 42.89990234375,
+    "max": 46.60009765625
+  }
+}

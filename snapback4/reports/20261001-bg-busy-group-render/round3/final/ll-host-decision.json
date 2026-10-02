@@ -1,0 +1,8 @@
+{
+  "action": "Run unchanged LL harness with host-load recording after interrupting only our idle-wait process",
+  "reason": "Shared host stayed busy for over six minutes; LL has no idle-host or p95 acceptance assertion. Record contended timings without a causal latency comparison.",
+  "command": "confirm-round3.py --ll-only --ll-current-load",
+  "bg_repeated": false,
+  "test_suite_repeated": false,
+  "source_changed": false
+}

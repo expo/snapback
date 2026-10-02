@@ -1,5 +1,37 @@
+#[path="row_keyed_views/maintenance_types.rs"] mod maintenance_types;
 use snapback4_core::{Context, Engine, Value, WriteState, value::object};
 const SOURCE: &str = include_str!("fixtures/row-keyed-view.q");
+
+#[test]
+fn maintenance_fields_refuse_in_all_authored_predicates_and_helpers() {
+    let base=include_str!("../../snapback4-core/tests/row_view_witness/schema.q").replace("MEMBER_EXPIRY","");
+    let mut checks=0;
+    for field in ["recountPending","pending","at","deadline","cursor","total","parked","version"] {
+        for effect in ["read","insert","update","delete"] {
+            let text=base.replace("PREDICATE",&format!("not exists unread[member = .member, {field} = false] or exists permits[member = .member]"));
+            let text=if effect=="read" {text} else {text.replace("  read <- not exists",&format!("  {effect} <- not exists"))};
+            let b=snapback4_lang::compile(&[("schema.q".into(),text)]);
+            assert!(b.diagnostics.iter().any(|d|d.code=="E_VIEW_KEY" && d.message.contains(field) && d.rewrite.contains("value")),"{field}/{effect}: {:?}",b.diagnostics);
+            checks+=1;
+        }
+    }
+    let base=base.replace("PREDICATE","allow");
+    for tail in [
+        "query bad():\n  return unread where .recountPending = false first 10\n",
+        "query bad():\n  return exists unread[member = 'u', recountPending = false]\n",
+        "fn status(row: unread): row.recountPending\nquery bad():\n  return unread first 10 { bad: not status(.) }\n",
+        "query bad():\n  for row in unread first 10:\n    flag = row.recountPending\n    if flag:\n      return true\n  return false\n",
+    ] {
+        let b=snapback4_lang::compile(&[("schema.q".into(),base.clone()+tail)]);
+        assert!(b.diagnostics.iter().any(|d|d.code=="E_VIEW_KEY" && d.message.contains("recountPending")),"{tail}: {:?}",b.diagnostics);
+        checks+=1;
+    }
+    for tail in ["query status():\n  return unread first 10 { status: .recountPending }\n", "query good():\n  return unread where .value = 0 first 10 by byId\n"] {
+        let b=snapback4_lang::compile(&[("schema.q".into(),base.clone()+tail)]);
+        assert!(b.diagnostics.is_empty(),"{tail}: {:?}",b.diagnostics);checks+=1;
+    }
+    eprintln!("BG round5 compiled admission: {checks} predicate/projection checks");
+}
 fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);

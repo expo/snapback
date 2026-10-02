@@ -1,0 +1,247 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 4.11s
+     Running tests/row_view_witness.rs (snapback4/target/debug/deps/row_view_witness-a81c50cf8b70a076)
+
+running 6 tests
+test deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links ... ok
+WITNESS control=true file=false world=0: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: true, complete: false, cut: Some(Meter), capped_at: Some((HeapBytes, "programs.gate.0")), word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 320039508, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "heap bytes reached the ceiling 16777216", detail: None, site: Some("attempt:2"), rewrite: Some("move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows"), guide: Some("bounds"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 6, heap_bytes: 320022408, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+WITNESS control=false file=false world=0: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 4, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members", "unread"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_RULE", family: "auth", message: "gates's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count", detail: None, site: None, rewrite: None, guide: Some("rules"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 6, heap_bytes: 440, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+test denied_view_witness_reserves_before_hidden_presence ... ok
+WITNESS control=false file=false world=1: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 4, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members", "unread"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_RULE", family: "auth", message: "gates's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count", detail: None, site: None, rewrite: None, guide: Some("rules"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 6, heap_bytes: 440, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+WITNESS control=true file=false world=1: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: true, complete: false, cut: Some(Meter), capped_at: Some((HeapBytes, "programs.gate.0")), word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 320039508, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "heap bytes reached the ceiling 16777216", detail: None, site: Some("attempt:2"), rewrite: Some("move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows"), guide: Some("bounds"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 6, heap_bytes: 320022408, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+WITNESS control=false file=true world=0: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 4, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members", "unread"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_RULE", family: "auth", message: "gates's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count", detail: None, site: None, rewrite: None, guide: Some("rules"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 6, heap_bytes: 440, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+WITNESS control=true file=true world=0: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: true, complete: false, cut: Some(Meter), capped_at: Some((HeapBytes, "programs.gate.0")), word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 320039508, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "heap bytes reached the ceiling 16777216", detail: None, site: Some("attempt:2"), rewrite: Some("move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows"), guide: Some("bounds"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 6, heap_bytes: 320022408, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+WITNESS control=true file=true world=1: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: true, complete: false, cut: Some(Meter), capped_at: Some((HeapBytes, "programs.gate.0")), word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 320039508, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "heap bytes reached the ceiling 16777216", detail: None, site: Some("attempt:2"), rewrite: Some("move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows"), guide: Some("bounds"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 6, heap_bytes: 320022408, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+WITNESS control=false file=true world=1: query=QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 4, output_bytes: 6, rows_written: 0 }, tables: ["gates", "members", "unread"], next_expiry: None } write=MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_RULE", family: "auth", message: "gates's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count", detail: None, site: None, rewrite: None, guide: Some("rules"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 1, steps: 6, heap_bytes: 440, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+test ordinary_member_witness_control ... ok
+test hidden_member_payload_through_witness ... ok
+BG round5 composed deadline property: 6 seeds, 180 rule/count cases, 8640 model comparisons, both settlement states and two read-through links
+test deadlines::generated_composed_count_rules_match_future_model_deadlines ... ok
+BG round6 raw server admission: 764 cases, each refused at creation and adoption
+test every_reachable_maintenance_field_refuses_raw_engine_admission ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.29s
+
+     Running tests/row_keyed_views.rs (snapback4/target/debug/deps/row_keyed_views-eefb0f964c669735)
+
+running 24 tests
+test expiry_memory ... ok
+test device_index_preparation_preserves_projection_and_legacy_work_schema ... ok
+test covered_memory ... ok
+test member_horizon_memory ... ok
+test metadata_witness_memory ... ok
+test held_member_source_predicts_past_other_member_horizon_memory ... ok
+test member_horizon_never_persists_excluded_note_or_attribution_in_view ... ok
+test source_horizon_memory ... ok
+test private_member_source_prediction_memory ... ok
+test member_horizon_prefix_memory ... ok
+test held_member_source_predicts_past_other_member_horizon_sqlite ... ok
+test source_horizon_sqlite ... ok
+test metadata_witness_sqlite ... ok
+test expiry_sqlite ... ok
+test member_horizon_sqlite ... ok
+test private_member_source_prediction_sqlite ... ok
+test covered_sqlite ... ok
+test member_horizon_prefix_sqlite ... ok
+test covered_cut_memory ... ok
+test large_live_count_queues_and_settles_memory ... ok
+test covered_cut_sqlite ... ok
+test large_live_count_queues_and_settles_sqlite ... ok
+test uncovered_memory ... ok
+test uncovered_sqlite ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+     Running tests/row_view_expiry.rs (snapback4/target/debug/deps/row_view_expiry-5bc201f21f8ce644)
+
+running 14 tests
+test maintenance_admission_memory ... ok
+BG round4 memory literal remaining=3: {"ok":{"complete":false,"cut":"meter","loading":true,"nextExpiry":null,"retained":false,"scopes":{"access":[{}],"members":[{"0":"c"}],"unread":[{"0":"c"}]},"tables":["access","members","messages","unread"],"unknown":false}}
+BG round4 memory literal remaining=4: {"ok":{"complete":false,"cut":"meter","loading":true,"nextExpiry":null,"retained":false,"scopes":{"access":[{}],"members":[{"0":"c"}],"messages":[{"0":"c"}],"unread":[{"0":"c"}]},"tables":["access","members","messages","unread"],"unknown":true}}
+test unchanged_mark_after_clock_expiry_memory ... ok
+test snapshot_spans_expiry_memory ... ok
+test inherited_expiry_replay_memory ... ok
+test snapshot_spans_expiry_sqlite ... ok
+test snapshot_after_expiry_then_stream_memory ... ok
+test unchanged_mark_after_clock_expiry_sqlite ... ok
+BG round4 sqlite literal remaining=3: {"ok":{"complete":false,"cut":"meter","loading":true,"nextExpiry":null,"retained":false,"scopes":{"access":[{}],"members":[{"0":"c"}],"unread":[{"0":"c"}]},"tables":["access","members","messages","unread"],"unknown":false}}
+BG round4 sqlite literal remaining=4: {"ok":{"complete":false,"cut":"meter","loading":true,"nextExpiry":null,"retained":false,"scopes":{"access":[{}],"members":[{"0":"c"}],"messages":[{"0":"c"}],"unread":[{"0":"c"}]},"tables":["access","members","messages","unread"],"unknown":true}}
+test catchup_expired_before_and_after_watermark_memory ... ok
+test inherited_expiry_replay_sqlite ... ok
+test snapshot_after_expiry_then_stream_sqlite ... ok
+test catchup_expired_before_and_after_watermark_sqlite ... ok
+BG round4 memory device property: seed=20261002, 16 populations, 64 unrestricted + 704 budget observations
+test durable_source_rule_budget_memory ... ok
+BG round4 sqlite device property: seed=20261002, 16 populations, 64 unrestricted + 704 budget observations
+test durable_source_rule_budget_sqlite ... ok
+test maintenance_admission_sqlite ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.92s
+
+     Running tests/audience_bounds.rs (snapback4/target/debug/deps/audience_bounds-6b1538766c5d796c)
+
+running 10 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+test helper_refusal_finds_a_transitive_job_caller ... ok
+test query_replacement_points_at_declaration_with_helper_loop_and_job_context ... ok
+test owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim ... ok
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/guide.rs (snapback4/target/debug/deps/guide-1b8656e1cc8b3640)
+
+running 110 tests
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1481315) panicked at crates/snapback4-lang/tests/guide/feeds.rs:324:5:
+negative fixture: retired installer
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1481315) panicked at crates/snapback4-lang/tests/guide/feeds.rs:333:9:
+negative fixture: bridge helper feedAppPublish
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1481315) panicked at crates/snapback4-lang/tests/guide/feeds.rs:333:9:
+negative fixture: bridge helper feedAppFollow
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1481315) panicked at crates/snapback4-lang/tests/guide/feeds.rs:348:17:
+negative fixture: projection feedAuthors
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1481315) panicked at crates/snapback4-lang/tests/guide/feeds.rs:350:13:
+negative fixture: renamed private feed projection posts
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1481315) panicked at crates/snapback4-lang/tests/guide/feeds.rs:324:5:
+negative fixture: retired installer
+
+thread 'start::openings_fit_without_growing_the_eight_reference_cards' (1481344) panicked at crates/snapback4-lang/tests/guide/start.rs:34:9:
+maintains: 883 > 879
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test client::missing_row_question_opens_client ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test client::loading_or_absent_opens_client ... ok
+test client::connection_presence_keeps_its_card ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test client::unknown_membership_offline_opens_interactions ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test following_cards_pin_examinations ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test natural_words_find_their_cards ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test language_following_uses_the_declaration ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test prediction_card_compiles_clean ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... FAILED
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test the_keywords_are_one_list ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test the_template_compiles_clean ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+why: 250 codes, maximum 4095 bytes (E_SYNC_GENERATION) / 4096
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... ok
+W11 section census: registered=250 with=250 without=0
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test the_readme_quarry_compiles_clean ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+test every_emitted_code_is_explained ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test every_card_compiles_clean ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+guide inbox: device complete=true, rows=1; separate unreadPreview unavailable=true; server unread=125
+guide digest: unread=125 heap=22454 writes=1
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test the_language_card_compiles_and_runs ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+rolling 25 lanes: first page examined=35 entries=0 steps=697 heap=40460 complete=true cut=None
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test rules::admitted_hidden_updates ... ok
+test rules::insert_rule_refusals ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test rules::update_conditions ... ok
+test rules::update_rule_refusals ... ok
+test rules::insert_collision_visibility ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+failures:
+
+failures:
+    start::openings_fit_without_growing_the_eight_reference_cards
+
+test result: FAILED. 109 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.34s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

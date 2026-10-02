@@ -1,0 +1,9 @@
+{
+  "llp/3000.015-shared-baseline-for-snapback5.spec.md": "c09eb7423abcd1675d28adbe6fe20df6e407c5b5bb732f82489fb7c260e444cd",
+  "snapback4/crates/snapback4-core/src/engine/admission.rs": "649b31991bf6f41c09a9a5d894cf5afef1de0d52a4ff641e5aac9a545a4b3710",
+  "snapback4/crates/snapback4-core/src/engine/admission/maintenance_types.rs": "4af3f8f3746a24ee6eefdd38f138c2468c68a3c183fd13f3c723cd762181df98",
+  "snapback4/crates/snapback4-core/tests/row_view_witness/admission_cases.rs": "2a05b3d75a43e497394c3d8e7bbacb688a36a5d2758ced1d06ba0de79f93b52b",
+  "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": "75ccff1f7e5862af5776e30d49caf08ab3fbc248c7a4e72f5ee69ddcc99c7dad",
+  "snapback4/crates/snapback4-lang/src/guide/maintains.md": "1b156721441a7a7a9f023a2d9f966da9a7ba383ac8701aaf02f96a4b63240e6d",
+  "snapback4/crates/snapback4-lang/tests/row_keyed_views/maintenance_types.rs": "f3a5e296b18069ba5e964932c26dc20ddba4a7c4c05f22f634a93db257c18fb6"
+}

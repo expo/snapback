@@ -1,0 +1,22 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 19.37s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+thread 'engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules' (3222285) panicked at crates/snapback4-core/src/engine/row_views/field_tests.rs:85:9:
+assertion `left == right` failed
+  left: Row(ObjectFields({"id": Id("g"), "member": Id("u")}, false, None, false))
+ right: Null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 199 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

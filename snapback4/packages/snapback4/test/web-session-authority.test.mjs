@@ -160,6 +160,34 @@ window.capture = () => {
     assert.ok(evidence.every(read => read.started > 0 && read.completed > 0), JSON.stringify(evidence));
   });
 
+  await t.test('simultaneously queued authority checks share a read, later checks start fresh', async () => {
+    const session = await fresh();
+    await page.evaluate(options => boot(options), { url, session });
+    await page.waitForFunction(() => window.pollHeld);
+    const evidence = await page.evaluate(async () => {
+      await app.client.sync(); await app.client.residency();
+      const transaction = IDBDatabase.prototype.transaction, reads = [];
+      IDBDatabase.prototype.transaction = function (...args) {
+        const tx = transaction.apply(this, args);
+        if (this.name === 'snapback4-session-authority' && args[1] === 'readonly') {
+          const entry = { started: lockDepth }; reads.push(entry);
+          tx.addEventListener('complete', () => entry.completed = lockDepth);
+        }
+        return tx;
+      };
+      let simultaneous, later;
+      try {
+        await Promise.all([app.client.residency(), app.client.residency()]);
+        simultaneous = reads.length;
+        await app.client.residency(); later = reads.length - simultaneous;
+      } finally { IDBDatabase.prototype.transaction = transaction; }
+      await app.close(); return { simultaneous, later, reads };
+    });
+    assert.ok(evidence.simultaneous <= 3, JSON.stringify(evidence));
+    assert.equal(evidence.later, 2, 'neither completed result is reused');
+    assert.ok(evidence.reads.every(read => read.started > 0 && read.completed > 0), JSON.stringify(evidence));
+  });
+
   await t.test('an aborted authority snapshot refuses publication after successful get requests', async () => {
     const session = await fresh();
     await page.evaluate(options => boot(options), { url, session });
@@ -170,7 +198,9 @@ window.capture = () => {
       IDBObjectStore.prototype.get = function (...args) {
         const request = get.apply(this, args), tx = this.transaction;
         if (tx.db.name === 'snapback4-session-authority' && tx.mode === 'readonly') {
-          request.addEventListener('success', () => { if (!aborted) { aborted = lockDepth; tx.abort(); } });
+          // Refuse every authority read during this query: a concurrent poll
+          // may own the first transaction, independently of the query's read.
+          request.addEventListener('success', () => { aborted = lockDepth; try { tx.abort(); } catch {} });
         }
         return request;
       };

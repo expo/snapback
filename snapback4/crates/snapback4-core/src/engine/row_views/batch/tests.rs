@@ -187,7 +187,7 @@ fn assert_receipt_committed(engine: &mut crate::Engine, members: usize, require_
     let views = engine.store().rows("unread").unwrap();
     assert_eq!(views.len(), members);
     if require_pending {
-        assert!(views.iter().any(|row| row.field("recountPending") == Ok(&Value::Bool(true))), "certification yields when probe plus walk cannot fit");
+        assert!(!engine.store().rows("$recount:unread").unwrap().is_empty(), "certification yields into private work when probe plus walk cannot fit");
     }
     let committed = engine.seq().unwrap();
     while let Some(chunk) = engine.run_view_chunk(10).unwrap() { assert!(matches!(chunk, crate::engine::ViewChunk::Private)); }
@@ -596,3 +596,45 @@ fn stream_basis_pages_obey_finite_and_nested_heap_allowances() {
         }
     }
 }
+
+#[test]
+fn batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers() {
+    let schema = schema(false);
+    let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+    let member = member("mine", "one", "reader", 0);
+    rows.put("members", &schema.tables["members"], &member, None).unwrap();
+    for n in 1..=96 {
+        rows.put("messages", &schema.tables["messages"], &message(&format!("m{n}"), "one", n, Value::Null), None).unwrap();
+    }
+    let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
+    let page = decoder * 32
+        + crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32)
+        + crate::rows::word_heap::slots::<(Option<super::super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32);
+    // These are the declared live allocations at group entry, not the saved
+    // outer usage. Pin the batch's two vectors, keys, output and member image.
+    let mut member_reader = runner(&rows, &schema, "reader");
+    member_reader.row_view_member_image(&schema.maintains[0], &view("mine", true)).unwrap();
+    let occupied = crate::rows::word_heap::slots::<Option<Value>>(1)
+        + crate::rows::word_heap::slots::<(usize, Value, i64)>(1)
+        + crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4
+        + super::super::super::write_target::row_copy_ceiling(&schema.tables["unread"])
+        + member_reader.meter.used.heap_bytes;
+    for extra in [0, 17_000] {
+        for (remaining, expected) in [(page - 1, 1), (page, 32), (page + 1, 32)] {
+            for nested in [false, true] {
+                rows.scans.borrow_mut().clear();
+                let mut r = runner(&rows, &schema, "reader");
+                r.meter.ceilings.heap_bytes = extra + occupied + remaining;
+                r.meter.heap(extra).unwrap();
+                let read = |r: &mut Runner<'_>| r.live_acquisition_batch("unread", &[view("mine", true)]);
+                let actual = if nested { r.disclosed_scratch(0, &[], |r, _| read(r)) } else { read(&mut r) }.unwrap();
+                assert_eq!(field_count(&actual), 96);
+                assert!(rows.scans.borrow().iter().all(|(limit, _)| *limit == expected),
+                    "page={page} occupied={occupied} extra={extra} remaining={remaining} nested={nested}: {:?}", rows.scans.borrow().iter().map(|(n, _)| n).collect::<Vec<_>>());
+                assert!(r.caller_heap_ceiling.is_none());
+            }
+        }
+    }
+    eprintln!("BG heap boundary: page={page} occupied={occupied}; direct/nested; -1, exact, +1; preoccupied=0/17000");
+}
+fn field_count(rows: &[Option<Value>]) -> i64 { rows[0].as_ref().unwrap().field("value").unwrap().as_int().unwrap() }

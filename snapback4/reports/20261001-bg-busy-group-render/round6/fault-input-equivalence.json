@@ -1,0 +1,8 @@
+{
+  "baseline_commit": "c63b1f6b91",
+  "checked_package_source_and_test_files": 495,
+  "changed_files": [],
+  "wasm_sha256": "233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164",
+  "round5_wasm_sha256": "233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164",
+  "uses_static_chat_schema_not_native_compiler": true
+}

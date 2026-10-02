@@ -1,0 +1,23 @@
+Waiting for five CPU samples below 15 percent before measurement
+Quiet window observed; resuming scenarios
+START qualification-idle
+END qualification-idle 0
+START qualification-idle-summary
+END qualification-idle-summary 0
+START qualification-idle-client
+END qualification-idle-client 0
+START qualification-loaded
+END qualification-loaded 0
+START qualification-loaded-summary
+END qualification-loaded-summary 0
+START qualification-loaded-client
+END qualification-loaded-client 0
+START ll-final
+END ll-final 0
+START ll-final-summary
+END ll-final-summary 0
+START client-restore
+END client-restore 0
+START full-suite
+END full-suite 0
+DONE full-suite exit 0

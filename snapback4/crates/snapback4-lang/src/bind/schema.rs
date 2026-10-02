@@ -542,6 +542,9 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     let Some(target) = catalog.tables.get(&read.table) else {
         return Err(unknown(site, format!("exists probes unknown table {}", read.table), name_rewrite(&read.table, catalog.tables.keys().map(String::as_str), None)));
     };
+    for key in &read.keys {
+        if let Some(field) = &key.column { super::row_views::predicate_field(target, field, site)?; }
+    }
     let mut terms = Vec::new();
     let mut types = Vec::new();
     for key in &read.keys {
@@ -552,7 +555,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     let named: Option<Vec<String>> = if terms.iter().all(|(c, _)| c.is_some()) && !terms.is_empty() { Some(terms.iter().map(|(c, _)| c.clone().unwrap()).collect()) } else { None };
     // @ref LLP 3000.007#17 — an expiring maintain's physical value is not its live fact; only existence is a one-unit rule probe.
     if named.as_ref().is_some_and(|names| names.iter().any(|name| name == "value"))
-        && catalog.maintains.get(&read.table).and_then(|maintain| catalog.tables.get(&maintain.source)).is_some_and(|source| source.decl.expire.is_some() || source.through.as_ref().is_some_and(|t| t.expiring)) {
+        && catalog.maintains.get(&read.table).filter(|m| m.row_key.is_none()).and_then(|maintain| catalog.tables.get(&maintain.source)).is_some_and(|source| source.decl.expire.is_some() || source.through.as_ref().is_some_and(|t| t.expiring)) {
         return Err(Diagnostic::new(site, "E_QUARRY_LIVE_MAINTAIN_PROBE", format!("a rule cannot probe {}.value because its source expires", read.table),
             "read the view in the program; its live value cannot be probed at one unit").guide("expire"));
     }

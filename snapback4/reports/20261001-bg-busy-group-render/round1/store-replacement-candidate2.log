@@ -1,0 +1,34 @@
+node:internal/modules/esm/resolve:301
+  return new ERR_PACKAGE_IMPORT_NOT_DEFINED(
+         ^
+
+TypeError [ERR_PACKAGE_IMPORT_NOT_DEFINED]: Package import specifier "#fetch" is not defined in package /tmp/bg-online-candidate/package.json imported from /tmp/bg-online-candidate/dist/client.js
+    at importNotDefined (node:internal/modules/esm/resolve:301:10)
+    at packageImportsResolve (node:internal/modules/esm/resolve:752:9)
+    at moduleResolve (node:internal/modules/esm/resolve:849:16)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+    at #resolve (node:internal/modules/esm/loader:701:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+  code: 'ERR_PACKAGE_IMPORT_NOT_DEFINED'
+}
+
+Node.js v24.13.1
+✖ /tmp/bg-online-candidate/test/app-store-replacement.test.mjs (43.009875ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49.038453
+
+✖ failing tests:
+
+test at ../../../../../tmp/bg-online-candidate/test/app-store-replacement.test.mjs:1:1
+✖ /tmp/bg-online-candidate/test/app-store-replacement.test.mjs (43.009875ms)
+  'test failed'

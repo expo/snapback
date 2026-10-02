@@ -1,0 +1,38 @@
+{
+  "base": "4277a65cf41b02ef3028424698687e9e762d9dfc",
+  "sources": {
+    "llp/3000.015-shared-baseline-for-snapback5.spec.md": "32f65c7a9221ddc606a3d817fd505b76205c1941f02d60deb4f4a88d742609a1",
+    "snapback4/crates/snapback4-core/src/engine/row_views.rs": "3552d5b8e314610bba25b6a7eecf2404e81fa4d302b5f6fa7039dbe92227d4d5",
+    "snapback4/crates/snapback4-core/src/engine/row_views/certification.rs": "a69952a10900221975c361f398036396855e4f3acb4910d5b149f03f872e1c39",
+    "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "d2cb6847b8f23a63268a4e0cdf5af033e9330b184fb3bc6c71c82a022da620d1",
+    "snapback4/crates/snapback4-core/src/engine/row_views/certification_tests.rs": "89ac4e3012bf68e0c2963c6fee6469e148fd58bdeab80ff6c8cef86528d91091",
+    "snapback4/crates/snapback4-core/src/engine/row_views/batch/tests.rs": "74e2c0d7363f775e0e74a274574ca9c517e9086e4eb7fad928dd4d402f90c323",
+    "snapback4/crates/snapback4-core/src/maintain/row_key.rs": "2d938519050f85773b70c374ae781659d41c71d6bc7ecf24fd28dad8dafdb0d6",
+    "snapback4/crates/snapback4-core/src/successor.rs": "c71d7e1a1677fdefb150d908f792d4b239ff39f9b7af73bde701974041d74051",
+    "snapback4/crates/snapback4-lang/src/guide/maintains.md": "bfac9417aaf842a21eaf4f04ee2ed1a6a22427c397e8e352c18b1e46b5912e33",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "ed624eeff0a6a3e6022667f541d5379caa1933610f2a39d19980d930f39c0f73",
+    "snapback4/packages/snapback4/src/app.ts": "34620d716a358d2d08e408de4c39b678d9a7491946292a15b4b3d291e5644b54",
+    "snapback4/reports/20261001-bg-busy-group-render/calibration/schema.q": "a5bbd80895d597698dfbbf17e999014e82c4d0d04580d14b4bc47a32c7968607",
+    "snapback4/reports/20261001-bg-busy-group-render/calibration/config.q": "5dd2efa737176b2447ff26f7c3c26069bbbca79518585de4912bb68d0d0e5895",
+    "snapback4/reports/20261001-bg-busy-group-render/tools/measure.mjs": "0fe22a0a42bd84381b744d6deda1b93e19ce172516b4acfa6470deefc98ac6a5",
+    "snapback4/reports/20261001-bg-busy-group-render/tools/page.jsx": "eaf00d5e1b175d197cf1decbb2a56c97b1053720948b4368bb993505f162bab0",
+    "snapback4/reports/20261001-bg-busy-group-render/tools/instrument-server.py": "d091f63b26e0f2b47caf8f648a8175b51399b53f3d712ff6893aa1b59c563423",
+    "snapback4/reports/20261001-bg-busy-group-render/tools/instrument-client.py": "9d44705ce025b8df009a92cc70aa8cb3d2e9ed1598b0524c389088e3b69d211c",
+    "snapback4/reports/20261001-bg-busy-group-render/tools/contended.py": "a6a589116ab7da5726b3842dceb6f5ad409441ea0c9845789b786394aa182f4d",
+    "snapback4/reports/20261001-bg-busy-group-render/tools/host-load.py": "5f3abcee91893aae40caf5125a4b8f9f637af3b1e928a8c570e03baebaa2e977",
+    "snapback4/reports/20260929-ll-live-latency/tools/measure.mjs": "7548c4e0ee69e78117dd8bad6e4dc38e32caa9f268d5620d85773a5863f0fb19"
+  },
+  "measurement_binaries": {
+    "dev": "970aec0991e7b246d19dd6b3ab9c8b8da9116ed30f4811bb5387c2bb168100ea",
+    "production": "aaac381a4aa6aa31a3ba9a4623bc4bd30d5fea82c5e44158a60820f263e96356"
+  },
+  "wasm": {
+    "raw_bytes": 2015329,
+    "gzip_bytes": 605005,
+    "sha256": "9900742bc7058ff4f1efa79babe9aafcc5d812c463d0306239bd43a4ddcc3f1d",
+    "ratchet": 605225,
+    "gzip_method": "gzip -9 -c FILE"
+  },
+  "normal_client_app_sha256": "d998f75a5141cf077a42c855bc444ec9b2d3c02b70f5d352e6778e1fe147d260",
+  "suite_wasm_matches_measurement": true
+}

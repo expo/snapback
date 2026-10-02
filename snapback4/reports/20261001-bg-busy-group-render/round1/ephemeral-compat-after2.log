@@ -1,0 +1,8 @@
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.61s
+     Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-100c82dae08e670a)
+
+running 1 test
+test durable_schema_and_types_keep_base_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s

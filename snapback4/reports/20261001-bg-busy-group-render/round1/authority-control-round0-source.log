@@ -1,0 +1,49 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ public authority checks read epoch and session in one fresh locked transaction (630.367735ms)
+  ✖ simultaneously queued authority checks share a read, later checks start fresh (682.792623ms)
+  ✔ an aborted authority snapshot refuses publication after successful get requests (648.323575ms)
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1470.108455ms)
+  ✔ a failed logout cannot commit after abort (1208.425263ms)
+  ✔ a failed logout cannot commit after quota (1193.055299ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (646.5314ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1391.623462ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (9.902471ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (93.912175ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (724.181804ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (730.168215ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (722.51805ms)
+  ✔ a committed session reopens with actually full localStorage and no separate epoch key (2040.64863ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (1273.714043ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (694.08575ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (1198.287191ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (1169.712188ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (17823.269706ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ {"fullStorageReopen":true,"filledCharacters":5241784,"mutationCode":"E_ADMISSION"}
+ℹ tests 19
+ℹ suites 0
+ℹ pass 17
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17937.550988
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:163:11
+✖ simultaneously queued authority checks share a read, later checks start fresh (682.792623ms)
+  AssertionError [ERR_ASSERTION]: {"simultaneous":4,"later":2,"reads":[{"started":1,"completed":1},{"started":1,"completed":1},{"started":1,"completed":1},{"started":1,"completed":1},{"started":1,"completed":1},{"started":1,"completed":1}]}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bg/snapback4/packages/snapback4/test/web-session-authority.test.mjs:186:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bg/snapback4/packages/snapback4/test/web-session-authority.test.mjs:163:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+round-0 authority source control exit=1

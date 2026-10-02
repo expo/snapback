@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-02T16:11:32.078330+00:00",
+  "suite_exit": 0,
+  "suite_summary": [
+    "== 0 failure(s) in 1427 s"
+  ],
+  "suite_log_sha256": "140dba7397e9898ace90e35c58f5ffa5fa1825a72b7cc0e8a72242e8e69a6fa9",
+  "captured_source_files": 1814,
+  "source_changes": [],
+  "wasm": {
+    "raw_bytes": 2030224,
+    "gzip_bytes": 610076,
+    "sha256": "691d7fb97ed78fac71839817d7d6e7ad22919ce1aebd6a7f841ba0efeec955f3"
+  },
+  "wasm_identical_to_measurement": true,
+  "failed_steps": []
+}

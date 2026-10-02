@@ -1,0 +1,3 @@
+== chat app typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: chat app typecheck (1 s)

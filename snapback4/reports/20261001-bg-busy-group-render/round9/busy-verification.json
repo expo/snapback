@@ -1,0 +1,39 @@
+{
+  "idle": {
+    "sends": 50,
+    "remote_renders": 100,
+    "notifications": 150,
+    "latency_ms": {
+      "n": 50,
+      "p50": 145.800048828125,
+      "p95": 222.499755859375,
+      "max": 252.7998046875
+    },
+    "cpu_busy_percent": {
+      "n": 22,
+      "p50": 8.612390121389701,
+      "p95": 19.773893017900136,
+      "max": 26.059211214562193
+    },
+    "recertified_history_rows": 0
+  },
+  "loaded": {
+    "sends": 50,
+    "remote_renders": 100,
+    "notifications": 150,
+    "latency_ms": {
+      "n": 50,
+      "p50": 245.7001953125,
+      "p95": 339.80029296875,
+      "max": 348.400146484375
+    },
+    "cpu_busy_percent": {
+      "n": 41,
+      "p50": 99.44940785372948,
+      "p95": 99.84373372226274,
+      "max": 99.95836802664446
+    },
+    "recertified_history_rows": 0
+  },
+  "passed": true
+}

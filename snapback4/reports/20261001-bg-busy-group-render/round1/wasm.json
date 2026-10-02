@@ -1,0 +1,7 @@
+{
+  "raw_bytes": 2015329,
+  "gzip_bytes": 605003,
+  "gzip_method": "gzip -9 -c FILE, matching scripts/build-wasm.sh",
+  "sha256": "3a6e6c86747c58bfe5aac1372ad0f78371d70eb3b77ae944f3404fa2b822af0c",
+  "ratchet": 605225
+}

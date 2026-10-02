@@ -1,0 +1,17 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+error[E0277]: the trait bound `ir::KeyProvenance: Default` is not satisfied
+   --> crates/snapback4-core/src/engine/row_views/field_tests.rs:25:96
+    |
+ 25 |                 key: vec![RuleTerm::Literal(member.field("id").unwrap().clone())], provenance: Default::default(),
+    |                                                                                                ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `ir::KeyProvenance`
+    |
+help: consider annotating `ir::KeyProvenance` with `#[derive(Default)]`
+   --> crates/snapback4-core/src/ir.rs:469:1
+    |
+469 + #[derive(Default)]
+470 | pub enum KeyProvenance {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `snapback4-core` (lib test) due to 1 previous error

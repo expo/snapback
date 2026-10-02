@@ -22,6 +22,7 @@ impl<'a> Binder<'a> {
     // @ref LLP 3000.007#10 — a covered total unique key reads one row; additional named equalities check that row.
     pub(super) fn read_value(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<Expr> {
         let info = self.table(&read.table, &read.site)?;
+        for key in &read.keys { if let Some(field) = &key.column { super::super::row_views::predicate_field(info, field, &read.site)?; } }
         if !read.seeks.is_empty() { return Err(type_error(&read.site, "a seek needs a bounded page", "t[prefix, col >= start] first 50 by index")); }
         if read.keys.is_empty() { return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table))); }
         let mut point = read.clone();

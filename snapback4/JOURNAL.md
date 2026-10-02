@@ -81484,6 +81484,414 @@ scripts, stage tables, input checksums, negative controls and retained traces:
 reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
 
+
+## 2026-10-02 — BG round 1: incremental count certification and client authority reads
+
+The private per-member count basis now carries a conservative earliest contributing
+deadline and a digest of its maintain/source/member definitions. Source deltas
+extend the evidence in the count transaction; removing the earliest source can
+seek the next parent/expiry key. An unchanged settled basis before its deadline
+certifies no history rows. Current member/group authority is proved afresh,
+including witness expiry. Due, pending, legacy, version-mismatched and unsupported
+per-row disclosure cases retain the authorized live walk; recorded member inputs
+also retain that path. Cold acquisition, public meters, finite caller heap,
+instant expiry before sweep and device prediction keep their contracts.
+Schema adoption rebuilds legacy evidence atomically. LLP 3000.015 §3 records why
+current authority facts are freshly proved instead of using a global revision.
+
+The app coalesces calls queued before a committed IndexedDB authority read starts.
+Calls during/after the read get a fresh transaction. Memory/native and preparing
+scopes preserve the original awaited persistence scheduling. Strict admission,
+journal durability, epoch/logout fences and retention are unchanged (LLP 3000.013
+§6). The initially broader batching failed four replacement and twelve keep-model
+cases; the corrected scope passes all nine replacement and eighteen keep-model
+cases, plus 340 authority/fault cases against the final client.
+
+Final shipping-profile Chromium on eb1000, 50 members/10,000 messages, 50 sends and
+100 remote renders: send-to-slower-render median/p95/max is 132.5/187.0/250.3 ms
+idle, versus the round-0 control 330.6/377.8/433.5. Under 96 live CPU burners it is
+234.3/328.3/449.4 versus 706.8/1075.2/1202.9. Measured CPU is 5.86% median idle and
+99.60% loaded. Both conditions recertify zero history rows in all 100 deliveries.
+Idle pre-request p95 is 62.9 ms; history-evaluation-to-public p95 is 49.3 ms.
+LL's unchanged 160-case small-group harness has no timeouts; once-photo p95 is
+90.6 ms versus 93.2 in the new control. The old 88.6→106.6 tail lies in
+apply/evaluation scheduling, and LL exercises neither BG hot-path change.
+
+Eight seeds × 300 random steps produce 18,062 independent naive-model comparisons
+across unread, messageCounts and reactionCounts, plus full authorized unread
+recounts after every step and 221 real SQLite reopenings. Work at both 10k and
+100k history is (recertified sources, public examined, steps) = (0,100,100); the
+same test fails on c0d6d1ee28 with 10,001 source rows. Legacy, deadline, pending,
+heap/disclosure regressions and the whole guide (110 tests) pass. scripts/test.sh
+ran once: `== 2 failure(s) in 2647 s` (cargo test and client tests). Its 17 failures
+are all ours: one frozen private-basis schema expectation plus the sixteen client
+scheduling cases above. Named focused reruns correct all of them; all 79 final
+serial model cases passed. Baseline failures 0, environmental failures 0. The
+original complete run remains red evidence, not a claimed complete green rerun.
+The final recorded-member fallback has its own passing focused regression.
+
+Wasm: 2,015,329 B raw / 605,003 B gzip, +2 gzip over round 0, under the unchanged
+605,225 B cap (222 B Linux headroom; about 92 B with the reported macOS difference).
+No ratchet increase. Final scenario qualification passes, including idle p95 <250.
+Report, before/after stage tables, all failure dispositions, seeds, binary/source
+hashes and traces: reports/20261001-bg-busy-group-render/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-02 — BG round 2: count correctness across clock rollback
+
+Resolved both round-1 count regressions and the inherited heap rewind. Numerical
+certificates now apply only to non-expiring member tables: expired recipients
+can miss arbitrary source deltas and then revive after rollback, so their reads
+always use the authorized live walk. Recounts discard cursor/total/deadline when
+now precedes their saved time. Completed evidence and pending prefixes carry
+count-basis-v2; missing/old work versions restart, and private work schema changes
+use the existing atomic adoption rebuild. Scalar and batch certificate/page
+admission use current occupied heap with the saved caller ceiling. The direct
+and nested page boundary is 716,544 B plus 9,441 B of live batch allocations;
+page-minus-one uses one row, exact and plus-one use 32. LLP 3000.015 §3 and the
+guide state the rule. Release SystemTime can move backwards; running dev uses
+Instant and positive advances, while restart offsets and explicit run --now
+can supply earlier operation times. No cross-transaction monotonicity is assumed.
+
+Both literal review reproductions and both expanded properties fail on 4277a65cf4
+for count mismatches, and the heap regression fails at its intended boundary.
+The final affected cohort passes 42 tests. Eight seeds × 300 steps, 1,225–2,192
+initial sources: 44,289 model/scalar comparisons and 2,400 full-acquisition
+comparisons, 638 committed and 138 interrupted recount chunks, 61 random backward
+and 76 forward moves, 163 interrupted source transactions and 330 actual SQLite
+reopens. The oracle keeps independent row facts, including unswept expired members
+and grants. Interrupted count/evidence/work state must equal its before-image.
+The 10k/100k work regression remains (0 source certifications, 100 examined,
+100 steps) at both sizes. Guide 110/110 and frozen-schema compatibility pass.
+
+Final production Chromium BG send-to-slower-render median/p95/max is
+136.4/203.5/225.2 ms idle and 238.6/339.6/346.3 ms under 96 owned burners,
+versus round 1's 132.5/187.0/250.3 and 234.3/328.3/449.4. The large round-1
+improvement is retained; p95 increases 16.5 and 11.3 ms, with lower maxima.
+Each condition has 50 sends, 100 remote renders, all active-device notifications
+and zero history rows recertified. Measured CPU is 7.03% median idle and 99.57%
+loaded; all 96 burners are reaped. The unchanged LL harness passes 160 samples
+with no timeout; once-photo p95 is 89.0 ms (round 1: 90.6).
+
+An initial purported idle measurement actually ran under lane CT's 99% CPU load:
+177.8/273.0/309.2 ms, failing p95 <250. Its complete trace and CPU/process evidence
+are retained as environmental evidence; the quiet-window repeat above passes.
+Development errors were ours and corrected: a nonexistent test footprint helper,
+two setup cwd errors, and a model that incorrectly removed born-expired recipients.
+No production change accommodates that model error. All dispositions are retained.
+
+scripts/test.sh ran once: `== 0 failure(s) in 1635 s`. Rust passes; the client
+pool passes 5,745 tests with ten existing skips and zero failures/cancellations;
+all 79 serial models pass. Full-suite failures: ours 0, baseline 0, environmental 0.
+No post-suite code correction or affected-phase rerun was necessary.
+
+Wasm is 2,015,329 B raw / 605,005 B gzip, +2 gzip versus round 1, within the
+unchanged 605,225 B ratchet. Linux headroom is 220 B; the reported macOS difference
+would leave 90–110 B. The full-suite rebuild is byte-identical to the measured
+artifact. Client app.js remains byte-identical to round 1. Report, exact suite
+summary, seeds, negative controls, all traces and artifact hashes:
+reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-02 — BG round 3: member lifetime counts over timeless sources
+
+Astra and Grok's high finding is fixed across scalar/prepaid reads, batch/stream,
+cold acquisition and device reads/prediction: a row-keyed count needs authorized
+live input if either source or member can expire, including inherited and
+multi-level read-through expiry. Expiring members cannot reuse a numerical cache
+or copy it through a no-predicate-change refresh. A source event for a live
+expiring member resets bounded private recount work rather than applying a delta
+to a cache that could have missed earlier writes. That also fixes ordinary source
+deletion refusing with E_OVERFLOW after member rollback. Non-expiring members
+keep incremental maintenance; the busy-group fixture's fast path is unchanged.
+Required basis version/at/deadline and count/pending fields are validated strictly;
+15 corrupted-field cases prove missing or malformed evidence falls back to input.
+
+Both review reproductions, device poison, forward maintenance seam and source
+underflow fail on exact round 2 fcc4b644f9, current main 738d45830c (contains BG
+round 0) and pre-BG main 6c598ef145. The two main controls add tests only. The bug
+predates BG. Grok's suspected public forward renewal is qualified: ordinary
+expired-row updates refuse NOT_FOUND, and seed/import renewal already recounts
+on main. The old/new-image maintenance seam does copy stale zero at 1 → 11 → 12;
+the separate regression and fix do not claim public mutation reachability.
+
+Six topology cases (seeds 7, 24301; 20261002, 28; 3735928559, 305419896) run 1,080
+actions plus review prefixes and 74,574 independent comparisons, including two
+groups, parent moves, sweeps, lifetime/default/predicate adoption and 96 overlapping
+readers. The existing eight-seed property retains 2,400 steps and 44,289 comparisons;
+its acquisition oracle now checks raw model facts independently. Device coverage,
+fan-out rollback and all six source/member delete combinations pass. Final core
+checks: 53/53; affected integration: 29/29. The 10k/100k regression remains
+(0 source rows re-certified, 100 examined, 100 steps). Guide 110/110 and frozen
+compatibility pass within the original 879-line card limit. LLP 3000.015 §3 audits
+every count-return path and reconciles the earlier maintenance description.
+
+scripts/test.sh ran once: `== 0 failure(s) in 1485 s`. It passed 5,745 client tests
+with ten skips and all 79 serial models. Full-suite failures: ours 0, baseline 0,
+environmental 0. That run began before the late source-maintenance fix; the final
+53 core and 29 integration tests cover that change. Final artifact measurements
+use rebuilt binaries; the complete suite was not silently repeated.
+
+Final busy-group p95: idle 171.3 ms, 96 burners 458.7 ms; all 100 deliveries in each
+run re-certify zero history, with all 150 notifications and all burners reaped.
+Loaded p95 exceeds round 2's 339.6 ms by 35.1%; latency parity is not demonstrated.
+Initial round-3 186.9/410.0 ms and a failed final idle attempt at 397.1 ms remain
+in the report. That attempt encountered 99.95% median host CPU from other lanes;
+its unchanged <250 ms assertion failed. A quiet-host admission then preceded both
+final BG scenarios. LL's final quiet wait stayed busy for over six minutes, so the
+unchanged 160-sample control ran with host-load recording: no timeout; once-photo
+p95 98.066 ms. Its timings are explicitly contended. Final trace validation passes.
+
+Wasm: 2,015,371 B raw / 605,071 B gzip, +66 gzip versus round 2; 154 B below the
+unchanged 605,225 B branch ratchet. Main's 610,782 B RV ratchet is reported only.
+No main merge or ceiling increase. Report, test-only control patches, seeds,
+complete failure ledger, traces and hashes: reports/20261001-bg-busy-group-render/
+REPORT.md. One local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-02 — BG round 4: private recount state and certified predicate fields
+
+Round 3's late maintenance regression is fixed structurally. An expiring-member
+source event preserves cached numerical fields and restarts only private work;
+an incomplete member recount removes old evidence and preserves a cache only in
+its original parent domain. A new/moved member without a certified count has no
+numerical cache fields. Adoption validates that private shape separately from
+public/input rows. Reads reconstruct the public image. Both value and
+recountPending predicates take the same live certification in read and insert
+rules; an incomplete proof refuses with E_VIEW_KEY. Identity and every copied
+member authority field stay exact transactionally. Computed-field indexes refuse
+rather than selecting stale stored keys. LLP 3000.015 §3 states every field's
+policy; the maintains guide remains within 879 lines.
+
+The device's durable-source scan checks a capped authorization before inspecting
+a payload and resumes from the stored index key. The three/four-probe boundary
+returns incomplete meter observations on Memory and SQLite, without E_TYPE.
+Independent properties now cover every view column in matching/nonmatching read
+and insert predicates: six seeds, 1,080 actions, 144,477 comparisons across direct,
+inherited and through lifetimes. The eight-seed large property retains 2,400
+steps, 44,289 comparisons and 2,400 acquisition checks. Device seed 20261002 adds
+1,536 observations across 16 populations per host, four clocks and 0–32 remaining
+probes. Exact round-3 negative controls reproduce both review failures; rolling
+back only witness certification also fails the independent flag predicate.
+
+The first full inventory found one introduced cost mismatch: the durable private
+work-key lookup adds an examined unit, but the CLI certificate and receipt test
+still expected the old cost. The certificate now covers that lookup, member-only
+expiry and both computed predicates; extended receipt checks pass 13/13. The
+superseded suite's logs and exit 143 are retained, with every development failure
+marked ours. A full scripts/test.sh run then completed after the final code/test
+change: `== 0 failure(s) in 1506 s`. All 281 Rust test binaries/994 executions plus
+doctests pass; clients 5,745 passed with 10 skips; serial models 79/79. Final-suite
+failures: ours 0, baseline 0, environmental 0. All 1,784 captured input digests
+remain unchanged. No current-main baseline exception was asserted.
+
+Busy-group measurements alternate exact round 2 fcc4b644f9 and this round twice
+per condition, 50 sends each, using each variant's own server/SDK/wasm. Idle p95
+pairs: 213.0→181.8 and 184.3→193.1 ms. With 96 continuous normal-priority burners:
+376.0→410.6 and 572.9→533.3 ms. Pooled loaded p95: 465.6→450.0 ms, while median
+266.5→282.6 ms. Two pairs do not establish causal parity or a speedup, and do not
+support the previous unpaired 35% rise as a stable diff effect. The fixture's
+source already expires and its members do not, so round 3's joint gate selects
+the same branch. Every run preserves all 100 remote renders/150 notifications and
+zero re-certified history; all 96 burners are reaped. The 10k/100k work regression
+remains (0 re-certified source rows, 100 examined, 100 steps). LL: 320 observations,
+zero timeouts; all eight per-flow comparisons and host CPU samples are retained.
+
+Measurements bind the final engine/device/client source. The sole later source
+change is the CLI cost diagnostic and its receipt test, which the harness does
+not invoke; the saved measurement binary is not claimed to include that change.
+The final suite's wasm is byte-identical: 2,015,799 B raw / 605,215 B gzip, +210
+gzip over rebuilt round 2, with only 10 B Linux headroom under the unchanged
+605,225 B ratchet. No cross-platform budget claim. Report, exact summary, failure
+ledger, raw traces, source digests and checksums:
+reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-02 — BG round 5: refuse maintenance predicates, preserve deadlines and prediction metadata
+
+The operator supersedes round 4's certification of recountPending after Astra's
+NOT READY review. Only value is certified. E_VIEW_KEY refuses maintenance/private
+fields in read/insert/update/delete rules, sync, through chains and query/helper
+predicates, including undeclared fields and private work columns. Exact
+recountPending remains count-status data; full reconstructed rows preserve the
+prediction contract's pending marker on Memory, SQLite and wasm. Native raw
+opening/adoption shares the refusal; web keeps its server-admitted-backend boundary.
+
+The value regression also exposed an older timeline assumption: a count equality
+can become true as sources expire. Row-keyed value witnesses now prove actual
+future truth transitions in the same transaction and physical allowance; a basis
+expiry is not permanent falsity. The permit's deadline survives negation, OR,
+two read-through links and HTTP. Ordinary expiring aggregate value rules remain
+refused. LLP 3000.015 §3 and the maintains guide record the policy and bounded
+proof. No allowance, window, fanout or budget was raised.
+
+Six seeds / 180 formulas produce 8,640 exact model deadline/visibility comparisons
+before and after private settlement. The 220-case reachable-field matrix refuses
+creation and adoption across engine, Memory and SQLite (1,320 decisions); 38
+compiled predicate/projection checks also pass. Prediction properties cover
+expiry, rollback and withdrawal; a wasm wire check names messages/m1 and unread/u0.
+Three round-4 rollback controls detect the lost deadline and missing metadata.
+Final affected cohorts pass: core 56, witnesses 6, device 14, compiler 32, HTTP 1,
+scale 13, guide 110 plus compatibility 1, wasm metadata 1.
+
+The final-source scripts/test.sh ran once: `== 0 failure(s) in 1957 s`.
+All 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,746 passed with 10 skips; serial models 79/79. Final failures: ours 0, baseline 0,
+environmental 0. All 1,789 input digests are unchanged. Development failures are
+marked ours in the report's round5/FAILURES.md; none was waived as a baseline.
+
+Fresh BG pairs reuse 228 hash-verified exact-round-2 artifacts and separately
+built round-5 artifacts. Shared-host load caused logged admission waits; no
+saturated sample is labelled idle. Idle p95 pairs: 216.8→182.4 and 207.1→179.3 ms,
+all below 250 ms. With 96 continuous normal-priority burners: 342.4→328.0 and
+342.2→430.8 ms. Loaded pooled median/p95 rises 242.8/342.2→269.2/372.1 ms
+(+10.9%/+8.7%). The second loaded pair is worse; no latency-parity or speedup claim.
+Count-certification p95 falls in that pair, but that does not explain the overall
+rise. All renders/notifications/windows remain intact; all workers are reaped.
+10k/100k work remains (0 re-certified rows, 100 examined, 100 steps). LL has
+320 observations and zero timeouts, with all eight flow comparisons retained.
+
+Wasm is 2,012,674 B raw / 605,008 B gzip: −207 gzip versus round 4, +3 versus
+round 2, and 217 B under the unchanged 605,225 B branch ratchet. Shared rule
+operand binding and conjunction/timeline traversal pay for the deadline proof.
+Main's 610,782 B budget is informational; merged size still needs the landing
+check. The suite reproduces the measured wasm byte-for-byte. Complete report,
+source custody and raw evidence: reports/20261001-bg-busy-group-render/REPORT.md.
+Local commit uses Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no new reviewer approval or main integration claimed.
+
+
+## 2026-10-02 — BG round 6: static maintenance types and query-data allowlist
+
+Astra's round-5 Medium showed that object selection erased flat row provenance.
+Round 6 deletes that mechanism. Quarry's receiver types and native structural
+IR types retain maintained rows through objects, lists, helpers, projections
+and selectors. Only direct query result data may select recountPending/pending;
+returning a whole row remains allowed. Every computation/helper status read
+refuses with E_VIEW_KEY and a repair. Private work fields never become app data.
+Unknown/heterogeneous/recursively widened receivers and intermediate/helper/
+ordered maintenance projections refuse conservatively. LLP 3000.015 §3 lists
+the complete class, output positions and limits; the maintains card compiles.
+No runtime certificate, deadline, count, allowance or resource ceiling changed.
+
+The four saved round-5 bypasses still compile on its hash-verified executable,
+while the new source refuses them. Four seeds compose 96 nested helper/container/
+projection controls and 384 maintenance/private refusals. The raw matrix has
+764 cases across six boundaries (4,584 refusals), preserving device generation
+on failed adoption. Direct status projections and whole rows retain exact counts
+at expiry/rollback and prediction metadata on Memory/SQLite. Compiler 36/36,
+guide 110/110, all affected native/HTTP/CLI/web cohorts and core 56/56 pass.
+
+The final-source scripts/test.sh ran once: `== 1 failure(s) in 1421 s` (exit 1).
+All 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,745 passed, one failed, ten skipped; serial models 79/79. Final failures:
+ours 0, baseline 1, environmental 0. The baseline fault-matrix case
+`48 transient: local.ts:855 follow` missed its intended injection. All 495
+client source/test files and the wasm artifact match round 5; ten isolated
+repeats pass. The cause remains unresolved and the red remains recorded, with
+follow-up issues/20261002-snapback4-delivery-fault-site48-missed-injection.md.
+All 1,790 frozen input digests remain unchanged. The failure ledger enumerates
+all development failures as ours and their corrections.
+
+10k/100k work stays (0 re-certified rows, 100 examined, 100 steps). Wasm remains
+2,012,674 B raw / 605,008 B gzip, byte-identical to round 5, with 217 B under
+the unchanged 605,225 B branch ratchet. No new latency or merged-size claim.
+Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md, round6/.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no new reviewer approval claimed.
+
+
+## 2026-10-02 — BG round 7: default-deny whole-value inspection
+
+Astra and Grok both marked round 6 NOT READY with one Medium: whole-value
+min/max/share bypassed the maintenance-field restriction; Grok also demonstrated
+sorted and mutation consumers. Round 7 makes the existing structural checker
+default-deny inspecting uses of values containing maintained-row state at any
+depth. Only an explicit field/selector/list/cardinality allowlist forwards them.
+Text/JSON concatenation and map length refuse: the latter can expose optional
+pending keys. Inspecting selector arguments, distinct keys, comparisons, merge
+ordering, write/effect payloads and mutation results follow the same rule.
+Mutation returns are checked individually before type joins; row-valued helpers
+still forward their static type. No flat provenance, scalar taint, runtime count,
+deadline, reservation, window or ceiling change. LLP 3000.015 §3 records the rule.
+
+All 36 earlier compiler tests remain; 39/39 now pass, including both reviews'
+probes, both status guesses, sorted queries/mutations, shapes carrying pending,
+non-inspecting selectors and exact certified min/max/sorted point reads across
+expiry and rollback. Native matrix: 803 cases × six boundaries = 4,818 refusals,
+with failed device adoption retaining generation 1. A census from the actual
+Builtin deserializer checks all 28 variants for an explicit classification;
+future unclassified variants are denied and fail the test. Language: 98 cohorts,
+1,294 passes, 0 failures, 11 ignored. Guide 110/110, witness/deadline 6/6, device
+14/14, core row-view regressions 56/56; maintains stays at 879 lines.
+
+The final-source scripts/test.sh ran once: `== 0 failure(s) in 1434 s`, exit 0.
+All 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,746 passed, 0 failed, 10 skipped; serial models 79/79. Final failures: ours 0,
+baseline 0, environmental 0. The known site-48 injection flake passed; its ticket
+remains open. All 1,790 frozen inputs remain unchanged and the suite's wasm is
+byte-identical to measurement. Development failures and corrections are listed
+as ours in round7/FAILURES.md; none is waived.
+
+10k/100k work remains (0 re-certified rows, 100 examined, 100 steps). Wasm is
+unchanged from round 6: 2,012,674 B raw / 605,008 B gzip, 217 B below the unchanged
+605,225 B cap. No new latency/parity, merged-size or cross-platform claim.
+Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md and round7/.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no new reviewer approval claimed.
+
+
+## 2026-10-02 — BG round 8: scope-wide maintenance types
+
+Round 7 arrived with Grok READY and Astra NOT READY, one P2: break/continue
+could skip a null reset that erased a captured row's tracked type. The operator
+requires the blunt scope-wide rule. Every assignment now contributes to a
+monotone fixed point before validation; validation cannot change those types.
+Branch snapshots, assignment replacement and per-loop state joins are removed
+from this property. Helpers share compiler-only parameter, local and result
+identities across all calls, including different operations. Raw IR independently
+checks its slots, including assignments to contextual filter/project receivers.
+Builtin classification and returned-data rules remain. The diagnostic says
+"use a separate variable for the row". LLP 3000.015 §3 records the decision.
+
+All 39 earlier compiler cases remain; 43/43 pass. New coverage crosses captured
+rows with break/continue, max/sorted/share/equality, queries/mutations and reuse
+before/after assignment. The four-seed generator adds 192 refusals and 96
+ordinary-field controls. Native matrix: original 803 retained, now 997 cases
+across six boundaries = 5,982 refusals, preserving failed-adoption generation.
+Builtin census 28/28, guide 110/110, core 128/128 (including 56 row-view tests),
+native witness 6/6 and device 14/14 pass. The maintains card stays at 879 lines.
+
+Scalar count lowering uses separate row/count slots under the new rule. Eight
+preflight golden shards required 96 replacement digests for 108 point reads;
+the exact inverse transformation restores all 3,228 historical hashes. Corrected
+lowering passes 11/11 with zero differences across 6,456 IR, 6,456 admission
+and 37,412 execution comparisons. The first full suite then exposed eight
+owned held-count assertions: its existing client shape recognizer expected the
+old slot layout, returning E_QUERY_RETRY instead of E_QUERY_HELD. They reproduce
+8/8 in isolation. The recognizer now accepts both exact layouts with unchanged
+permanence exclusions; the complete unchanged one-shot files pass 117/117.
+LLP 3000.023 §11 records that integration correction.
+
+There were two full-suite invocations. The first candidate reports exactly
+`== 1 failure(s) in 1430 s`: eight client assertions, all ours; baseline 0,
+environmental 0. The corrected final source ran once and reports exactly
+`== 0 failure(s) in 1407 s`, exit 0. All 281 Rust binaries / 994 executions
+and doctests pass; clients 5,746 passed, 0 failed, 10 skipped; serial models
+79/79. Final failures: ours 0, baseline 0, environmental 0. All 1,791 frozen
+source inputs remain unchanged. Both runs and every development failure are
+retained and classified in round8/FAILURES.md, with lossless full logs.
+
+10k/100k work remains (0 re-certified source rows, 100 examined, 100 steps).
+Wasm is byte-identical to round 7: 2,012,674 B raw / 605,008 B gzip, 217 B below
+the unchanged 605,225 B cap. Reference validation: 525 LLPs, 10,082 refs, no
+errors or unchecked refs. No new latency, merged-size or cross-platform claim.
+Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md and round8/.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no round-8 independent approval claimed.
+
 ## 2026-10-02 — RV round 0: only possible revocation bounds a live answer
 
 Compiled authorization dependencies and bounded net transaction evidence now
@@ -82278,3 +82686,39 @@ Linux Wasm is 2,050,348 B raw / 616,951 B gzip. Raise the 610,782 B cap to
 macOS 617,081 B (+130 B), plus 500 B headroom. Runtime ceilings are unchanged.
 Small metering, oracle, hash and verification receipts accompany the
 [report](./reports/20261002-sj-decorated-search/REPORT.md). No publication or push.
+
+## 2026-10-02 — BG round 9: merge with main
+
+Merge origin/main 9ca48d2804 into reviewed round 8 at 58e3c443af, without rebase.
+Resolve runner/binder conflicts by keeping both count evidence/pacing and viewer
+scope/maintenance typing; retain both LLP revision histories and journal tails.
+Audit auto-merged row-view, device, expression and delivery changes. JV keeps
+run_server_query and authorization-budget retry. Reads inside as retain BG's
+maintenance restrictions; captured locals remain maintenance-carrying after exit
+and resets. Embedded queries preserve structural results and cannot turn UI-only
+status output into job computation. Whole rows/ordinary fields remain usable.
+LLP 3000.015 §3 and the jobs card record the interaction.
+
+Affected checks pass, including 46 compiler, 110 guide, 18 JV, 129 core,
+1,005 raw cases across six native boundaries, and persisted digests. Builtin
+census: 30 variants, unchanged forwarding allowlist. Full suite ran once:
+`== 0 failure(s) in 1427 s`, exit 0. Rust: 285 binaries / 998 executions plus
+doctests; clients 5,784 passed, 0 failed, 10 skipped; models 79/79. Full-suite
+failures: ours 0, baseline 0, environmental 0. All 1,814 source hashes remain
+unchanged, and suite wasm is byte-identical to measurement. Development fixture
+errors and inherited evidence whitespace are retained in round9/FAILURES.md.
+
+10k/100k work remains (0 re-certified rows, 100 examined, 100 steps). Wasm:
+2,030,224 B raw / 610,076 B gzip, 706 B under main's unchanged 610,782 B cap.
+Mac estimate 610,184–610,206 B; no Mac measurement. One busy-group run per
+condition gives median/p95/max 145.8/222.5/252.8 ms idle and
+245.7/339.8/348.4 ms under 96 burners. Idle passes p95 <250 ms; all renders and
+notifications arrive, no history rows re-certify, all burners are reaped.
+P95s are modestly above historical round 1 (187.0/328.3 ms); no paired parity
+claim. Report: reports/20261001-bg-busy-group-render/REPORT.md, round9 evidence.
+Merge commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files, 0 errors, 0 unchecked`.
+During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
+publication records. The qualified merge remains pinned to 9ca48d2804 and
+merge-tree confirms it still merges cleanly with the newer tip; no second suite.

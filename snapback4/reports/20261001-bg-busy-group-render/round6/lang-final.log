@@ -1,0 +1,364 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+warning: constant `INDEX` is never used
+ --> crates/snapback4-lang/tests/repairs.rs:3:7
+  |
+3 | const INDEX: &str = include_str!("fixtures/repair-index.q");
+  |       ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PROBE` is never used
+ --> crates/snapback4-lang/tests/repairs.rs:4:7
+  |
+4 | const PROBE: &str = include_str!("fixtures/repair-probe.q");
+  |       ^^^^^
+
+warning: `snapback4-lang` (test "repairs") generated 2 warnings
+    Finished `test` profile [optimized] target(s) in 18.65s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_lang-5125d99f5e771d36)
+
+running 25 tests
+test bind::program::flow::tests::only_falling_paths_reach_later_statements_and_loops_own_their_transfers ... ok
+test bind::intent_aggregates::tests::aggregate_lone_range_uses_the_one_sided_fallback ... ok
+test bind::program::flow::tests::transfers_and_termination_keep_their_statement_order ... ok
+test bind::key_bound::tests::bound_diagnostic_survives_an_independent_schema_error_and_links_indexes ... ok
+test bind::key_bound::tests::declared_bounds_cover_unicode_composites_and_unbounded_text ... ok
+test bind::timeline::tests::reserved_follower_index_requires_its_exact_definition ... ok
+test diag::tests::suggests_the_nearest_name ... ok
+test emit::rust::tests::names_follow_rust_conventions ... ok
+test bind::intent_aggregates::tests::aggregate_planning_preserves_observable_and_authored_order ... ok
+test bind::intent_aggregates::tests::aggregate_range_choice_is_canonical_and_prefers_finite_windows ... ok
+test parser::repairs::tests::invalid_or_overlapping_repair_offsets_have_no_rewrite ... ok
+test lexer::tests::lexes_blocks_and_words ... ok
+test emit::rust::tests::a_table_becomes_a_struct_and_its_names_constants ... ok
+test parser::tests::refuses_with_a_rewrite ... ok
+test bind::schema::tests::quarry_refuses_nullable_target_sync_group_keys ... ok
+test bind::intent_aggregates::tests::digest_aggregate_seek_plan_is_independent_of_cap_admission ... ok
+test source::tests::canonical_backend_sites_do_not_replace_authored_diagnostic_spelling ... ok
+test repair::tests::single_row_fallback_requires_a_total_unique_key ... ok
+test source::tests::explicit_index_search_sites_retain_authored_spelling ... ok
+test repair::tests::count_star_prose_is_not_a_verified_replacement ... ok
+test parser::tests::parses_the_chat_schema ... ok
+test repair::tests::broken_syntax_names_and_types_are_suppressed_before_offering ... ok
+test repair::tests::compiling_repairs_that_change_point_or_page_class_are_suppressed ... ok
+test bind::generated::tests::all_receipt_expression_sites_belong_to_the_author_clause ... ok
+test emit::rust::tests::colliding_and_reserved_quarry_names_emit_compilable_unique_rust ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/actions.rs (target/debug/deps/actions-df46409a24da0890)
+
+running 11 tests
+test empty_handler_maps_cannot_accept_undeclared_functions ... ok
+test generated_effect_declaration_contract_binds_exact_name_secrets_and_policy ... ok
+test legacy_unknown_and_empty_object_contracts_are_distinct ... ok
+test malformed_results_never_acquire_metadata ... ok
+test work_settings_bind_for_actions_and_effects_with_legacy_defaults ... ok
+test qualified_action_names_and_proto_properties_are_preserved ... ok
+test invalid_action_does_not_overwrite_an_existing_operation_or_valid_spec ... ok
+test result_contract_types_refs_as_ids_and_optional_fields_as_required_nullable ... ok
+test scheduled_actions_require_service_authority_and_clock_only_arguments ... ok
+test schedule_checks_the_same_static_service_rule_as_runtime_activation ... ok
+test clauses_refuse_duplicates_invalid_policy_and_reserved_secrets ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-f0ff8962d3146bb4)
+
+running 68 tests
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+public widened recursive write: 1.715 ms, budget 5000 ms, Ok(0)
+expression: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + (1 if value else -1)`, chosen by `value` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `offset` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`total` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+statement: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` or `p.score - 1`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+{ delta: p.score }: schema.q:3:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`selected.delta ?? 0`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `offset` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+choiceShape: schema.q:3:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`selected.delta ?? 0`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `offset` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+(first(sort(choices, 'key')) ! else EMPTY).delta: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+statement: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` or `p.score - 1`, chosen by `liked` in `setLike`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+(last(sort(choices, '-key')) ! else EMPTY).delta: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+helper cache: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`score`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+(at(sort(choices, 'key'), 0) ! else EMPTY).delta: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+widened write x30: (4095, 15552, 2)
+F13: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` or `max(0, p.score - 1)`, chosen by `set` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+F14 principal ?: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: pin copies.value to its source in both insert and update rules; see guide feeds for the rule
+  guide: feeds
+(first(sort(choices, '-key')) ! else EMPTY).nested.delta: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+F14 text <=40: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: pin copies.value to its source in both insert and update rules; see guide feeds for the rule
+  guide: feeds
+F14 bool: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: pin copies.value to its source in both insert and update rules; see guide feeds for the rule
+  guide: feeds
+F13: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` or `max(0, p.score - 1)`, chosen by `enabled, set` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+widened write x30.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a: (4095, 14584, 2)
+F14 time: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: pin copies.value to its source in both insert and update rules; see guide feeds for the rule
+  guide: feeds
+F14 json <=1024: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: pin copies.value to its source in both insert and update rules; see guide feeds for the rule
+  guide: feeds
+(first(sort(choices, 'delta', '-key')) ! else EMPTY).nested.delta: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+widened write x11 { payload: posts[] first 1 by byId }: (4095, 14599, 2)
+F14 int: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin copies.value to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+F14 decimal 2: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin copies.value to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+F14 money USD 2: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin copies.value to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+(last((first(group(choices, 'key')) ! else EMPTY).items) ! else EMPTY).delta: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+loop branch: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`row.score + 1`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+count(group(choices, 'key')): schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+30 nested fields: 5.194 ms, budget 5000 ms, Ok(0)
+range(0, p.score): schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+sum(group(choices, 'key'), 1): schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by an argument in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+posts[] first 5 by byId: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+loop count: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1`, chosen by `offset` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+[1, -1]: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+used=true: peak 4095 expanded nodes/value, 16827 work units, 2 widenings
+30 branching bindings, used=true: 1.143 ms, budget 5000 ms, Ok(0)
+used=false: peak 4095 expanded nodes/value, 16828 work units, 2 widenings
+break after write: schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`row.score + 1`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+30 branching bindings, used=false: 1.913 ms, budget 5000 ms, Ok(0)
+30 branching bindings, unused helper full compile: 0.678 ms, budget 5000 ms, Ok(0)
+test aggregate_copy_claim_is_reached_from_the_orientation ... ok
+test aggregate_copy_card_section_is_verbatim_and_discoverable ... ok
+test l26_a_constant_helper_called_in_a_read_loop_has_no_read_data ... ignored, L29: loops prefer silence
+test a_named_upsert_key_is_a_written_value_on_insert ... ok
+test every_write_from_reads_including_prior_image_reports_once ... ok
+test a_native_writer_makes_the_all_writers_proof_unknown ... ok
+test append_only_derived_insertions_are_silent ... ok
+test copies_of_sums_and_repeated_cross_file_writes_are_not_name_heuristics ... ok
+test l29_unconditional_reset_precision ... ignored, L29: loops prefer silence
+test l26_control_alone_does_not_manufacture_read_data ... ok
+test a_loop_carried_table_row_count_is_derived ... ok
+test a_public_write_of_a_widened_recursive_value_is_silent ... ok
+test l26_optional_shape_presence_selects_a_read_derived_field ... ok
+test l26_conditional_delta_is_control_and_toggle_message_names_both_arms ... ok
+test l26_slice_positions_choose_ambient_deltas_without_supplying_data ... ok
+test l26_break_chooses_how_many_read_values_are_summed ... ok
+test argument_or_ambient_writer_disqualifies_across_the_catalog ... ok
+test l26_statement_constants_and_read_loop_counts_choose_deltas_without_supplying_data ... ok
+test loop_carried_recursive_shapes_have_a_finite_provenance ... ok
+test literal_birth_defaults_and_instantiated_helpers_preserve_the_column_proof ... ok
+test provenance_flows_through_helpers_shapes_aliases_sums_and_jobs ... ok
+test aggregate_only_restricted_private_immutable_and_ambient_writes_stay_silent ... ok
+test review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence ... ignored, F15: helper-mediated carried increments do not yet receive READ cardinality evidence
+test ordinals_receipts_ambient_edits_and_denied_jobs_are_silent ... ok
+test review_f12_upsert_id_keeps_argument_data_through_helpers_and_cache ... ok
+test review_f13_different_conditions_of_the_same_arguments_name_both_arms ... ok
+test malformed_helper_calls_never_panic_or_supply_read_evidence ... ok
+test l26_selected_argument_fields_still_supply_data ... ok
+0.2.25: schema.q:15:3 — N_PUBLIC_AGGREGATE_COPY: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin ranked.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+insert allow: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` lets any principal set this public column through any mutation that writes it
+test review_f12_read_and_minted_upsert_ids_keep_distinct_data ... ok
+test ranking_guard_checks_bound_rules_for_both_upsert_arms ... ok
+0.2.26: schema.q:15:3 — N_PUBLIC_AGGREGATE_COPY: column trendingRows.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin trendingRows.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+init local: 1 blocks, 1 tables, 0 notes
+update allow: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- allow` lets any principal set this public column through any mutation that writes it
+test review_f16_exact_shaped_count_review_program_stays_silent ... ok
+test review_f14_rewrite_only_offers_maintains_for_supported_value_types ... ok
+0.2.27: schema.q:15:3 — N_PUBLIC_AGGREGATE_COPY: column trendingPosts.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin trendingPosts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+test review_control_does_not_turn_ambient_writes_into_read_evidence ... ok
+test review_f19_conditional_reset_cannot_hide_argument_cardinality ... ok
+insert true: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` lets any principal set this public column through any mutation that writes it
+test review_f17_opaque_shapes_and_unmodelled_recurrences_stay_unknown ... ok
+test review_f17_implicit_prefix_projection_is_unknown_until_its_collection_shape_is_known ... ok
+init online: 1 blocks, 1 tables, 0 notes
+cached helper before break: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`score`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+test review_f17_appended_and_write_returned_lists_keep_cardinality ... ok
+test l26_sort_and_group_keys_choose_elements_without_supplying_their_fields ... ok
+test review_f17_text_length_and_filter_cardinality_use_the_consumed_channel ... ok
+test review_f17_collection_choices_cache_keys_and_consumers_keep_cardinality ... ok
+test review_f16_accumulations_consume_argument_read_and_literal_cardinality ... ok
+test survey_retained_calibration_schemas ... ignored, requires the retained calibration packets; set SNAPBACK4_CALIBRATION_PACKETS to their parent
+test review_f16_read_and_literal_collections_keep_cardinality_separate_from_items ... ok
+test review_unknown_forms_stay_silent ... ok
+test round6_helpers_named_like_syntactic_builtins_are_unknown_where_the_binder_bypasses_them ... ok
+test review_f19_inner_argument_loop_survives_a_read_loop_join ... ok
+test review_f17_tokens_and_stored_lists_preserve_both_provenances ... ok
+test review_thirty_branching_called_helper_is_bounded ... ok
+test review_scalar_selection_and_projection_keep_dependence ... ok
+test round6_seek_bounds_and_matching_text_shape_a_pages_cardinality_but_keys_only_select ... ok
+test review_f19_read_cardinality_still_notes_and_outside_assignments_stay_precise ... ok
+update true: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- allow` lets any principal set this public column through any mutation that writes it
+test review_thirty_branching_unused_helper_is_bounded ... ok
+test review_f17_loop_recurrence_aliases_helpers_and_nonadditive_forms_stay_unknown ... ok
+test published_pinning_rule_accepts_zero_and_true_count_and_refuses_forgery ... ok
+insert not deny: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- not (deny)` lets any principal set this public column through any mutation that writes it
+test review_f16_shaped_argument_cardinality_is_supplied_even_when_every_item_is_read ... ok
+test three_calibration_write_shapes_report_the_copied_column_once ... ok
+total budget: peak 4095, work 254184, widenings 3
+update not deny: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- not (deny)` lets any principal set this public column through any mutation that writes it
+insert allow and true: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow and allow` lets any principal set this public column through any mutation that writes it
+test review_expansion_and_total_budget_abandon_read_proofs ... ok
+update allow and true: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- allow and allow` lets any principal set this public column through any mutation that writes it
+insert viewer = viewer: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- viewer = viewer` lets any principal set this public column through any mutation that writes it
+expression helper: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`score`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+30 nested fields, assigned on one arm: 7.395 ms, budget 5000 ms, Ok(0)
+update viewer = viewer: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- viewer = viewer` lets any principal set this public column through any mutation that writes it
+test provenance_joins_thirty_nested_fields_with_an_unrelated_branch ... ok
+insert viewer = 'service:ranker' or allow: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- viewer = 'service:ranker' or allow` lets any principal set this public column through any mutation that writes it
+update viewer = 'service:ranker' or allow: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- viewer = 'service:ranker' or allow` lets any principal set this public column through any mutation that writes it
+init expo: 1 blocks, 6 tables, 0 notes
+test unrestricted_rule_spellings_and_public_online_tables_are_covered ... ok
+short circuit: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`score`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+apps/chat/snapback: 1 blocks, 6 tables, 0 notes
+test templates_and_apps_census ... ok
+guarded return helper: schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`score`, chosen by `choice` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+test l26_statement_helper_and_loop_control_choose_read_derived_writes ... ok
+test review_f19_every_nested_assignment_consumes_argument_cardinality ... ok
+recipe feeds bare: 9 tables, 0 notes
+recipe feeds prefixed: 9 tables, 0 notes
+test installable_recipes_have_no_aggregate_copy_note ... ok
+2000 calls to a 2000-binding helper: 54.683 ms, budget 5000 ms, Ok(0)
+test repeated_helper_provenance_is_cached_without_losing_writes ... ok
+2000 bindings + 2000 sibling ifs: 56.602 ms, budget 5000 ms, Ok(0)
+test provenance_scales_with_two_thousand_bindings_and_sibling_branches ... ok
+card/README survey: 38 cards, 3 documents, 104 blocks, 956 bound table occurrences, 0 aggregate-copy notes
+test every_card_and_published_quarry_block_has_no_aggregate_copy_note ... ok
+ranking authority survey: 38 cards, 3 documents, 1 recipe, 105 blocks, 158 indexed-int table occurrences, 0 unrestricted rules
+test no_published_indexed_int_table_has_unrestricted_writes ... ok
+corpus: 740 bundles, 782 blocks, 1359 tables, 239 refused, 10 aggregate-copy notes
+10ad23600c1148fe6b3e09303dada6b3394b8c6b3758655df79b14e4ae35829e: schema.q:3:3: items.n
+13a6fe30eb4d29c0a49fee087b67d6b8394bdce1eb212b44fdef068058e2268c: schema.q:2:3: items.n
+217e2fd78229359384c5ac4c5bb84b0d5ccda507a4b371119c5e62314d4b3774: schema.q:3:3: notes.n
+4d91ac27297b399b30a21b34804b66d8dd7c3c78befb2d49256d0bb034535668: schema.q:3:3: items.n
+56b57bca0fb142113c08ec242639506fccbcaccdb50dcf48ee3282e03527a476: schema.q:4:3: items.body
+6f4a24cfe8c8e07993869bb37938a3c838723726594742aea048af672a6722d3: schema.q:2:3: items.value
+a6c418dad38017d6b8a5c1045b88088e76c0de97261bec467fa8eb7b62c9759c: schema.q:3:3: notes.n
+abac58b5071aa7a78b3c81be694c6badb05c8786a9ca3a24127bf5df581ebfc0: schema.q:3:3: notes.n
+b379c824f4530bc2804beeccd783cff81658dd3693ecc083d3c55a1c5668c5e7: schema.q:2:3: items.n
+c36b97a6be6dbfc475c58dce1d3859f725ab84e85fff2b477999c5ff081e5a75: schema.q:3:3: items.n
+test corpus_aggregate_copy_sites_are_pinned ... ok
+
+test result: ok. 64 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/attribution_guide.rs (target/debug/deps/attribution_guide-fa725cec27411d8f)
+
+running 2 tests
+test nested_credit_follows_immediate_targets_and_surviving_contributions ... ok
+test explicit_reference_backfill_precedes_capture_and_doctor_distinguishes_missing_credit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-1224bff76406f2cf)
+
+running 10 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+
+thread 'builder_public_aggregate_refuses_both_edits_and_explains_each_repair' (1440649) panicked at crates/snapback4-lang/tests/audience_bounds.rs:10:5:
+[Diagnostic { site: Site { file: "schema.q", line: 110, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 374, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... FAILED
+
+thread 'helper_refusal_finds_a_transitive_job_caller' (1440653) panicked at crates/snapback4-lang/tests/audience_bounds.rs:10:5:
+[Diagnostic { site: Site { file: "schema.q", line: 110, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 374, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }]
+
+thread 'query_replacement_points_at_declaration_with_helper_loop_and_job_context' (1440658) panicked at crates/snapback4-lang/tests/audience_bounds.rs:10:5:
+[Diagnostic { site: Site { file: "schema.q", line: 110, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 374, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }]
+test helper_refusal_finds_a_transitive_job_caller ... FAILED
+test query_replacement_points_at_declaration_with_helper_loop_and_job_context ... FAILED
+
+thread 'owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim' (1440655) panicked at crates/snapback4-lang/tests/audience_bounds.rs:10:5:
+[Diagnostic { site: Site { file: "schema.q", line: 110, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 374, col: 1 }, code: "E_VIEW_KEY", message: "E_VIEW_KEY: cannot prove the receiver type of .duration; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)", rewrite: "predicate on value or member fields; project recountPending as data and check complete", guide: "programs", mechanical: false, cascade_of: None }]
+test owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim ... FAILED
+
+failures:
+
+failures:
+    builder_public_aggregate_refuses_both_edits_and_explains_each_repair
+    helper_refusal_finds_a_transitive_job_caller
+    owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim
+    query_replacement_points_at_declaration_with_helper_loop_and_job_context
+
+test result: FAILED. 6 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p snapback4-lang --test audience_bounds`

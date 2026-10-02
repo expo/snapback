@@ -6,7 +6,7 @@ use super::*;
 pub(super) fn delivery_counts(reader: &mut Runner<'_>, schema: &Schema, page: &[LogEvent])
     -> Result<BTreeMap<(String, String), Option<Value>>, RuntimeError> {
     let mut certified = BTreeMap::new();
-    for m in schema.maintains.iter().filter(|m| m.row_key.is_some() && schema.tables[&m.source].is_expiring()) {
+    for m in schema.maintains.iter().filter(|m| m.row_count_needs_live_basis(schema)) {
         let member = &schema.tables[&m.row_key.as_ref().unwrap().table];
         // Window selection must still precede recounting. Keep its existing path.
         if member.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) { continue; }

@@ -241,7 +241,7 @@ impl Store {
                 walk(&tx, catalog[name], |_, mut row| {
                     materialize_optional_fields(&mut row, table);
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
-                    crate::engine::validate::validate_row(schema, name, &row)?;
+                    crate::engine::validate::validate_maintained_cache(schema, name, &row)?;
                     for (column, kind) in &table.columns { validate_assets(&tx, kind, row.field(column).ok())?; }
                     Ok(())
                 })?;

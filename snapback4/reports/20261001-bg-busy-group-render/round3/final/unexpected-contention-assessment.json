@@ -1,0 +1,23 @@
+{
+  "exit": 1,
+  "failed_assertion": "send-to-slower-viewer p95 bound (<250 ms)",
+  "renders": {
+    "n": 50,
+    "p50": 244.099853515625,
+    "p95": 397.099853515625,
+    "max": 424.699951171875
+  },
+  "history_recertification": {
+    "n": 100,
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+  },
+  "host_cpu_during_sends": {
+    "n": 38,
+    "p50": 99.94810586403736,
+    "p95": 99.97918401332223,
+    "max": 99.97924665352288
+  },
+  "classification": "environmental: idle condition absent; other worktrees were running CPU-intensive tests/builds"
+}

@@ -1,0 +1,31 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 19.45s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 2 tests
+BG property start: seed=1 expiring_members=false population=1762
+BG property start: seed=7 expiring_members=true population=1328
+
+thread 'engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members' (349332) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:206:13:
+assertion `left == right` failed: full recount seed=7 step=2
+  left: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(0)}, false, None, false)))]
+ right: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(1328)}, false, None, false)))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members ... FAILED
+
+thread 'engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step' (349331) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:206:13:
+assertion `left == right` failed: full recount seed=1 step=8
+  left: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(1761)}, false, None, false)))]
+ right: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(1762)}, false, None, false)))]
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step
+    engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 184 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

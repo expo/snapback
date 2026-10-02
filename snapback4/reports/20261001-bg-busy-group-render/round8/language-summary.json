@@ -1,0 +1,7 @@
+{
+  "cohorts": 98,
+  "passed": 1290,
+  "failed": 8,
+  "ignored": 11,
+  "failures": "eight lowering golden shards; ours; fixed by explicit point-read lowering digests; final rerun recorded separately"
+}

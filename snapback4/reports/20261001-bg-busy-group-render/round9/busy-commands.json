@@ -1,0 +1,76 @@
+[
+  {
+    "name": "instrument-server",
+    "command": [
+      "python3",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/instrument-server.py"
+    ],
+    "exit": 0,
+    "seconds": 249.47594475746155
+  },
+  {
+    "name": "instrument-client",
+    "command": [
+      "python3",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/instrument-client.py"
+    ],
+    "exit": 0,
+    "seconds": 0.022166013717651367
+  },
+  {
+    "name": "busy-idle",
+    "command": [
+      "python3",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/host-load.py",
+      "node",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/measure.mjs"
+    ],
+    "exit": 0,
+    "seconds": 47.70417547225952
+  },
+  {
+    "name": "busy-idle-summary",
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/summarize.mjs",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/round9/busy-idle.json"
+    ],
+    "exit": 0,
+    "seconds": 0.5023219585418701
+  },
+  {
+    "name": "busy-loaded",
+    "command": [
+      "python3",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/host-load.py",
+      "python3",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/contended.py",
+      "node",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/measure.mjs"
+    ],
+    "exit": 0,
+    "seconds": 68.30949020385742
+  },
+  {
+    "name": "busy-loaded-summary",
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/summarize.mjs",
+      "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/round9/busy-loaded.json"
+    ],
+    "exit": 0,
+    "seconds": 0.5434329509735107
+  },
+  {
+    "name": "client-restored",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "exit": 0,
+    "seconds": 2.633629083633423
+  }
+]

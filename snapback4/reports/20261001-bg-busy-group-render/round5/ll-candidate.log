@@ -1,0 +1,192 @@
+{"host_affinity_cpus": 96, "host_logical_cpus": 96}
+{"host_sample": 1790933600.1347134, "cpu_busy_percent": 8.45099884949273, "load": [26.52880859375, 70.30517578125, 87.60546875]}
+{"host_sample": 1790933601.1352222, "cpu_busy_percent": 10.8442579968537, "load": [25.4453125, 69.353515625, 87.20458984375]}
+{"host_sample": 1790933602.1359978, "cpu_busy_percent": 10.840847137764731, "load": [25.4453125, 69.353515625, 87.20458984375]}
+{"tier":"wasm","run":0,"flow":"profile","timeout":false,"commitToPublished":26.87,"react":28.97}
+{"tier":"wasm","run":0,"flow":"reaction-add","timeout":false,"commitToPublished":38.48,"react":38.88}
+{"tier":"wasm","run":0,"flow":"reaction-replace","timeout":false,"commitToPublished":36.68,"react":36.88}
+{"tier":"wasm","run":0,"flow":"reaction-remove","timeout":false,"commitToPublished":38.93,"react":39.23}
+{"tier":"wasm","run":0,"flow":"reply","timeout":false,"commitToPublished":56.15,"react":57.85}
+{"host_sample": 1790933603.1369476, "cpu_busy_percent": 9.310850439882701, "load": [25.4453125, 69.353515625, 87.20458984375]}
+{"tier":"wasm","run":0,"flow":"photo","timeout":false,"commitToPublished":73.43,"react":74.73}
+{"tier":"wasm","run":0,"flow":"feed-image","timeout":false,"commitToPublished":26.84,"react":28.64}
+{"tier":"wasm","run":0,"flow":"once-photo","timeout":false,"commitToPublished":60.16,"react":61.06}
+{"tier":"wasm","run":1,"flow":"profile","timeout":false,"commitToPublished":29.87,"react":31.77}
+{"tier":"wasm","run":1,"flow":"reaction-add","timeout":false,"commitToPublished":34.73,"react":34.93}
+{"tier":"wasm","run":1,"flow":"reaction-replace","timeout":false,"commitToPublished":33.51,"react":33.71}
+{"tier":"wasm","run":1,"flow":"reaction-remove","timeout":false,"commitToPublished":31.68,"react":31.88}
+{"host_sample": 1790933604.1374364, "cpu_busy_percent": 9.226252883204022, "load": [25.4453125, 69.353515625, 87.20458984375]}
+{"tier":"wasm","run":1,"flow":"reply","timeout":false,"commitToPublished":48.89,"react":49.79}
+{"tier":"wasm","run":1,"flow":"photo","timeout":false,"commitToPublished":69.61,"react":71.31}
+{"tier":"wasm","run":1,"flow":"feed-image","timeout":false,"commitToPublished":27.78,"react":29.78}
+{"tier":"wasm","run":1,"flow":"once-photo","timeout":false,"commitToPublished":66.9,"react":67.8}
+{"tier":"wasm","run":2,"flow":"profile","timeout":false,"commitToPublished":25.54,"react":27.14}
+{"tier":"wasm","run":2,"flow":"reaction-add","timeout":false,"commitToPublished":32.55,"react":32.85}
+{"host_sample": 1790933605.1382573, "cpu_busy_percent": 8.961474036850925, "load": [25.4453125, 69.353515625, 87.20458984375]}
+{"tier":"wasm","run":2,"flow":"reaction-replace","timeout":false,"commitToPublished":35.58,"react":35.88}
+{"tier":"wasm","run":2,"flow":"reaction-remove","timeout":false,"commitToPublished":22.83,"react":22.83}
+{"tier":"wasm","run":2,"flow":"reply","timeout":false,"commitToPublished":48.22,"react":49.62}
+{"tier":"wasm","run":2,"flow":"photo","timeout":false,"commitToPublished":44.57,"react":45.47}
+{"tier":"wasm","run":2,"flow":"feed-image","timeout":false,"commitToPublished":27.13,"react":29.13}
+{"tier":"wasm","run":2,"flow":"once-photo","timeout":false,"commitToPublished":77.12,"react":79.02}
+{"tier":"wasm","run":3,"flow":"profile","timeout":false,"commitToPublished":28.65,"react":30.65}
+{"host_sample": 1790933606.1391134, "cpu_busy_percent": 8.900523560209429, "load": [24.1279296875, 68.35107421875, 86.7841796875]}
+{"tier":"wasm","run":3,"flow":"reaction-add","timeout":false,"commitToPublished":30.46,"react":30.66}
+{"tier":"wasm","run":3,"flow":"reaction-replace","timeout":false,"commitToPublished":25.52,"react":25.62}
+{"tier":"wasm","run":3,"flow":"reaction-remove","timeout":false,"commitToPublished":20.12,"react":20.12}
+{"tier":"wasm","run":3,"flow":"reply","timeout":false,"commitToPublished":44.35,"react":45.35}
+{"tier":"wasm","run":3,"flow":"photo","timeout":false,"commitToPublished":34.36,"react":35.46}
+{"tier":"wasm","run":3,"flow":"feed-image","timeout":false,"commitToPublished":30.6,"react":32.81}
+{"tier":"wasm","run":3,"flow":"once-photo","timeout":false,"commitToPublished":74.36,"react":76.36}
+{"host_sample": 1790933607.1396432, "cpu_busy_percent": 9.137534017165583, "load": [24.1279296875, 68.35107421875, 86.7841796875]}
+{"tier":"wasm","run":4,"flow":"profile","timeout":false,"commitToPublished":32.86,"react":35.06}
+{"tier":"wasm","run":4,"flow":"reaction-add","timeout":false,"commitToPublished":32.83,"react":32.93}
+{"tier":"wasm","run":4,"flow":"reaction-replace","timeout":false,"commitToPublished":29.65,"react":29.85}
+{"tier":"wasm","run":4,"flow":"reaction-remove","timeout":false,"commitToPublished":35.54,"react":35.64}
+{"tier":"wasm","run":4,"flow":"reply","timeout":false,"commitToPublished":71.53,"react":73.63}
+{"tier":"wasm","run":4,"flow":"photo","timeout":false,"commitToPublished":41.14,"react":42.14}
+{"host_sample": 1790933608.140443, "cpu_busy_percent": 8.99664851277755, "load": [24.1279296875, 68.35107421875, 86.7841796875]}
+{"tier":"wasm","run":4,"flow":"feed-image","timeout":false,"commitToPublished":29.88,"react":32.28}
+{"tier":"wasm","run":4,"flow":"once-photo","timeout":false,"commitToPublished":62.13,"react":63.23}
+{"tier":"wasm","run":5,"flow":"profile","timeout":false,"commitToPublished":29.98,"react":32.38}
+{"tier":"wasm","run":5,"flow":"reaction-add","timeout":false,"commitToPublished":33.35,"react":33.55}
+{"tier":"wasm","run":5,"flow":"reaction-replace","timeout":false,"commitToPublished":31.91,"react":32.21}
+{"tier":"wasm","run":5,"flow":"reaction-remove","timeout":false,"commitToPublished":36.85,"react":37.05}
+{"tier":"wasm","run":5,"flow":"reply","timeout":false,"commitToPublished":66.86,"react":67.96}
+{"host_sample": 1790933609.1412718, "cpu_busy_percent": 9.487447698744766, "load": [24.1279296875, 68.35107421875, 86.7841796875]}
+{"tier":"wasm","run":5,"flow":"photo","timeout":false,"commitToPublished":71.24,"react":72.34}
+{"tier":"wasm","run":5,"flow":"feed-image","timeout":false,"commitToPublished":32.37,"react":34.47}
+{"tier":"wasm","run":5,"flow":"once-photo","timeout":false,"commitToPublished":68.87,"react":70.07}
+{"tier":"wasm","run":6,"flow":"profile","timeout":false,"commitToPublished":36.03,"react":38.63}
+{"tier":"wasm","run":6,"flow":"reaction-add","timeout":false,"commitToPublished":35.36,"react":35.56}
+{"tier":"wasm","run":6,"flow":"reaction-replace","timeout":false,"commitToPublished":36.16,"react":36.46}
+{"tier":"wasm","run":6,"flow":"reaction-remove","timeout":false,"commitToPublished":38.81,"react":39.01}
+{"host_sample": 1790933610.1421103, "cpu_busy_percent": 10.734877869797677, "load": [24.1279296875, 68.35107421875, 86.7841796875]}
+{"tier":"wasm","run":6,"flow":"reply","timeout":false,"commitToPublished":67.63,"react":69.13}
+{"tier":"wasm","run":6,"flow":"photo","timeout":false,"commitToPublished":96.64,"react":98.04}
+{"tier":"wasm","run":6,"flow":"feed-image","timeout":false,"commitToPublished":36.14,"react":38.84}
+{"tier":"wasm","run":6,"flow":"once-photo","timeout":false,"commitToPublished":63.29,"react":64.59}
+{"tier":"wasm","run":7,"flow":"profile","timeout":false,"commitToPublished":28.36,"react":31.06}
+{"tier":"wasm","run":7,"flow":"reaction-add","timeout":false,"commitToPublished":39.08,"react":39.28}
+{"host_sample": 1790933611.142951, "cpu_busy_percent": 10.084825636192274, "load": [22.99658203125, 67.38232421875, 86.37158203125]}
+{"tier":"wasm","run":7,"flow":"reaction-replace","timeout":false,"commitToPublished":39.76,"react":39.96}
+{"tier":"wasm","run":7,"flow":"reaction-remove","timeout":false,"commitToPublished":41.89,"react":42.09}
+{"tier":"wasm","run":7,"flow":"reply","timeout":false,"commitToPublished":82.24,"react":84.74}
+{"tier":"wasm","run":7,"flow":"photo","timeout":false,"commitToPublished":79.35,"react":81.75}
+{"tier":"wasm","run":7,"flow":"feed-image","timeout":false,"commitToPublished":36.16,"react":38.96}
+{"host_sample": 1790933612.143783, "cpu_busy_percent": 8.697927569604358, "load": [22.99658203125, 67.38232421875, 86.37158203125]}
+{"tier":"wasm","run":7,"flow":"once-photo","timeout":false,"commitToPublished":80.1,"react":82.6}
+{"tier":"wasm","run":8,"flow":"profile","timeout":false,"commitToPublished":36.22,"react":39.02}
+{"tier":"wasm","run":8,"flow":"reaction-add","timeout":false,"commitToPublished":27.23,"react":27.43}
+{"tier":"wasm","run":8,"flow":"reaction-replace","timeout":false,"commitToPublished":36.56,"react":36.86}
+{"tier":"wasm","run":8,"flow":"reaction-remove","timeout":false,"commitToPublished":24.66,"react":24.76}
+{"tier":"wasm","run":8,"flow":"reply","timeout":false,"commitToPublished":53.64,"react":54.84}
+{"host_sample": 1790933613.1447167, "cpu_busy_percent": 8.927074601844087, "load": [22.99658203125, 67.38232421875, 86.37158203125]}
+{"tier":"wasm","run":8,"flow":"photo","timeout":false,"commitToPublished":40.28,"react":41.48}
+{"tier":"wasm","run":8,"flow":"feed-image","timeout":false,"commitToPublished":36.21,"react":39.01}
+{"tier":"wasm","run":8,"flow":"once-photo","timeout":false,"commitToPublished":81.85,"react":84.25}
+{"tier":"wasm","run":9,"flow":"profile","timeout":false,"commitToPublished":28.94,"react":31.74}
+{"tier":"wasm","run":9,"flow":"reaction-add","timeout":false,"commitToPublished":33.87,"react":34.07}
+{"tier":"wasm","run":9,"flow":"reaction-replace","timeout":false,"commitToPublished":41.11,"react":41.31}
+{"host_sample": 1790933614.1452227, "cpu_busy_percent": 8.812140240711674, "load": [22.99658203125, 67.38232421875, 86.37158203125]}
+{"tier":"wasm","run":9,"flow":"reaction-remove","timeout":false,"commitToPublished":36.72,"react":36.92}
+{"tier":"wasm","run":9,"flow":"reply","timeout":false,"commitToPublished":81.98,"react":83.18}
+{"tier":"wasm","run":9,"flow":"photo","timeout":false,"commitToPublished":88.08,"react":89.68}
+{"tier":"wasm","run":9,"flow":"feed-image","timeout":false,"commitToPublished":24.74,"react":26.04}
+{"tier":"wasm","run":9,"flow":"once-photo","timeout":false,"commitToPublished":44.57,"react":46.67}
+{"tier":"wasm","run":10,"flow":"profile","timeout":false,"commitToPublished":23.58,"react":24.68}
+{"host_sample": 1790933615.1456852, "cpu_busy_percent": 8.56663521023383, "load": [22.99658203125, 67.38232421875, 86.37158203125]}
+{"tier":"wasm","run":10,"flow":"reaction-add","timeout":false,"commitToPublished":33.32,"react":33.42}
+{"tier":"wasm","run":10,"flow":"reaction-replace","timeout":false,"commitToPublished":23.72,"react":23.82}
+{"tier":"wasm","run":10,"flow":"reaction-remove","timeout":false,"commitToPublished":26,"react":26}
+{"tier":"wasm","run":10,"flow":"reply","timeout":false,"commitToPublished":59.31,"react":60.71}
+{"tier":"wasm","run":10,"flow":"photo","timeout":false,"commitToPublished":51.95,"react":53.95}
+{"tier":"wasm","run":10,"flow":"feed-image","timeout":false,"commitToPublished":36.87,"react":39.87}
+{"host_sample": 1790933616.1464977, "cpu_busy_percent": 8.950068041452951, "load": [22.19580078125, 66.4794921875, 85.97705078125]}
+{"tier":"wasm","run":10,"flow":"once-photo","timeout":false,"commitToPublished":79.61,"react":82.22}
+{"tier":"wasm","run":11,"flow":"profile","timeout":false,"commitToPublished":34.25,"react":37.05}
+{"tier":"wasm","run":11,"flow":"reaction-add","timeout":false,"commitToPublished":34.81,"react":35.01}
+{"tier":"wasm","run":11,"flow":"reaction-replace","timeout":false,"commitToPublished":37.36,"react":37.66}
+{"tier":"wasm","run":11,"flow":"reaction-remove","timeout":false,"commitToPublished":37.87,"react":37.97}
+{"host_sample": 1790933617.1472878, "cpu_busy_percent": 10.318791946308725, "load": [22.19580078125, 66.4794921875, 85.97705078125]}
+{"tier":"wasm","run":11,"flow":"reply","timeout":false,"commitToPublished":78.35,"react":79.75}
+{"tier":"wasm","run":11,"flow":"photo","timeout":false,"commitToPublished":85.08,"react":87.68}
+{"tier":"wasm","run":11,"flow":"feed-image","timeout":false,"commitToPublished":40.11,"react":43.01}
+{"tier":"wasm","run":11,"flow":"once-photo","timeout":false,"commitToPublished":89.02,"react":90.42}
+{"tier":"wasm","run":12,"flow":"profile","timeout":false,"commitToPublished":31.8,"react":34.8}
+{"host_sample": 1790933618.1478279, "cpu_busy_percent": 10.154039610185473, "load": [22.19580078125, 66.4794921875, 85.97705078125]}
+{"tier":"wasm","run":12,"flow":"reaction-add","timeout":false,"commitToPublished":42.29,"react":42.39}
+{"tier":"wasm","run":12,"flow":"reaction-replace","timeout":false,"commitToPublished":39.76,"react":39.96}
+{"tier":"wasm","run":12,"flow":"reaction-remove","timeout":false,"commitToPublished":41.11,"react":41.21}
+{"tier":"wasm","run":12,"flow":"reply","timeout":false,"commitToPublished":79.83,"react":81.23}
+{"tier":"wasm","run":12,"flow":"photo","timeout":false,"commitToPublished":87.45,"react":88.85}
+{"host_sample": 1790933619.1483357, "cpu_busy_percent": 9.463986599664986, "load": [22.19580078125, 66.4794921875, 85.97705078125]}
+{"tier":"wasm","run":12,"flow":"feed-image","timeout":false,"commitToPublished":28.88,"react":31.38}
+{"tier":"wasm","run":12,"flow":"once-photo","timeout":false,"commitToPublished":82.81,"react":84.21}
+{"tier":"wasm","run":13,"flow":"profile","timeout":false,"commitToPublished":35.99,"react":38.99}
+{"tier":"wasm","run":13,"flow":"reaction-add","timeout":false,"commitToPublished":37.11,"react":37.41}
+{"tier":"wasm","run":13,"flow":"reaction-replace","timeout":false,"commitToPublished":32.09,"react":32.29}
+{"tier":"wasm","run":13,"flow":"reaction-remove","timeout":false,"commitToPublished":44.05,"react":44.15}
+{"host_sample": 1790933620.149147, "cpu_busy_percent": 8.71703641691084, "load": [22.19580078125, 66.4794921875, 85.97705078125]}
+{"tier":"wasm","run":13,"flow":"reply","timeout":false,"commitToPublished":74.86,"react":76.36}
+{"tier":"wasm","run":13,"flow":"photo","timeout":false,"commitToPublished":84.04,"react":85.34}
+{"tier":"wasm","run":13,"flow":"feed-image","timeout":false,"commitToPublished":40.97,"react":44.17}
+{"tier":"wasm","run":13,"flow":"once-photo","timeout":false,"commitToPublished":90.72,"react":93.12}
+{"host_sample": 1790933621.1496723, "cpu_busy_percent": 7.775219757220597, "load": [20.978515625, 65.49169921875, 85.552734375]}
+{"tier":"wasm","run":14,"flow":"profile","timeout":false,"commitToPublished":30.41,"react":33.61}
+{"tier":"wasm","run":14,"flow":"reaction-add","timeout":false,"commitToPublished":33.56,"react":33.66}
+{"tier":"wasm","run":14,"flow":"reaction-replace","timeout":false,"commitToPublished":35.61,"react":35.81}
+{"tier":"wasm","run":14,"flow":"reaction-remove","timeout":false,"commitToPublished":39.4,"react":39.6}
+{"tier":"wasm","run":14,"flow":"reply","timeout":false,"commitToPublished":81.91,"react":83.31}
+{"host_sample": 1790933622.150346, "cpu_busy_percent": 8.144038521930286, "load": [20.978515625, 65.49169921875, 85.552734375]}
+{"tier":"wasm","run":14,"flow":"photo","timeout":false,"commitToPublished":83.89,"react":86.19}
+{"tier":"wasm","run":14,"flow":"feed-image","timeout":false,"commitToPublished":39.43,"react":42.63}
+{"tier":"wasm","run":14,"flow":"once-photo","timeout":false,"commitToPublished":84.81,"react":86.21}
+{"tier":"wasm","run":15,"flow":"profile","timeout":false,"commitToPublished":23.22,"react":24.52}
+{"tier":"wasm","run":15,"flow":"reaction-add","timeout":false,"commitToPublished":36.46,"react":36.66}
+{"tier":"wasm","run":15,"flow":"reaction-replace","timeout":false,"commitToPublished":27.55,"react":27.85}
+{"host_sample": 1790933623.1511471, "cpu_busy_percent": 8.651532587090704, "load": [20.978515625, 65.49169921875, 85.552734375]}
+{"tier":"wasm","run":15,"flow":"reaction-remove","timeout":false,"commitToPublished":44.03,"react":44.13}
+{"tier":"wasm","run":15,"flow":"reply","timeout":false,"commitToPublished":78.4,"react":80}
+{"tier":"wasm","run":15,"flow":"photo","timeout":false,"commitToPublished":80.83,"react":83.43}
+{"tier":"wasm","run":15,"flow":"feed-image","timeout":false,"commitToPublished":31.67,"react":32.97}
+{"host_sample": 1790933624.1519806, "cpu_busy_percent": 9.110878661087863, "load": [20.978515625, 65.49169921875, 85.552734375]}
+{"tier":"wasm","run":15,"flow":"once-photo","timeout":false,"commitToPublished":83.95,"react":85.45}
+{"tier":"wasm","run":16,"flow":"profile","timeout":false,"commitToPublished":32.68,"react":35.88}
+{"tier":"wasm","run":16,"flow":"reaction-add","timeout":false,"commitToPublished":37.77,"react":38.07}
+{"tier":"wasm","run":16,"flow":"reaction-replace","timeout":false,"commitToPublished":42.91,"react":43.31}
+{"tier":"wasm","run":16,"flow":"reaction-remove","timeout":false,"commitToPublished":45.29,"react":45.49}
+{"tier":"wasm","run":16,"flow":"reply","timeout":false,"commitToPublished":79.44,"react":80.84}
+{"host_sample": 1790933625.152833, "cpu_busy_percent": 10.23869346733668, "load": [20.978515625, 65.49169921875, 85.552734375]}
+{"tier":"wasm","run":16,"flow":"photo","timeout":false,"commitToPublished":84.31,"react":85.71}
+{"tier":"wasm","run":16,"flow":"feed-image","timeout":false,"commitToPublished":40.08,"react":43.58}
+{"tier":"wasm","run":16,"flow":"once-photo","timeout":false,"commitToPublished":88.71,"react":90.21}
+{"tier":"wasm","run":17,"flow":"profile","timeout":false,"commitToPublished":31.03,"react":34.23}
+{"tier":"wasm","run":17,"flow":"reaction-add","timeout":false,"commitToPublished":39.96,"react":40.16}
+{"host_sample": 1790933626.1537592, "cpu_busy_percent": 8.72750104646296, "load": [19.93896484375, 64.537109375, 85.1357421875]}
+{"tier":"wasm","run":17,"flow":"reaction-replace","timeout":false,"commitToPublished":60.61,"react":60.81}
+{"tier":"wasm","run":17,"flow":"reaction-remove","timeout":false,"commitToPublished":44.33,"react":44.43}
+{"tier":"wasm","run":17,"flow":"reply","timeout":false,"commitToPublished":80.74,"react":82.24}
+{"tier":"wasm","run":17,"flow":"photo","timeout":false,"commitToPublished":87.21,"react":89.81}
+{"tier":"wasm","run":17,"flow":"feed-image","timeout":false,"commitToPublished":45.65,"react":49.05}
+{"host_sample": 1790933627.1545603, "cpu_busy_percent": 7.474874371859297, "load": [19.93896484375, 64.537109375, 85.1357421875]}
+{"tier":"wasm","run":17,"flow":"once-photo","timeout":false,"commitToPublished":92.21,"react":93.91}
+{"tier":"wasm","run":18,"flow":"profile","timeout":false,"commitToPublished":47.37,"react":50.97}
+{"tier":"wasm","run":18,"flow":"reaction-add","timeout":false,"commitToPublished":36.74,"react":37.04}
+{"tier":"wasm","run":18,"flow":"reaction-replace","timeout":false,"commitToPublished":38.01,"react":38.31}
+{"tier":"wasm","run":18,"flow":"reaction-remove","timeout":false,"commitToPublished":38.38,"react":38.58}
+{"host_sample": 1790933628.1550446, "cpu_busy_percent": 7.029288702928871, "load": [19.93896484375, 64.537109375, 85.1357421875]}
+{"tier":"wasm","run":18,"flow":"reply","timeout":false,"commitToPublished":62.4,"react":63.9}
+{"tier":"wasm","run":18,"flow":"photo","timeout":false,"commitToPublished":87.27,"react":88.77}
+{"tier":"wasm","run":18,"flow":"feed-image","timeout":false,"commitToPublished":43.25,"react":47.05}
+{"tier":"wasm","run":18,"flow":"once-photo","timeout":false,"commitToPublished":82.63,"react":84.53}
+{"tier":"wasm","run":19,"flow":"profile","timeout":false,"commitToPublished":38.73,"react":42.33}
+{"host_sample": 1790933629.1555736, "cpu_busy_percent": 7.030024061094253, "load": [19.93896484375, 64.537109375, 85.1357421875]}
+{"tier":"wasm","run":19,"flow":"reaction-add","timeout":false,"commitToPublished":38.71,"react":39.01}
+{"tier":"wasm","run":19,"flow":"reaction-replace","timeout":false,"commitToPublished":40.42,"react":40.52}
+{"tier":"wasm","run":19,"flow":"reaction-remove","timeout":false,"commitToPublished":43.37,"react":43.57}
+{"tier":"wasm","run":19,"flow":"reply","timeout":false,"commitToPublished":83.16,"react":85.06}
+{"host_sample": 1790933630.15609, "cpu_busy_percent": 6.956794643791186, "load": [19.93896484375, 64.537109375, 85.1357421875]}
+{"tier":"wasm","run":19,"flow":"photo","timeout":false,"commitToPublished":76.87,"react":78.37}
+{"tier":"wasm","run":19,"flow":"feed-image","timeout":false,"commitToPublished":35.84,"react":39.44}
+{"tier":"wasm","run":19,"flow":"once-photo","timeout":false,"commitToPublished":90.58,"react":93.58}

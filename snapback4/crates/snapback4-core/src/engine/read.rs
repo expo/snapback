@@ -135,6 +135,7 @@ pub(super) struct RuleProbe<'a, 'b> {
     pub(super) allowance: &'a Authorization,
 }
 impl Probe for RuleProbe<'_, '_> {
+    fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(self.allowance, table, index, key, equalities)
@@ -1462,6 +1463,7 @@ impl<'r> Runner<'r> {
 
 pub(super) struct PrefixProbe<'a, 'b> { pub(super) runner: &'a mut Runner<'b>, pub(super) allowance: &'a Authorization }
 impl Probe for PrefixProbe<'_, '_> {
+    fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(self.allowance, table, index, key, equalities)

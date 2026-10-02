@@ -1,0 +1,21 @@
+{
+  "round4-deadline-negative": {
+    "exit": 101,
+    "assertion_detected": true,
+    "source": "0da1777252",
+    "file": "crates/snapback4-core/src/engine/witness.rs"
+  },
+  "round4-metadata-negative": {
+    "exit": 101,
+    "assertion_detected": true,
+    "source": "0da1777252",
+    "file": "crates/snapback4-core/src/engine/row_views.rs"
+  },
+  "round4-web-metadata-negative": {
+    "exit": 1,
+    "assertion_detected": true,
+    "source": "0da1777252",
+    "artifact": "target/bg-round4-artifacts/candidate-dist/wasm/snapback4_device_bg.wasm",
+    "sha256": "a4a4014a1b221e39fbc8bf8d384f64065271f57ccbdfc8e7c45532ca489f1b30"
+  }
+}

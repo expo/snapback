@@ -1,0 +1,247 @@
+[
+  {
+    "file": "admission-adjacent-final.log",
+    "bytes": 2246,
+    "sha256": "560fa33bff717c7ab7129662cf220a9d6385862788a5b9f3da6197e0eedaa581",
+    "archive": "admission-adjacent-final.log.gz",
+    "archive_bytes": 942
+  },
+  {
+    "file": "admission-adjacent.log",
+    "bytes": 2060,
+    "sha256": "e26d48d0964cce16da1c45541c2c75330cfb4dab30d1a7acf5ec3a2c296ac042",
+    "archive": "admission-adjacent.log.gz",
+    "archive_bytes": 824
+  },
+  {
+    "file": "busy-idle-summary.log",
+    "bytes": 1894,
+    "sha256": "03fc4f06671d17748ecf4ca3f3f76410892b3fa13907bf96473653307b270677",
+    "archive": "busy-idle-summary.log.gz",
+    "archive_bytes": 677
+  },
+  {
+    "file": "busy-idle.json",
+    "bytes": 66634452,
+    "sha256": "fbfd70cb02094429cf1d657bc342d00f346b34771100403515c324233f86a5b0",
+    "archive": "busy-idle.json.gz",
+    "archive_bytes": 5963061
+  },
+  {
+    "file": "busy-idle.log",
+    "bytes": 10126,
+    "sha256": "16428ffe9218d5850125f9eaec7035a201d09042c009df34f8f3f3b5c8137b8a",
+    "archive": "busy-idle.log.gz",
+    "archive_bytes": 2234
+  },
+  {
+    "file": "busy-loaded-summary.log",
+    "bytes": 1861,
+    "sha256": "bdfd064b7efbb63d0cff7c4a0439cf77d5bbbae6e3b17881f4e3eaac999089f5",
+    "archive": "busy-loaded-summary.log.gz",
+    "archive_bytes": 670
+  },
+  {
+    "file": "busy-loaded.json",
+    "bytes": 69137230,
+    "sha256": "514aaa81b891a69c11c13219fc20d7e558acfe96f7a4c9a6d8a9f8f9b9dff22f",
+    "archive": "busy-loaded.json.gz",
+    "archive_bytes": 6234264
+  },
+  {
+    "file": "busy-loaded.log",
+    "bytes": 14282,
+    "sha256": "c52a5517e12515ccb79eb896c2bf2fd3e1832f9a53794dfd2f15d1e3998f8584",
+    "archive": "busy-loaded.log.gz",
+    "archive_bytes": 3145
+  },
+  {
+    "file": "busy-runner.log",
+    "bytes": 308,
+    "sha256": "13bca8b42dab23ac90c56475cc1b43573c3cf4a9c75c72498afb7f283a483436",
+    "archive": "busy-runner.log.gz",
+    "archive_bytes": 128
+  },
+  {
+    "file": "cli-certificates.log",
+    "bytes": 8483,
+    "sha256": "90c06f4cf79c989b073ac2591f21a809e1c56c7944c44c1ec20a9cef2c530221",
+    "archive": "cli-certificates.log.gz",
+    "archive_bytes": 2471
+  },
+  {
+    "file": "client-affected.log",
+    "bytes": 44592,
+    "sha256": "eb41b217d20ef1a96a1e9ff764c629ea85c62a581c51a67bb172ebfa27853897",
+    "archive": "client-affected.log.gz",
+    "archive_bytes": 8051
+  },
+  {
+    "file": "client-build.log",
+    "bytes": 201,
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "archive": "client-build.log.gz",
+    "archive_bytes": 116
+  },
+  {
+    "file": "client-restored.log",
+    "bytes": 201,
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "archive": "client-restored.log.gz",
+    "archive_bytes": 116
+  },
+  {
+    "file": "compiler-final.log",
+    "bytes": 16176,
+    "sha256": "ec535106015404000137453f0a607bb0fa4e94d871ba32df4fbc3b176400e911",
+    "archive": "compiler-final.log.gz",
+    "archive_bytes": 5438
+  },
+  {
+    "file": "compiler-first.log",
+    "bytes": 14996,
+    "sha256": "2e5d319369c9eaceedb2657d2283ffbddcaf65c17c798220164549bd0203ab6c",
+    "archive": "compiler-first.log.gz",
+    "archive_bytes": 5005
+  },
+  {
+    "file": "compiler-guide.log",
+    "bytes": 20397,
+    "sha256": "f50eee33593327d8cc734cfbd811bffe0b6bd8dc81844554590d1aeac9ef2099",
+    "archive": "compiler-guide.log.gz",
+    "archive_bytes": 6190
+  },
+  {
+    "file": "core.log",
+    "bytes": 47690,
+    "sha256": "e3af21931b412a3081625115eabe4c4bb32c709288b525ffe1ed1d66621c886b",
+    "archive": "core.log.gz",
+    "archive_bytes": 6838
+  },
+  {
+    "file": "device.log",
+    "bytes": 53929,
+    "sha256": "2c1fe07e78560d041dace7dfdc3ef3298c72bc7f622d2ca3b48531926741a6c3",
+    "archive": "device.log.gz",
+    "archive_bytes": 3796
+  },
+  {
+    "file": "digest.log",
+    "bytes": 5063,
+    "sha256": "5c98ad09a2af0083408a7bdda85e488c465bf41c95e0e79fc738c342c16318db",
+    "archive": "digest.log.gz",
+    "archive_bytes": 1074
+  },
+  {
+    "file": "http-count-rule.log",
+    "bytes": 1960,
+    "sha256": "fc13194457d4567422d1d815b68570da460eb5fed99a9b432a57c2293d0b36ee",
+    "archive": "http-count-rule.log.gz",
+    "archive_bytes": 948
+  },
+  {
+    "file": "instrument-client.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "archive": "instrument-client.log.gz",
+    "archive_bytes": 20
+  },
+  {
+    "file": "instrument-server.log",
+    "bytes": 868,
+    "sha256": "d816c560886dc220c5b2c888fca83a28d23981a619be62f6d9e47260958d6e53",
+    "archive": "instrument-server.log.gz",
+    "archive_bytes": 364
+  },
+  {
+    "file": "interaction-final.log",
+    "bytes": 550,
+    "sha256": "83bddd2aac9fe9998baf651a0446a5d03ece4de9127336bade4d0bedf846dcf7",
+    "archive": "interaction-final.log.gz",
+    "archive_bytes": 342
+  },
+  {
+    "file": "interaction-second.log",
+    "bytes": 1855,
+    "sha256": "3643ebe60204d45c253d885a3098fd16ad5674bc55815d63ba9de8a721e8179d",
+    "archive": "interaction-second.log.gz",
+    "archive_bytes": 830
+  },
+  {
+    "file": "jv-wasm-fence.log",
+    "bytes": 162,
+    "sha256": "28b3b2d360df229e54d6840ce61cec9f853c5d9ec677ee450a8d3d02ff780bb6",
+    "archive": "jv-wasm-fence.log.gz",
+    "archive_bytes": 142
+  },
+  {
+    "file": "native-matrix.log",
+    "bytes": 66591,
+    "sha256": "1890cbf7d6af6d94af23278a0ffeb9d7960e8c27eaae454078143fa7e251ae3f",
+    "archive": "native-matrix.log.gz",
+    "archive_bytes": 5574
+  },
+  {
+    "file": "persisted-digest.log",
+    "bytes": 2629,
+    "sha256": "48952662f2a5ea24adeb8d2bbf2061b9124405ce90b06fa0e7bb7411259d426b",
+    "archive": "persisted-digest.log.gz",
+    "archive_bytes": 1095
+  },
+  {
+    "file": "ref-check-final.log",
+    "bytes": 81,
+    "sha256": "f976f81f8c049397c1c5d88f329d158761252f9e253f90a81834cb6f7d9841a0",
+    "archive": "ref-check-final.log.gz",
+    "archive_bytes": 94
+  },
+  {
+    "file": "ref-check.log",
+    "bytes": 81,
+    "sha256": "f19ceb01e99ccfffbfb547e3be5ce845e37c828c69bf19855555936044324c8e",
+    "archive": "ref-check.log.gz",
+    "archive_bytes": 94
+  },
+  {
+    "file": "wasm.log",
+    "bytes": 8697,
+    "sha256": "e873076c0ca192f6cd46d5d70f9938817466bfe3e7c5fbc3589a23ea150ddf8c",
+    "archive": "wasm.log.gz",
+    "archive_bytes": 2174
+  },
+  {
+    "file": "workspace-warm.log",
+    "bytes": 36773,
+    "sha256": "4ab7ffe48750dac28d6713d521db9ab4141108981f1869075820562429b9e31e",
+    "archive": "workspace-warm.log.gz",
+    "archive_bytes": 8575
+  },
+  {
+    "file": "full-suite.log",
+    "bytes": 926565,
+    "sha256": "140dba7397e9898ace90e35c58f5ffa5fa1825a72b7cc0e8a72242e8e69a6fa9",
+    "archive": "full-suite.log.gz",
+    "archive_bytes": 171268
+  },
+  {
+    "file": "ref-check-close.log",
+    "bytes": 81,
+    "sha256": "d4e32a5013bcb16d48374b63d6f9d131b62cbb1838e6a87f296dab324c0107e8",
+    "archive": "ref-check-close.log.gz",
+    "archive_bytes": 94
+  },
+  {
+    "file": "suite-runner.log",
+    "bytes": 509,
+    "sha256": "61b8e1dd602b7392bfa28ee92bf8f53c843b4a87549ba6cc0d3fa478693fcd84",
+    "archive": "suite-runner.log.gz",
+    "archive_bytes": 349
+  },
+  {
+    "file": "whitespace-all.log",
+    "bytes": 11186,
+    "sha256": "8b998eaccb0a3a80e71adccf9a5c9343cd03aaab44b542d4ba9fb113b7719009",
+    "archive": "whitespace-all.log.gz",
+    "archive_bytes": 784
+  }
+]

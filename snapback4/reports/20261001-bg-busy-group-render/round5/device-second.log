@@ -1,0 +1,38 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 21.52s
+     Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-5bc201f21f8ce644)
+
+running 14 tests
+test maintenance_admission_memory ... ok
+
+thread 'durable_source_rule_budget_memory' (2464296) panicked at crates/snapback4-device/tests/row_view_expiry.rs:276:70:
+called `Result::unwrap()` on an `Err` value: Refusal { code: "E_VIEW_KEY", family: "schema", message: "E_VIEW_KEY: pin the view's read audience or query by member (guide maintains)", detail: None, site: None, rewrite: Some("pin the view's read audience or query by member (guide maintains)"), guide: Some("maintains"), rule: None, retryable: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test durable_source_rule_budget_memory ... FAILED
+test snapshot_spans_expiry_memory ... ok
+test unchanged_mark_after_clock_expiry_memory ... ok
+test inherited_expiry_replay_memory ... ok
+test snapshot_spans_expiry_sqlite ... ok
+test unchanged_mark_after_clock_expiry_sqlite ... ok
+test catchup_expired_before_and_after_watermark_memory ... ok
+
+thread 'durable_source_rule_budget_sqlite' (2464297) panicked at crates/snapback4-device/tests/row_view_expiry.rs:276:70:
+called `Result::unwrap()` on an `Err` value: Refusal { code: "E_VIEW_KEY", family: "schema", message: "E_VIEW_KEY: pin the view's read audience or query by member (guide maintains)", detail: None, site: None, rewrite: Some("pin the view's read audience or query by member (guide maintains)"), guide: Some("maintains"), rule: None, retryable: false }
+test durable_source_rule_budget_sqlite ... FAILED
+test snapshot_after_expiry_then_stream_memory ... ok
+test catchup_expired_before_and_after_watermark_sqlite ... ok
+test snapshot_after_expiry_then_stream_sqlite ... ok
+test inherited_expiry_replay_sqlite ... ok
+test maintenance_admission_sqlite ... ok
+
+failures:
+
+failures:
+    durable_source_rule_budget_memory
+    durable_source_rule_budget_sqlite
+
+test result: FAILED. 12 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+
+error: test failed, to rerun pass `-p snapback4-device --test row_view_expiry`

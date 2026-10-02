@@ -1,0 +1,8 @@
+{
+  "baseline": "723fe3f962",
+  "checked_files": 495,
+  "changed": [
+    "snapback4/packages/snapback4/src/backend.ts"
+  ],
+  "reason": "backend.ts recognizes the separate row/count lowering for the existing held-count proof"
+}

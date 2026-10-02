@@ -1,0 +1,11 @@
+{
+  "snapback4/crates/snapback4-core/src/engine/row_views.rs": "e9273ad17d346beba822dc810a742b16eb8a8fcfaeba068fa091294bc6cd975b",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "acc54c8f1317b0b608d696cbd45fd13780f9d11cc19e6fb37e64d29eda6d7607",
+  "snapback4/crates/snapback4-core/src/engine/row_views/certification.rs": "18b3eb2fa09b5866f092fa47efb4a480987d9798acc69053c59d902b26a40cb2",
+  "snapback4/crates/snapback4-core/src/engine/row_views/certification_tests.rs": "2688cb773cd6edd2778c304d977ae867f9c629a1a071d1d78cb1dc38dfb9fbed",
+  "snapback4/crates/snapback4-core/src/maintain.rs": "f574f3c564de313f8c9e1fbd4547c99f0e22e0f6d7c7ec1d4ccafbb2d4d0a2b8",
+  "snapback4/crates/snapback4-core/src/partition.rs": "3e86d63ca6dab299e2adb41be061d2efbc99958dd38fea37fac2acb7982d9ab8",
+  "snapback4/crates/snapback4-core/src/partition/counts.rs": "492752d19d9948c71178168d9284a525bd16e94a2b3fc4fd93baae72eda9020f",
+  "snapback4/crates/snapback4-lang/src/guide/maintains.md": "0d456bf26abef35f3ced47edb640dfe7dbe26a0c5d388c4e6d85341a27aef911",
+  "snapback4/crates/snapback4-core/src/engine/row_views/lifetime_tests.rs": "54f742fccce22e9c44b45a56029764775cc4e38c07e462b794ca2b9da38d01f9"
+}

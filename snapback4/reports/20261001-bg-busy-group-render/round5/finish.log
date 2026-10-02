@@ -1,0 +1,27 @@
+START sdk-restored
+END sdk-restored 0
+START full-suite
+END full-suite 0
+{
+  "checked_at": "2026-10-02T09:00:04.260018+00:00",
+  "suite_exit": 0,
+  "suite_summary": [
+    "== 0 failure(s) in 1957 s"
+  ],
+  "suite_log_sha256": "d0fe856fe24fed961cb6f132fe57f53d3ebba47f7a7fc611b395451445ab1ddc",
+  "captured_source_files": 1789,
+  "source_changes": [],
+  "wasm_identical_to_measurement": true,
+  "wasm": {
+    "raw_bytes": 2012674,
+    "gzip_bytes": 605008,
+    "sha256": "233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164"
+  },
+  "failed_steps": []
+}
+START paired
+END paired 0
+START paired-validation
+END paired-validation 0
+START sdk-post-measurement
+END sdk-post-measurement 0
