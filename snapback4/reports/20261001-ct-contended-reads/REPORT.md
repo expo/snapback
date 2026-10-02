@@ -520,3 +520,214 @@ then repeat with `--no-trace`. Preparation is done only once. The same mixed
 mode is runnable on macOS; the native Node QoS readback runs independently.
 Linux target-check inputs and exact logs are retained under `round1/inputs/`
 and `round1/qualification/`. No test or benchmark ran on a Mac in this round.
+
+## Round 2 — queued exits, faithful qualification and Mac findings (2026-10-02)
+
+**The remaining source and harness findings are corrected. The idle-cost
+trade-off remains the operator's decision after a quiet-Mac comparison.**
+The two round-1 reviews were READY WITH CHANGES; this round responds to their
+findings and does not claim a new external review. The request pool remains.
+Nothing is pushed or published.
+
+### Queued exits and scheduling evidence
+
+Every worker exit now removes its live/idle accounting **and refuses queued
+requests**, even when another worker survives. The surviving worker can remain
+blocked indefinitely; no queued request depends on its return or on a later
+submission. Dropping the existing pending-request guards outside the queue
+lock keeps the original refusal/permit path. Later submissions can spawn up to
+the unchanged class limit. The regression holds A blocked, holds B inside its
+panic-payload destructor, queues C at `live=2, idle=0, queued=1`, then exits B.
+C is refused before A is released. A separate case covers the last worker.
+The new partial-exit test fails on the round-1 source with `queued request
+stranded`, and both queued-exit cases pass on round 2. Production panic-abort
+semantics are unchanged.
+
+`doctor` now distinguishes HTTP startup, later HTTP, maintenance and background
+setter failures. Each class records its count, last errno and last failure time
+in Unix milliseconds; stderr names the requested QoS class too. Startup always
+performs and records its own default-or-higher readback before listener creation.
+Later setter failures cannot overwrite or manufacture that startup evidence.
+The output says “HTTP startup readback passed: default or higher” or “not
+performed,” as observed, and makes no current-inheritance claim from a failure
+count. Production-binary controls with a controlled dev-status response exercise
+later maintenance/background errors with both passed and absent startup evidence.
+
+The Node probe now requires **every observed effective base priority to equal
+20**, the utility band, rather than accepting all priorities below 20. A
+background clamp therefore fails the oracle.
+
+### Operator's Mac evidence and the changed Following answer
+
+These are the **operator's runtime results at f5353623a2**, from Apartment mini,
+Apple M5 Pro, 18 cores, against base 9845a1f013. Copies of the mini's
+`~/sb4-np/ct-mac/unit-*.log` and `debug1/mismatch-following5-*.json` are retained
+under [round2/operator-mac](./round2/operator-mac/). Four `thread_priority::tests`
+passed and `executed_node_and_its_threads_have_utility_task_priority` passed.
+Its actual readback is 13 ordinary Node threads at priority 31 versus all 13
+utility-clamped threads at 20. Thus the observed round-1 values already satisfy
+the tightened oracle, although round-2 code has not been executed on a Mac.
+The operator reported load 100–158 from other tenants; **there is no qualified
+Mac timing comparison**. The operator will run it on a quiet Mac after this round.
+
+The answer change is **pending durable new-event delivery**, not nondeterministic
+tie ordering. Read-only SQL over the operator's existing store identifies the
+precise source write and delivery commit:
+
+| Event | Commit | UTC |
+|---|---:|---|
+| u0006 publishes `0000000000KB7QTRX1ARRWSC0X` | 34769, `publish` | 01:22:20.579 |
+| Last application mutation in preparation | 108976, `setReaction` | 01:24:23.867 |
+| Delivery inserts that post into u0005's private feed | 117794, `following:delivery` | 01:42:31.093 |
+| First captured changed answer | — | 01:42:31.130 |
+
+The new item enters at index 10 and displaces the oldest item in the 20-row page.
+Its timestamp differs from the displaced item (01:22:16.881); it is not a tie.
+Both captured answers say `complete: true, fresh: true`. The durable delivery
+commit precedes the first mismatch capture by 37 ms. It is 1,210.514 seconds
+after the post and 1,087.226 seconds after the last application mutation.
+The SDK also commits `delivered` acknowledgements; those are not new application
+posts. The store still contains **15,175 pending delivery tasks** after debug1.
+[Store evidence](./round2/operator-mac/store-evidence.json),
+[per-second delivery history](./round2/operator-mac/maintenance-history.json),
+and the [derived timing record](./round2/operator-mac/analysis.json) preserve
+these observations without copying authentication tables or credentials.
+
+The history contains delivery bursts at 01:21:37–01:24:37, 01:34:01–01:34:27,
+and 01:42:28–01:42:31, separated by long gaps. The changed delivery occurred
+2.822 seconds after debug1's recorded start. **This is not evidence of 20 minutes
+of continuously running maintenance**, and the Mac run did not reach idle.
+The full Mac drain duration is unmeasured. The fresh Linux restart/drain below
+measures the same 50%-scale preparation to actual quiescence.
+
+There **is** a documented contract allowing this answer to change: the
+[Following card](../../crates/snapback4-lang/src/guide/feeds.md), “Following
+contract,” says followers receive new events asynchronously, normally within a
+second on an idle host, and new-event delivery alone does not change `complete`.
+LLP 3000.026 §2 makes the same distinction from reader backfill/cleanup.
+LLP 3000.013 §4 explicitly states that its admission/slice budgets do not bound
+an entire backlog's delivery latency. No hard maximum or stable-answer promise
+is documented for a complete feed with delivery pending. The observed delay is
+therefore permitted by that delivered-contents contract; it exposes a substantial
+latency/completeness limitation far outside the card's normal idle-host description.
+This lane changes neither delivery semantics nor the product's backlog behavior.
+
+### Preparation, sampling and deterministic answers
+
+Host observation now limits each `ps` result to **16 MiB**, times out at two
+seconds, and retains the top eight process rows. ENOBUFS, command failure,
+timeout and disappearing `/proc` state become `samplingErrors`; host observation
+cannot abort the measurement. Affinity is also optional telemetry. The test
+exercises an actual child output above 1 MiB and an injected ENOBUFS.
+
+Before login/cursor warmup and the first timed sample, the harness reads the
+store in read-only SQLite transactions, waits for Following work, row-view
+recounts and jobs to drain, and requires an unchanged commit head for one second.
+It records every queue sample and the total wait in `maintenance-wait.json` and
+metadata. Parked work or a 30-minute timeout fails qualification instead of
+pretending that repeated equal hashes prove settlement. Replay still holds
+schedules; the wait does not advance the clock. It is a fixture-specific check
+of read-affecting maintenance, not a new product-wide “all activity idle” API.
+Subsequent answer mismatches retain both answers and fail as before; only the
+existing `asOf` exclusion remains.
+
+On eb1000, the new 88,143-action preparation finished with **5,221 pending
+Following delivery tasks** and no pending row-view recount/job. The restarted
+candidate first observed 5,173 remaining. The first empty snapshot arrived at
+**23.560 seconds**; the full wait, including the unchanged-head confirmation,
+was **24.741 seconds** across 84 read-only snapshots. All 24,628 work records
+were then done. Polling is nominally every 250 ms plus SQL/observer scheduling;
+these are observed bounds, not exact internal completion stamps or a Mac estimate.
+[Preparation state](./round2/prepare/prepare-maintenance.json) and
+[wait samples](./round2/fresh-restart/maintenance-wait.json) retain the queues.
+
+After that wait, all **3,680 sampled answers** agree per endpoint across
+0/48/96/144 busy processes, including `complete` and `next`, with zero host
+sampling errors. [Fresh-restart results](./round2/fresh-restart/summary.json)
+retain all eight endpoints and cohort percentiles. This validates settlement
+and determinism for the new store; it is not a new before/after idle-cost claim.
+
+### Corrected combined qualification and maintenance/read trade-off
+
+The combined fixture asserts zero unexpected fixed-lease changes and requires
+all deliberately abandoned effects to have a first-attempt worker claim and a
+matching polled expiry. It refuses missing observations instead of applying
+`every` to whichever subset happened to be seen. Negative controls remove a
+claim, remove its poll observation, remove an expected effect and insert a lease
+change; all are rejected. The deliberate slow effect is emitted **after** the
+clock advance, and its claim must precede its real deadline.
+
+The corrected **combined harness passes before and after, at every load:
+0/48/96/144 busy processes on 96 available CPUs**, with 125 seconds of real-clock
+observation per cell. It also passes all four loads on the demoted variant.
+Across those twelve cells, all **72 deliberately abandoned claims** were observed
+and recovered with maintenance-only evidence; unexpected lease changes were zero.
+Each cell delivered 507 normal/probe/abandoned effects, failed exactly one slow
+effect with `E_EFFECT_DEADLINE`, completed 106 retries, and verified the exact
+1,000 ms clock extension. All expected minute boundaries completed once and all
+expired rows were reclaimed. Backlog maxima were 34–35. There were **2,325,244
+successful continuous reads** across the twelve cells. No clock advance occurred
+inside the observation windows.
+
+[Complete mixed tables](./round2/MIXED.md) retain every read percentile, expected
+schedule count, lease-recovery maximum and expiry maximum. Raw per-cell worker
+events, reads and durable states accompany them. Observed job firing delays were
+36–928 ms, creation-to-completion times 0–4 ms. Restored maximum lease recovery
+was 5.072 s and expiry 1.149 s; demoted maxima were 4.787 s and 1.112 s. These
+maxima include phase, polling and scheduler variation; they do not establish
+that one priority policy causes a particular recovery delay.
+
+The **read A/B with maintenance active** uses binaries differing only in the
+[maintenance-demotion patch](./round2/inputs/maintenance-demotion.patch).
+Each 125-second cell records 117–121 expiry commits plus scheduled job commits,
+ongoing writes/effects and lease recovery while reads run. The measured query
+is the mixed fixture's `items first 100` over continuously expiring rows; it is
+not a heavy Following-delivery backlog or the eight calibration queries.
+All successful reads contribute to the nearest-rank percentiles:
+
+| Busy | Demoted p50 / p95 ms | Restored p50 / p95 ms | Restored p95 change |
+|---:|---:|---:|---:|
+| 0 | 0.604 / 0.722 | 0.462 / 0.718 | −0.6% |
+| 48 | 0.349 / 0.415 | 0.345 / 0.506 | **+21.9%** |
+| 96 | 0.471 / 2.163 | 0.494 / 3.425 | **+58.3%** |
+| 144 | 0.474 / 3.440 | 0.479 / 3.185 | −7.4% |
+
+**Restoring maintenance is not free of observed read cost.** Tails are worse at
+48 and 96 processes, better at 144, and nearly unchanged idle in this fixture.
+The series ran sequentially on the shared host, with per-cell host samples;
+this is an observed A/B, not an isolated causal estimate or an equivalence proof.
+Maintenance remains at ordinary priority, and that trade-off stays disclosed.
+This result does not resolve the earlier eight-endpoint idle regression or the
+operator's forthcoming quiet-Mac decision.
+
+### Tests, size and custody
+
+| Check | Result |
+|---|---|
+| Affected serving binary | 225 passed, 0 failed, 4 ignored |
+| Lifecycle | 24 passed, 0 failed |
+| Whole guide | 110 passed, 0 failed |
+| KA/transport, seven files | 61 passed, 0 failed |
+| Qualification observer/lease negative controls | 3 passed, 0 failed |
+| Production doctor formatting controls | 2 passed |
+| Darwin modules/tests cross-check | passed; metadata only |
+| LLP reference audit | 0 errors, 0 unchecked |
+
+The single complete `scripts/test.sh` invocation reports exactly
+**`== 0 failure(s) in 1364 s`** (exit 0). Every phase passed, including the Rust
+suite, 5,742 client tests with ten conditional skips, and all 79 client model
+tests. There are no complete-suite failures to classify as ours, baseline or
+environmental. The [full log](./round2/qualification/test-sh.log) is retained.
+
+The suite's wasm build measures **2,015,329 B raw / 605,001 B gzip**. The
+unchanged **605,225 B** ratchet leaves **224 B** headroom. No wasm-executed
+source changed and no budget increase was made.
+
+The [failure ledger](./round2/FAILURES.md) includes introduced development
+failures and expected negative controls. No baseline product failure is inferred
+from history. [Inputs](./round2/inputs/README.md) retain the commands, controlled
+fixtures, read-only Mac extraction scripts and the exact maintenance-demotion
+patch. The baseline is rebuilt from unmodified 9845a1f013; the ordinary and
+demoted candidates differ only by that patch, with the same production profile
+and SQLite policy. The full suite runs after this lane's owned synthetic load
+has stopped. Other tenants are neither stopped nor controlled.

@@ -95,7 +95,7 @@ setTimeout(()=>process.exit(2),10000);
         assert!(child.wait().unwrap().success(), "{output}");
         let after: Vec<i32> = serde_json::from_str(&output).unwrap();
         assert!(after.len() >= 8, "did not cover Node's threads: {after:?}");
-        assert!(after.iter().all(|p| *p <= 20), "child escaped utility clamp: {after:?}");
+        assert!(after.iter().all(|p| *p == 20), "child must be utility, including no background clamp: {after:?}");
         eprintln!("executed Node thread base priorities: control={before:?}, utility={after:?}");
         std::fs::remove_dir_all(dir).unwrap();
     }

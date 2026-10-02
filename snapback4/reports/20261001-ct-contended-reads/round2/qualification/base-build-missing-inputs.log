@@ -1,0 +1,149 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round2/base/snapback4/crates/snapback4)
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/package.json`: No such file or directory (os error 2)
+ --> crates/snapback4/src/verbs/init/web.rs:6:51
+  |
+6 |     let mut package: Value = serde_json::from_str(include_str!("../../../../../apps/chat/package.json")).unwrap();
+  |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/src/Composer.tsx`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:14:30
+   |
+14 |         ("src/Composer.tsx", include_str!("../../../../../apps/chat/src/Composer.tsx").to_owned()),
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/src/Thread.tsx`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:15:28
+   |
+15 |         ("src/Thread.tsx", include_str!("../../../../../apps/chat/src/Thread.tsx").to_owned()),
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/src/Inbox.tsx`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:16:27
+   |
+16 |         ("src/Inbox.tsx", include_str!("../../../../../apps/chat/src/Inbox.tsx").to_owned()),
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/src/intents.ts`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:21:28
+   |
+21 |         ("src/intents.ts", include_str!("../../../../../apps/chat/src/intents.ts").to_owned()),
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/src/state.ts`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:22:26
+   |
+22 |         ("src/state.ts", include_str!("../../../../../apps/chat/src/state.ts").to_owned()),
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/src/vite-env.d.ts`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:23:31
+   |
+23 |         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/index.html`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:24:24
+   |
+24 |         ("index.html", include_str!("../../../../../apps/chat/index.html").to_owned()),
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/tsconfig.json`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:29:27
+   |
+29 |         ("tsconfig.json", include_str!("../../../../../apps/chat/tsconfig.json").to_owned()),
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/snapback/schema.q`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:30:31
+   |
+30 |         ("snapback/schema.q", include_str!("../../../../../apps/chat/snapback/schema.q").to_owned()),
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/init/../../../../../apps/chat/snapback/worker.ts`: No such file or directory (os error 2)
+  --> crates/snapback4/src/verbs/init/web.rs:31:32
+   |
+31 |         ("snapback/worker.ts", include_str!("../../../../../apps/chat/snapback/worker.ts").to_owned()),
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/package.json`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:226:51
+    |
+226 |     let mut package: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/package.json")).unwrap();
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/app.json`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:241:50
+    |
+241 |     let mut config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
+    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/src/Inbox.tsx`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:244:17
+    |
+244 |     let inbox = include_str!("../../../../apps/chat-expo/src/Inbox.tsx").replace("../../chat/snapback/generated/api", "../snapback/...
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/src/Thread.tsx`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:245:18
+    |
+245 |     let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapbac...
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat/snapback/schema.q`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:247:35
+    |
+247 |     let schema = core_expo_schema(include_str!("../../../../apps/chat/snapback/schema.q"));
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/babel.config.js`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:251:29
+    |
+251 |         ("babel.config.js", include_str!("../../../../apps/chat-expo/babel.config.js").to_owned()),
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/index.js`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:254:22
+    |
+254 |         ("index.js", include_str!("../../../../apps/chat-expo/index.js").to_owned()),
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/tsconfig.json`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:255:27
+    |
+255 |         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/src/intents.ts`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:257:28
+    |
+257 |         ("src/intents.ts", include_str!("../../../../apps/chat-expo/src/intents.ts").to_owned()),
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/src/intent-store.ts`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:258:33
+    |
+258 |         ("src/intent-store.ts", include_str!("../../../../apps/chat-expo/src/intent-store.ts").to_owned()),
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/src/intent-store.web.ts`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:259:37
+    |
+259 |         ("src/intent-store.web.ts", include_str!("../../../../apps/chat-expo/src/intent-store.web.ts").to_owned()),
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4/src/verbs/../../../../apps/chat-expo/src/intent-store.native.ts`: No such file or directory (os error 2)
+   --> crates/snapback4/src/verbs/init.rs:260:40
+    |
+260 |         ("src/intent-store.native.ts", include_str!("../../../../apps/chat-expo/src/intent-store.native.ts").to_owned()),
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `snapback4` (bin "snapback4") due to 23 previous errors

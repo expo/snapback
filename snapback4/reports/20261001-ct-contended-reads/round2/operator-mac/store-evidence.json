@@ -1,0 +1,148 @@
+{
+  "capturedAt": "2026-10-02T01:52:10.358515+00:00",
+  "event": "0000000000KB7QTRX1ARRWSC0X",
+  "reader": "user:01M3X36WV1Z2SMC8RANTS4Q2E0",
+  "commits": [
+    {
+      "seq": 34769,
+      "at": 1790904140579,
+      "program": "publish",
+      "t": "posts",
+      "kind": "put",
+      "id": "0000000000KB7QTRX1ARRWSC0X",
+      "data": {
+        "Row": {
+          "$timeline:following:post": {
+            "Bool": true
+          },
+          "at": {
+            "Int": 1790904140579
+          },
+          "author": {
+            "Id": "user:01M3X36WVC75F4BV0R43YJSHPJ"
+          },
+          "id": {
+            "Id": "0000000000KB7QTRX1ARRWSC0X"
+          },
+          "images": {
+            "Array": []
+          },
+          "likeCount": {
+            "Int": 0
+          },
+          "parent": "Null",
+          "parent.author": "Null",
+          "removed": {
+            "Bool": false
+          },
+          "repostCount": {
+            "Int": 0
+          },
+          "text": {
+            "String": "Scale signal dispatch 009224."
+          },
+          "video": "Null"
+        }
+      },
+      "iso": "2026-10-02T01:22:20.579000+00:00"
+    },
+    {
+      "seq": 57366,
+      "at": 1790904186595,
+      "program": "setLike",
+      "t": "posts",
+      "kind": "put",
+      "id": "0000000000KB7QTRX1ARRWSC0X",
+      "data": {
+        "Row": {
+          "$timeline:following:post": {
+            "Bool": true
+          },
+          "at": {
+            "Int": 1790904140579
+          },
+          "author": {
+            "Id": "user:01M3X36WVC75F4BV0R43YJSHPJ"
+          },
+          "id": {
+            "Id": "0000000000KB7QTRX1ARRWSC0X"
+          },
+          "images": {
+            "Array": []
+          },
+          "likeCount": {
+            "Int": 1
+          },
+          "parent": "Null",
+          "parent.author": "Null",
+          "removed": {
+            "Bool": false
+          },
+          "repostCount": {
+            "Int": 0
+          },
+          "text": {
+            "String": "Scale signal dispatch 009224."
+          },
+          "video": "Null"
+        }
+      },
+      "iso": "2026-10-02T01:23:06.595000+00:00"
+    },
+    {
+      "seq": 117794,
+      "at": 1790905351093,
+      "program": "following:delivery",
+      "t": "followingFeed",
+      "kind": "put",
+      "id": "61db7dcb39eae812939a2b6223b00f179b02420b7465a0da3786147623f2071d",
+      "data": {
+        "Row": {
+          "actorId": {
+            "Id": "user:01M3X36WVC75F4BV0R43YJSHPJ"
+          },
+          "at": {
+            "Int": 1790904140579
+          },
+          "authorId": {
+            "Id": "user:01M3X36WVC75F4BV0R43YJSHPJ"
+          },
+          "epoch": {
+            "Id": "0000000000000a410000000000000003"
+          },
+          "eventId": {
+            "Id": "0000000000KB7QTRX1ARRWSC0X"
+          },
+          "id": {
+            "Id": "61db7dcb39eae812939a2b6223b00f179b02420b7465a0da3786147623f2071d"
+          },
+          "postId": {
+            "Id": "0000000000KB7QTRX1ARRWSC0X"
+          },
+          "readerId": {
+            "Id": "user:01M3X36WV1Z2SMC8RANTS4Q2E0"
+          },
+          "repost": {
+            "Bool": false
+          }
+        }
+      },
+      "iso": "2026-10-02T01:42:31.093000+00:00"
+    }
+  ],
+  "currentWork": [
+    {
+      "state": "done",
+      "n": 9453
+    },
+    {
+      "state": "pending",
+      "n": 15175
+    }
+  ],
+  "lastMutation": {
+    "seq": 117196,
+    "at": 1790905348763,
+    "program": "delivered"
+  }
+}

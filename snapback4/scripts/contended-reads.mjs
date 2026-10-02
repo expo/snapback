@@ -7,12 +7,13 @@ import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { channel } from 'node:diagnostics_channel';
 import { once } from 'node:events';
-import { openSync, closeSync, readFileSync, readdirSync } from 'node:fs';
+import { openSync, closeSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile, cp, access } from 'node:fs/promises';
 import { availableParallelism, cpus, hostname, loadavg, platform } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
+import { hostSample, maintenanceSnapshot, waitForMaintenance } from './contended-observation.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -34,13 +35,6 @@ const url = `http://127.0.0.1:${port}`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ns = () => Number(process.hrtime.bigint());
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
-const threadCounters = pid => platform() !== 'linux' ? null : readdirSync(`/proc/${pid}/task`).flatMap(tid => {
-  try { return [{tid:Number(tid),sched:readFileSync(`/proc/${pid}/task/${tid}/sched`,'utf8')}]; } catch { return []; }
-});
-const hostLoad = () => ({ load:loadavg(),
-  cpuCounters:platform()==='linux' ? readFileSync('/proc/stat','utf8').split('\n').filter(s=>/^cpu/.test(s)) : null,
-  busiest:execFileSync('ps',['-Ao','pid=,pcpu=,comm='],{encoding:'utf8'}).trim().split('\n')
-    .sort((a,b)=>Number(b.trim().split(/\s+/)[1])-Number(a.trim().split(/\s+/)[1])).slice(0,8) });
 await mkdir(work, { recursive: true });
 await mkdir(out, { recursive: true });
 assert(!(await access(join(out, 'metadata.json')).then(()=>true,()=>false)), 'choose a fresh --out directory; existing measurements are never overwritten');
@@ -102,6 +96,7 @@ if (argv.includes('--prepare')) {
     const { verify } = await import(pathToFileURL(join(work, 'scripts/scale-verify.mjs')));
     await verify(adapter, expected.checkpoints['50%'], '50%');
     console.log('50% checkpoint complete', adapter.count);
+    await writeFile(join(out,'prepare-maintenance.json'),JSON.stringify({actions:adapter.count,...maintenanceSnapshot(join(work,'replay-instance/.snapback4/store.sqlite'))},null,2));
   } finally { clearInterval(timer); adapter.close(); await stop(server); process.chdir(previous); }
   process.exit(0);
 }
@@ -148,8 +143,9 @@ globalThis.fetch = (input, init) => {
 };
 const samples = [], processes = [], loadSamples = [], clients = new Map();
 const server = await start(!argv.includes('--no-trace'));
-const metadata = { host: hostname(), platform: platform(), node: process.version, uv: process.versions.uv,
-  cpu: cpus()[0].model, cores, affinity: platform() === 'linux' ? execFileSync('taskset', ['-pc', String(process.pid)], {encoding:'utf8'}).trim() : null,
+const initialHostSample=hostSample([process.pid,server.pid]);
+const metadata = { initialHostSample, host: hostname(), platform: platform(), node: process.version, uv: process.versions.uv,
+  cpu: cpus()[0]?.model ?? 'unknown', cores, affinity:initialHostSample.affinity,
   binary, binarySha256: sha(readFileSync(binary)), client: JSON.parse(readFileSync(join(work, 'node_modules/snapback4/package.json'))).version,
   actions: actors.count, started: new Date().toISOString(), rounds, serverPid: server.pid, load: loadavg() };
 async function client(actor) {
@@ -163,13 +159,14 @@ const endpoints = [
   ['insights', 'u0500', 'insights', {}], ['trending', 'u0500', 'trending', {}],
   ['busyPage1', 'u0005', 'history', { conversation: sdk.idFrom('g0001') }],
 ];
-const answers = new Map();
+const answers = new Map(), answerValues = new Map();
 function normalized(value) {
   if (Array.isArray(value)) return value.map(normalized);
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([k]) => k !== 'asOf').map(([k,v]) => [k, normalized(v)]));
   return value;
 }
 try {
+  metadata.maintenanceWait=await waitForMaintenance(join(work,'replay-instance/.snapback4/store.sqlite'),join(out,'maintenance-wait.json'),server);
   for (const [,actor] of endpoints) await client(actor);
   let cursor = null;
   for (let i = 1; i < 50; i++) {
@@ -190,8 +187,7 @@ try {
         ]);
       }
       await sleep(2000);
-      loadSamples.push({ level, phase:'start', at:new Date().toISOString(), ...hostLoad(), threads:threadCounters(server.pid),
-        processes:execFileSync('ps',['-o','pid=,ppid=,pcpu=,comm=','-p',[process.pid,server.pid,...children.map(p=>p.pid)].join(',')],{encoding:'utf8'}) });
+      loadSamples.push({ level, phase:'start', at:new Date().toISOString(), ...hostSample([process.pid,server.pid,...children.map(p=>p.pid)]) });
       for (let round = 0; round < rounds; round++) for (const [endpoint, actor, op, args] of endpoints) {
         for (let i = 0; i < 23; i++) {
           const sample = { id: ++nextId, level, busy, round, endpoint, index:i, start:ns() }; current = sample;
@@ -199,13 +195,16 @@ try {
           sample.end = ns(); current = undefined;
           assert('data' in result, `${endpoint}: ${JSON.stringify(result)}`);
           const digest = sha(JSON.stringify(normalized({ data:result.data, complete:result.complete, next:result.next })));
-          if (answers.has(endpoint)) assert.equal(digest, answers.get(endpoint), `${endpoint} answer changed`); else answers.set(endpoint, digest);
+          if(answers.has(endpoint) && digest!==answers.get(endpoint)) {
+            await writeFile(join(out,`mismatch-${endpoint}-${sample.id}.json`),JSON.stringify({endpoint,level,round,index:i,at:new Date().toISOString(),first:answerValues.get(endpoint),now:result},null,2));
+            assert.equal(digest,answers.get(endpoint),`${endpoint} answer changed after maintenance became idle`);
+          }
+          if(!answers.has(endpoint)){answers.set(endpoint,digest);answerValues.set(endpoint,result)}
           sample.answer = digest; samples.push(sample);
         }
       }
       assert(children.every(p => p.exitCode === null && p.signalCode === null), 'a busy process exited');
-      loadSamples.push({ level, phase:'end', at:new Date().toISOString(), ...hostLoad(), threads:threadCounters(server.pid),
-        processes:execFileSync('ps',['-o','pid=,ppid=,pcpu=,comm=','-p',[process.pid,server.pid,...children.map(p=>p.pid)].join(',')],{encoding:'utf8'}) });
+      loadSamples.push({ level, phase:'end', at:new Date().toISOString(), ...hostSample([process.pid,server.pid,...children.map(p=>p.pid)]) });
       console.log(JSON.stringify({level,busy,samples:samples.length,load:loadavg()}));
     } finally { await Promise.all(children.map(stop)); }
   }

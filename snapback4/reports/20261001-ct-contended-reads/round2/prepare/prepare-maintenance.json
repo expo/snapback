@@ -1,0 +1,34 @@
+{
+  "actions": 88143,
+  "at": 1790907036144,
+  "tables": [
+    {
+      "name": "followingWork",
+      "kind": "timeline",
+      "states": [
+        {
+          "state": "done",
+          "n": 19407
+        },
+        {
+          "state": "pending",
+          "n": 5221
+        }
+      ],
+      "pending": 5221
+    },
+    {
+      "name": "$recount:unread",
+      "kind": "recount",
+      "states": [],
+      "pending": 0
+    }
+  ],
+  "jobs": [],
+  "lastCommit": {
+    "seq": 141570,
+    "at": 1790907036073,
+    "program": "following:delivery"
+  },
+  "pending": 5221
+}

@@ -81546,3 +81546,59 @@ source/binary custody, limitations and the Mac operator commands are in
 [`reports/20261001-ct-contended-reads/REPORT.md`](./reports/20261001-ct-contended-reads/REPORT.md).
 This round does not claim the idle target or Mac runtime qualification. Commit
 locally with the requested Astra trailer; push and publish nothing.
+
+
+## 2026-10-02 — CT round 2: queued exits, settled measurements, Mac evidence
+
+Closed the remaining round-1 findings. Any request-worker exit now refuses
+queued work outside the queue lock, including when a surviving worker stays
+blocked; partial-exit and last-exit regressions pass, and the partial-exit case
+fails on round 1. Scheduling diagnostics identify HTTP startup, later HTTP,
+maintenance and background failures with count, errno and last failure time;
+`doctor` reports startup readback separately. The Node probe requires utility
+priority 20, rejecting a background clamp. Host sampling has a 16 MiB cap and
+two-second timeout and records failures without aborting measurements.
+
+Copied the operator's M5 Pro runtime logs: four thread-priority tests and the
+executed-Node probe passed on f5353623a2, with 13 Node threads at 20 versus 31
+unclamped. Read-only SQL identifies the exact cause of the changed u0005 feed:
+a durable Following delivery at 01:42:31.093Z inserted the 01:22:20.579Z post,
+37 ms before the captured mismatch. This is pending new-event delivery, not a
+tie. Delivery occurred 1,087.226 seconds after the last application mutation,
+with server-off gaps in the history; it is not evidence of continuous draining
+for that entire time. The guide permits asynchronous new-event delivery without
+changing `complete` and sets no hard backlog deadline. That latency/completeness
+limitation remains disclosed; this lane does not change the product contract.
+
+The harness now waits for pending delivery, recounts and jobs, then a stable
+commit head for one second, and records every observation. Fresh 50%-scale
+preparation left 5,221 tasks pending. After restart on eb1000, the first empty
+snapshot was at 23.560 seconds and total settlement wait was 24.741 seconds.
+All 3,680 subsequent answers agree across all eight queries and four loads.
+The Mac store still had 15,175 pending tasks after debug1; its full drain time
+and quiet-host comparison remain unmeasured.
+
+The corrected combined real-clock harness passes before and after at every
+load, 0/48/96/144, and also on the maintenance-demoted variant: twelve full
+125-second cells, 72/72 deliberately abandoned claims observed, zero unexpected
+lease changes, exact clock extension, and all schedules/expiry/deadlines/retries
+verified. There are 2,325,244 successful continuous reads. With maintenance active,
+restored versus demoted read p95 is 21.9% worse at 48 busy processes and 58.3%
+worse at 96, 7.4% better at 144 and 0.6% better idle. These sequential shared-host
+observations do not isolate causality. Keep ordinary maintenance priority and
+explicitly retain this cost and the earlier idle trade-off for the operator.
+
+Affected serving tests passed 225/0 with four ignores; lifecycle 24/0, guide
+110/0, KA/transport 61/0, harness controls 3/0 and doctor controls 2/0. Darwin
+cross-check passed (metadata only, no round-2 Mac runtime claim). The single
+complete suite reports exactly `== 0 failure(s) in 1364 s`: 5,742 client tests
+passed with ten conditional skips and all 79 client models passed. Development
+failures and expected negative controls are classified in the report; no baseline
+product failure is claimed. Wasm remains 2,015,329 B raw / 605,001 B gzip,
+below the unchanged 605,225 B ratchet by 224 B.
+
+Updated LLP 3000 §7 and retained commands, binary/source digests, raw samples,
+Mac captures and qualification logs in the
+[round-2 report](./reports/20261001-ct-contended-reads/REPORT.md#round-2--queued-exits-faithful-qualification-and-mac-findings-2026-10-02).
+The operator's quiet-Mac measurement and idle-cost decision remain pending.
+Commit locally with the requested Astra trailer; push and publish nothing.

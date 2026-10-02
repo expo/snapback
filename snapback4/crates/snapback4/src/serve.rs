@@ -943,7 +943,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let generation = *lock(&shared.generation);
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas, "scheduling":{"qosFailures":crate::thread_priority::diagnostics().0,"lastQosError":crate::thread_priority::diagnostics().1}}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas, "scheduling":crate::thread_priority::diagnostics()}));
     }
     if method == Method::Options {
         respond_empty(request, 204);

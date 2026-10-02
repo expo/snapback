@@ -10,6 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { availableParallelism, cpus, hostname, loadavg, platform } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { hostSample } from './contended-observation.mjs';
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const schema = `use personas alice
 
@@ -86,6 +87,21 @@ async function loop(effect){for(;;){
 }}
 await Promise.all(['deliver','slow','leaseProbe','abandoned'].map(loop));
 `;
+export function assertLeaseObservations({raw,effects,events,abandoned,deliberatelyAbandoned}) {
+   assert.equal(raw.filter(r=>r.kind==='leaseChange').length,0,'unexpected fixed-lease change');
+   const abandonedEffects=effects.filter(e=>e.effect==='abandoned');
+   const abandonedClaims=events.filter(e=>e.kind==='claim'&&e.effect==='abandoned'&&e.attempt===1);
+   assert(deliberatelyAbandoned>0,'no deliberate abandonment');
+   assert.equal(abandonedEffects.length,deliberatelyAbandoned,'missing abandoned effect');
+   assert.equal(abandonedClaims.length,deliberatelyAbandoned,'missing first-attempt abandoned claim');
+   assert.equal(abandoned.size,deliberatelyAbandoned,'poller missed an abandoned claim');
+   for(const claim of abandonedClaims){
+    const observed=abandoned.get(claim.id);
+    assert(observed,'poller missed abandoned claim '+claim.id);
+    assert.equal(observed.expires,claim.leaseUntil,'observer and worker disagree about abandoned lease');
+   }
+}
+
 export async function runMixed(argv) {
  const option=(name,fallback)=>{const i=argv.indexOf(name);return i<0?fallback:argv[i+1]};
  const binary=resolve(option('--binary','target/production/snapback4'));
@@ -111,7 +127,7 @@ export async function runMixed(argv) {
   await writeFile(join(project,'snapback/workers/worker.mjs'),worker);
   const logPath=join(dir,'server.log'),fd=openSync(logPath,'w');
   const server=track(spawn(binary,['dev','--no-watch','--port',String(port)],{cwd:project,stdio:['ignore',fd,fd]}));closeSync(fd);
-  let db;const children=[],raw=[],rows=new Map(),leases=new Map(),abandoned=new Map();
+  let db;const children=[],raw=[],rows=new Map(),leases=new Map(),abandoned=new Map();let deliberatelyAbandoned=0;
   try {
    for(let i=0;;i++){
     assert(server.exitCode===null&&server.signalCode===null,'server exited: '+await readFile(logPath,'utf8'));
@@ -164,6 +180,7 @@ export async function runMixed(argv) {
    const leaseAfter=db.prepare('SELECT lease_until FROM _outbox WHERE id=?').get(leaseBefore.id);
    assert.equal(leaseAfter.lease_until-leaseBefore.lease_until,1000,'clock advance must extend the held lease exactly');
    await sleep(3500);
+   const hostStart=hostSample([process.pid,server.pid,...children.map(p=>p.pid)]);
    const offset=1000,started=Date.now(),until=started+seconds*1000;
    const startLoad=loadavg();let nextAdd=started,nextAbandon=started,serial=0,reading=true,readError;
    const reader=(async()=>{while(reading){const t=performance.now();try{const r=await post('/q/read',{args:{}});assert('data'in r);raw.push({kind:'read',at:Date.now(),ms:performance.now()-t});}catch(e){readError=e;break}}})();
@@ -177,7 +194,7 @@ export async function runMixed(argv) {
      assert(r.result?.id,JSON.stringify(r));rows.set(r.result.id,{id:r.result.id,expires:r.result.until});
      nextAdd+=250;
     }
-    if(Date.now()>=nextAbandon && Date.now()<until-15000){await post('/m/abandon',{args:{},id:'abandon-'+nextAbandon});nextAbandon+=20000;}
+    if(Date.now()>=nextAbandon && Date.now()<until-15000){await post('/m/abandon',{args:{},id:'abandon-'+nextAbandon});deliberatelyAbandoned++;nextAbandon+=20000;}
     const at=Date.now()+offset;
     const live=new Set(db.prepare('SELECT id FROM r').all().map(r=>r.id));
     for(const row of rows.values())if(row.reclaimed===undefined&&!live.has(row.id)){row.reclaimed=at;row.delay=at-row.expires}
@@ -204,9 +221,15 @@ export async function runMixed(argv) {
    const jobs=db.prepare('SELECT name,args,state,created_at,updated_at,error FROM _jobs').all().map(r=>({...r,args:JSON.parse(r.args)}));
    const effects=db.prepare('SELECT id,effect,state,attempts,at,settled_at,deadline,error_code,lease_until FROM _outbox').all();
    const events=(await readFile(logPath,'utf8')).split('\n').filter(l=>l.includes('CT_EVENT ')).map(l=>JSON.parse(l.slice(l.indexOf('CT_EVENT ')+9)));
-   const cell={level,busy:children.length,started,finished:Date.now(),offset,startLoad,endLoad:loadavg(),backlogMax,extension:{before:leaseBefore.lease_until,after:leaseAfter.lease_until,advancedMs:advance.advancedMs},jobs,effects,leaseRecovery:[...abandoned.values()],expiry:[...rows.values()],events,raw};
+   const cell={level,busy:children.length,started,finished:Date.now(),offset,startLoad,endLoad:loadavg(),hostStart,hostEnd:hostSample([process.pid,server.pid,...children.map(p=>p.pid)]),backlogMax,extension:{before:leaseBefore.lease_until,after:leaseAfter.lease_until,advancedMs:advance.advancedMs},jobs,effects,leaseRecovery:[...abandoned.values()],expiry:[...rows.values()],events,raw};
    await writeFile(join(dir,'samples.json'),JSON.stringify(cell));
    assert(children.every(p=>p.exitCode===null&&p.signalCode===null),'busy child died');
+   assertLeaseObservations({raw,effects,events,abandoned,deliberatelyAbandoned});
+   const slow=effects.filter(e=>e.effect==='slow');
+   assert.equal(slow.length,1,'missing deadline probe');
+   const slowClaim=events.find(e=>e.kind==='claim'&&e.effect==='slow');
+   assert(slowClaim && slowClaim.at+offset<slow[0].deadline,'deadline probe was not claimed before its real deadline');
+   assert(slow[0].at>=started+offset,'deadline probe preceded the real-clock window');
    const expected=[];for(let b=Math.ceil((started+offset)/60000)*60000;b<=until+offset;b+=60000)expected.push(b);
    const jobSummary=jobs.map(j=>({boundary:j.args.Map.periodEnd.Int,delay:j.created_at-j.args.Map.periodEnd.Int,runtime:j.updated_at-j.created_at,state:j.state}));
    assert(expected.length>0);for(const boundary of expected)assert.equal(jobSummary.filter(j=>j.boundary===boundary).length,1,'lost or duplicate schedule boundary '+boundary);
@@ -217,7 +240,10 @@ export async function runMixed(argv) {
    assert([...abandoned.values()].every(a=>a.maintenanceOnly),'worker HTTP masked the maintenance-only lease observation');
    assert([...abandoned.values()].every(r=>r.requeued!==undefined&&r.delay>=0),'abandoned lease not requeued');
    assert([...rows.values()].every(r=>r.reclaimed!==undefined&&r.delay>=0),'expiry not physically reclaimed');
-   const summary={level,busy:children.length,reads:raw.filter(r=>r.kind==='read').length,backlogMax,jobs:jobSummary,expectedBoundaries:expected,effects:effects.length,retries:effects.reduce((n,e)=>n+Math.max(0,e.attempts-1),0),deadlineOutcomes:effects.filter(e=>e.error_code).map(e=>e.error_code),leaseRecovery:[...abandoned.values()],unexpectedLeaseChanges:raw.filter(r=>r.kind==='leaseChange').length,extensionMs:1000,expiryMaxMs:Math.max(...[...rows.values()].filter(r=>!r.finalDrain).map(r=>r.delay))};
+   const readMs=raw.filter(r=>r.kind==='read').map(r=>r.ms).sort((a,b)=>a-b);
+   const readLatency={p50:readMs[Math.ceil(readMs.length*.5)-1],p95:readMs[Math.ceil(readMs.length*.95)-1]};
+   const maintenanceCommits=db.prepare("SELECT kind,program,count(*) n FROM _commits WHERE at BETWEEN ? AND ? AND kind != 'mutation' GROUP BY kind,program").all(started+offset,until+offset);
+   const summary={level,busy:children.length,reads:readMs.length,readLatency,maintenanceCommits,deliberatelyAbandoned,observedAbandoned:abandoned.size,backlogMax,jobs:jobSummary,expectedBoundaries:expected,effects:effects.length,retries:effects.reduce((n,e)=>n+Math.max(0,e.attempts-1),0),deadlineOutcomes:effects.filter(e=>e.error_code).map(e=>e.error_code),leaseRecovery:[...abandoned.values()],unexpectedLeaseChanges:raw.filter(r=>r.kind==='leaseChange').length,extensionMs:1000,expiryMaxMs:Math.max(...[...rows.values()].filter(r=>!r.finalDrain).map(r=>r.delay))};
    results.push(summary);console.log(JSON.stringify(summary));
   }finally{db?.close();await stop(server);await Promise.all(children.map(stop))}
  }}finally{await Promise.all([...owned].map(stop));await writeFile(join(out,'summary.json'),JSON.stringify(results,null,2))}

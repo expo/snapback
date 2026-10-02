@@ -1,0 +1,13 @@
+(node:338228) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ host telemetry accepts >1 MiB and records bounded failure without throwing (137.314904ms)
+✔ new-event delivery blocks sampling even though query complete may be true (1513.173086ms)
+✔ mixed witness rejects unexpected lease changes and every missed abandonment (1.450103ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1707.261314

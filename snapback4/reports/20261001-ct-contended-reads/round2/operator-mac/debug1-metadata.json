@@ -1,0 +1,71 @@
+{
+  "host": "MacMini-Apt101-M5-A",
+  "platform": "darwin",
+  "node": "v24.18.0",
+  "uv": "1.52.1",
+  "cpu": "Apple M5 Pro",
+  "cores": 18,
+  "affinity": null,
+  "binary": "/Users/ccheever/sb4-np/ct-mac/snapback4-cand",
+  "binarySha256": "0638addf733418056b21eb9da06f71b1afbb7684381459b536f3de71b77c027e",
+  "client": "0.4.10",
+  "actions": 88143,
+  "started": "2026-10-02T01:42:28.271Z",
+  "rounds": 3,
+  "serverPid": 32454,
+  "load": [
+    6.177734375,
+    24.47998046875,
+    33.4189453125
+  ],
+  "finished": "2026-10-02T01:42:31.591Z",
+  "processes": [],
+  "loadSamples": [
+    {
+      "level": 0,
+      "phase": "start",
+      "at": "2026-10-02T01:42:30.495Z",
+      "load": [
+        6.0029296875,
+        24.1396484375,
+        33.24609375
+      ],
+      "cpuCounters": null,
+      "busiest": [
+        "77762 194.9 /usr/libexec/PerfPowerServices",
+        "32454  42.9 /Users/ccheever/sb4-np/ct-mac/snapback4-cand",
+        "59499   5.0 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+        "  409   3.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+        "37866   2.8 /Users/ccheever/.local/bin/claude",
+        "91769   1.6 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+        "  708   1.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+        "  434   1.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds"
+      ],
+      "threads": null,
+      "processes": "32452     1   0.1 node\n32454 32452  43.9 /Users/ccheever/sb4-np/ct-mac/snapback4-cand\n"
+    },
+    {
+      "level": 0,
+      "phase": "end",
+      "at": "2026-10-02T01:42:31.260Z",
+      "load": [
+        6.0029296875,
+        24.1396484375,
+        33.24609375
+      ],
+      "cpuCounters": null,
+      "busiest": [
+        "77762 189.6 /usr/libexec/PerfPowerServices",
+        "32454 107.2 /Users/ccheever/sb4-np/ct-mac/snapback4-cand",
+        "32452  42.1 node",
+        "32479  37.4 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.nNIGT1/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/PairedSync.framework/Support/pairedsyncd",
+        "32480  13.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+        "32481  13.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+        "59499   4.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+        "  409   3.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+      ],
+      "threads": null,
+      "processes": "32452     1  26.1 node\n32454 32452  85.0 /Users/ccheever/sb4-np/ct-mac/snapback4-cand\n"
+    }
+  ]
+}

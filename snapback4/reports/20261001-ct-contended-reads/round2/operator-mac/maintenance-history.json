@@ -1,0 +1,1714 @@
+{
+  "lastApplicationMutation": {
+    "seq": 108976,
+    "at": 1790904263867,
+    "program": "setReaction",
+    "touched": "[\"reactionCounts\",\"reactions\"]"
+  },
+  "deliverySeconds": [
+    {
+      "second": 1790904070,
+      "program": "following:delivery",
+      "firstSeq": 31,
+      "lastSeq": 120,
+      "commits": 33,
+      "writes": 76
+    },
+    {
+      "second": 1790904097,
+      "program": "following:delivery",
+      "firstSeq": 9083,
+      "lastSeq": 9163,
+      "commits": 20,
+      "writes": 48
+    },
+    {
+      "second": 1790904098,
+      "program": "following:delivery",
+      "firstSeq": 9167,
+      "lastSeq": 9762,
+      "commits": 151,
+      "writes": 366
+    },
+    {
+      "second": 1790904099,
+      "program": "following:delivery",
+      "firstSeq": 9766,
+      "lastSeq": 10400,
+      "commits": 149,
+      "writes": 365
+    },
+    {
+      "second": 1790904100,
+      "program": "following:delivery",
+      "firstSeq": 10401,
+      "lastSeq": 10966,
+      "commits": 138,
+      "writes": 346
+    },
+    {
+      "second": 1790904101,
+      "program": "following:delivery",
+      "firstSeq": 10969,
+      "lastSeq": 11479,
+      "commits": 125,
+      "writes": 301
+    },
+    {
+      "second": 1790904102,
+      "program": "following:delivery",
+      "firstSeq": 11482,
+      "lastSeq": 12042,
+      "commits": 133,
+      "writes": 317
+    },
+    {
+      "second": 1790904103,
+      "program": "following:delivery",
+      "firstSeq": 12046,
+      "lastSeq": 12586,
+      "commits": 124,
+      "writes": 303
+    },
+    {
+      "second": 1790904104,
+      "program": "following:delivery",
+      "firstSeq": 12591,
+      "lastSeq": 13117,
+      "commits": 125,
+      "writes": 326
+    },
+    {
+      "second": 1790904105,
+      "program": "following:delivery",
+      "firstSeq": 13121,
+      "lastSeq": 13633,
+      "commits": 120,
+      "writes": 313
+    },
+    {
+      "second": 1790904106,
+      "program": "following:delivery",
+      "firstSeq": 13637,
+      "lastSeq": 14164,
+      "commits": 122,
+      "writes": 340
+    },
+    {
+      "second": 1790904107,
+      "program": "following:delivery",
+      "firstSeq": 14168,
+      "lastSeq": 14665,
+      "commits": 119,
+      "writes": 351
+    },
+    {
+      "second": 1790904108,
+      "program": "following:delivery",
+      "firstSeq": 14670,
+      "lastSeq": 15139,
+      "commits": 120,
+      "writes": 295
+    },
+    {
+      "second": 1790904109,
+      "program": "following:delivery",
+      "firstSeq": 15143,
+      "lastSeq": 15843,
+      "commits": 130,
+      "writes": 323
+    },
+    {
+      "second": 1790904110,
+      "program": "following:delivery",
+      "firstSeq": 15847,
+      "lastSeq": 16553,
+      "commits": 137,
+      "writes": 322
+    },
+    {
+      "second": 1790904111,
+      "program": "following:delivery",
+      "firstSeq": 16557,
+      "lastSeq": 17012,
+      "commits": 130,
+      "writes": 302
+    },
+    {
+      "second": 1790904112,
+      "program": "following:delivery",
+      "firstSeq": 17016,
+      "lastSeq": 17482,
+      "commits": 130,
+      "writes": 310
+    },
+    {
+      "second": 1790904113,
+      "program": "following:delivery",
+      "firstSeq": 17486,
+      "lastSeq": 18055,
+      "commits": 132,
+      "writes": 329
+    },
+    {
+      "second": 1790904114,
+      "program": "following:delivery",
+      "firstSeq": 18057,
+      "lastSeq": 18831,
+      "commits": 137,
+      "writes": 320
+    },
+    {
+      "second": 1790904115,
+      "program": "following:delivery",
+      "firstSeq": 18837,
+      "lastSeq": 19553,
+      "commits": 139,
+      "writes": 362
+    },
+    {
+      "second": 1790904116,
+      "program": "following:delivery",
+      "firstSeq": 19559,
+      "lastSeq": 20355,
+      "commits": 137,
+      "writes": 346
+    },
+    {
+      "second": 1790904117,
+      "program": "following:delivery",
+      "firstSeq": 20361,
+      "lastSeq": 21142,
+      "commits": 139,
+      "writes": 376
+    },
+    {
+      "second": 1790904118,
+      "program": "following:delivery",
+      "firstSeq": 21147,
+      "lastSeq": 21834,
+      "commits": 133,
+      "writes": 348
+    },
+    {
+      "second": 1790904119,
+      "program": "following:delivery",
+      "firstSeq": 21839,
+      "lastSeq": 22550,
+      "commits": 134,
+      "writes": 315
+    },
+    {
+      "second": 1790904120,
+      "program": "following:delivery",
+      "firstSeq": 22552,
+      "lastSeq": 23341,
+      "commits": 136,
+      "writes": 323
+    },
+    {
+      "second": 1790904121,
+      "program": "following:delivery",
+      "firstSeq": 23347,
+      "lastSeq": 24067,
+      "commits": 134,
+      "writes": 312
+    },
+    {
+      "second": 1790904122,
+      "program": "following:delivery",
+      "firstSeq": 24072,
+      "lastSeq": 24870,
+      "commits": 140,
+      "writes": 327
+    },
+    {
+      "second": 1790904123,
+      "program": "following:delivery",
+      "firstSeq": 24873,
+      "lastSeq": 25639,
+      "commits": 136,
+      "writes": 318
+    },
+    {
+      "second": 1790904124,
+      "program": "following:delivery",
+      "firstSeq": 25645,
+      "lastSeq": 26391,
+      "commits": 133,
+      "writes": 314
+    },
+    {
+      "second": 1790904125,
+      "program": "following:delivery",
+      "firstSeq": 26396,
+      "lastSeq": 27094,
+      "commits": 135,
+      "writes": 311
+    },
+    {
+      "second": 1790904126,
+      "program": "following:delivery",
+      "firstSeq": 27098,
+      "lastSeq": 27870,
+      "commits": 138,
+      "writes": 368
+    },
+    {
+      "second": 1790904127,
+      "program": "following:delivery",
+      "firstSeq": 27876,
+      "lastSeq": 28639,
+      "commits": 134,
+      "writes": 359
+    },
+    {
+      "second": 1790904128,
+      "program": "following:delivery",
+      "firstSeq": 28645,
+      "lastSeq": 29260,
+      "commits": 124,
+      "writes": 365
+    },
+    {
+      "second": 1790904129,
+      "program": "following:delivery",
+      "firstSeq": 29262,
+      "lastSeq": 29743,
+      "commits": 113,
+      "writes": 288
+    },
+    {
+      "second": 1790904130,
+      "program": "following:delivery",
+      "firstSeq": 29748,
+      "lastSeq": 30244,
+      "commits": 113,
+      "writes": 266
+    },
+    {
+      "second": 1790904131,
+      "program": "following:delivery",
+      "firstSeq": 30247,
+      "lastSeq": 30722,
+      "commits": 115,
+      "writes": 272
+    },
+    {
+      "second": 1790904132,
+      "program": "following:delivery",
+      "firstSeq": 30727,
+      "lastSeq": 31230,
+      "commits": 113,
+      "writes": 272
+    },
+    {
+      "second": 1790904133,
+      "program": "following:delivery",
+      "firstSeq": 31234,
+      "lastSeq": 31729,
+      "commits": 113,
+      "writes": 265
+    },
+    {
+      "second": 1790904134,
+      "program": "following:delivery",
+      "firstSeq": 31733,
+      "lastSeq": 32176,
+      "commits": 111,
+      "writes": 273
+    },
+    {
+      "second": 1790904135,
+      "program": "following:delivery",
+      "firstSeq": 32181,
+      "lastSeq": 32641,
+      "commits": 115,
+      "writes": 267
+    },
+    {
+      "second": 1790904136,
+      "program": "following:delivery",
+      "firstSeq": 32646,
+      "lastSeq": 33118,
+      "commits": 105,
+      "writes": 243
+    },
+    {
+      "second": 1790904137,
+      "program": "following:delivery",
+      "firstSeq": 33124,
+      "lastSeq": 33588,
+      "commits": 111,
+      "writes": 263
+    },
+    {
+      "second": 1790904138,
+      "program": "following:delivery",
+      "firstSeq": 33591,
+      "lastSeq": 34036,
+      "commits": 111,
+      "writes": 292
+    },
+    {
+      "second": 1790904139,
+      "program": "following:delivery",
+      "firstSeq": 34040,
+      "lastSeq": 34488,
+      "commits": 113,
+      "writes": 278
+    },
+    {
+      "second": 1790904140,
+      "program": "following:delivery",
+      "firstSeq": 34491,
+      "lastSeq": 34958,
+      "commits": 109,
+      "writes": 277
+    },
+    {
+      "second": 1790904141,
+      "program": "following:delivery",
+      "firstSeq": 34963,
+      "lastSeq": 35433,
+      "commits": 109,
+      "writes": 263
+    },
+    {
+      "second": 1790904142,
+      "program": "following:delivery",
+      "firstSeq": 35437,
+      "lastSeq": 35914,
+      "commits": 112,
+      "writes": 278
+    },
+    {
+      "second": 1790904143,
+      "program": "following:delivery",
+      "firstSeq": 35920,
+      "lastSeq": 36411,
+      "commits": 114,
+      "writes": 266
+    },
+    {
+      "second": 1790904144,
+      "program": "following:delivery",
+      "firstSeq": 36416,
+      "lastSeq": 36859,
+      "commits": 103,
+      "writes": 227
+    },
+    {
+      "second": 1790904145,
+      "program": "following:delivery",
+      "firstSeq": 36862,
+      "lastSeq": 37318,
+      "commits": 110,
+      "writes": 259
+    },
+    {
+      "second": 1790904146,
+      "program": "following:delivery",
+      "firstSeq": 37320,
+      "lastSeq": 37751,
+      "commits": 111,
+      "writes": 273
+    },
+    {
+      "second": 1790904147,
+      "program": "following:delivery",
+      "firstSeq": 37754,
+      "lastSeq": 38229,
+      "commits": 109,
+      "writes": 251
+    },
+    {
+      "second": 1790904148,
+      "program": "following:delivery",
+      "firstSeq": 38233,
+      "lastSeq": 38702,
+      "commits": 113,
+      "writes": 251
+    },
+    {
+      "second": 1790904149,
+      "program": "following:delivery",
+      "firstSeq": 38706,
+      "lastSeq": 39144,
+      "commits": 109,
+      "writes": 249
+    },
+    {
+      "second": 1790904150,
+      "program": "following:delivery",
+      "firstSeq": 39149,
+      "lastSeq": 39628,
+      "commits": 108,
+      "writes": 254
+    },
+    {
+      "second": 1790904151,
+      "program": "following:delivery",
+      "firstSeq": 39632,
+      "lastSeq": 40096,
+      "commits": 115,
+      "writes": 315
+    },
+    {
+      "second": 1790904152,
+      "program": "following:delivery",
+      "firstSeq": 40099,
+      "lastSeq": 40567,
+      "commits": 109,
+      "writes": 251
+    },
+    {
+      "second": 1790904153,
+      "program": "following:delivery",
+      "firstSeq": 40571,
+      "lastSeq": 41012,
+      "commits": 106,
+      "writes": 259
+    },
+    {
+      "second": 1790904154,
+      "program": "following:delivery",
+      "firstSeq": 41017,
+      "lastSeq": 41471,
+      "commits": 104,
+      "writes": 239
+    },
+    {
+      "second": 1790904155,
+      "program": "following:delivery",
+      "firstSeq": 41475,
+      "lastSeq": 41950,
+      "commits": 109,
+      "writes": 251
+    },
+    {
+      "second": 1790904156,
+      "program": "following:delivery",
+      "firstSeq": 41955,
+      "lastSeq": 42383,
+      "commits": 106,
+      "writes": 280
+    },
+    {
+      "second": 1790904157,
+      "program": "following:delivery",
+      "firstSeq": 42387,
+      "lastSeq": 42852,
+      "commits": 108,
+      "writes": 248
+    },
+    {
+      "second": 1790904158,
+      "program": "following:delivery",
+      "firstSeq": 42856,
+      "lastSeq": 43321,
+      "commits": 111,
+      "writes": 252
+    },
+    {
+      "second": 1790904159,
+      "program": "following:delivery",
+      "firstSeq": 43324,
+      "lastSeq": 43733,
+      "commits": 104,
+      "writes": 262
+    },
+    {
+      "second": 1790904160,
+      "program": "following:delivery",
+      "firstSeq": 43737,
+      "lastSeq": 44218,
+      "commits": 109,
+      "writes": 246
+    },
+    {
+      "second": 1790904161,
+      "program": "following:delivery",
+      "firstSeq": 44220,
+      "lastSeq": 44693,
+      "commits": 111,
+      "writes": 254
+    },
+    {
+      "second": 1790904162,
+      "program": "following:delivery",
+      "firstSeq": 44697,
+      "lastSeq": 45145,
+      "commits": 114,
+      "writes": 261
+    },
+    {
+      "second": 1790904163,
+      "program": "following:delivery",
+      "firstSeq": 45149,
+      "lastSeq": 45626,
+      "commits": 111,
+      "writes": 251
+    },
+    {
+      "second": 1790904164,
+      "program": "following:delivery",
+      "firstSeq": 45630,
+      "lastSeq": 46096,
+      "commits": 105,
+      "writes": 228
+    },
+    {
+      "second": 1790904165,
+      "program": "following:delivery",
+      "firstSeq": 46101,
+      "lastSeq": 46561,
+      "commits": 108,
+      "writes": 238
+    },
+    {
+      "second": 1790904166,
+      "program": "following:delivery",
+      "firstSeq": 46565,
+      "lastSeq": 46991,
+      "commits": 108,
+      "writes": 279
+    },
+    {
+      "second": 1790904167,
+      "program": "following:delivery",
+      "firstSeq": 46995,
+      "lastSeq": 47475,
+      "commits": 110,
+      "writes": 242
+    },
+    {
+      "second": 1790904168,
+      "program": "following:delivery",
+      "firstSeq": 47479,
+      "lastSeq": 47924,
+      "commits": 103,
+      "writes": 241
+    },
+    {
+      "second": 1790904169,
+      "program": "following:delivery",
+      "firstSeq": 47929,
+      "lastSeq": 48350,
+      "commits": 108,
+      "writes": 264
+    },
+    {
+      "second": 1790904170,
+      "program": "following:delivery",
+      "firstSeq": 48354,
+      "lastSeq": 48827,
+      "commits": 109,
+      "writes": 247
+    },
+    {
+      "second": 1790904171,
+      "program": "following:delivery",
+      "firstSeq": 48831,
+      "lastSeq": 49301,
+      "commits": 108,
+      "writes": 250
+    },
+    {
+      "second": 1790904172,
+      "program": "following:delivery",
+      "firstSeq": 49304,
+      "lastSeq": 49753,
+      "commits": 108,
+      "writes": 248
+    },
+    {
+      "second": 1790904173,
+      "program": "following:delivery",
+      "firstSeq": 49758,
+      "lastSeq": 50229,
+      "commits": 108,
+      "writes": 240
+    },
+    {
+      "second": 1790904174,
+      "program": "following:delivery",
+      "firstSeq": 50230,
+      "lastSeq": 50674,
+      "commits": 104,
+      "writes": 227
+    },
+    {
+      "second": 1790904175,
+      "program": "following:delivery",
+      "firstSeq": 50679,
+      "lastSeq": 51129,
+      "commits": 106,
+      "writes": 241
+    },
+    {
+      "second": 1790904176,
+      "program": "following:delivery",
+      "firstSeq": 51133,
+      "lastSeq": 51543,
+      "commits": 109,
+      "writes": 248
+    },
+    {
+      "second": 1790904177,
+      "program": "following:delivery",
+      "firstSeq": 51548,
+      "lastSeq": 51996,
+      "commits": 106,
+      "writes": 239
+    },
+    {
+      "second": 1790904178,
+      "program": "following:delivery",
+      "firstSeq": 52000,
+      "lastSeq": 52456,
+      "commits": 106,
+      "writes": 232
+    },
+    {
+      "second": 1790904179,
+      "program": "following:delivery",
+      "firstSeq": 52459,
+      "lastSeq": 52875,
+      "commits": 110,
+      "writes": 258
+    },
+    {
+      "second": 1790904180,
+      "program": "following:delivery",
+      "firstSeq": 52879,
+      "lastSeq": 53338,
+      "commits": 110,
+      "writes": 241
+    },
+    {
+      "second": 1790904181,
+      "program": "following:delivery",
+      "firstSeq": 53342,
+      "lastSeq": 53821,
+      "commits": 108,
+      "writes": 236
+    },
+    {
+      "second": 1790904182,
+      "program": "following:delivery",
+      "firstSeq": 53824,
+      "lastSeq": 54326,
+      "commits": 110,
+      "writes": 303
+    },
+    {
+      "second": 1790904183,
+      "program": "following:delivery",
+      "firstSeq": 54329,
+      "lastSeq": 55171,
+      "commits": 135,
+      "writes": 354
+    },
+    {
+      "second": 1790904184,
+      "program": "following:delivery",
+      "firstSeq": 55177,
+      "lastSeq": 56053,
+      "commits": 134,
+      "writes": 339
+    },
+    {
+      "second": 1790904185,
+      "program": "following:delivery",
+      "firstSeq": 56060,
+      "lastSeq": 56858,
+      "commits": 127,
+      "writes": 304
+    },
+    {
+      "second": 1790904186,
+      "program": "following:delivery",
+      "firstSeq": 56862,
+      "lastSeq": 57594,
+      "commits": 120,
+      "writes": 260
+    },
+    {
+      "second": 1790904187,
+      "program": "following:delivery",
+      "firstSeq": 57598,
+      "lastSeq": 58068,
+      "commits": 116,
+      "writes": 257
+    },
+    {
+      "second": 1790904188,
+      "program": "following:delivery",
+      "firstSeq": 58071,
+      "lastSeq": 58510,
+      "commits": 121,
+      "writes": 286
+    },
+    {
+      "second": 1790904189,
+      "program": "following:delivery",
+      "firstSeq": 58513,
+      "lastSeq": 58930,
+      "commits": 123,
+      "writes": 284
+    },
+    {
+      "second": 1790904190,
+      "program": "following:delivery",
+      "firstSeq": 58933,
+      "lastSeq": 59372,
+      "commits": 123,
+      "writes": 297
+    },
+    {
+      "second": 1790904191,
+      "program": "following:delivery",
+      "firstSeq": 59375,
+      "lastSeq": 59818,
+      "commits": 127,
+      "writes": 305
+    },
+    {
+      "second": 1790904192,
+      "program": "following:delivery",
+      "firstSeq": 59822,
+      "lastSeq": 60261,
+      "commits": 127,
+      "writes": 305
+    },
+    {
+      "second": 1790904193,
+      "program": "following:delivery",
+      "firstSeq": 60265,
+      "lastSeq": 60704,
+      "commits": 123,
+      "writes": 301
+    },
+    {
+      "second": 1790904194,
+      "program": "following:delivery",
+      "firstSeq": 60707,
+      "lastSeq": 61119,
+      "commits": 123,
+      "writes": 322
+    },
+    {
+      "second": 1790904195,
+      "program": "following:delivery",
+      "firstSeq": 61123,
+      "lastSeq": 61559,
+      "commits": 126,
+      "writes": 314
+    },
+    {
+      "second": 1790904196,
+      "program": "following:delivery",
+      "firstSeq": 61563,
+      "lastSeq": 62014,
+      "commits": 124,
+      "writes": 294
+    },
+    {
+      "second": 1790904197,
+      "program": "following:delivery",
+      "firstSeq": 62017,
+      "lastSeq": 62429,
+      "commits": 129,
+      "writes": 321
+    },
+    {
+      "second": 1790904198,
+      "program": "following:delivery",
+      "firstSeq": 62433,
+      "lastSeq": 62869,
+      "commits": 123,
+      "writes": 300
+    },
+    {
+      "second": 1790904199,
+      "program": "following:delivery",
+      "firstSeq": 62873,
+      "lastSeq": 63286,
+      "commits": 124,
+      "writes": 274
+    },
+    {
+      "second": 1790904200,
+      "program": "following:delivery",
+      "firstSeq": 63289,
+      "lastSeq": 63744,
+      "commits": 128,
+      "writes": 291
+    },
+    {
+      "second": 1790904201,
+      "program": "following:delivery",
+      "firstSeq": 63749,
+      "lastSeq": 64479,
+      "commits": 136,
+      "writes": 316
+    },
+    {
+      "second": 1790904202,
+      "program": "following:delivery",
+      "firstSeq": 64483,
+      "lastSeq": 65188,
+      "commits": 129,
+      "writes": 304
+    },
+    {
+      "second": 1790904203,
+      "program": "following:delivery",
+      "firstSeq": 65193,
+      "lastSeq": 65941,
+      "commits": 139,
+      "writes": 321
+    },
+    {
+      "second": 1790904204,
+      "program": "following:delivery",
+      "firstSeq": 65947,
+      "lastSeq": 66716,
+      "commits": 141,
+      "writes": 334
+    },
+    {
+      "second": 1790904205,
+      "program": "following:delivery",
+      "firstSeq": 66718,
+      "lastSeq": 67422,
+      "commits": 132,
+      "writes": 320
+    },
+    {
+      "second": 1790904206,
+      "program": "following:delivery",
+      "firstSeq": 67426,
+      "lastSeq": 68129,
+      "commits": 132,
+      "writes": 344
+    },
+    {
+      "second": 1790904207,
+      "program": "following:delivery",
+      "firstSeq": 68135,
+      "lastSeq": 68708,
+      "commits": 135,
+      "writes": 300
+    },
+    {
+      "second": 1790904208,
+      "program": "following:delivery",
+      "firstSeq": 68713,
+      "lastSeq": 69409,
+      "commits": 132,
+      "writes": 339
+    },
+    {
+      "second": 1790904209,
+      "program": "following:delivery",
+      "firstSeq": 69415,
+      "lastSeq": 70088,
+      "commits": 135,
+      "writes": 325
+    },
+    {
+      "second": 1790904210,
+      "program": "following:delivery",
+      "firstSeq": 70093,
+      "lastSeq": 70778,
+      "commits": 133,
+      "writes": 303
+    },
+    {
+      "second": 1790904211,
+      "program": "following:delivery",
+      "firstSeq": 70784,
+      "lastSeq": 71523,
+      "commits": 136,
+      "writes": 313
+    },
+    {
+      "second": 1790904212,
+      "program": "following:delivery",
+      "firstSeq": 71528,
+      "lastSeq": 72282,
+      "commits": 137,
+      "writes": 328
+    },
+    {
+      "second": 1790904213,
+      "program": "following:delivery",
+      "firstSeq": 72286,
+      "lastSeq": 72976,
+      "commits": 136,
+      "writes": 311
+    },
+    {
+      "second": 1790904214,
+      "program": "following:delivery",
+      "firstSeq": 72982,
+      "lastSeq": 73743,
+      "commits": 142,
+      "writes": 334
+    },
+    {
+      "second": 1790904215,
+      "program": "following:delivery",
+      "firstSeq": 73749,
+      "lastSeq": 74485,
+      "commits": 137,
+      "writes": 314
+    },
+    {
+      "second": 1790904216,
+      "program": "following:delivery",
+      "firstSeq": 74490,
+      "lastSeq": 75195,
+      "commits": 134,
+      "writes": 326
+    },
+    {
+      "second": 1790904217,
+      "program": "following:delivery",
+      "firstSeq": 75200,
+      "lastSeq": 75875,
+      "commits": 133,
+      "writes": 317
+    },
+    {
+      "second": 1790904218,
+      "program": "following:delivery",
+      "firstSeq": 75880,
+      "lastSeq": 76618,
+      "commits": 136,
+      "writes": 323
+    },
+    {
+      "second": 1790904219,
+      "program": "following:delivery",
+      "firstSeq": 76624,
+      "lastSeq": 77310,
+      "commits": 135,
+      "writes": 345
+    },
+    {
+      "second": 1790904220,
+      "program": "following:delivery",
+      "firstSeq": 77312,
+      "lastSeq": 77968,
+      "commits": 129,
+      "writes": 336
+    },
+    {
+      "second": 1790904221,
+      "program": "following:delivery",
+      "firstSeq": 77973,
+      "lastSeq": 78725,
+      "commits": 136,
+      "writes": 316
+    },
+    {
+      "second": 1790904222,
+      "program": "following:delivery",
+      "firstSeq": 78731,
+      "lastSeq": 79493,
+      "commits": 139,
+      "writes": 332
+    },
+    {
+      "second": 1790904223,
+      "program": "following:delivery",
+      "firstSeq": 79499,
+      "lastSeq": 80214,
+      "commits": 138,
+      "writes": 312
+    },
+    {
+      "second": 1790904224,
+      "program": "following:delivery",
+      "firstSeq": 80220,
+      "lastSeq": 80981,
+      "commits": 139,
+      "writes": 327
+    },
+    {
+      "second": 1790904225,
+      "program": "following:delivery",
+      "firstSeq": 80988,
+      "lastSeq": 81735,
+      "commits": 141,
+      "writes": 320
+    },
+    {
+      "second": 1790904226,
+      "program": "following:delivery",
+      "firstSeq": 81738,
+      "lastSeq": 82467,
+      "commits": 135,
+      "writes": 323
+    },
+    {
+      "second": 1790904227,
+      "program": "following:delivery",
+      "firstSeq": 82470,
+      "lastSeq": 83182,
+      "commits": 137,
+      "writes": 342
+    },
+    {
+      "second": 1790904228,
+      "program": "following:delivery",
+      "firstSeq": 83186,
+      "lastSeq": 83883,
+      "commits": 131,
+      "writes": 328
+    },
+    {
+      "second": 1790904229,
+      "program": "following:delivery",
+      "firstSeq": 83887,
+      "lastSeq": 84531,
+      "commits": 138,
+      "writes": 305
+    },
+    {
+      "second": 1790904230,
+      "program": "following:delivery",
+      "firstSeq": 84535,
+      "lastSeq": 85159,
+      "commits": 131,
+      "writes": 288
+    },
+    {
+      "second": 1790904231,
+      "program": "following:delivery",
+      "firstSeq": 85164,
+      "lastSeq": 85901,
+      "commits": 136,
+      "writes": 334
+    },
+    {
+      "second": 1790904232,
+      "program": "following:delivery",
+      "firstSeq": 85907,
+      "lastSeq": 86665,
+      "commits": 137,
+      "writes": 327
+    },
+    {
+      "second": 1790904233,
+      "program": "following:delivery",
+      "firstSeq": 86669,
+      "lastSeq": 87357,
+      "commits": 137,
+      "writes": 313
+    },
+    {
+      "second": 1790904234,
+      "program": "following:delivery",
+      "firstSeq": 87360,
+      "lastSeq": 88074,
+      "commits": 135,
+      "writes": 314
+    },
+    {
+      "second": 1790904235,
+      "program": "following:delivery",
+      "firstSeq": 88080,
+      "lastSeq": 88800,
+      "commits": 132,
+      "writes": 306
+    },
+    {
+      "second": 1790904236,
+      "program": "following:delivery",
+      "firstSeq": 88806,
+      "lastSeq": 89485,
+      "commits": 133,
+      "writes": 314
+    },
+    {
+      "second": 1790904237,
+      "program": "following:delivery",
+      "firstSeq": 89490,
+      "lastSeq": 90195,
+      "commits": 139,
+      "writes": 320
+    },
+    {
+      "second": 1790904238,
+      "program": "following:delivery",
+      "firstSeq": 90201,
+      "lastSeq": 90876,
+      "commits": 135,
+      "writes": 306
+    },
+    {
+      "second": 1790904239,
+      "program": "following:delivery",
+      "firstSeq": 90882,
+      "lastSeq": 91552,
+      "commits": 127,
+      "writes": 304
+    },
+    {
+      "second": 1790904240,
+      "program": "following:delivery",
+      "firstSeq": 91557,
+      "lastSeq": 92222,
+      "commits": 132,
+      "writes": 313
+    },
+    {
+      "second": 1790904241,
+      "program": "following:delivery",
+      "firstSeq": 92228,
+      "lastSeq": 92980,
+      "commits": 138,
+      "writes": 342
+    },
+    {
+      "second": 1790904242,
+      "program": "following:delivery",
+      "firstSeq": 92986,
+      "lastSeq": 93707,
+      "commits": 133,
+      "writes": 329
+    },
+    {
+      "second": 1790904243,
+      "program": "following:delivery",
+      "firstSeq": 93713,
+      "lastSeq": 94439,
+      "commits": 136,
+      "writes": 332
+    },
+    {
+      "second": 1790904244,
+      "program": "following:delivery",
+      "firstSeq": 94444,
+      "lastSeq": 95188,
+      "commits": 139,
+      "writes": 329
+    },
+    {
+      "second": 1790904245,
+      "program": "following:delivery",
+      "firstSeq": 95194,
+      "lastSeq": 95920,
+      "commits": 137,
+      "writes": 321
+    },
+    {
+      "second": 1790904246,
+      "program": "following:delivery",
+      "firstSeq": 95926,
+      "lastSeq": 96627,
+      "commits": 134,
+      "writes": 310
+    },
+    {
+      "second": 1790904247,
+      "program": "following:delivery",
+      "firstSeq": 96632,
+      "lastSeq": 97385,
+      "commits": 140,
+      "writes": 335
+    },
+    {
+      "second": 1790904248,
+      "program": "following:delivery",
+      "firstSeq": 97388,
+      "lastSeq": 98068,
+      "commits": 134,
+      "writes": 314
+    },
+    {
+      "second": 1790904249,
+      "program": "following:delivery",
+      "firstSeq": 98074,
+      "lastSeq": 98767,
+      "commits": 135,
+      "writes": 315
+    },
+    {
+      "second": 1790904250,
+      "program": "following:delivery",
+      "firstSeq": 98772,
+      "lastSeq": 99454,
+      "commits": 129,
+      "writes": 309
+    },
+    {
+      "second": 1790904251,
+      "program": "following:delivery",
+      "firstSeq": 99458,
+      "lastSeq": 100185,
+      "commits": 137,
+      "writes": 342
+    },
+    {
+      "second": 1790904252,
+      "program": "following:delivery",
+      "firstSeq": 100192,
+      "lastSeq": 100927,
+      "commits": 138,
+      "writes": 345
+    },
+    {
+      "second": 1790904253,
+      "program": "following:delivery",
+      "firstSeq": 100933,
+      "lastSeq": 101669,
+      "commits": 138,
+      "writes": 353
+    },
+    {
+      "second": 1790904254,
+      "program": "following:delivery",
+      "firstSeq": 101674,
+      "lastSeq": 102330,
+      "commits": 131,
+      "writes": 308
+    },
+    {
+      "second": 1790904255,
+      "program": "following:delivery",
+      "firstSeq": 102336,
+      "lastSeq": 103080,
+      "commits": 137,
+      "writes": 339
+    },
+    {
+      "second": 1790904256,
+      "program": "following:delivery",
+      "firstSeq": 103086,
+      "lastSeq": 103796,
+      "commits": 134,
+      "writes": 312
+    },
+    {
+      "second": 1790904257,
+      "program": "following:delivery",
+      "firstSeq": 103802,
+      "lastSeq": 104530,
+      "commits": 135,
+      "writes": 313
+    },
+    {
+      "second": 1790904258,
+      "program": "following:delivery",
+      "firstSeq": 104560,
+      "lastSeq": 105211,
+      "commits": 131,
+      "writes": 310
+    },
+    {
+      "second": 1790904259,
+      "program": "following:delivery",
+      "firstSeq": 105217,
+      "lastSeq": 105919,
+      "commits": 137,
+      "writes": 319
+    },
+    {
+      "second": 1790904260,
+      "program": "following:delivery",
+      "firstSeq": 105925,
+      "lastSeq": 106619,
+      "commits": 134,
+      "writes": 315
+    },
+    {
+      "second": 1790904261,
+      "program": "following:delivery",
+      "firstSeq": 106621,
+      "lastSeq": 107311,
+      "commits": 135,
+      "writes": 338
+    },
+    {
+      "second": 1790904262,
+      "program": "following:delivery",
+      "firstSeq": 107317,
+      "lastSeq": 108043,
+      "commits": 136,
+      "writes": 356
+    },
+    {
+      "second": 1790904263,
+      "program": "following:delivery",
+      "firstSeq": 108049,
+      "lastSeq": 108995,
+      "commits": 145,
+      "writes": 600
+    },
+    {
+      "second": 1790904264,
+      "program": "following:delivery",
+      "firstSeq": 108996,
+      "lastSeq": 109256,
+      "commits": 261,
+      "writes": 1638
+    },
+    {
+      "second": 1790904265,
+      "program": "following:delivery",
+      "firstSeq": 109257,
+      "lastSeq": 109465,
+      "commits": 209,
+      "writes": 1529
+    },
+    {
+      "second": 1790904266,
+      "program": "following:delivery",
+      "firstSeq": 109466,
+      "lastSeq": 109627,
+      "commits": 162,
+      "writes": 1069
+    },
+    {
+      "second": 1790904267,
+      "program": "following:delivery",
+      "firstSeq": 109628,
+      "lastSeq": 109856,
+      "commits": 228,
+      "writes": 1615
+    },
+    {
+      "second": 1790904268,
+      "program": "following:delivery",
+      "firstSeq": 109857,
+      "lastSeq": 110059,
+      "commits": 203,
+      "writes": 1647
+    },
+    {
+      "second": 1790904269,
+      "program": "following:delivery",
+      "firstSeq": 110060,
+      "lastSeq": 110267,
+      "commits": 208,
+      "writes": 1208
+    },
+    {
+      "second": 1790904270,
+      "program": "following:delivery",
+      "firstSeq": 110268,
+      "lastSeq": 110463,
+      "commits": 195,
+      "writes": 1578
+    },
+    {
+      "second": 1790904271,
+      "program": "following:delivery",
+      "firstSeq": 110464,
+      "lastSeq": 110660,
+      "commits": 197,
+      "writes": 1330
+    },
+    {
+      "second": 1790904272,
+      "program": "following:delivery",
+      "firstSeq": 110661,
+      "lastSeq": 110859,
+      "commits": 198,
+      "writes": 1469
+    },
+    {
+      "second": 1790904273,
+      "program": "following:delivery",
+      "firstSeq": 110860,
+      "lastSeq": 111065,
+      "commits": 206,
+      "writes": 1708
+    },
+    {
+      "second": 1790904274,
+      "program": "following:delivery",
+      "firstSeq": 111066,
+      "lastSeq": 111276,
+      "commits": 211,
+      "writes": 1238
+    },
+    {
+      "second": 1790904275,
+      "program": "following:delivery",
+      "firstSeq": 111277,
+      "lastSeq": 111489,
+      "commits": 212,
+      "writes": 1719
+    },
+    {
+      "second": 1790904276,
+      "program": "following:delivery",
+      "firstSeq": 111490,
+      "lastSeq": 111744,
+      "commits": 255,
+      "writes": 1690
+    },
+    {
+      "second": 1790904277,
+      "program": "following:delivery",
+      "firstSeq": 111745,
+      "lastSeq": 111751,
+      "commits": 7,
+      "writes": 79
+    },
+    {
+      "second": 1790904841,
+      "program": "following:delivery",
+      "firstSeq": 111752,
+      "lastSeq": 111814,
+      "commits": 63,
+      "writes": 663
+    },
+    {
+      "second": 1790904842,
+      "program": "following:delivery",
+      "firstSeq": 111815,
+      "lastSeq": 112074,
+      "commits": 259,
+      "writes": 1573
+    },
+    {
+      "second": 1790904843,
+      "program": "following:delivery",
+      "firstSeq": 112075,
+      "lastSeq": 112283,
+      "commits": 209,
+      "writes": 1685
+    },
+    {
+      "second": 1790904844,
+      "program": "following:delivery",
+      "firstSeq": 112284,
+      "lastSeq": 112490,
+      "commits": 207,
+      "writes": 1606
+    },
+    {
+      "second": 1790904845,
+      "program": "following:delivery",
+      "firstSeq": 112491,
+      "lastSeq": 112741,
+      "commits": 249,
+      "writes": 1455
+    },
+    {
+      "second": 1790904846,
+      "program": "following:delivery",
+      "firstSeq": 112742,
+      "lastSeq": 112911,
+      "commits": 170,
+      "writes": 1436
+    },
+    {
+      "second": 1790904847,
+      "program": "following:delivery",
+      "firstSeq": 112912,
+      "lastSeq": 113090,
+      "commits": 179,
+      "writes": 1089
+    },
+    {
+      "second": 1790904848,
+      "program": "following:delivery",
+      "firstSeq": 113091,
+      "lastSeq": 113303,
+      "commits": 212,
+      "writes": 1695
+    },
+    {
+      "second": 1790904849,
+      "program": "following:delivery",
+      "firstSeq": 113304,
+      "lastSeq": 113509,
+      "commits": 206,
+      "writes": 1655
+    },
+    {
+      "second": 1790904850,
+      "program": "following:delivery",
+      "firstSeq": 113510,
+      "lastSeq": 113770,
+      "commits": 261,
+      "writes": 1618
+    },
+    {
+      "second": 1790904851,
+      "program": "following:delivery",
+      "firstSeq": 113771,
+      "lastSeq": 113965,
+      "commits": 193,
+      "writes": 1470
+    },
+    {
+      "second": 1790904852,
+      "program": "following:delivery",
+      "firstSeq": 113966,
+      "lastSeq": 114155,
+      "commits": 190,
+      "writes": 1424
+    },
+    {
+      "second": 1790904853,
+      "program": "following:delivery",
+      "firstSeq": 114156,
+      "lastSeq": 114348,
+      "commits": 193,
+      "writes": 1350
+    },
+    {
+      "second": 1790904854,
+      "program": "following:delivery",
+      "firstSeq": 114349,
+      "lastSeq": 114530,
+      "commits": 182,
+      "writes": 1475
+    },
+    {
+      "second": 1790904855,
+      "program": "following:delivery",
+      "firstSeq": 114531,
+      "lastSeq": 114761,
+      "commits": 231,
+      "writes": 1401
+    },
+    {
+      "second": 1790904856,
+      "program": "following:delivery",
+      "firstSeq": 114762,
+      "lastSeq": 114952,
+      "commits": 191,
+      "writes": 1599
+    },
+    {
+      "second": 1790904857,
+      "program": "following:delivery",
+      "firstSeq": 114953,
+      "lastSeq": 115137,
+      "commits": 185,
+      "writes": 1283
+    },
+    {
+      "second": 1790904858,
+      "program": "following:delivery",
+      "firstSeq": 115138,
+      "lastSeq": 115331,
+      "commits": 193,
+      "writes": 1496
+    },
+    {
+      "second": 1790904859,
+      "program": "following:delivery",
+      "firstSeq": 115332,
+      "lastSeq": 115534,
+      "commits": 203,
+      "writes": 1674
+    },
+    {
+      "second": 1790904860,
+      "program": "following:delivery",
+      "firstSeq": 115535,
+      "lastSeq": 115800,
+      "commits": 266,
+      "writes": 1656
+    },
+    {
+      "second": 1790904861,
+      "program": "following:delivery",
+      "firstSeq": 115801,
+      "lastSeq": 116002,
+      "commits": 200,
+      "writes": 1521
+    },
+    {
+      "second": 1790904862,
+      "program": "following:delivery",
+      "firstSeq": 116003,
+      "lastSeq": 116190,
+      "commits": 188,
+      "writes": 1487
+    },
+    {
+      "second": 1790904863,
+      "program": "following:delivery",
+      "firstSeq": 116191,
+      "lastSeq": 116411,
+      "commits": 221,
+      "writes": 1432
+    },
+    {
+      "second": 1790904864,
+      "program": "following:delivery",
+      "firstSeq": 116412,
+      "lastSeq": 116553,
+      "commits": 142,
+      "writes": 1279
+    },
+    {
+      "second": 1790904865,
+      "program": "following:delivery",
+      "firstSeq": 116555,
+      "lastSeq": 116815,
+      "commits": 261,
+      "writes": 1694
+    },
+    {
+      "second": 1790904866,
+      "program": "following:delivery",
+      "firstSeq": 116816,
+      "lastSeq": 117041,
+      "commits": 226,
+      "writes": 1626
+    },
+    {
+      "second": 1790904867,
+      "program": "following:delivery",
+      "firstSeq": 117042,
+      "lastSeq": 117065,
+      "commits": 24,
+      "writes": 130
+    },
+    {
+      "second": 1790905348,
+      "program": "following:delivery",
+      "firstSeq": 117066,
+      "lastSeq": 117249,
+      "commits": 183,
+      "writes": 482
+    },
+    {
+      "second": 1790905349,
+      "program": "following:delivery",
+      "firstSeq": 117250,
+      "lastSeq": 117500,
+      "commits": 251,
+      "writes": 878
+    },
+    {
+      "second": 1790905350,
+      "program": "following:delivery",
+      "firstSeq": 117501,
+      "lastSeq": 117764,
+      "commits": 264,
+      "writes": 981
+    },
+    {
+      "second": 1790905351,
+      "program": "following:delivery",
+      "firstSeq": 117765,
+      "lastSeq": 117900,
+      "commits": 136,
+      "writes": 538
+    }
+  ]
+}
