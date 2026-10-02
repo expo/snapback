@@ -4,15 +4,19 @@
 `sb4-np/nx-export-proves-native`. No push or publication. Governing design:
 [LLP 3000.030 §15](../../../llp/3000.030-native-proof-in-minutes.rfc.md#15-export-proves-native-nx-round-0-2026-10-01).
 
-> **Evidence archive.** Raw compressed dumps (`*.gz`) and screen recordings
-> (`*.mp4`) under this directory, 6,402 paths and 1.31 GB, are not in git. They live
+> **Evidence archive.** Raw compressed dumps/logs (`*.gz`), screen recordings
+> (`*.mp4`) and large binary artifacts are not in git. They live
 > in a content-addressed archive on the apartment Mac mini
 > (`~/sb4-np/evidence-archive/20261001-nx-export-proves-native/`), and
 > [`EVIDENCE-ARCHIVE.tsv`](EVIDENCE-ARCHIVE.tsv) lists each one's sha256, size
-> and path. The branch was rewritten to drop them; every other byte is
-> unchanged, and the manifest header maps the original commits to the
-> rewritten ones. To restore them, run this from this directory:
+> and path. The earlier slim-branch rewrite dropped the raw blobs; the manifest
+> header maps its original commits to the rewritten ones. To restore them, run this from this directory:
 > `grep -v '^#' EVIDENCE-ARCHIVE.tsv | while IFS=$'\t' read -r s n p; do mkdir -p "$(dirname "$p")"; cp "$ARCHIVE/blobs/$s" "$p"; done`
+
+> **Latest timing control — round 5b:** 24 interleaved warm exports give round-5
+> medians of **18.335 s plain / 26.716 s social**, against round-4 **18.346 / 27.786 s**.
+> Eight runs became contended; no quiet-host qualification or issue closure is
+> claimed. See the Round 5b section. Earlier sections retain their historical cohorts.
 
 ## Result
 
@@ -1125,6 +1129,9 @@ no test failures were reclassified as passes. See
 
 ### Final warm measurements and the unmet timing target
 
+Round 5b below adds a contemporaneous six-run-per-cell control. The original
+five-run cohort here remains intact; it is not evidence of an isolated code regression.
+
 The requested first samples passed at **22.256 s plain / 26.686 s social**.
 Because social exceeded 25 s, extended to five samples each, keeping the first
 samples in the same cohort. No failed/slower sample was discarded:
@@ -1253,3 +1260,178 @@ open. Their tickets retain the unresolved work without weakening checks. The
 platform and publication limits above remain explicit. No push, external
 publication or merge from main was performed. The operator can close main's
 CLI signal ticket using the resolution recorded above when this branch lands.
+
+## Round 5b — timing control (2026-10-02)
+
+**No round-5 slowdown was reproduced in the contemporaneous comparison, but a
+quiet-host qualification was not obtained.** Six warm samples per revision per
+starter compare round 4 `e1adc01ddc` with round 5 `adbabda71e`, in ABBA order.
+Round 5's medians are 0.011 s lower for plain and 1.070 s lower for social.
+Eight of the 24 samples crossed load1 6 during execution; all are retained.
+These are shared-host results, not quiet-host medians or proof of a performance
+improvement. Social still exceeds 25 s. The
+[timing issue](../../../issues/20261002-snapback4-nx-round5-social-warm-timing.md)
+**remains open**: the conditional quiet-host result needed to close it was not
+obtained. No product code, cache allowlist, assertion, timeout or ceiling changed.
+
+### Fixed packages and independent warmed projects
+
+Both exact revisions were built with the production profile and packaged as
+installable local `snapback4`, `snapback4-expo` and `snapback4-darwin-arm64` tarballs.
+Separate offline npm consumer installations launched their installed shim without
+a binary override; installed binary hashes match the packages.
+[Build identities](round5b/builds.json),
+[package archive identities](round5b/packages-archive.json) and
+[setup/reproduction](round5b/SETUP.md) retain the details. Client/Expo snapshot
+packages preserve the earlier local candidate trees, including `snapback4/src`,
+with their original manifests; these are not ordinary release `npm pack` contents
+or registry qualification. The common client/wasm/Swift artifacts are unchanged
+between the revisions. Revision-specific shim, wrapper and production CLI bytes
+come from the specified commits.
+
+Four permanent paths under `~/sb4-np/nx-r5b/` (`r4-plain`, `r4-social`,
+`r5-plain`, `r5-social`) each have their own native cache, snapshot and DerivedData.
+Their entire installed dependency and Expo plugin-tree digests match their
+revision's existing audit pins ([audit](round5b/dependency-audit.json)). No pin was
+added. Measurement selects each fixed packaged CLI with `SNAPBACK4_BIN`, as the
+historical measurements did; it never switches a project's installed revision.
+
+Fresh priming passed in 120.738 / 192.866 s for round 4 and 129.430 / 177.173 s
+for round 5 (plain/social). These are preparation observations under contention,
+not controlled cold timings. All four subsequent JS-edit warmups hit cache.
+All our builds and installs finished before the measured cohort; no suite ran
+alongside it. Every measured command was a cache hit, passed all three native
+segments, loaded its exact exported bundle and matched publication/proof hashes.
+Each revision/starter cell has six distinct exported bundle hashes. This remains
+starter simulator lifecycle evidence, not M6/M8, physical-device or publication
+qualification. `mini-verify-iphone` was never targeted.
+
+### Medians and native/outside split
+
+| Starter | Revision | n | Whole command s | Native at total median s | Outside at total median s | Contended runs |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Plain | r4 | 6 | **18.346** | 15.111 | 3.235 | 2 |
+| Plain | r5 | 6 | **18.335** | 14.664 | 3.672 | 0 |
+| Social | r4 | 6 | **27.786** | 22.907 | 4.879 | 3 |
+| Social | r5 | 6 | **26.716** | 22.416 | 4.300 | 3 |
+
+The six-run total median averages the middle two whole-command samples. The
+native and outside columns average those **same two** samples, so they add to
+the total before rounding; independently computed component medians are also retained in
+[timings.json](round5b/timings.json). Native is the receipt's `durationMs` from
+`invokedAt` to `endedAt`; outside is complete monotonic npm-command time minus
+that duration, including export, wrapper/publisher and cleanup.
+
+Independent phase medians (seconds; these are not an additive decomposition):
+
+| Cell | Native preparation | Native lifecycle | Prime | Offline | Restart | Native end → publication verified | Native end → command exit |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| r4 plain | 6.353 | 8.757 | 2.361 | 2.454 | 2.505 | 0.044 | 0.175 |
+| r5 plain | 6.256 | 8.697 | 2.228 | 2.466 | 2.482 | 0.064 | 0.200 |
+| r4 social | 9.931 | 12.829 | 3.849 | 3.800 | 3.858 | 0.056 | 0.217 |
+| r5 social | 9.400 | 12.918 | 3.967 | 3.818 | 3.773 | 0.082 | 0.269 |
+
+The publication column is the interval from native completion to the publisher's
+`verifiedAt`, including wrapper checks and process startup, not an isolated Rust
+publisher timer. These timestamps do not identify an introduced native slowdown:
+both revisions show the same broad native preparation/lifecycle costs. They do
+not establish why the historical round-5 cohort was slower than earlier runs.
+No product fix is justified by this comparison, and none was made.
+
+### Every measured sample and host load
+
+Sequence: three ABBA blocks per starter; starter order plain/social,
+social/plain, plain/social. Each command follows an application-JS edit and uses
+Node 24.18.0 `npm run export:ios`. Every row links its exact start/end timestamps,
+load1/load5/load15, **top 20 CPU processes before and after**, native segment
+boundaries, publication timestamp, proof hashes and raw-evidence references.
+“Quiet” below means only load1 ≤ 6 at both snapshots; it is not a claim that no
+background work ran between snapshots. Contended rows remain in the medians.
+
+| # | Revision / starter / sample | Pre-load 1 / 5 / 15 | Post-load1 | Total s | Native s | Outside s | Status |
+| ---: | --- | --- | ---: | ---: | ---: | ---: | --- |
+| 1 | [r4-plain-sample1](round5b/r4-plain-sample1.json) | 4.59 / 26.00 / 42.35 | 4.98 | 18.510 | 15.262 | 3.248 | quiet |
+| 2 | [r5-plain-sample1](round5b/r5-plain-sample1.json) | 4.98 / 25.04 / 41.72 | 5.45 | 18.133 | 14.865 | 3.268 | quiet |
+| 3 | [r5-plain-sample2](round5b/r5-plain-sample2.json) | 5.45 / 23.82 / 40.89 | 5.62 | 16.016 | 13.037 | 2.979 | quiet |
+| 4 | [r4-plain-sample2](round5b/r4-plain-sample2.json) | 5.62 / 22.95 / 40.28 | 5.11 | 16.072 | 13.060 | 3.012 | quiet |
+| 5 | [r4-social-sample1](round5b/r4-social-sample1.json) | 5.11 / 21.99 / 39.64 | 5.27 | 25.098 | 21.098 | 4.000 | quiet |
+| 6 | [r5-social-sample1](round5b/r5-social-sample1.json) | 5.27 / 20.67 / 38.65 | 5.26 | 25.224 | 20.761 | 4.463 | quiet |
+| 7 | [r5-social-sample2](round5b/r5-social-sample2.json) | 5.26 / 19.20 / 37.49 | 6.22 | 25.368 | 21.281 | 4.087 | contended |
+| 8 | [r4-social-sample2](round5b/r4-social-sample2.json) | 6.00 / 16.07 / 34.55 | 5.79 | 27.883 | 23.323 | 4.560 | quiet |
+| 9 | [r4-social-sample3](round5b/r4-social-sample3.json) | 5.79 / 15.21 / 33.71 | 6.91 | 25.338 | 21.132 | 4.206 | contended |
+| 10 | [r5-social-sample3](round5b/r5-social-sample3.json) | 5.34 / 13.61 / 31.96 | 28.88 | 33.355 | 27.962 | 5.393 | contended |
+| 11 | [r5-social-sample4](round5b/r5-social-sample4.json) | 5.86 / 34.10 / 59.26 | 8.64 | 35.998 | 29.589 | 6.409 | contended |
+| 12 | [r4-social-sample4](round5b/r4-social-sample4.json) | 5.17 / 24.60 / 52.06 | 5.93 | 27.690 | 22.491 | 5.199 | quiet |
+| 13 | [r4-plain-sample3](round5b/r4-plain-sample3.json) | 5.93 / 22.95 / 50.51 | 5.99 | 19.919 | 16.454 | 3.465 | quiet |
+| 14 | [r5-plain-sample3](round5b/r5-plain-sample3.json) | 5.99 / 21.86 / 49.48 | 5.62 | 19.568 | 16.040 | 3.528 | quiet |
+| 15 | [r5-plain-sample4](round5b/r5-plain-sample4.json) | 5.62 / 20.74 / 48.43 | 5.87 | 18.537 | 14.462 | 4.075 | quiet |
+| 16 | [r4-plain-sample4](round5b/r4-plain-sample4.json) | 5.87 / 20.05 / 47.70 | 6.32 | 21.639 | 17.697 | 3.942 | contended |
+| 17 | [r4-plain-sample5](round5b/r4-plain-sample5.json) | 5.88 / 17.68 / 45.09 | 6.01 | 17.486 | 14.461 | 3.025 | contended |
+| 18 | [r5-plain-sample5](round5b/r5-plain-sample5.json) | 5.26 / 15.89 / 43.02 | 5.89 | 19.568 | 16.415 | 3.153 | quiet |
+| 19 | [r5-plain-sample6](round5b/r5-plain-sample6.json) | 5.89 / 15.34 / 42.19 | 5.20 | 17.536 | 14.240 | 3.296 | quiet |
+| 20 | [r4-plain-sample6](round5b/r4-plain-sample6.json) | 5.20 / 14.57 / 41.29 | 5.46 | 18.182 | 14.961 | 3.221 | quiet |
+| 21 | [r4-social-sample5](round5b/r4-social-sample5.json) | 5.46 / 14.02 / 40.47 | 7.15 | 29.789 | 24.859 | 4.930 | contended |
+| 22 | [r5-social-sample5](round5b/r5-social-sample5.json) | 5.26 / 11.95 / 37.03 | 5.08 | 28.065 | 23.551 | 4.514 | quiet |
+| 23 | [r5-social-sample6](round5b/r5-social-sample6.json) | 5.08 / 11.36 / 36.09 | 5.63 | 24.738 | 20.501 | 4.237 | quiet |
+| 24 | [r4-social-sample6](round5b/r4-social-sample6.json) | 5.63 / 10.99 / 35.24 | 6.63 | 28.624 | 24.214 | 4.410 | contended |
+
+All pre-sample load1 values were 4.590–5.996; post-sample values were
+4.982–28.885. Sixteen rows meet both boundary thresholds, but their per-cell
+counts are only **4 / 6 / 3 / 3** (r4 plain / r5 plain / r4 social / r5 social).
+They are not substituted for the predeclared six-run cells.
+
+### Contention and the uncompleted quiet follow-on
+
+During social sample 3, another checkout's Cargo build drove load sharply upward.
+The recorded parent cwd is `~/projects/snapback-x27r/snapback4`
+([process evidence](round5b/contention-during-cohort.json)); our preparation was
+already finished. Waiting snapshots reached load1 **258.041**. The runner waited
+roughly nineteen minutes before resuming the original sequence. Spotlight,
+other test/compiler processes and system services also appear in the retained
+CPU snapshots. No other session was paused or killed; no system setting changed.
+A diagnostic snapshot found zero swap usage and no recorded thermal/performance
+warning, without proving that all resource contention was absent.
+
+After all 24 samples, attempted a separate balanced six-per-cell cohort with
+load1 ≤ 4 before launch, retaining the original ≤ 6 boundary classification.
+The bounded **30-minute wait expired before its first sample**. Across 60
+snapshots its minimum load1 was **6.717**, maximum **143.772**: even the original
+≤ 6 entry rule would not have admitted a sample in that interval.
+[Wait summary](round5b/waiting-summary.json) and the hash-indexed raw waiting log
+preserve the full attempt. No sample was silently replaced, relabeled or dropped.
+Thus the report/card now quote the measured shared-load medians and explicitly
+withhold quiet-host/under-25-second social qualification. The issue stays open
+for a reserved quiet window; the original round-5 and earlier cohorts remain
+historical observations.
+
+### Setup failures, custody and verification
+
+All setup mistakes are retained in [context.json](round5b/context.json): an initial
+source archive included a nonexistent path; a source subset omitted embedded app
+templates; shared Cargo output initially left the round-4 executable at the
+round-5 copy destination; and the first copied-cache primer failed because a
+SwiftShims PCM embedded its old absolute module-cache path. The binary SHA check
+caught the stale executable **before measurements**; a forced production rebuild
+and fresh npm installation corrected it. Its original tarball was recovered from
+the npm content cache and hash-checked against the initial manifest. Clearing only
+the four new projects' copied native caches fixed the PCM setup error; all four
+fresh primers and all subsequent measured exports passed. The original projects
+were not cleared. No failed preparation run is called a warm sample.
+
+Deleted only the recorded `sb4-nx-r5b-` device
+`2FE9FBFB-4BBC-416B-A857-71824F9923AD`, after matching its ownership record and
+holding the state/home leases; [cleanup](round5b/cleanup.json) confirms absence.
+The protected simulator was not selected, stopped, modified or deleted.
+Raw logs, receipts, media, waiting snapshots and package tarballs are retained
+outside git, read back and SHA-256 checked through `EVIDENCE-ARCHIVE.tsv`.
+The final verification/size records accompany this section. This round runs no full
+product suite or review loop; the round-5 dual review remains a separate effort.
+Nothing is pushed or externally published.
+
+Affected documentation checks pass after measurement ends: guide **110/110**;
+`ref-check` **zero errors and zero unchecked**. The witness card remains **399
+lines**. All 24 measured receipts and exact bundle/proof bindings were checked;
+all four projects retain at most five full runs and twenty compressed runs, with
+no per-run app/xcresult/preparation/export residue. Exact packaged/installed CLI
+hashes still match. [validation.json](round5b/validation.json) records these checks;
+[staged-size.json](round5b/staged-size.json) records the final under-15-MB blob audit.

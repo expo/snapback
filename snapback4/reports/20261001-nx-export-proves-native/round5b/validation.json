@@ -1,0 +1,40 @@
+{
+  "guide": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4-lang --test guide",
+    "status": 0,
+    "passed": 110,
+    "failed": 0
+  },
+  "references": {
+    "command": "./ref-check --verbose",
+    "status": 0,
+    "docs": 525,
+    "refs": 10185,
+    "files": 32373,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "all24MeasuredExports": {
+    "cacheHits": 24,
+    "successfulNativeReceipts": 24,
+    "passedNativeSegments": 72,
+    "exactExportHashes": 24,
+    "matchingPublicationProofs": 24,
+    "distinctBundlesPerCell": 6
+  },
+  "protectedSimulatorTargeted": false,
+  "ownSimulatorDeleted": true,
+  "fourProjectsRetentionChecked": true,
+  "packageAndInstalledBinaryHashesRechecked": true,
+  "newArchiveEntriesVerified": 2335,
+  "newArchiveDistinctBlobs": 681,
+  "guideLines": 399,
+  "productSourceChanges": [],
+  "fullProductSuiteRun": false,
+  "quietFollowOnSampleCount": 0,
+  "issueRemainsOpen": true,
+  "changedProductTreePaths": [
+    "snapback4/crates/snapback4-lang/src/guide/witness.md"
+  ],
+  "changedProductTreePathsAreDocumentationOnly": true
+}

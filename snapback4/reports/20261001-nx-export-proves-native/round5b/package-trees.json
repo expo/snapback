@@ -1,0 +1,38 @@
+[
+  {
+    "revision": "r4",
+    "commit": "e1adc01ddc",
+    "name": "snapback4",
+    "archive": "/Users/ccheever/sb4-np/nx-r5b/packages/r4/snapback4-0.4.10.tgz",
+    "sha256": "a2db12034a3cf0cac315508a58532ddca2c35b86868edf624953964cd45092e0",
+    "bytes": 1852220,
+    "shape": "Exact existing audited local candidate package tree, including snapback4/src; package.json unchanged."
+  },
+  {
+    "revision": "r4",
+    "commit": "e1adc01ddc",
+    "name": "snapback4-expo",
+    "archive": "/Users/ccheever/sb4-np/nx-r5b/packages/r4/snapback4-expo-0.4.10.tgz",
+    "sha256": "2c6a801aa5db82c6a2649a1750fb21487ec5537c7c7619724f492f522247562a",
+    "bytes": 5185631,
+    "shape": "Exact existing audited local candidate package tree, including snapback4/src; package.json unchanged."
+  },
+  {
+    "revision": "r5",
+    "commit": "adbabda71e",
+    "name": "snapback4",
+    "archive": "/Users/ccheever/sb4-np/nx-r5b/packages/r5/snapback4-0.4.10.tgz",
+    "sha256": "fcc298ede6aa6deec8693fdd1ae4edc6d138b3ed696d17b2885af0cb36977aa6",
+    "bytes": 1852390,
+    "shape": "Exact existing audited local candidate package tree, including snapback4/src; package.json unchanged."
+  },
+  {
+    "revision": "r5",
+    "commit": "adbabda71e",
+    "name": "snapback4-expo",
+    "archive": "/Users/ccheever/sb4-np/nx-r5b/packages/r5/snapback4-expo-0.4.10.tgz",
+    "sha256": "04f4229b2701e0f392f29f47deb52851be0372e1540a0b14a2f0ee085e8b7753",
+    "bytes": 5186622,
+    "shape": "Exact existing audited local candidate package tree, including snapback4/src; package.json unchanged."
+  }
+]

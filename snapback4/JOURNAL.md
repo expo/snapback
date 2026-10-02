@@ -81785,3 +81785,46 @@ Retention leaves five full runs per starter; the known legacy directory stays
 untouched. See reports/20261001-nx-export-proves-native/REPORT.md, Round 5.
 Nothing pushed or externally published. The local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 5b: timing control, no product changes
+
+Compared e1adc01ddc (round 4) and adbabda71e (round 5) with installable local
+client/Expo/Darwin packages, verified offline npm installations and four separate
+native-cache/DerivedData project paths under ~/sb4-np/nx-r5b. Preserved the exact
+previously audited dependency snapshots; no product source or audit pin changed.
+Both exact production CLIs are hash-bound in the report. The initial source
+subset/embedded-template errors, shared Cargo output mistake and copied
+SwiftShims cache-path failure are retained as setup failures, all corrected
+before the measured cohort. Four fresh primers and four warmups then passed.
+
+Ran 24 JS-edit warm exports: six per revision per starter, in ABBA blocks. All
+hit cache, pass all three native segments, load distinct exact exports and match
+publication/proof hashes. No own suite/build ran during measurement. Round-4
+medians are 18.346 s plain / 27.786 s social; round-5 medians are 18.335 / 26.716 s.
+At the total-median sample pairs, round 5 splits into native/outside
+14.664 / 3.672 s plain and 22.416 / 4.300 s social. Native/segment timestamps,
+publisher verifiedAt, per-sample loads and top 20 CPU processes are retained.
+
+No round-5 slowdown was reproduced, but quiet qualification remains unresolved.
+Eight runs ended above load1 6. Another checkout's build/test activity caused a
+roughly nineteen-minute wait; recorded wait load1 reached 258.041. A separate
+30-minute attempt at a stricter entry condition admitted no sample: minimum
+load1 was 6.717, even above the original threshold. All samples stay in the
+record. The witness card now names shared-load medians, social still exceeds
+25 s, and issues/20261002-snapback4-nx-round5-social-warm-timing.md stays Open.
+No timeout, budget, proof or assertion was weakened to claim success.
+
+Deleted only this run's recorded device under both ownership leases;
+mini-verify-iphone was untouched. Raw logs, receipts/media, waiting snapshots
+and package tarballs are SHA-256 checked in the external evidence archive;
+only small summaries/reproduction material are committed. See the NX report's
+“Round 5b — timing control” section and its validation/size records. The separate
+round-5 dual review is not rerun or claimed here. Local commit only; no push or
+external publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+Round-5b final verification: affected guide target 110/110, ref-check zero errors
+and zero unchecked, card unchanged at 399 lines. All 24 measured proof/hash
+bindings and all newly archived blobs verify. Four projects satisfy retention
+without per-run build/export residue; package and installed CLI hashes still
+match. No full product suite or independent review was run in this timing round.

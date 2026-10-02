@@ -1,0 +1,272 @@
+[
+  {
+    "sha256": "06f216e806e81af382ac5e1e9202ee171592cc5ffc74f80a2e5929ade33a35be",
+    "bytes": 1221,
+    "path": "round5b/build-r4-missing-templates.log.gz"
+  },
+  {
+    "sha256": "6efcabc8c0f5dee51b3a4b9a2998252cac87b4149d65fea52315ede367c21f35",
+    "bytes": 320,
+    "path": "round5b/build-r4.log.gz"
+  },
+  {
+    "sha256": "3fd6482fda501359395fba144b8a085d237bb780e0d6e356a78ace2b10861c64",
+    "bytes": 257,
+    "path": "round5b/build-r5.log.gz"
+  },
+  {
+    "sha256": "5188289fcfeafa2a044267df501c15c8ee54417952bc656596e5ad8cf5115d09",
+    "bytes": 54,
+    "path": "round5b/clean-r5.log.gz"
+  },
+  {
+    "sha256": "b2e81be496cc41c29851d9d022e3002b5a7080b715fb214e20510b6113e2129d",
+    "bytes": 63,
+    "path": "round5b/cleanup.log.gz"
+  },
+  {
+    "sha256": "8a31557ba56d2699a20dff708686dd10c9557b1432eb399458bc4fd3113ee20d",
+    "bytes": 90,
+    "path": "round5b/correct-r5.log.gz"
+  },
+  {
+    "sha256": "71dad949d8cbc67a7990fcea2233ef90a22d3b4c7b1bb65a85e6b55f4a1ce7ef",
+    "bytes": 77,
+    "path": "round5b/finish-builds.log.gz"
+  },
+  {
+    "sha256": "2780673081a747e8f2ddc015cb0c4f50858062ed605b2aa09c204d2f517d804e",
+    "bytes": 2841,
+    "path": "round5b/guide-check.log.gz"
+  },
+  {
+    "sha256": "c7ffd747bae5e48aabbfe73cfd18bd24f3d93883caaeae056725591c9499b870",
+    "bytes": 47,
+    "path": "round5b/install-r4.log.gz"
+  },
+  {
+    "sha256": "f9980c9886f94904ae9d711565bf7e8eb0c1a5b9fdbab849d7d599a09141a974",
+    "bytes": 47,
+    "path": "round5b/install-r5-corrected.log.gz"
+  },
+  {
+    "sha256": "1d3087afcc1705d2f3b47f1f8a7e6ed1f47589bbaab110bdcc435180c1f8c882",
+    "bytes": 5742,
+    "path": "round5b/measure.log.gz"
+  },
+  {
+    "sha256": "06c1a837f2ca8a2370ae0de465c97e40b3436faf28b7a8f1fb777f208161137c",
+    "bytes": 1176,
+    "path": "round5b/preparation-host.jsonl.gz"
+  },
+  {
+    "sha256": "4f035c93fb67714735fdec51611f8a5269b69b5e21347095413934bfdf84b624",
+    "bytes": 55,
+    "path": "round5b/prepare.log.gz"
+  },
+  {
+    "sha256": "ca0d8b4688c7e0f6a86431414efb1995debb3e9659ae4977a62ce4cb00ca7eb1",
+    "bytes": 1160,
+    "path": "round5b/prime-fresh.log.gz"
+  },
+  {
+    "sha256": "11e19ccb896aa42689c0b1f0d270d9f945de24ab269ecc3762d90841b3b3b505",
+    "bytes": 743,
+    "path": "round5b/prime.log.gz"
+  },
+  {
+    "sha256": "eebb3f8c5f58ad5665afe48c7536dbf31d9029a0603b0a67c088f4655149e6f0",
+    "bytes": 1388,
+    "path": "round5b/quiet-control.log.gz"
+  },
+  {
+    "sha256": "906a43c6af5159074a89783961037681978c1279ce7dd2083ad136b7d8992b06",
+    "bytes": 650,
+    "path": "round5b/r4-plain-prime-fresh.log.gz"
+  },
+  {
+    "sha256": "a3b4c8cba75d7f144fb6bc96719cc9acadb9e63ae0d4503b2998fe64f7191623",
+    "bytes": 791,
+    "path": "round5b/r4-plain-prime.log.gz"
+  },
+  {
+    "sha256": "f940f25b9ee126335483960a2f3a9eedb97dd61ee406e520749baef475eb0782",
+    "bytes": 669,
+    "path": "round5b/r4-plain-sample1.log.gz"
+  },
+  {
+    "sha256": "ed2055bff3411bcf69dd89824dcb5ed3636529ab817f4dd6ef90852d63d98f60",
+    "bytes": 669,
+    "path": "round5b/r4-plain-sample2.log.gz"
+  },
+  {
+    "sha256": "e7a5d77373116440b45edaa110485bfdc276f5542e06dd31a7a243844f72341f",
+    "bytes": 670,
+    "path": "round5b/r4-plain-sample3.log.gz"
+  },
+  {
+    "sha256": "d95f3761881e84a9bb05b8ffc2be5caba574049a11a35ce49e485874bba12a9f",
+    "bytes": 668,
+    "path": "round5b/r4-plain-sample4.log.gz"
+  },
+  {
+    "sha256": "e963005eb6dace1be89a1a98d316e9954a8c1ecf773c1adadf3246b0c7a75d16",
+    "bytes": 671,
+    "path": "round5b/r4-plain-sample5.log.gz"
+  },
+  {
+    "sha256": "214de8b05e2aafcaa2718630ce82efbbed38a4c105d13894a33d92d1b0ab24b1",
+    "bytes": 670,
+    "path": "round5b/r4-plain-sample6.log.gz"
+  },
+  {
+    "sha256": "e9dedb335276bebd1538e9a18dbd0df8473d8901968d88aeb81b0f3b3dc1af6e",
+    "bytes": 670,
+    "path": "round5b/r4-plain-warmup.log.gz"
+  },
+  {
+    "sha256": "25f21fda79b18f3ad64ac9bf7b177147c1481631f2e2fd7ad1916dfe0f6d137c",
+    "bytes": 974,
+    "path": "round5b/r4-social-prime-fresh.log.gz"
+  },
+  {
+    "sha256": "c30d287f682c5616b9f3956607e0f7605213538fdcae40e1969ee4d28a74a8db",
+    "bytes": 861,
+    "path": "round5b/r4-social-sample1.log.gz"
+  },
+  {
+    "sha256": "135aa1640abc4a21b32bc20ce21eef8ab1e64811b2d19efc58562246fff7cad1",
+    "bytes": 863,
+    "path": "round5b/r4-social-sample2.log.gz"
+  },
+  {
+    "sha256": "142cf9e9926d07165b9ffee7d21609e55f56379d2617e150eb94c85adb5a008d",
+    "bytes": 862,
+    "path": "round5b/r4-social-sample3.log.gz"
+  },
+  {
+    "sha256": "0df6c830b22614e10d35dc063b747ccb84bd07cd435387c7d281d4a1f75b348e",
+    "bytes": 863,
+    "path": "round5b/r4-social-sample4.log.gz"
+  },
+  {
+    "sha256": "2356410609139a24d02c45dc9fe01163cdd7fd93797a1400a5ffa705b5715a06",
+    "bytes": 862,
+    "path": "round5b/r4-social-sample5.log.gz"
+  },
+  {
+    "sha256": "b03873a81db1248dff7d6fa5bdc00033dee8b3cb6a4076c8dbc29c9909a416e5",
+    "bytes": 861,
+    "path": "round5b/r4-social-sample6.log.gz"
+  },
+  {
+    "sha256": "6f2b385f95dd676fbce5a1883616018669572bd0f5fdd24d71665bfe77ed32b0",
+    "bytes": 861,
+    "path": "round5b/r4-social-warmup.log.gz"
+  },
+  {
+    "sha256": "9c0bbaa7613f18346f10e92974ca9a1bf37f85733ac7dd127cd81347314d1a0e",
+    "bytes": 781,
+    "path": "round5b/r5-plain-prime-fresh.log.gz"
+  },
+  {
+    "sha256": "7e783d33657ee96568acafb250594bdea9dbac5bf0d8f5a11a4d33a0aacb420e",
+    "bytes": 669,
+    "path": "round5b/r5-plain-sample1.log.gz"
+  },
+  {
+    "sha256": "7e3d24805c552d258b548be282980ee00e04e4dd2109ef21b2c5ede1a1661458",
+    "bytes": 670,
+    "path": "round5b/r5-plain-sample2.log.gz"
+  },
+  {
+    "sha256": "bfa17456716cc6ac4c7c34031defa06945938bf264c099edd26e64b445bb8d6a",
+    "bytes": 671,
+    "path": "round5b/r5-plain-sample3.log.gz"
+  },
+  {
+    "sha256": "93dbab9c2f840408821d0b8c639760cdc0b5c0c87b05d54aca92e5c136b61519",
+    "bytes": 671,
+    "path": "round5b/r5-plain-sample4.log.gz"
+  },
+  {
+    "sha256": "bf2781f94b9e743fb4a7fcc97db4c938bc2a052a380cea2e62125f8b659f71d6",
+    "bytes": 670,
+    "path": "round5b/r5-plain-sample5.log.gz"
+  },
+  {
+    "sha256": "5767aa6c6b357ca0ca19f4d70516065e02b45cb40501ee62ad7d7611942523f7",
+    "bytes": 669,
+    "path": "round5b/r5-plain-sample6.log.gz"
+  },
+  {
+    "sha256": "43fc28aa5ca0a75073545f1ba8f8c3fc58f686dc1399808a6e023d09b7af05b5",
+    "bytes": 668,
+    "path": "round5b/r5-plain-warmup.log.gz"
+  },
+  {
+    "sha256": "e02c7a85632de524db3b9c2fb22565359bffc52eb40dbf41288291bb3f094616",
+    "bytes": 974,
+    "path": "round5b/r5-social-prime-fresh.log.gz"
+  },
+  {
+    "sha256": "c65c33dedbd72f671d016bcf36ca4437f007a262cfe5b1ddd871ab51ebce40ad",
+    "bytes": 864,
+    "path": "round5b/r5-social-sample1.log.gz"
+  },
+  {
+    "sha256": "3b83ee4c24cd7167dc37f5f77301d7ad07481b5d4634d71ddfeb5ce1baf34773",
+    "bytes": 863,
+    "path": "round5b/r5-social-sample2.log.gz"
+  },
+  {
+    "sha256": "de403fb90551ff026b0ea8da77e40a03eb7bcf76c92604803d8af6050aabb638",
+    "bytes": 862,
+    "path": "round5b/r5-social-sample3.log.gz"
+  },
+  {
+    "sha256": "2c5d6f09ab912426baf82b29d0db2bb81162c8ce5d4294a50a482b7bfa0dd006",
+    "bytes": 863,
+    "path": "round5b/r5-social-sample4.log.gz"
+  },
+  {
+    "sha256": "03959ed17d24e30fec4ee0b5442c1ef41bfa9453c4287509e8c039db34ea12a2",
+    "bytes": 861,
+    "path": "round5b/r5-social-sample5.log.gz"
+  },
+  {
+    "sha256": "76ffa774ef685d93050866137a109f7bd97ed992154f78d9898750398d8f40ff",
+    "bytes": 863,
+    "path": "round5b/r5-social-sample6.log.gz"
+  },
+  {
+    "sha256": "fdd403c387bd7e50914b922ef0337567d4ffbeface2548f78998dddfae500772",
+    "bytes": 864,
+    "path": "round5b/r5-social-warmup.log.gz"
+  },
+  {
+    "sha256": "644909646ff8d2347cf524eee0ebccd1f50950cefde0dd9063af240074c2cbfa",
+    "bytes": 44637,
+    "path": "round5b/ready-for-cohort.json.gz"
+  },
+  {
+    "sha256": "fb5fac049121a32216fbd960b18e62bb2a6c46fb193236b88e9225861d0ee7f8",
+    "bytes": 314,
+    "path": "round5b/rebuild-r5.log.gz"
+  },
+  {
+    "sha256": "a5077ef15ff182495e5872eb716100bc6d94b8d296137d352bde7ff42ea6b2f6",
+    "bytes": 94,
+    "path": "round5b/ref-check.log.gz"
+  },
+  {
+    "sha256": "81c1179a1031fda27bdbf2efa8585f19d1b55a362011aa65beb93fdad7195b49",
+    "bytes": 30383,
+    "path": "round5b/waiting.jsonl.gz"
+  },
+  {
+    "sha256": "685c2020b8ddd335f6b5c4d0e36ef8650f956f2615ddac5033baf9a8e4838f95",
+    "bytes": 1299,
+    "path": "round5b/warmup.log.gz"
+  }
+]

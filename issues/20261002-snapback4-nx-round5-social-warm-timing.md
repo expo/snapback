@@ -25,3 +25,25 @@ receipt/media blob via the report's `EVIDENCE-ARCHIVE.tsv`.
 Next: compare native-stage timings against a controlled baseline on this host,
 identify the increase, and restore the below-25-second median without weakening
 export custody, proof checks, native cache validation or lifecycle assertions.
+
+## Round 5b control — 2026-10-02
+
+Still **Open**. Built installable packages for e1adc01ddc and adbabda71e and
+prepared four independently warmed projects. Six warm samples per revision per
+starter, in ABBA blocks, measured medians **18.346 / 27.786 s** for round 4 and
+**18.335 / 26.716 s** for round 5 (plain/social). Every measured command hit cache,
+passed all native segments and matched export/loaded/publication proof hashes.
+No round-5 slowdown was reproduced in this contemporaneous comparison.
+
+This does not close quiet-host qualification: eight of 24 runs ended above load1
+6 despite starting below it; another checkout's builds/tests interrupted the
+cohort. A separate 30-minute attempt to start a quieter cohort never fell even
+to the original load1 <= 6 threshold (minimum 6.717, maximum 143.772; no sample
+started). Social still exceeds 25 s in the completed shared-load cohort. No
+product code, audit pin, proof check, assertion or timeout was changed.
+
+The report's “Round 5b — timing control” section includes every sample with load,
+whole/native/outside durations and the top-CPU/timestamp records, plus exact
+package hashes and archived raw evidence. Next: reserve a quiet host window and
+use the already warmed `~/sb4-np/nx-r5b/{r4,r5}-{plain,social}` copies to collect
+six quiet warm samples per cell. Do not replace the recorded contended cohort.

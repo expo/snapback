@@ -1,0 +1,54 @@
+[
+  {
+    "revision": "r4",
+    "installCommand": [
+      "npm",
+      "install",
+      "--offline",
+      "--ignore-scripts",
+      "--legacy-peer-deps",
+      "--no-audit",
+      "--no-fund",
+      "--package-lock=false",
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r4/snapback4-0.4.10.tgz",
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r4/snapback4-expo-0.4.10.tgz",
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r4/snapback4-darwin-arm64-0.4.10.tgz"
+    ],
+    "versionCommand": [
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r4/consumer/node_modules/.bin/snapback4",
+      "--version"
+    ],
+    "version": "snapback4 0.4.10",
+    "binarySha256": "e1fa48734ac4229655607e1c8a866a0e6014f91bb3f625803c2bb89773b00fbe",
+    "binaryBytes": 14806576,
+    "platformTarSha256": "ba1114919b46f797866ba90195b8028a90729903452147c0fdf4502581ccba22",
+    "platformTarBytes": 7057736,
+    "sourceCommit": "e1adc01ddc"
+  },
+  {
+    "revision": "r5",
+    "installCommand": [
+      "npm",
+      "install",
+      "--offline",
+      "--ignore-scripts",
+      "--legacy-peer-deps",
+      "--no-audit",
+      "--no-fund",
+      "--package-lock=false",
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r5/snapback4-0.4.10.tgz",
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r5/snapback4-expo-0.4.10.tgz",
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r5/snapback4-darwin-arm64-0.4.10.tgz"
+    ],
+    "versionCommand": [
+      "/Users/ccheever/sb4-np/nx-r5b/packages/r5/consumer/node_modules/.bin/snapback4",
+      "--version"
+    ],
+    "version": "snapback4 0.4.10",
+    "binarySha256": "06a8fa75536b9c261f37919b9043658dd0792406afdece3ac35df1e026d5b88e",
+    "binaryBytes": 14823120,
+    "platformTarSha256": "799584e6849946316c1d4770f99e0e15f362ec5e4769ff51d60bbcbe4364538f",
+    "platformTarBytes": 7060116,
+    "sourceCommit": "adbabda71e"
+  }
+]

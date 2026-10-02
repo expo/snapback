@@ -1,0 +1,461 @@
+{
+  "revision": "r5",
+  "starter": "social",
+  "label": "sample4",
+  "measured": true,
+  "jsEdit": true,
+  "project": "/Users/ccheever/sb4-np/nx-r5b/r5-social",
+  "startedAt": 1790982013413,
+  "endedAt": 1790982049412,
+  "durationMs": 35998.186,
+  "nativeDurationMs": 29589,
+  "outsideMs": 6409.186,
+  "status": 0,
+  "hostBefore": {
+    "atMs": 1790982013317,
+    "load": [
+      5.8603515625,
+      34.09814453125,
+      59.2646484375
+    ],
+    "topCpu": [
+      "  PID  PPID  %CPU COMM",
+      " 6351 88242  97.3 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/WorkflowKit.framework/XPCServices/BackgroundShortcutRunner.xpc/BackgroundShortcutRunner",
+      "  922     1  97.1 /System/Library/PrivateFrameworks/CoreSuggestions.framework/Versions/A/Support/suggestd",
+      " 6363 88242  94.0 /Users/ccheever/Library/Developer/CoreSimulator/Devices/458BC39E-5553-47E6-9CB0-3FEA94EEC213/data/Containers/Bundle/Application/A1D7ADD6-B191-427B-9DC2-E8FB4AEC3695/ExactIOS.app/ExactIOS",
+      "88712 88242  13.0 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/swcd",
+      "88301 88242   9.0 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "18428     1   7.8 /usr/libexec/diagnosticd",
+      "88240     1   7.6 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost",
+      "88246 88242   6.0 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/CoreServices/SpringBoard.app/SpringBoard",
+      " 1164     1   4.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "88267 88242   4.1 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd",
+      " 1495  1166   2.3 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "88464 88242   2.2 /usr/libexec/pkd",
+      "  793     1   2.0 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "88237     1   1.8 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimRenderServer.xpc/Contents/MacOS/SimRenderServer",
+      "  454     1   1.6 /usr/libexec/opendirectoryd",
+      " 1388  1166   1.6 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      " 6353  4984   1.5 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/bin/simctl",
+      "88486 88242   1.4 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/Applications/PosterBoard.app/PosterBoard",
+      "    1     0   1.2 /sbin/launchd",
+      " 4984 66330   1.2 bun"
+    ]
+  },
+  "hostAfter": {
+    "atMs": 1790982049412,
+    "load": [
+      8.64404296875,
+      31.66943359375,
+      57.36376953125
+    ],
+    "topCpu": [
+      "  PID  PPID  %CPU COMM",
+      "10488 88242  95.5 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/WorkflowKit.framework/XPCServices/BackgroundShortcutRunner.xpc/BackgroundShortcutRunner",
+      "10685 92343  28.5 /Users/ccheever/.local/bin/fleet",
+      "10689 10685  25.0 /Users/ccheever/.opencode/bin/opencode",
+      "  922     1  16.7 /System/Library/PrivateFrameworks/CoreSuggestions.framework/Versions/A/Support/suggestd",
+      "  607     1  13.0 /usr/sbin/coreaudiod",
+      "  418     1   7.3 /System/Library/PrivateFrameworks/MediaRemote.framework/Support/mediaremoted",
+      "10423  6918   7.2 (node)",
+      "  456     1   5.4 /System/Library/CoreServices/launchservicesd",
+      "10345 66330   5.2 bun",
+      "  852     1   5.0 /System/Library/PrivateFrameworks/TCC.framework/Support/tccd",
+      "    1     0   4.9 /sbin/launchd",
+      "  490     1   4.8 /usr/libexec/runningboardd",
+      " 1000     1   4.8 /System/Library/CoreServices/WindowManager.app/Contents/MacOS/WindowManager",
+      "  485     1   4.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 8247  6918   4.5 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "10700 10423   4.3 (snapback4)",
+      "  417     1   3.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "  945     1   3.6 /usr/libexec/searchpartyuseragent",
+      "  489     1   3.3 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      "10681  8247   3.3 /Users/ccheever/projects/snapback-x27r/snapback4/target/debug/snapback4"
+    ]
+  },
+  "contended": true,
+  "loadExceeded6Before": false,
+  "loadExceeded6After": true,
+  "receiptPath": "/Users/ccheever/sb4-np/nx-r5b/r5-social/artifacts/native-smoke/1790982013612-6420/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "71971f2ac60591d704655dcd36f12679ecd475c83649419cbe6069ba546c9b2b"
+      }
+    },
+    "hit": true
+  },
+  "exitStatus": 0,
+  "error": null,
+  "nativeTimestamps": {
+    "invokedAt": 1790982018677,
+    "startedAt": 1790982033746,
+    "endedAt": 1790982048266,
+    "durationMs": 29589
+  },
+  "segments": {
+    "offline": {
+      "durationMs": 3952,
+      "endedAt": 1790982043297,
+      "startedAt": 1790982039345,
+      "status": "passed"
+    },
+    "prime": {
+      "durationMs": 4757,
+      "endedAt": 1790982039180,
+      "startedAt": 1790982034423,
+      "status": "passed"
+    },
+    "restart": {
+      "durationMs": 4336,
+      "endedAt": 1790982047756,
+      "startedAt": 1790982043420,
+      "status": "passed"
+    }
+  },
+  "simulator": {
+    "name": "sb4-nx-r5b-1790979403193-71800",
+    "prefix": "sb4-nx-r5b-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "reused",
+    "udid": "2FE9FBFB-4BBC-416B-A857-71824F9923AD"
+  },
+  "publicationVerifiedAt": 1790982048343,
+  "loadedHash": "b6f55f1e6069e7d98a60414332dd3e4d834a5243661679724348e05841b45f14",
+  "exportHash": "b6f55f1e6069e7d98a60414332dd3e4d834a5243661679724348e05841b45f14",
+  "publicationProofHash": "8563cf820138fad9363c8330cee667e0a975387e8b952bb6f48d064dd93e264e",
+  "proofHash": "8563cf820138fad9363c8330cee667e0a975387e8b952bb6f48d064dd93e264e",
+  "publishedFiles": 32,
+  "evidence": [
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/before-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "28ce174cd74c1f69feeab0bc6332ee8d5e3a7f4410025cde59aafeb5e16c1e90",
+      "bytes": 9534,
+      "path": "round5b/evidence/r5-social-sample4/build.json.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/check-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/check-stderr.log.gz"
+    },
+    {
+      "sha256": "ef835bfc44daaf598476ded5bcd408ac23ca9d05d1b1b57b9fb54eceab1e62bd",
+      "bytes": 1009,
+      "path": "round5b/evidence/r5-social-sample4/check-stdout.log.gz"
+    },
+    {
+      "sha256": "ae55fba010db8f3a61559a24083892303b7448f387fc635d083af837b48b1a85",
+      "bytes": 2336,
+      "path": "round5b/evidence/r5-social-sample4/effective-config.mjs.gz"
+    },
+    {
+      "sha256": "a19d561d83d7ff406f00d4b0003566ec8d1830fe304ff6665258c7f77124c7cd",
+      "bytes": 5806,
+      "path": "round5b/evidence/r5-social-sample4/export-cache.mjs.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "94677aabbb9247b511e1418dde2a680a49715e58bd1090937f3b2d940b9fffc7",
+      "bytes": 96,
+      "path": "round5b/evidence/r5-social-sample4/export-developer.log.gz"
+    },
+    {
+      "sha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab",
+      "bytes": 27,
+      "path": "round5b/evidence/r5-social-sample4/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "99172872fbe10451977af42b89c771bcd73f92797b294f4d58c37890ffc22ffe",
+      "bytes": 88,
+      "path": "round5b/evidence/r5-social-sample4/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb",
+      "bytes": 27,
+      "path": "round5b/evidence/r5-social-sample4/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "5134aa6510d3e5bc7e03dea98bcb028d1b8e3b8497b36bfbb9c63473a0bf6c6c",
+      "bytes": 107,
+      "path": "round5b/evidence/r5-social-sample4/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f",
+      "bytes": 25,
+      "path": "round5b/evidence/r5-social-sample4/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "9b0c841b33217a1be5795fd8dd8fc0a62d0dbe1f90acd9af1e9943fc3a60d144",
+      "bytes": 94,
+      "path": "round5b/evidence/r5-social-sample4/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "4e3f7dfa9251a9ac2e720d7ffb29c37a238b66e69366a4188798b0f9544bd941",
+      "bytes": 102,
+      "path": "round5b/evidence/r5-social-sample4/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "7471df41e55c50253bee278eea408e832b34ec6e5ea2c6593bae66d6d37e19e8",
+      "bytes": 97,
+      "path": "round5b/evidence/r5-social-sample4/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e",
+      "bytes": 52,
+      "path": "round5b/evidence/r5-social-sample4/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "afc12418d250494f4edf3b697b7f0d16c34e463d3c239c6a17110d2b064b65d6",
+      "bytes": 76,
+      "path": "round5b/evidence/r5-social-sample4/finished.json.gz"
+    },
+    {
+      "sha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8",
+      "bytes": 157,
+      "path": "round5b/evidence/r5-social-sample4/install-check.mjs.gz"
+    },
+    {
+      "sha256": "eeec0562e688a4d0ee1ad167c58db68c84d4d8cb33658286891334a53fe12ff8",
+      "bytes": 4813,
+      "path": "round5b/evidence/r5-social-sample4/installed.json.gz"
+    },
+    {
+      "sha256": "75a65ffbf1b8ab05581376d2c4de55cec7484df4680949f8099bd15c7b285706",
+      "bytes": 484,
+      "path": "round5b/evidence/r5-social-sample4/live.json.gz"
+    },
+    {
+      "sha256": "69f78c2c7c0fab1f98b8a85e0c3a955056506fb08fc4a267c5cb1f85f5a0994a",
+      "bytes": 7847,
+      "path": "round5b/evidence/r5-social-sample4/native-closure.mjs.gz"
+    },
+    {
+      "sha256": "41c9621779a5d476fd6ea3d1aabe0dad3de8cd330f9775dfd3d0053a78118a29",
+      "bytes": 4494,
+      "path": "round5b/evidence/r5-social-sample4/native-inputs.mjs.gz"
+    },
+    {
+      "sha256": "a71e571a0282fdde244e7c152d40e5d96a942efa4fc33d4037d2070f18110204",
+      "bytes": 1033,
+      "path": "round5b/evidence/r5-social-sample4/native-mods.json.gz"
+    },
+    {
+      "sha256": "b1322c829a923ca99bdc2f3c295cc2ae2f881efd310d12c4279f6dced7b8a33d",
+      "bytes": 3807,
+      "path": "round5b/evidence/r5-social-sample4/native-scripts.mjs.gz"
+    },
+    {
+      "sha256": "94db9b14cf09ac1d614fc01464892e01f2ec6a5fdbd9a4e9886a1b5772e3b61f",
+      "bytes": 1709,
+      "path": "round5b/evidence/r5-social-sample4/payload.mjs.gz"
+    },
+    {
+      "sha256": "3b57031728f34cb1bd00505841f2064601e33964af276e9a81cf9acc4cde7b44",
+      "bytes": 1033,
+      "path": "round5b/evidence/r5-social-sample4/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "cfe080a278c8f730f799760d23fb6232ed9e0b3336e616b8be2a2331d7e96ca0",
+      "bytes": 417,
+      "path": "round5b/evidence/r5-social-sample4/preparation-runner.mjs.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/preparation-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "4ea25dd1daaf77004d80118fe14257eaa319861bdba8a6dc327bc4e2a839aff4",
+      "bytes": 7103,
+      "path": "round5b/evidence/r5-social-sample4/prepare.mjs.gz"
+    },
+    {
+      "sha256": "728c2e283b173341b1b9023baebb4008d159db19f987b30f7c39284cd02a0adf",
+      "bytes": 12300,
+      "path": "round5b/evidence/r5-social-sample4/proof.json.gz"
+    },
+    {
+      "sha256": "0f482e2bfaed6550ff1c6b19295d9d34c18e3e6b503fbb8bf3717918cadd90e9",
+      "bytes": 2097,
+      "path": "round5b/evidence/r5-social-sample4/publication.json.gz"
+    },
+    {
+      "sha256": "9412944885502b66558db84d2d618f92e47b6ed49b035be42886b4e18400c8f8",
+      "bytes": 44,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "2d2b01f2a644962216b6a14d0d34fd06e015e9d7d15bd5b47d486f4db377b461",
+      "bytes": 548,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "70ac8ed9363f0aed45ae95af9af9a4e71cf8554fc354244ccda2a17710c6591e",
+      "bytes": 355608,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "d3a1bc17bcd5a9b97a60bf697759a9e6b23108bb3f9c667c088fa02800c2e3a7",
+      "bytes": 60,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c",
+      "bytes": 63,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "7462e5d9610ef98ec6916071f3fc05c08332018c18c555c678374130965b1cc6",
+      "bytes": 48399,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-offline.png"
+    },
+    {
+      "sha256": "7462e5d9610ef98ec6916071f3fc05c08332018c18c555c678374130965b1cc6",
+      "bytes": 48399,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-prime.png"
+    },
+    {
+      "sha256": "6ea9aae922377f677c61366d6ceabf7a9abdd4e72b97279604444bce5543e177",
+      "bytes": 1323,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-reserved.gz"
+    },
+    {
+      "sha256": "7462e5d9610ef98ec6916071f3fc05c08332018c18c555c678374130965b1cc6",
+      "bytes": 48399,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-restart.png"
+    },
+    {
+      "sha256": "2bbd8d54a7e2ae611a58378777d987001f2633db42680db9372bbe134bc02de6",
+      "bytes": 5212,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "effd32062048aef0262f7ed13a461d262ce179d198b138dc9f2db53ae26ae9c9",
+      "bytes": 5434223,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-screen.mp4"
+    },
+    {
+      "sha256": "f28f4c315120e56c44ac197f0a05aa2376614c1a1a57a17069bb8810f85c0edc",
+      "bytes": 140,
+      "path": "round5b/evidence/r5-social-sample4/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-social-sample4/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-social-sample4/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2",
+      "bytes": 154,
+      "path": "round5b/evidence/r5-social-sample4/verify.mjs.gz"
+    }
+  ]
+}

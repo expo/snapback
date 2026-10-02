@@ -1,0 +1,38 @@
+[
+  {
+    "starter": "plain",
+    "revision": "r4",
+    "n": 6,
+    "medianMs": 18346.118499999997,
+    "nativeMedianMs": 15111.5,
+    "outsideMedianMs": 3234.6185,
+    "contendedCount": 2
+  },
+  {
+    "starter": "plain",
+    "revision": "r5",
+    "n": 6,
+    "medianMs": 18335.015,
+    "nativeMedianMs": 14663.5,
+    "outsideMedianMs": 3282.2105,
+    "contendedCount": 0
+  },
+  {
+    "starter": "social",
+    "revision": "r4",
+    "n": 6,
+    "medianMs": 27786.379,
+    "nativeMedianMs": 22907.0,
+    "outsideMedianMs": 4484.5425,
+    "contendedCount": 3
+  },
+  {
+    "starter": "social",
+    "revision": "r5",
+    "n": 6,
+    "medianMs": 26716.053,
+    "nativeMedianMs": 22416.0,
+    "outsideMedianMs": 4488.321,
+    "contendedCount": 3
+  }
+]
