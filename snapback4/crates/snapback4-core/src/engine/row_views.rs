@@ -324,6 +324,10 @@ impl Runner<'_> {
             let mut total = 0i64;
             let mut last = None;
             for _ in 0..limit {
+                // @ref LLP 3000#contended-read-serving — commit the durable
+                // recount cursor between complete rows, including filtered rows.
+                #[cfg(feature = "sqlite")]
+                if last.is_some() && self.recount_budget.is_some_and(|(at, budget)| at.elapsed() >= budget) { break; }
                 self.meter.charge(MeterKind::Examined, 1)?;
                 let mark = self.meter.mark();
                 let next = (|| {
@@ -929,7 +933,8 @@ impl super::Engine {
     }
 
     /// Background callers yield the engine between bounded durable chunks.
-    pub fn run_view_chunk_for(&mut self, now: i64, _budget: std::time::Duration) -> Result<Option<ViewChunk>, RuntimeError> {
+    pub fn run_view_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<ViewChunk>, RuntimeError> {
+        let started = std::time::Instant::now();
         use crate::{
             Ceilings, Context,
             meter::{Cut, Meter},
@@ -967,6 +972,7 @@ impl super::Engine {
                     Meter::new(Ceilings::job(), Cut::Abort),
                     seq,
                 );
+                runner.recount_budget = Some((started, budget));
                 if let Err(error) = runner.recount_chunk(&m, &work) {
                     if !matches!(
                         error,

@@ -63,7 +63,9 @@ impl Binder<'_> {
 
     fn statement_inner(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
         match statement {
-            S::Return { value, site: _ } => {
+            S::As { principal, body, site } => self.as_viewer(principal, body, site, out),
+            S::Return { value, site } => {
+                if self.viewer_depth == Some(self.depth) { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "return cannot leave an as block", "assign a local inside as, then return outside it")); }
                 let prior = std::mem::replace(&mut self.returned_data, self.depth == 0 && self.kind == ProgramKind::Query);
                 let result = self.value_of(value, out);
                 self.returned_data = prior;
@@ -147,6 +149,7 @@ impl Binder<'_> {
                 Ok(())
             }
             S::Emit { effect, payload, once, site } => {
+                if self.viewer_depth.is_some() { return Err(job_reads::read_only(site)); }
                 if self.in_prelude {
                     return Err(placement(site, "a write belongs to a chunk", "move emit inside a top-level `for row in table:` job sweep"));
                 }
@@ -248,6 +251,7 @@ impl Binder<'_> {
             }
             S::Break { site } => {
                 if self.loops == 0 {
+                    if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "break cannot leave an as block or helper", "put break in a loop inside this block or helper")); }
                     return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 out.push(Stmt::Break);
@@ -255,6 +259,7 @@ impl Binder<'_> {
             }
             S::Continue { site } => {
                 if self.loops == 0 {
+                    if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "continue cannot leave an as block or helper", "put continue in a loop inside this block or helper")); }
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.
@@ -459,6 +464,11 @@ impl Binder<'_> {
             return Ok((LoopDomain::Page(scan), Ty::Row(name.clone())));
         }
         match domain {
+            A::Call { name, args, site } if name == "all" && self.viewer_depth.is_some() => {
+                let (value, ty) = self.job_query_call("$jobAll", args, site, out).ok_or_else(|| job_reads::diagnostic(site, "E_JOB_VIEWER_QUERY", "all requires a declared query", "for row in all(queryName(..., null)):"))??;
+                let (item, max) = ty.sequence().expect("all returns a list");
+                Ok((LoopDomain::DerivedArray { value, max, bound_source: "viewer query pages".into() }, item))
+            }
             A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {
                 let mut merge = self.catalog.view_reads[name].clone(); merge.site = domain.site().clone();
                 self.loop_domain(&A::Merge(merge), out)

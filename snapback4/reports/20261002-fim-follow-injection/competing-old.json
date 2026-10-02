@@ -1,0 +1,32 @@
+[
+  {
+    "index": 47,
+    "id": "local.ts:follow:syncOnce()#1",
+    "mode": "transient",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbed": false,
+    "retryDelays": [],
+    "injected": 0,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 47,
+    "id": "local.ts:follow:syncOnce()#1",
+    "mode": "persistent",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbed": false,
+    "retryDelays": [],
+    "injected": 0,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": false,
+    "rejected": false
+  }
+]

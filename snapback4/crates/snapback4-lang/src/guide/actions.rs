@@ -73,7 +73,8 @@ declaration accepts the same secrets and policy clauses (guide effects).
 
 A scheduled action requires `as service:<seat>` before the schedule's colon.
 The only supplied arguments are `periodStart: time` and `periodEnd: time`,
-when declared. A job keeps its system authority and cannot use `as`.
+when declared. A job schedule keeps system authority and cannot use schedule-level `as`;
+a job body may use a read-only `as principal:` block (guide jobs).
 The optional `at HH:MM` comes before `as`; the shortest period remains 1m.
 
 Legacy `runWorker` action handlers receive `(args, meta)` instead of this

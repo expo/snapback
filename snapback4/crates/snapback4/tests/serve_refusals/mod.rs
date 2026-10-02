@@ -34,6 +34,7 @@ fn memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_caus
     assert_eq!(first["site"], "schema.q:4:3");
     // Deliberately bypass every operation and collector. Only the shared JSON
     // response layer sees this injected E_RULE, just like a new transport door.
+    crate::host_limits::prepare_tests();
     let server = Server::http("127.0.0.1:0").unwrap();
     let address = server.server_addr().to_ip().unwrap();
     let caller = thread::spawn(move || {
@@ -102,6 +103,7 @@ fn detached_query_uses_its_checkout_map_when_the_advertised_source_changes() {
 
 impl Host {
     pub(super) fn with_evidence(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>) -> Self {
+        crate::host_limits::prepare_tests();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::new(
@@ -133,7 +135,7 @@ impl Host {
             personas: dev,
             hold_effects: false,
             hold_schedules: false,
-            clock, maintenance: Mutex::new(()),
+            clock, maintenance: FairMutex::gate(maintenance::State::default()),
             entropy: Mutex::new(1),
             presence,
             asset_transfers: AssetTransfers::default(),

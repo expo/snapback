@@ -1,0 +1,312 @@
+[
+  {
+    "level": 0,
+    "busy": 0,
+    "reads": 197308,
+    "backlogMax": 34,
+    "jobs": [
+      {
+        "boundary": 1790900400000,
+        "delay": 270,
+        "runtime": 1,
+        "state": "done"
+      },
+      {
+        "boundary": 1790900460000,
+        "delay": 16,
+        "runtime": 1,
+        "state": "done"
+      }
+    ],
+    "expectedBoundaries": [
+      1790900400000,
+      1790900460000
+    ],
+    "effects": 508,
+    "retries": 106,
+    "deadlineOutcomes": [
+      "E_EFFECT_DEADLINE"
+    ],
+    "leaseRecovery": [
+      {
+        "id": "effect-0000000000000004-0000000000000000",
+        "expires": 1790900389717,
+        "requeued": 1790900392261,
+        "delay": 2544,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000068-0000000000000000",
+        "expires": 1790900409739,
+        "requeued": 1790900412750,
+        "delay": 3011,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000000cc-0000000000000000",
+        "expires": 1790900429740,
+        "requeued": 1790900433178,
+        "delay": 3438,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000131-0000000000000000",
+        "expires": 1790900449713,
+        "requeued": 1790900453844,
+        "delay": 4131,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000196-0000000000000000",
+        "expires": 1790900469755,
+        "requeued": 1790900474627,
+        "delay": 4872,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000001fa-0000000000000000",
+        "expires": 1790900489748,
+        "requeued": 1790900490196,
+        "delay": 448,
+        "maintenanceOnly": true
+      }
+    ],
+    "unexpectedLeaseChanges": 0,
+    "extensionMs": 1000,
+    "expiryMaxMs": 1070
+  },
+  {
+    "level": 0.5,
+    "busy": 48,
+    "reads": 263835,
+    "backlogMax": 34,
+    "jobs": [
+      {
+        "boundary": 1790900520000,
+        "delay": 78,
+        "runtime": 2,
+        "state": "done"
+      },
+      {
+        "boundary": 1790900580000,
+        "delay": 427,
+        "runtime": 2,
+        "state": "done"
+      },
+      {
+        "boundary": 1790900640000,
+        "delay": 795,
+        "runtime": 1,
+        "state": "done"
+      }
+    ],
+    "expectedBoundaries": [
+      1790900580000,
+      1790900640000
+    ],
+    "effects": 508,
+    "retries": 106,
+    "deadlineOutcomes": [
+      "E_EFFECT_DEADLINE"
+    ],
+    "leaseRecovery": [
+      {
+        "id": "effect-0000000000000005-0000000000000000",
+        "expires": 1790900526889,
+        "requeued": 1790900527317,
+        "delay": 428,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000067-0000000000000000",
+        "expires": 1790900546905,
+        "requeued": 1790900548150,
+        "delay": 1245,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000000cc-0000000000000000",
+        "expires": 1790900566919,
+        "requeued": 1790900568888,
+        "delay": 1969,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000131-0000000000000000",
+        "expires": 1790900586913,
+        "requeued": 1790900589836,
+        "delay": 2923,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000195-0000000000000000",
+        "expires": 1790900606911,
+        "requeued": 1790900610401,
+        "delay": 3490,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000001fa-0000000000000000",
+        "expires": 1790900626922,
+        "requeued": 1790900630605,
+        "delay": 3683,
+        "maintenanceOnly": true
+      }
+    ],
+    "unexpectedLeaseChanges": 0,
+    "extensionMs": 1000,
+    "expiryMaxMs": 1084
+  },
+  {
+    "level": 1,
+    "busy": 96,
+    "reads": 165023,
+    "backlogMax": 34,
+    "jobs": [
+      {
+        "boundary": 1790900700000,
+        "delay": 877,
+        "runtime": 1,
+        "state": "done"
+      },
+      {
+        "boundary": 1790900760000,
+        "delay": 387,
+        "runtime": 0,
+        "state": "done"
+      }
+    ],
+    "expectedBoundaries": [
+      1790900700000,
+      1790900760000
+    ],
+    "effects": 508,
+    "retries": 106,
+    "deadlineOutcomes": [
+      "E_EFFECT_DEADLINE"
+    ],
+    "leaseRecovery": [
+      {
+        "id": "effect-0000000000000004-0000000000000000",
+        "expires": 1790900664839,
+        "requeued": 1790900669722,
+        "delay": 4883,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000066-0000000000000000",
+        "expires": 1790900684876,
+        "requeued": 1790900685390,
+        "delay": 514,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000000cb-0000000000000000",
+        "expires": 1790900704884,
+        "requeued": 1790900706046,
+        "delay": 1162,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000130-0000000000000000",
+        "expires": 1790900724850,
+        "requeued": 1790900726911,
+        "delay": 2061,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000194-0000000000000000",
+        "expires": 1790900744861,
+        "requeued": 1790900747866,
+        "delay": 3005,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000001f9-0000000000000000",
+        "expires": 1790900764875,
+        "requeued": 1790900768776,
+        "delay": 3901,
+        "maintenanceOnly": true
+      }
+    ],
+    "unexpectedLeaseChanges": 0,
+    "extensionMs": 1000,
+    "expiryMaxMs": 1126
+  },
+  {
+    "level": 1.5,
+    "busy": 144,
+    "reads": 173794,
+    "backlogMax": 34,
+    "jobs": [
+      {
+        "boundary": 1790900820000,
+        "delay": 110,
+        "runtime": 1,
+        "state": "done"
+      },
+      {
+        "boundary": 1790900880000,
+        "delay": 716,
+        "runtime": 1,
+        "state": "done"
+      }
+    ],
+    "expectedBoundaries": [
+      1790900820000,
+      1790900880000
+    ],
+    "effects": 508,
+    "retries": 106,
+    "deadlineOutcomes": [
+      "E_EFFECT_DEADLINE"
+    ],
+    "leaseRecovery": [
+      {
+        "id": "effect-0000000000000004-0000000000000000",
+        "expires": 1790900806200,
+        "requeued": 1790900807569,
+        "delay": 1369,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000067-0000000000000000",
+        "expires": 1790900826201,
+        "requeued": 1790900828479,
+        "delay": 2278,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000000cc-0000000000000000",
+        "expires": 1790900846203,
+        "requeued": 1790900849393,
+        "delay": 3190,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000130-0000000000000000",
+        "expires": 1790900866230,
+        "requeued": 1790900870285,
+        "delay": 4055,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000195-0000000000000000",
+        "expires": 1790900886215,
+        "requeued": 1790900891146,
+        "delay": 4931,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000001f9-0000000000000000",
+        "expires": 1790900906207,
+        "requeued": 1790900906749,
+        "delay": 542,
+        "maintenanceOnly": true
+      }
+    ],
+    "unexpectedLeaseChanges": 0,
+    "extensionMs": 1000,
+    "expiryMaxMs": 1121
+  }
+]

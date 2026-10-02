@@ -273,3 +273,61 @@ fn generated_control_flow_cannot_erase_maintenance_types() {
     }
     eprintln!("BG round8 generated control flow: 4 seeds, {refusals} refusals, {controls} ordinary-field controls");
 }
+
+
+#[test]
+fn job_viewer_reads_keep_client_maintenance_field_restrictions() {
+    for field in ["recountPending", "pending", "total"] {
+        // The same non-output read refuses in a client query and an as block.
+        refuse(&format!("query bad():\n  row = first(unread first 10) ! else MISSING\n  unused = row.{field}\n  return true\n"), field);
+        refuse(&format!("job bad():\n  for member in members:\n    as 'reader':\n      row = first(unread first 10) ! else MISSING\n      unused = row.{field}\n"), field);
+    }
+    // A UI query's output permission does not become a job's computation
+    // permission. This includes returned scalars and cursor-page projections.
+    for (query, call) in [
+        ("query badge():\n  return unread first 10 { state: .recountPending }\n", "unused = badge().data"),
+        ("query badge():\n  for row in unread first 10:\n    return row.recountPending\n  return false\n", "unused = badge().data"),
+        ("query badges(c: cursor ?):\n  return unread first 10 after c { state: .recountPending }\n", "for row in all(badges(null)):\n        unused = row.state"),
+    ] {
+        let b = snapback4_lang::compile(&[("schema.q".into(), base() + query)]);
+        assert!(b.diagnostics.is_empty(), "{query}\n{:?}", b.diagnostics);
+        refuse(&format!("{query}job bad():\n  for member in members:\n    as 'reader':\n      {call}\n"), "recountPending");
+    }
+    let source = base() + "effect push\nquery page(c: cursor ?):\n  return unread first 10 after c\njob good():\n  for member in members:\n    n = 0\n    as 'reader':\n      for row in all(page(null)):\n        n = n + row.value\n    emit push { n }\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let rows = [("rooms", json!({"id":"r"})), ("members", json!({"id":"u","room":"r","until":null})),
+        ("messages", json!({"id":"m","room":"r","until":10}))].into_iter().map(|(table, row)|
+        (table.to_string(), wire::row_from_json(&engine.schema().tables[table], &row).unwrap())).collect::<Vec<_>>();
+    engine.seed_at(rows, 1).unwrap();
+    for now in [2, 10, 20, 2] {
+        let client = engine.query("page", Context::new("reader", [("c".into(), Value::Null)].into()).at(now)).unwrap();
+        assert!(client.complete && !client.unavailable);
+        let expected = client.data.as_array().unwrap()[0].field("value").unwrap().clone();
+        assert_eq!(expected, Value::Int(if now < 10 { 1 } else { 0 }));
+        let run = engine.run_job("good", Default::default(), now).unwrap();
+        assert_eq!(run.state, snapback4_core::engine::job::JobState::Done, "{run:?}");
+        assert_eq!(engine.effects(None, 100).unwrap().first().unwrap().payload.field("n").unwrap(), &expected);
+    }
+}
+
+#[test]
+fn job_viewer_captured_rows_keep_scope_wide_types_after_resets() {
+    let queries = "query one():\n  return first(unread first 10)\nquery page(c: cursor ?):\n  return unread first 10 after c\n";
+    for read in [
+        "carried = first(unread first 10)",
+        "carried = one().data",
+        "for row in all(page(null)):\n        carried = row",
+    ] {
+        for reset in ["", "    carried = null\n"] {
+            for consumer in ["max(carried, carried)", "share(1, [carried], carried)", "carried = carried"] {
+                if !reset.is_empty() && consumer.starts_with("max") { continue; }
+                let tail = format!("{queries}job bad():\n  for member in members:\n    carried = null\n    as 'reader':\n      {read}\n{reset}    unused = {consumer}\n");
+                refuse(&tail, "recountPending");
+                let b = snapback4_lang::compile(&[("schema.q".into(), base() + &tail)]);
+                if !reset.is_empty() { assert!(b.diagnostics.iter().any(|d| d.code == "E_VIEW_KEY" && format!("{} {}", d.message, d.rewrite).contains("use a separate variable for the row")), "{:?}", b.diagnostics); }
+            }
+        }
+    }
+}

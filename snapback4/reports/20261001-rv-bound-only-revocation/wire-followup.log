@@ -1,0 +1,18 @@
+✔ the shipped page codec validates unknown JSON values and accepts valid extensions (13.689207ms)
+✔ durable-only dev adoption answers a held legacy poll with the new generation within 500 ms (457.862038ms)
+✔ online: durable-only changes retain base wire bytes plus the preservation certificate (2151.304659ms)
+✔ online: adoption replaces mounted ephemeral interests, including removal (1350.019042ms)
+✔ wasm: durable-only changes retain base wire bytes plus the preservation certificate (3618.241916ms)
+✔ wasm: adoption replaces mounted ephemeral interests, including removal (1366.502256ms)
+✔ a self-invalidating guard is sent twice and returns its second refusal (151.775348ms)
+✔ online: a durable mounted watch discovers ephemeral capability on adoption (1134.954937ms)
+✔ wasm: a durable mounted watch discovers ephemeral capability on adoption (741.963545ms)
+✔ online capability discovery cannot swallow a generation invalidation for durable watches (21.633725ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11127.079547

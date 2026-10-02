@@ -1,0 +1,159 @@
+✔ online session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (110261.350143ms)
+ℹ tier=online sequences=5000 seed=1..5000 coverage={"open.online":33124,"storage.get.epoch":151088,"storage.get.session":559740,"storage.get.retirement":242780,"op.guest":9709,"wire./auth/guest":8525,"storage.get.writes":31018,"storage.set.session":49148,"op.reopen":9838,"op.readObservation":4932,"handle.captured":15909,"op.release":5988,"op.sibling":4806,"server.externalSibling":2683,"op.handleMutate":5977,"wire./probe":2003,"storage.set.writes":11421,"wire./m/write":1806,"wire.handleWrite":1791,"write.failed":885,"consistent.onWrite.failed":842,"handle.resultSettled":14171,"write.outcome":1775,"write.outcome.failed":876,"write.knownAtDelivery":1700,"consistent.mutate.failed":839,"op.handleWrite":7227,"consistent.write.failed":1456,"op.handleQuery":4794,"wire./q/viewer":3085,"op.query":4891,"op.close":4772,"handle.hidden":6529,"handle.sessionNotification":7448,"handle.viewerNotification":6529,"storage.set.retirement":32091,"fault.set":326,"fault.set.1":159,"op.retireOffline":4890,"op.logout":4873,"wire./auth/logout":31874,"wire.retirementOffline":2776,"op.reopenOffline":4957,"wire.offline":5527,"storage.delete.retirement":14893,"retirement.removed":23019,"op.refreshFault":4771,"op.signup":4743,"wire./auth/signup":3575,"op.handleRefresh":4847,"op.capture":4726,"op.refresh":4737,"op.closeClient":4728,"wire./auth/refresh":3962,"held./auth/refresh":390,"op.logoutEverywhere":4786,"op.revokeCurrent":4726,"held./auth/guest":505,"held./auth/logout":1642,"op.holdStore":4786,"op.observeHandle":4792,"observation.created":4792,"observation.notification":6288,"held.storage.set":2650,"interleaving.storage.peer":17826,"op.retireOnline":4799,"op.revoke":4842,"server.revoke":4085,"op.login":4790,"op.receiptOffline":1250,"write.sent":906,"fault.receiptSave":3750,"consistent.onWrite.sent":855,"write.outcome.sent":899,"consistent.mutate.sent":853,"consistent.write.sent":1446,"consistent.writeDuringReceiptFailure":1250,"op.receiptOnline":1250,"wire./auth/login":3647,"wire./changes":728,"fault.get":2897,"fault.get.9":189,"fault.set.3":46,"handle.hidden.handleQuery":1007,"fault.get.5":269,"held./q/viewer":412,"fault.get.3":282,"wire./auth/logout-all":5677,"global.attempt":4847,"global.acknowledged":819,"fault.set.5":11,"global.publicAcknowledgement":618,"fault.rotationSave":539,"handle.hidden.handleRefresh":993,"held.dispatch/auth/guest":435,"held./auth/signup":470,"observation.data":6111,"observation.hidden":475,"fault.get.7":253,"global.externalSiblingRevoked":166,"fault.get.2":343,"held./m/write":522,"fault.set.2":93,"global.attemptRefused":4028,"fault.get.8":191,"handle.hidden.handleMutate":998,"handle.hidden.handleWrite":1345,"held.dispatch/auth/login":469,"global.peerHeldRotation":30,"global.rotatedBearer":178,"fault.get.10":193,"held./auth/logout-all":126,"fault.get.6":224,"fault.get.12":146,"fault.get.4":290,"fault.get.1":350,"held.dispatch/auth/signup":417,"fault.get.11":167,"held./auth/login":47,"global.peerPersistedRotation":79,"write.outcomeAfterFence":83,"write.outcomeAfterFence.failed":37,"write.unknownAtClose":75,"write.outcomeAfterFence.sent":46,"fault.delete":65,"fault.delete.1":65,"fault.set.4":15,"global.newerAccountEpoch":7,"global.ackWithLaterToken":2,"fault.set.8":1,"fault.set.9":1}
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+snapback4: the server refused the partition: E_AUTH: refused
+✔ local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (196631.012432ms)
+ℹ tier=local sequences=5000 seed=1..5000 coverage={"open.local":33025,"storage.get.epoch":256774,"storage.get.session":672770,"storage.get.retirement":236001,"op.guest":9709,"wire./auth/guest":8518,"wire./schema":18470,"storage.set.session":49581,"wire./sync":41530,"wire./changes":21707,"op.reopen":9838,"op.readObservation":4932,"handle.captured":15909,"op.release":5988,"op.sibling":4806,"server.externalSibling":2611,"wire./probe":8077,"op.handleMutate":5977,"wire./m/write":2107,"wire.handleWrite":1863,"write.failed":922,"consistent.onWrite.failed":872,"handle.resultSettled":13544,"write.outcome":1731,"write.outcome.failed":842,"write.knownAtDelivery":1658,"consistent.mutate.failed":799,"op.handleWrite":7227,"consistent.write.failed":1485,"op.handleQuery":4794,"op.query":4891,"op.close":4772,"handle.hidden":5724,"handle.sessionNotification":6563,"handle.viewerNotification":5724,"storage.set.retirement":31674,"fault.set":305,"fault.set.1":156,"op.retireOffline":4890,"op.logout":4873,"wire./auth/logout":30401,"wire.retirementOffline":2506,"op.reopenOffline":4957,"wire.offline":10939,"storage.delete.retirement":16443,"retirement.removed":23681,"op.refreshFault":4771,"op.signup":4743,"wire./auth/signup":3570,"op.handleRefresh":4847,"op.capture":4726,"op.refresh":4737,"op.closeClient":4728,"wire./auth/refresh":3530,"held./auth/refresh":387,"op.logoutEverywhere":4786,"op.revokeCurrent":4726,"held./auth/logout":1279,"held./auth/guest":495,"op.holdStore":4786,"op.observeHandle":4792,"observation.created":4792,"observation.notification":7580,"held./m/write":545,"held.storage.set":2551,"interleaving.storage.peer":17173,"op.retireOnline":4799,"op.revoke":4842,"server.revoke":3751,"op.login":4790,"op.receiptOffline":1250,"write.sent":941,"fault.receiptSave":9168,"consistent.onWrite.sent":889,"write.outcome.sent":889,"consistent.mutate.sent":844,"consistent.write.sent":1488,"consistent.writeDuringReceiptFailure":1250,"op.receiptOnline":1250,"wire./auth/login":3635,"fault.get":2903,"fault.get.6":199,"wire./q/viewer":1973,"fault.set.3":42,"handle.hidden.handleQuery":929,"fault.get.5":256,"held./q/viewer":243,"fault.get.3":283,"wire./auth/logout-all":3824,"global.attempt":3344,"global.acknowledged":762,"fault.set.5":8,"global.publicAcknowledgement":598,"fault.rotationSave":533,"handle.hidden.handleRefresh":948,"held.dispatch/auth/guest":426,"held./auth/signup":475,"observation.data":7822,"observation.hidden":508,"fault.get.9":187,"global.externalSiblingRevoked":149,"fault.get.11":168,"write.outcomeAfterFence":88,"write.outcomeAfterFence.failed":43,"write.unknownAtClose":73,"fault.set.2":87,"global.attemptRefused":2582,"fault.get.7":227,"fault.get.8":184,"held.dispatch/auth/login":462,"global.peerHeldRotation":24,"wire.obsoleteAuth":58,"handle.hidden.handleWrite":1163,"global.rotatedBearer":137,"fault.get.10":193,"held./auth/logout-all":113,"handle.hidden.handleMutate":943,"fault.get.12":159,"fault.get.4":298,"fault.get.1":372,"held.dispatch/auth/signup":415,"held./auth/login":46,"fault.get.2":377,"fault.delete":78,"fault.delete.1":69,"global.peerPersistedRotation":71,"fault.delete.2":9,"write.outcomeAfterFence.sent":45,"fault.set.4":11,"global.newerAccountEpoch":6,"global.ackWithLaterToken":1,"fault.set.8":1}
+✔ I13 online: sent stays known through receipt-store failure and repair (7.209859ms)
+✔ I13 online: failed stays known through receipt-store failure and repair (6.994777ms)
+✔ I13 local: sent stays known through receipt-store failure and repair (15.952476ms)
+✔ I13 local: failed stays known through receipt-store failure and repair (13.635722ms)
+✔ model regression: a peer-fenced provisional local opener cannot leave auth restoring (78.559845ms)
+✔ model regression: online held commit remains pending with its id across close (7.775046ms)
+✔ model regression: online held commit remains pending with its id across logout (6.169719ms)
+✔ model regression: online held refusal remains pending with its id across close (5.626595ms)
+✔ model regression: online held refusal remains pending with its id across logout (5.862659ms)
+✔ model regression: local held commit remains pending with its id across close (11.165519ms)
+✔ model regression: local held commit remains pending with its id across logout (11.157587ms)
+✔ model regression: local held refusal remains pending with its id across close (10.488104ms)
+✔ model regression: local held refusal remains pending with its id across logout (10.595365ms)
+✔ model regression: failed local rotation persistence cannot be committed by a second notification save (11.902014ms)
+snapback4: the server refused the partition: E_AUTH: refused
+✔ model regression: obsolete predecessor refusal waits for the held local rotation (23.652128ms)
+✔ model regression: a global caller waiting for rotation cannot select an intervening replacement (8.281785ms)
+✔ model regression: receipt storage failure retains custody without replacing a dispatched outcome (7.253474ms)
+✔ model regression: an undelivered write remains pending with its id across logout (5.912054ms)
+✔ model regression: a facade hidden after dispatch preserves the raw rotation outcome (5.896551ms)
+✔ model regression: a refresh result fulfilled before hiding is not a new disclosure by its later handler (8.185352ms)
+✔ model regression: storage observation follows delivery, not entry into the backing adapter (9.360383ms)
+✔ model regression: an acknowledgement cannot retire a login minted after its attempt (58.448945ms)
+✔ model regression: a dormant global caller cannot adopt a later login's account epoch (10.465029ms)
+✔ model regression: a queued login cannot suppress the committed global logout's publication (5.733605ms)
+✔ model regression: a stale global retry does not recreate an acknowledged retirement (7.395147ms)
+✔ model regression: global logout selects a peer's persisted successor (7.801236ms)
+✔ model regression: a late successor inherits a closed peer's global fence (8.942616ms)
+✔ model regression: offline reopening starts after close commits the owned rotation (7.768626ms)
+✔ model regression: refusal after a failed rotation save also excludes its consumed predecessor (6.701437ms)
+✔ model regression: failed global fencing keeps retained handles and observations usable (8.702747ms)
+✔ model regression: a failed read during signup cannot revoke the saved session (5.14318ms)
+✔ model regression: close retains custody of a late guest response (4.080107ms)
+✔ model regression: replacement retires a rotation whose persistence read failed (7.29095ms)
+✔ model regression: a closed runtime cannot return to restoring after a peer's replacement (10.073993ms)
+✔ model regression: refusal fencing retries a transient tombstone failure before offline reopen (7.312994ms)
+✔ model regression: refusal cleanup cannot wait behind a held sign-in (7.225272ms)
+✔ model regression: an older queued global logout cannot suppress a newer logout's completion (4.169671ms)
+✔ model regression: closed auth actions cannot leave a held logout restoring (3.871484ms)
+✔ model regression: a queued global retry completes the signed-out public view (7.302158ms)
+✔ model regression: late refusal cannot republish restoring after close (49.862603ms)
+✔ model regression: acknowledged global revocation retries cleanup after a failed deletion (5.695298ms)
+✔ model regression: epoch fencing hides the public client before retirement notifications (5.514197ms)
+✔ model regression: a retiring runtime clears its acknowledged global tombstone after a read failure (8.532282ms)
+✔ session model sweeps 120 failure points after an unpersisted rotation (971.148567ms)
+✔ I12 local close retains a body delivered while cleanup awaits another runtime (19.186184ms)
+✔ I12 online: the full terminal oracle catches an in-memory refusal-message corruption (9.979461ms)
+✔ I12 local: the full terminal oracle catches an in-memory refusal-message corruption (18.012705ms)
+✔ I12 online: full refusal equality also holds after the caller is fenced (16.338124ms)
+✔ I12 local: full refusal equality also holds after the caller is fenced (81.476437ms)
+✔ publication seed 11: fair recovery waits for overlapping model work before owning its clock (1335.851994ms)
+✔ model replay seed 1615: round-9 direct-read schedule (53.601018ms)
+✔ model replay seed 142: a paused durable owner cannot report an unpersisted failure (47.916996ms)
+✔ model scheduled replay: replacement fences an accepted direct return (10.032551ms)
+✔ model scheduled replay: revocation fences an accepted direct return (18.731371ms)
+✔ expanded model replay seed 1615: a poll awaiting refresh stops at terminal refusal (32.627675ms)
+✔ expanded model replay seed 16: overlapping callers keep paused durable intent pending (32.340794ms)
+✔ model replay seed 1278: store refusal during discovery cannot admit intent after retirement (38.062112ms)
+✔ R5 scheduled replay: a signed-out refresh still revokes its committed successor (3.898094ms)
+✔ R5 scheduled replay: terminal refusal still owns the unread refresh successor (13.769924ms)
+✔ R5 scheduled replay: login completes after signOut without orphaning its bearer (9.836737ms)
+✔ R5 scheduled replay: login completes after close without orphaning its bearer (16.821909ms)
+✔ R5 scheduled replay: guest completes after signOut without orphaning its bearer (18.5968ms)
+✔ R5 scheduled replay: guest completes after close without orphaning its bearer (9.298219ms)
+✔ R1 replay seed 2345: the immediate-revocation model explicitly withdraws during a read (18.975388ms)
+✔ online clients preserve R1–R6 across 3,000 seeded interleavings (80779.825623ms)
+ℹ sequences=3000, seeds=1..3000, coverage={"op.query":7152,"wire./q/page":8741,"held.body":22258,"op.release":7356,"released.body":9391,"read.direct":7152,"op.observe":7007,"wire./changes":4356,"read.observed":14870,"op.close":4183,"body.aborted":9523,"op.refreshUnreached":3943,"op.signOut":3987,"wire./auth/logout":7509,"released.reordered":3344,"op.asset":3916,"op.act":4008,"op.upload":3955,"op.regress":4012,"op.refresh":4016,"op.duplicate":4000,"op.login":3983,"op.guest":3944,"op.poll":4011,"op.tick":4054,"op.unavailable":3943,"check.bearer-custody":8564,"journal.preloaded.255":750,"op.failStorage":4165,"op.write":4092,"check.retirement-admission":1142,"wire./m/charge":1136,"failed.storage":205,"write.emitted":3905,"check.durable-terminal":3210,"check.unpersisted-terminal":193,"op.reopen":4030,"wire./probe":1092,"write.deduped":299,"write.unpersisted-replayed":102,"wire./a/charge":1213,"op.recoverPending":4257,"check.admitted-pending":268,"op.revoke":4061,"wire./assets/photo":1203,"write.duplicate":2643,"wire./auth/refresh":2215,"refresh.committed":1001,"op.holdStorage":4004,"wire./auth/guest":1280,"wire./auth/login":1313,"journal.full":3396,"wire./m/revoke":831,"journal.compact":1064,"retirement.displaced.sent":51,"write.retired-retry":1423,"write.displaced-retry":218,"journal.preloaded.256":750,"journal.preloaded.ordinary-failure":375,"op.replace":3917,"refresh.unreached":1198,"held.transport":1198,"write.store-fenced":147,"terminal.E_STORE_REPLACED":597,"wire./assets":1231,"ack.revocation":174,"journal.saturated":150,"probe.unrotated":185,"retirement.displaced.failed":191,"retirement.displaced.ordinary-failure":59,"write.displaced-ordinary-retry":50,"released.transport":222,"query.refetch":188,"held.return":17,"released.return":2,"terminal.E_STORE_RESTORE":201,"held.storage":36,"asset.released":200,"refresh.retired":12,"released.storage":4}
+✔ full-journal model: replacement never replays retirement (0 old failures) (16.547388ms)
+✔ full-journal model: replacement never replays retirement (8 old failures) (29.203491ms)
+✔ R6 scheduled replay: saturation preserves admitted pending recovery (43.839032ms)
+✔ R6 scheduled replay: retry a sent id displaced by retirement after reopening (15.487309ms)
+✔ R6 scheduled replay: retry an E_UNIQUE id displaced by retirement after reopening (15.271775ms)
+✔ R6 scheduled replay: retry an E_CONFLICT id displaced by retirement after reopening (15.418565ms)
+✔ session recovery replay: replacement keeps a refresh that never reached the server (69.193163ms)
+✔ session recovery replay: sign-out still cleans up an unreached refresh (4.540647ms)
+✔ integrated store fence survives an awaited epoch check: seed 774 (26.929683ms)
+✔ integrated store fence survives an awaited epoch check: seed 2592 (49.998317ms)
+✔ R3 concurrent settlement retains the dispatch's previously persisted store binding (65.232726ms)
+✔ R3 scheduled replay: a known terminal with a failed receipt save dedupes after same-store reopen (63.864364ms)
+ℹ tests 79
+ℹ suites 0
+ℹ pass 79
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 392900.052512

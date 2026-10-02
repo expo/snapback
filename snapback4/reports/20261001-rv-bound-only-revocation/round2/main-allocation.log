@@ -1,0 +1,31 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 57.06s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+running 1 test
+private decoder empty: rust=1230, native=12424, reservation=16018464
+private decoder ascii: rust=1001230, native=2014496, reservation=16018464
+private decoder escaped: rust=3098374, native=4016448, reservation=16018464
+private decoder utf8: rust=4001230, native=8020360, reservation=16018464
+W14A empty scans=1 statements=1 native_allocated=976 native_per_scan=976 maximum_per_scan=976 pin=2048 peak_live=976 native_freed=976 end_live=0 charged=8297
+W14A empty scans=1000 statements=1000 native_allocated=976000 native_per_scan=976 maximum_per_scan=976 pin=2048 peak_live=976 native_freed=976000 end_live=0 charged=113192
+W14A increasing rows=22 limit=22 ceiling=9000 page_size=4096 rust_allocated=272 native_allocated=1768 payload_allocated=728 charged=8297 attempted=9855 native_bound=16489
+W14A increasing positive_rows=22 rust_allocated=35874 native_allocated=38144 charged=137863
+W14A resident json_bytes=720 page_size=4096 ceiling=500 rust_allocated=104 native_allocated=0 payload_allocated=0 native_retained=0 preflight_runs=0 charged=8297
+W14A resident prepaid=8192 rust_allocated=272 native_allocated=1768 payload_allocated=728 native_retained=0 preflight_runs=1 payload_runs=0
+SQLite 3.53.2 preflight data Column P5=[192]
+W14A resident positive_rows=1 rust_allocated=1847 first_native=3536 next_fetch_native=3536 next_read_native=3536 cumulative_fetch_native=7072 first_charge=13578 next_fetch_charge=5386 next_read_charge=13578
+W14A overflow json_bytes=4070 page_size=4096 ceiling=500 rust_allocated=104 native_allocated=0 payload_allocated=0 native_retained=0 preflight_runs=0 charged=8297
+W14A overflow prepaid=8192 rust_allocated=272 native_allocated=5160 payload_allocated=0 native_retained=0 preflight_runs=1 payload_runs=0
+SQLite 3.53.2 preflight data Column P5=[192]
+W14A overflow positive_rows=1 rust_allocated=5197 first_native=14400 next_fetch_native=14400 next_read_native=14400 cumulative_fetch_native=28800 first_charge=33678 next_fetch_charge=25486 next_read_charge=33678
+test rows::word_heap::tests::sqlite_allocation_probes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.17s
+
+test rows::word_heap::tests::sqlite_allocation_probes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.18s

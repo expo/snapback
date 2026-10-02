@@ -1,0 +1,3 @@
+import {runWorker} from 'snapback4/worker';import {mkdir,writeFile,open} from 'node:fs/promises';import {join} from 'node:path';
+const stop=new AbortController();process.once('SIGTERM',()=>stop.abort());const dir=join(process.cwd(),'evidence','push');await mkdir(dir,{recursive:true});
+await runWorker({url:process.env.SNAPBACK_URL,token:process.env.SNAPBACK_SERVICE_TOKEN,ledger:true,signal:stop.signal,effects:{push:async(payload,meta)=>{const record={id:meta.idempotencyKey,at:Date.now(),payload};try{const file=await open(join(dir,meta.idempotencyKey+'.json'),'wx');await file.writeFile(JSON.stringify(record));await file.close()}catch(e){if(e.code!=='EEXIST')throw e}console.log(JSON.stringify(record));return {logged:meta.idempotencyKey}}}}).done;

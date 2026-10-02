@@ -93,6 +93,11 @@ At most three excerpts print in diagnostic order: 12,291 extra bytes including
 separating blank lines. A single occurrence stays compact; `check --json`
 keeps its structured diagnostics. `why` remains available on demand.
 
+`doctor` also reports failed macOS scheduling calls from the running dev host,
+including their cumulative count and last OS error. HTTP intake starts at
+user-initiated QoS; if a failed raise leaves the startup thread below default
+(or unreadable), startup refuses before opening the listener.
+
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
 While that adoption failure is pending, identical background store and generation failures are suppressed. Changed reasons print at most twice per error code in each 60-second window; further changes count as suppressed too. Recovery or a changed adoption failure reports the suppressed count and resets it.
 

@@ -1,0 +1,1 @@
+PASS: web opens/reopens digest stubs, ordinary queries execute, jobs refuse, all three server-only builtin forms fail during decoding before argument evaluation.

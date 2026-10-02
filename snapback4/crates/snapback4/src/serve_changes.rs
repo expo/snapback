@@ -65,7 +65,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             let durable=wake.generation != initial.2 || sequence_wake || current.0!=since || params.get("store_id").is_some_and(|id|Some(id)!=current.1.as_ref());
             let now=Instant::now();
             if durable || now>=deadline || eph_ready && now>=paced {
-                let eph=snapback4_core::engine::ephemeral::Change {epoch:wake.eph.version.epoch,incarnation:wake.eph.version.incarnation.clone(),tables};
+                let eph=snapback4_core::engine::ephemeral::Change {preserved:wake.eph.preserved_since(epoch,&incarnation),epoch:wake.eph.version.epoch,incarnation:wake.eph.version.incarnation.clone(),tables};
                 let generation=wake.generation;
                 // Replacement publishes its identity with the incarnation. No
                 // engine lock is needed to finish an ephemeral-only wake.
@@ -97,8 +97,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     } else {principal_of(response.request.as_ref().unwrap(),shared).map(|_|())};
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
-        Ok(((seq,store_id,tables),generation,ephemeral))=>{
-            let mut reply=json!({"seq":seq,"tables":tables,"generation":generation,"store_id":store_id});
+        Ok(((seq,store_id,tables,preserved),generation,ephemeral))=>{
+            let mut reply=json!({"seq":seq,"tables":tables,"preserved":preserved,"generation":generation,"store_id":store_id});
             if wants_ephemeral {reply["ephemeral"]=json!(ephemeral);}
             response.finish(200,reply);
         }
@@ -107,9 +107,10 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
 }
 
 /// The notification's head, identity and invalidations share one read snapshot.
-fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>), snapback4_core::error::RuntimeError> {
+fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>), snapback4_core::error::RuntimeError> {
     use rusqlite::OptionalExtension;
     let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
+    let schema = engine.schema().clone();
     let tx = engine.store_mut().read_transaction()?;
     let head = tx.next_seq()? - 1;
     let store_id = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
@@ -120,8 +121,9 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64
         else { changes.into_iter().flat_map(|(_, tables)| tables).filter(|name| all_tables.contains(name)).collect() };
     tables.sort();
     tables.dedup();
+    let preserved = snapback4_core::revocation::preserved_between(tx.conn(), &schema, since, head);
     tx.rollback()?;
-    Ok((head, store_id, tables))
+    Ok((head, store_id, tables, preserved))
 }
 
 struct PollResponse<'a> {
@@ -206,8 +208,18 @@ mod column_tests {
         let tx=engine.store_mut().transaction().unwrap();
         for seq in from + 2..=from + 501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
         tx.commit().unwrap();
-        let (seq,_,tables)=super::check(&mut engine,from).unwrap();
+        let (seq,_,tables,_)=super::check(&mut engine,from).unwrap();
         assert_eq!(seq,from + 501);
         assert_eq!(tables,["likes","posts"]);
+    }
+}
+
+pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&snapback4_core::MutationOutcome>) -> Vec<String> {
+    match outcome {
+        Some(out) if !out.replayed => match out.state {
+            snapback4_core::WriteState::Sent { .. } if out.receipt_only => snapback4_core::revocation::Footprint::default().preserved(engine.schema()),
+            snapback4_core::WriteState::Sent { seq, .. } => snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), seq.saturating_sub(1), seq),
+            _ => Vec::new(),
+        }, _ => Vec::new(),
     }
 }

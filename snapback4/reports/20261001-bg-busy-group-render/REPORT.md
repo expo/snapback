@@ -2008,3 +2008,83 @@ validation passes: **525 LLP documents, 10,082 refs, 0 errors, 0 unchecked**.
 evidence. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
 no round-8 independent approval, main integration or new performance claim.
+
+
+## Round 9 — merge with main (2026-10-02)
+
+**Integration.** Merge `origin/main` at `9ca48d2804` into round 8
+`58e3c443af` with a real merge commit. Both incoming round-8 reviews are READY,
+as supplied by the operator. Resolve all six conflicts: retain count-version and
+recount-budget runner fields; combine viewer scopes, maintenance helper identities
+and returned-data checks in the binder; preserve both LLP revision histories and
+both journal entry sequences. Audit the auto-merges in row_views/live, device,
+expr, activation, the query evaluator and delivery tests. BG certification,
+rollback and private bookkeeping coexist with RV retention, CT pacing and JV's
+read-only scopes, `run_server_query` and authorization-budget retry.
+
+**BG/JV rule.** `as` changes authority, not maintenance permissions. Outer locals
+join assignments inside the block across their whole scope, including resets.
+Declared query calls and `all` retain structural result types in native admission.
+A query called by a job is internal computation, like a helper: it cannot select
+maintenance state merely because that selection is legal as client output.
+Whole rows and ordinary-field computation remain legal; no scalar taint or second
+evaluator is introduced. LLP 3000.015 §3 and the jobs card record this decision.
+Two compiler cohorts cover direct restrictions, captures/resets, declared calls,
+`all`, UI-only status queries, and counts matching a client at 2/10/20/2 clocks.
+The original 997 raw cases remain; eight additions yield **1,005 cases × six
+native boundaries = 6,030 refusals**. The builtin census covers all **30** variants
+without expanding the forwarding allowlist.
+
+**Verification.** Compiler **46/46**, guide **110/110**, JV **18/18**, lowering
+**11/11**, engine **129/129** (all 56 row-view tests), native integration **31/31**,
+device **44/44**, CLI certificates/maintenance **49/49** (four opt-in tests ignored),
+persisted digests **12/12**, digest accounting **1/1**, HTTP count rule **1/1**,
+adjacent compiler **19/19**, and affected clients **453/453** pass. JV's actual
+wasm decode/execution fence passes. The 10k/100k regression still reports
+**(0 re-certified history rows, 100 examined, 100 steps)** at both sizes.
+
+`scripts/test.sh` ran **once** on the restored merged source, exit **0**:
+
+```text
+== 0 failure(s) in 1427 s
+```
+
+Rust: **285 binaries / 998 scheduled executions**, plus doctests. Clients:
+**5,784 passed / 0 failed / 10 skipped**. Serial models: **79/79**. Every full-suite
+failure: **none — ours 0, baseline 0, environmental 0**. All **1,814 frozen inputs**
+remain unchanged; suite wasm reproduces the measurement exactly. Corrected
+fixture/command errors and 93 inherited whitespace findings in 23 byte-identical
+main evidence files are individually recorded or enumerated in
+[round9/FAILURES.md](round9/FAILURES.md) and its linked audit logs.
+
+**Wasm.** **2,030,224 B raw / 610,076 B gzip**, under main's unchanged
+**610,782 B** budget by **706 B**. Estimated macOS gzip is **610,184–610,206 B**
+using the previously recorded 108–130 B host offset; macOS was not measured.
+No budget or runtime ceiling was raised.
+
+**Busy group, once per condition.** Same production profile, 50 members,
+10,000 messages, three browsers, 50 sends and 100 remote renders. No concurrent
+BG build/test during measurement. Milliseconds are median / p95 / maximum:
+
+| Condition | Round 1 recorded p95 | Merged tree |
+| --- | ---: | ---: |
+| Idle | 187.0 | **145.8 / 222.5 / 252.8** |
+| 96 burners | 328.3 | **245.7 / 339.8 / 348.4** |
+
+Idle still passes **p95 <250 ms**; both runs render every send and capture all
+150 active-device notifications, with zero history re-certification. All 96
+burners are reaped. CPU utilization during sends is 8.6% median / 19.8% p95 idle,
+99.45% / 99.84% loaded. These p95s are modestly above the historical round-1
+observations; no contemporaneous control, speedup or statistical parity is
+claimed. [round9/busy-verification.json](round9/busy-verification.json) binds the
+observations, with lossless traces and logs alongside the suite/source receipts.
+One journal entry records the round. Nothing pushed or published.
+
+Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files, 0 errors, 0 unchecked`.
+`round9/SHA256SUMS` binds the evidence, resolved source, report and journal.
+
+**Main advanced during qualification.** The shared remote-tracking ref now names
+`96ae8da9a5` (0.4.11 version bump and publication records). The qualified merge
+remains pinned to `9ca48d2804`; `git merge-tree --write-tree` confirms it also
+merges cleanly with the newer tip. No quiet-main loop or second suite run.
+`round9/late-main.json` records the read-only check and changed manifest paths.

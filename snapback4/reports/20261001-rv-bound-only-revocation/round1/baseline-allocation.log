@@ -1,0 +1,99 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling typenum v1.20.1
+   Compiling quote v1.0.47
+   Compiling generic-array v0.14.7
+   Compiling find-msvc-tools v0.1.12
+   Compiling shlex v2.0.1
+   Compiling subtle v2.6.1
+   Compiling libm v0.2.16
+   Compiling cc v1.4.5
+   Compiling syn v3.0.5
+   Compiling serde_core v1.0.229
+   Compiling vcpkg v0.2.15
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling pkg-config v0.3.34
+   Compiling digest v0.10.7
+   Compiling wasmi_ir v2.0.0
+   Compiling libsqlite3-sys v0.38.2
+   Compiling wasmparser v0.228.0
+   Compiling foldhash v0.2.0
+   Compiling zmij v1.0.23
+   Compiling libc v0.2.189
+   Compiling bitflags v2.13.2
+   Compiling wasmi_core v2.0.0
+   Compiling hashbrown v0.17.1
+   Compiling wasmi v2.0.0
+   Compiling serde v1.0.229
+   Compiling cpufeatures v0.2.17
+   Compiling base64ct v1.8.3
+   Compiling thiserror v2.0.20
+   Compiling getrandom v0.3.4
+   Compiling rand_core v0.6.4
+   Compiling serde_json v1.0.151
+   Compiling cfg-if v1.0.4
+   Compiling tinyvec_macros v0.1.1
+   Compiling tinyvec v1.13.2
+   Compiling password-hash v0.5.0
+   Compiling hashlink v0.12.2
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling blake2 v0.10.6
+   Compiling memchr v2.8.3
+   Compiling fallible-iterator v0.3.0
+   Compiling itoa v1.0.18
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling smallvec v1.16.1
+   Compiling spin v0.9.9
+   Compiling argon2 v0.5.3
+   Compiling unicode-normalization v0.1.25
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1m 24s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+running 1 test
+private decoder empty: rust=1230, native=12424, reservation=16018464
+private decoder ascii: rust=1001230, native=2014496, reservation=16018464
+private decoder escaped: rust=3098374, native=4016448, reservation=16018464
+private decoder utf8: rust=4001230, native=8020360, reservation=16018464
+W14A empty scans=1 statements=1 native_allocated=976 native_per_scan=976 maximum_per_scan=976 pin=2048 peak_live=976 native_freed=976 end_live=0 charged=8297
+W14A empty scans=1000 statements=1000 native_allocated=976000 native_per_scan=976 maximum_per_scan=976 pin=2048 peak_live=976 native_freed=976000 end_live=0 charged=113192
+W14A increasing rows=22 limit=22 ceiling=9000 page_size=4096 rust_allocated=272 native_allocated=13240 payload_allocated=728 charged=8297 attempted=9855 native_bound=16489
+W14A increasing positive_rows=22 rust_allocated=35874 native_allocated=38144 charged=137863
+W14A resident json_bytes=720 page_size=4096 ceiling=500 rust_allocated=104 native_allocated=0 payload_allocated=0 native_retained=0 preflight_runs=0 charged=8297
+W14A resident prepaid=8192 rust_allocated=272 native_allocated=13240 payload_allocated=728 native_retained=0 preflight_runs=1 payload_runs=0
+
+thread 'rows::word_heap::tests::sqlite_allocation_probes' (3675252) panicked at crates/snapback4-core/src/engine/word_heap/tests.rs:407:5:
+assertion failed: native_allocated as u64 <= 2 * page_size
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test rows::word_heap::tests::sqlite_allocation_probes ... FAILED
+
+failures:
+
+failures:
+    rows::word_heap::tests::sqlite_allocation_probes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 174 filtered out; finished in 0.16s
+
+
+thread 'rows::word_heap::tests::sqlite_allocation_probes' (3675248) panicked at crates/snapback4-core/src/engine/word_heap/tests.rs:479:9:
+isolated SQLite allocation probes: exit status: 101
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test rows::word_heap::tests::sqlite_allocation_probes ... FAILED
+
+failures:
+
+failures:
+    rows::word_heap::tests::sqlite_allocation_probes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 174 filtered out; finished in 0.16s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

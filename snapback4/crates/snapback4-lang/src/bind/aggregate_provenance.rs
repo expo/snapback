@@ -173,7 +173,7 @@ fn assigned_names(stmts: &[Stmt], budget: &Rc<Budget>, names: &mut BTreeSet<Stri
                 assigned_names(then_body, budget, names);
                 assigned_names(else_body, budget, names);
             }
-            Stmt::For { body, .. } => assigned_names(body, budget, names),
+            Stmt::As { body, .. } | Stmt::For { body, .. } => assigned_names(body, budget, names),
             _ => {}
         }
     }
@@ -272,6 +272,7 @@ impl Scan<'_> {
             if !self.budget.spend(1) { break; }
             self.control = control.union(&carried_control);
             match stmt {
+                Stmt::As { body, .. } => { self.body(body, env, focal); }
                 Stmt::Bind { names, value, .. } => {
                     // Recognize direct recurrences for values consumed during
                     // this iteration; the loop join influences all assignments.

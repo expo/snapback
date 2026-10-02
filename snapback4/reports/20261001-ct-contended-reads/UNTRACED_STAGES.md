@@ -1,0 +1,70 @@
+# Tracing disabled, all 96 logical CPUs: 0 / 48 / 96 / 144 busy children: stage distributions
+
+Milliseconds, pooled as in the results table. Spans overlap; do not add percentiles. `readerLock` covers checkout; other readers-mutex acquisitions are in `otherLocks`. Response-to-wakeup includes delivery and writing, not only event-loop delay.
+
+| Busy / available CPUs | Endpoint | Stage | Before p50 / p95 | After p50 / p95 |
+|---|---|---|---:|---:|
+| 0 | following500 | clientSend | 0.249 / 0.541 | 0.266 / 0.525 |
+| 0 | following500 | clientDecode | 0.470 / 0.843 | 0.505 / 0.812 |
+| 0 | following5 | clientSend | 0.254 / 0.459 | 0.245 / 0.466 |
+| 0 | following5 | clientDecode | 0.513 / 0.748 | 0.485 / 0.753 |
+| 0 | celebrityFollowing | clientSend | 0.252 / 0.447 | 0.202 / 0.445 |
+| 0 | celebrityFollowing | clientDecode | 0.468 / 0.724 | 0.412 / 0.673 |
+| 0 | globalSearch | clientSend | 0.286 / 0.478 | 0.213 / 0.488 |
+| 0 | globalSearch | clientDecode | 0.486 / 0.667 | 0.356 / 0.682 |
+| 0 | insights | clientSend | 0.251 / 0.445 | 0.197 / 0.430 |
+| 0 | insights | clientDecode | 0.350 / 0.562 | 0.250 / 0.497 |
+| 0 | trending | clientSend | 0.255 / 0.404 | 0.202 / 0.418 |
+| 0 | trending | clientDecode | 0.382 / 0.557 | 0.298 / 0.550 |
+| 0 | busyPage1 | clientSend | 0.234 / 0.364 | 0.215 / 0.404 |
+| 0 | busyPage1 | clientDecode | 0.376 / 0.593 | 0.343 / 0.629 |
+| 0 | busyPage50 | clientSend | 0.252 / 0.351 | 0.218 / 0.404 |
+| 0 | busyPage50 | clientDecode | 0.421 / 0.584 | 0.361 / 0.628 |
+| 0.5 | following500 | clientSend | 0.147 / 0.236 | 0.115 / 0.160 |
+| 0.5 | following500 | clientDecode | 0.313 / 0.542 | 0.244 / 0.339 |
+| 0.5 | following5 | clientSend | 0.138 / 0.205 | 0.117 / 0.160 |
+| 0.5 | following5 | clientDecode | 0.286 / 0.422 | 0.245 / 0.343 |
+| 0.5 | celebrityFollowing | clientSend | 0.133 / 0.185 | 0.115 / 0.160 |
+| 0.5 | celebrityFollowing | clientDecode | 0.284 / 0.384 | 0.247 / 0.340 |
+| 0.5 | globalSearch | clientSend | 0.131 / 0.157 | 0.113 / 0.157 |
+| 0.5 | globalSearch | clientDecode | 0.237 / 0.289 | 0.201 / 0.284 |
+| 0.5 | insights | clientSend | 0.121 / 0.165 | 0.104 / 0.144 |
+| 0.5 | insights | clientDecode | 0.160 / 0.214 | 0.129 / 0.176 |
+| 0.5 | trending | clientSend | 0.123 / 0.165 | 0.106 / 0.155 |
+| 0.5 | trending | clientDecode | 0.195 / 0.260 | 0.160 / 0.228 |
+| 0.5 | busyPage1 | clientSend | 0.122 / 0.168 | 0.107 / 0.152 |
+| 0.5 | busyPage1 | clientDecode | 0.209 / 0.296 | 0.174 / 0.267 |
+| 0.5 | busyPage50 | clientSend | 0.127 / 0.170 | 0.106 / 0.151 |
+| 0.5 | busyPage50 | clientDecode | 0.214 / 0.304 | 0.171 / 0.249 |
+| 1 | following500 | clientSend | 0.127 / 0.254 | 0.125 / 0.203 |
+| 1 | following500 | clientDecode | 0.274 / 0.586 | 0.267 / 0.402 |
+| 1 | following5 | clientSend | 0.124 / 0.244 | 0.123 / 0.171 |
+| 1 | following5 | clientDecode | 0.267 / 0.526 | 0.262 / 0.348 |
+| 1 | celebrityFollowing | clientSend | 0.122 / 0.240 | 0.122 / 0.155 |
+| 1 | celebrityFollowing | clientDecode | 0.266 / 0.534 | 0.265 / 0.390 |
+| 1 | globalSearch | clientSend | 0.127 / 0.238 | 0.125 / 0.153 |
+| 1 | globalSearch | clientDecode | 0.230 / 0.502 | 0.230 / 0.321 |
+| 1 | insights | clientSend | 0.108 / 0.132 | 0.108 / 0.119 |
+| 1 | insights | clientDecode | 0.142 / 0.195 | 0.140 / 0.160 |
+| 1 | trending | clientSend | 0.117 / 0.255 | 0.115 / 0.129 |
+| 1 | trending | clientDecode | 0.180 / 0.513 | 0.177 / 0.201 |
+| 1 | busyPage1 | clientSend | 0.118 / 0.247 | 0.111 / 0.124 |
+| 1 | busyPage1 | clientDecode | 0.203 / 0.522 | 0.189 / 0.216 |
+| 1 | busyPage50 | clientSend | 0.124 / 0.247 | 0.112 / 0.142 |
+| 1 | busyPage50 | clientDecode | 0.225 / 0.519 | 0.188 / 0.231 |
+| 1.5 | following500 | clientSend | 0.191 / 0.339 | 0.182 / 0.297 |
+| 1.5 | following500 | clientDecode | 0.341 / 0.664 | 0.330 / 0.704 |
+| 1.5 | following5 | clientSend | 0.204 / 0.349 | 0.196 / 0.273 |
+| 1.5 | following5 | clientDecode | 0.371 / 0.683 | 0.341 / 0.513 |
+| 1.5 | celebrityFollowing | clientSend | 0.203 / 0.351 | 0.201 / 0.282 |
+| 1.5 | celebrityFollowing | clientDecode | 0.376 / 0.677 | 0.358 / 0.489 |
+| 1.5 | globalSearch | clientSend | 0.187 / 0.335 | 0.186 / 0.224 |
+| 1.5 | globalSearch | clientDecode | 0.298 / 0.618 | 0.298 / 0.379 |
+| 1.5 | insights | clientSend | 0.167 / 0.319 | 0.160 / 0.222 |
+| 1.5 | insights | clientDecode | 0.202 / 0.496 | 0.192 / 0.256 |
+| 1.5 | trending | clientSend | 0.167 / 0.334 | 0.168 / 0.222 |
+| 1.5 | trending | clientDecode | 0.234 / 0.567 | 0.235 / 0.301 |
+| 1.5 | busyPage1 | clientSend | 0.169 / 0.320 | 0.166 / 0.216 |
+| 1.5 | busyPage1 | clientDecode | 0.269 / 0.589 | 0.253 / 0.314 |
+| 1.5 | busyPage50 | clientSend | 0.167 / 0.328 | 0.165 / 0.200 |
+| 1.5 | busyPage50 | clientDecode | 0.263 / 0.595 | 0.249 / 0.305 |

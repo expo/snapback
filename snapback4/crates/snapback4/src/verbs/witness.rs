@@ -110,7 +110,7 @@ fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
         tick()?;
     };
     let text = out.join().unwrap_or_default(); let _ = err.join();
-    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", "xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime")); }
+    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", format!("xcrun simctl {} failed; check --udid, --bundle-id and the simulator/runtime", args.first().copied().unwrap_or("")))); }
     Ok(text.trim().to_owned())
 }
 
@@ -513,7 +513,7 @@ mod lookup_tests {
             let expected = match mode.as_str() {
                 "timeout" => "E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout",
                 "interrupted" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
-                "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime",
+                "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl get_app_container failed; check --udid, --bundle-id and the simulator/runtime",
                 "spawn" => "E_WITNESS_PROCESS:",
                 _ => panic!("unknown fixture mode"),
             };

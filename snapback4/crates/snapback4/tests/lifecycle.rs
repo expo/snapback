@@ -1,6 +1,7 @@
 //! Host process regressions: real subprocesses, redirected stderr, and an
 //! independent process checking SQLite's POSIX locks (not just file modes).
 #![allow(dead_code)]
+#[path = "../src/thread_priority.rs"] mod thread_priority;
 #[path = "../src/lifecycle.rs"] mod lifecycle;
 
 use std::fs::{self, File};
@@ -25,39 +26,92 @@ const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
-fn dev_and_doctor_report_low_inherited_descriptor_limits() {
+fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     use std::os::unix::process::CommandExt;
     let dir = Directory::new();
-    for verb in ["doctor", "dev"] {
+    let deployment = dir.0.join("release");
+    let deployed = dir.run(&["deploy", deployment.to_str().unwrap()]);
+    assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
+    for (verb, initial_soft, hard_low) in [("dev", 64, false), ("serve", 64, false), ("dev", 64, true), ("dev", 1024, true), ("serve", 1024, true)] {
         let mut command = Command::new(BIN);
-        command.arg(verb).current_dir(&dir.0);
-        if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch", "--port", "0"]); }
-        // Change only the child's inherited limit, never the test process.
-        unsafe { command.pre_exec(|| {
+        command.arg(verb).args(["--port", "0"]).current_dir(&dir.0);
+        if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch"]); }
+        else { command.arg(&deployment); }
+        unsafe { command.pre_exec(move || {
             let mut limit: libc::rlimit = std::mem::zeroed();
             if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
-            limit.rlim_cur = 64;
+            limit.rlim_cur = initial_soft.min(limit.rlim_max);
+            if hard_low { limit.rlim_max = limit.rlim_cur; }
             if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
             Ok(())
         }); }
-        let log = dir.0.join(format!("{verb}-limits.log"));
-        let file = File::create(&log).unwrap();
-        let mut child = command.stdout(file.try_clone().unwrap()).stderr(file).spawn().unwrap();
-        if verb == "dev" {
-            let deadline = Instant::now() + SERVER_READINESS_TIMEOUT;
-            while !fs::read_to_string(&log).unwrap().contains("store: temporary") {
-                assert!(child.try_wait().unwrap().is_none(), "{}", fs::read_to_string(&log).unwrap());
-                if Instant::now() >= deadline { let _ = child.kill(); let _ = child.wait(); panic!("{}", fs::read_to_string(&log).unwrap()); }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            unsafe { libc::kill(child.id() as i32, libc::SIGTERM); }
-        }
-        wait(&mut child);
-        let text = fs::read_to_string(log).unwrap();
+        let stdout = dir.0.join("limit-stdout");
+        let stderr = dir.0.join("limit-stderr");
+        let child = command.stdout(File::create(&stdout).unwrap()).stderr(File::create(&stderr).unwrap()).spawn().unwrap();
+        let mut host = Host { child, stdout, stderr, port: 0 };
+        host.until(|h| fs::read_to_string(&h.stdout).unwrap().contains('\n'));
+        let url = fs::read_to_string(&host.stdout).unwrap().lines().next().unwrap().to_owned();
+        let text = host.log();
+        assert_eq!(text.matches("snapback4 host:").count(), 1, "{text}");
         assert!(text.contains("HTTP connections=128; uploads=2"), "{text}");
-        assert!(text.contains("soft=64"), "{text}");
-        assert!(text.contains("E_HTTP_LIMIT"), "{text}");
-        assert!(text.contains("ulimit -n 1024"), "{text}");
+        assert!(text.contains(&format!("startup soft={initial_soft} target=")), "{text}");
+        if hard_low {
+            assert!(text.contains(&format!("soft={initial_soft} hard={initial_soft}")) && text.contains("E_HTTP_LIMIT"), "{text}");
+        } else {
+            assert!(!text.contains("E_HTTP_LIMIT"), "{text}");
+            let soft = text.split("file descriptors (this process): soft=").nth(1).unwrap()
+                .split_whitespace().next().unwrap().parse::<u64>().unwrap();
+            assert!(soft >= 1024, "{text}");
+        }
+        if verb == "dev" {
+            let mut command = Command::new(BIN);
+            command.args(["doctor", "--url", &url, "--json"]).current_dir(&dir.0);
+            // Even a doctor that cannot raise its own limit must use the live server's.
+            unsafe { command.pre_exec(|| {
+                let limit = libc::rlimit { rlim_cur: 1024, rlim_max: 1024 };
+                if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+                Ok(())
+            }); }
+            let doctor = command.output().unwrap();
+            let report: Value = serde_json::from_slice(&doctor.stdout).unwrap();
+            let lines = report["lines"].as_array().unwrap();
+            assert!(!lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("host "))), "{report}");
+            assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains(&format!("startup soft={initial_soft} target=")))), "{report}");
+            if hard_low {
+                assert!(report.to_string().contains(&format!("hard={initial_soft}")), "{report}");
+                assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("hard NOFILE limit to at least 2048"))), "{report}");
+            } else {
+                assert!(!report.to_string().contains("E_HTTP_LIMIT"), "{report}");
+            }
+            assert!(lines.iter().any(|l| l.as_str().is_some_and(|l| l.starts_with("server ") && l.contains("descriptor_exhaustions=0"))), "{report}");
+        }
+        let status = host.signal(libc::SIGTERM);
+        assert!(status.code() == Some(128 + libc::SIGTERM) || status.signal() == Some(libc::SIGTERM), "{verb}: {status}");
+    }
+}
+
+#[test]
+fn offline_doctor_reports_its_inherited_limit_without_raising_it() {
+    use std::os::unix::process::CommandExt;
+    let dir = Directory::new();
+    for hard_low in [false, true] {
+        let mut command = Command::new(BIN);
+        command.arg("doctor").current_dir(&dir.0);
+        unsafe { command.pre_exec(move || {
+            let mut limit: libc::rlimit = std::mem::zeroed();
+            if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
+            limit.rlim_cur = 1024.min(limit.rlim_max);
+            if hard_low { limit.rlim_max = limit.rlim_cur; }
+            if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+            Ok(())
+        }); }
+        let output = command.output().unwrap();
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("inherited by doctor") && text.contains("soft=1024"), "{text}");
+        assert!(text.contains("server raises its soft limit at startup"), "{text}");
+        assert_eq!(text.contains("E_HTTP_LIMIT"), hard_low, "{text}");
+        assert_eq!(text.contains("restart"), hard_low, "{text}");
+        assert!(!text.contains("startup soft="), "{text}");
     }
 }
 
@@ -385,7 +439,9 @@ setInterval(() => {{}}, 1000);
 fn abort_profile_reports_an_off_thread_panic_to_redirected_stderr() {
     let dir = Directory::new(); let source = dir.0.join("probe.rs"); let executable = dir.0.join("abort-probe");
     let lifecycle = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lifecycle.rs");
-    fs::write(&source, format!("#[path = {lifecycle:?}] mod lifecycle; fn main() {{ eprintln!(\"{MAIN_REACHED}\"); lifecycle::install(\"serve\").unwrap(); lifecycle::generation(9); std::thread::Builder::new().name(\"maintenance\".into()).spawn(|| panic!(\"abort witness\")).unwrap().join().unwrap(); }}")).unwrap();
+    // This standalone abort witness never calls lifecycle::background; its
+    // scheduling dependency is covered by the host's priority/readback tests.
+    fs::write(&source, format!("mod thread_priority {{ pub fn background() {{}} pub fn maintenance() {{}} }} #[path = {lifecycle:?}] mod lifecycle; fn main() {{ eprintln!(\"{MAIN_REACHED}\"); lifecycle::install(\"serve\").unwrap(); lifecycle::generation(9); std::thread::Builder::new().name(\"maintenance\".into()).spawn(|| panic!(\"abort witness\")).unwrap().join().unwrap(); }}")).unwrap();
     let deps = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
     let libc = fs::read_dir(&deps).unwrap().map(|e| e.unwrap().path()).find(|p| p.file_name().unwrap().to_string_lossy().starts_with("liblibc-") && p.extension().is_some_and(|s| s == "rlib")).unwrap();
     let built = Command::new("rustc").args(["--edition=2024", "-C", "panic=abort", "-A", "dead_code", "--extern"]).arg(format!("libc={}", libc.display())).arg(&source).arg("-o").arg(&executable).output().unwrap();

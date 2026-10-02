@@ -1,0 +1,123 @@
+{
+  "started": 1790917392478,
+  "finished": 1790917393787,
+  "waitMs": 1309,
+  "samples": [
+    {
+      "at": 1790917392549,
+      "tables": [
+        {
+          "name": "followingWork",
+          "kind": "timeline",
+          "states": [
+            {
+              "state": "done",
+              "n": 24628
+            }
+          ],
+          "pending": 0
+        },
+        {
+          "name": "$recount:unread",
+          "kind": "recount",
+          "states": [],
+          "pending": 0
+        }
+      ],
+      "jobs": [],
+      "lastCommit": {
+        "seq": 157074,
+        "at": 1790917391873,
+        "program": "following:delivery"
+      },
+      "pending": 0
+    },
+    {
+      "at": 1790917392900,
+      "tables": [
+        {
+          "name": "followingWork",
+          "kind": "timeline",
+          "states": [
+            {
+              "state": "done",
+              "n": 24628
+            }
+          ],
+          "pending": 0
+        },
+        {
+          "name": "$recount:unread",
+          "kind": "recount",
+          "states": [],
+          "pending": 0
+        }
+      ],
+      "jobs": [],
+      "lastCommit": {
+        "seq": 157074,
+        "at": 1790917391873,
+        "program": "following:delivery"
+      },
+      "pending": 0
+    },
+    {
+      "at": 1790917393290,
+      "tables": [
+        {
+          "name": "followingWork",
+          "kind": "timeline",
+          "states": [
+            {
+              "state": "done",
+              "n": 24628
+            }
+          ],
+          "pending": 0
+        },
+        {
+          "name": "$recount:unread",
+          "kind": "recount",
+          "states": [],
+          "pending": 0
+        }
+      ],
+      "jobs": [],
+      "lastCommit": {
+        "seq": 157074,
+        "at": 1790917391873,
+        "program": "following:delivery"
+      },
+      "pending": 0
+    },
+    {
+      "at": 1790917393787,
+      "tables": [
+        {
+          "name": "followingWork",
+          "kind": "timeline",
+          "states": [
+            {
+              "state": "done",
+              "n": 24628
+            }
+          ],
+          "pending": 0
+        },
+        {
+          "name": "$recount:unread",
+          "kind": "recount",
+          "states": [],
+          "pending": 0
+        }
+      ],
+      "jobs": [],
+      "lastCommit": {
+        "seq": 157074,
+        "at": 1790917391873,
+        "program": "following:delivery"
+      },
+      "pending": 0
+    }
+  ]
+}

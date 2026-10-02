@@ -1,0 +1,5 @@
+{
+  "crates/snapback4-core/src/store.rs": "abb54aef0b32bfd1cf09188a41b736a4d21ac3e44fbbc4087455620e0b5ab3fc",
+  "crates/snapback4-core/src/store/ownership.rs": "dede0733fd2fd34021ae903e041b7f0a226dc87291f646076952b24e7aa302b2",
+  "crates/snapback4-core/tests/revocation_history.rs": "f541163a55ae4153221b7dce2caba4d61bed87c1cefa01dd855d41202f5834a7"
+}

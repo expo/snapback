@@ -1,0 +1,38 @@
+{
+  "snapback4/crates/snapback4-core/src/engine/row_views.rs": {
+    "sha256": "0c3aa8c72738914c61ec37a0abe592ca3e13fb8cf4828574583426832fbc4d7b",
+    "equals_main": false
+  },
+  "snapback4/crates/snapback4-core/src/engine/row_views/live.rs": {
+    "sha256": "041e2c797d3fd0c34ae5a05d507e5cdd362ed94352240952d9901b795f59d8e7",
+    "equals_main": false
+  },
+  "snapback4/crates/snapback4-device/src/device.rs": {
+    "sha256": "a0782fdd6fe71ad1705e17c60bd91c25cd0ff3a8bbb8f14bb85d9381dd8f7c25",
+    "equals_main": false
+  },
+  "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": {
+    "sha256": "81cfcb96614eb4d9a1b79be47e1bcbfa7c5364569e9f7a7934abe22a7a6f1acb",
+    "equals_main": false
+  },
+  "snapback4/packages/snapback4/test/delivery-await-boundary.json": {
+    "sha256": "4c8b63cc1388da2085486c2ab09e3ab2404b41bfa25bc6097958904217689d21",
+    "equals_main": false
+  },
+  "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": {
+    "sha256": "66add212357648b258dbb393c32f323b07f5d3bbc89d2c91f133eb8145d430e1",
+    "equals_main": false
+  },
+  "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs": {
+    "sha256": "441ab676e6f6e40ff61dc2e770b70667b3a8549ba40db6c8d0f0babdfb5eaf2d",
+    "equals_main": true
+  },
+  "notes": {
+    "row_views.rs": "CT budget checks between completed scan rows and on runner construction coexist with BG evidence versioning, private cache state and clock rollback rules.",
+    "live.rs": "CT deadline yield retains durable cursor; BG live-basis dispatch and private state remain.",
+    "device.rs": "RV preservation metadata coexists with BG native admission before open/adoption; failed admission cannot change generation.",
+    "expr.rs": "JV call dispatch and no-new-id check coexist with BG computation/returned-data positions and structural operand checks.",
+    "delivery-*": "Boundary inventory keeps BG app.ts fingerprint plus RV change-evidence.ts entry; instrumenter retains BG rationale and FIM shared-work barriers. Fault matrix equals main.",
+    "revocation.rs": "Unchanged main dependency traversal widens maintained-view source, row-key member and captured-parent changes, independently of private cached count fields."
+  }
+}

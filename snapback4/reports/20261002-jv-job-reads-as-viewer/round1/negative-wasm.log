@@ -1,0 +1,21 @@
+Unexpectedly decoded server builtin: "JobAs" execution: {"ok":{"denied":{"code":"ARGUMENT_EXECUTED","family":"rule","guide":"programs","message":"the program refused with ARGUMENT_EXECUTED","rule":"ARGUMENT_EXECUTED","site":"where:1"},"retained":false,"unknown":false}}
+Unexpectedly decoded server builtin: {"JobQuery":{"program":{"name":"answer","kind":"Query","args":{},"body":[{"Return":{"Literal":{"Int":7}}}]},"cursor":null,"all":false}} execution: {"ok":{"denied":{"code":"ARGUMENT_EXECUTED","family":"rule","guide":"programs","message":"the program refused with ARGUMENT_EXECUTED","rule":"ARGUMENT_EXECUTED","site":"where:1"},"retained":false,"unknown":false}}
+Unexpectedly decoded server builtin: {"JobQuery":{"program":{"name":"answer","kind":"Query","args":{},"body":[{"Return":{"Literal":{"Int":7}}}]},"cursor":null,"all":true}} execution: {"ok":{"denied":{"code":"ARGUMENT_EXECUTED","family":"rule","guide":"programs","message":"the program refused with ARGUMENT_EXECUTED","rule":"ARGUMENT_EXECUTED","site":"where:1"},"retained":false,"unknown":false}}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: server builtins must refuse during decoding before arguments can execute
+
+3 !== 0
+
+    at file:///home/ccheever/sb4-intent/lane-jv/snapback4/reports/20261002-jv-job-reads-as-viewer/round1/wasm-fence.mjs:34:8 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 3,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

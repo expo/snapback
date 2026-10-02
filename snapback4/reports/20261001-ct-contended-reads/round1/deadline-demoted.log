@@ -1,0 +1,6 @@
+(node:4059456) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":0,"busy":0,"reads":3100,"id":"effect-0000000000000002-0000000000000000","state":"failed","at":1790903121275,"deadline":1790903122275,"settled_at":1790903122584,"error_code":"E_EFFECT_DEADLINE","claimAt":1790903121279,"observed":1790903122604,"delay":329,"clockAdvanced":false}
+{"level":0.5,"busy":48,"reads":4037,"id":"effect-0000000000000002-0000000000000000","state":"failed","at":1790903126024,"deadline":1790903127024,"settled_at":1790903127423,"error_code":"E_EFFECT_DEADLINE","claimAt":1790903126121,"observed":1790903127433,"delay":409,"clockAdvanced":false}
+{"level":1,"busy":96,"reads":1988,"id":"effect-0000000000000002-0000000000000000","state":"failed","at":1790903132828,"deadline":1790903133828,"settled_at":1790903134149,"error_code":"E_EFFECT_DEADLINE","claimAt":1790903132835,"observed":1790903134158,"delay":330,"clockAdvanced":false}
+{"level":1.5,"busy":144,"reads":1715,"id":"effect-0000000000000002-0000000000000000","state":"failed","at":1790903143064,"deadline":1790903144064,"settled_at":1790903144391,"error_code":"E_EFFECT_DEADLINE","claimAt":1790903143070,"observed":1790903144405,"delay":341,"clockAdvanced":false}

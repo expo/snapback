@@ -76,7 +76,7 @@ pub(super) fn statements(body: &mut [Stmt], visit: &mut impl FnMut(&mut Expr)) {
                 if let Some(key) = once { expression(key, visit); }
             }
             Stmt::If { condition, then_body, else_body, .. } => { expression(condition, visit); statements(then_body, visit); statements(else_body, visit); }
-            Stmt::For { domain, body, .. } => { expression(domain, visit); statements(body, visit); }
+            Stmt::As { principal: domain, body, .. } | Stmt::For { domain, body, .. } => { expression(domain, visit); statements(body, visit); }
             Stmt::Break { .. } | Stmt::Continue { .. } => {}
         }
     }

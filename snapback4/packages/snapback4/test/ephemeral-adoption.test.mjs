@@ -30,7 +30,7 @@ test('durable-only dev adoption answers a held legacy poll with the new generati
 });
 
 for (const tier of ['online', 'wasm']) {
-  test(`${tier}: durable-only change requests and answers retain the base wire bytes`, async t => {
+  test(`${tier}: durable-only changes retain base wire bytes plus the preservation certificate`, async t => {
     const { url } = await server(t, undefined, durable), requests = [], replies = [];
     let schemas = 0;
     const fetch = async (input, init) => {
@@ -58,7 +58,9 @@ for (const tier of ['online', 'wasm']) {
     }
     for (const reply of replies) {
       const json = JSON.parse(reply);
-      assert.equal(reply, JSON.stringify({ clockRevision: json.clockRevision, generation: 1, seq: 0,
+      // RV adds only the compiled preservation certificate; no ephemeral wire is added.
+      assert.deepEqual(json.preserved, ['notes']);
+      assert.equal(reply, JSON.stringify({ clockRevision: json.clockRevision, generation: 1, preserved: ['notes'], seq: 0,
         serverNow: json.serverNow, store_id: json.store_id, tables: [] }));
     }
   });

@@ -123,6 +123,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_JOB_VIEWER_CONTEXT", "as belongs inside a job sweep and cannot nest"),
+    ("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal"),
+    ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),
+    ("E_JOB_VIEWER_FLOW", "return cannot leave an as block"),
+    ("E_JOB_VIEWER_QUERY", "a job viewer call requires a declared durable Quarry query"),
+    ("E_JOB_VIEWER_READ", "the viewer query is unavailable or cannot certify exhaustion"),
+
     ("N_RECEIPT_PREDICTION", "N_RECEIPT_PREDICTION identifies the first static receipt dependency in a mutation; the whole mutation queues without a predicted row."),
     ("E_RECEIPTS_CLAUSE", "malformed declarations refuse `E_RECEIPTS_CLAUSE`"),
     ("E_RECEIPTS_OWNED", "Progress fields and runs refuse ordinary writes with `E_RECEIPTS_OWNED`"),
@@ -221,7 +228,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_NATIVE", "E_NATIVE means a native declaration or loaded module cannot perform the requested operation."),
     ("E_NATIVE_BUILD", "E_NATIVE_BUILD means the native crate could not be built or its generated files could not be written or loaded."),
     ("E_NATIVE_TOOLCHAIN", "E_NATIVE_TOOLCHAIN means the native build cannot find Cargo or the `wasm32-unknown-unknown` target."),
-    ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings bind first."),
+    ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings usually bind first."),
     ("E_NOT_PREDICTABLE", "`mutation name(args) predicts:` asserts this eligibility: `check` refuses `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with the reason and rewrite."),
     ("E_OFFLINE", "Offline it returns its last server answer, held in memory for this client's lifetime, with fresh: false and since. Without one it refuses E_OFFLINE (family link, retryable)."),
     ("E_HTTP_LIMIT", "E_HTTP_LIMIT warns below 1024"),

@@ -2,6 +2,10 @@
 //! @ref LLP 3000#http-overload-diagnostics — output failures cannot stop admission.
 use std::{fmt::{self, Write as _}, io::Write as _, sync::{OnceLock, mpsc::{self, SyncSender}}};
 
+static THREAD_START: OnceLock<fn()> = OnceLock::new();
+/// The host can supply a scheduling hint before its first diagnostic.
+pub fn set_thread_start(start: fn()) { let _ = THREAD_START.set(start); }
+
 struct Line { bytes: [u8; 4096], len: usize, stdout: bool }
 impl fmt::Write for Line {
     fn write_str(&mut self, value: &str) -> fmt::Result {
@@ -21,6 +25,7 @@ pub fn emit(args: fmt::Arguments<'_>, stdout: bool) -> bool {
     let sender = SENDER.get_or_init(|| {
         let (sender, receiver) = mpsc::sync_channel::<Line>(32);
         let _ = std::thread::Builder::new().name("diagnostics".into()).spawn(move || {
+            if let Some(start) = THREAD_START.get() { start(); }
             for line in receiver {
                 let bytes = &line.bytes[..line.len];
                 if line.stdout { let _ = std::io::stdout().lock().write_all(bytes); }

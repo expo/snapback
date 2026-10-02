@@ -878,8 +878,7 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 By default, mounted same-key observations retain their answer through plain
-revalidation without a timeout, marked `revalidating: true`. All change
-evidence withdraws on failure or timeout. Local replacement attempts get one second excluding capacity queue wait; online change evidence starts its second immediately, including queue wait because it may revoke access. Applied local scope loss withdraws dependent audience groups immediately, even on staged pages; older replicas cannot restore them before publication. Retries never renew a budget. Use
+revalidation without a timeout, marked `revalidating: true`. Only change evidence that can revoke a row withdraws on failure or timeout; ordinary inserts and non-policy updates retain the answer until replaced. Unknown or older evidence remains bounded. Local replacement attempts get one second excluding capacity queue wait; online revocation evidence starts its second immediately, including queue wait. Applied local scope loss withdraws dependent audience groups immediately, even on staged pages; older replicas cannot restore them before publication. Retries never renew a budget. Use
 `keep: false` for immediate withdrawal. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
@@ -919,7 +918,7 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion keeps a retaining watch marked `revalidating` unless change
+exhaustion keeps a retaining watch marked `revalidating` unless possibly revoking change
 evidence already bounded that answer. Closing the last observation owner cancels its retries.
 A local server fallback joins the displayed answer's existing revalidation
 episode. Successful transport does not withdraw it while device composition
@@ -1230,7 +1229,7 @@ function useThread(conversationId: string) {
 }
 ```
 
-<!-- @ref LLP 3000.023#10 — plain revalidation keeps the displayed answer; all change evidence bounds it. -->
+<!-- @ref LLP 3000.023#12 — only possible revocation bounds a retained answer. -->
 A mounted observation with an unchanged key keeps its answer marked
 `revalidating: true` through explicit refetch, reconnect, slow reads, transport
 failure and retry exhaustion. There is no plain-revalidation time limit.
@@ -1238,8 +1237,15 @@ Transport failure marks `fresh: false` and preserves the answer's `since` (or
 uses its last confirmation time). No new public flag is needed. Local commits
 (`apply`, `admit`, `settle`) re-read and replace directly from the replica.
 
-Local commits, acknowledged online mutations, durable and ephemeral `/changes`,
-and `/sync` publications start one non-renewable second for the displayed
+Answers stay visible and `revalidating` until replaced unless change evidence
+may revoke a row; then the existing one-second withdrawal bound applies.
+Local commits, online mutation acknowledgements, durable and ephemeral `/changes`
+and `/sync` publications use the same automatic classification. Inserts and
+updates to columns outside read rules and policies revalidate without timeout,
+including through failure and retry exhaustion. Deletes and tombstones, sweeps,
+changes to read-rule/audience/membership/asset/expiry inputs, and unknown or
+older evidence keep the bound. There is no application option to configure.
+A possibly revoking change starts one non-renewable second for the displayed
 answer, including when it is already revalidating. Failure withdraws immediately;
 timeout withdraws to one stable `loading` snapshot, while a late accepted answer
 can still replace it. Further refetches, change bursts and facade holds cannot
@@ -1256,8 +1262,9 @@ all query branches, never hidden row keys. By-ID points without audience keys,
 data-dependent selectors, recursive/native reads, unmapped derived dependencies,
 ordinary mixed word-search coordination and legacy replies remain conservative
 at the table boundary. Unpinned audience dimensions match every group.
-Online `/changes` still identifies tables only; an authorized sibling can reach
-its one-second bound if all slots are occupied. Evidence rereads jump ordinary
+Online `/changes` identifies touched tables and conservatively certifies row
+authority preservation. A possibly revoking change can still exhaust its
+one-second bound if all slots are occupied. Evidence rereads jump ordinary
 queued work, within eight starts per turn/eight active, without preemption.
 
 A `/changes` program-generation mismatch withdraws immediately, even at the

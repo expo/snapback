@@ -85,6 +85,8 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preserved: Option<Vec<String>>,
     /// Pinned server time of this authoritative page; old transports may omit it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub now: Option<i64>,
@@ -222,6 +224,7 @@ const NATIVE_DIGEST: &str = "device:native:digest";
 const NATIVE_GENERATION: &str = "device:native:generation";
 
 pub struct Device<S: DeviceStore> {
+    pub(crate) preserved: Option<Vec<String>>,
     store: S,
     delivery_now: i64,
     pub(crate) read_scopes: RefCell<serde_json::Value>,
@@ -503,7 +506,7 @@ impl<S: DeviceStore> Device<S> {
             clear_native(&mut store)?;
         }
         let store_identity = store.meta(STORE_ID)?;
-        Ok(Self { delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
+        Ok(Self { preserved: None, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
             store,
             schema: backend.schema,
             programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
@@ -911,6 +914,7 @@ impl<S: DeviceStore> Device<S> {
         delivery::publish(&tx, &self.schema, &delivery_candidates, self.delivery_now)?;
         touched.extend(predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?);
         delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
+        self.preserved = Some(tx.change_footprint().preserved(&self.schema).into_iter().filter(|t| transfer == watermark && !replacing && page.preserved.as_ref().is_some_and(|p| p.len() <= 256 && p.contains(t))).collect());
         tx.commit()?;
         self.store_identity = owner_store.clone();
         if replacing {
@@ -1029,6 +1033,7 @@ impl<S: DeviceStore> Device<S> {
         // complete speculative overlay and rebuild the writes that remain.
         predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
         delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
+        self.preserved = Some(tx.change_footprint().preserved(&self.schema));
         tx.commit()
     }
 
@@ -1107,6 +1112,7 @@ impl<S: DeviceStore> Device<S> {
         // Admission's time survives settlement in the same durable commit as
         // its outbox entry, including synchronous web journal recovery.
         keep_issued_floor(&tx, entry.now)?;
+        self.preserved = Some(tx.change_footprint().preserved(&self.schema));
         tx.commit()?;
         Ok(entry)
     }
@@ -1130,6 +1136,7 @@ impl<S: DeviceStore> Device<S> {
         }
         predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
         delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
+        self.preserved = Some(tx.change_footprint().preserved(&self.schema));
         tx.commit()
     }
 
@@ -1178,6 +1185,7 @@ impl<S: DeviceStore> Device<S> {
         predictions::remove(&tx, id)?;
         predictions::replay(&tx, &self.schema, &self.programs, meta_u64(&tx, WATERMARK)?)?;
         delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
+        self.preserved = Some(tx.change_footprint().preserved(&self.schema));
         tx.commit()
     }
 

@@ -15,6 +15,8 @@ fn builtin_inspection(builtin: &Builtin) -> Option<Inspection> {
         ProjectFields { .. } | ReceiptSettled { .. } | Calendar { .. } | Lower | Trim | Sha256 | Join
         | Group { .. } | Min | Max | Extremum { .. } | ExtremumOf { .. } | Divmod { .. }
         | Sort { .. } | MentionTokens | SearchPresent | DeterministicShare | Sum | Connected => Some(Inspection::Inspecting),
+        #[cfg(feature = "sqlite")]
+        JobAs | JobQuery { .. } => Some(Inspection::Inspecting),
         _ => None,
     }
 }
@@ -103,6 +105,28 @@ fn program_output(program: &Program) -> Output {
     if program.kind == ProgramKind::Query { Output::Query } else { Output::Effect }
 }
 impl Check<'_> {
+    // @ref LLP 3000.015#3 — a query called by a job is computation, like a helper;
+    // its own locals are isolated but its result retains its structural type.
+    #[cfg(feature = "sqlite")]
+    fn query_result(&self, program: &Program) -> Result<Type> {
+        let mut env = BTreeMap::new();
+        let aliases = BTreeMap::new();
+        let mut uses = BTreeMap::new();
+        loop {
+            let prior = env.clone();
+            let mut query = Check { schema: self.schema, env: &mut env, scope: &program.name, aliases: &aliases,
+                focal: BTreeMap::new(), uses, outputs: BTreeSet::new(), validate: false };
+            for (name, ty) in &program.args { query.bind(name, argument_type(ty)); }
+            query.body(&program.body, Output::Forward)?;
+            uses = query.uses;
+            if env == prior { break; }
+        }
+        let outputs = uses.iter().filter(|(_, data)| **data).map(|(name, _)| name.clone()).collect();
+        let mut query = Check { schema: self.schema, env: &mut env, scope: &program.name, aliases: &aliases,
+            focal: BTreeMap::new(), uses: BTreeMap::new(), outputs, validate: self.validate };
+        query.body(&program.body, Output::Forward)
+    }
+
     fn key(&self, name: &str) -> String {
         self.aliases.get(name).cloned().unwrap_or_else(|| format!("operation/{}/{name}", self.scope))
     }
@@ -206,6 +230,14 @@ impl Check<'_> {
                 Ok(Type::Scalar)
             },
             Expr::Builtin { builtin, args } => {
+                #[cfg(feature = "sqlite")]
+                if let Builtin::JobQuery { program, all, .. } = builtin {
+                    for arg in args { self.inspected(arg)?; }
+                    let result = self.query_result(program)?;
+                    return Ok(if *all { result } else {
+                        Type::Object(BTreeMap::from([("data".into(), result), ("next".into(), Type::Scalar)]))
+                    });
+                }
                 let first = args.first().map(|arg| self.expr(arg, false)).transpose()?.unwrap_or(Type::Unknown);
                 if matches!(builtin, Builtin::Sum | Builtin::ExtremumOf { .. }) {
                     self.inspect(&first)?;
@@ -381,10 +413,15 @@ mod tests {
     #[test]
     fn every_builtin_has_an_explicit_inspection_classification() {
         use Builtin::*;
-        let builtins = [ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into() },
+        let builtins = vec![ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into() },
             Calendar { millis: 1 }, Len, Slice, Concat, Lower, Trim, Sha256, Join, Group { field: "id".into(), optional: false },
             First, Last, At, Min, Max, Extremum { field: "id".into(), max: false, domain: false }, ExtremumOf { max: false, domain: false },
             Divmod { remainder_sink: "r".into() }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected];
+        #[cfg(feature = "sqlite")]
+        let builtins = builtins.into_iter().chain([JobAs, JobQuery { program: Box::new(Program {
+            name: "query".into(), kind: ProgramKind::Query, args: BTreeMap::new(), body: vec![],
+            native: false, read_time_granularity_ms: None, returned_shapes: Default::default(),
+        }), cursor: None, all: false }]);
         let mut variants = vec![];
         let _ = Builtin::deserialize(Census(&mut variants));
         let mut covered = BTreeSet::new();

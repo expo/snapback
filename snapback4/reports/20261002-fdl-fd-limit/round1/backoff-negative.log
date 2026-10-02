@@ -1,0 +1,137 @@
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-fdl/snapback4/vendor/tiny_http)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-fdl/snapback4/crates/snapback4-lang)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-fdl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 3.00s
+     Running tests/http_emfile.rs (target/debug/deps/http_emfile-2be182d4251b8251)
+
+running 1 test
+spare=0: accept CPU=1.000092877s, wall=1.000119599s, descriptor exhaustions=1979922
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 2.04s
+
+spare=1: accept CPU=543.975769ms, wall=1.000066411s, descriptor exhaustions=24216
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.02s
+
+spare=2: accept CPU=598.836882ms, wall=1.00005325s, descriptor exhaustions=24800
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+spare=3: accept CPU=703.393736ms, wall=1.000097888s, descriptor exhaustions=25296
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+
+thread 'descriptor_exhaustion_backlog_backs_off_and_recovers' (3980899) panicked at crates/snapback4/tests/http_emfile.rs:138:9:
+spare=0: spare=0: accept CPU=1.000092877s, wall=1.000119599s, descriptor exhaustions=1979922
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 2.04s
+
+
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+
+thread 'descriptor_exhaustion_backlog_backs_off_and_recovers' (3980901) panicked at crates/snapback4/tests/http_emfile.rs:176:5:
+unpaced intake or no sustained pressure: 1979922
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+spare=1: spare=1: accept CPU=543.975769ms, wall=1.000066411s, descriptor exhaustions=24216
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.02s
+
+
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+
+thread 'descriptor_exhaustion_backlog_backs_off_and_recovers' (3981139) panicked at crates/snapback4/tests/http_emfile.rs:176:5:
+unpaced intake or no sustained pressure: 24216
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+spare=2: spare=2: accept CPU=598.836882ms, wall=1.00005325s, descriptor exhaustions=24800
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+
+thread 'descriptor_exhaustion_backlog_backs_off_and_recovers' (3981159) panicked at crates/snapback4/tests/http_emfile.rs:176:5:
+unpaced intake or no sustained pressure: 24800
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+spare=3: spare=3: accept CPU=703.393736ms, wall=1.000097888s, descriptor exhaustions=25296
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+
+thread 'descriptor_exhaustion_backlog_backs_off_and_recovers' (3981170) panicked at crates/snapback4/tests/http_emfile.rs:176:5:
+unpaced intake or no sustained pressure: 25296
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test descriptor_exhaustion_backlog_backs_off_and_recovers ... FAILED
+
+failures:
+
+failures:
+    descriptor_exhaustion_backlog_backs_off_and_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 5.10s
+
+error: test failed, to rerun pass `-p snapback4 --test http_emfile`

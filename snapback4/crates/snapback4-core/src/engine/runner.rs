@@ -31,7 +31,7 @@ impl Runner<'_> {
         self.context.is_system().then_some(SystemAccess(()))
     }
 }
-fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
+pub(super) fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
 
 #[derive(Clone, Debug)]
 pub(super) enum Flow {
@@ -76,6 +76,8 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
+    #[cfg(feature = "sqlite")]
+    pub(super) job_read_scope: u8,
     pub(super) receipt_operation: String,
     pub(super) receipt_allocation: bool,
     #[cfg(feature = "sqlite")]
@@ -183,6 +185,8 @@ pub struct Runner<'a> {
     #[cfg(feature = "sqlite")]
     pub(super) count_version: Option<(String, String)>,
     #[cfg(feature = "sqlite")]
+    pub(super) recount_budget: Option<(std::time::Instant, std::time::Duration)>,
+    #[cfg(feature = "sqlite")]
     pub(crate) import_targets: Option<&'a BTreeMap<(String, String), Value>>,
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
@@ -252,6 +256,8 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
+            #[cfg(feature = "sqlite")]
+            job_read_scope: 0,
             receipt_operation: String::new(),
             receipt_allocation: false,
             #[cfg(feature = "sqlite")]
@@ -318,6 +324,8 @@ impl<'a> Runner<'a> {
             rebuilt_source_rows: 0,
             #[cfg(feature = "sqlite")]
             count_version: None,
+            #[cfg(feature = "sqlite")]
+            recount_budget: None,
             #[cfg(feature = "sqlite")]
             import_targets: None,
             beyond_horizon: false,
@@ -459,6 +467,11 @@ impl<'a> Runner<'a> {
                     result?
                 }
                 Stmt::For { binding, domain, body } => {
+                    #[cfg(feature = "sqlite")]
+                    if let LoopDomain::DerivedArray { value: Expr::Builtin { builtin: Builtin::JobQuery { program, cursor, all: true }, args }, .. } = domain {
+                        if self.device { return Err(RuntimeError::Input("job viewer reads require a server job scope".into())); }
+                        return self.job_query_rows(program, cursor.as_deref(), args, binding, body, &site);
+                    }
                     let mut values = self.domain(domain)?;
                     let is_page = matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_));
                     if is_page {
@@ -640,7 +653,7 @@ impl<'a> Runner<'a> {
         Ok(value)
     }
 
-    fn bind(&mut self, name: &str, value: Value) {
+    pub(super) fn bind(&mut self, name: &str, value: Value) {
         #[cfg(feature = "sqlite")]
         self.clear_delivery_variable(name);
         self.effect_presence.variables.remove(name);
@@ -858,6 +871,20 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                #[cfg(feature = "sqlite")]
+                if self.device && matches!(builtin, Builtin::JobAs | Builtin::JobQuery { .. }) {
+                    return Err(RuntimeError::Input("job viewer reads require a server job scope".into()));
+                }
+                #[cfg(feature = "sqlite")]
+                match builtin {
+                    Builtin::JobAs => return self.job_as(args),
+                    Builtin::JobQuery { program, all: false, .. } => return self.job_query_value(program, args),
+                    _ => {}
+                }
+                #[cfg(feature = "sqlite")]
+                if matches!(builtin, Builtin::JobAs | Builtin::JobQuery { .. }) {
+                    return Err(RuntimeError::Input("job viewer reads require a server job scope; use all(query(...)) only as a for domain".into()));
+                }
                 if let Builtin::Extremum { max, domain, .. } | Builtin::ExtremumOf { max, domain } = builtin {
                     if args.len() != builtin.arity() { return Err(RuntimeError::Input("min/max needs its source and projection".into())); }
                     let field = if let Builtin::Extremum { field, .. } = builtin { field.as_str() } else { "" };
@@ -929,6 +956,8 @@ impl<'a> Runner<'a> {
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
+            #[cfg(feature = "sqlite")]
+            Builtin::JobAs | Builtin::JobQuery { .. } => unreachable!("job builtins dispatch before evaluating arguments"),
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
                 // This primitive remains for settled-only query accounting.

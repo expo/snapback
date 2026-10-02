@@ -1,0 +1,224 @@
+{
+  "pass": false,
+  "checks": [
+    {
+      "name": "globalSearch full/10%",
+      "actual": 1.1189960336265878,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "globalSearch midpoint linear bound",
+      "p95At10": 9.550041000009514,
+      "p95At50": 10.400374999968335,
+      "p95At100": 10.68645799998194,
+      "actual": 10.400374999968335,
+      "limit": 10.05511522221948,
+      "pass": false
+    },
+    {
+      "name": "insights full/10%",
+      "actual": 1.6184889052336466,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "insights midpoint linear bound",
+      "p95At10": 1.4999590000370517,
+      "p95At50": 2.3660830000881106,
+      "p95At100": 2.4276669998653233,
+      "actual": 2.3660830000881106,
+      "limit": 1.9122736666273947,
+      "pass": false
+    },
+    {
+      "name": "trending full/10%",
+      "actual": 1.214320439082342,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "trending midpoint linear bound",
+      "p95At10": 3.192458000034094,
+      "p95At50": 10.934416000032797,
+      "p95At100": 3.8766670003533363,
+      "actual": 10.934416000032797,
+      "limit": 3.4965508890648684,
+      "pass": false
+    },
+    {
+      "name": "following500/following5",
+      "actual": 2.879822297131864,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "celebrityFollower/following5",
+      "actual": 0.877742049257254,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "busyPage50/busyPage1",
+      "actual": 2.0541689031652464,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "scale-cold-sync",
+      "pass": true
+    },
+    {
+      "name": "scale-write-performance",
+      "pass": true
+    },
+    {
+      "name": "scale-busy-ui",
+      "pass": false
+    }
+  ],
+  "checkpointP95Ms": {
+    "10%": {
+      "following500": 9.271750000014435,
+      "following5": 11.418084000004455,
+      "celebrityFollowing": 6.573875000001863,
+      "globalSearch": 9.550041000009514,
+      "insights": 1.4999590000370517,
+      "trending": 3.192458000034094,
+      "busyPage1": 2.3747500000172295,
+      "busyPage50": 2.1027500000200234
+    },
+    "50%": {
+      "following500": 6.990791999967769,
+      "following5": 7.396375000011176,
+      "celebrityFollowing": 6.7590419999323785,
+      "globalSearch": 10.400374999968335,
+      "insights": 2.3660830000881106,
+      "trending": 10.934416000032797,
+      "busyPage1": 44.20829199999571,
+      "busyPage50": 9.908999999985099
+    },
+    "final": {
+      "following500": 45.16629200009629,
+      "following5": 15.683707999996841,
+      "celebrityFollowing": 13.766249999869615,
+      "globalSearch": 10.68645799998194,
+      "insights": 2.4276669998653233,
+      "trending": 3.8766670003533363,
+      "busyPage1": 5.589000000152737,
+      "busyPage50": 11.480750000104308
+    }
+  },
+  "extra": {
+    "scale-cold-sync": {
+      "pass": true,
+      "acquiredMs": 7197.557833,
+      "conversations": 100,
+      "nodeBaselineRss": 234536960,
+      "nodePeakRss": 292388864,
+      "nativePeakRssKb": 34880,
+      "pids": [
+        73011,
+        73012
+      ],
+      "nativeProof": "published processDevice host, not iOS simulator",
+      "at": 1790837951588
+    },
+    "scale-write-performance": {
+      "pass": true,
+      "posture": "database snapshot of verified full replay; separate replay-mode instance49364; original invariant state unchanged",
+      "smallActor": "u0001",
+      "smallFollowerCount": 5,
+      "celebrityFollowerCount": 900,
+      "p95": {
+        "small": 63.855083000002196,
+        "celebrity": 88.37141699999484
+      },
+      "ratio": 1.383937078274439,
+      "timings": {
+        "small": [
+          10.580541999996058,
+          16.131208999999217,
+          16.196124999994936,
+          17.9731249999968,
+          20.662750000003143,
+          21.389917000000423,
+          24.65445799999725,
+          25.757291999994777,
+          30.560124999996333,
+          30.882541999999376,
+          37.35354099999677,
+          38.312333999994735,
+          46.35891599999741,
+          48.215917000001355,
+          49.79520799999591,
+          52.205167000000074,
+          55.04466700000194,
+          56.53316699999414,
+          63.855083000002196,
+          107.10891700000502
+        ],
+        "celebrity": [
+          9.54229199999827,
+          12.661000000000058,
+          13.18395800000144,
+          16.935209000002942,
+          17.683665999997174,
+          17.886083999997936,
+          25.061915999998746,
+          28.11974999999802,
+          29.024459000000206,
+          29.686541999995825,
+          30.437959000002593,
+          38.448833000002196,
+          39.293750000004366,
+          40.2543749999968,
+          46.31749999999738,
+          60.6105830000015,
+          74.63900000000285,
+          85.57337499999994,
+          88.37141699999484,
+          93.4854159999959
+        ]
+      },
+      "at": 1790838238356
+    },
+    "scale-busy-ui": {
+      "pass": false,
+      "posture": "isolated full-corpus snapshot49364; web49365",
+      "start": 1790838470099,
+      "end": 1790838555594,
+      "members": 50,
+      "initialMessages": 10000,
+      "p95SendRemoteRenderMs": 4158.185916999999,
+      "maxMs": 4576.8837920000005,
+      "samples": [
+        2909.9040000000095,
+        2931.801999999996,
+        2987.0941660000026,
+        3026.674125000005,
+        3036.782833999998,
+        3367.333040999998,
+        3442.0422079999917,
+        3457.4656659999964,
+        3497.2535419999986,
+        3504.253917000002,
+        3521.8669169999994,
+        3559.1018330000006,
+        3568.493625000003,
+        3717.7276249999995,
+        3967.0427920000075,
+        3968.9922909999877,
+        3983.9077499999985,
+        4114.776166999996,
+        4158.185916999999,
+        4576.8837920000005
+      ],
+      "browserErrors": [],
+      "deliveredAll": true,
+      "assessment": "All23 sends rendered remotely, but p95 about4.16s is a visible delay; do not claim the stall-free receipt criterion. The instrument supplies no calibrated absolute ceiling."
+    }
+  },
+  "method": "23 sequential requests per read probe, first3 warmups excluded, p95 rank19 of20. Intermediate linear bound interpolates10%→100% at50%. These public probes are not rotated holdout scores; concurrent authoring/browser work was present during replay checkpoints.",
+  "at": 1790838632203
+}

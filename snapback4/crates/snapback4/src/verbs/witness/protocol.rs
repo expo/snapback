@@ -39,6 +39,8 @@ pub fn refused(port: u16) -> Result<bool> {
     }
 }
 pub fn reserve(port: u16) -> Result<TcpListener> {
+    #[cfg(test)]
+    crate::host_limits::prepare_tests();
     TcpListener::bind(address(port)).map_err(|_| error("E_WITNESS_PORT", "--port is unavailable; choose a free loopback port; no existing process was stopped"))
 }
 

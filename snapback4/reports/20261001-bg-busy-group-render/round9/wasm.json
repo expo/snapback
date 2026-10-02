@@ -1,0 +1,19 @@
+{
+  "candidate": {
+    "raw_bytes": 2030224,
+    "gzip_bytes": 610076,
+    "sha256": "691d7fb97ed78fac71839817d7d6e7ad22919ce1aebd6a7f841ba0efeec955f3"
+  },
+  "round8": {
+    "raw_bytes": 2012674,
+    "gzip_bytes": 605008,
+    "sha256": "233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164"
+  },
+  "main_ratchet": 610782,
+  "macos_estimate_range": [
+    610184,
+    610206
+  ],
+  "macos_measured": false,
+  "gzip_method": "gzip -9 -c FILE"
+}

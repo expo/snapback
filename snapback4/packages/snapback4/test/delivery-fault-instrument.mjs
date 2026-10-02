@@ -5,6 +5,19 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 export const packageRoot = fileURLToPath(new URL('../', import.meta.url));
+// These calls can return work created outside the caller's async context.
+// Drain that work before evaluating the classified call, without yielding
+// between the idle check and evaluation. The timer case needs a failed sync
+// input; it therefore uses the same barrier at follow's preceding sync await.
+export const sharedAwaits = new Map([
+  ['local.ts:follow:syncOnce()#1', 'sync'],
+  ['local.ts:flushOnce:syncOnce()#1', 'sync'],
+  ['local-receipts.ts:syncSettledWrites:sync()#1', 'sync'],
+  ['local.ts:syncRound:installNative(aborter.signal)#1', 'native'],
+  ['local-query.ts:route:env.installNative(env.signal)#1', 'native'],
+]);
+export const followSync = 'local.ts:follow:syncOnce()#1';
+export const followRetry = 'local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1';
 export const scope = {
   'local.ts': ['flush', 'flushOnce', 'call', 'captureStore', 'refreshAcquired', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit', 'read', 'lookup', 'save'],
   'local-receipts.ts': '*',
@@ -65,7 +78,8 @@ export function instrument(destination) {
   for (const [file] of Object.entries(scope)) {
     const sites = census().filter(site => site.file === file);
     let source = readFileSync(join(packageRoot, 'src', file), 'utf8');
-    if (file === 'local.ts') source = source.replace('  return client;\n  } catch (error)', '  globalThis.__rgClient = { flush, flushOnce, syncOnce, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false) { nativeReady = false; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return client;\n  } catch (error)');
+    if (file === 'local.ts') source = source.replace('  return client;\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return syncing; }, flush, flushOnce, syncOnce, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false) { nativeReady = false; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return client;\n  } catch (error)');
+    if (file === 'local-native.ts') source = source.replace('  return installNative;', '  globalThis.__rgNativePending = () => nativeInstall?.promise;\n  return installNative;');
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
     const byStart = new Map(sites.map(site => [site.start, site]));
     const transformer = context => root => {

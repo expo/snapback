@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+#[path = "../src/host_limits.rs"] mod host_limits;
 use std::process::Command;
 
 #[test]
@@ -44,6 +46,7 @@ fn witness_card_is_published_under_builder_words() {
 }
 
 #[allow(dead_code)]
+#[path = "../src/thread_priority.rs"] mod thread_priority;
 #[path = "../src/verbs/witness/protocol.rs"]
 mod protocol;
 
@@ -69,7 +72,7 @@ fn simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control()
 
 #[test]
 fn bound_port_is_refused_without_stopping_its_owner() {
-    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let listener = host_limits::test_listener(("127.0.0.1", 0)).unwrap();
     let port = listener.local_addr().unwrap().port();
     assert!(protocol::reserve(port).unwrap_err().starts_with("E_WITNESS_PORT:"));
     assert!(!protocol::refused(port).unwrap());
@@ -169,7 +172,7 @@ mod driver {
             loop {
                 let offset = NEXT.fetch_add(1, Ordering::Relaxed) as u32;
                 let port = 30000 + ((std::process::id() + offset) % 15000) as u16;
-                if std::net::TcpListener::bind(("127.0.0.1", port)).is_ok() { return port; }
+                if host_limits::test_listener(("127.0.0.1", port)).is_ok() { return port; }
             }
         }
     }
@@ -265,7 +268,7 @@ mod driver {
         assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{}", String::from_utf8_lossy(&output.stderr));
         let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
         assert!(receipt["error"].as_str().unwrap().contains(code));
-        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok(), "stalled checker retained port {port} after {code}");
+        assert!(host_limits::test_listener(("127.0.0.1", port)).is_ok(), "stalled checker retained port {port} after {code}");
     }
     #[test]
     fn interrupted_startup_does_not_leak_listener_to_checker() { failed_startup_releases_listener(true); }
@@ -335,7 +338,7 @@ mod driver {
             assert_eq!(output.status.code(), Some(1));
             let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_eq!(receipt["simulator"]["selection"], "created");
-            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"));
+            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"), "mode {mode}: error = {}", receipt["error"]);
             assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
             assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
             assert!(receipt["simulator"]["name"].as_str().unwrap().starts_with("snapback4-smoke-"));
@@ -686,7 +689,7 @@ fn dev_accepts_the_still_owned_listener_without_a_rebind_gap() {
     let dir = std::env::temp_dir().join(format!("ns-listener-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();
     fs::write(dir.join("snapback/schema.q"), "table rows:\n  body: text\n  public 'all'\n").unwrap();
-    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let listener = host_limits::test_listener(("127.0.0.1", 0)).unwrap();
     let port = listener.local_addr().unwrap().port();
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
     command.args(["dev", "--port", &port.to_string(), "--no-watch"]).env("SNAPBACK4_WITNESS_DRIVER", "1")
@@ -699,7 +702,7 @@ fn dev_accepts_the_still_owned_listener_without_a_rebind_gap() {
         if text.lines().any(|s| s == format!("http://127.0.0.1:{port}")) { break true; }
         if !child.is_running() || Instant::now() >= deadline { break false; }
         // A competing binder must fail throughout startup, including before ready.
-        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_err());
+        assert!(host_limits::test_listener(("127.0.0.1", port)).is_err());
         sleep(Duration::from_millis(10));
     };
     drop(child);

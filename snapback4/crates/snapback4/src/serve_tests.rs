@@ -40,9 +40,9 @@ fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_mete
     }
 }
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
-struct Host {
+pub(super) struct Host {
     server: Arc<Server>,
-    shared: Arc<Shared>,
+    pub(super) shared: Arc<Shared>,
     admission: Arc<RequestAdmission>,
     worker: Option<JoinHandle<()>>,
     address: SocketAddr,
@@ -52,7 +52,7 @@ impl Host {
         Self::with_store(dev, snapback4_core::Store::memory().unwrap(), SCHEMA)
     }
 
-    fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
+    pub(super) fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
         Self::with_store_on(dev, store, source, "127.0.0.1")
     }
     fn with_store_on(dev: bool, store: snapback4_core::Store, source: &str, bind: &str) -> Self {
@@ -752,6 +752,7 @@ fn an_effect_claim_rechecks_service_session_after_waiting() {
 
 fn quick_limits() -> tiny_http::ConnectionLimits {
     tiny_http::ConnectionLimits {
+        thread_start: None,
         max_connections: 2,
         idle_timeout: Duration::from_millis(150),
         header_timeout: Duration::from_millis(300),
@@ -763,6 +764,7 @@ fn quick_limits() -> tiny_http::ConnectionLimits {
 
 #[test]
 fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
     let address = server.server_addr().to_ip().unwrap();
     let first = TcpStream::connect(address).unwrap();
@@ -789,6 +791,7 @@ fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
 #[test]
 fn header_and_body_deadlines_are_absolute_despite_dribbling() {
     for headers in [true, false] {
+        crate::host_limits::prepare_tests();
         let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
         let address = server.server_addr().to_ip().unwrap();
         let mut stream = TcpStream::connect(address).unwrap();
@@ -847,6 +850,7 @@ fn continue_and_final_response_have_separate_write_deadlines() {
         write_timeout: Duration::from_millis(100),
         ..quick_limits()
     };
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), limits).unwrap();
     let mut stream = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
     stream
@@ -910,6 +914,7 @@ fn unauthorized_large_posts_close_before_body_admission() {
 
 #[test]
 fn slow_readers_cannot_pin_response_writers() {
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
     let mut stream = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
     stream
@@ -939,6 +944,7 @@ fn slow_readers_cannot_pin_response_writers() {
 
 #[test]
 fn bounded_connections_do_not_queue_pipelined_requests() {
+    crate::host_limits::prepare_tests();
     let server = Server::http_with_limits(("127.0.0.1", 0), quick_limits()).unwrap();
     let mut stream = TcpStream::connect(server.server_addr().to_ip().unwrap()).unwrap();
     stream.write_all(b"GET /one HTTP/1.1\r\nHost: localhost\r\n\r\nGET /two HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").unwrap();
@@ -1394,7 +1400,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         LogEvent { seq: u64::MAX, ord: 91, table: "items".into(), kind: "del".into(), id: "gone".into(), data: None },
         LogEvent { seq: u64::MAX, ord: 92, table: "items".into(), kind: "put".into(), id: "last".into(), data: Some(Value::Row(BTreeMap::from([("n".into(), Value::Int(2))]).into())) },
     ];
-    let reply = StreamReply { now: 100, sent: BTreeMap::from([("ahead".into(), u64::MAX), ("write-id".into(), u64::MAX)]), images_at: Some(u64::MAX), committed_above: BTreeMap::from([("ahead".into(), u64::MAX)]), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
+    let reply = StreamReply { preserved: vec![], now: 100, sent: BTreeMap::from([("ahead".into(), u64::MAX), ("write-id".into(), u64::MAX)]), images_at: Some(u64::MAX), committed_above: BTreeMap::from([("ahead".into(), u64::MAX)]), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
     let expected = json!({
         "acknowledged":{"write-id":u64::MAX},"committed_above":{"ahead":u64::MAX},"events":[
             {"data":["group",7],"id":"","kind":"scope","seq":0,"table":"items"},
@@ -1403,7 +1409,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         ],"generation":4,"images_at":u64::MAX,"joined":{"items":[["joined"]]},"more":true,"now":100,"sent":{"ahead":u64::MAX,"write-id":u64::MAX},"snapshot":false,"store_id":"store-a","watermark":u64::MAX
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
-    let reply = StreamReply { now: 100, sent: BTreeMap::new(), images_at: None, committed_above: BTreeMap::new(), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
+    let reply = StreamReply { preserved: vec![], now: 100, sent: BTreeMap::new(), images_at: None, committed_above: BTreeMap::new(), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
     let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"now":100,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }

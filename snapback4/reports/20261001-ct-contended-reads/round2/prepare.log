@@ -1,0 +1,23 @@
+(node:319170) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+added 6 packages in 1s
+(node:319170) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round2/store/snapback/generated/api.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round2/store/package.json.
+settled actions 1653
+settled actions 10918
+settled actions 14518
+settled actions 23877
+settled actions 27803
+settled actions 31453
+settled actions 34940
+settled actions 38215
+settled actions 41436
+settled actions 46003
+settled actions 52330
+settled actions 62011
+settled actions 68277
+settled actions 75857
+settled actions 86032
+50% checkpoint complete 88143

@@ -1167,3 +1167,27 @@ fn sequence_field_authority_and_row_view_share_one_runtime() {
     let ordinals=e.store().rows("messages").unwrap().into_iter().map(|r|r.field("ordinal").unwrap().as_int().unwrap()).collect::<Vec<_>>();
     assert_eq!(ordinals,[1,2]);
 }
+
+// @ref LLP 3000#contended-read-serving — zero budget still commits one row,
+// then resumes its durable cursor rather than doing all 256 candidates.
+#[test]
+fn recount_time_slice_resumes_after_each_row_including_expiring_sources() {
+    use std::time::Duration;
+    for expiring in [false, true] {
+        let source = if expiring { SOURCE.to_owned() } else { SOURCE.replace("  expire at .until\n", "") };
+        let b = bound(&source);
+        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        for n in 0..1200 { send(&mut engine, &format!("m{n:05}"), 5, "bob", Value::Null); }
+        join(&mut engine, "a", "alice", 0, 0);
+        let initial = engine.store().rows("$recount:unread").unwrap();
+        assert_eq!(initial.len(), 1);
+        let before = initial[0].field("total").unwrap().as_int().unwrap();
+        assert!(engine.run_view_chunk_for(1, Duration::ZERO).unwrap().is_some());
+        let work = engine.store().rows("$recount:unread").unwrap();
+        assert_eq!(work.len(), 1);
+        assert_eq!(work[0].field("total").unwrap().as_int().unwrap(), before + 1);
+        assert_ne!(work[0].field("cursor").unwrap(), initial[0].field("cursor").unwrap());
+        while engine.run_view_chunk_for(1, Duration::from_micros(250)).unwrap().is_some() {}
+        count(&mut engine, "a", 1200);
+    }
+}

@@ -1,0 +1,28 @@
+✖ a failed safe reread preserves the displayed answer dependency plan for the next safe event (48.685289ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1138.742259
+
+✖ failing tests:
+
+test at packages/snapback4/test/revocation-retention.test.mjs:94:1
+✖ a failed safe reread preserves the displayed answer dependency plan for the next safe event (48.685289ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== 'old'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:109:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'old',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

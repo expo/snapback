@@ -257,6 +257,7 @@ pub(super) fn waited(started: Instant) {
     });
 }
 pub(crate) fn finished(refused: bool) {
+    super::trace::mark("write_end");
     CURRENT.with(|current| { if let Some(mut timing) = current.get() && timing.finished.is_none() {
         timing.finished = Some((timing.accepted.elapsed(), refused, timing.cpu_elapsed(), timing.engine_elapsed()));
         current.set(Some(timing));

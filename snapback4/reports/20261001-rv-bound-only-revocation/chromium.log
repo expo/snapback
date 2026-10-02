@@ -1,0 +1,364 @@
+{
+  "browser": "151.0.7922.34",
+  "host": "linux",
+  "safe": {
+    "loading": 0,
+    "revalidating": true,
+    "heldMs": 1502,
+    "blockedReads": 8,
+    "competitors": 24,
+    "converged": true,
+    "hooks": {
+      "facade": {
+        "loading": false,
+        "revalidating": true
+      },
+      "raw": {
+        "loading": false,
+        "revalidating": true
+      },
+      "useQuery": {
+        "loading": false,
+        "revalidating": true
+      },
+      "usePage": {
+        "loading": false,
+        "revalidating": true
+      }
+    }
+  },
+  "revocations": [
+    {
+      "name": "erase",
+      "withdrawn": true,
+      "elapsed": 1012,
+      "afterDeviceCommit": 997,
+      "startedReads": 8
+    },
+    {
+      "name": "unsend",
+      "withdrawn": true,
+      "elapsed": 1007,
+      "afterDeviceCommit": 993,
+      "startedReads": 8
+    },
+    {
+      "name": "move",
+      "withdrawn": true,
+      "elapsed": 1007,
+      "afterDeviceCommit": 992,
+      "startedReads": 8
+    },
+    {
+      "name": "remove",
+      "withdrawn": true,
+      "elapsed": 21,
+      "afterDeviceCommit": 3,
+      "startedReads": 8
+    }
+  ],
+  "evidence": [
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "changes",
+      "preserved": [
+        "members",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "profiles"
+      ]
+    },
+    {
+      "op": "apply",
+      "preserved": [
+        "members",
+        "messages",
+        "profiles",
+        "reactions",
+        "receipts"
+      ]
+    }
+  ]
+}

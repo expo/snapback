@@ -1,0 +1,101 @@
+[
+  {
+    "level": 1.5,
+    "busy": 144,
+    "reads": 104260,
+    "readLatency": {
+      "p50": 0.5187770000047749,
+      "p95": 4.188047999996343
+    },
+    "maintenanceCommits": [
+      {
+        "kind": "job",
+        "program": "pulse",
+        "n": 2
+      },
+      {
+        "kind": "sweep",
+        "program": "expire",
+        "n": 121
+      }
+    ],
+    "deliberatelyAbandoned": 6,
+    "observedAbandoned": 6,
+    "backlogMax": 35,
+    "following": {
+      "enabled": false,
+      "samples": [],
+      "max": 0
+    },
+    "jobs": [
+      {
+        "boundary": 1790915040000,
+        "delay": 279,
+        "runtime": 1,
+        "state": "done"
+      },
+      {
+        "boundary": 1790915100000,
+        "delay": 248,
+        "runtime": 0,
+        "state": "done"
+      }
+    ],
+    "expectedBoundaries": [
+      1790915040000,
+      1790915100000
+    ],
+    "effects": 508,
+    "retries": 106,
+    "deadlineOutcomes": [
+      "E_EFFECT_DEADLINE"
+    ],
+    "leaseRecovery": [
+      {
+        "id": "effect-0000000000000005-0000000000000000",
+        "expires": 1790915019792,
+        "requeued": 1790915019850,
+        "delay": 58,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000068-0000000000000000",
+        "expires": 1790915039746,
+        "requeued": 1790915040308,
+        "delay": 562,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000000ce-0000000000000000",
+        "expires": 1790915059766,
+        "requeued": 1790915060691,
+        "delay": 925,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000132-0000000000000000",
+        "expires": 1790915079832,
+        "requeued": 1790915080890,
+        "delay": 1058,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-0000000000000197-0000000000000000",
+        "expires": 1790915099780,
+        "requeued": 1790915101320,
+        "delay": 1540,
+        "maintenanceOnly": true
+      },
+      {
+        "id": "effect-00000000000001fd-0000000000000000",
+        "expires": 1790915119758,
+        "requeued": 1790915121453,
+        "delay": 1695,
+        "maintenanceOnly": true
+      }
+    ],
+    "unexpectedLeaseChanges": 0,
+    "extensionMs": 1000,
+    "expiryMaxMs": 1062
+  }
+]

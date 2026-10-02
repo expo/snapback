@@ -1,4 +1,10 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_JOB_VIEWER_CONTEXT", "as belongs inside a server job sweep and cannot nest. Put as recipient.principal: inside the recipient loop; guide jobs."),
+    ("E_JOB_VIEWER_PRINCIPAL", "as needs a present non-system principal. Use a principal column or argument; keep intentional system reads outside as; guide jobs."),
+    ("E_JOB_VIEWER_READ_ONLY", "as is read-only: writes, emits, new ids and once asset consumption are refused. Compute inside as; act outside the block; guide jobs."),
+    ("E_JOB_VIEWER_FLOW", "return cannot leave as. Assign a local inside, then return outside; break and continue need a loop inside the block; guide jobs."),
+    ("E_JOB_VIEWER_QUERY", "call a declared durable Quarry query inside as. all(query(...)) needs one cursor argument and a list return, directly in a for domain; guide jobs."),
+    ("E_JOB_VIEWER_READ", "the viewer query is unavailable or cannot certify exhaustion. Narrow the query; no partial digest commits. Follow every cursor; one page is a preview; guide jobs."),
     ("N_RECEIPT_PREDICTION", "a mutation reads receipt-owned or derived state and queues without prediction. Use only clean fields and stable ids to predict; remove an incompatible predicts: assertion. guide receipts."),
     ("EMPTY_READ", "optional local evidence of an empty query answer, not proof of denial. Use dev --trace-empty and why recent; inspect why TABLE and check --residency. guide rules."),
     ("RUNS_FULL", "the receipts reporter cannot record another disjoint run: 64 are already held for this member. Keep the owed interval and retry after a merge frees a slot. A successful delivered call always records coverage. guide receipts."),

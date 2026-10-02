@@ -1,0 +1,16 @@
+{
+  "answers": {
+    "following500": "7858b6cecd454cb1e17cc3d853bc568359465f99fa9598dec13c6a8124c91e2c",
+    "following5": "89acbf022309fd9f1f9816d2b8e3757dd2fc3fb8eb0e08b8ae9d3fe154025fcd",
+    "celebrityFollowing": "fccf22999cef569f40ee22203f56f1dd5b16431b27c6940770845586b47268c5",
+    "globalSearch": "6e8cd2b2d107ec0dd5171297f352d0853464cbe5a267a452fcb041b991ee7767",
+    "traced:insights": "72804d83b7ab23208cb9a32792551c55f1cc0b260e0543fc08cd8c42ebca5e31",
+    "trending": "6590c13a89f77303f0c54d87c867b31824727d4cd7de9d17432de953f015265c",
+    "busyPage1": "5af08e898bafe982d8fdee10ac54a8dd85ded58982e9f454de7e3df09f2fd64c",
+    "busyPage50": "efd7004959a7c8d8efeaa0138519ce7054c1ae14159a9ed5d8dc168bfc708b82",
+    "untraced:insights": "72804d83b7ab23208cb9a32792551c55f1cc0b260e0543fc08cd8c42ebca5e31",
+    "cpu:insights": "cea1c6041f5b8313f6e9bd68d5704ddaba3df3558dad12db3f702c3aecfed2ae",
+    "cpu-untraced:insights": "cea1c6041f5b8313f6e9bd68d5704ddaba3df3558dad12db3f702c3aecfed2ae"
+  },
+  "sampleCount": 58880
+}

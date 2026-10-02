@@ -75,7 +75,7 @@ media keep its known deadline ticking through loading (`guide client`).
 The Router pins conversation to the URL ID, even after its inbox membership
 disappears. Mount this screen keyed by that ID within AppProvider. The composer
 and once viewer sit above transient query states. Room and history choose the
-SDK default: plain revalidation retains; change evidence bounds it to one second
+SDK default: plain revalidation, inserts and non-policy updates retain; possible revocation bounds it to one second
 after the replacement attempt starts. Decorations withdraw immediately. No application state caches protected rows.
 Loading, refusal and retained history leave draft and focus owned by the same
 screen; identity reset still clears them. Revealing/consuming protected content

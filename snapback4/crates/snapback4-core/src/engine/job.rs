@@ -233,6 +233,12 @@ impl Engine {
 
     /// Yield between complete Quarry iterations. A native call remains one
     /// fuel- and meter-bounded atomic invocation, as does one Quarry iteration.
+    /// The guest ABI only yields on `again`: at most one native invocation is
+    /// admitted per slice, with 2,000,000,000 fuel, 1,000,000 host steps, 16,384
+    /// examined rows and 8,192 writes (Ceilings::job). It cannot be suspended
+    /// across a commit without losing its transaction. The duration is therefore
+    /// cooperative, not a wall-clock bound on a native call or one row/commit.
+    /// The host charges the full overrun to its between-slice pacing pause.
     pub fn run_job_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<JobRun>, RuntimeError> {
         let started = std::time::Instant::now();
         let presence = self.presence.clone();
@@ -299,7 +305,9 @@ impl Engine {
             let seq = tx.next_seq()?;
             let mut context = Context::system().at(now).with_presence(presence.clone());
             context.args = head.args.clone();
+            context = context.with_generation(self.generation);
             let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+            runner.job_read_scope = 1;
 
             // The sweep's upper key is captured when it begins: a row the body
             // inserts beyond it is never visited, so a sweep over its own
@@ -363,7 +371,7 @@ impl Engine {
                 Err(error) if error.is_refusal() => {
                     tx.rollback_to("job_chunk")?;
                     // @ref LLP 3000.013#5.2 — retry the same atomic chunk; only a one-item meter refusal parks an adaptive sweep.
-                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. }) {
+                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. } | RuntimeError::AuthorizationBudget { .. }) {
                         size /= 2;
                         head.run.retries += 1;
                         continue;
@@ -388,8 +396,18 @@ impl Engine {
     /// twice for one period; a schedule seen for the first time fires from
     /// its next boundary. Returns the names fired.
     pub fn fire_schedules(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
+        self.fire_schedule_range(now, 0..self.schema.schedules.len())
+    }
+
+    /// One atomic schedule boundary, so the host can release its writer between
+    /// schedules. A changed/shortened schema is revisited on the next tick.
+    pub fn fire_schedule_at(&mut self, now: i64, index: usize) -> Result<Vec<String>, RuntimeError> {
+        self.fire_schedule_range(now, index..index.saturating_add(1))
+    }
+
+    fn fire_schedule_range(&mut self, now: i64, range: std::ops::Range<usize>) -> Result<Vec<String>, RuntimeError> {
         let mut fired = Vec::new();
-        for schedule in self.schema.schedules.clone() {
+        for schedule in self.schema.schedules.get(range).unwrap_or(&[]).to_vec() {
             let boundary = schedule.boundary(now);
             let key = format!("schedule:{}", schedule.name);
             let shape_key = format!("schedule-shape:{}", schedule.name);

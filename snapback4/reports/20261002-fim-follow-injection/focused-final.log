@@ -1,0 +1,272 @@
+TAP version 13
+# Subtest: every delivery await is explicitly classified
+ok 1 - every delivery await is explicitly classified
+  ---
+  duration_ms: 150.718404
+  type: 'test'
+  ...
+# Subtest: 24 transient: local.ts:687 syncRound
+ok 2 - 24 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 478.321444
+  type: 'test'
+  ...
+# Subtest: 24 persistent: local.ts:687 syncRound
+ok 3 - 24 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 129.016926
+  type: 'test'
+  ...
+# Subtest: 47 transient: local.ts:850 follow
+not ok 4 - 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 36.247892
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 47 persistent: local.ts:850 follow
+not ok 5 - 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 35.698629
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 48 transient: local.ts:855 follow
+not ok 6 - 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 35.886381
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 48 persistent: local.ts:855 follow
+not ok 7 - 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 34.36465
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 55 transient: local.ts:1093 flushOnce
+ok 8 - 55 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 54.765829
+  type: 'test'
+  ...
+# Subtest: 55 persistent: local.ts:1093 flushOnce
+ok 9 - 55 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 56.035232
+  type: 'test'
+  ...
+# Subtest: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 10 - 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 49.824422
+  type: 'test'
+  ...
+# Subtest: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 11 - 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 127.82532
+  type: 'test'
+  ...
+# Subtest: 150 transient: local-query.ts:266 route
+ok 12 - 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 61.855867
+  type: 'test'
+  ...
+# Subtest: 150 persistent: local-query.ts:266 route
+ok 13 - 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 51.682107
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 24 transient: local.ts:687 syncRound
+ok 14 - competing sync/install: 24 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 56.996543
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 24 persistent: local.ts:687 syncRound
+ok 15 - competing sync/install: 24 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 61.04357
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 47 transient: local.ts:850 follow
+not ok 16 - competing sync/install: 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 32.916569
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: competing sync/install: 47 persistent: local.ts:850 follow
+not ok 17 - competing sync/install: 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 32.406074
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: competing sync/install: 48 transient: local.ts:855 follow
+not ok 18 - competing sync/install: 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 33.469518
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: competing sync/install: 48 persistent: local.ts:855 follow
+not ok 19 - competing sync/install: 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 32.788878
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:78:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'resolve')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.changed (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-fixture.mjs:114:96)
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:247:31
+    async file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:27:23
+    async withHangGuard (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:16:12)
+    async waitFor (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/helpers/wait.mjs:25:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fim/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:245:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: competing sync/install: 55 transient: local.ts:1093 flushOnce
+ok 20 - competing sync/install: 55 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 66.714019
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 55 persistent: local.ts:1093 flushOnce
+ok 21 - competing sync/install: 55 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 66.581079
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 22 - competing sync/install: 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 52.336488
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 23 - competing sync/install: 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 105.426346
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 150 transient: local-query.ts:266 route
+ok 24 - competing sync/install: 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 55.163816
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 150 persistent: local-query.ts:266 route
+ok 25 - competing sync/install: 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 75.022792
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 17
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7294.239027

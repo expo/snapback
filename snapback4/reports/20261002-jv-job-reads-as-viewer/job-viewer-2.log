@@ -1,0 +1,11 @@
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.39s
+     Running tests/job_viewer.rs (target/debug/deps/job_viewer-8ea11a7ff38f7263)
+
+running 4 tests
+test side_effects_and_invalid_scopes_refuse_with_repairs ... ok
+test guide_digest_restart_closed_clients_idle_and_legacy_emissions ... ok
+test over_budget_recipient_parks_without_partial_effect_or_key ... ok
+test random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s

@@ -1,0 +1,58 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-fdl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 0.33s
+     Running tests/http.rs (target/debug/deps/http-091525e866a14c95)
+
+running 2 tests
+test a_stalled_frame_retains_the_absolute_write_deadline_and_aborts_the_connection ... ok
+test heartbeat_frames_survive_waits_without_spending_the_next_write_deadline ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/http_emfile.rs (target/debug/deps/http_emfile-bd366a5117dea8e6)
+
+running 1 test
+test clone_emfile_closes_the_connection_and_preserves_the_listener ... FAILED
+
+failures:
+
+---- clone_emfile_closes_the_connection_and_preserves_the_listener stdout ----
+
+thread 'clone_emfile_closes_the_connection_and_preserves_the_listener' (2323929) panicked at crates/snapback4/tests/http_emfile.rs:25:9:
+
+running 1 test
+test clone_emfile_closes_the_connection_and_preserves_the_listener ... FAILED
+
+failures:
+
+failures:
+    clone_emfile_closes_the_connection_and_preserves_the_listener
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s
+
+
+
+thread 'clone_emfile_closes_the_connection_and_preserves_the_listener' (2323932) panicked at crates/snapback4/tests/http_emfile.rs:61:9:
+clone stage 3: Err(Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    clone_emfile_closes_the_connection_and_preserves_the_listener
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s
+
+error: test failed, to rerun pass `-p snapback4 --test http_emfile`

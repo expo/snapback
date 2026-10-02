@@ -1,0 +1,20 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-device)
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-lang/tests/revocation_soundness.rs:4:5
+  |
+4 |     rows::Rows, schema::{ColumnType, Schema, Table, BY_ID}, revocation::preserved_between};
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "revocation_soundness") generated 1 warning
+    Finished `test` profile [optimized] target(s) in 20.67s
+     Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-5400aed0af4b4cc4)
+
+running 1 test
+RV soundness: seeds=[52560001, 52560002, 5256cafe, 5256beef]; schemas=89; no-durable-table schemas=1; commits=11392; certified viewer/table checks=224085; retained authorized ids=359803; revoking losses covered=4990; failures=0
+test certified_commits_preserve_authorized_row_ids_across_the_corpus ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.76s

@@ -17,19 +17,29 @@ struct Queue { next: u64, serving: u64, last_request: Option<Instant> }
 /// maintenance either; every holder does one bounded operation before release.
 pub struct FairMutex<T, C: Clock = SystemClock> {
     clock: C,
+    engine_timing: bool,
     queue: Mutex<Queue>,
     available: Condvar,
     value: Mutex<T>,
+    #[cfg(test)]
+    background_pause: Mutex<Option<(bool, std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>>,
 }
 
 impl<T> FairMutex<T> {
     pub fn new(value: T) -> Self {
         Self::with_clock(value, SystemClock)
     }
+    /// FIFO coordination alone owns no engine/reader and must not create an
+    /// engine span around clock drains, filesystem work or nested admissions.
+    pub fn gate(value: T) -> Self {
+        let mut gate = Self::new(value);
+        gate.engine_timing = false;
+        gate
+    }
 }
 impl<T, C: Clock> FairMutex<T, C> {
     fn with_clock(value: T, clock: C) -> Self {
-        Self { clock, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
+        Self { clock, engine_timing: true, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value), #[cfg(test)] background_pause: Mutex::new(None) }
     }
     fn background_wait(&self, queue: &Queue, started: Instant) -> Option<Duration> {
         // An existing queue is sustained contention: join its tail now.
@@ -48,9 +58,17 @@ impl<T, C: Clock> FairMutex<T, C> {
     /// maintenance takes a ticket even under continuous traffic; later arrivals
     /// cannot starve it. No engine lock is held during the deferral.
     pub fn background(&self) -> FairGuard<'_, T, C> {
-        recover(self.admit(true), || self.clear_poison())
+        #[cfg(test)]
+        let pause = self.background_pause.lock().unwrap().take();
+        #[cfg(test)]
+        if let Some((false, entered, resume)) = &pause { entered.send(()).unwrap(); resume.recv().unwrap(); }
+        let guard = recover(self.admit(true), || self.clear_poison());
+        #[cfg(test)]
+        if let Some((true, entered, resume)) = pause { entered.send(()).unwrap(); resume.recv().unwrap(); }
+        guard
     }
     fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T, C>> {
+        let trace_start = super::trace::begin();
         let started = self.clock.now();
         let mut queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
         if background {
@@ -67,14 +85,28 @@ impl<T, C: Clock> FairMutex<T, C> {
         drop(queue);
         let value = self.value.lock();
         // @ref LLP 3000.019#3.7 — clock advances run maintenance inside the request sample too.
-        super::latency::waited(started);
-        let timing = super::latency::EngineSpan::new();
+        super::trace::waited(trace_start, if self.engine_timing { "engine" } else { "mutex" });
+        let timing = self.engine_timing.then(|| {
+            super::latency::waited(started);
+            super::latency::EngineSpan::new()
+        });
         match value {
             Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended, _timing: timing }),
             Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended, _timing: timing })),
         }
     }
+    pub fn has_waiters(&self) -> bool {
+        let queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
+        queue.next.wrapping_sub(queue.serving) > 1
+    }
     pub fn clear_poison(&self) { self.value.clear_poison(); }
+    #[cfg(test)]
+    pub(super) fn pause_next_background(&self, holding: bool) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+        let (entered, observed) = std::sync::mpsc::channel();
+        let (release, resume) = std::sync::mpsc::channel();
+        *self.background_pause.lock().unwrap() = Some((holding, entered, resume));
+        (observed, release)
+    }
     #[cfg(test)]
     pub(super) fn waiting(&self) -> u64 {
         let queue = self.queue.lock().unwrap();
@@ -86,7 +118,7 @@ impl<T, C: Clock> FairMutex<T, C> {
     pub fn queued(&self) -> u64 { let q = self.queue.lock().unwrap(); q.next.wrapping_sub(q.serving) }
 }
 
-pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool, _timing: super::latency::EngineSpan }
+pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool, _timing: Option<super::latency::EngineSpan> }
 impl<T, C: Clock> FairGuard<'_, T, C> {
     pub fn contended(&self) -> bool { self.contended }
 }
@@ -124,7 +156,12 @@ fn recover<T>(result: LockResult<T>, clear: impl FnOnce()) -> T {
 }
 impl<T> Lockable for Mutex<T> {
     type Guard<'a> = MutexGuard<'a, T> where T: 'a;
-    fn recover_lock(&self) -> Self::Guard<'_> { recover(self.lock(), || self.clear_poison()) }
+    fn recover_lock(&self) -> Self::Guard<'_> {
+        let start = super::trace::begin();
+        let guard = recover(self.lock(), || self.clear_poison());
+        super::trace::waited(start, "mutex");
+        guard
+    }
 }
 impl<T, C: Clock> Lockable for FairMutex<T, C> {
     type Guard<'a> = FairGuard<'a, T, C> where T: 'a, C: 'a;

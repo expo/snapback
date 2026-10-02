@@ -1,0 +1,32 @@
+{
+  "parent": "3ed1e1c2c4b37d21322c2e74e332ab6b7db5b810",
+  "profile": "production",
+  "sqliteFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "qualificationBudget": 605225,
+  "sourceFiles": {
+    "snapback4/crates/snapback4-core/src/engine/job.rs": "cdcc3710e90b4e93a3f83ce6a94b530f36d39ed9a5ba4f5d5c34e1b48b6e75c5",
+    "snapback4/crates/snapback4-core/src/engine/row_views.rs": "4cd94f45228c8023f240fcfef8b6d97f679d57597e1cd5587e62aee46cbd7cf1",
+    "snapback4/crates/snapback4-core/src/engine/row_views/live.rs": "2a589c05c25325648bc6ad40e4ff8127fee25753393c67127061c055ca03c274",
+    "snapback4/crates/snapback4-core/src/engine/runner.rs": "023180b92673ffc0380be574a424b38098f81c31afc37cc8409a6e11bd37524d",
+    "snapback4/crates/snapback4-lang/src/guide/native.rs": "42c1de6e4b8f937513c2fc3ce665a7148d140e4a6855cc6757ed172861cb0648",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "04e2b61cd74088ebd4db35edd94f2ffa7090b3fed2542e1c62388b5b8015a504",
+    "snapback4/crates/snapback4-lang/tests/row_keyed_views.rs": "1c78ed6bd67a1ee0afeeb32bc1abe71c1ba7303f01f22497ec81ddd20fb90b60",
+    "snapback4/crates/snapback4-sim/tests/native.rs": "20d24851463a6e9add2ecf92c93c2ba8e0fde14142214818e30eaa545baf8ecc",
+    "snapback4/crates/snapback4/src/dev_worker.rs": "ce018f2294f0c7088c985e4e3c053d2682f9a613cd1f54f8e86442bb9eacb63c",
+    "snapback4/crates/snapback4/src/lifecycle.rs": "3711c84cb3c6d1bc6b45b36d6bb2566b51f812e6f566606cd845459da4369934",
+    "snapback4/crates/snapback4/src/serve_lock.rs": "4c3cfaeaf01b2421cbf94fe00b7c9db50c51847c22657b5003a3559ffbd402be",
+    "snapback4/crates/snapback4/src/serve_maintenance.rs": "d0f3e1168c54dde86243f34b91f57631b94abec4cfb9c2ce54840bb02b61c675",
+    "snapback4/crates/snapback4/src/thread_priority.rs": "5a56634e4a5ef65d623cb49a0f218939724c32104c0b382d691b8d60ea8ba697",
+    "snapback4/crates/snapback4/src/verbs.rs": "5380eb8ecdad9fc277c4f231c502d9820210d95e5f8dbd7c67dbbb31f014f603",
+    "snapback4/crates/snapback4/src/worker_process.rs": "4ab97f05dba4322985416a6e76e00fce144e9f64648465aa10f5145948a7346a"
+  },
+  "binaries": {
+    "demoted": "5c0463758a274791468df7531dd784de78ffd17b29efcd2d1a1c34abd3f75713",
+    "ordinary": "3a5d63aeef0e743df96b018bd23bb2d3e739c3f3508110c362b8fe126bc7b03e",
+    "split": "13f6c9c875f8284e3d013834846a61957560ea44b01705049e3d7823189d914c",
+    "paced": "d0111467250cf596e680137e4cbcb1805ae1a54ebbf280f461881fb509bf78a9"
+  },
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "pacing": "seven times consumed thread CPU, capped at 100 ms, no minimum; wall-time chunk deadlines"
+}

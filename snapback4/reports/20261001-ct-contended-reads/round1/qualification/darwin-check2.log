@@ -1,0 +1,246 @@
+warning: trait `MustBeShareDummy` is never used
+   --> /home/ccheever/sb4-intent/lane-ct/snapback4/vendor/tiny_http/src/lib.rs:171:7
+    |
+171 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Checking ct-macos-check v0.1.0 (/tmp/ct-macos-check)
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: struct `RequestScope` is never constructed
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/thread_priority.rs:17:19
+   |
+17 | pub(crate) struct RequestScope {
+   |                   ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `new` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/thread_priority.rs:22:19
+   |
+21 | impl RequestScope {
+   | ----------------- associated function in this implementation
+22 |     pub(crate) fn new() -> Self {
+   |                   ^^^
+
+warning: function `dispatcher` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/thread_priority.rs:53:15
+   |
+53 | pub(crate) fn dispatcher() {
+   |               ^^^^^^^^^^
+
+warning: static `OUTPUT` is never used
+ --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:7:8
+  |
+7 | static OUTPUT: OnceLock<Option<Mutex<File>>> = OnceLock::new();
+  |        ^^^^^^
+
+warning: function `output` is never used
+ --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:8:4
+  |
+8 | fn output() -> Option<&'static Mutex<File>> {
+  |    ^^^^^^
+
+warning: function `now` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:16:15
+   |
+16 | pub(super) fn now() -> u64 {
+   |               ^^^
+
+warning: struct `Trace` is never constructed
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:33:19
+   |
+33 | pub(super) struct Trace {
+   |                   ^^^^^
+
+warning: associated items `capture` and `run` are never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:41:19
+   |
+40 | impl Trace {
+   | ---------- associated items in this implementation
+41 |     pub(super) fn capture(request: &Request, dev: bool) -> Option<Self> {
+   |                   ^^^^^^^
+...
+49 |     pub(super) fn run(mut self, body: impl FnOnce()) {
+   |                   ^^^
+
+warning: function `begin` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:67:15
+   |
+67 | pub(super) fn begin() -> Option<Instant> { CURRENT.with(|slot| slot.borrow().as_ref().map(|_| Instant::now())) }
+   |               ^^^^^
+
+warning: function `waited` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:68:15
+   |
+68 | pub(super) fn waited(start: Option<Instant>, kind: &str) {
+   |               ^^^^^^
+
+warning: function `mark` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:74:15
+   |
+74 | pub(super) fn mark(stage: &str) {
+   |               ^^^^
+
+warning: function `mach_continuous_time` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs:21:32
+   |
+21 |         unsafe extern "C" { fn mach_continuous_time() -> u64; }
+   |                                ^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `Job` is never used
+ --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/request_workers.rs:4:6
+  |
+4 | type Job = Box<dyn FnOnce() + Send + 'static>;
+  |      ^^^
+
+warning: struct `State` is never constructed
+ --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/request_workers.rs:6:8
+  |
+6 | struct State { jobs: VecDeque<Job>, threads: usize, idle: usize, stopping: bool }
+  |        ^^^^^
+
+warning: struct `Inner` is never constructed
+ --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/request_workers.rs:8:8
+  |
+8 | struct Inner { state: Mutex<State>, ready: Condvar }
+  |        ^^^^^
+
+warning: struct `Workers` is never constructed
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/request_workers.rs:10:19
+   |
+10 | pub(super) struct Workers(Arc<Inner>);
+   |                   ^^^^^^^
+
+warning: method `submit` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/request_workers.rs:14:19
+   |
+12 | impl Workers {
+   | ------------ method in this implementation
+13 |     // @ref LLP 3000#contended-read-serving — separate class capacity; no extra admission queue.
+14 |     pub(super) fn submit(&self, limit: usize, builder: thread::Builder, job: Job) -> std::io::Result<()> {
+   |                   ^^^^^^
+
+warning: static `STOP` is never used
+ --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:9:8
+  |
+9 | static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+  |        ^^^^
+
+warning: function `stop_signal` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:10:15
+   |
+10 | extern "C" fn stop_signal(_: libc::c_int) { STOP.store(true, std::sync::atomic::Ordering::Relaxed); }
+   |               ^^^^^^^^^^^
+
+warning: function `isolate` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:12:15
+   |
+12 | pub(super) fn isolate(command: &mut Command) { command.process_group(0); }
+   |               ^^^^^^^
+
+warning: function `retain_owner` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:16:15
+   |
+16 | pub(super) fn retain_owner(command: &mut Command, owner: Option<Arc<File>>) {
+   |               ^^^^^^^^^^^^
+
+warning: function `inheritance` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:24:4
+   |
+24 | fn inheritance(fd: libc::c_int, inherit: bool) -> std::io::Result<()> {
+   |    ^^^^^^^^^^^
+
+warning: function `executable` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:32:15
+   |
+32 | pub(super) fn executable() -> std::path::PathBuf {
+   |               ^^^^^^^^^^
+
+warning: function `watchdog` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_process.rs:43:15
+   |
+43 | pub(crate) fn watchdog(args: &[String]) -> u8 {
+   |               ^^^^^^^^
+
+warning: struct `Child` is never constructed
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_spawn.rs:15:23
+   |
+15 |     pub(crate) struct Child { pid: libc::pid_t, pub(crate) stdout: Option<File> }
+   |                       ^^^^^
+
+warning: methods `id` and `wait` are never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_spawn.rs:17:23
+   |
+16 |     impl Child {
+   |     ---------- methods in this implementation
+17 |         pub(crate) fn id(&self) -> u32 { self.pid as u32 }
+   |                       ^^
+18 |         pub(crate) fn wait(&mut self) -> io::Result<ExitStatus> {
+   |                       ^^^^
+
+warning: function `check` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_spawn.rs:27:8
+   |
+27 |     fn check(error: i32) -> io::Result<()> { if error == 0 { Ok(()) } else { Err(io::Error::from_raw_os_error(error)) } }
+   |        ^^^^^
+
+warning: struct `Attr` is never constructed
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_spawn.rs:28:12
+   |
+28 |     struct Attr(libc::posix_spawnattr_t);
+   |            ^^^^
+
+warning: struct `Actions` is never constructed
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_spawn.rs:30:12
+   |
+30 |     struct Actions(libc::posix_spawn_file_actions_t);
+   |            ^^^^^^^
+
+warning: function `spawn` is never used
+  --> /home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/worker_spawn.rs:32:19
+   |
+32 |     pub(crate) fn spawn(program: &str, script: &str) -> io::Result<Child> {
+   |                   ^^^^^
+
+warning: `ct-macos-check` (lib test) generated 36 warnings
+    Finished `dev` profile [unoptimized] target(s) in 0.14s

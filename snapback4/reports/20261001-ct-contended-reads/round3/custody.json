@@ -1,0 +1,74 @@
+{
+  "round2": "32e111fff0",
+  "mainObserved": "738d45830c9d51c9c92f65180c56cbecb2f2b068",
+  "mainBudgetObserved": 610782,
+  "mergedMain": false,
+  "qualificationBudget": 605225,
+  "profile": "production",
+  "sqliteFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.0\nLLVM version: 22.1.6\n",
+  "binaries": {
+    "ordinary": "3a5d63aeef0e743df96b018bd23bb2d3e739c3f3508110c362b8fe126bc7b03e",
+    "demoted": "5c0463758a274791468df7531dd784de78ffd17b29efcd2d1a1c34abd3f75713",
+    "split": "13f6c9c875f8284e3d013834846a61957560ea44b01705049e3d7823189d914c"
+  },
+  "files": {
+    "snapback4/crates/snapback4-core/src/engine/job.rs": "432a321d80dc79a294c1457e499b81a9d768049961c94731076e23ba1149cc9f",
+    "snapback4/crates/snapback4/src/serve_maintenance.rs": "b3f3509123318d4d2b53f671f89b628f55c2a1bc6105d77a142af2382eaa4893",
+    "snapback4/crates/snapback4/src/serve.rs": "74e54e7b70cd6307395e93076e091f22562150dad1766f0b1fc9229fd484bb1a",
+    "snapback4/crates/snapback4/src/thread_priority.rs": "89aaae6c4d3cc0c9dc1e3be763484e00e135c35a63443723a0ca6a86ee4c8920",
+    "snapback4/crates/snapback4/src/request_workers.rs": "0a2e52c8cb598ca642d3ee00c6943a4efa1fe2eef7c3766ba2216a90d23f64dd",
+    "snapback4/crates/snapback4/src/lifecycle.rs": "91c2030f0fb409497183922987ce680337b2efcd61b17b1d53783ba41baf4b86",
+    "snapback4/scripts/contended-reads.mjs": "790d6871252c4d2c6138e5505e0cd27740589bc649cfc9efad7d0a247e60e246",
+    "snapback4/scripts/contended-mixed.mjs": "df3fffab7885fbaf321504e2bccc6f888ab851eb858df0fb375b8725d297811a",
+    "snapback4/scripts/contended-drain.mjs": "117eaec52dbdb488520e36e803497747ffa9361dae2e7de32f6f43e1097f739e",
+    "snapback4/scripts/contended-observation.mjs": "e5abbc62178bbcda65b9876e954ff6c0fa4f9f48308d79d8727a1fdcd02222b5",
+    "snapback4/crates/snapback4/src/serve_lock.rs": "2ae0d41fecbd0722655e1d4b5638a40aebb838f1a97762d4b0e14eed035dda19",
+    "snapback4/crates/snapback4/tests/latency/headers.rs": "bdfedb679ce14b0fbd6f2167c9a16579e8ab80a0bed514386b5028c8dd0b9530",
+    "snapback4/crates/snapback4-lang/tests/schedule_durations.rs": "f8b2fb4b61b294df0360ad213d797287bb346b0cc70465811ef3e2d100ab0b66",
+    "snapback4/crates/snapback4/src/serve_tests.rs": "2f13e3f10d9b7f190857a8f1e2d3dd91562b2ae86518fa3097f3e8de92a8506b",
+    "snapback4/crates/snapback4/tests/serve_poison/mod.rs": "0158db6cbc2eaae419d1c8699e71599e0601b7ba52fa0a9819201941a64befd0",
+    "snapback4/crates/snapback4/tests/serve_refusals/mod.rs": "7b06a5ddc7e0806d58dae15d39e20236782ec08808895724b578bbdefe0be622"
+  },
+  "smokeBinarySha256": "31996b5dbeed7c015fff328cea955b09fb3694adea32b0c386fe38001767cd00",
+  "inputs": {
+    "inputs/README.md": "09124477a3cb68ae6794851c0d0485f5685a2cbf4538f05eefaa30efe3ef9006",
+    "inputs/archive.py": "5a3d79fde1139b7e7c65b65b3ea60d34427c0a84a318281ee42f3603cad0f92f",
+    "inputs/build-qualify.sh": "f59be4606a3f83773fd6aed116278feaa12f00eb29458cc9433dc28064cf2d2d",
+    "inputs/measure.sh": "5c0ccd487ea3b3690b83c283ed0a6a1ab55435d5b6990a349ac88858a17db6c7",
+    "inputs/post-suite.sh": "19869a1d7da3076982d4eed7fa21d388eb5a9e318ef57fbd4b10f90939edc5ad",
+    "inputs/summarize.py": "d60d6253f1a12bcaad0b8b6ff7d821b2f5c24f08f1e90461053d5a8b87a2ce4f"
+  },
+  "mainObservedNote": "Fetched for budget context and isolated fault-matrix verification; no merge, no reproduced baseline failure.",
+  "mainVerification": {
+    "commit": "738d45830c9d51c9c92f65180c56cbecb2f2b068",
+    "wasmRaw": 2032879,
+    "wasmGzip": 610174,
+    "matrixPassed": 321,
+    "site47TransientPassed": true,
+    "baselineFailureReproduced": false
+  },
+  "primaryMeasurements": {
+    "smallMixedCells": 12,
+    "followingMixedCells": 4,
+    "realDrainTrials": 12,
+    "allExits": 0,
+    "initialDeliveryTasks": 6507,
+    "settledEndpointHashesAgree": 8,
+    "smallMixedReads": 2424961,
+    "followingMixedReads": 726752,
+    "calibrationSamples": 323472,
+    "finishedAt": "2026-10-02T05:03:14Z"
+  },
+  "pristineStoreFiles": {
+    "store.sqlite": {
+      "bytes": 1151639552,
+      "sha256": "8da6bb2e00ac715c6707f36f908eb9c2d4561e32431a718faaac626cd2237d25"
+    },
+    "store.sqlite-wal": {
+      "bytes": 56122672,
+      "sha256": "eb801ad6feeb557171b2e1a6b6c0347dce0bc9b9262b7c6cb26ea350cac2c722"
+    }
+  }
+}

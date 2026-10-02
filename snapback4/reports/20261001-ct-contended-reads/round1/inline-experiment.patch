@@ -1,0 +1,219 @@
+--- a/snapback4/crates/snapback4/src/serve.rs
++++ b/snapback4/crates/snapback4/src/serve.rs
+@@ -383,6 +383,7 @@
+     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
+     crate::thread_priority::dispatcher();
+     let admission = Arc::new(RequestAdmission::default());
++    install_parser(&server, &shared, &admission);
+     let mut reported = tiny_http::AdmissionRefusals::default();
+     let mut reported_workers = ([0; 7], [0; 7]);
+     let mut report_at = Instant::now();
+@@ -465,6 +466,28 @@
+ 
+ #[path = "request_workers.rs"]
+ mod request_workers;
++
++// @ref LLP 3000#contended-read-serving — only the connection parser runs short work inline.
++fn install_parser(server: &Server, shared: &Arc<Shared>, admission: &Arc<RequestAdmission>) {
++    let shared = shared.clone();
++    let admission = admission.clone();
++    let loopback = server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback());
++    server.set_parser_handler(move |request| {
++        if !matches!(request_class(&request, &shared), RequestClass::Short) { return Some(request); }
++        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++            let trace = trace::Trace::capture(&request, shared.personas && loopback);
++            let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback && dev_request(&request, &shared).is_ok());
++            let Some(_permit) = admission.acquire(RequestClass::Short) else {
++                admission.refuse(request, RequestClass::Short);
++                return;
++            };
++            let _priority = crate::thread_priority::RequestScope::new();
++            let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
++            if let Some(trace) = trace { trace.run(run); } else { run(); }
++        }));
++        None
++    });
++}
+ 
+ fn request_class(request: &Request, shared: &Shared) -> RequestClass {
+     let path = request.url().split('?').next().unwrap_or("");
+--- a/snapback4/crates/snapback4/src/thread_priority.rs
++++ b/snapback4/crates/snapback4/src/thread_priority.rs
+@@ -43,6 +43,37 @@
+     request_parent().expect("HTTP thread inherited an invalid QoS class");
+     // Linux never changes the creator's nice: restoring it needs privilege.
+ }
++// Intake is user-initiated already. If a caller uses default QoS, restore it
++// on unwind too; never lower a parser to utility between requests.
++pub(crate) struct RequestScope {
++    #[cfg(target_os = "macos")]
++    previous: Option<(libc::qos_class_t, i32)>,
++}
++impl RequestScope {
++    pub(crate) fn new() -> Self {
++        #[cfg(target_os = "macos")]
++        let previous = {
++            let mut class = libc::qos_class_t::QOS_CLASS_UNSPECIFIED;
++            let mut relative = 0;
++            let error = unsafe { libc::pthread_get_qos_class_np(libc::pthread_self(), &mut class, &mut relative) };
++            assert_eq!(error, 0, "cannot save parser QoS");
++            if class as u32 == libc::qos_class_t::QOS_CLASS_USER_INITIATED as u32 { None } else { Some((class, relative)) }
++        };
++        #[cfg(target_os = "macos")]
++        if previous.is_some() { request(); }
++        Self { #[cfg(target_os = "macos")] previous }
++    }
++}
++impl Drop for RequestScope {
++    fn drop(&mut self) {
++        #[cfg(target_os = "macos")]
++        if let Some((class, relative)) = self.previous {
++            let error = unsafe { libc::pthread_set_qos_class_self_np(class, relative) };
++            if error != 0 { snapback4_core::diagnostic!("snapback4: restore parser QoS failed: {}", std::io::Error::from_raw_os_error(error)); }
++        }
++    }
++}
++
+ // Lease recovery, expiry and schedules have a real-time completion obligation.
+ // Keep Linux's inherited priority and select Darwin default (not utility).
+ pub(crate) fn maintenance() {
+@@ -123,4 +154,17 @@
+             }).join().unwrap();
+         }).join().unwrap();
+     }
++    #[cfg(target_os = "macos")]
++    #[test]
++    fn request_scope_restores_default_after_unwind() {
++        std::thread::spawn(|| {
++            assert_eq!(super::qos(libc::qos_class_t::QOS_CLASS_DEFAULT), 0);
++            let _ = std::panic::catch_unwind(|| {
++                let _scope = super::RequestScope::new();
++                assert_eq!(super::current_qos(), libc::qos_class_t::QOS_CLASS_USER_INITIATED as u32);
++                panic!("request unwind");
++            });
++            assert_eq!(super::current_qos(), libc::qos_class_t::QOS_CLASS_DEFAULT as u32);
++        }).join().unwrap();
++    }
+ }
+--- a/snapback4/crates/snapback4/tests/serve_overload/mod.rs
++++ b/snapback4/crates/snapback4/tests/serve_overload/mod.rs
+@@ -1,7 +1,7 @@
+ use super::*;
+ 
+ #[test]
+-fn a_thousand_sequential_reads_reuse_bounded_request_threads() {
++fn a_thousand_sequential_reads_stay_on_the_connection_parser() {
+     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+         "use personas alice\nquery ping():\n  return 7\n");
+     let threads = Arc::new(Mutex::new(std::collections::HashSet::new()));
+@@ -10,14 +10,23 @@
+         #[cfg(target_os = "macos")]
+         assert_eq!(crate::thread_priority::current_qos(),
+             libc::qos_class_t::QOS_CLASS_USER_INITIATED as u32);
++        assert_ne!(thread::current().name(), Some("request"));
+         lock(&observed).insert(thread::current().id());
+     }));
++    use std::io::BufRead;
++    let mut socket = TcpStream::connect(host.address).unwrap();
++    socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
++    let mut input = std::io::BufReader::new(socket.try_clone().unwrap());
+     for _ in 0..1000 {
+-        let response = host.request("POST", "/q/ping", "x-snapback-persona: alice\r\n", r#"{"args":{}}"#);
++        socket.write_all(b"POST /q/ping HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nContent-Length: 11\r\n\r\n{\"args\":{}}").unwrap();
++        let mut response = String::new();
++        loop { let mut line = String::new(); input.read_line(&mut line).unwrap(); response.push_str(&line); if line == "\r\n" {break;} }
++        let length: usize = response.lines().find_map(|line| line.to_lowercase().strip_prefix("content-length:").map(|n| n.trim().parse().unwrap())).unwrap();
++        let mut bytes = vec![0;length]; input.read_exact(&mut bytes).unwrap(); response.push_str(std::str::from_utf8(&bytes).unwrap());
+         assert_eq!(body(&response)["data"], 7);
+     }
+     let created = lock(&threads).len();
+-    assert!(created <= REQUEST_WORKERS, "1000 reads created {created} serving threads; capacity is {REQUEST_WORKERS}");
++    assert_eq!(created, 1, "1000 requests on one connection must stay on its parser");
+ }
+ 
+ #[test]
+--- a/snapback4/crates/snapback4/tests/serve_refusals/mod.rs
++++ b/snapback4/crates/snapback4/tests/serve_refusals/mod.rs
+@@ -150,11 +150,12 @@
+         });
+         shared.install_ephemeral_wake();
+         let server = Arc::new(
+-            Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits::default())
++            Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits { thread_start: Some(crate::thread_priority::dispatcher), ..Default::default() })
+                 .unwrap(),
+         );
+         let address = server.server_addr().to_ip().unwrap();
+         let admission = Arc::new(RequestAdmission::default());
++        install_parser(&server, &shared, &admission);
+         let (s, e, a) = (server.clone(), shared.clone(), admission.clone());
+         let worker = thread::spawn(move || {
+             for request in s.incoming_requests() {
+--- a/snapback4/vendor/tiny_http/src/lib.rs
++++ b/snapback4/vendor/tiny_http/src/lib.rs
+@@ -132,10 +132,13 @@
+ /// Destroying this object will immediately close the listening socket and the reading
+ ///  part of all the client's connections. Requests that have already been returned by
+ ///  the `recv()` function will not close and the responses will be transferred to the client.
++type ParserHandler = Arc<dyn Fn(Request) -> Option<Request> + Send + Sync>;
++
+ pub struct Server {
+     // should be false as long as the server exists
+     // when set to true, all the subtasks will close within a few hundreds ms
+     close: Arc<AtomicBool>,
++    parser_handler: Arc<std::sync::OnceLock<ParserHandler>>,
+ 
+     // queue for messages received by child threads
+     messages: Arc<MessagesQueue<Message>>,
+@@ -193,6 +196,13 @@
+ }
+ 
+ impl Server {
++    /// Handle selected requests on their connection parser, before the queue.
++    /// Return Some(request) to use recv(); None means the host handled it.
++    /// Install once before admitting application traffic. Never runs on accept.
++    pub fn set_parser_handler(&self, handler: impl Fn(Request) -> Option<Request> + Send + Sync + 'static) {
++        assert!(self.parser_handler.set(Arc::new(handler)).is_ok(), "parser handler already installed");
++    }
++
+     /// Every connection refused before admission, including failed wire delivery.
+     pub fn admission_refusals(&self) -> AdmissionRefusals { self.refusals.snapshot() }
+ 
+@@ -307,6 +317,8 @@
+         // and ClientConnection objects are pushed in the messages queue
+         let messages = MessagesQueue::with_capacity(8);
+ 
++        let parser_handler = Arc::new(std::sync::OnceLock::<ParserHandler>::new());
++        let inside_parser_handler = parser_handler.clone();
+         let inside_close_trigger = close_trigger.clone();
+         let inside_messages = messages.clone();
+         let connections = Arc::new(AtomicUsize::new(0));
+@@ -363,6 +375,7 @@
+                 match new_client {
+                     Ok(client) => {
+                         let messages = inside_messages.clone();
++                        let parser_handler = inside_parser_handler.clone();
+                         let mut client = Some(client);
+                         let bounded = limits.is_some();
+                         let work = move || {
+@@ -374,7 +387,12 @@
+                                 if client.secure() || bounded {
+                                     let (sender, receiver) = mpsc::channel();
+                                     for rq in client {
+-                                        messages.push(rq.with_notify_sender(sender.clone()).into());
++                                        let rq = rq.with_notify_sender(sender.clone());
++                                        let pending = match parser_handler.get() {
++                                            Some(handler) => handler(rq),
++                                            None => Some(rq),
++                                        };
++                                        if let Some(rq) = pending { messages.push(rq.into()); }
+                                         if receiver.recv().is_err() { break; }
+                                     }
+                                 } else {
+@@ -402,6 +420,7 @@
+             messages,
+             close: close_trigger,
+             listening_addr: local_addr,
++            parser_handler,
+             connections,
+             refusals,
+         })

@@ -78,6 +78,7 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    pub changes: std::cell::RefCell<crate::revocation::Recorder>,
     sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
     page_size: u64,
@@ -138,6 +139,14 @@ impl Store {
     /// A caller with its own pre-admission deadline can own the lock wait.
     // @ref LLP 3000.011.004.000#2 — only open/adoption retries use a caller-owned deadline.
     pub fn open_with_busy_timeout(path: &Path, timeout: std::time::Duration) -> Result<Self, RuntimeError> {
+        let store = Self::open_base(path, timeout)?;
+        store.initialize_change_evidence()?;
+        Ok(store)
+    }
+
+    // Shared server/device initialization; server evidence is added only by
+    // the server entry points, never when opening an older native device.
+    fn open_base(path: &Path, timeout: std::time::Duration) -> Result<Self, RuntimeError> {
         let io = |e: std::io::Error| RuntimeError::Store(format!("private store: {e}"));
         // Release links intentionally point at the one shared database.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -177,7 +186,16 @@ impl Store {
         let assets_dir = std::env::temp_dir().join(format!(
             "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut 0)?
         ));
-        Self::prepare(Connection::open_in_memory()?, assets_dir, true)
+        let store = Self::prepare(Connection::open_in_memory()?, assets_dir, true)?;
+        store.initialize_change_evidence()?;
+        Ok(store)
+    }
+
+    // @ref LLP 3000.023#12 — create server metadata at open, before reads can
+    // cache plans. DDL during a commit would invalidate those prepared reads.
+    fn initialize_change_evidence(&self) -> Result<(), RuntimeError> {
+        self.conn.execute_batch("CREATE TABLE IF NOT EXISTS _change_evidence (seq INTEGER PRIMARY KEY, footprint TEXT NOT NULL)")?;
+        Ok(())
     }
 
     /// Where this store keeps uploaded bytes (`assets/<id>`).
@@ -289,7 +307,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -299,7 +317,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -310,7 +328,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
@@ -470,6 +488,7 @@ impl<'a> Tx<'a> {
 
     /// Roll back the named savepoint and release it in the same operation.
     pub fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        self.changes.borrow_mut().widen();
         self.tx.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
         // Lazy sequence-table creation may have belonged to this savepoint.
         self.sequence_table.set(None);
@@ -545,6 +564,7 @@ impl<'a> Tx<'a> {
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
+        self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);
         let sql = if old.is_some() { "UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2" } else { "INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)" };
         self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
@@ -569,6 +589,7 @@ impl<'a> Tx<'a> {
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
+        self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?.to_owned();
         self.tx.prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
         let mut entries = 0;
@@ -599,6 +620,11 @@ impl<'a> Tx<'a> {
     }
 
     pub fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError> {
+        if !self.changes.borrow().covers(touched) { self.changes.borrow_mut().widen(); }
+        self.tx.execute("INSERT INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", params![seq as i64, canonical_json(&self.changes.borrow().footprint())])?;
+        // @ref LLP 3000.023#12 — retain twice the 500-commit certification
+        // window. Pruning rolls back with the commit; older intervals widen.
+        self.tx.prepare_cached("DELETE FROM _change_evidence WHERE seq <= ?1")?.execute([seq.saturating_sub(1000) as i64])?;
         self.tx.prepare_cached("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![seq as i64, at, program, principal, kind, canonical_json(&touched), writes as i64],
         )?;
         Ok(())
@@ -928,6 +954,7 @@ mod tests {
 }
 
 impl crate::rows::Rows for Tx<'_> {
+    fn change_footprint(&self) -> crate::revocation::Footprint { self.changes.borrow().footprint() }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
         if !self.has_sequence_table()? { return Ok(0); }
         Ok(self.conn().query_row("SELECT value FROM _sequences WHERE parent = ?1 AND id = ?2", params![parent, id], |r| r.get(0)).optional()?.unwrap_or(0))

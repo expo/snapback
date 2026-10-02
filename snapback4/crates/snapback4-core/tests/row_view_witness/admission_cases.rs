@@ -206,6 +206,37 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
         let mut program = programs[0].clone(); program.body = vec![Stmt::Return(expr)];
         out.push((format!("control/assigned-{focal}"), base.clone(), vec![program]));
     }
+    assert_eq!(out.len(), 997, "retain the complete round-8 matrix");
+    // Job scopes share outer slots; embedded queries keep independent locals,
+    // internal computation permissions, and the structural type of their result.
+    for all in [false, true] {
+        let mut query = programs[0].clone(); query.name = "embedded".into();
+        query.body = vec![Stmt::Return(if all { Expr::Array(vec![row.clone()]) } else { row.clone() })];
+        let call = Expr::Builtin { builtin: Builtin::JobQuery { program: Box::new(query.clone()), cursor:None, all }, args:vec![Expr::Object(Default::default())] };
+        let result = if all { Expr::Builtin {builtin:Builtin::First,args:vec![call]} } else { field_expr(call,"data") };
+        let scope = |body| Expr::Builtin { builtin:Builtin::JobAs, args:vec![Expr::Literal(Value::Id("reader".into())), Expr::Block {body,value:Box::new(Expr::Literal(Value::Null))}] };
+        for reset in [false,true] {
+            let mut program = programs[0].clone(); program.kind = ProgramKind::Job;
+            program.body = vec![Stmt::Let {name:"carried".into(),value:Expr::Literal(Value::Null)},
+                Stmt::Let {name:"scope".into(),value:scope(vec![Stmt::Assign {name:"carried".into(),value:result.clone()}])}];
+            if reset { program.body.push(Stmt::Assign {name:"carried".into(),value:Expr::Literal(Value::Null)}); }
+            program.body.push(Stmt::Return(Expr::Builtin {builtin:Builtin::Max,args:vec![var("carried"),var("carried")]}));
+            out.push((format!("job/captured-query/all={all}/reset={reset}"),base.clone(),vec![program]));
+        }
+        // A query is not exempt from validation merely because it is embedded.
+        query.body = vec![Stmt::Return(Expr::Builtin {builtin:Builtin::Max,args:vec![row.clone(),row.clone()]})];
+        let call = Expr::Builtin {builtin:Builtin::JobQuery {program:Box::new(query),cursor:None,all},args:vec![Expr::Object(Default::default())]};
+        let mut program=programs[0].clone(); program.kind=ProgramKind::Job;
+        program.body=vec![Stmt::Let {name:"scope".into(),value:scope(vec![Stmt::Let {name:"unused".into(),value:call}])}];
+        out.push((format!("job/embedded-inspection/all={all}"),base.clone(),vec![program]));
+        let mut query=programs[0].clone(); query.name="status".into();
+        let status=field_expr(row.clone(),"recountPending");
+        query.body=vec![Stmt::Return(if all {Expr::Array(vec![status])} else {status})];
+        let call=Expr::Builtin {builtin:Builtin::JobQuery {program:Box::new(query),cursor:None,all},args:vec![Expr::Object(Default::default())]};
+        let mut program=programs[0].clone(); program.kind=ProgramKind::Job;
+        program.body=vec![Stmt::Let {name:"scope".into(),value:scope(vec![Stmt::Let {name:"unused".into(),value:call}])}];
+        out.push((format!("job/embedded-status/all={all}"),base.clone(),vec![program]));
+    }
     out
 }
 fn field_expr(base: Expr,name: &str) -> Expr { Expr::Field {base:Box::new(base),name:name.into()} }

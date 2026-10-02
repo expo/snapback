@@ -1,0 +1,841 @@
+✔ ready fixtures carry existence (0.748371ms)
+✔ online evidence while already revalidating: keep=undefined, late answer (1.843383ms)
+✔ online evidence while already revalidating: keep=undefined, throw (0.555222ms)
+✔ online evidence while already revalidating: keep=undefined, offline (0.324156ms)
+✔ online evidence while already revalidating: keep=undefined, exhausted (176.34173ms)
+✔ online evidence while already revalidating: keep=true, late answer (0.523926ms)
+✔ online evidence while already revalidating: keep=true, throw (0.258518ms)
+✔ online evidence while already revalidating: keep=true, offline (0.236845ms)
+✔ online evidence while already revalidating: keep=true, exhausted (175.670625ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=false (1040.94273ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=true (31.536557ms)
+✔ actual /changes bounds the online answer: keep=true, failed=false (1025.761727ms)
+✔ actual /changes bounds the online answer: keep=true, failed=true (31.173562ms)
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3028.97189ms)
+  ✔ offline transport (18.237735ms)
+  ✔ retry exhaustion (203.223661ms)
+  ✔ reconnect (39.698369ms)
+✔ process keep=undefined: profile route gate (4237.854839ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (31.340573ms)
+  ✔ own send and settlement (25.865707ms)
+  ✔ edit (22.304219ms)
+  ✔ delete (19.438014ms)
+  ✔ membership removal (19.975569ms)
+✔ process keep=undefined: chat history and membership removal (1661.675031ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3036.228786ms)
+  ✔ offline transport (20.574998ms)
+  ✔ retry exhaustion (199.788231ms)
+  ✔ reconnect (49.185419ms)
+✔ process keep=true: profile route gate (3940.830229ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (32.047603ms)
+  ✔ own send and settlement (19.846065ms)
+  ✔ edit (18.732827ms)
+  ✔ delete (17.992758ms)
+  ✔ membership removal (19.09561ms)
+✔ process keep=true: chat history and membership removal (1621.315981ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3034.399644ms)
+  ✔ offline transport (20.625513ms)
+  ✔ retry exhaustion (203.398453ms)
+  ✔ reconnect (28.804642ms)
+✔ wasm keep=undefined: profile route gate (4261.865294ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (29.629799ms)
+  ✔ own send and settlement (28.237662ms)
+  ✔ edit (30.579422ms)
+  ✔ delete (19.122972ms)
+  ✔ membership removal (18.52167ms)
+✔ wasm keep=undefined: chat history and membership removal (1636.333209ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3026.40438ms)
+  ✔ offline transport (13.766403ms)
+  ✔ retry exhaustion (196.870909ms)
+  ✔ reconnect (32.850606ms)
+✔ wasm keep=true: profile route gate (3930.89765ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (36.198584ms)
+  ✔ own send and settlement (23.836856ms)
+  ✔ edit (30.906322ms)
+  ✔ delete (18.09445ms)
+  ✔ membership removal (17.536694ms)
+✔ wasm keep=true: chat history and membership removal (1572.295328ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3016.95706ms)
+  ✔ offline transport (10.007489ms)
+  ✔ retry exhaustion (190.082845ms)
+  ✔ reconnect (17.495863ms)
+✔ online keep=undefined: profile route gate (3827.503733ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (37.250712ms)
+  ✔ own send and settlement (17.937936ms)
+  ✔ edit (14.840543ms)
+  ✔ delete (14.707884ms)
+  ✔ membership removal (13.882777ms)
+✔ online keep=undefined: chat history and membership removal (573.336775ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3021.070324ms)
+  ✔ offline transport (6.053193ms)
+  ✔ retry exhaustion (188.41131ms)
+  ✔ reconnect (15.061094ms)
+✔ online keep=true: profile route gate (3831.480102ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (134.611275ms)
+  ✔ own send and settlement (38.532852ms)
+  ✔ edit (43.116012ms)
+  ✔ delete (21.694145ms)
+  ✔ membership removal (50.313069ms)
+✔ online keep=true: chat history and membership removal (1315.037141ms)
+✔ ready fixtures carry existence (0.955502ms)
+✖ apply keeps its bound on held, keep=undefined (1.150874ms)
+✖ apply keeps its bound on throw, keep=undefined (0.294772ms)
+✖ admit keeps its bound on held, keep=undefined (0.345287ms)
+✖ admit keeps its bound on throw, keep=undefined (0.283134ms)
+✖ settle keeps its bound on held, keep=undefined (1.044125ms)
+✖ settle keeps its bound on throw, keep=undefined (0.26681ms)
+✖ apply keeps its bound on held, keep=true (0.215162ms)
+✖ apply keeps its bound on throw, keep=true (0.200561ms)
+✖ admit keeps its bound on held, keep=true (0.264576ms)
+✖ admit keeps its bound on throw, keep=true (0.237827ms)
+✖ settle keeps its bound on held, keep=true (0.176545ms)
+✖ settle keeps its bound on throw, keep=true (0.143525ms)
+✔ process: applied membership removal and held replica replacement (243.354419ms)
+✔ process: applied membership removal and throw replica replacement (207.743965ms)
+✔ wasm: applied membership removal and held replica replacement (586.95175ms)
+✔ wasm: applied membership removal and throw replica replacement (173.286261ms)
+✔ online receipt bounds held replacement, keep=undefined (1158.226665ms)
+✔ online receipt bounds offline replacement, keep=undefined (143.218785ms)
+✔ online receipt bounds held replacement, keep=true (1153.077528ms)
+✔ online receipt bounds offline replacement, keep=true (153.754126ms)
+✔ online: ephemeral-only /changes bounds a held replacement (156.380853ms)
+✔ process: ephemeral-only /changes bounds a held replacement (201.12801ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (170.989509ms)
+✔ ephemeral periodic sampling is distinct from change evidence (1.619196ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (0.957024ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (193.029972ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (164.658149ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1108.700055ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1067.691792ms)
+✔ process: ordinary search offline classification (295.522127ms)
+✔ process: ordinary search loading classification (294.540266ms)
+✔ process: ordinary search denied classification (292.824694ms)
+✔ wasm: ordinary search offline classification (262.992432ms)
+✔ wasm: ordinary search loading classification (285.973806ms)
+✔ wasm: ordinary search denied classification (314.109866ms)
+✔ process: pre-change replica completion cannot erase a pending change bound (1138.452207ms)
+✔ wasm: pre-change replica completion cannot erase a pending change bound (1099.56306ms)
+✔ pending change requires published sync or a whole server answer at its cut (1.216593ms)
+✔ process: item notification survives readable old replica and failed sync, keep=undefined (1154.757515ms)
+✔ process: item notification survives readable old replica and failed sync, keep=true (1133.191031ms)
+✔ process: item notification survives readable old replica and failed sync, keep=false (1117.103409ms)
+✔ process: item notification survives throw old replica and failed sync, keep=undefined (1119.546171ms)
+✔ process: item notification survives throw old replica and failed sync, keep=true (1122.395921ms)
+✔ process: item notification survives throw old replica and failed sync, keep=false (1117.582267ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=undefined (1181.079726ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=true (1122.745235ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=false (1110.180613ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=undefined (1121.844975ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=true (1123.561829ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=false (1139.580528ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=undefined (1483.35155ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=true (1097.2017ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=false (1087.71414ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=undefined (1159.866352ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=true (1419.148583ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=false (1238.46181ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (1109.57184ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=true (1086.347943ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=false (1102.1194ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (1090.414247ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=true (1187.143114ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=false (1084.977979ms)
+✔ process: only a server answer at the reported cut can replace before sync (247.255285ms)
+✔ wasm: only a server answer at the reported cut can replace before sync (228.261848ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (5106.981085ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (411.255878ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (297.882414ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (5062.382359ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (370.939111ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (262.646513ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=undefined (2516.081699ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=true (2462.395455ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=false (2443.487756ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=undefined (2442.453506ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=true (2445.515766ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=false (2447.445168ms)
+✔ process: real generation-only adoption retires held replica answers, keep=undefined (2436.213393ms)
+✔ process: real generation-only adoption retires held replica answers, keep=true (2443.266764ms)
+✔ process: real generation-only adoption retires held replica answers, keep=false (2437.581553ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=undefined (2842.889316ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=true (2436.246551ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=false (2434.956008ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=undefined (3446.776027ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=true (2446.760038ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=false (2442.679212ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=undefined (2447.506016ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=true (2439.852725ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=false (2441.767906ms)
+✔ process: generation boundary clears remembered answers and a held server completion (1439.22474ms)
+✔ wasm: generation boundary clears remembered answers and a held server completion (1445.547327ms)
+✔ process: quiet presence cannot publish below a pending durable cut (199.41367ms)
+✔ wasm: quiet presence cannot publish below a pending durable cut (167.869932ms)
+✔ online: missing tables, keep=undefined, failed=false (1033.580694ms)
+✔ online: missing tables, keep=undefined, failed=true (31.437769ms)
+✔ online: missing tables, keep=true, failed=false (1025.070679ms)
+✔ online: missing tables, keep=true, failed=true (31.215005ms)
+✔ online: empty tables, keep=undefined, failed=false (1121.037864ms)
+✔ online: empty tables, keep=undefined, failed=true (1122.19607ms)
+✔ online: empty tables, keep=true, failed=false (1122.900005ms)
+✔ online: empty tables, keep=true, failed=true (1123.743479ms)
+✔ online: kept typing survives member commits and expires during a held re-read (5215.836845ms)
+ℹ burst: 24 default loading publications; 24 kept publications, all visible
+ℹ expiry: server deadline 1790896708836, visible at 1790896708835, withdrawn at 1790896708836; 21 member commits, no renewal
+✔ wasm: kept typing survives member commits and expires during a held re-read (5152.208208ms)
+ℹ burst: 64 default loading publications; 65 kept publications, all visible
+ℹ expiry: server deadline 1790896714062, visible at 1790896714061, withdrawn at 1790896714062; 21 member commits, no renewal
+✔ process: kept typing survives member commits and expires during a held re-read (7046.463195ms)
+ℹ burst: 64 default loading publications; 65 kept publications, all visible
+ℹ expiry: server deadline 1790896720435, visible at 1790896720434, withdrawn at 1790896720435; 21 member commits, no renewal
+✔ peeking a lingering watch neither acquires it nor changes its timer or expiry boundary (1.817093ms)
+✔ app peek reuses only a live authorized snapshot and cannot cross withdrawal or retirement (23.482696ms)
+✔ facade approval follows freshness identity but never a new publication or reset (21.438241ms)
+✖ local keep: apply fences in-flight answers and keeps active and lingering data (0.69415ms)
+✖ local keep: admit fences in-flight answers and keeps active and lingering data (0.199359ms)
+✖ local keep: settle fences in-flight answers and keeps active and lingering data (0.146079ms)
+✔ local keep: clear_rows fences in-flight answers and drops active and lingering data (0.222142ms)
+✔ local keep: settle_exit fences in-flight answers and drops active and lingering data (0.171797ms)
+✔ local keep: adopt fences in-flight answers and drops active and lingering data (0.125979ms)
+✔ local keep: observe_store fences in-flight answers and drops active and lingering data (0.138087ms)
+✔ keep carries original freshness through reload, and every published result replaces it (0.335834ms)
+✔ rejoining at 29 seconds cancels the old close and gives the next unsubscribe a full window (0.772548ms)
+✔ lingering watches close on the 30-second timer and cannot return after clock rollback (0.410024ms)
+✔ online keep: mutation waits without loading, then publishes next (46.57091ms)
+✔ online keep: mutation waits without loading, then publishes denied (33.088252ms)
+✔ online keep: notification waits without loading, then publishes next (40.815985ms)
+✔ online keep: notification waits without loading, then publishes denied (42.158267ms)
+✔ online keep: adoption clears active and lingering answers (41.517085ms)
+✔ online keep: replacement clears active and lingering answers (31.097379ms)
+✔ online keep: regression clears active and lingering answers (30.67857ms)
+✔ online keep: credentials clears active and lingering answers (33.601441ms)
+✔ online keep: viewer clears active and lingering answers (23.151259ms)
+✔ online keep: sign-out clears active and lingering answers (21.162198ms)
+✔ online keep: close clears active and lingering answers (21.537671ms)
+✔ online keep: an in-flight answer read before a newer commit never replaces the kept answer (53.444132ms)
+✔ the app client forwards keep while its lifetime fence still withdraws data (41.649384ms)
+✔ createApp forwards source expiry while sessionStore.get is held (36.567928ms)
+✔ createApp keeps a superseded answer while replacement authority is held (285.688247ms)
+✔ createApp keeps a superseded answer while replacement authority is held (287.245572ms)
+✔ createApp withdraws a superseded answer while replacement authority is held (287.519523ms)
+✔ app facade forwards loading synchronously but gates replacement data (21.078212ms)
+✔ app facade forwards denied synchronously but gates replacement data (20.923339ms)
+✔ online keep preserves the existing expiry withdrawal before a held refetch (112.694666ms)
+✔ wasm keep=undefined: queued presence checks a second change at the response boundary (589.699568ms)
+✔ wasm keep=undefined: queued presence checks a second change at the callback boundary (217.838966ms)
+✔ wasm keep=false: queued presence checks a second change at the response boundary (223.794021ms)
+✔ wasm keep=false: queued presence checks a second change at the callback boundary (223.134452ms)
+✔ wasm keep=true: queued presence checks a second change at the response boundary (226.934458ms)
+✔ wasm keep=true: queued presence checks a second change at the callback boundary (215.921572ms)
+✔ process keep=undefined: queued presence checks a second change at the response boundary (260.565724ms)
+✔ process keep=undefined: queued presence checks a second change at the callback boundary (244.676309ms)
+✔ process keep=false: queued presence checks a second change at the response boundary (247.941653ms)
+✔ process keep=false: queued presence checks a second change at the callback boundary (246.902025ms)
+✔ process keep=true: queued presence checks a second change at the response boundary (263.843517ms)
+✔ process keep=true: queued presence checks a second change at the callback boundary (247.714282ms)
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (186.941918ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (191.898316ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (195.007776ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (268.197873ms)
+✔ process keep=false: a full queue cannot postpone the change transition (224.208072ms)
+✔ process keep=true: a full queue cannot postpone the change transition (224.30743ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (176.911524ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (413.111909ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (172.706812ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (418.06986ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (175.681921ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (412.005211ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (210.657131ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (454.285601ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (204.97128ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (448.000891ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (211.888067ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (449.098626ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (635.37151ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (196.5843ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (197.851849ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (230.029557ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (232.718918ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (231.075224ms)
+✔ online keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (229.928576ms)
+✔ online keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (224.123054ms)
+✖ wasm keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (233.922782ms)
+✖ wasm keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (213.068024ms)
+✖ process keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (263.041525ms)
+✖ process keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (268.1891ms)
+✔ wasm keep=undefined: the final callback checks a change version raised after evaluation (192.307069ms)
+✔ wasm keep=false: the final callback checks a change version raised after evaluation (189.415144ms)
+✔ wasm keep=true: the final callback checks a change version raised after evaluation (193.216822ms)
+✔ process keep=undefined: the final callback checks a change version raised after evaluation (220.975827ms)
+✔ process keep=false: the final callback checks a change version raised after evaluation (223.736464ms)
+✔ process keep=true: the final callback checks a change version raised after evaluation (249.100059ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (28.665614ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (3.612294ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.692244ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.337637ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (539.717105ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (157.208644ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (171.478782ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (157.153861ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (196.679622ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (190.815804ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (184.358675ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (188.800423ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (229.283288ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (806.206617ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (339.587391ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (250.872516ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (448.713328ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined (635.366553ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined, held (545.571469ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true (391.886497ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true, held (332.968631ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false (341.199988ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false, held (337.741544ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined (706.342451ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined, held (311.979443ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true (351.915469ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true, held (304.424419ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false (302.087567ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false, held (301.032235ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=undefined (285.151814ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=true (281.082624ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=false (290.888671ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=undefined (287.76528ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=true (302.420756ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=false (327.186655ms)
+✔ wasm: unknown apply refresh drains after the watermark (613.598057ms)
+✔ process: unknown apply refresh drains after the watermark (263.756176ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (165.755313ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (146.249557ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (156.549996ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (169.252164ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (165.740661ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (167.805365ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (206.592389ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (202.474938ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (195.83707ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (146.308135ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (142.899276ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (147.929926ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (153.716609ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (160.751242ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (211.590871ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (216.979988ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (189.442174ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (187.968786ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (941.714175ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (712.522904ms)
+✔ ready per-row completions share a React notification turn; publication does not wait for that turn (556.219618ms)
+ℹ {"commits":1,"loading":0,"replaced":8}
+✔ a terminal refusal bypasses a held ready-notification turn and retires its pending completions (592.518262ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4650.705224ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790896752109,"lastStart":1790896754109,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (4952.713761ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790896756876,"lastStart":1790896759009,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (5574.292608ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790896762335,"lastStart":1790896764598,"wallIsReal":true,"link":"online"}
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (591.233056ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (150.795211ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (157.644676ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (200.652066ms)
+✔ process keep=false: sign-out never replaces its denial with loading (217.953126ms)
+✔ process keep=true: sign-out never replaces its denial with loading (190.076626ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (25.083665ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (22.881855ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.660093ms)
+✔ wasm: an unrelated replica publication revalidates server answers before offline reuse (178.9243ms)
+✔ process: an unrelated replica publication revalidates server answers before offline reuse (211.695507ms)
+✔ apply: remembered dependencies with footprint [] (0.32077ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.105047ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.051477ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.042363ms)
+✔ apply: remembered dependencies with footprint undefined (0.051107ms)
+✔ admit: remembered dependencies with footprint [] (0.055252ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.145669ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.060621ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.03368ms)
+✔ admit: remembered dependencies with footprint undefined (0.029575ms)
+✔ settle: remembered dependencies with footprint [] (0.030376ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.037006ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.054772ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.035914ms)
+✔ settle: remembered dependencies with footprint undefined (0.026309ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.025117ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.026821ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.025778ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.021783ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.024556ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.849542ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.232599ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.27992ms)
+✔ queued observation still withdraws at row expiry (0.473099ms)
+✔ queued observation still withdraws at reset (0.239319ms)
+✖ wasm: a local active attempt has its own bounded episode and accepts late success (180.204009ms)
+✖ process: a local active attempt has its own bounded episode and accepts late success (222.569906ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (194.357572ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (218.672094ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (192.551415ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (271.901965ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (223.880641ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (220.789567ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (180.809156ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (180.533091ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (181.175084ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (226.067158ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (210.787296ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (221.133784ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, failure (0.710225ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, timeout (0.305248ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, failure (0.263745ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, timeout (0.324156ms)
+✔ online keep=undefined: a due completion preserves a newer answer and retries (167.429272ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (155.402516ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (145.192333ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (562.490176ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (164.422446ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (172.236898ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (197.028265ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (193.741238ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (200.345566ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (216.463594ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (200.735451ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (12.067326ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (11.768108ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (10.352737ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (0.716795ms)
+✔ rejected postTask turns recover through host tasks and remain cancellable (3.384312ms)
+✔ throwing ready subscriber: timer flush delivers every callback and reports the error (31.766391ms)
+✔ throwing ready subscriber: drained flush delivers every callback and reports the error (14.995235ms)
+✔ React Native ready notifications use one timer turn with postTask (13.435888ms)
+✔ React Native ready notifications use one timer turn with MessageChannel (13.926263ms)
+✔ React Native ready notifications use one timer turn with timer (13.803058ms)
+✔ postTask: browser turns preserve eight starts and cancel queued service (11.938142ms)
+✔ MessageChannel: browser turns preserve eight starts and cancel queued service (10.36849ms)
+✔ ready batching respects episode withdrawal evidence (13.100865ms)
+✔ ready batching respects old-row withdrawal evidence (12.446525ms)
+✔ ready batching respects new-row withdrawal evidence (14.306683ms)
+✔ ready batching respects empty withdrawal evidence (12.312505ms)
+✔ ready batching respects null withdrawal evidence (13.098231ms)
+✔ request abort listeners are removed after success (0.272598ms)
+✔ request abort listeners are removed after rejection (0.438507ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (11.696951ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (0.705397ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.53361ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (0.572167ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.157106ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.081048ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (348.94765ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1150.242225ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (641.163571ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.496324ms)
+✔ unused inspection records no timings and allocates no withdrawal callbacks (32.215845ms)
+✔ compound scope matching skips disjoint groups and watches with no tables (2.15483ms)
+✔ a pending group removal fences an initial observation until actual publication (0.242504ms)
+✔ wasm: published removal only withdraws its room and resumes (557.501189ms)
+✔ wasm: staged removal only withdraws its room and resumes (584.80383ms)
+✔ wasm: offline removal only withdraws its room and resumes (284.981909ms)
+✔ wasm: offline-before removal only withdraws its room and resumes (285.273616ms)
+✔ process: published removal only withdraws its room and resumes (219.737191ms)
+✔ process: staged removal only withdraws its room and resumes (602.215306ms)
+✔ process: offline removal only withdraws its room and resumes (312.169677ms)
+✔ process: offline-before removal only withdraws its room and resumes (312.771809ms)
+✔ wasm: terminal change-feed refusal bypasses eight occupied slots (156.953761ms)
+✔ process: terminal change-feed refusal bypasses eight occupied slots (192.869111ms)
+✔ online scope-ambiguous change evidence expires while waiting for capacity (1160.084266ms)
+✔ online viewer replacement is inspected as viewer, not schema reset (58.531356ms)
+✔ wasm: reuse closed handle after published revocation, keep=undefined (1865.800588ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=true (1391.938547ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=false (1387.057691ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=undefined (1487.173264ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=true (1483.551927ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=false (1486.132865ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=undefined (2701.233318ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=true (1413.010009ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=false (1418.865615ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=undefined (1512.461215ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=true (1512.843758ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=false (1508.424285ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ scope loss fences remembered server answers without a mounted owner (0.6337ms)
+✔ wasm: a dormant local handle checks terminal refusal before reuse (190.14004ms)
+✔ process: a dormant local handle checks terminal refusal before reuse (213.097699ms)
+✔ wasm: detached handle must respect notified cut before sync, mounted control=false (1920.703706ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ wasm: detached handle must respect notified cut before sync, mounted control=true (1465.210837ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ process: detached handle must respect notified cut before sync, mounted control=false (1479.720444ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ process: detached handle must respect notified cut before sync, mounted control=true (1484.951774ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=false (193.904172ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=true (191.045487ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=false (213.530998ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=true (216.882692ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ wasm: published removal preserves server-backed sibling (596.863454ms)
+✔ wasm: staged removal preserves server-backed sibling (416.950102ms)
+✔ process: published removal preserves server-backed sibling (1498.716525ms)
+✔ process: staged removal preserves server-backed sibling (789.497813ms)
+✔ wasm: combined retained/server scopes preserve the authorized room (188.517319ms)
+✔ process: combined retained/server scopes preserve the authorized room (220.925451ms)
+✔ server audience metadata uses all public branches; unknown point selectors stay conservative (150.983983ms)
+ℹ tests 465
+ℹ suites 0
+ℹ pass 444
+ℹ fail 21
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132789.208066
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ apply keeps its bound on held, keep=undefined (1.150874ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ apply keeps its bound on throw, keep=undefined (0.294772ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ admit keeps its bound on held, keep=undefined (0.345287ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ admit keeps its bound on throw, keep=undefined (0.283134ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ settle keeps its bound on held, keep=undefined (1.044125ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ settle keeps its bound on throw, keep=undefined (0.26681ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ apply keeps its bound on held, keep=true (0.215162ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ apply keeps its bound on throw, keep=true (0.200561ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ admit keeps its bound on held, keep=true (0.264576ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ admit keeps its bound on throw, keep=true (0.237827ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ settle keeps its bound on held, keep=true (0.176545ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:23:44
+✖ settle keeps its bound on throw, keep=true (0.143525ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:22)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/keep-observation.test.mjs:123:3
+✖ local keep: apply fences in-flight answers and keeps active and lingering data (0.69415ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/keep-observation.test.mjs:137:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/keep-observation.test.mjs:123:3
+✖ local keep: admit fences in-flight answers and keeps active and lingering data (0.199359ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/keep-observation.test.mjs:137:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/keep-observation.test.mjs:123:3
+✖ local keep: settle fences in-flight answers and keeps active and lingering data (0.146079ms)
+  TypeError: Cannot read properties of undefined (reading 'size')
+      at canRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:3:17)
+      at watchCanRevoke (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/change-evidence.js:10:41)
+      at LocalReads.clear (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:373:30)
+      at LocalReads.committed (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/dist/local-reads.js:354:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/keep-observation.test.mjs:137:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:122:89
+✖ wasm keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (233.922782ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790896736182
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:143:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790896736182,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:122:89
+✖ wasm keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (213.068024ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790896736400
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:143:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790896736400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:122:89
+✖ process keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (263.041525ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790896736658
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:143:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790896736658,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:122:89
+✖ process keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence (268.1891ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790896736928
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:143:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790896736928,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:189:41
+✖ wasm: a local active attempt has its own bounded episode and accepts late success (180.204009ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790896750244
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/per-row-retention.test.mjs:210:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790896750244,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:189:41
+✖ process: a local active attempt has its own bounded episode and accepts late success (222.569906ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790896750456
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/per-row-retention.test.mjs:210:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790896750456,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

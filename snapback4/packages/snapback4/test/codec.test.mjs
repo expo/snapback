@@ -12,7 +12,7 @@ test('the shipped page codec validates unknown JSON values and accepts valid ext
     const device = new WebDevice(backend, '[]');
     try { return JSON.parse(device.call(request)); } finally { device.free(); }
   };
-  assert.deepEqual(call(JSON.stringify({ op: 'apply', first: true, page, extra: [null, true, 1.25, '☃'] })), { ok: { touched: [], published: true } });
+  assert.deepEqual(call(JSON.stringify({ op: 'apply', first: true, page, extra: [null, true, 1.25, '☃'] })), { ok: { touched: [], published: true }, preserved: [] });
   for (const extra of ['1e400', '"\\ud800"', '['.repeat(130) + '0' + ']'.repeat(130)]) {
     for (const request of [
       `{"op":"apply","first":true,"page":${JSON.stringify(page)},"extra":${extra}}`,

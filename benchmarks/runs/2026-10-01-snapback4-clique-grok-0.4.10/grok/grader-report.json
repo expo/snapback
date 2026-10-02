@@ -1,0 +1,1099 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback4-0.4.10",
+    "runRecordPath": "lanes/grok-snapback4/run-record.json (absent — the lane wrote no run record; every status below is derived from coverage/, logs/ and artifacts/)",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "full-3models-grok",
+    "probeSetSha256": "none-uncommitted"
+  },
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 0,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "benchmarks/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "signup with an 8+ char password succeeds; a 7-char password is refused (E_AUTH)."
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "web: after submit the auth form is replaced by the authenticated shell; API: session token issued and whoAmI resolves."
+    },
+    "m1-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "handle is chosen at profile save; saving the taken handle 'alice' renders the visible sm-profile-error 'That handle is taken.' (HANDLE_TAKEN). A brand-new account cannot reach that field at all - defect d-01."
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "sign-up with an existing email renders visible sm-auth-error 'that email already has an account; sign in instead'."
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "coverage/receipts-m1.jsonl 'session-persists-on-relaunch' passed (1 attempt, 395.2 ms)."
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "coverage/receipts-m1.jsonl 'logout-remains-signed-out-on-relaunch' passed (801.4 ms)."
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "after logout(url, token) the same token is refused: client query -> denied E_AUTH, raw GET /changes with the bearer -> HTTP 401."
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "edited display name and bio render on own profile; also verified via a fresh login + myProfile read (server-side persistence, not local cache)."
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        86.1,
+        71.3,
+        85.7
+      ],
+      "note": "receipts-m1 'profile-edit-live-visibility', 3/3 attempts passed; bestOf3Ms are the harness's visibleMs metric."
+    },
+    "m1-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "fixture avatar uploaded (729 B image/png, 256x256) and placed."
+    },
+    "m1-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "the 72px own-profile avatar node decodes real bytes (naturalWidth 256); another viewer can also fetch it from the public profile."
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "snapback/schema.q line 5 declares 'use identity' (the backend's built-in auth). The store holds $argon2id$v=19$m=19456,t=2,p=1 hashes and the host logs 'Argon2 slots: 16' - argon2id at standard published parameters via the documented provider path."
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m1",
+      "note": "zero occurrences of any fixture or grader password in store.sqlite/-wal, in logs/ or in the iOS Hermes bundles; no credential literals in src/ app/ kit/ snapback/ (only form state and the auth call)."
+    },
+    "m2-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2"
+    },
+    "m2-a02": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "2 fixture images attached; both assets serve bytes to the recipient."
+    },
+    "m2-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "video asset (duration 5000 ms) plus poster; bytes served."
+    },
+    "m2-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        824.7,
+        828.2,
+        822.5
+      ],
+      "note": "receipts-m2 feed-text/image/video-post-live-update all passed. bestOf3Ms = the text-post visibleMs triple; the image and video checks each failed one of three attempts on a 25 s composer-attachment timeout."
+    },
+    "m2-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m2 'feed-author-avatar-and-display-name' passed (527.3 ms)."
+    },
+    "m2-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2"
+    },
+    "m2-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        26882.3,
+        2213.3,
+        2692.5
+      ],
+      "note": "receipts-m2 'follow-unfollow-live-projection'; attempt 1 timed out at 25 s, attempts 2-3 passed (followVisibleMs 772.8 / 559.7). Best-of-3 pass."
+    },
+    "m2-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "after unfollow, 0 of 9 Following rows are authored or acted by the unfollowed author, older posts included."
+    },
+    "m2-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2"
+    },
+    "m2-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2"
+    },
+    "m2-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2"
+    },
+    "m2-a12": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "the URL renders with role=link, underline, link colour; tapping it hands the exact href to the system browser via Linking.openURL (window.open captured)."
+    },
+    "m2-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "the card holding the URL has 0 sm-feed-media nodes, 0 iframes and no images besides the author avatar; the server post row carries no preview/unfurl field."
+    },
+    "m2-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        2460.8,
+        2340.4,
+        26543.5
+      ],
+      "note": "receipts-m2 'like-unlike-live-count'; attempts 1-2 passed (likeVisibleMs 1100.8 / 770.1), attempt 3 timed out."
+    },
+    "m2-a15": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "like->count 1, repeated like->still 1 (idempotent set-state), unlike->liked false and count 0."
+    },
+    "m2-a16": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "the Global feed renders the attribution line '↻ Reposted by Dave Diaz'; the server activity row carries actor + repost=true."
+    },
+    "m2-a17": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "reposted=false, repostCount 0, and the repost row disappears from a third party's feed."
+    },
+    "m2-a18": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "with Bob not following Alice, Carol's repost surfaces Alice's original in Bob's Following feed."
+    },
+    "m2-a19": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        1008,
+        376.7,
+        4.1
+      ],
+      "note": "receipts-m2 'reply-live-thread-projection', 3/3 passed; bestOf3Ms = replyCountVisibleMs."
+    },
+    "m2-a20": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "parent plus its two direct replies in chronological order; a reply-of-a-reply is correctly excluded."
+    },
+    "m2-a21": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "0 reply rows across Global + Following."
+    },
+    "m2-a22": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2-pagination",
+      "note": "FAIL. src/FeedScreen.tsx hardcodes hasMore:false and loadMore:()=>{} and only ever queries api.home with c:null, so no second page is ever requested. With 56 Following rows available the tab rendered exactly 40 cards and stayed at 40 across 14 bottom scrolls, with no 'Load more' affordance. The backend page size is also 40, not the brief's 20. Defect d-03."
+    },
+    "m2-a23": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2-pagination",
+      "note": "FAIL. Same cause as m2-a22: with 78 Global rows available the tab rendered exactly 40 cards and stayed at 40 across 14 bottom scrolls, no 'Load more'. Defect d-03."
+    },
+    "m2-a24": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2-pagination",
+      "note": "Server-side continuation is correct: walking api.home to exhaustion yielded 56 rows with 0 duplicates and api.globalFeed 78 rows with 0 duplicates, reverse-chronological throughout. Scored pass on that observable; the product never renders a second page, which is scored at m2-a22/a23 and filed as d-03."
+    },
+    "m2-a25": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "with every follow edge removed, the persona's own original post is in Following and all 4 rows are its own."
+    },
+    "m2-a26": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "own repost of an unfollowed author's post stays in Following, labelled repost=true."
+    },
+    "m2-a27": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2",
+      "note": "followers/following unchanged across the implicit-self-follow exercise (1/0 before and after); no self edge is counted."
+    },
+    "m3-a01": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        25533.6,
+        2196.6,
+        2010.9
+      ],
+      "note": "receipts-m3 'dm-live-messages'; attempt 1 timed out at 25 s, attempts 2-3 passed (visibleMs 309.8 / 1015.6). Best-of-3 pass."
+    },
+    "m3-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "The harness itself declined this check: receipts-m3 records implemented:false, required:false, status:skipped, outcomeClass:'instrument', reason 'The kit does not render sender avatars in the default 1:1 layout; identity is checked only when the app opts into that node.' Simulator/choreo assertions are not grader-driven, so there is no artifact to score. Recorded not-run; this is an instrument limitation, not a lane failure."
+    },
+    "m3-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "openDirect returns the same conversation id on a repeat call and from the peer's direction - one DM channel per pair, deduplicated server-side."
+    },
+    "m3-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "3-member group (Alice, Bob, Carol) confirmed via membersOf. Note createGroup accepts a single 'other' principal, so Carol requires a second addMember call; the builder's mapped test never adds her."
+    },
+    "m3-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "a second distinct 3-member group with the same members coexists; both readable, distinct ids and titles."
+    },
+    "m3-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        3994,
+        1512,
+        1423.6
+      ],
+      "note": "receipts-m3 'typing-indicator-within-2s-expires-within-5s'; attempt 1 exceeded the harness's 2000 ms indicator wait, attempts 2-3 observed it at 1512 ms and 1423.6 ms (typingActionMs). Best 1423.6 ms vs the 2000 ms bound. Failed-attempt entries carry the attempt's total durationMs as an upper bound."
+    },
+    "m3-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        3994,
+        2809.3,
+        2806.2
+      ],
+      "note": "same check; expiresAfterLastKeystrokeMs 2809.3 / 2806.2 against the 5000 ms bound. The schema declares the typing row 'ephemeral 4s'."
+    },
+    "m3-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m3 'receipt-sent-delivered-read-transitions' passed (3856 ms). The harness ran this check bestOf:1, so no best-of-3 triple exists."
+    },
+    "m3-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m3 'group-receipt-waits-for-slowest-member' passed (3353.8 ms). schema.q fn receipt() walks every member whose joinedOrdinal precedes the message and holds at the slowest."
+    },
+    "m3-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "the quoting message carries quote=<source id> and quotedMessage resolves the excerpt text; the frozen kit's QuotedReply renders it. receipts-m3 'quoted-reply-excerpt-and-jump' also passed 3/3."
+    },
+    "m3-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "the quoted target is id-addressable and present in the same history page as the quoting bubble, so the jump target exists; corroborated by the choreography check above."
+    },
+    "m3-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m3 'member-add-promote-remove-leave-and-live-cutoff' passed (11681.6 ms). schema.q removeMember deletes the member row and its runs, and messages sync only to members[.conversation]."
+    },
+    "m3-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "same check; conversations/messages declare 'retain delivered-history', so the removed member keeps her acquired pre-removal copy."
+    },
+    "m3-a14": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "a non-admin's removeMember is refused NOT_ADMIN and the target remains a member."
+    },
+    "m3-a15": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m3",
+      "note": "re-ran the documented 'npm run seed -- --segment all' over every installed segment (m1+m2+m3); inbox 6, g-starter 11, DM 11, directory 17 and global 40 were byte-identical before and after. The builder's mapped test replays starter-m1 once and never checks for duplicates."
+    },
+    "m4-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4",
+      "note": "recipient's message row carries the photo asset (640x480) and serves its bytes."
+    },
+    "m4-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        1728.2,
+        2662.9,
+        3639.6
+      ],
+      "note": "receipts-m4 'photo-message-live-render' 3/3 passed; bestOf3Ms = visibleMs."
+    },
+    "m4-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4"
+    },
+    "m4-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m4 'video-message-live-playback' passed (3271.2 ms, bestOf:1)."
+    },
+    "m4-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        2196,
+        2160.1,
+        1353.3
+      ],
+      "note": "receipts-m4 'reaction-live-replace-remove' 3/3 passed; bestOf3Ms = visibleMs."
+    },
+    "m4-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4",
+      "note": "after a thumbs-up then a heart the message has exactly one reaction row for that user with emoji heart and a single chip - replaced, not added. The builder's mapped test issues both mutations and never reads the state back."
+    },
+    "m4-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4",
+      "note": "clearReaction leaves 0 reaction rows and 0 chips."
+    },
+    "m4-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "bestOf3Ms": [
+        25521.8,
+        26809,
+        3158
+      ],
+      "note": "receipts-m4 'edit-live-visibility'; attempts 1-2 timed out at 25 s, attempt 3 passed (visibleMs 1379.7). Best-of-3 pass, but 2 of 3 attempts failed."
+    },
+    "m4-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4",
+      "note": "the recipient's row goes editedAt null -> set with the new text; the web conversation renders an 'edited' marker."
+    },
+    "m4-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4",
+      "note": "shortened-windows config (editWindowSeconds 60): the in-window edit was accepted, and 66 s after send the same edit was refused server-side with EDIT_WINDOW while the stored text stayed at the in-window value. schema.q: 'require now - m.at <= 60000 else EDIT_WINDOW'."
+    },
+    "m4-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m4 'delete-live-tombstone' passed (2402.3 ms); the recipient saw the sm-convo-tombstone node."
+    },
+    "m4-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m4",
+      "note": "before the delete the recipient's client fetched the asset bytes; after delete-for-everyone the row is tombstone:true with photo null and the same asset id is refused E_ASSET_UNKNOWN (unauthenticated HTTP GET /assets/<id> is 401 both before and after)."
+    },
+    "m5-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "shortened-windows 24h option = 180 s TTL; the sent row carried expiresAt-at = 180000 ms exactly. Both clients were closed across the whole window; on a cold reconnect the server answers the expired message as absent, never serving it."
+    },
+    "m5-a02": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "on the recipient's next launch/reconnect the expired message is gone from a 23-row history page."
+    },
+    "m5-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "the ephemeral token matched 1 in-chat hit before expiry and 0 in-chat / 0 global hits after the client synced the expiry."
+    },
+    "m5-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "the recipient's first open of the view-once asset serves bytes."
+    },
+    "m5-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "the second open is refused E_ASSET_VIEWED. schema.q declares 'oncePhoto: image <=10000000 once'."
+    },
+    "m5-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "a direct asset fetch after the view is refused server-side (client API E_ASSET_VIEWED; unauthenticated HTTP GET /assets/<id> 401)."
+    },
+    "m5-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m5 'chat-color-background-sync' passed (2769.6 ms, visibleMs 2078.9) - a third member saw both the accent colour and the background."
+    },
+    "m5-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "a non-admin's setGroupInfo is refused NOT_ADMIN and the title is unchanged."
+    },
+    "m5-a09": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5",
+      "note": "'car' -> Carol, and so do 'CAR' (case-insensitive) and the surname prefix 'Chen'; the web People scope renders 'CC Carol Chen @carol'."
+    },
+    "m5-a10": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5-search",
+      "note": "FAIL. The product has no in-chat search scope: src/SearchScreen.tsx (the only routed search screen, /search) offers All / People / Messages, takes no conversation argument, and never calls api.searchChat; no conversation route exposes search. api.searchChat is referenced only by src/Search.tsx, which is unrouted dead code that does not typecheck. Server-side api.searchChat is itself correct (1 hit for the seeded token 'coffee' pinned to the Alice-Bob DM, 0 for a control token). Defect d-04."
+    },
+    "m5-a11": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5-search",
+      "note": "FAIL. Global message search renders a flat list: searching 'coffee' produced 3 sm-search-result rows and 0 sm-search-group headers. SearchScreen never sets the kit's groupLabel and never calls api.searchGrouped, so results are not grouped by chat. The schema's searchGrouped query is itself correct (2 groups, one row per conversation, hits 1 and 2). Defect d-05."
+    },
+    "m5-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m5 'warm-offline-search-over-synced-messages' passed (2631.4 ms) - connectivity cut with the app running, search over synced messages still returned results."
+    },
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run."
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run."
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run."
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run."
+    },
+    "m6-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run. The web-tier equivalent was separately verified green by the harness's M6 browser segment ('offline-message-queue-flush-in-order', both offline bubbles exposed semantic value 'pending'), which the instrument's simulator.md deliberately does not promote into the native proof."
+    },
+    "m6-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run. The web-tier equivalent (ordered flush on reconnect, flushMs 1365.6) passed in the same browser segment."
+    },
+    "m6-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m6.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m* hold only Hermes `expo export` output (the lane's own README states 'Hermes export alone proves no native execution'); there is no artifacts/native-smoke directory. Simulator assertions are scored only from harness recordings and structured receipts and are never re-driven by the grader, so there is nothing to score: recorded not-run. The web-tier equivalent (both receipts advancing to 'read' after the flush) passed in the same browser segment."
+    },
+    "m6-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-push",
+      "note": "With the recipient's clients fully closed, four sends logged four payloads, each with the correct targetUserId, chatId, senderDisplayName ('Alice Alvarez') and a preview equal to the first 80 characters of a 209-character text. schema.q emits notify only 'if not exists connected[member.principal]'. The payloads land in the worker's sandbox log (.snapback4/worker-*/scope/.../data/push-log.jsonl), NOT at data/push-log.jsonl, which the lane's own suite reads and which stayed 0 bytes - defect d-11."
+    },
+    "m6-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-push",
+      "note": "previews logged for the closed recipient were ['PUSH <nonce> xxx...', 'Photo', 'Video', 'Photo'] - the view-once photo previews as 'Photo', matching previewText() in schema.q."
+    },
+    "m6-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6",
+      "note": "scripts/custom-client-demo.mjs ran green against the live backend (exit 0, 'custom-client-demo ok'): 6 conversations, 21 history rows, a send, and an observe update."
+    },
+    "m6-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6",
+      "note": "the demo exercises all five listed operations - login (authenticate), api.inbox (list conversations), api.history (page message history), api.send (send text), client.observe (receive). It reads a single history page and never follows a continuation cursor; API.md states the receive mechanism (streaming via Snapback /changes, with documented polling as the alternative)."
+    },
+    "m6-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6",
+      "note": "Grader-written variation following API.md alone: login -> createClient -> api.inbox {c} -> api.history {conversation, c} -> latest row. It worked, but API.md does not document that inbox rows carry chat.title (needed to resolve a NAMED conversation) and states no page ordering for history, so both had to be discovered by inspecting rows. Defect d-14."
+    },
+    "m6-a13": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6",
+      "note": "the 50-action sample log (50 action lines) replays green through the lane's adapter on the dev instance, and the fixture pack's own validator accepts it ('validated 1 logs and 50 actions against 0.1.0-p1')."
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m7",
+      "note": "M7 was never attempted. The run's environment overlay pins the scope to M1-M6 plus M8 in one continuous session and states 'M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it.' The lane has no coverage/m7.json, no coverage/suite-m7.json, no coverage/receipts-m7.jsonl and no artifacts/ios-m7. Recorded not-run; O1 keeps M7 in its denominator as not passed. The schema's 'not-applicable' value is reserved for the case where no milestone was previously green, which does not apply here (M1-M6 and M8 all produced passing suite receipts), so this conditional regression assertion is recorded not-run rather than not-applicable."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "dishonest",
+    "sampledAssertionIds": [
+      "m1-a01",
+      "m1-a03",
+      "m1-a08",
+      "m1-a11",
+      "m2-a13",
+      "m2-a16",
+      "m2-a17",
+      "m2-a22",
+      "m2-a24",
+      "m2-a27",
+      "m3-a04",
+      "m3-a05",
+      "m3-a11",
+      "m3-a15",
+      "m4-a06",
+      "m4-a07",
+      "m4-a09",
+      "m5-a04",
+      "m5-a08",
+      "m5-a10",
+      "m5-a11",
+      "m6-a08",
+      "m6-a09",
+      "m6-a11",
+      "m6-a13",
+      "m8-a01",
+      "m8-a03",
+      "m8-a04",
+      "m8-a05",
+      "m8-a06",
+      "m8-a07"
+    ],
+    "dishonestMilestones": [
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8"
+    ],
+    "detail": "Every suite-required assertion of every milestone is listed in coverage/manifest.json and the per-milestone coverage files, and the builder's suite reproduces green for all 58 of them from a clean start. But the mapping is generated mechanically — scripts/acceptance.mjs derives the manifest by filtering assertions.json for executor==='suite-required' and emitting the ID list, then only requires that results.length === expected.length. For a large minority of mapped IDs the test body cannot fail for any implementation, or tests a different subject than the assertion. M1's seven mappings are honest (each reads the asserted observable back). The rest are not. Cannot-fail tautologies: m6-a08 `assert(true, \"push log readable\")`; m6-a09 `assert(typeof text === \"string\")`; m5-a10 `assert((hits.data ?? []).length >= 0)`; m5-a11 `assert(Array.isArray(grouped.data))`; m8-a01 two typeof checks for six totals that must match seeded content; m8-a03 `assert(typeof day.data.posts === \"number\")`; m8-a04 `assert(d.data.posts === 0 || d.data.posts >= 0)`; m8-a05 `assert(Array.isArray(t.data))`; m2-a22 `assert(\"next\" in home || (home.data ?? []).length <= 20)`; m2-a27 `assert(typeof counts.data.followers === \"number\")`. Wrong subject: m2-a16 (repost attribution in feeds) issues the mutation and never reads a feed; m2-a24 (no duplicates, no gaps across pages) asserts only `page1.data.length > 0`; m3-a04/a05 (a group with Alice, Bob AND Carol) call createGroup with a single 'other' and never add Carol, so the asserted group is never created; m3-a15 (second seed run produces no duplicates) replays starter-m1 once and never compares counts; m4-a06/a07 (reaction replaced / removed) issue mutations and never read the reaction state back; m8-a06 checks a 48 h window for a 24 h rule and is vacuous on an empty list. Four of these mappings cover assertions that independent re-execution found actually FAILING in the product (m2-a22, m2-a23, m5-a10, m5-a11, m8-a05, m8-a07), so the tautologies were not merely weak — they concealed real failures. Verdict: dishonest for M2, M3, M4, M5, M6 and M8; honest for M1. Per the frozen rule this adjudicates each of those six milestones to capability-failure (scoring-only, non-retroactive; the harness applies the recharge) and O1 scores their checklists as not passed."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "blocker",
+      "milestone": "M1",
+      "summary": "A newly signed-up account can never open the profile editor or the Profile tab, so a new user can never set a display name, handle, bio or avatar. src/ProfileScreen.tsx runs `const targetHandle = handle ?? mine?.handle; if (!targetHandle) return <Text>Loading profile…</Text>;` BEFORE the `if (mode === \"edit\")` branch, and a fresh account has no profiles row, so both /profile/edit and the Profile tab render 'Loading profile…' forever.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-01 — src/ProfileScreen.tsx:15-21; grading/evidence/shots/dbg-new-account-profile-blocked.png; /profile/edit and /(tabs)/profile both held 'Loading profile…' for a fresh signup across repeated 5 s samples, exposing zero form testIDs, while /insights rendered normally on the same session.",
+      "relatedAssertionIds": [
+        "m1-a03",
+        "m1-a08",
+        "m1-a10",
+        "m1-a11"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "blocker",
+      "milestone": "M8",
+      "summary": "Selecting the Trending tab throws an uncaught \"Cannot use 'in' operator to search for 'loading' in undefined\" and blanks the whole application shell: 0 trending rows, not even the kit's empty state, and the always-mounted FeedScreen unmounts so Following and Global stop rendering until a full page reload. Cause: src/FeedScreen.tsx:113 reads existence(trending.read) where `trending` is a Read with no `.read` property.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-02 — src/FeedScreen.tsx:112-113; grading/evidence/shots/dbg-trending.png and shots/12-trending.png; six 5 s samples all read trending-rows=0, empty-state=0, body text length 0; clicking Global afterwards without a reload left the body length at 0.",
+      "relatedAssertionIds": [
+        "m8-a05",
+        "m8-a07"
+      ]
+    },
+    {
+      "id": "d-03",
+      "severity": "major",
+      "milestone": "M2",
+      "summary": "The feeds never paginate. src/FeedScreen.tsx builds its page object with hasMore:false and loadMore:()=>{} and only ever queries api.home / api.globalFeed with c:null, so no continuation is ever followed and no 'Load more' affordance appears. The backend page size is also 40 rows, not the brief's pinned 20 per page.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m2-pagination — src/FeedScreen.tsx:16-25,141-145; snapback/schema.q home/globalFeed 'last 40 by .at after c'; both tabs rendered exactly 40 cards and stayed at 40 across 14 bottom scrolls with 0 'Load more' nodes, while the server cursor had 56 Following and 78 Global rows available.",
+      "relatedAssertionIds": [
+        "m2-a22",
+        "m2-a23"
+      ]
+    },
+    {
+      "id": "d-04",
+      "severity": "major",
+      "milestone": "M5",
+      "summary": "The product has no in-chat ('messages within one chat') search scope, one of the brief's three pinned scopes. The only routed search screen offers All / People / Messages, takes no conversation argument and never calls api.searchChat; no conversation route exposes search.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5-search — src/SearchScreen.tsx:19-66; api.searchChat is referenced only by src/Search.tsx, which is unrouted and does not typecheck; the live screen exposed exactly the scope labels [\"All\",\"People\",\"Messages\"].",
+      "relatedAssertionIds": [
+        "m5-a10"
+      ]
+    },
+    {
+      "id": "d-05",
+      "severity": "major",
+      "milestone": "M5",
+      "summary": "Global message search is not grouped by chat. SearchScreen never sets the kit's groupLabel and never calls api.searchGrouped, so the kit renders a flat result list with no per-chat headers.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m5-search — src/SearchScreen.tsx:41-52,68-76; kit/src/SearchBar.tsx:100-108 emits sm-search-group only from item.groupLabel; searching 'coffee' produced 3 sm-search-result rows and 0 sm-search-group headers, while api.searchGrouped itself returns 2 correct per-conversation groups.",
+      "relatedAssertionIds": [
+        "m5-a11"
+      ]
+    },
+    {
+      "id": "d-06",
+      "severity": "major",
+      "milestone": "M8",
+      "summary": "The Insights screen derives a lifetime total on the client by paging the corpus, which the brief explicitly forbids ('Totals are server-computed: the client never derives a total by paging the corpus'). It reads api.userPosts (declared 'last 100 by .at'), sums every row's likeCount, and renders Math.max(serverTotal, clientSum) — so it also understates for any author with more than 100 posts and transfers content to the client purely to compute a number.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-06 — src/InsightsScreen.tsx:15-18,42; snapback/schema.q query userPosts 'last 100 by .at'.",
+      "relatedAssertionIds": [
+        "m8-a01"
+      ]
+    },
+    {
+      "id": "d-07",
+      "severity": "major",
+      "milestone": "M8",
+      "summary": "The scheduled digest job cannot complete at the scale envelope. During the scale replay it parked repeatedly with 'E_BOUND: examined rows reached the ceiling 16384'. digestTotals iterates every profile and, per profile, every membership and every follow edge with a nested message count, so examined rows grow with the product of users, memberships and follows.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-07 — logs/scale-backend.err lines 36-43: 'snapback4: job digest parked after 507 chunks: E_BOUND: examined rows reached the ceiling 16384' and two further parks, each with a matching 'dev refusal: digest ... code \"E_BOUND\"'; snapback/schema.q fn digestTotals / job digest.",
+      "relatedAssertionIds": [
+        "m8-a08"
+      ]
+    },
+    {
+      "id": "d-08",
+      "severity": "major",
+      "milestone": "M6",
+      "summary": "The push seam was not disabled during the scale replay, contrary to the frozen replay contract ('The push seam is disabled during replay (a pinned replay-mode flag)') and M8's rule ('The push seam's replay-mode flag also disables digests during the scale replay'). The lane ships a backend:replay script but ran the scale backend without --replay, so the notifications worker and the 2-minute digest schedule fired throughout, emitting thousands of effects as replay side-effects.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#o5 — logs/scale-backend.err: worker started, 'schedule dailyDigest fired' repeatedly during the replay window with 'job digest done: 1007 chunks, 1000 rows written' and 'job digest done: 975 chunks, 1000 rows written'; package.json scripts.backend:replay exists but logs/scale-backend.err shows the plain 'snapback4 dev' banner on port 49362.",
+      "relatedAssertionIds": []
+    },
+    {
+      "id": "d-09",
+      "severity": "major",
+      "milestone": null,
+      "summary": "The scale replay performed none of the mandated end-state verification, and its evidence is now unreproducible. scripts/scale-replay.mjs never reads fixtures/invariant-manifest-combined.json, never pauses at the 10%/50% checkpoint markers to run probes, and never checks the named O5 fixtures (u0500's 500 follows, u0005, the celebrity u0900's 900 followers and 200 posts, u0901's 5-account following list, g0001's 50-member roster and 10,000 messages). The backend it ran against reported 'store: temporary — discarded on exit', so the end state no longer exists. The receipt records only settle-receipt accounting plus a hardcoded expected actionCount.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#o5 — scripts/scale-replay.mjs (no manifest read, no probe phase, checkpoints only record a settledPrefix); coverage/scale-replay-receipt.json (no invariant/conformance field, checkpoints 10% and 50% only, no 100%); logs/scale-backend.err line 6 'store: temporary — discarded on exit'; fixtures/invariant-manifest-combined.json expectedState.namedO5Fixtures.",
+      "relatedAssertionIds": []
+    },
+    {
+      "id": "d-10",
+      "severity": "minor",
+      "milestone": null,
+      "summary": "The documented `npm run typecheck` script fails with 34 errors. Eight are in the live, shipped src/FeedScreen.tsx — one of them, 'Property read does not exist' at line 113, is exactly the runtime crash in d-02, so the failing typecheck was already reporting the Trending blocker.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-10 — grading/evidence/typecheck.txt: 11 src/Feed.tsx, 10 src/Profile.tsx, 8 src/FeedScreen.tsx, 3 src/Chats.tsx, 2 src/Conversation.tsx.",
+      "relatedAssertionIds": [
+        "m8-a05"
+      ]
+    },
+    {
+      "id": "d-11",
+      "severity": "minor",
+      "milestone": "M6",
+      "summary": "Push-seam traffic is not observable at the documented path and is not durable. snapback/workers/notifications.mjs resolves its log relative to import.meta.url, but the worker executes from a per-process sandbox, so the log lands in .snapback4/worker-<rand>/scope/.../data/push-log.jsonl. The lane's own acceptance suite reads data/push-log.jsonl, which stayed 0 bytes through 67 logged payloads; the sandbox directory and its log are deleted when the backend stops, so every pre-restart payload is lost.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-push — snapback/workers/notifications.mjs:6-9; data/push-log.jsonl 0 bytes while .snapback4/worker-4hyZVb/scope/.../data/push-log.jsonl held 67 rows (55 push, 12 digest); after the mid-period restart that directory was gone and replaced by worker-XKOvIW with a fresh 3-row log.",
+      "relatedAssertionIds": [
+        "m6-a08",
+        "m6-a09"
+      ]
+    },
+    {
+      "id": "d-12",
+      "severity": "minor",
+      "milestone": "M2",
+      "summary": "The web Following feed intermittently still counts an unfollowed author's original as a direct follow-projection hit after an unfollow followed by a viewer-repost. Two of the harness's three attempts failed on exactly that assertion; the server-side projection is correct, so this is client-side staleness in the keep:false feed read combined with the optimistic repost override.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-12 — coverage/receipts-m2.jsonl 'repost-following-feed-surface' attempts 2 and 3: 'viewer-repost of an unfollowed author was counted as a direct follow-projection hit'; an independent 6-round API reproduction (unfollow -> repost -> read api.home) found 0 violations, each round showing exactly 1 viewer-repost row and 0 direct rows.",
+      "relatedAssertionIds": [
+        "m2-a18",
+        "m2-a26"
+      ]
+    },
+    {
+      "id": "d-13",
+      "severity": "minor",
+      "milestone": "M6",
+      "summary": "The history operation does not expose the brief's minimum message-object field manifest. api.history returns raw message rows with no reactions (emoji, count, caller's own state) and no receipt state for the caller's own messages; those require the separate api.messageReactions / api.reactionChips / api.messageReceipts operations. The brief pins the manifest as 'what the history operation must expose per message, so probes and the M7 snapshot are backend-neutral'.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6 — snapback/schema.q query history ('messages where .conversation = conversation last 80 by byConversationOrdinal after c'); API.md 'Message object (history rows)' lists the fields and then directs receipts and reactions to separate handles.",
+      "relatedAssertionIds": [
+        "m6-a11",
+        "m6-a12"
+      ]
+    },
+    {
+      "id": "d-14",
+      "severity": "minor",
+      "milestone": "M6",
+      "summary": "API.md is incomplete for the grader variation it is meant to support. It does not document that api.inbox rows carry a chat object with a title (the only way to resolve a NAMED conversation), and it states no ordering for api.history pages, so 'the latest message' has to be inferred by inspecting rows. Both had to be discovered empirically.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6 — API.md Operations table and 'Message object (history rows)' section; the grader variation succeeded only after inspecting inbox rows for chat.title and sorting history rows by ordinal.",
+      "relatedAssertionIds": [
+        "m6-a12"
+      ]
+    },
+    {
+      "id": "d-15",
+      "severity": "minor",
+      "milestone": null,
+      "summary": "Six unrouted starter files remain in src/ (Feed.tsx, Profile.tsx, Chats.tsx, Conversation.tsx, Direct.tsx, Search.tsx) referencing API handles that do not exist in the generated surface (api.feed, api.post, api.profile, api.follow, api.createConversation, setLike({post})). They are dead code that contributes 26 of the 34 typecheck errors, and src/Search.tsx is the only place api.searchChat and api.searchGrouped are used anywhere in the tree — which is why both M5 search obligations are unwired.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-10 — grading/evidence/typecheck.txt; grep for searchChat/searchGrouped across src/ and app/ matches only src/Search.tsx.",
+      "relatedAssertionIds": [
+        "m5-a10",
+        "m5-a11"
+      ]
+    },
+    {
+      "id": "d-16",
+      "severity": "cosmetic",
+      "milestone": "M8",
+      "summary": "TrendingWrap feeds the kit's TrendingRow placeholder data: authorName '…' and hardcoded liked:false, repostCount:0, reposted:false, replyCount:0, with no-op press handlers — so even if the tab rendered, trending rows would show no author and dead affordances.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-trending — src/FeedScreen.tsx:151-173.",
+      "relatedAssertionIds": [
+        "m8-a05"
+      ]
+    },
+    {
+      "id": "d-17",
+      "severity": "cosmetic",
+      "milestone": "M1",
+      "summary": "EditProfile calls setValues during render (`if (row && !values.handle && row.handle) setValues(...)`), producing the React warning 'Cannot update a component while rendering a different component' on every profile-edit load.",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#d-01 — src/ProfileScreen.tsx:107-114; console error captured during the profile-edit browser pass.",
+      "relatedAssertionIds": []
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": {
+      "score": 18,
+      "anchorsCited": "Below the ~30 anchor ('core features partially work; several checklist items fail'); far below ~60 ('M1-M4 solid, later milestones patchy or failed on cap') and ~90 ('every in-scope milestone green, including platform-proof artifacts').",
+      "justification": "Full-run scope puts all eight milestones in the denominator. Only M1's checklist scores as passed: the coverage spot-verification found dishonest mappings in M2, M3, M4, M5, M6 and M8, which adjudicates each to capability-failure, and O1's frozen rule says a milestone adjudicated capability-failure for a dishonest coverage mapping scores its checklist not-passed; M7 was never attempted (not-run) and stays in the denominator as not passed. That is 1 of 8 milestone checklists scoring, which sits below the ~30 anchor. Two further structural gaps reinforce the placement rather than drive it: no platform-proof artifact exists at all (ios-simulator-m6 and ios-simulator-m8 are both recorded status 'not-recorded', so 7 M6 and 2 M8 native assertions are not-run), and the scale replay performed none of its mandated end-state verification (d-09). For attribution, not credit: independent re-execution of the full 119-assertion manifest found 94 passing, 6 failing (m2-a22, m2-a23, m5-a10, m5-a11, m8-a05, m8-a07) and 19 not-run — the substantive build is much stronger than 18, and the frozen adjudication rule deliberately withholds that credit. Evidence: grading/trace.md sections #coverage, #m2-pagination, #m5-search, #m8-trending, #m6-simulator, #m7."
+    },
+    "O2": {
+      "score": 25,
+      "anchorsCited": "Just below the ~30 anchor ('multiple high-severity defects in core flows'); nowhere near ~60 ('a few medium defects off the happy path') or ~90 ('only cosmetic nits').",
+      "justification": "Two blockers and seven majors, all beyond the checklist. Blockers: d-01, a newly signed-up account can never reach the profile editor or the Profile tab ('Loading profile…' forever), so no new user can ever set a display name, handle, bio or avatar — the first step of the product's own documented walkthrough; and d-02, selecting the Trending tab throws an uncaught TypeError and blanks the entire app shell, taking Following and Global down with it until a full reload. Majors span four more core surfaces plus the whole performance artifact: feeds never paginate at all and use a 40-row page against the brief's 20 (d-03); two of the brief's three pinned search scopes are unwired (d-04, d-05); Insights derives a lifetime total by client-side corpus paging, which the brief explicitly forbids (d-06); the scheduled digest job parks with E_BOUND at the envelope (d-07); the push seam was never disabled during the replay (d-08); and the replay skipped every mandated invariant, checkpoint-probe and named-fixture check against a store the backend discarded on exit (d-09). Both blockers are in core flows and both were already visible in the lane's own failing `npm run typecheck` (d-10), which placed 8 of its 34 errors in the live FeedScreen — including the exact expression that crashes Trending. Six minors and two cosmetics follow. Evidence: grading/trace.md #d-01, #d-02, #m2-pagination, #m5-search, #d-06, #d-07, #o5, #d-10."
+    },
+    "O3": null,
+    "O4": null,
+    "O5": {
+      "band": 0,
+      "bandRationale": "First-match branch 0 fires on 'invariant manifest does not conform (including a named-fixture mismatch)'. The replay itself ran to completion — 167,157 of 167,157 action lines settled with 0 failures in 1,188.6 s against a fresh instance seeded with all three starter segments, and the action-log sha256 in the receipt matches fixtures/scale-log.sha256 exactly (b26bf1ae…abba9) with checkpoint prefixes 24,777 and 88,057 matching the log's markers. But conformance was never established and can no longer be: scripts/scale-replay.mjs never reads fixtures/invariant-manifest-combined.json, so none of expectedState (perEntityCounts, followEdgeCount 5921, perUserFollowingCounts, perChatMessageCounts, perGroupMemberCounts) or namedSpotEntities was ever compared; the named O5 fixtures the brief requires checked exactly at each checkpoint before probes run (u0500's 500 follows and 100 conversations, u0005, celebrity u0900's 900 followers and 200 posts, celebrity-follower u0901's 5-account list, g0001's 50-member roster and 10,000 messages) were never checked; replay never paused at the 10%/50% markers, so no probe ran at any checkpoint; and logs/scale-backend.err records 'store: temporary — discarded on exit', so the end state is gone and unreproducible. coverage/scale-replay-receipt.json carries settle-receipt accounting only — no conformance field, no 100% checkpoint, and a hardcoded expected actionCount. The brief is explicit that 'manifest nonconformance caps O5 at its failure band (0)' and that 'performance is never scored on an artifact that did not validly reach the envelope'. The later branches are independently unevaluable here: 30, 60, 90 and 75 all require probe measurements and ceiling utilisations that do not exist, and this instrument version leaves the replay wall cap at 'pilot-calibrated' placeholder. Note also d-08: the push seam's pinned replay-mode flag was not set, so the 2-minute digest schedule fired throughout the replay (and parked with E_BOUND) — the replay did not run under the frozen replay-mode posture either. Evidence: grading/trace.md #o5."
+    }
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        86.1,
+        71.3,
+        85.7
+      ],
+      "bestMs": 71.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a04",
+      "measurementsMs": [
+        824.7,
+        828.2,
+        822.5
+      ],
+      "bestMs": 822.5,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a07",
+      "measurementsMs": [
+        26882.3,
+        2213.3,
+        2692.5
+      ],
+      "bestMs": 2213.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a14",
+      "measurementsMs": [
+        2460.8,
+        2340.4,
+        26543.5
+      ],
+      "bestMs": 2340.4,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a19",
+      "measurementsMs": [
+        1008,
+        376.7,
+        4.1
+      ],
+      "bestMs": 4.1,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a01",
+      "measurementsMs": [
+        25533.6,
+        2196.6,
+        2010.9
+      ],
+      "bestMs": 2010.9,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        3994,
+        1512,
+        1423.6
+      ],
+      "bestMs": 1423.6,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        3994,
+        2809.3,
+        2806.2
+      ],
+      "bestMs": 2806.2,
+      "boundMs": 5000,
+      "passed": true
+    },
+    {
+      "subject": "m4-a02",
+      "measurementsMs": [
+        1728.2,
+        2662.9,
+        3639.6
+      ],
+      "bestMs": 1728.2,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a05",
+      "measurementsMs": [
+        2196,
+        2160.1,
+        1353.3
+      ],
+      "bestMs": 1353.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a08",
+      "measurementsMs": [
+        25521.8,
+        26809,
+        3158
+      ],
+      "bestMs": 3158,
+      "boundMs": null,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "lanes/grok-snapback4/grading/trace.md",
+  "notes": "DEVIATIONS FROM THE FROZEN PROTOCOL, recorded for this N=1 calibration run (not a claim-eligible wave). (1) No holdout probe set was committed for this wave, so execution-order phase 4 was skipped entirely: wave.probeSetSha256 is the sentinel 'none-uncommitted' and probeResults is empty. No probes were invented and none were run. O3 is therefore unscorable from its only permitted source ('Scored from the wave's secret rotated holdout probes only') and records null; it would have recorded null regardless, because its applicability predicate is m6-green-and-m1-m5-attempted and the coverage spot-verification adjudicates M6 to capability-failure. (2) The grading family has not passed the calibration gate, so grader.calibrationPassed is false and grader.sameFamilyGraded is false; the grade is labelled uncalibrated-grader. (3) Timing-sensitive checks were judged best-of-3 and machine load was recorded beside every timing observation in the trace (load averages ranged from 22.41 at session start to 5.16-6.54 through the measurement window; other sessions share this machine). (4) O4 records null: its predicate is m6-green, which the M6 adjudication defeats, and independently no simulator artifact exists in any form — coverage/receipts-m6.jsonl and receipts-m8.jsonl both record supplementalExternal status 'not-recorded', and the instrument's simulator.md states native scoring 'remains null or failed until this artifact exists'. (5) The lane wrote no run-record.json; every milestone status and all O5 input was derived from coverage/, logs/ and artifacts/, as recorded in lane.runRecordPath. (6) SCHEMA LIMITATION AND PRIOR MEASUREMENT GAP: the frozen grader-report schema's assertionResults patternProperties key is ^m[1-7]-a[0-9]{2}$, so this file can carry only the 101 M1-M7 IDs even though the frozen manifest (0.3.0-m8) contains 119. The 18 M8 results from this same session are written to lanes/grok-snapback4/grading/m8-assertion-results.json in the same record shape and the same enum values, with no ID duplicated across the two files. The prior September 5 and September 12 structured assertionResults likewise carried only those 101 IDs; their notes could describe M8 observations but they provided no machine-comparable 18-ID M8 result set, so this is the first run with a complete, partitioned 119-ID record. Session totals across both files: 94 pass, 6 fail, 19 not-run. Prior-comparable M1-M7 subtotal: 80 pass, 4 fail, 17 not-run of 101. M8: 14 pass, 2 fail, 2 not-run of 18. No weighted total, efficiency statistic or cross-lane comparison is computed or reported here — those are the harness's and publisher's jobs."
+}

@@ -1,0 +1,21 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/rv-round1-baseline/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 51.34s
+     Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-5400aed0af4b4cc4)
+
+running 1 test
+
+thread 'ownership_transfer_cannot_certify_previously_disclosed_fields' (3749744) panicked at crates/snapback4-lang/tests/revocation_soundness.rs:69:21:
+field disclosure lost: P1 real mutation table=docs viewer=dev:alice id=a before={"id", "owner", "secret"} after={"id", "owner"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test ownership_transfer_cannot_certify_previously_disclosed_fields ... FAILED
+
+failures:
+
+failures:
+    ownership_transfer_cannot_certify_previously_disclosed_fields
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test revocation_soundness`

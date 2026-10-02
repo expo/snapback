@@ -1,0 +1,519 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 7.15s
+     Running unittests src/main.rs (snapback4/target/debug/deps/snapback4-50da437481e8fbdd)
+
+running 229 tests
+snapback4: recovered a mutex after a request panicked
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_STORE: expiry phase is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: adoption failure changed; suppressed 2 repeated background failures
+snapback4 dev: the new schema was not adopted: E_GENERATION: second owner; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_STORE: expiry phase; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test assets::tests::byte_ranges_distinguish_invalid_and_unsatisfiable_requests ... ok
+test auth::tests::password_slots_are_bounded_and_reusable_for_each_admission_class ... ok
+test auth::tests::rate_keys_expire_and_rotation_does_not_bypass_limits ... ok
+test dev_worker::environment::tests::structured_logs_redact_json_escaped_secrets_across_chunks ... ok
+test native::tests::cargo_messages_refuse_missing_or_ambiguous_app_cdylibs ... ok
+test native::tests::cargo_messages_select_the_current_cdylib_over_a_later_stale_name ... ok
+test dev_worker::environment::tests::secrets_are_redacted_across_chunks_newlines_and_prefixes ... ok
+test serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes ... ok
+test auth::tests::an_exhausted_peer_cannot_fill_the_email_admission_table ... ok
+test serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line ... ok
+test serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes ... ok
+test serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts ... ok
+test serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect ... ok
+test serve::engine_lock::tests::a_waiting_request_behind_a_holder_admits_background_immediately ... ok
+test serve::engine_lock::tests::background_does_not_count_as_request_activity ... ok
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+test serve::engine_lock::tests::background_takes_its_ticket_at_five_ms_despite_new_request_activity ... ok
+test serve::latency::tests::latency_record_cost_and_memory ... ignored, measurement: one million bounded recordings, no timing gate
+test serve::engine_lock::tests::quiet_interval_ends_at_one_ms_on_the_injected_clock ... ok
+test scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut ... ok
+test serve::latency::tests::missing_cpu_clock_omits_header_metric_and_doctor_reports_unavailable ... ok
+test serve::engine_lock::tests::panic_releases_ticket_and_poison_can_be_recovered ... ok
+test serve::latency::tests::zero_edges_and_extreme_durations_keep_the_error_bound ... ok
+test serve::engine_lock::tests::busy_background_eventually_takes_a_ticket_behind_waiting_requests ... ok
+test scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers ... ok
+test serve::latency::tests::registry_bounds_unknown_names_adopts_and_excludes_old_arrivals_after_reset ... ok
+test serve::request_workers::tests::last_worker_exit_refuses_queued_requests ... ok
+test scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names ... ok
+test serve::request_workers::tests::partial_worker_exit_refuses_queued_requests_while_another_worker_is_blocked ... ok
+test serve::request_workers::tests::a_panic_outside_the_job_boundary_does_not_spend_capacity_forever ... ok
+test serve::tests::adoption_tests::reads::crash_during_adoption_child ... ignored, child process for the atomic adoption restart witness
+test scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview ... ok
+test serve::tests::adoption_tests::scale::scale_changes_waits_for_durable_adoption_while_query_and_sync_read ... ignored, requires SNAPBACK4_ADOPTION_HTTP_DB pointing at the prepared M7 fixture
+test scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile ... ok
+test serve::tests::adoption_tests::w8r1b_adoption_bounds_repeated_background_logs_and_resets_on_recovery ... ok
+test serve::tests::adoption_tests::w8r2_adoption_bounds_alternating_background_reasons ... ok
+test serve::tests::adoption_tests::w8r1b_adoption_reports_different_background_reasons_and_failure_changes ... ok
+test serve::tests::adoption_tests::w8r2_adoption_rate_windows_are_per_code_and_do_not_slide_on_suppression ... ok
+test serve::engine_lock::tests::a_single_continuous_holder_cannot_defer_background_forever ... ok
+test serve::tests::change_polls_and_effect_claims_share_the_bounded_wait_lane ... ok
+test serve::latency::tests::random_exact_nearest_rank_percentiles_are_within_five_percent ... ok
+test serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second ... ok
+test serve::tests::latency_tests::latency_recording_overhead_on_real_queries ... ignored, measurement: repeated real HTTP reads, no timing gate on a shared host
+test serve::engine_lock::tests::waiting_request_precedes_next_chunk_and_background_precedes_later_requests ... ok
+test scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema ... ok
+dev refusal: newer:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M3X9TMG6KGYWN4MF8F37FPAX"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1790911009287; first response 2; `snapback4 why recent --instance 01M3X9TMG6KGYWN4MF8F37FPAX`
+dev refusal: older:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M3X9TMG6KGYWN4MF8F37FPAX"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790911009287; first response 1; `snapback4 why recent --instance 01M3X9TMG6KGYWN4MF8F37FPAX`
+test serve::dev_refusals::tests::late_handoff_cannot_replace_a_newer_response ... ok
+test scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair ... ok
+test serve::tests::bounded_connections_do_not_queue_pipelined_requests ... ok
+test serve::tests::connections_are_capped_before_slow_headers_and_idle_sockets_expire ... ok
+test serve::tests::continue_and_final_response_have_separate_write_deadlines ... ok
+test serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording ... ok
+test serve::tests::header_and_body_deadlines_are_absolute_despite_dribbling ... ok
+test serve::tests::adoption_tests::reads::fresh_storage_has_independent_readers_and_is_removed_by_its_owner ... ok
+snapback4: recovered a mutex after a request panicked
+test serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration ... ok
+test serve::poison_tests::a_request_after_engine_poison_still_serves ... ok
+
+running 1 test
+test serve::tests::adoption_tests::reads::a_write_queued_behind_adoption_does_not_keep_expired_authority ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291537190-12/worker.mjs (pid 1431416)
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291775478-14/worker.mjs (pid 1431452)
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291882608-15/worker.mjs (pid 1431485)
+snapback4: cannot start request thread: Resource temporarily unavailable (os error 11)
+test serve::tests::latency_tests::latency_admission_refusals_do_not_disappear ... ok
+test serve::tests::latency_tests::latency_writer_admission_refuses_once_and_keeps_dev_inspection_available ... ok
+test serve::tests::a_presence_answer_asks_its_client_to_refresh ... ok
+test serve::tests::overload_tests::a_panicking_request_releases_its_slot_and_the_worker_serves_again ... ok
+test serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window ... ok
+test serve::tests::ephemeral_tests::legacy_poll_reply_has_exact_base_shape ... ok
+test serve::tests::a_poll_rechecks_session_liveness_after_waiting ... ok
+test serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers ... ok
+test serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit ... ok
+test serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine ... FAILED
+test serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in ... ok
+test serve::tests::overload_tests::every_worker_pool_counts_and_returns_the_same_public_refusal ... ok
+snapback4: atomic feed adoption: view feed: 1 source rows, 1 events, 0 follows; 1 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine ... FAILED
+test serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured ... FAILED
+test serve::tests::opening_a_development_project_protects_its_data_directory_and_store ... ok
+test serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads ... FAILED
+test serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not ... FAILED
+test serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset ... oksnapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291754897-13/worker.mjs (pid 1432062)
+
+test serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses ... ok
+test serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer ... FAILED
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+test serve::tests::foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate ... ok
+test serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance ... FAILED
+test serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub ... FAILED
+test serve::tests::full_poll_admission_preserves_short_request_progress ... ok
+test serve::tests::asset_list_tests::image_list_http_once_is_per_element_and_survives_reorder ... ok
+test serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection ... FAILED
+test serve::tests::sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls ... ok
+test serve::tests::sync_stream_encoding_preserves_sequences_scopes_and_empty_groups ... ok
+test serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission ... ok
+test serve::tests::pooled_readers_observe_new_commits_and_each_viewer ... FAILED
+test serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete ... FAILED
+test serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal ... FAILED
+test serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending ... ok
+test serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals ... FAILED
+test serve::token::protocol::tests::concurrent_completion_has_exactly_one_winner ... ok
+test serve::token::protocol::tests::known_hmac_vectors_and_direction_separation ... ok
+test serve::token::protocol::tests::nonce_is_single_use_even_after_invalid_proof_or_transcript ... ok
+test serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer ... ok
+test serve::token::protocol::tests::replies_require_the_secret_and_exact_transcript_and_authenticate_all_bytes ... ok
+test serve::token::protocol::tests::expiry_and_pending_capacity_use_monotonic_time_without_sleep ... ok
+test store_owner::tests::busy_missing_database_creates_nothing ... ok
+test store_owner::tests::doctor_dials_the_published_loopback_address ... ok
+test store_owner::tests::external_sqlite_writer ... ok
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait ... ok
+snapback4 worker: supervision window ended; replacing child
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+test serve::tests::bound_session_http_requires_exact_shape_and_current_action_lease ... ok
+test store_owner::tests::replaced_canonical_path_cannot_be_opened_with_the_old_guard ... ok
+test serve::tests::adoption_tests::reads::process_exit_during_build_retains_the_old_generation_and_restart_rebuilds ... ok
+test serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked ... ok
+test tests::development_binding_preserves_a_loopback_path_for_the_supervised_worker ... ok
+test tests::help_names_every_dispatched_verb ... ok
+test store_owner::tests::sidecar_is_private_and_shared_devices_exclude_backend_owners ... ok
+test tests::version_is_the_workspace_version ... ok
+test thread_priority::tests::background_priority_is_lower_without_changing_its_parent ... ok
+test thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class ... ok
+test thread_priority::tests::maintenance_keeps_ordinary_priority ... oksnapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+
+test tests::early_response_does_not_wait_for_an_unread_request_body ... ok
+test verbs::adoption::tests::doctor_url_is_a_loopback_http_origin ... ok
+test serve::tests::a_refusal_names_the_cut_its_evaluation_read ... ok
+test verbs::init::expo_core_derivation_removes_complete_server_declarations ... ok
+test verbs::releases::tests::serving_defaults_loopback_and_requires_cleartext_acknowledgement ... ok
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot record status: E_STORE: database is locked
+test serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check ... ok
+test verbs::run_admission::tests::compilation_uses_captured_bytes_through_an_aba_source_edit ... ok
+test verbs::run_admission::tests::only_typed_sqlite_locks_are_retryable ... ok
+test serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock ... ok
+test serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200 ... ok
+test verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names ... ok
+test verbs::witness::naming_tests::prepared_scenario_scope_is_explicit ... ok
+test verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid ... ok
+test verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop ... ok
+test verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code ... ok
+test verbs::witness::preparation::tests::startup_binds_each_independent_identity ... ok
+test verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+test verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution ... ok
+test verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query ... ok
+test verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime ... ok
+test serve::tests::bound_session_http_refuses_stale_and_cancelled_claims_without_minting ... ok
+test serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced ... ok
+test serve::tests::adoption_tests::w8r1b_adoption_recovery_retires_a_query_already_in_flight ... ok
+test serve::tests::latency_tests::headers::delayed_changes_open_is_wait ... ok
+test serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test serve::tests::presence_tests::w15a_vanished_held_poll_is_claimed_once_after_clock_advance_6s ... ok
+test serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative ... ok
+test serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291775478-14/worker.mjs (pid 1432591)
+test serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work ... ok
+test serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup ... ok
+test serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer ... ok
+test serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty ... ok
+test serve::tests::slow_readers_cannot_pin_response_writers ... ok
+test serve::tests::latency_tests::duration::latency_query_total_includes_controlled_engine_work ... ok
+test serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::adoption_tests::failure::failed_candidate_clears_pending_names_and_allows_a_later_adoption ... ok
+test serve::tests::pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes ... ok
+test serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait ... ok
+test serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write ... ok
+test tests::json_responses_preserve_framing_on_a_persistent_connection ... ok
+test serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain ... ok
+test serve::tests::raced_mutation_id_refusal_keeps_its_terminal_http_status ... ok
+test serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters ... ok
+test serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait ... ok
+test serve::tests::refresh_rotates_and_logout_all_revokes_every_session ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291537190-12/worker.mjs (pid 1432699)
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291882608-15/worker.mjs (pid 1432710)
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption ... ok
+test serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness ... ok
+test serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset ... ok
+test serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all ... ok
+test serve::tests::an_effect_claim_rechecks_service_session_after_waiting ... ok
+test serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement ... ok
+test serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication ... ok
+test serve::tests::route_tests::route_seat_revocation_during_verification_cannot_be_undone_by_allow ... ok
+test serve::tests::sync_generation_tests::failed_materialization_is_not_counted_and_unreadable_head_fails_discovery ... ok
+test serve::tests::upload_disk_work_is_bounded_and_does_not_hold_the_query_engine ... ok
+snapback4 dev: read costly (guest:01M3X9TRSBNNAZT0J1CH5GRA4J) cut by heap bytes at costly:2:1; examined=0 index_entries=0 rule_probes=0 steps=1838 heap_bytes=16808700 output_bytes=6 rows_written=0; snapback4 why costly
+test serve::tests::store_tests::action_store_precondition_precedes_admission_and_replay ... ok
+test serve::tests::store_tests::an_idless_mutation_cannot_execute_on_the_wrong_store ... ok
+test serve::tests::route_tests::route_wait_capacity_leaves_verification_and_short_core_requests_available ... ok
+test serve::tests::sync_generation_tests::stale_generation_engine_snapshot ... ok
+test serve::tests::unsupported_http_versions_release_connection_slots ... ok
+test serve::tests::catalog_and_changes_require_live_identity_and_release_refuses_dev_doors ... ok
+test serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas ... ok
+test serve::tests::store_tests::intent_store_precondition_fences_execution_and_replay_without_recording_a_refusal ... ok
+test serve::tests::review_changes::finding_5_reordered_commit_notifications_cannot_report_a_restored_head ... ok
+test serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve ... ok
+test verbs::test_fixture::column_tests::residency_fixture_import_rebuilds_poisoned_columns ... ok
+test serve::tests::unauthorized_large_posts_close_before_body_admission ... ok
+test serve::tests::route_tests::route_invalid_delivery_never_admits_and_cannot_collect_a_settled_body ... ok
+test serve::tests::route_tests::route_wire_retains_raw_bytes_and_independent_set_cookie_headers ... ok
+test serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence ... ok
+test serve::tests::route_tests::registry_claim_retains_long_action_and_maximum_route_names_over_http ... ok
+test verbs::doctor_tests::w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim ... ok
+test serve::tests::adoption_tests::atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it ... ok
+test verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros ... ok
+test serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock ... ok
+test serve::tests::sync_generation_tests::stale_generation_engine_stream ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911012416179885-27/snapback/workers/push.mjs (pid 1433486)
+test serve::tests::route_tests::route_verifier_fences_wrong_tokens_and_expired_tickets_without_admission ... ok
+test serve::tests::route_tests::route_503_is_collectible_only_after_fresh_verification_of_the_same_body ... ok
+test serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock ... ok
+test verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock ... ok
+test serve::tests::sync_generation_tests::stale_generation_reader_snapshot ... ok
+test serve::tests::review_changes::finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page ... ok
+snapback4 worker: supervision window ended; replacing child
+test serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once ... ok
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot record status: E_STORE: database is locked
+test serve::tests::presence_tests::w15a_commit_wakes_all_49_recipients_and_their_next_polls_satisfy_without_attempts ... ok
+test serve::tests::sync_generation_tests::stale_generation_reader_stream ... ok
+test serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction ... FAILED
+test serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance ... FAILED
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911012416179885-27/snapback/workers/push.mjs (pid 1433604)
+test serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes ... FAILED
+test serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity ... FAILED
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked ... ok
+test serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine ... ok
+test store_owner::tests::hard_linked_databases_refuse_both_paths_and_existing_owners ... ok
+test serve::tests::unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters ... ok
+test store_owner::tests::database_ownership_preserves_sqlites_posix_locks ... ok
+test serve::tests::sync_generation_tests::generation_discovery_keeps_page_authorization ... ok
+test store_owner::tests::database_renamed_to_auxiliary_name_is_never_opened_or_truncated ... ok
+test serve::tests::store_tests::query_and_mutation_replies_identify_the_evaluated_store_and_replay_head ... ok
+test serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding ... ok
+test store_owner::tests::removed_or_replaced_sidecar_ends_exclusion_documented_boundary ... ok
+test serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution ... ok
+test serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body ... ok
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease ... ok
+test serve::tests::route_tests::registry_claims_have_bounded_input_and_recheck_worker_revision ... ok
+test serve::tests::adoption_tests::saturation::saturated_mutation_admission_reserves_query_and_sync_capacity ... ok
+test serve::tests::timeline_tests::paired_tombstoned_repost_identity_is_unobservable ... ok
+dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "39deef983d156bb0b5fb723e31022612"; instance "01M3X9TRQF3HAGWDE8XKSPHQGP"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790911014653; first response 1; `snapback4 why recent --instance 01M3X9TRQF3HAGWDE8XKSPHQGP`
+test serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes ... ok
+test serve::tests::route_tests::route_adoption_fences_old_supervised_verifier_before_child_shutdown ... ok
+dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "f0d5fca71a0c17e28470494517c2d61e"; instance "01M3X9TRPGTBXA4WGZ3YC1NMN7"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790911014724; first response 1; `snapback4 why recent --instance 01M3X9TRPGTBXA4WGZ3YC1NMN7`
+dev refusal: /uninstrumented:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "f0d5fca71a0c17e28470494517c2d61e"; instance "01M3X9TRPGTBXA4WGZ3YC1NMN7"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1790911014726; first response 2; `snapback4 why recent --instance 01M3X9TRPGTBXA4WGZ3YC1NMN7`
+test serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause ... ok
+test serve::tests::route_tests::route_verifier_reclaims_expired_lease_but_old_callback_cannot_promote ... ok
+test serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-1430895-1790911009291754897-13/worker.mjs (pid 1434244)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit ... ok
+test serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits ... FAILED
+test serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops ... FAILED
+test serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work ... FAILED
+test serve::tests::sync_generation_tests::concurrent::detached_sync_never_skips_a_commit_after_its_snapshot ... ok
+
+failures:
+
+---- serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine stdout ----
+
+thread '<unnamed>' (1431837) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine' (1431087) panicked at crates/snapback4/src/serve_tests.rs:99:58:
+called `Option::unwrap()` on a `None` value
+
+---- serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine stdout ----
+
+thread '<unnamed>' (1431826) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine' (1431054) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+---- serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured stdout ----
+
+thread '<unnamed>' (1431860) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured' (1431075) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+---- serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads stdout ----
+
+thread '<unnamed>' (1431110) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads' (1431080) panicked at crates/snapback4/src/serve_tests.rs:99:58:
+called `Option::unwrap()` on a `None` value
+
+---- serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not stdout ----
+
+thread '<unnamed>' (1431838) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not' (1431051) panicked at crates/snapback4/src/serve_tests.rs:96:32:
+called `Option::unwrap()` on a `None` value
+
+---- serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer stdout ----
+
+thread 'serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer' (1430964) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+---- serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance stdout ----
+
+thread 'serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance' (1430965) panicked at crates/snapback4/src/../tests/serve_adoption/reader_failure.rs:86:9:
+assertion `left == right` failed
+  left: 503
+ right: 200
+
+---- serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub stdout ----
+
+thread 'serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub' (1431029) panicked at crates/snapback4/src/../tests/serve_refusals/mod.rs:154:18:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+---- serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection stdout ----
+
+thread '<unnamed>' (1432233) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection' (1431077) panicked at crates/snapback4/src/serve_tests.rs:99:58:
+called `Option::unwrap()` on a `None` value
+
+---- serve::tests::pooled_readers_observe_new_commits_and_each_viewer stdout ----
+
+thread 'serve::tests::pooled_readers_observe_new_commits_and_each_viewer' (1431089) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }
+
+---- serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete stdout ----
+
+thread 'serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete' (1430990) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1431522) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+---- serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal stdout ----
+
+thread '<unnamed>' (1431931) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal' (1431043) panicked at crates/snapback4/src/../tests/latency/duration.rs:24:45:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+---- serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals stdout ----
+
+thread '<unnamed>' (1432230) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals' (1431070) panicked at crates/snapback4/src/serve_tests.rs:99:58:
+called `Option::unwrap()` on a `None` value
+
+---- serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction stdout ----
+
+thread '<unnamed>' (1431740) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction' (1431086) panicked at crates/snapback4/src/serve_tests.rs:112:9:
+condition did not become true
+
+---- serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance stdout ----
+
+thread '<unnamed>' (1431878) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance' (1431021) panicked at crates/snapback4/src/../tests/serve_ephemeral/mod.rs:94:10:
+poll reaches wait_timeout: Timeout
+
+---- serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes stdout ----
+
+thread '<unnamed>' (1431520) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread '<unnamed>' (1432196) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432181) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432185) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432188) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432191) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432199) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }
+
+thread '<unnamed>' (1432207) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }
+
+thread '<unnamed>' (1432208) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }
+
+thread '<unnamed>' (1432201) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes' (1430959) panicked at crates/snapback4/src/serve_tests.rs:112:9:
+condition did not become true
+
+thread '<unnamed>' (1431940) panicked at crates/snapback4/src/../tests/serve_adoption/mod.rs:18:86:
+called `Result::unwrap()` on an `Err` value: Disconnected
+
+---- serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity stdout ----
+
+thread '<unnamed>' (1431956) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread '<unnamed>' (1432234) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread '<unnamed>' (1432228) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432231) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432232) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+
+thread '<unnamed>' (1432236) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }
+
+thread '<unnamed>' (1432238) panicked at crates/snapback4/src/serve_tests.rs:86:50:
+called `Result::unwrap()` on an `Err` value: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }
+
+thread 'serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity' (1431019) panicked at crates/snapback4/src/serve_tests.rs:112:9:
+condition did not become true
+
+---- serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits stdout ----
+
+thread '<unnamed>' (1431912) panicked at vendor/tiny_http/src/util/refined_tcp_stream.rs:28:77:
+called `Result::unwrap()` on an `Err` value: Os { code: 24, kind: Uncategorized, message: "Too many open files" }
+
+thread 'serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits' (1431072) panicked at crates/snapback4/src/../tests/latency/serve.rs:72:9:
+assertion failed: started.elapsed() < Duration::from_secs(3)
+
+---- serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops stdout ----
+
+thread 'serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops' (1430956) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work stdout ----
+
+thread '<unnamed>' (1432002) panicked at crates/snapback4/src/serve_tests.rs:92:39:
+called `Result::unwrap()` on an `Err` value: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+thread 'serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work' (1431020) panicked at crates/snapback4/src/serve_tests.rs:635:5:
+malformed claim request thread panicked
+
+
+failures:
+    serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops
+    serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes
+    serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer
+    serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance
+    serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete
+    serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity
+    serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work
+    serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance
+    serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub
+    serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal
+    serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not
+    serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine
+    serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals
+    serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits
+    serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured
+    serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection
+    serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads
+    serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction
+    serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine
+    serve::tests::pooled_readers_observe_new_commits_and_each_viewer
+
+test result: FAILED. 205 passed; 20 failed; 4 ignored; 0 measured; 0 filtered out; finished in 6.07s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

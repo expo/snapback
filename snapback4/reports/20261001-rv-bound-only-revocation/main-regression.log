@@ -1,0 +1,55 @@
+✖ mounted history: insert, keep=undefined, replacement held beyond one second (37.723439ms)
+✔ mounted history: delete, keep=undefined, replacement held beyond one second (31.277629ms)
+✔ mounted history: legacy, keep=undefined, replacement held beyond one second (31.084249ms)
+✔ mounted history: malformed, keep=undefined, replacement held beyond one second (32.602615ms)
+✔ mounted history: opaque, keep=undefined, replacement held beyond one second (30.754705ms)
+✖ mounted history: insert, keep=true, replacement held beyond one second (21.347215ms)
+✔ mounted history: delete, keep=true, replacement held beyond one second (30.748826ms)
+✔ mounted history: legacy, keep=true, replacement held beyond one second (31.479592ms)
+✔ mounted history: malformed, keep=true, replacement held beyond one second (31.194294ms)
+✔ mounted history: opaque, keep=true, replacement held beyond one second (34.168442ms)
+✔ safe evidence retains through retry exhaustion; later revoking evidence still bounds it (177.922601ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 9
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 627.264364
+
+✖ failing tests:
+
+test at packages/snapback4/test/revocation-retention.test.mjs:12:3
+✖ mounted history: insert, keep=undefined, replacement held beyond one second (37.723439ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== 'old'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:38:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'old',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/revocation-retention.test.mjs:12:3
+✖ mounted history: insert, keep=true, replacement held beyond one second (21.347215ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== 'old'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rv/snapback4/packages/snapback4/test/revocation-retention.test.mjs:38:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'old',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

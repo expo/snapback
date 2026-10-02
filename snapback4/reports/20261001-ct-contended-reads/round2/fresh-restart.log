@@ -1,0 +1,45 @@
+(node:348920) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:348920) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round2/store/snapback/generated/api.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round2/store/package.json.
+{"level":0,"busy":0,"samples":920,"load":[9.04,7.05,6.35]}
+{"level":0.5,"busy":48,"samples":1840,"load":[12.39,7.81,6.61]}
+{"level":1,"busy":96,"samples":2760,"load":[19.17,9.29,7.09]}
+{"level":1.5,"busy":144,"samples":3680,"load":[31.88,12.29,8.09]}
+┌─────────┬───────┬──────────────────────┬───────┬───────┐
+│ (index) │ level │ endpoint             │ p50   │ p95   │
+├─────────┼───────┼──────────────────────┼───────┼───────┤
+│ 0       │ 0     │ 'following500'       │ 5.127 │ 5.833 │
+│ 1       │ 0     │ 'following5'         │ 4.292 │ 5.693 │
+│ 2       │ 0     │ 'celebrityFollowing' │ 4.308 │ 5.386 │
+│ 3       │ 0     │ 'globalSearch'       │ 5.384 │ 6.884 │
+│ 4       │ 0     │ 'insights'           │ 1.282 │ 1.806 │
+│ 5       │ 0     │ 'trending'           │ 2.4   │ 3.026 │
+│ 6       │ 0     │ 'busyPage1'          │ 2.113 │ 2.559 │
+│ 7       │ 0     │ 'busyPage50'         │ 2.254 │ 2.642 │
+│ 8       │ 0.5   │ 'following500'       │ 2.968 │ 3.185 │
+│ 9       │ 0.5   │ 'following5'         │ 2.909 │ 2.962 │
+│ 10      │ 0.5   │ 'celebrityFollowing' │ 2.921 │ 3.115 │
+│ 11      │ 0.5   │ 'globalSearch'       │ 4.068 │ 4.193 │
+│ 12      │ 0.5   │ 'insights'           │ 0.89  │ 1.016 │
+│ 13      │ 0.5   │ 'trending'           │ 1.559 │ 1.696 │
+│ 14      │ 0.5   │ 'busyPage1'          │ 1.269 │ 1.389 │
+│ 15      │ 0.5   │ 'busyPage50'         │ 1.216 │ 1.385 │
+│ 16      │ 1     │ 'following500'       │ 3.046 │ 6.594 │
+│ 17      │ 1     │ 'following5'         │ 3.015 │ 9.67  │
+│ 18      │ 1     │ 'celebrityFollowing' │ 2.991 │ 6.059 │
+│ 19      │ 1     │ 'globalSearch'       │ 4.127 │ 8.001 │
+│ 20      │ 1     │ 'insights'           │ 0.918 │ 1.492 │
+│ 21      │ 1     │ 'trending'           │ 1.594 │ 4.148 │
+│ 22      │ 1     │ 'busyPage1'          │ 1.256 │ 3.838 │
+│ 23      │ 1     │ 'busyPage50'         │ 1.268 │ 3.355 │
+│ 24      │ 1.5   │ 'following500'       │ 3.07  │ 8.105 │
+│ 25      │ 1.5   │ 'following5'         │ 3.034 │ 6.479 │
+│ 26      │ 1.5   │ 'celebrityFollowing' │ 2.985 │ 4.244 │
+│ 27      │ 1.5   │ 'globalSearch'       │ 4.136 │ 7.73  │
+│ 28      │ 1.5   │ 'insights'           │ 0.984 │ 2.611 │
+│ 29      │ 1.5   │ 'trending'           │ 1.623 │ 4.637 │
+│ 30      │ 1.5   │ 'busyPage1'          │ 1.282 │ 2.624 │
+│ 31      │ 1.5   │ 'busyPage50'         │ 1.278 │ 3.279 │
+└─────────┴───────┴──────────────────────┴───────┴───────┘

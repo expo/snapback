@@ -63,12 +63,13 @@ fn take(request: &mut Json, name: &str) -> Result<Json, RuntimeError> {
 
 /// The dispatcher consumes the request so decoding never clones a page.
 pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
+    device.preserved = None;
     if let Some(now) = request.get("delivery_now").and_then(Json::as_i64) { device.delivery_time(now); }
     let op = match request.get("op").and_then(Json::as_str) {
         Some(op) => op.to_owned(),
         None => return answer(Err(RuntimeError::Input("the call needs op".into()))),
     };
-    answer((|| -> Result<Json, RuntimeError> {
+    let result = answer((|| -> Result<Json, RuntimeError> {
         Ok(match op.as_str() {
             // @ref LLP 3000.019#3.4 — local physical counts, never server data or query authority.
             #[cfg(feature = "native")]
@@ -223,7 +224,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             }
             other => return Err(RuntimeError::UnknownOp(other.to_owned())),
         })
-    })())
+    })());
+    change_answer(device, &op, result)
 }
 
 
@@ -239,7 +241,10 @@ pub fn try_call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> R
     if let Ok(command) = json_codec::from_text::<PageArgument>(request) {
         if matches!(command.op.as_str(), "apply" | "observe_store") {
             json_codec::validate_text(request)?;
-            return Ok(answer(page_call(device, command)));
+            device.preserved = None;
+            let op = command.op.clone();
+            let result = answer(page_call(device, command));
+            return Ok(change_answer(device, &op, result));
         }
     }
     #[cfg(test)]
@@ -275,3 +280,10 @@ std::thread_local! {
 #[cfg(test)]
 #[path = "../tests/codec/route.rs"]
 mod route_tests;
+
+fn change_answer<S: DeviceStore>(device: &mut Device<S>, op: &str, mut result: Json) -> Json {
+    if matches!(op, "apply" | "admit" | "settle") && result.get("ok").is_some() {
+        if let Some(preserved) = device.preserved.take() { result["preserved"] = json!(preserved); }
+    }
+    result
+}

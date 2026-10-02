@@ -1,0 +1,294 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 13.05s
+     Running tests/guide.rs (target/debug/deps/guide-07a910940719b432)
+
+running 110 tests
+
+thread 'definitions::w11_every_registered_code_quotes_its_definition' (1427919) panicked at crates/snapback4-lang/tests/guide/definitions.rs:99:5:
+assertion `left == right` failed: review a defining fact for each registered code
+  left: {"DIGEST_CHAT_BOUND", "EMPTY_READ", "E_ACTION_ATTEMPTS", "E_ACTION_AUTHORITY", "E_ACTION_CANCELLATION", "E_ACTION_CANCELLED", "E_ACTION_CLOSED", "E_ACTION_DEADLINE", "E_ACTION_FAILED", "E_ACTION_GENERATION", "E_ACTION_LEASE", "E_ACTION_PENDING", "E_ACTION_RESULT", "E_ACTION_UNKNOWN", "E_ADMISSION", "E_ADMISSION_STORE", "E_ADMISSION_TIMEOUT", "E_ADOPT", "E_ASSET_BOUNDS", "E_ASSET_PLACED", "E_ASSET_RANGE", "E_ASSET_TOO_LARGE", "E_ASSET_TYPE", "E_ASSET_UNKNOWN", "E_ASSET_VIEWED", "E_AUTH", "E_BOUND", "E_CLIENT", "E_CLOCK_DEV_ONLY", "E_CLOCK_INPUT", "E_CLOSED", "E_CONFLICT", "E_CONSTRAINT", "E_CURSOR_INDEX", "E_DELIVERY_BINDING", "E_DELIVERY_CLAUSE", "E_DEVICE_VERSION", "E_DIV_ZERO", "E_EFFECT_ATTEMPTS", "E_EFFECT_CANCELLATION", "E_EFFECT_CANCELLED", "E_EFFECT_CLOSED", "E_EFFECT_DEADLINE", "E_EFFECT_GENERATION", "E_EFFECT_LEASE", "E_EFFECT_UNKNOWN", "E_EMIT_IN_QUERY", "E_EPHEMERAL_FULL", "E_FANOUT", "E_FIELD", "E_FIELD_AUTHORITY", "E_GENERATION", "E_HOST_UNICODE", "E_HTTP_LIMIT", "E_HTTP_LISTENER", "E_HTTP_RESPONSE", "E_ID_REUSED", "E_INDEX_KEY_BYTES", "E_INIT_CONFLICT", "E_INPUT", "E_INTERNAL", "E_JOB_CURSOR_INDEX", "E_JOB_GENERATION", "E_JOB_SWEEP", "E_JOB_VIEWER_CONTEXT", "E_JOB_VIEWER_FLOW", "E_JOB_VIEWER_PRINCIPAL", "E_JOB_VIEWER_QUERY", "E_JOB_VIEWER_READ", "E_JOB_VIEWER_READ_ONLY", "E_MAINTAINED_COLUMN", "E_MAINTAINED_COLUMN_PRIVATE", "E_MAINTAINED_COLUMN_REFERENCE", "E_MAINTAINED_COLUMN_RESULT", "E_MAINTAIN_READ_EXPIRE", "E_MAINTAIN_READ_RULE", "E_NATIVE", "E_NATIVE_BUILD", "E_NATIVE_TOOLCHAIN", "E_NATIVE_TRAP", "E_NOT_PREDICTABLE", "E_OFFLINE", "E_OIDC_BINDING", "E_OIDC_CALLBACK", "E_OIDC_CONFIG", "E_OIDC_EXCHANGE", "E_OIDC_HANDOFF", "E_OIDC_MINT", "E_OIDC_PROVIDER", "E_OIDC_RECIPE", "E_OIDC_REPLAY", "E_OIDC_TRANSACTION", "E_OP", "E_OP_RESERVED", "E_OVERFLOW", "E_PARENT_HAS_CHILDREN", "E_POSTGRES_MAINTAINED_COLUMN", "E_PREDICT", "E_QUARRY_AMBIGUOUS", "E_QUARRY_BOUND", "E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_EPHEMERAL", "E_QUARRY_JOB_SCHEDULE", "E_QUARRY_KEY_ORDER", "E_QUARRY_LIVE_MAINTAIN_PROBE", "E_QUARRY_MAINTAIN", "E_QUARRY_MAINTAIN_EXPIRE", "E_QUARRY_MODIFIER_SCOPE", "E_QUARRY_PLACEMENT", "E_QUARRY_POSITIONAL_SCAN", "E_QUARRY_RETAIN", "E_QUARRY_RULE_SPELLING", "E_QUARRY_SELF_EQUALITY", "E_QUARRY_SHAPE_JOIN", "E_QUARRY_SPREAD", "E_QUARRY_SYNTAX", "E_QUARRY_TYPE", "E_QUARRY_UNKNOWN", "E_QUARRY_UNSUPPORTED", "E_QUARRY_WRITE_TESTS", "E_QUERY_HELD", "E_QUERY_RETRY", "E_RATE_LIMIT", "E_READ_THROUGH", "E_READ_THROUGH_ADOPT", "E_READ_THROUGH_SCAN", "E_RECEIPTS_CLAUSE", "E_RECEIPTS_OWNED", "E_RECIPE_RETIRED", "E_RECORDED_FIELD", "E_REPLAY_DEV_ONLY", "E_ROUTE_DECLARATION", "E_ROUTE_GENERATION", "E_ROUTE_INPUT", "E_ROUTE_LEASE", "E_ROUTE_PENDING", "E_ROUTE_PRIVATE", "E_ROUTE_REFUSED", "E_ROUTE_RESULT", "E_ROUTE_UNKNOWN", "E_ROUTE_VERIFY", "E_RULE", "E_RUN_BUSY", "E_RUN_SOURCE_CHANGED", "E_SCHEDULE", "E_SCHEMA", "E_SCHEMA_CAPABILITY", "E_SCHEMA_CONSTRAINT", "E_SEARCH_OPEN", "E_SECRET_MISSING", "E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_PARENT", "E_SEQUENCE_SUPPLIED", "E_SERVER_CONFIG", "E_SERVER_HANDLERS", "E_SERVER_REQUIRED", "E_SERVER_TOOLCHAIN", "E_SERVER_TYPECHECK", "E_SHAPE_EXCEEDS_METER", "E_SQL_INTERNAL", "E_SQL_READ_ONLY", "E_STEP_BUSY", "E_STEP_INPUT", "E_STEP_PARKED", "E_STEP_RESULT", "E_STEP_UNKNOWN", "E_STORE", "E_STORE_BUSY", "E_STORE_REPLACED", "E_STORE_RESTORE", "E_STRUCTURAL_FANOUT", "E_SYNC", "E_SYNC_GENERATION", "E_TIMELINE_ACTIVATE", "E_TIMELINE_FILTER", "E_TIMELINE_FOLLOWS", "E_TIMELINE_IMPORT", "E_TIMELINE_OWNED", "E_TIMELINE_READ", "E_TIMELINE_REDEFINE", "E_TIMELINE_REMOVAL", "E_TIMELINE_SERVER", "E_TIMELINE_SHAPE", "E_TIMELINE_SIZE", "E_TYPE", "E_UNBOUND_LOOP", "E_UNBOUND_SCAN", "E_VIEW_FEED_SHAPE", "E_VIEW_KEY", "E_WITNESS_APP", "E_WITNESS_ARTIFACT", "E_WITNESS_BACKEND", "E_WITNESS_BUILD", "E_WITNESS_HERMES", "E_WITNESS_INPUT", "E_WITNESS_INTERRUPTED", "E_WITNESS_NATIVE_COMPAT", "E_WITNESS_ORIGIN", "E_WITNESS_PLATFORM", "E_WITNESS_PORT", "E_WITNESS_PROCESS", "E_WITNESS_PROOF", "E_WITNESS_RECEIPT", "E_WITNESS_SIMULATOR", "E_WITNESS_STEP", "E_WITNESS_TIMEOUT", "E_WORKER_REFRESH", "E_WRITE_ID", "E_WRITE_ID_REUSE", "E_WRITE_LABEL", "E_WRITE_RECEIPT_EXPIRED", "FEED_APP_EVENT", "FEED_APP_NOT_FOUND", "FEED_APP_OWNER", "FEED_AUTHOR_NOT_FOUND", "FEED_CANNOT_FOLLOW_SELF", "FEED_EVENT_REMOVED", "FEED_NOT_AUTHOR", "FEED_ORIGINAL_REQUIRED", "FEED_POST_NOT_FOUND", "FEED_PROMOTION_PULL_CAP", "FEED_PULL_CAP", "FEED_PULL_COUNT_MISSING", "NOT_FOUND", "N_EPHEMERAL_SERVER", "N_HELD_UNKNOWN", "N_HORIZON_GUARD", "N_MAINTAINED_COLUMN_DISCLOSURE", "N_MAINTAINED_COLUMN_STREAM", "N_MAINTAIN_DELTA", "N_MAINTAIN_SYNCED", "N_NEVER_COMPLETE", "N_NOT_PREDICTABLE", "N_NOW_SERVER", "N_NO_CURSOR", "N_NO_HORIZON", "N_OPTIONAL_FILTER_LIMIT", "N_PUBLIC_AGGREGATE_COPY", "N_RECEIPT_PREDICTION", "N_SEARCH_OPEN", "N_SEARCH_SHAPE", "N_SEARCH_UNSCOPED", "N_SEARCH_WORDS", "N_SEEK", "N_SEQUENCE_READ", "N_SPARSE_FILTER", "N_SYNC_ORDER", "N_TIMELINE_ADOPT", "N_TIMELINE_COMPAT", "N_TIMELINE_PROFILE_CAP", "N_WIDE_MERGE", "RUNS_FULL", "SNAPBACK4_EXIT", "SNAPBACK4_PANIC", "SNAPBACK4_SIGNAL", "SNAPBACK4_THREAD_EXIT"}
+ right: {"DIGEST_CHAT_BOUND", "EMPTY_READ", "E_ACTION_ATTEMPTS", "E_ACTION_AUTHORITY", "E_ACTION_CANCELLATION", "E_ACTION_CANCELLED", "E_ACTION_CLOSED", "E_ACTION_DEADLINE", "E_ACTION_FAILED", "E_ACTION_GENERATION", "E_ACTION_LEASE", "E_ACTION_PENDING", "E_ACTION_RESULT", "E_ACTION_UNKNOWN", "E_ADMISSION", "E_ADMISSION_STORE", "E_ADMISSION_TIMEOUT", "E_ADOPT", "E_ASSET_BOUNDS", "E_ASSET_PLACED", "E_ASSET_RANGE", "E_ASSET_TOO_LARGE", "E_ASSET_TYPE", "E_ASSET_UNKNOWN", "E_ASSET_VIEWED", "E_AUTH", "E_BOUND", "E_CLIENT", "E_CLOCK_DEV_ONLY", "E_CLOCK_INPUT", "E_CLOSED", "E_CONFLICT", "E_CONSTRAINT", "E_CURSOR_INDEX", "E_DELIVERY_BINDING", "E_DELIVERY_CLAUSE", "E_DEVICE_VERSION", "E_DIV_ZERO", "E_EFFECT_ATTEMPTS", "E_EFFECT_CANCELLATION", "E_EFFECT_CANCELLED", "E_EFFECT_CLOSED", "E_EFFECT_DEADLINE", "E_EFFECT_GENERATION", "E_EFFECT_LEASE", "E_EFFECT_UNKNOWN", "E_EMIT_IN_QUERY", "E_EPHEMERAL_FULL", "E_FANOUT", "E_FIELD", "E_FIELD_AUTHORITY", "E_GENERATION", "E_HOST_UNICODE", "E_HTTP_LIMIT", "E_HTTP_LISTENER", "E_HTTP_RESPONSE", "E_ID_REUSED", "E_INDEX_KEY_BYTES", "E_INIT_CONFLICT", "E_INPUT", "E_INTERNAL", "E_JOB_CURSOR_INDEX", "E_JOB_GENERATION", "E_JOB_SWEEP", "E_MAINTAINED_COLUMN", "E_MAINTAINED_COLUMN_PRIVATE", "E_MAINTAINED_COLUMN_REFERENCE", "E_MAINTAINED_COLUMN_RESULT", "E_MAINTAIN_READ_EXPIRE", "E_MAINTAIN_READ_RULE", "E_NATIVE", "E_NATIVE_BUILD", "E_NATIVE_TOOLCHAIN", "E_NATIVE_TRAP", "E_NOT_PREDICTABLE", "E_OFFLINE", "E_OIDC_BINDING", "E_OIDC_CALLBACK", "E_OIDC_CONFIG", "E_OIDC_EXCHANGE", "E_OIDC_HANDOFF", "E_OIDC_MINT", "E_OIDC_PROVIDER", "E_OIDC_RECIPE", "E_OIDC_REPLAY", "E_OIDC_TRANSACTION", "E_OP", "E_OP_RESERVED", "E_OVERFLOW", "E_PARENT_HAS_CHILDREN", "E_POSTGRES_MAINTAINED_COLUMN", "E_PREDICT", "E_QUARRY_AMBIGUOUS", "E_QUARRY_BOUND", "E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_EPHEMERAL", "E_QUARRY_JOB_SCHEDULE", "E_QUARRY_KEY_ORDER", "E_QUARRY_LIVE_MAINTAIN_PROBE", "E_QUARRY_MAINTAIN", "E_QUARRY_MAINTAIN_EXPIRE", "E_QUARRY_MODIFIER_SCOPE", "E_QUARRY_PLACEMENT", "E_QUARRY_POSITIONAL_SCAN", "E_QUARRY_RETAIN", "E_QUARRY_RULE_SPELLING", "E_QUARRY_SELF_EQUALITY", "E_QUARRY_SHAPE_JOIN", "E_QUARRY_SPREAD", "E_QUARRY_SYNTAX", "E_QUARRY_TYPE", "E_QUARRY_UNKNOWN", "E_QUARRY_UNSUPPORTED", "E_QUARRY_WRITE_TESTS", "E_QUERY_HELD", "E_QUERY_RETRY", "E_RATE_LIMIT", "E_READ_THROUGH", "E_READ_THROUGH_ADOPT", "E_READ_THROUGH_SCAN", "E_RECEIPTS_CLAUSE", "E_RECEIPTS_OWNED", "E_RECIPE_RETIRED", "E_RECORDED_FIELD", "E_REPLAY_DEV_ONLY", "E_ROUTE_DECLARATION", "E_ROUTE_GENERATION", "E_ROUTE_INPUT", "E_ROUTE_LEASE", "E_ROUTE_PENDING", "E_ROUTE_PRIVATE", "E_ROUTE_REFUSED", "E_ROUTE_RESULT", "E_ROUTE_UNKNOWN", "E_ROUTE_VERIFY", "E_RULE", "E_RUN_BUSY", "E_RUN_SOURCE_CHANGED", "E_SCHEDULE", "E_SCHEMA", "E_SCHEMA_CAPABILITY", "E_SCHEMA_CONSTRAINT", "E_SEARCH_OPEN", "E_SECRET_MISSING", "E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_PARENT", "E_SEQUENCE_SUPPLIED", "E_SERVER_CONFIG", "E_SERVER_HANDLERS", "E_SERVER_REQUIRED", "E_SERVER_TOOLCHAIN", "E_SERVER_TYPECHECK", "E_SHAPE_EXCEEDS_METER", "E_SQL_INTERNAL", "E_SQL_READ_ONLY", "E_STEP_BUSY", "E_STEP_INPUT", "E_STEP_PARKED", "E_STEP_RESULT", "E_STEP_UNKNOWN", "E_STORE", "E_STORE_BUSY", "E_STORE_REPLACED", "E_STORE_RESTORE", "E_STRUCTURAL_FANOUT", "E_SYNC", "E_SYNC_GENERATION", "E_TIMELINE_ACTIVATE", "E_TIMELINE_FILTER", "E_TIMELINE_FOLLOWS", "E_TIMELINE_IMPORT", "E_TIMELINE_OWNED", "E_TIMELINE_READ", "E_TIMELINE_REDEFINE", "E_TIMELINE_REMOVAL", "E_TIMELINE_SERVER", "E_TIMELINE_SHAPE", "E_TIMELINE_SIZE", "E_TYPE", "E_UNBOUND_LOOP", "E_UNBOUND_SCAN", "E_VIEW_FEED_SHAPE", "E_VIEW_KEY", "E_WITNESS_APP", "E_WITNESS_ARTIFACT", "E_WITNESS_BACKEND", "E_WITNESS_BUILD", "E_WITNESS_HERMES", "E_WITNESS_INPUT", "E_WITNESS_INTERRUPTED", "E_WITNESS_NATIVE_COMPAT", "E_WITNESS_ORIGIN", "E_WITNESS_PLATFORM", "E_WITNESS_PORT", "E_WITNESS_PROCESS", "E_WITNESS_PROOF", "E_WITNESS_RECEIPT", "E_WITNESS_SIMULATOR", "E_WITNESS_STEP", "E_WITNESS_TIMEOUT", "E_WORKER_REFRESH", "E_WRITE_ID", "E_WRITE_ID_REUSE", "E_WRITE_LABEL", "E_WRITE_RECEIPT_EXPIRED", "FEED_APP_EVENT", "FEED_APP_NOT_FOUND", "FEED_APP_OWNER", "FEED_AUTHOR_NOT_FOUND", "FEED_CANNOT_FOLLOW_SELF", "FEED_EVENT_REMOVED", "FEED_NOT_AUTHOR", "FEED_ORIGINAL_REQUIRED", "FEED_POST_NOT_FOUND", "FEED_PROMOTION_PULL_CAP", "FEED_PULL_CAP", "FEED_PULL_COUNT_MISSING", "NOT_FOUND", "N_EPHEMERAL_SERVER", "N_HELD_UNKNOWN", "N_HORIZON_GUARD", "N_MAINTAINED_COLUMN_DISCLOSURE", "N_MAINTAINED_COLUMN_STREAM", "N_MAINTAIN_DELTA", "N_MAINTAIN_SYNCED", "N_NEVER_COMPLETE", "N_NOT_PREDICTABLE", "N_NOW_SERVER", "N_NO_CURSOR", "N_NO_HORIZON", "N_OPTIONAL_FILTER_LIMIT", "N_PUBLIC_AGGREGATE_COPY", "N_RECEIPT_PREDICTION", "N_SEARCH_OPEN", "N_SEARCH_SHAPE", "N_SEARCH_UNSCOPED", "N_SEARCH_WORDS", "N_SEEK", "N_SEQUENCE_READ", "N_SPARSE_FILTER", "N_SYNC_ORDER", "N_TIMELINE_ADOPT", "N_TIMELINE_COMPAT", "N_TIMELINE_PROFILE_CAP", "N_WIDE_MERGE", "RUNS_FULL", "SNAPBACK4_EXIT", "SNAPBACK4_PANIC", "SNAPBACK4_SIGNAL", "SNAPBACK4_THREAD_EXIT"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1427945) panicked at crates/snapback4-lang/tests/guide/feeds.rs:324:5:
+negative fixture: retired installer
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1427945) panicked at crates/snapback4-lang/tests/guide/feeds.rs:333:9:
+negative fixture: bridge helper feedAppPublish
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1427945) panicked at crates/snapback4-lang/tests/guide/feeds.rs:333:9:
+negative fixture: bridge helper feedAppFollow
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1427945) panicked at crates/snapback4-lang/tests/guide/feeds.rs:348:17:
+negative fixture: projection feedAuthors
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1427945) panicked at crates/snapback4-lang/tests/guide/feeds.rs:350:13:
+negative fixture: renamed private feed projection posts
+
+thread 'feeds::retirement_census_rejects_installers_helpers_and_projection_examples' (1427945) panicked at crates/snapback4-lang/tests/guide/feeds.rs:324:5:
+negative fixture: retired installer
+test client::connection_presence_keeps_its_card ... ok
+test client::loading_or_absent_opens_client ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test client::missing_row_question_opens_client ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test client::unknown_membership_offline_opens_interactions ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... FAILED
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test following_cards_pin_examinations ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test natural_words_find_their_cards ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test language_following_uses_the_declaration ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... ok
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test the_keywords_are_one_list ... ok
+test prediction_card_compiles_clean ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test the_template_compiles_clean ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+why: 256 codes, maximum 4095 bytes (E_SYNC_GENERATION) / 4096
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+
+thread 'intent::language_intent_views_predicates_search_and_durations_run' (1427950) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+language intent does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card language, block 3 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+test intent::language_intent_views_predicates_search_and_durations_run ... FAILED
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+
+thread 'the_readme_quarry_compiles_clean' (1427981) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+README block 4 starting `use server` does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'the_language_card_compiles_and_runs' (1427980) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+the language card does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+W11 section census: registered=256 with=250 without=6
+language: E_JOB_VIEWER_CONTEXT, E_JOB_VIEWER_FLOW, E_JOB_VIEWER_PRINCIPAL, E_JOB_VIEWER_QUERY, E_JOB_VIEWER_READ, E_JOB_VIEWER_READ_ONLY
+
+thread 'w11_every_registered_code_has_a_dedicated_section' (1427988) panicked at crates/snapback4-lang/tests/guide.rs:967:5:
+every registered code needs a dedicated prose paragraph on its default card: {"language": ["E_JOB_VIEWER_CONTEXT", "E_JOB_VIEWER_FLOW", "E_JOB_VIEWER_PRINCIPAL", "E_JOB_VIEWER_QUERY", "E_JOB_VIEWER_READ", "E_JOB_VIEWER_READ_ONLY"]}
+test w11_every_registered_code_has_a_dedicated_section ... FAILED
+test the_readme_quarry_compiles_clean ... FAILED
+test the_language_card_compiles_and_runs ... FAILED
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+
+thread 'w9a_expiry_cards_explain_and_select_the_readers_deadline' (1427996) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+reads does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... FAILED
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card language, block 4 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card language, block 5 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card reads, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+test every_emitted_code_is_explained ... ok
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card reads, block 2 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card reads, block 4 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card shapes, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card shapes, block 2 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card writes, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card programs, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card native, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card effects, block 3 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card actions, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card routes, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card presence, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card refusals, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:496:5:
+card personas, block 1 does not compile:
+schema.q:257:48 — E_JOB_VIEWER_QUERY: only declared Quarry queries may be called inside a job as block
+  rewrite: compute with a query inside as; call mutations, actions and native operations outside it
+  guide: jobs
+
+thread 'every_card_compiles_clean' (1427925) panicked at crates/snapback4-lang/tests/guide.rs:778:5:
+unclean blocks: ["language: 3", "language: 4", "language: 5", "reads: 1", "reads: 2", "reads: 4", "shapes: 1", "shapes: 2", "writes: 1", "programs: 1", "native: 1", "effects: 3", "actions: 1", "routes: 1", "presence: 1", "refusals: 1", "personas: 1"]
+test every_card_compiles_clean ... FAILED
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+guide inbox: device complete=true, rows=1; separate unreadPreview unavailable=true; server unread=125
+guide digest: unread=125 heap=125651 writes=1
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+rolling 25 lanes: first page examined=35 entries=0 steps=697 heap=40460 complete=true cut=None
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test rules::insert_rule_refusals ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test rules::admitted_hidden_updates ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test rules::update_rule_refusals ... ok
+test rules::update_conditions ... ok
+test rules::insert_collision_visibility ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+failures:
+
+failures:
+    definitions::w11_every_registered_code_quotes_its_definition
+    every_card_compiles_clean
+    intent::language_intent_views_predicates_search_and_durations_run
+    the_language_card_compiles_and_runs
+    the_readme_quarry_compiles_clean
+    w11_every_registered_code_has_a_dedicated_section
+    w9a_expiry_cards_explain_and_select_the_readers_deadline
+
+test result: FAILED. 103 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.38s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

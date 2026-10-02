@@ -477,6 +477,19 @@ viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership.
 
+At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
+hard limit, capped at 65,536 (also capped by macOS host limits). Failure is
+logged once and serving continues. Startup and live `doctor` report the server's
+effective soft/hard limits and warn below 2,048 descriptors (the parallel server
+tests peaked at 1,197). Without a live report, `doctor` shows its inherited limits
+and the server's startup target; a low inherited soft limit alone needs no action.
+A hard limit or platform ceiling below 2,048 needs a host limit change and server
+restart. Children inherit the raised soft limit; Node can raise its own
+further, up to the hard limit. `doctor` also reports cumulative descriptor
+exhaustions from accept/socket clones. These close transports without an
+admission refusal; intake retries with 1–100 ms backoff, reset after a connection
+is fully constructed.
+
 Removing an element releases it; reordering keeps its home and view history;
 deleting the row releases all.
 
