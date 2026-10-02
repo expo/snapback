@@ -335,7 +335,7 @@ mod driver {
             assert_eq!(output.status.code(), Some(1));
             let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_eq!(receipt["simulator"]["selection"], "created");
-            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"));
+            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"), "mode {mode}: error = {}", receipt["error"]);
             assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
             assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
             assert!(receipt["simulator"]["name"].as_str().unwrap().starts_with("snapback4-smoke-"));

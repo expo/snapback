@@ -110,7 +110,7 @@ fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
         tick()?;
     };
     let text = out.join().unwrap_or_default(); let _ = err.join();
-    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", "xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime")); }
+    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", format!("xcrun simctl {} failed; check --udid, --bundle-id and the simulator/runtime", args.first().copied().unwrap_or("")))); }
     Ok(text.trim().to_owned())
 }
 

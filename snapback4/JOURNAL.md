@@ -81716,3 +81716,21 @@ controls. The final reference audit has zero errors and zero unchecked refs.
 Evidence: reports/20261002-jv-job-reads-as-viewer/REPORT.md, FAILURES.md and
 round1/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-10-02 — Witness simctl failures name their subcommand again
+
+The 0.4.11 publication dry runs (first cut 2879c5d021, third cut 1dbf31fc98)
+both failed `snapback4::witness`
+`driver::boot_failure_keeps_created_identity_in_receipt` on darwin-arm64. The
+first cut's report attributed its run only to the publication fence; it had two
+failures. Commit 69a12dccea (keep witness refusals private and actionable)
+replaced every failed `xcrun simctl` call's diagnostic with one generic sentence,
+so a failed boot no longer said which simctl step failed, and lane NS's test
+expects `simctl boot`. Linux lanes never run the simulator path, so nothing
+caught it before publication.
+
+The failure now names the subcommand (`xcrun simctl boot failed; …`) and still
+keeps simctl's stderr private. The timeout message is unchanged; its exact text
+is asserted by `cli_preparation_timeout_still_records_failure_manifest`. The
+boot-failure assertion now prints the actual error when it fails. On the office
+M1, the whole `snapback4::witness` target passes 49/49.
