@@ -63,13 +63,26 @@ impl Binder<'_> {
     }
 
     pub(super) fn expr(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        let result = self.expr_inner(expr, out)?;
+        // Only shape/object/list construction forwards output position. Every
+        // operator, call, key, predicate and assertion consumes its operands.
+        let prior = self.returned_data;
+        self.returned_data &= matches!(expr, A::Array { .. } | A::Object { .. } | A::Shape { .. } | A::ShapeUse { .. } | A::Member { .. } | A::Name { .. } | A::Focal { .. });
+        let result = self.expr_inner(expr, out);
+        self.returned_data = prior;
+        let result = result?;
         if !self.schema.receipts.is_empty() {
             let site = self.call_chain.iter().find(|(name, _)| self.catalog.documents.iter().flat_map(|d| &d.tables).filter_map(|t| t.receipts.as_ref()).any(|clause| &clause.operations[0] == name))
                 .map(|(_, site)| site).unwrap_or_else(|| expr.site());
             self.receipt_sources.push((result.0.clone(), site.clone()));
         }
         Ok(result)
+    }
+
+    pub(super) fn computation(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        let prior = std::mem::replace(&mut self.returned_data, false);
+        let result = self.expr(expr, out);
+        self.returned_data = prior;
+        result
     }
 
     fn expr_inner(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
@@ -131,7 +144,7 @@ impl Binder<'_> {
                 // Generated maintain keys are literal path-named columns. Resolve
                 // the full chain before ordinary member/reference traversal.
                 if let Some((root, path)) = aggregate_path(expr) {
-                    let (e, t) = self.expr(root, out)?;
+                    let (e, t) = self.computation(root, out)?;
                     if let Ty::Row(table) = t.required()
                         && let Some(info) = self.catalog.tables.get(&table)
                         && info.maintained.is_some() && info.columns.contains_key(&path)
@@ -140,7 +153,7 @@ impl Binder<'_> {
                         return Ok((value, self.field_refinement(expr).unwrap_or(ty)));
                     }
                 }
-                let (e, t) = self.expr(base, out)?;
+                let (e, t) = self.computation(base, out)?;
                 if name == "length" && matches!(t.required(), Ty::Text(_) | Ty::List(..) | Ty::Page(..) | Ty::Collection(..)) {
                     return Err(unsupported(site, ".length", format!("count({})", print::expression(base))));
                 }
@@ -253,11 +266,19 @@ impl Binder<'_> {
             }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
-                if name != "id" && name != "count" && !info.columns.contains_key(name) { super::super::row_views::predicate_field(info, name, site)?; }
-                // @ref LLP 3000.007#23 — count rows expose count as an authoring alias, without a stored column.
+                // @ref LLP 3000.007#23 — count is an alias of the certified
+                // value, except when the view declares a real count column.
                 if name == "count" && !info.columns.contains_key(name)
                     && info.maintained.as_ref().is_some_and(|m| m.aggregate == "count") {
                     return self.member(base, ty, "value", site);
+                }
+                // @ref LLP 3000.015#3 — check the receiver's static row type
+                // before lowering can erase helper or returned-data position.
+                if !self.returned_data || self.depth > 0 || (name != "id" && name != "pending" && !info.columns.contains_key(name)) {
+                    super::super::row_views::predicate_field(info, name, site)?;
+                }
+                if name == "pending" && self.returned_data && info.maintained.as_ref().is_some_and(|m| m.row_key.is_some()) {
+                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::Bool.optional()));
                 }
                 if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && column.written_by.is_some() && !column.readable_by_audience) {
                     return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));

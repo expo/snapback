@@ -16,8 +16,8 @@ pub(super) fn refusal(site: &Site, message: impl Into<String>) -> Diagnostic {
 pub(super) fn predicate_field(info: &TableInfo, field: &str, site: &Site) -> Fallible<()> {
     if info.maintained.as_ref().is_some_and(|m| m.row_key.is_some())
         && (matches!(field, "recountPending" | "pending") || (field != "id" && !info.columns.contains_key(field))) {
-        return Err(Diagnostic::new(site, "E_VIEW_KEY", format!("{}.{} is maintenance or private state and cannot decide a predicate", info.decl.name, field),
-            "predicate on value, member identity or copied member fields; project recountPending as data and check complete").guide("maintains"));
+        return Err(Diagnostic::new(site, "E_VIEW_KEY", format!("{}.{} is maintenance or private state; read it only directly in query result data, never in helpers or computation", info.decl.name, field),
+            "compute with value, member identity or copied member fields; project recountPending/pending directly in the query result and check complete").guide("maintains"));
     }
     Ok(())
 }

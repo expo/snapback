@@ -64,7 +64,10 @@ impl Binder<'_> {
     fn statement_inner(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
         match statement {
             S::Return { value, site: _ } => {
-                let (expr, ty) = self.value_of(value, out)?;
+                let prior = std::mem::replace(&mut self.returned_data, self.depth == 0 && self.kind == ProgramKind::Query);
+                let result = self.value_of(value, out);
+                self.returned_data = prior;
+                let (expr, ty) = result?;
                 self.returns.push((ty, value.clone()));
                 out.push(Stmt::Return(expr));
                 Ok(())
@@ -275,7 +278,10 @@ impl Binder<'_> {
                     return Ok(());
                 }
                 if completes && self.kind != ProgramKind::Job {
-                    let (expr, ty) = self.value_of(value, out)?;
+                    let prior = std::mem::replace(&mut self.returned_data, self.depth == 0 && self.kind == ProgramKind::Query);
+                    let result = self.value_of(value, out);
+                    self.returned_data = prior;
+                    let (expr, ty) = result?;
                     if self.depth == 0 && self.kind == ProgramKind::Mutation && matches!(value, A::Write { .. }) {
                         self.implicit_write_results.push(expr.clone());
                     }

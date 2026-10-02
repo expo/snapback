@@ -157,7 +157,9 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }
         for (index_name,index) in &table.indexes {
             let path = format!("tables.{name}.indexes.{index_name}");
-            if index.unique { walk.index(name,index_name,&path); }
+            if index.unique || schema.maintain_for(name).is_some_and(|m| m.row_key.is_some()) {
+                walk.index(name,index_name,&path);
+            }
             for component in &index.components {
                 if let IndexComponent::WordPrefixes { fields, .. } = component { for field in fields { walk.field(name,field,&path); } }
                 if let IndexComponent::Contribution(m) = component {

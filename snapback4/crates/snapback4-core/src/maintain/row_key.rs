@@ -175,7 +175,7 @@ impl crate::schema::Schema {
         let view = self.maintain_for(table).is_some_and(|m| m.row_key.is_some());
         (self.is_recount_work(table) || (view && (matches!(field, "recountPending" | "pending")
             || self.table(table).is_none_or(|t| !t.columns.contains_key(field))))).then(||
-            format!("E_VIEW_KEY: {table}.{field} is maintenance or private state; predicate on value, member identity or copied member fields instead; project recountPending as data and check complete (guide maintains)"))
+            format!("E_VIEW_KEY: {table}.{field} is maintenance or private state; read recountPending/pending only directly in query result data; compute with value, member identity or copied member fields instead and check complete (guide maintains)"))
     }
 }
 

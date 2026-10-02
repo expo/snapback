@@ -17,7 +17,7 @@ fn every_reachable_maintenance_field_refuses_raw_engine_admission() {
         let error=admitted.adopt_at(schema.clone(),programs.clone(),2).unwrap_err();
         assert!(error.to_string().contains("E_VIEW_KEY"),"adopt {name}: {error}");
     }
-    eprintln!("BG round5 raw server admission: {} cases, each refused at creation and adoption",cases.len());
+    eprintln!("BG round6 raw server admission: {} cases, each refused at creation and adoption",cases.len());
 }
 
 #[test]

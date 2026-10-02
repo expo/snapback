@@ -1,3 +1,4 @@
+#[path="row_keyed_views/maintenance_types.rs"] mod maintenance_types;
 use snapback4_core::{Context, Engine, Value, WriteState, value::object};
 const SOURCE: &str = include_str!("fixtures/row-keyed-view.q");
 

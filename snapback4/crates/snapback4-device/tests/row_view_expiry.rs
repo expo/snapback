@@ -242,6 +242,7 @@ fn durable_source_rule_budget<H: Host>(host: &mut H) {
         .replace("  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public",
             "  read <- exists access[.conversationId, viewer]\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync to access[.conversationId]")
         + "\ntable access:\n  conversationId: conversations\n  principal: principal\n  unique conversationId, principal\n  public\n  sync public\n";
+    let source = source + "\nquery statusRows():\n  return unread where .conversationId = 'c' first 100 { value, status: .recountPending, predicted: .pending }\n";
     let mut state=20261002u64;
     for step in 0..16 {
         state^=state<<13; state^=state>>7; state^=state<<17;
@@ -276,7 +277,14 @@ fn durable_source_rule_budget<H: Host>(host: &mut H) {
             let rows=device.query("unreadRows","bob",&json!({}),now).unwrap();
             assert!(rows.complete);
             let rows=rows.data.as_array().unwrap();
+            let projected=device.query("statusRows","bob",&json!({}),now).unwrap();
+            assert!(projected.complete);
+            let statuses=projected.data.as_array().unwrap();
+            assert_eq!(statuses.len(),rows.len());
             if now < 100 {
+                assert_eq!(statuses[0].field("value"),Ok(&Value::Int(expected)));
+                assert_eq!(statuses[0].field("status"),Ok(&Value::Bool(false)));
+                assert_eq!(statuses[0].field("predicted"),Ok(&Value::Bool(true)));
                 assert_eq!(rows.len(),1);
                 assert_eq!(rows[0].field("value"),Ok(&Value::Int(expected)));
                 assert_eq!(rows[0].field("pending"),Ok(&Value::Bool(true)),"prediction metadata: {} step={step} clock={now}",host.label());

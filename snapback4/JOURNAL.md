@@ -81732,3 +81732,43 @@ check. The suite reproduces the measured wasm byte-for-byte. Complete report,
 source custody and raw evidence: reports/20261001-bg-busy-group-render/REPORT.md.
 Local commit uses Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published; no new reviewer approval or main integration claimed.
+
+
+## 2026-10-02 — BG round 6: static maintenance types and query-data allowlist
+
+Astra's round-5 Medium showed that object selection erased flat row provenance.
+Round 6 deletes that mechanism. Quarry's receiver types and native structural
+IR types retain maintained rows through objects, lists, helpers, projections
+and selectors. Only direct query result data may select recountPending/pending;
+returning a whole row remains allowed. Every computation/helper status read
+refuses with E_VIEW_KEY and a repair. Private work fields never become app data.
+Unknown/heterogeneous/recursively widened receivers and intermediate/helper/
+ordered maintenance projections refuse conservatively. LLP 3000.015 §3 lists
+the complete class, output positions and limits; the maintains card compiles.
+No runtime certificate, deadline, count, allowance or resource ceiling changed.
+
+The four saved round-5 bypasses still compile on its hash-verified executable,
+while the new source refuses them. Four seeds compose 96 nested helper/container/
+projection controls and 384 maintenance/private refusals. The raw matrix has
+764 cases across six boundaries (4,584 refusals), preserving device generation
+on failed adoption. Direct status projections and whole rows retain exact counts
+at expiry/rollback and prediction metadata on Memory/SQLite. Compiler 36/36,
+guide 110/110, all affected native/HTTP/CLI/web cohorts and core 56/56 pass.
+
+The final-source scripts/test.sh ran once: `== 1 failure(s) in 1421 s` (exit 1).
+All 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,745 passed, one failed, ten skipped; serial models 79/79. Final failures:
+ours 0, baseline 1, environmental 0. The baseline fault-matrix case
+`48 transient: local.ts:855 follow` missed its intended injection. All 495
+client source/test files and the wasm artifact match round 5; ten isolated
+repeats pass. The cause remains unresolved and the red remains recorded, with
+follow-up issues/20261002-snapback4-delivery-fault-site48-missed-injection.md.
+All 1,790 frozen input digests remain unchanged. The failure ledger enumerates
+all development failures as ours and their corrections.
+
+10k/100k work stays (0 re-certified rows, 100 examined, 100 steps). Wasm remains
+2,012,674 B raw / 605,008 B gzip, byte-identical to round 5, with 217 B under
+the unchanged 605,225 B branch ratchet. No new latency or merged-size claim.
+Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md, round6/.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no new reviewer approval claimed.

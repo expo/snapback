@@ -1,0 +1,101 @@
+use snapback4_core::{Context, Engine, Value, wire};
+use serde_json::json;
+
+fn base() -> String {
+    include_str!("../../../snapback4-core/tests/row_view_witness/schema.q")
+        .replace("PREDICATE", "allow").replace("MEMBER_EXPIRY", "")
+}
+fn refuse(tail: &str, field: &str) {
+    let b = snapback4_lang::compile(&[("state.q".into(), base() + tail)]);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_VIEW_KEY" && d.message.contains(field) && d.rewrite.contains("value")), "{tail}\n{:?}", b.diagnostics);
+}
+#[test]
+fn astra_nested_containers_and_all_nonreturn_reads_refuse() {
+    for field in ["recountPending", "pending", "total"] {
+        for tail in [
+            format!("query bad():\n  for row in unread first 10:\n    box = {{ value: row }}\n    if box.value.{field}:\n      return true\n  return false\n"),
+            format!("fn wrapped(row: unread):\n  box = {{ value: row }}\n  return box.value.{field}\nquery bad():\n  return unread first 10 {{ allowed: wrapped(.) }}\n"),
+            format!("query bad():\n  for box in unread first 10 {{ value: . }}:\n    if box.value.{field}:\n      return true\n  return false\n"),
+            format!("query bad():\n  for row in unread first 10:\n    box = {{ value: [row] }}\n    chosen = first(sort(box.value, '{field}'))\n    return chosen\n  return null\n"),
+            format!("fn status(row: unread): row.{field}\nquery bad():\n  return unread first 10 {{ status: status(.) }}\n"),
+            format!("query bad():\n  for row in unread first 10:\n    state = row.{field}\n    return state\n  return null\n"),
+            format!("query bad():\n  return unread first 10 {{ state: .{field} = null }}\n"),
+            format!("query bad():\n  values = unread first 10 {{ status: .{field} }}\n  return count(values)\n"),
+            format!("mutation bad():\n  for row in unread first 10:\n    return row.{field}\n  return null\n"),
+        ] { refuse(&tail, field); }
+    }
+    refuse("query bad():\n  for row in unread first 10:\n    box = { value: [row] }\n    return first(sort(box.value, '$private'))\n  return null\n", "$private");
+    // Discarded reads, arithmetic, aggregates and implicit scalar computation
+    // all refuse even when their final value is returned.
+    for tail in [
+        "query bad():\n  for row in unread first 10:\n    unused = row.recountPending\n  return true\n",
+        "query bad():\n  return sum(unread first 10 { value: .recountPending })\n",
+        "query bad():\n  return unread first 10 { value: .recountPending + 1 }\n",
+    ] { refuse(tail, "recountPending"); }
+}
+
+#[test]
+fn generated_container_helper_projection_compositions_keep_receiver_types() {
+    let mut cases = 0;
+    // Each composition is a row-valued expression: the negative leaf must be
+    // the maintenance-field read, not a parser/type error in its wrappers.
+    for seed in [7u64, 20261002, 0xdeadbeef, 0x5eed] {
+        let mut random = seed;
+        for _ in 0..24 {
+            let mut row = "row".to_string();
+            for _ in 0..4 {
+                random ^= random << 13; random ^= random >> 7; random ^= random << 17;
+                row = match random % 4 {
+                    0 => format!("({{ value: {row} }}).value"),
+                    1 => format!("(first([{row}]) ! else NOT_FOUND)"),
+                    2 => format!("identity({row})"),
+                    _ => format!("({row} {{ value: . }}).value"),
+                };
+            }
+            let helpers = "fn identity(row: unread): row\n";
+            let allowed = format!("{helpers}query good():\n  for row in unread first 10:\n    box = {row}\n    return box.value\n  return 0\n");
+            let b = snapback4_lang::compile(&[("generated.q".into(), base() + &allowed)]);
+            assert!(b.diagnostics.is_empty(), "{allowed}\n{:?}", b.diagnostics);
+            for field in ["recountPending", "pending", "total", "$private"] {
+                let replacement = if field == "$private" { "return count(sort([box], '$private'))".to_string() }
+                    else { format!("if box.{field}:\n      return 1") };
+                refuse(&allowed.replace("return box.value", &replacement), field);
+                cases += 1;
+            }
+        }
+    }
+    eprintln!("BG round6 generated types: 4 seeds, 96 depth-4 container/helper/projection compositions, {cases} refusals and 96 value controls");
+}
+
+#[test]
+fn direct_data_projection_and_whole_rows_return_exact_values() {
+    let source = base() + "query status():\n  return unread first 10 { id, value, status: .recountPending, predicted: .pending }\nquery whole():\n  for row in unread first 10:\n    return row\n  return null\nquery wrapped():\n  for row in unread first 10:\n    box = { value: row }\n    return { status: box.value.recountPending }\n  return null\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let rows = [("rooms", json!({"id":"r"})), ("members", json!({"id":"u","room":"r","until":null})),
+        ("messages", json!({"id":"m","room":"r","until":10}))].into_iter().map(|(table, row)|
+        (table.to_string(), wire::row_from_json(&engine.schema().tables[table], &row).unwrap())).collect::<Vec<_>>();
+    engine.seed_at(rows, 1).unwrap();
+    for now in [2, 10, 20, 2] {
+        let count = if now < 10 { 1 } else { 0 };
+        for op in ["status", "whole", "rows", "wrapped"] {
+            let result = engine.query(op, Context::new("reader", Default::default()).at(now)).unwrap();
+            assert!(result.complete, "{op}: {result:?}");
+            let row = if matches!(op, "status" | "rows") { &result.data.as_array().unwrap()[0] } else { &result.data };
+            let state = if matches!(op, "status" | "wrapped") { "status" } else { "recountPending" };
+            assert_eq!(row.field(state), Ok(&Value::Bool(false)), "{op}: {result:?}");
+            if op != "wrapped" { assert_eq!(row.field("value"), Ok(&Value::Int(count)), "{op}: {result:?}"); }
+            if op == "status" { assert_eq!(row.field("predicted"), Ok(&Value::Null)); }
+        }
+    }
+}
+
+#[test]
+fn ordinary_objects_and_copied_member_total_are_not_maintenance_state() {
+    let source = base().replace("  until: time ?\n  \n  cap", "  until: time ?\n  total: int default 1\n  cap")
+        .replace("  cap 100 by room\n  public", "  cap 100 by room\n  read <- .total = 1")
+        + "query good():\n  for row in unread first 10:\n    box = { value: row, recountPending: false }\n    if box.recountPending:\n      return 0\n    return box.value.total\n  return 0\nquery countAlias():\n  for row in unread first 10:\n    return row.count + 1\n  return 0\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+}

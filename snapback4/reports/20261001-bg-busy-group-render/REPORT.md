@@ -1648,3 +1648,142 @@ records this round. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published;
 no round-5 independent review, main integration or merged wasm qualification is
 claimed.
+
+## Round 6 — static maintained-row types and returned-data allowlist (2026-10-02)
+
+**Decision and source.** Starts at `c63b1f6b91` on
+`sb4-intent/bg-busy-group-render`, after reading round 5. The operator reports
+Grok READY and Astra NOT READY with one Medium for round 5: selecting a nested
+object field erased row provenance. Those reviews do not approve round 6.
+The operator's replacement is implemented: static receiver types and direct
+query-output position govern maintenance-state access. No runtime count,
+witness deadline, prediction reconstruction, allowance, window or ratchet changes.
+
+**The rule.** `recountPending` (this read's count incompleteness) and `pending`
+(the view row's optional device prediction marker) can be selected directly into
+a query's result shape, or included by returning the row. All other selections
+refuse with `E_VIEW_KEY`, naming the field and the fix: compute with certified
+`value`, identity or copied member fields; project status directly as data and
+check `complete`. Bindings, even unused ones, helpers (even directly returned
+helper calls), conditions, comparisons, arithmetic, sorting/grouping, aggregates,
+`exists`, every rule effect, sync audiences, indexes and constraints have no
+output permission. A whole-value comparison or ordering of a nested maintained
+row also refuses: it would implicitly inspect the row's maintenance fields.
+Null/presence tests and ordinary row cardinality remain usable.
+
+The private class is `$basis`/`$recount` rows and their `id`, `cursor`, `total`,
+`parked`, `at`, `deadline`, `version`; these tables are never app-readable.
+Their names on the public view and every other undeclared name, including
+`$private`, refuse even as returned data. An actual copied member column named
+`total` remains ordinary data. An ordinary object named `recountPending` is also
+ordinary data: the decision uses the receiver type, not a global name blacklist.
+`count` remains the authoring alias of certified `value`.
+
+The old `engine/admission/state_predicates.rs` and its flat `rows/state` origin
+sets are deleted. Quarry checks its existing `Ty` before expansion loses helper
+and output positions. Native raw admission reconstructs structural row, object,
+list and shape types; object-field selection retrieves its nested field type,
+and list selectors retrieve the element type. These types survive aliases,
+helper results, projections, `first`/`last`/`at`, slices, concatenation, sort and
+group. Branches join separate environments and loop types converge structurally.
+The raw query collector uses a syntactic census of output-only uses; it does not
+track origins or propagate a scalar maintenance taint. The existing schema walk
+now also checks every non-unique row-view index before generic column validation.
+Native engine creation/adoption and Memory/SQLite opening/adoption share these
+checks. Web retains the existing server-admitted-backend trust boundary.
+
+Conservative limits are explicit in LLP 3000.015 §3 and `guide maintains`:
+dynamic/unknown receivers, heterogeneous joins and recursively growing raw types
+widened after 16 structural levels cannot prove a receiver type and refuse field
+selection. Helper-block, intermediate and ordered-view maintenance projections
+also refuse; select the field in the final query shape or return the row. There
+is no arbitrary scalar-flow inference. Quarry cannot lex `.$private`; its
+string sort-key spelling and literal raw IR spelling exercise the typed refusal.
+
+**Proof.** The compiled matrix includes Astra's object wrapper, inlined helper,
+`{ value: . }` projection and `first(sort(box.value, 'recountPending'))` over
+`[row]`, plus wrapped `pending`, `total` and private reads. It also covers unused
+reads, directly returned helper status, intermediate projections, arithmetic,
+aggregates and mutation results. Four fixed seeds generate **96 depth-four
+compositions** of containers, helper calls and projections; each compiles a
+`value` control and refuses four maintenance/private leaves: **384 refusals**.
+The raw generator composes the same nested type constructors and helper blocks.
+Together with all private columns, four rule effects, sync, indexes, constraints,
+and implicit whole-row comparison/order, the matrix has **764 cases**, each
+refused at six native boundaries: **4,584 admission decisions**. Rejected device
+adoption retains generation 1. The original round-5 admission controls remain.
+
+Accepted direct projection, whole-row return, full-page return and nested-row
+output execute at clocks 2, 10, 20 and back at 2 against an independently known
+one-message fixture. Counts are exactly 1/0/0/1, `recountPending` is false, and
+an absent server prediction marker projects as null. Memory and SQLite additionally
+project `value`, `recountPending` and `pending` through all 16 existing generated
+prediction populations, before expiry, at expiry and after rollback; their full
+rows and projections agree, including `pending: true`. Withdrawal checks remain.
+The guide's new cursor-bearing badge projection compiles with zero diagnostics
+and zero notes; the card stays within its unchanged **879-line** limit.
+
+A hash-verified saved round-5 executable is the detecting control: all four
+Astra bypasses compile with **zero problems / exit 0**, while the direct-field
+control correctly returns `E_VIEW_KEY` / exit 1. The new compiled tests refuse
+each bypass. The controls neither modify the final source nor require rebuilding
+an old checkout (`round6/round5-negative-controls.json`).
+
+**Verification.** Frozen-source affected compiler tests pass **36/36**, guide
+**110/110**, builder audience diagnostics **10/10**, native witness/deadline
+**6/6**, device expiry/prediction/admission **14/14**, core row-view regressions
+**56/56**, public HTTP value-rule regression **1/1**, CLI scale/receipt certificates
+**13/13**, and rebuilt web prediction regression **1/1**. The broader development
+language run completed **98 cohorts / 1,289 passes / 11 ignored** with only the
+two then-unfixed guide failures; the final guide run resolves both. Intermediate
+failures are all ours and enumerated individually in `round6/FAILURES.md` and
+`development-failures.json`; none is waived as baseline or environmental.
+
+The single final-source `scripts/test.sh` run exits **1**:
+
+```text
+== 1 failure(s) in 1421 s
+   client tests
+```
+
+All **281 Rust binaries / 994 scheduled executions and doctests** pass;
+clients report **5,745 passed / 1 failed / 10 skipped**; serial models **79/79**.
+The sole failure is `48 transient: local.ts:855 follow` in
+`packages/snapback4/test/delivery-fault-matrix.test.mjs`, assertion line 264:
+`the classified await must actually experience an injected fault` (actual false,
+expected true). Earlier product assertions pass; the target injection was missed.
+**Classification: baseline 1, ours 0, environmental 0.** All 495 tracked client
+source/test files match `c63b1f6b91`; the fixture uses a static chat schema and
+wasm, whose digest is identical to round 5, without invoking the native compiler.
+Ten isolated repeats of the exact site/mode all pass. This supports inherited
+harness nondeterminism; it does not identify the causal race or establish a load
+cause. The passing repeats do not erase the full-suite red. No weakened assertion,
+increased timeout or second full-suite run. Follow-up:
+[`issues/20261002-snapback4-delivery-fault-site48-missed-injection.md`](../../../issues/20261002-snapback4-delivery-fault-site48-missed-injection.md).
+
+`full-suite.log.gz` preserves the complete run; `final-verification.json` binds
+its decompressed digest, confirms all 1,790 captured inputs stayed unchanged,
+and verifies the suite's rebuilt wasm is identical. `fault-input-equivalence.json`
+and the ten `fault-site48-repeat*.log` files record baseline attribution.
+
+
+**Work and wasm.** The unchanged 50-member group at **10,000 and 100,000 history
+rows** reports **(0 re-certified source rows, 100 examined, 100 steps)** at both
+sizes. The retained independent count/lifetime/deadline properties pass; no
+history walk, resource-limit change or weaker count claim was introduced.
+
+Wasm is **2,012,674 B raw / 605,008 B gzip**, **0 B change** from round 5. SHA-256:
+`233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164`.
+The unchanged branch cap is **605,225 B**, leaving **217 B** Linux headroom.
+This is not a merged or cross-platform size qualification. Round 6 measures no
+new busy-group or LL latency; round 5's mixed loaded results remain the latest
+latency evidence, with no new parity/speedup claim. `wasm.json`, `toolchain.json`
+and the final receipt bind the artifact and build inputs.
+
+**Record.** `round6/CONTEXT.md` records orientation; `final-source.json` binds
+**1,790 inputs**; `SHA256SUMS` binds the evidence and changed source. Root
+reference validation: **525 LLPs, 10,080 refs, 0 errors, 0 unchecked**. LLP
+3000.015 §3 and the compiled maintains card state the rule and conservative
+limits. One journal entry records the round. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
+no new independent-review approval, main integration or merged wasm claim.

@@ -1,0 +1,23 @@
+{
+  "summary": "== 1 failure(s) in 1421 s",
+  "classifications": {
+    "ours": 0,
+    "baseline": 1,
+    "environmental": 0
+  },
+  "failures": [
+    {
+      "category": "baseline",
+      "test": "48 transient: local.ts:855 follow",
+      "file": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:264",
+      "message": "the classified await must actually experience an injected fault",
+      "actual": false,
+      "expected": true,
+      "evidence": [
+        "fault-input-equivalence.json",
+        "fault-site48-repeats.json"
+      ],
+      "issue": "issues/20261002-snapback4-delivery-fault-site48-missed-injection.md"
+    }
+  ]
+}

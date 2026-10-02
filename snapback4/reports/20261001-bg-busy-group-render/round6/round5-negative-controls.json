@@ -1,0 +1,26 @@
+{
+  "binary_sha256": "3656e1a444fb8f9b4faaa7069a7d658536e071fe34f6d2bfb41cb34b157a3e61",
+  "source_manifest": "round5/measurement-artifacts.json",
+  "results": {
+    "object": {
+      "exit": 0,
+      "diagnostics": "{\"acquisition\":null,\"fieldAuthority\":[],\"heldQueries\":[],\"ms\":4,\"native\":null,\"notes\":[{\"code\":\"N_NO_CURSOR\",\"guide\":\"reads\",\"mechanical\":false,\"message\":\"query rows returns a page of 10 unread rows with no cursor, so the page cannot continue\",\"rewrite\":\"if the screen pages, declare `c: cursor ?` in rows and append `after c` to this unread page, keeping its current predicate, direction and column order\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":40}}],\"ok\":true,\"operations\":5,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[{\"fanout\":100,\"member\":\"members\",\"memberKey\":\"room\",\"range\":null,\"recountChunk\":256,\"source\":\"messages\",\"sourceKey\":\"room\",\"view\":\"unread\",\"writerRecount\":1024}],\"scale\":null,\"scaleSummary\":\"scale: 3 of 5 operations are constant; 2 grow with data (rows, bad) \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":8}\n"
+    },
+    "helper": {
+      "exit": 0,
+      "diagnostics": "{\"acquisition\":null,\"fieldAuthority\":[],\"heldQueries\":[],\"ms\":4,\"native\":null,\"notes\":[{\"code\":\"N_NO_CURSOR\",\"guide\":\"reads\",\"mechanical\":false,\"message\":\"query rows returns a page of 10 unread rows with no cursor, so the page cannot continue\",\"rewrite\":\"if the screen pages, declare `c: cursor ?` in rows and append `after c` to this unread page, keeping its current predicate, direction and column order\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":40}},{\"code\":\"N_NO_CURSOR\",\"guide\":\"reads\",\"mechanical\":false,\"message\":\"query bad returns a page of 10 unread rows with no cursor, so the page cannot continue\",\"rewrite\":\"if the screen pages, declare `c: cursor ?` in bad and append `after c` to this unread page, keeping its current predicate, direction and column order\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":45}}],\"ok\":true,\"operations\":5,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[{\"fanout\":100,\"member\":\"members\",\"memberKey\":\"room\",\"range\":null,\"recountChunk\":256,\"source\":\"messages\",\"sourceKey\":\"room\",\"view\":\"unread\",\"writerRecount\":1024}],\"scale\":null,\"scaleSummary\":\"scale: 3 of 5 operations are constant; 2 grow with data (rows, bad) \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":8}\n"
+    },
+    "projection": {
+      "exit": 0,
+      "diagnostics": "{\"acquisition\":null,\"fieldAuthority\":[],\"heldQueries\":[],\"ms\":4,\"native\":null,\"notes\":[{\"code\":\"N_NO_CURSOR\",\"guide\":\"reads\",\"mechanical\":false,\"message\":\"query rows returns a page of 10 unread rows with no cursor, so the page cannot continue\",\"rewrite\":\"if the screen pages, declare `c: cursor ?` in rows and append `after c` to this unread page, keeping its current predicate, direction and column order\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":40}}],\"ok\":true,\"operations\":5,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[{\"fanout\":100,\"member\":\"members\",\"memberKey\":\"room\",\"range\":null,\"recountChunk\":256,\"source\":\"messages\",\"sourceKey\":\"room\",\"view\":\"unread\",\"writerRecount\":1024}],\"scale\":null,\"scaleSummary\":\"scale: 3 of 5 operations are constant; 2 grow with data (rows, bad) \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":8}\n"
+    },
+    "sort": {
+      "exit": 0,
+      "diagnostics": "{\"acquisition\":null,\"fieldAuthority\":[],\"heldQueries\":[],\"ms\":4,\"native\":null,\"notes\":[{\"code\":\"N_NO_CURSOR\",\"guide\":\"reads\",\"mechanical\":false,\"message\":\"query rows returns a page of 10 unread rows with no cursor, so the page cannot continue\",\"rewrite\":\"if the screen pages, declare `c: cursor ?` in rows and append `after c` to this unread page, keeping its current predicate, direction and column order\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":40}}],\"ok\":true,\"operations\":5,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[{\"fanout\":100,\"member\":\"members\",\"memberKey\":\"room\",\"range\":null,\"recountChunk\":256,\"source\":\"messages\",\"sourceKey\":\"room\",\"view\":\"unread\",\"writerRecount\":1024}],\"scale\":null,\"scaleSummary\":\"scale: 3 of 5 operations are constant; 2 grow with data (rows, bad) \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":8}\n"
+    },
+    "direct": {
+      "exit": 1,
+      "diagnostics": "{\"ok\":false,\"problems\":[{\"code\":\"E_VIEW_KEY\",\"guide\":\"programs\",\"mechanical\":false,\"message\":\"E_VIEW_KEY: unread.recountPending is maintenance or private state; predicate on value, member identity or copied member fields instead; project recountPending as data and check complete (guide maintains)\",\"rewrite\":\"predicate on value or member fields; project recountPending as data and check complete\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":42}}]}\n"
+    }
+  }
+}
