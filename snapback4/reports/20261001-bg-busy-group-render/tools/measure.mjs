@@ -89,6 +89,7 @@ try {
   const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')));
   const pkg = createRequire(join(root, 'packages/snapback4/package.json'));
   vite = await createServer({ root: dir, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } }, resolve: { alias: [
+    { find: '/bg-wasm.js', replacement: join(root, 'packages/snapback4/dist/wasm/snapback4_device.js') },
     ...['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/client'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })),
     ...['local', 'web', 'react', 'app', 'auth'].map(name => ({ find: 'snapback4/' + name, replacement: join(root, 'packages/snapback4/dist/' + name + '.js') })),
   ] } });

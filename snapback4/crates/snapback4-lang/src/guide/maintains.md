@@ -705,17 +705,18 @@ and the full predicate exclude them from the count. Larger ranges and background
 recounts use the null and future ranges of the parent/expiry index, seeking past
 expired inputs. An abandoned probe stays charged against the writer's recount
 allowance; a count that cannot finish leaves a pending recount and commits the mark.
-Server reads certify the whole current live range, including counts above the
-writer allowance, using the same policy for stored pending and settled values.
+Server reads certify the current live range, including counts above the
+writer allowance. A settled server basis can reuse its count while its schema,
+rule and disclosure version matches and its earliest contributing deadline has
+not arrived. Source writes maintain that proof with the count. Every read still
+checks current member and source-group authority. Pending, due or unsupported
+row-dependent disclosure cases use the full authorized live recount.
 Historical pending work never selects completeness or count-dependent refusal.
 An expiring stored count is a private cache: bounded durable chunks reconcile it
 without publishing redundant recount commits or changing watermarks. Each
 private chunk counts against the maintenance allowance and releases the
-engine lock before the next chunk. The server
-certification scan can traverse the whole live group on its internal ledger.
-Reads reserve one examined unit and one step for certification; probes and walks
-consume the internal ledger, equally for queries and count-dependent writers.
-Completed and pending reads keep the same public reservation.
+engine lock before the next chunk. Both paths keep the fixed public reservation;
+probes and walks use the internal ledger for queries and count-dependent writers.
 Schema adoption atomically rebuilds a count when its member table, predicate
 inputs or expiry interpretation changes, including a default on a legacy absent
 expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only
@@ -765,8 +766,7 @@ On the server, for an admitted member reader, an equal current live basis produc
 certified count, completeness, count-dependent writer result, reserved meter,
 snapshots and recount traffic. This includes an expired prefix inserted before
 the member and a large live suffix inserted afterward, read before any mark.
-Historical pending state, formerly-live expired rows, tombstones and own sends
-cannot select a different certification policy. Global activity by other
+Pending state, expired rows, tombstones and own sends never change that meaning. Global activity by other
 principals remains observable through the shared sequence/log protocol.
 
 A pure view-existence witness reads only the member's indexed existence and

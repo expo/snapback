@@ -88,3 +88,55 @@ After correcting the changed await census, run the affected audit and all its
 fault cases with `node --test packages/snapback4/test/delivery-fault-matrix.test.mjs`.
 Run `./ref-check --verbose` from the repository root. The SQLite build flag was
 held fixed for every server build, before and after.
+
+
+## Round 1
+
+The round-1 idle assertion is `BG_MAX_P95=250`. Preserve matching round-0 and
+round-1 production measurement binaries outside the repository, then run each
+against its matching built client. After each clean SDK build, add the optional
+client trace with `python3 reports/20261001-bg-busy-group-render/tools/instrument-client.py`.
+It modifies only ignored `dist/`; rebuild the SDK to remove it. The page also
+records synchronous wasm spans, IndexedDB transaction lifetimes, raw local
+publication and app facade checks. No trace adds a wait to the shipping flow.
+
+```sh
+BG_PROFILE=production BG_RUNS=50 BG_MAX_P95=250 BG_SEED_CACHE=/tmp/bg-round1-seed BG_OUT=/tmp/bg-after-idle.json SNAPBACK4_BIN=/tmp/bg-round1-production node reports/20261001-bg-busy-group-render/tools/measure.mjs
+BG_PROFILE=production BG_RUNS=50 BG_SEED_CACHE=/tmp/bg-round1-seed BG_OUT=/tmp/bg-after-loaded.json SNAPBACK4_BIN=/tmp/bg-round1-production python3 reports/20261001-bg-busy-group-render/tools/contended.py node reports/20261001-bg-busy-group-render/tools/measure.mjs
+node reports/20261001-bg-busy-group-render/tools/summarize.mjs /tmp/bg-after-idle.json /tmp/bg-after-loaded.json
+node reports/20261001-bg-busy-group-render/tools/attribute-client.mjs /tmp/bg-after-idle.json /tmp/bg-after-loaded.json
+```
+
+`contended.py` owns one CPU burner per affinity-visible logical CPU (96 here),
+keeps them alive throughout the scenario, and reaps all its children in `finally`.
+Client attribution clips and unions spans inside each named stage; IndexedDB,
+facade and lock elapsed times overlap CPU and one another. They must not be
+added together. Prediction means synchronous `admit`; other VM calls are
+reported separately. Browser timings include scheduling, not just IDB service.
+
+The negative control `negative-control.py` temporarily installs the six relevant
+round-0 Rust implementation files, adds the new test module, and requires the
+10k/100k work test to fail. It always restores sources. Do not run it alongside
+edits or builds. The retained failure must name the work assertion, not a compile
+error. Normal verification runs with the round-1 sources restored.
+
+
+`host-load.py COMMAND...` samples `/proc/stat` once per second while running a
+Linux qualification command and records host-wide busy CPU percentage and load
+average. It does not pin or reprioritize the command. The final candidate
+confirmation uses the wasm rebuilt by the full suite; both the earlier matched
+artifact runs and the final confirmation are retained.
+
+Final round-1 evidence uses `qualification-idle`, `qualification-loaded` and
+`ll-final`. Wrap the idle command with `host-load.py`; wrap the loaded command
+with `host-load.py python3 contended.py`. `SNAPBACK4_BIN` points to the final
+production or debug measurement binary as appropriate. After measurement, run:
+
+```sh
+python3 reports/20261001-bg-busy-group-render/tools/qualify-round1.py
+```
+
+This validates the retained final traces and writes `round1/qualification-final.json`.
+It accepts raw or gzip-compressed JSON. Rebuild the normal SDK and server after
+measurement to remove ignored instrumentation artifacts. Qualification does not
+publish or push anything.

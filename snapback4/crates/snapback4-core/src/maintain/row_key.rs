@@ -148,7 +148,11 @@ impl crate::schema::Schema {
             );
             work.rules = Rules::deny();
             self.tables.insert(m.work_table(), work);
-            let mut basis = public_table(BTreeMap::from([("id".into(), C::Id), ("at".into(), C::Time)]), BTreeMap::from([("byId".into(), Index::of(&["id"], true))]));
+            let mut basis = public_table(BTreeMap::from([
+                ("id".into(), C::Id), ("at".into(), C::Time),
+                ("deadline".into(), C::Optional(Box::new(C::Time))),
+                ("version".into(), C::Optional(Box::new(C::Text { max: 64 }))),
+            ]), BTreeMap::from([("byId".into(), Index::of(&["id"], true))]));
             basis.rules = Rules::deny();
             self.tables.insert(format!("$basis:{}", m.target), basis);
         }

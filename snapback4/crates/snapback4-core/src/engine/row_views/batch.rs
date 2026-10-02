@@ -99,14 +99,16 @@ impl Runner<'_> {
         let source = &self.schema.tables[&m.source];
         let decoder = crate::rows::disclosed::decode_reservation(source);
         let scratch = self.rule_scratch(&source.rules.read);
-        let single_bytes = decoder.saturating_add(scratch);
-        let page_bytes = decoder.saturating_mul(32)
-            .saturating_add(scratch)
-            .saturating_add(crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32))
-            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32));
         let internal = (self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes);
         let caller = self.caller_heap_ceiling;
         let (limit, used) = caller.unwrap_or(internal);
+        let reuse = probe_small && self.certification_scratch(m) <= limit.saturating_sub(used);
+        let certificate = if reuse { self.certification_scratch(m) } else { 0 };
+        let single_bytes = decoder.saturating_add(scratch).max(certificate);
+        let page_bytes = decoder.saturating_mul(32)
+            .saturating_add(scratch)
+            .saturating_add(crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32))
+            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32)).max(certificate);
         let page = if page_bytes <= limit.saturating_sub(used) { 32 } else { 1 };
         self.meter.ceilings.heap_bytes = limit;
         self.meter.used.heap_bytes = used;
@@ -115,7 +117,7 @@ impl Runner<'_> {
             // Nested public witnesses must see the reservation as occupied too.
             self.caller_heap_ceiling = Some((limit, self.meter.used.heap_bytes));
             self.prepaid_scan(&[(MeterKind::Examined, members.len() as u64), (MeterKind::Steps, members.len() as u64)], false,
-                |runner, _| runner.certify_group_mode(m, parent, members, probe_small, page))
+                |runner, _| runner.certify_group_mode(m, parent, members, probe_small, page, reuse))
         })();
         self.caller_heap_ceiling = caller;
         self.meter.ceilings.heap_bytes = internal.0;
@@ -123,7 +125,20 @@ impl Runner<'_> {
         result
     }
 
-    fn certify_group_mode(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool, _page: usize) -> Result<(), RuntimeError> {
+    fn certify_group_mode(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool, _page: usize, reuse: bool) -> Result<(), RuntimeError> {
+        // Partition the batch in-place: only uncertified members need a walk.
+        // Current member and source-group authority was checked before entry.
+        let mut missing = 0;
+        for at in 0..members.len() {
+            if reuse && let Some(total) = self.certified_view_count(m, &members[at].1)? {
+                members[at].2 = total;
+            } else {
+                members.swap(at, missing);
+                missing += 1;
+            }
+        }
+        let members = &mut members[..missing];
+        if members.is_empty() { return Ok(()); }
         // Receipt changes commonly leave only a few unread positions. Every
         // member is authorized before these bounded, private probes.
         let mut small = probe_small;

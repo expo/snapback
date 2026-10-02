@@ -44,6 +44,18 @@ fn durable_schema_and_types_keep_base_bytes() {
         ("Result: Rows[\"comments\"] | null. predicts: never.", "Result: Rows[\"comments\"] | null. predicts: eligible."),
         ("name: \"put\", predicts: \"never\"", "name: \"put\", predicts: \"eligible\"")
     ] { assert_eq!(types.matches(old).count(), 1); *types = types.replace(old, new); }
+    // @ref LLP 3000.015#3 — BG's durable numerical certificate adds exactly
+    // these private fields. Keep all other schema and emitted bytes frozen;
+    // the legacy-basis test separately proves atomic adoption of old rows.
+    for name in ["row-keyed-view.q", "row-view-inherited-member.q", "row-view-inherited-source.q"] {
+        let record = &mut expected.get_mut(name).unwrap().0;
+        let mut schema: serde_json::Value = serde_json::from_str(record).unwrap();
+        let columns = &mut schema["tables"]["$basis:unread"]["columns"];
+        assert_eq!(*columns, serde_json::json!({"at": "Time", "id": "Id"}));
+        columns["deadline"] = serde_json::json!({"Optional": "Time"});
+        columns["version"] = serde_json::json!({"Optional": {"Text": {"max": 64}}});
+        *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap();
+    }
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");

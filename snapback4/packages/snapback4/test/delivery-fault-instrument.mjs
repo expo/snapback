@@ -133,6 +133,11 @@ export function instrument(destination) {
 // Failure withholds the read/dispatch. web-session-authority covers successful
 // gets followed by transaction abort, peer logout and stale mirror fencing.
 // No outbox fault site, required/optional classification or recipe changes.
+// BG round 1: committed IndexedDB authority calls queued before a read starts
+// join one check. The batch clears before lock acquisition. Memory/native and
+// preparing scopes keep their original awaited persistence path, preventing a
+// held journal admission from overtaking the first request's check. The await
+// now lives in checkAuthority; no outbox custody await or recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

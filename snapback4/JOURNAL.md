@@ -81454,3 +81454,56 @@ headroom). No byte increase or budget raise was needed. Report, qualification
 scripts, stage tables, input checksums, negative controls and retained traces:
 reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-02 — BG round 1: incremental count certification and client authority reads
+
+The private per-member count basis now carries a conservative earliest contributing
+deadline and a digest of its maintain/source/member definitions. Source deltas
+extend the evidence in the count transaction; removing the earliest source can
+seek the next parent/expiry key. An unchanged settled basis before its deadline
+certifies no history rows. Current member/group authority is proved afresh,
+including witness expiry. Due, pending, legacy, version-mismatched and unsupported
+per-row disclosure cases retain the authorized live walk; recorded member inputs
+also retain that path. Cold acquisition, public meters, finite caller heap,
+instant expiry before sweep and device prediction keep their contracts.
+Schema adoption rebuilds legacy evidence atomically. LLP 3000.015 §3 records why
+current authority facts are freshly proved instead of using a global revision.
+
+The app coalesces calls queued before a committed IndexedDB authority read starts.
+Calls during/after the read get a fresh transaction. Memory/native and preparing
+scopes preserve the original awaited persistence scheduling. Strict admission,
+journal durability, epoch/logout fences and retention are unchanged (LLP 3000.013
+§6). The initially broader batching failed four replacement and twelve keep-model
+cases; the corrected scope passes all nine replacement and eighteen keep-model
+cases, plus 340 authority/fault cases against the final client.
+
+Final shipping-profile Chromium on eb1000, 50 members/10,000 messages, 50 sends and
+100 remote renders: send-to-slower-render median/p95/max is 132.5/187.0/250.3 ms
+idle, versus the round-0 control 330.6/377.8/433.5. Under 96 live CPU burners it is
+234.3/328.3/449.4 versus 706.8/1075.2/1202.9. Measured CPU is 5.86% median idle and
+99.60% loaded. Both conditions recertify zero history rows in all 100 deliveries.
+Idle pre-request p95 is 62.9 ms; history-evaluation-to-public p95 is 49.3 ms.
+LL's unchanged 160-case small-group harness has no timeouts; once-photo p95 is
+90.6 ms versus 93.2 in the new control. The old 88.6→106.6 tail lies in
+apply/evaluation scheduling, and LL exercises neither BG hot-path change.
+
+Eight seeds × 300 random steps produce 18,062 independent naive-model comparisons
+across unread, messageCounts and reactionCounts, plus full authorized unread
+recounts after every step and 221 real SQLite reopenings. Work at both 10k and
+100k history is (recertified sources, public examined, steps) = (0,100,100); the
+same test fails on c0d6d1ee28 with 10,001 source rows. Legacy, deadline, pending,
+heap/disclosure regressions and the whole guide (110 tests) pass. scripts/test.sh
+ran once: `== 2 failure(s) in 2647 s` (cargo test and client tests). Its 17 failures
+are all ours: one frozen private-basis schema expectation plus the sixteen client
+scheduling cases above. Named focused reruns correct all of them; all 79 final
+serial model cases passed. Baseline failures 0, environmental failures 0. The
+original complete run remains red evidence, not a claimed complete green rerun.
+The final recorded-member fallback has its own passing focused regression.
+
+Wasm: 2,015,329 B raw / 605,003 B gzip, +2 gzip over round 0, under the unchanged
+605,225 B cap (222 B Linux headroom; about 92 B with the reported macOS difference).
+No ratchet increase. Final scenario qualification passes, including idle p95 <250.
+Report, before/after stage tables, all failure dispositions, seeds, binary/source
+hashes and traces: reports/20261001-bg-busy-group-render/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

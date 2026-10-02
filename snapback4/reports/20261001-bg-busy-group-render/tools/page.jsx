@@ -4,12 +4,28 @@ import {createApp} from 'snapback4/app';
 import {localStorageSessionStore, keepSession} from 'snapback4/auth';
 import {webDevice} from 'snapback4/web';
 import {SnapbackProvider, useQuery, usePage} from 'snapback4/react';
+import {WebDevice} from '/bg-wasm.js';
 const q=name=>({kind:'query',name}), m=name=>({kind:'mutation',name});
 const now=()=>performance.timeOrigin+performance.now();
 let client, expected, trial={}, querySeq=0;
 window.events=[];
 window.allEvents=[];
 const mark=(stage,detail={})=>{const event={stage,at:now(),...detail};window.events.push(event);window.allEvents.push(event);};
+const wasmCall=WebDevice.prototype.call;
+WebDevice.prototype.call=function(input){
+  const request=JSON.parse(input),id=crypto.randomUUID();
+  mark('wasm-start',{id,op:request.op,name:request.name});
+  try{return wasmCall.call(this,input);}finally{mark('wasm-end',{id,op:request.op,name:request.name});}
+};
+const idbTransaction=IDBDatabase.prototype.transaction;
+IDBDatabase.prototype.transaction=function(...args){
+  const tx=idbTransaction.apply(this,args),id=crypto.randomUUID();
+  const kind=this.name.includes('session')?'authority':'device';
+  mark('idb-start',{id,kind,mode:tx.mode});
+  tx.addEventListener('complete',()=>mark('idb-end',{id,kind,mode:tx.mode}));
+  tx.addEventListener('abort',()=>mark('idb-abort',{id,kind,mode:tx.mode}));
+  return tx;
+};
 const lockRequest=navigator.locks?.request.bind(navigator.locks);
 if(lockRequest) navigator.locks.request=(name,options,callback)=>{
   const id=crypto.randomUUID(), body=typeof options==='function'?options:callback;
@@ -32,6 +48,10 @@ const fetchTrace=async(input,init)=>{
 function publish(read,stage){
   if (!read?.revalidating && read?.data?.some(x=>x.id===expected) && !trial[stage]) {trial[stage]=now();mark(stage);}
 }
+window.__bgTrace=(stage,detail)=>{
+  if(stage==='raw-read'){if(detail.name==='history')publish(detail.read,'raw-published');}
+  else mark(stage,detail);
+};
 const history=q('history'),decorations=q('decorations'),screen=q('conversationScreen'),member=q('receiptMember'),typing=q('typingIn');
 function Screen(){
   const page=usePage(history,{conversation:'room'}),decs=usePage(decorations,{conversation:'room'});

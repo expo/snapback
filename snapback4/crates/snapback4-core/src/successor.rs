@@ -252,6 +252,14 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
 /// declaration text. Optionality can override a formerly effective default.
 // @ref LLP 3000.007.001#3.11 — rebuild on resolved source dependency changes.
 pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
+    // @ref LLP 3000.015#3 — schema/disclosure versions and legacy evidence
+    // are replaced with the numerical basis in the activation transaction.
+    #[cfg(feature = "sqlite")]
+    if maintain.row_key.is_some()
+        && (from.table(&maintain.source) != to.table(&maintain.source)
+            || from.table(&format!("$basis:{}", maintain.target)) != to.table(&format!("$basis:{}", maintain.target))) {
+        return true;
+    }
     maintain.row_key.as_ref().is_some_and(|k|from.table(&k.table)!=to.table(&k.table))
         || from.maintain_for(&maintain.target) != Some(maintain)
         || from.table(&maintain.source).and_then(|t| t.through.as_ref()) != to.table(&maintain.source).and_then(|t| t.through.as_ref())

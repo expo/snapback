@@ -14,6 +14,10 @@ use crate::value::object;
 // @ref LLP 3000.015#3 — devices predict from covered rows; durable recount
 // work and basis timestamps belong only to the server storage build.
 mod live;
+#[cfg(feature = "sqlite")]
+mod certification;
+#[cfg(all(test, feature = "sqlite"))]
+mod certification_tests;
 mod device;
 #[cfg(feature = "sqlite")]
 mod batch;
@@ -465,6 +469,8 @@ impl Runner<'_> {
         }
         let limit = self.scan_room(m).min(WRITER_RECOUNT);
         // @ref LLP 3000.020#3.2 — prediction uses the read's range and proof, never a durable expiry cursor.
+        #[cfg(feature = "sqlite")]
+        let certification_expiry = self.next_expiry.scope();
         let (n, complete, _) = if self.device && live {
             if !source_readable { self.pending_view_read()?; }
             let (n, complete) = self.device_live_count(m, &u)?;
@@ -472,6 +478,10 @@ impl Runner<'_> {
         } else if live {
             self.live_basis_scan(m, &u, None, limit)?
         } else { self.view_scan(m, &u, delta, &index, bounds, limit, false)? };
+        #[cfg(feature = "sqlite")]
+        let deadline = certification_expiry.defer().deadline();
+        #[cfg(feature = "sqlite")]
+        self.next_expiry.note_option(deadline);
         if self.device && !complete {
             return Err(RuntimeError::Prediction("row-keyed count certification needs the server; queued without a predicted result (guide maintains)".into()));
         }
@@ -488,7 +498,7 @@ impl Runner<'_> {
         };
         let row = self.view_image(m, &u, if live && !complete { 0 } else { total }, !complete)?;
         #[cfg(feature = "sqlite")]
-        if !self.device && complete { self.set_view_basis(m, id)?; }
+        if !self.device && complete { self.set_view_basis(m, id, deadline)?; }
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
         #[cfg(feature = "sqlite")]
         if !self.device {
@@ -599,6 +609,12 @@ impl Runner<'_> {
                             }
                         }
                         else {
+                            #[cfg(feature = "sqlite")]
+                            if !r.device && t.is_expiring() {
+                                let removed = old.as_ref().filter(|v| v.field(&k.source_key).ok() == Some(&parent)).and_then(|v| live::expiry(t, v));
+                                let deadline = new.as_ref().filter(|v| contributes(v)).and_then(|v| live::expiry(t, v));
+                                r.extend_view_certification(m, id, &parent, removed, deadline)?;
+                            }
                             let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;
                             r.view_put(&m.target,&row,existing.as_ref(),false)?;
                         }
@@ -726,10 +742,14 @@ impl Runner<'_> {
         if self.schema.tables[&m.source].is_expiring() {
             #[cfg(feature = "sqlite")]
             if !self.device {
-                let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source]);
+                let (limit, used) = self.caller_heap_ceiling.unwrap_or((self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes));
+                let reuse = self.certification_scratch(m) <= limit.saturating_sub(used);
+                let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source])
+                    .max(if reuse { self.certification_scratch(m) } else { 0 });
                 let result = self.disclosed_scratch(bytes,&[(MeterKind::Examined,1),(MeterKind::Steps,1)], |runner,_| {
                     // Certification depends only on the current live basis, never
                     // on the historical work record or stored pending bit.
+                    if reuse && let Some(n) = runner.certified_view_count(m, &member)? { return Ok(Some(n)); }
                     let (n, complete, _) = runner.live_basis_scan(m,&member,None,usize::MAX)?;
                     Ok(complete.then_some(n))
                 })?;
@@ -800,7 +820,7 @@ impl Runner<'_> {
         }
         let total = if restart { n } else { number(work, "total") + n };
         if complete {
-            self.set_view_basis(m, id)?;
+            self.set_view_basis(m, id, deadline)?;
             let row = self.view_image(m, &member, total, false)?;
             self.view_put(&m.target, &row, existing.as_ref(), self.schema.tables[&m.source].is_expiring())?;
             self.view_delete(&m.work_table(), work, true)

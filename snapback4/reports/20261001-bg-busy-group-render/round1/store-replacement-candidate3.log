@@ -1,0 +1,17 @@
+✔ online app reopens after replacement; replacement accepts session: true (54.9659ms)
+✔ online app reopens after replacement; replacement accepts session: false (32.771053ms)
+✔ logout cancels replacement verification without restoring the old account (12.788364ms)
+✔ close cancels replacement verification without restoring the old account (12.939881ms)
+✔ login cancels replacement verification without restoring the old account (13.709625ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: false (56.616515ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: true (45.221ms)
+✔ replacement pins retired receipt ids at the history limit (0 older unknown failures) (212.221683ms)
+✔ replacement pins retired receipt ids at the history limit (8 older unknown failures) (212.605348ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 762.872611

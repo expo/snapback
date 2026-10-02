@@ -1,0 +1,88 @@
+[
+  {
+    "test": "durable_schema_and_types_keep_base_bytes",
+    "file": "crates/snapback4-lang/tests/ephemeral_compat.rs",
+    "classification": "ours",
+    "correction": "Name deadline/version in expected private basis schema for all three frozen fixtures; ephemeral-compat-after2.log passes."
+  },
+  {
+    "test": "online app reopens after replacement; replacement accepts session: true",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; store-replacement-candidate3.log (9/9) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "online app reopens after replacement; replacement accepts session: false",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; store-replacement-candidate3.log (9/9) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "replacement waits for durable retirement of admitted writes; persistence fails: false",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; store-replacement-candidate3.log (9/9) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "replacement waits for durable retirement of admitted writes; persistence fails: true",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; store-replacement-candidate3.log (9/9) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=undefined property: wasm, seed 23, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=undefined property: wasm, seed 44, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=undefined property: wasm, seed 445, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=undefined property: process, seed 23, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=undefined property: process, seed 44, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=undefined property: process, seed 445, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=true property: wasm, seed 23, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=true property: wasm, seed 44, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=true property: wasm, seed 445, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=true property: process, seed 23, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=true property: process, seed 44, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  },
+  {
+    "test": "createApp keep=true property: process, seed 445, 50ms authority",
+    "classification": "ours",
+    "correction": "Keep original memory/native/preparing-scope authority scheduling; keep-model-candidate.log (18/18) passes against the exact final app.js bytes."
+  }
+]

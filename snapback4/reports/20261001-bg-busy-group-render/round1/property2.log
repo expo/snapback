@@ -1,0 +1,9 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 4.50s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+BG property: seeds=[1, 7, 28, 20261002, 195939070, 3735928559, 305419896, 24301]; 2400 steps; 12359 naive comparisons; unread, messageCounts, reactionCounts
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 175 filtered out; finished in 2.00s

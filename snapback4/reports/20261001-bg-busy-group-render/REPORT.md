@@ -248,3 +248,367 @@ Raw JSON traces are gzip-compressed without changing their data. `summarize.mjs`
 accepts both forms. `*-artifacts.txt` bind the measurement binaries and wasm.
 The optional seed database and temporary password-session credentials stay in
 `/tmp`, outside the repository. No push or publication is authorized or performed.
+
+
+## Round 1 — incremental certification and concurrent authority reads
+
+**Final qualification:** the shipping production build reaches **132.5 ms median,
+187.0 ms p95, 250.3 ms maximum** from send to the slower remote viewer, meeting the
+explicit `<250 ms` assertion. The round-0 control is 330.6 / 377.8 / 433.5 ms.
+Under 96 ordinary CPU-burning processes, the comparison is
+706.8 / 1,075.2 / 1,202.9 → **234.3 / 328.3 / 449.4 ms**. Each run has
+50 sends and 100 remote renders, no timeout or browser page error, and all three
+active devices' final notifications. Final runs include the corrected browser-only
+authority scheduling, recorded-member fallback and rebuilt wasm. No push or
+publication was performed.
+
+Base: `c0d6d1ee28`, same eb1000 toolchain, shipping flags, calibration schema,
+50-member/10,000-message seed, three browsers, twenty mounted history rows,
+500-row source acquisition, automatic delivery and seen reporting as round 0.
+The final candidate starts from a copy of the **round-0 seed database**, exercising
+old-basis adoption. `binaries.sha256` binds both profiles on both revisions.
+Client trace hooks are applied identically to the matched before/after builds.
+
+“Idle” means no synthetic burners and no concurrent BG build/test. This is a
+shared fleet host, not an exclusively reserved machine. During the final measured
+sends, one-second `/proc/stat` samples show CPU utilization **5.86% median /
+6.85% p95 / 6.91% maximum** idle (20 samples), and **99.60% / 99.88% / 99.94%**
+loaded (40 samples). The loaded run keeps 96 normal-priority busy processes alive,
+one per affinity-visible logical CPU, and reaps all 96 afterward. Earlier
+controls record load averages but not CPU utilization; those averages are not
+instantaneous load measurements. These are eb1000 results, not predictions for
+the office M1. All completed runs and every sample are retained.
+
+The primary after columns use `qualification-idle` / `qualification-loaded` and
+`ll-final`, with final client scheduling and wasm. The pre-suite `after-idle` /
+`after-loaded` runs (p95 193.3 / 393.1 ms) and `ll-after` (once-photo p95 82.7 ms)
+remain as development evidence. Their source-count implementation predates only
+the recorded-member fallback; their broad authority batching was subsequently
+restricted to committed IndexedDB scopes. The `after-pilot` is earlier still.
+
+**Shipping stage tables.** Milliseconds, median / p95 / maximum, nearest rank.
+Send stages have 50 samples; per-remote stages have 100. As in round 0, notification
+and sync can overlap, and server count spans are interval-correlated rather than
+request-ID tagged. Percentiles and overlapping elapsed spans must not be added.
+
+| Idle stage | Round 0 | Round 1 final |
+| --- | ---: | ---: |
+| Send → slower remote render | 330.6 / 377.8 / 433.5 | 132.5 / 187.0 / 250.3 |
+| Send → server commit | 62.6 / 99.5 / 127.2 | 38.3 / 72.0 / 128.5 |
+| Send → mutation HTTP request | 56.1 / 93.0 / 122.2 | 31.9 / 62.9 / 121.2 |
+| Mutation request → commit | 6.1 / 8.2 / 8.5 | 6.0 / 7.8 / 9.1 |
+| Commit → /changes response | 4.8 / 9.0 / 10.2 | 4.6 / 10.9 / 122.2 |
+| /changes → sync request | 42.8 / 59.9 / 129.5 | 21.6 / 43.4 / 67.6 |
+| Sync request → response EOF | 130.4 / 134.8 / 156.3 | 7.7 / 12.9 / 19.7 |
+| Live-count certification inside sync | 125.0 / 128.9 / 149.3 | 0.5 / 1.1 / 1.2 |
+| Response → device apply start | 1.8 / 2.6 / 3.8 | 1.5 / 3.3 / 14.5 |
+| Device apply call | 11.6 / 14.7 / 55.3 | 11.4 / 16.0 / 20.2 |
+| Apply end → first history evaluation end | 8.3 / 11.1 / 16.5 | 3.1 / 30.1 / 36.1 |
+| History query call | 3.6 / 5.6 / 14.9 | 6.2 / 25.1 / 28.7 |
+| Decorations query call | 33.2 / 37.4 / 39.6 | 17.9 / 27.0 / 31.0 |
+| History evaluation → public observation | 56.6 / 70.3 / 166.5 | 34.8 / 49.3 / 55.5 |
+| Publication → React commit | 1.7 / 2.1 / 3.7 | 0.7 / 1.1 / 1.5 |
+
+| 96 CPU burners stage | Round 0 | Round 1 final |
+| --- | ---: | ---: |
+| Send → slower remote render | 706.8 / 1,075.2 / 1,202.9 | 234.3 / 328.3 / 449.4 |
+| Send → server commit | 121.8 / 202.0 / 239.8 | 65.1 / 160.7 / 198.4 |
+| Send → mutation HTTP request | 103.9 / 186.6 / 224.6 | 50.7 / 147.5 / 180.2 |
+| Mutation request → commit | 14.8 / 24.7 / 30.2 | 14.5 / 19.7 / 26.9 |
+| Commit → /changes response | 9.6 / 514.5 / 716.4 | 8.6 / 144.5 / 189.8 |
+| /changes → sync request | 68.8 / 115.4 / 136.8 | 53.0 / 67.6 / 149.9 |
+| Sync request → response EOF | 369.0 / 618.7 / 664.6 | 16.0 / 31.2 / 61.1 |
+| Live-count certification inside sync | 355.7 / 596.7 / 647.1 | 0.7 / 4.2 / 6.7 |
+| Response → device apply start | 2.0 / 6.2 / 18.5 | 2.6 / 7.8 / 27.2 |
+| Device apply call | 13.5 / 24.6 / 140.0 | 14.5 / 20.9 / 26.5 |
+| Apply end → first history evaluation end | 8.0 / 15.2 / 25.8 | 12.5 / 54.8 / 70.7 |
+| History query call | 2.4 / 8.0 / 21.3 | 5.3 / 17.0 / 21.4 |
+| Decorations query call | 40.4 / 65.3 / 90.5 | 37.1 / 50.1 / 56.0 |
+| History evaluation → public observation | 74.7 / 138.4 / 447.3 | 15.0 / 98.3 / 112.8 |
+| Publication → React commit | 1.4 / 4.3 / 6.8 | 1.2 / 3.2 / 7.1 |
+
+**Count work and design.** All 100 remote deliveries in both final runs recertify
+**zero** history rows (round 0: median 10,027, p95 10,050). Idle certification goes
+from 125.0 / 128.9 / 149.3 ms to 0.485 / 1.088 / 1.197 ms. The source insertion
+still evaluates its own delta against the fifty bounded member predicates.
+No unchanged source is reevaluated. History remains 21 examined rows for twenty
+returned rows; decorations still examine roughly 1,100 rows.
+
+A count's existing private `$basis` record now holds the conservative minimum
+source deadline and a digest of the maintain, source and member definitions.
+Count and evidence update atomically. Adding a contributor lowers that minimum;
+removing the earliest source seeks the next parent/expiry index key, which may
+include noncontributors and therefore remains conservative. Version mismatch,
+due expiry, missing/legacy evidence, a future basis timestamp or a pending count
+uses the existing authorized live walk. Expiry remains effective at the instant,
+before sweep. Sweeping the minimum restores reuse without a history walk. Cold
+acquisition retains its full shared walk. A schema/evidence-format change rebuilds
+counts and evidence in the adoption transaction; a real legacy-format migration
+regression covers optional-field validation before that rebuild.
+
+Authority is **fresh**, not a stored viewer verdict. Delivery checks the current
+member and current uniform group rule in its transaction and pinned clock,
+including witness expiry. This certifies current authority for the whole domain;
+its numerical proof needs no new source predicate evaluations when grant data
+changes. Definitions are digested, facts are freshly proved. Row-dependent
+private disclosure, recorded source/member fields, read-through sources, maintained sources and
+nonuniform rules cannot use this group proof and retain the sealed per-row path.
+This explicitly avoids trying to version unbounded transitive authority facts
+with one table counter. Public examined/step prices, saved caller heap admission,
+nested witness allowance and pending live-basis checks remain. The optimization
+is SQLite-only; ordinary non-row-keyed aggregates keep their existing live path.
+The design is recorded in [LLP 3000.015 §3](../../../llp/3000.015-shared-baseline-for-snapback5.spec.md#3-a-maintained-view-keyed-by-another-tables-row).
+
+**Client attribution and cut.** The before/after table below clips synchronous
+wasm CPU and transaction/facade/lock elapsed spans to each requested interval.
+Times are median / p95 (ms); counts are transactions. Elapsed IDB time includes
+main-thread scheduling and can overlap decorations CPU, lock waits and facade
+checks. It is not additive storage service time.
+
+| Client attribution | Round 0 | Round 1 final |
+| --- | ---: | ---: |
+| Send → request: prediction CPU | 0.1 / 0.3 | 0.1 / 0.3 |
+| Send → request: decorations CPU | 16.8 / 32.3 | 13.4 / 34.5 |
+| Send → request: other query CPU | 1.7 / 2.3 | 1.0 / 2.7 |
+| Send → request: other VM CPU | 0.9 / 2.2 | 0.8 / 1.6 |
+| Send → request: device IDB elapsed | 1.5 / 5.8 | 1.8 / 9.6 |
+| Send → request: authority IDB elapsed | 7.2 / 30.9 | 2.3 / 25.5 |
+| Send → request: facade checks elapsed | 53.8 / 93.0 | 28.7 / 56.7 |
+| Send → request: authority transactions | 24.0 / 41.0 | 5.0 / 8.0 |
+| Send → request: lock queue elapsed | 26.1 / 49.7 | 16.5 / 36.5 |
+| History → public: decorations CPU | 29.4 / 32.9 | 25.4 / 38.7 |
+| History → public: other query CPU | 0.3 / 2.1 | 2.3 / 3.6 |
+| History → public: device IDB elapsed | 1.4 / 3.6 | 1.9 / 4.4 |
+| History → public: authority IDB elapsed | 40.2 / 45.8 | 3.9 / 16.6 |
+| History → public: facade checks elapsed | 56.6 / 70.3 | 34.6 / 49.1 |
+| History → public: authority transactions | 15.0 / 20.0 | 2.0 / 2.0 |
+| History → public: lock queue elapsed | 3.4 / 10.4 | 17.9 / 40.7 |
+| History evaluation → raw local notification | 29.8 / 33.5 | 28.2 / 43.7 |
+| Raw local notification → public observation | 26.2 / 62.9 | 6.6 / 10.1 |
+
+Prediction itself is about 0.1 ms. The main pre-request costs are interleaved
+receipt/decorations evaluation and repeated facade authority reads queued through
+the same persistence/session locks. After history evaluation, decorations can
+still block the browser before the raw notification, followed by facade checks
+before public delivery. The round-1 app batches calls on a prepared IndexedDB-authority scope already
+queued **before** an authority read starts, so they share its committed snapshot and linearization
+point. The batch is cleared before lock acquisition. Calls arriving during or
+after the read queue a fresh transaction. There is no completed-result cache,
+no deferred journal durability and no weaker logout/epoch/publication fence.
+Repeated IndexedDB reads among the already queued calls provide no extra
+documented authority guarantee. Memory/native stores and preparing scopes keep
+the original per-call awaited persistence schedule; the full-suite failure
+ledger below records why widening this optimization was incorrect. [LLP 3000.013 §6](../../../llp/3000.013-quarry-states-intent.rfc.md#6-a-paved-client)
+records this rule. The unchanged strict write/admission path still commits before
+unlocking. The test observes four transactions for two simultaneous calls on
+round 0, at most three on round 1, and exactly two fresh checks for a later call.
+
+Pre-send p95 falls 93.0 → 62.9 ms; history-to-public p95 falls 70.3 → 49.3 ms.
+The remaining decorations computation is real query work over the fixture's
+requested receipts; this round does not weaken that query, retention or authority
+contract. Individual device-IDB and lock percentiles can rise as the shorter
+pipeline changes overlap; they are not claimed as universally faster.
+
+**LL small-group control.** Unchanged LL harness, `LL_KEEP=viewed`, wasm, twenty
+repetitions of all eight flows, matching debug server builds, no timeouts in
+160 samples on either side. These are commit → React times, unlike BG's send
+headline. Media readiness remains a separate observation.
+
+| LL flow | Round 0 median / p95 / max | Round 1 final median / p95 / max |
+| --- | ---: | ---: |
+| profile | 33.8 / 46.3 / 51.5 | 37.6 / 45.0 / 45.0 |
+| reaction-add | 38.4 / 45.3 / 97.7 | 39.6 / 44.2 / 102.5 |
+| reaction-replace | 36.7 / 43.7 / 52.1 | 38.6 / 41.5 / 41.7 |
+| reaction-remove | 40.0 / 44.9 / 45.9 | 40.2 / 48.3 / 48.4 |
+| reply | 81.4 / 94.9 / 96.2 | 82.7 / 89.8 / 95.6 |
+| photo | 84.4 / 92.5 / 94.1 | 87.8 / 95.9 / 98.5 |
+| feed-image | 39.0 / 45.6 / 48.6 | 43.1 / 48.3 / 51.1 |
+| once-photo | 79.4 / 93.2 / 94.7 | 84.5 / 90.6 / 93.9 |
+
+The LL page calls `createLocalClient` directly, bypassing the app authority
+facade, and its fixture has no row-keyed count view. Neither BG hot-path change
+is exercised there; LL is a control for incidental effects and host variation.
+
+The old round-0 once-photo p95 88.6 → 106.6 ms is not reproduced: the same round-0
+revision now gives 93.2 ms, and final round 1 gives 90.6 ms. Inspecting the old p95
+sample shows apply-end → evaluation 47.5 → 64.6 ms and apply 6.9 → 8.4 ms,
+while server sync is actually shorter (12.7 → 7.1 ms). The old worst after
+sample had apply 14.8 ms and 67 device query evaluations instead of 55 in the
+old before tail. Thus the observed tail sits in apply/evaluation scheduling and
+reevaluation, not a larger server recount. The retained trace does not identify
+a causal regression; run-to-run scheduling variation is the supported explanation,
+not a proof of zero impact. See `round0-once-photo-attribution.json` for all twenty
+samples and both tails. Feed-image p95 here is 45.6 → 48.3 ms; no universal
+small-group latency improvement is claimed.
+
+**Property and work proof.** The state-machine test uses seeds
+`[1, 7, 28, 20261002, 195939070, 3735928559, 305419896, 24301]`, 300 steps each:
+2,400 steps, **18,062 independent naive-model comparisons**, plus comparison of
+incremental unread against the full authorized acquisition recount after every
+step. It covers Clique-shaped `unread` (`seenOrdinal`, joined threshold, sender
+exclusion and tombstones), the language-card `messageCounts`, and corpus/guide
+`reactionCounts` (independent expiry rather than read-through). The ordinary
+aggregates retain their current implementation and are checked after every step,
+including denied aggregate keys. Actions comprise 744 source upserts (inserts and
+updates), 257 source delete attempts, 244 member inserts/changes, 231 member removal attempts,
+236 clock advances, **221 real SQLite close/reopens**, 220 rule/grant changes,
+and 247 reaction edits/deletes. Random expiry includes already-due births.
+Separate tests cover pending 1,100-row counts before sweep, exact deadline
+crossings, recovery of reuse after sweep, legacy-format adoption, and recorded
+member-input fallback. Private member predicate inputs already require an
+owner-only read rule at schema admission; both compiler and raw-schema tests
+enforce it. Recorded member inputs are stripped by the query projection, so
+reuse now conservatively refuses those tables. The new raw-schema regression
+compares warm delivery with full acquisition when the stored and disclosed
+predicates differ (`recorded-member-final2.log`, pass).
+
+The 50-member work regression inserts 10,000 and 100,000 history messages,
+then a new source, and certifies a delivery. At both sizes its tuple
+`(source rows recertified, public examined, public steps)` is **`(0, 100, 100)`**;
+all fifty returned counts equal history + 1. It is a work assertion, not timing.
+On `c0d6d1ee28`, the same new test fails at the zero-source bound with **10,001**
+rows; the retained control exits 101 for that assertion, not compilation.
+The old paging, heap, pending, witness/disclosure and client fault regressions
+remain in the affected cohorts and full suite.
+
+**Wasm and qualification artifact scope.** The full suite rebuild reports
+**2,015,329 B raw / 605,003 B gzip**, measured with the build script's
+`gzip -9 -c FILE` (Python/zlib gzip outputs are not this ratchet's measurement).
+This is +0 raw / +2 gzip versus round 0. The cap stays **605,225 B**, leaving
+222 B on Linux; the reported ~130-B macOS difference would leave ~92 B.
+No increase is necessary, so no new 500-B allowance is taken. The size and digest
+are in `round1/wasm.json`. All new certification state/code is SQLite-only;
+the browser optimization is TypeScript. The pre-suite timing runs used the
+existing round-0 wasm build. The suite rebuilt the candidate wasm, whose digest
+changed; an exact-artifact confirmation is recorded below rather than assuming
+identical bytes from identical raw size.
+
+**Development failure ledger.** All unexpected pre-suite failures below are
+**ours and corrected**, not baseline or environmental exclusions:
+
+- `row-views-first.log`: certificate scratch was added to the source reservation,
+  breaking the finite private-witness case. The lifetimes now reuse their maximum.
+  `row-views-second.log`: cold acquisition incorrectly reused evidence and skipped
+  that case's source witness; cold acquisition now retains its original path.
+- `row-views-third.log`: the restart test used `/tmp` as its database parent;
+  Store's directory-mode check refused it. Each test now owns a file under the
+  workspace target directory. `property.log`: a generated delete of an absent
+  or already-expired source expected success; the model driver now skips that
+  nonexistent action, preserving production delete semantics.
+- `authority.log`: the injected abort hit only the first authority transaction,
+  which the concurrent poll could consume. The regression now aborts every
+  authority read while the query is pending, and still requires refusal before
+  publication. The complete authority cohort then passed 19 tests.
+- `guide.log`: the maintains card grew to 883 lines against its 879-line limit.
+  Redundant wording was trimmed; no guide budget was raised. `guide-final.log`
+  passes all 110 tests.
+- `authority-control-round0.log`: the first negative-control setup replaced
+  ignored `dist/app.js`, but this browser test imports source. It therefore
+  unexpectedly passed and the control wrapper failed. The corrected source
+  control fails only the intended simultaneous-read bound (four transactions),
+  plus its parent aggregate test result.
+- `property-final.log`: the expanded ordinary-aggregate denial assertion called
+  the internal recount without its required key-authorization precondition.
+  The driver now performs that check, like the production read path;
+  `property-final2.log` passes all 2,400 steps and 18,062 model comparisons.
+  `property-final3.log` also requires every expected maintained group to exist.
+
+The deliberate work and authority controls are expected red evidence. A debug
+binary was also caught by its digest during an initial production setup and
+stopped before any measured send; no such sample enters a table. The retained
+production pilot is 137.6 / 190.7 / 227.0 ms and predates the upgrade and
+expiry-minimum refresh fixes. The final implementation measurements above use
+both fixes and the later recorded-member fallback; the pilot is not substituted
+for qualification.
+
+**Full-suite failure dispositions.** The complete `scripts/test.sh` command was
+invoked once and allowed to finish every original case; no worker was cancelled.
+Its Rust phase records one failure, `durable_schema_and_types_keep_base_bytes`:
+the expected private basis schema lacked the new optional `deadline` and
+`version` fields. **Ours, corrected.** The test now adds exactly those expected
+fields in all three frozen row-view fixtures; every other schema and emitted
+TypeScript byte stays frozen. The first focused correction named only the
+ordinary fixture and consequently failed on the inherited-member fixture;
+`ephemeral-compat-after2.log` covers all three and passes.
+
+The client pool reports 5,755 tests: 5,729 passed, **16 failed**, ten existing
+skips and zero cancellations. Every failure is **ours**, from applying authority
+batching beyond committed IndexedDB scopes:
+
+| Failed cases | Count | Disposition |
+| --- | ---: | --- |
+| Online app reopens after replacement, session accepted `true` and `false` | 2 | Original memory scheduling restored; both pass |
+| Replacement waits for durable retirement, persistence failure `false` and `true` | 2 | First request no longer waits behind a later held admission; both pass |
+| `keep=undefined`, wasm, seeds 23 / 44 / 445, delayed authority | 3 | Original per-call scheduling restored; all pass |
+| `keep=undefined`, process, seeds 23 / 44 / 445, delayed authority | 3 | Same correction; all pass |
+| `keep=true`, wasm, seeds 23 / 44 / 445, delayed authority | 3 | Same correction; all pass |
+| `keep=true`, process, seeds 23 / 44 / 445, delayed authority | 3 | Same correction; all pass |
+
+The four replacement cases time out waiting for the first post while the second
+journal admission is held. The twelve generated cases time out awaiting an answer
+after delayed-authority/offline/burst interleavings. These are product scheduling
+regressions, not slow-host exclusions. The correction limits coalescing to a
+prepared IndexedDB-authority scope and retains the original awaited persistence
+path everywhere else. The entire replacement file passes **9/9** and the entire
+keep-model file passes **18/18**, without weakening their checks or increasing
+hang budgets. Those reruns used an isolated copied package while the original
+suite continued; their `app.js` SHA-256 is byte-identical to the normal final SDK
+build: `d998f75a5141cf077a42c855bc444ec9b2d3c02b70f5d352e6778e1fe147d260`.
+The isolated setup first failed to rewrite `.ts` import extensions and then lacked
+the package's `#fetch` import map; both setup failures are ours and retained as
+`store-replacement-candidate.log` / `candidate2.log`. The corrected run is
+`store-replacement-candidate3.log`.
+
+Final source authority/fault checks pass **340/340**, including the updated await
+fingerprint (74 awaits, same count as round 0), peer logout, successful reads
+followed by transaction abort, and the concurrent/fresh authority-read bound.
+The final SDK typecheck and normal build pass. Source count logic did not change
+during these client corrections. The full suite's serial models load the corrected
+normal SDK build; the original client pool kept its already-loaded pre-fix module.
+The exact complete summary follows below. Full-suite test
+failure classification: **ours 17, baseline 0, environmental 0**, all corrected
+by the named focused runs. `round1/failure-ledger.json` lists every failed test.
+
+
+**Complete-suite result (one invocation).** The exact terminal summary is:
+
+```text
+== 2 failure(s) in 2647 s
+   cargo test
+   client tests
+```
+
+All 79 final serial model cases passed. The two failed stages contain the 17
+individual failures listed above, all ours and corrected by the named focused
+reruns. This is a corrected-red full-suite record, not a claim that the original
+complete invocation passed. The whole guide passed 110 tests. The final recorded
+member fallback is SQLite-only and was added after the full run; its focused
+regression passes. Its first test draft assumed a missing predicate operand
+compared as an integer zero; the existing predicate comparator instead orders
+null. That test-only expectation failed (`recorded-member.log`), and an attempted
+rerun used the wrong working-directory prefix (`recorded-member-final.log`). The
+final fixture uses a captured value of five against source ordinal one, checks
+the stored count is zero and the disclosed full recount is one, and requires
+warm delivery to match it. These development failures are ours, not baseline or
+environmental. The server profiles were rebuilt after this final fallback.
+
+
+**Final scenario qualification.** `tools/measure.mjs` completed both 50-send
+shipping scenarios (exit 0), including the idle p95 assertion; the unchanged LL
+harness completed 160 cases (exit 0). `python3 tools/qualify-round1.py` then checks
+the retained traces: two remote renders per send, all three devices reaching each
+send's notification watermark, the 20-row window, zero recertified history rows,
+all burners accounted for and zero LL timeouts. It passes; see
+[qualification results](round1/qualification-final.json),
+[idle stages](round1/qualification-idle-summary.json),
+[loaded stages](round1/qualification-loaded-summary.json), and
+[LL stages](round1/ll-final-summary.json). Client attribution for both conditions
+is retained alongside those summaries. CPU samples cover only the interval from
+the first measured send through the final remote render, excluding setup/cleanup.
+
+The instrumenters restored all Rust source changes and the normal SDK/server
+builds were restored after measurement. The final normal `app.js` digest still
+matches the corrected focused-test artifact stated above. `round1/final-artifacts.json`
+binds source inputs, measurement binaries and wasm; `SHA256SUMS` covers the report
+and retained evidence. LLP 3000.015 §3 owns the count design, LLP 3000.013 §6 owns
+the concurrent authority-read rule, and one dated journal entry records this round.
