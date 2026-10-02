@@ -1,0 +1,317 @@
+consumer ok: query complete+fresh, online write sent, offline write pending
+== npm publish snapback4-darwin-arm64-0.4.11.tgz
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.11
+npm notice Tarball Contents
+npm notice 1.2kB THIRD-PARTY-NOTICES
+npm notice 458B package.json
+npm notice 14.8MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.11
+npm notice filename: snapback4-darwin-arm64-0.4.11.tgz
+npm notice package size: 7.3 MB
+npm notice unpacked size: 14.8 MB
+npm notice shasum: 59b0f537380c40f0c61d7ab2f521e4beed65b4c6
+npm notice integrity: sha512-C/UpT0BOvkFgq[...]J3wZu6/GAit2w==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.11 to become readable
+== npm publish snapback4-linux-x64-0.4.11.tgz
+npm notice
+npm notice 📦  snapback4-linux-x64@0.4.11
+npm notice Tarball Contents
+npm notice 7.5kB THIRD-PARTY-NOTICES
+npm notice 448B package.json
+npm notice 19.2MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-linux-x64
+npm notice version: 0.4.11
+npm notice filename: snapback4-linux-x64-0.4.11.tgz
+npm notice package size: 8.2 MB
+npm notice unpacked size: 19.2 MB
+npm notice shasum: 944952114c0a190be093c9e9f9b4a07c95c3ad54
+npm notice integrity: sha512-hUsdzahWH2zVT[...]lahF/eZRje6nw==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+publish: waiting for snapback4-linux-x64@0.4.11 to become readable
+== npm publish snapback4-0.4.11.tgz
+npm notice
+npm notice 📦  snapback4@0.4.11
+npm notice Tarball Contents
+npm notice 186.7kB CLIENT-AND-OPERATIONS.md
+npm notice 16.2kB FOLLOWING-ADOPTION.md
+npm notice 21.0kB README.md
+npm notice 57.0kB SERVER.md
+npm notice 1.4kB bin/snapback4.js
+npm notice 6.3kB bin/web-shell.js
+npm notice 25.7kB bin/witness-acquire.js
+npm notice 819B dist/acquisition.d.ts
+npm notice 1.7kB dist/acquisition.js
+npm notice 475B dist/actions.d.ts
+npm notice 1.7kB dist/actions.js
+npm notice 1.2kB dist/admission-authority.d.ts
+npm notice 2.4kB dist/admission-authority.js
+npm notice 1.6kB dist/admission.d.ts
+npm notice 2.2kB dist/admission.js
+npm notice 557B dist/app-client.d.ts
+npm notice 18.4kB dist/app-client.js
+npm notice 352B dist/app-global.d.ts
+npm notice 1.3kB dist/app-global.js
+npm notice 1.4kB dist/app-journal.d.ts
+npm notice 8.2kB dist/app-journal.js
+npm notice 454B dist/app-online.d.ts
+npm notice 19.8kB dist/app-online.js
+npm notice 818B dist/app-revocations.d.ts
+npm notice 11.3kB dist/app-revocations.js
+npm notice 573B dist/app-storage.d.ts
+npm notice 2.6kB dist/app-storage.js
+npm notice 1.6kB dist/app.d.ts
+npm notice 49.7kB dist/app.js
+npm notice 771B dist/asset-download.d.ts
+npm notice 10.7kB dist/asset-download.js
+npm notice 991B dist/assets.d.ts
+npm notice 7.2kB dist/assets.js
+npm notice 2.7kB dist/auth.d.ts
+npm notice 6.7kB dist/auth.js
+npm notice 2.9kB dist/backend.d.ts
+npm notice 4.3kB dist/backend.js
+npm notice 645B dist/change-evidence.d.ts
+npm notice 994B dist/change-evidence.js
+npm notice 783B dist/changes.d.ts
+npm notice 4.3kB dist/changes.js
+npm notice 527B dist/client-start.d.ts
+npm notice 988B dist/client-start.js
+npm notice 2.0kB dist/client.d.ts
+npm notice 71.0kB dist/client.js
+npm notice 1.9kB dist/clock.d.ts
+npm notice 9.9kB dist/clock.js
+npm notice 1.0kB dist/closing-responses.d.ts
+npm notice 2.3kB dist/closing-responses.js
+npm notice 17.8kB dist/contract.d.ts
+npm notice 543B dist/contract.js
+npm notice 49B dist/default-fetch.d.ts
+npm notice 455B dist/default-fetch.js
+npm notice 333B dist/delivery-acceptance.d.ts
+npm notice 1.2kB dist/delivery-acceptance.js
+npm notice 2.4kB dist/delivery-state.d.ts
+npm notice 6.2kB dist/delivery-state.js
+npm notice 2.2kB dist/delivery.d.ts
+npm notice 19.2kB dist/delivery.js
+npm notice 1.6kB dist/device-control.d.ts
+npm notice 3.5kB dist/device-control.js
+npm notice 1.7kB dist/device-restore.d.ts
+npm notice 3.0kB dist/device-restore.js
+npm notice 1.3kB dist/ephemeral-reads.d.ts
+npm notice 5.7kB dist/ephemeral-reads.js
+npm notice 1.1kB dist/ephemeral.d.ts
+npm notice 6.2kB dist/ephemeral.js
+npm notice 1.4kB dist/http-response.d.ts
+npm notice 4.2kB dist/http-response.js
+npm notice 1.8kB dist/identity-admission.d.ts
+npm notice 8.7kB dist/identity-admission.js
+npm notice 80B dist/identity-principal.d.ts
+npm notice 312B dist/identity-principal.js
+npm notice 544B dist/identity-runtime.d.ts
+npm notice 4.7kB dist/identity-runtime.js
+npm notice 3.8kB dist/identity.d.ts
+npm notice 29.0kB dist/identity.js
+npm notice 126B dist/inspection.d.ts
+npm notice 49B dist/inspection.js
+npm notice 117B dist/journal-changes.d.ts
+npm notice 2.8kB dist/journal-changes.js
+npm notice 1.6kB dist/local-assets.d.ts
+npm notice 10.0kB dist/local-assets.js
+npm notice 687B dist/local-backend.d.ts
+npm notice 1.8kB dist/local-backend.js
+npm notice 1.5kB dist/local-delivery.d.ts
+npm notice 7.9kB dist/local-delivery.js
+npm notice 4.4kB dist/local-device.d.ts
+npm notice 376B dist/local-device.js
+npm notice 451B dist/local-exit-settlement.d.ts
+npm notice 939B dist/local-exit-settlement.js
+npm notice 614B dist/local-exit.d.ts
+npm notice 3.0kB dist/local-exit.js
+npm notice 684B dist/local-following.d.ts
+npm notice 3.4kB dist/local-following.js
+npm notice 658B dist/local-native.d.ts
+npm notice 3.1kB dist/local-native.js
+npm notice 473B dist/local-publication.d.ts
+npm notice 845B dist/local-publication.js
+npm notice 3.4kB dist/local-query.d.ts
+npm notice 24.3kB dist/local-query.js
+npm notice 738B dist/local-read-deadlines.d.ts
+npm notice 2.1kB dist/local-read-deadlines.js
+npm notice 7.8kB dist/local-reads.d.ts
+npm notice 18.7kB dist/local-reads.js
+npm notice 2.1kB dist/local-receipts.d.ts
+npm notice 6.5kB dist/local-receipts.js
+npm notice 2.2kB dist/local-search.d.ts
+npm notice 20.0kB dist/local-search.js
+npm notice 1.4kB dist/local-sync.d.ts
+npm notice 4.5kB dist/local-sync.js
+npm notice 189B dist/local-through.d.ts
+npm notice 5.3kB dist/local-through.js
+npm notice 891B dist/local-types.d.ts
+npm notice 11B dist/local-types.js
+npm notice 399B dist/local.d.ts
+npm notice 113.1kB dist/local.js
+npm notice 437B dist/mock-ephemeral.d.ts
+npm notice 5.0kB dist/mock-ephemeral.js
+npm notice 1.9kB dist/mock.d.ts
+npm notice 12.3kB dist/mock.js
+npm notice 866B dist/native.d.ts
+npm notice 5.2kB dist/native.js
+npm notice 159B dist/node-fetch.d.ts
+npm notice 5.2kB dist/node-fetch.js
+npm notice 1.6kB dist/observation-work.d.ts
+npm notice 4.4kB dist/observation-work.js
+npm notice 1.7kB dist/observe-watch.d.ts
+npm notice 5.7kB dist/observe-watch.js
+npm notice 710B dist/online-delivery.d.ts
+npm notice 1.8kB dist/online-delivery.js
+npm notice 701B dist/online-dispatch.d.ts
+npm notice 635B dist/online-dispatch.js
+npm notice 890B dist/pending-writes.d.ts
+npm notice 3.8kB dist/pending-writes.js
+npm notice 423B dist/presence-refresh.d.ts
+npm notice 858B dist/presence-refresh.js
+npm notice 1.2kB dist/query-settlement.d.ts
+npm notice 4.6kB dist/query-settlement.js
+npm notice 898B dist/react-pages.d.ts
+npm notice 7.5kB dist/react-pages.js
+npm notice 798B dist/react-pending-writes.d.ts
+npm notice 2.3kB dist/react-pending-writes.js
+npm notice 5.5kB dist/react.d.ts
+npm notice 18.9kB dist/react.js
+npm notice 698B dist/read-approval.d.ts
+npm notice 6.1kB dist/read-approval.js
+npm notice 1.0kB dist/read-episode.d.ts
+npm notice 2.9kB dist/read-episode.js
+npm notice 468B dist/read-existence.d.ts
+npm notice 1.1kB dist/read-existence.js
+npm notice 1.5kB dist/read-expiry.d.ts
+npm notice 6.6kB dist/read-expiry.js
+npm notice 320B dist/read-key.d.ts
+npm notice 593B dist/read-key.js
+npm notice 166B dist/read-notifications.d.ts
+npm notice 558B dist/read-notifications.js
+npm notice 3.0kB dist/read-observation.d.ts
+npm notice 11.1kB dist/read-observation.js
+npm notice 1.4kB dist/read-work.d.ts
+npm notice 8.9kB dist/read-work.js
+npm notice 749B dist/request-wait.d.ts
+npm notice 1.7kB dist/request-wait.js
+npm notice 310B dist/residency.d.ts
+npm notice 949B dist/residency.js
+npm notice 49B dist/resolve-binary.d.ts
+npm notice 1.3kB dist/resolve-binary.js
+npm notice 570B dist/server-context.d.ts
+npm notice 7.1kB dist/server-context.js
+npm notice 694B dist/server-effect-context.d.ts
+npm notice 5.8kB dist/server-effect-context.js
+npm notice 735B dist/server-json.d.ts
+npm notice 4.2kB dist/server-json.js
+npm notice 1.3kB dist/server-lifetime.d.ts
+npm notice 3.9kB dist/server-lifetime.js
+npm notice 1.4kB dist/server-private.d.ts
+npm notice 339B dist/server-private.js
+npm notice 1.8kB dist/server-routes.d.ts
+npm notice 7.4kB dist/server-routes.js
+npm notice 630B dist/server-steps.d.ts
+npm notice 3.6kB dist/server-steps.js
+npm notice 790B dist/server-verify.d.ts
+npm notice 7.5kB dist/server-verify.js
+npm notice 3.4kB dist/server.d.ts
+npm notice 11.9kB dist/server.js
+npm notice 568B dist/session-authority.d.ts
+npm notice 7.4kB dist/session-authority.js
+npm notice 195B dist/sha256.d.ts
+npm notice 3.6kB dist/sha256.js
+npm notice 57B dist/utf8-size.d.ts
+npm notice 304B dist/utf8-size.js
+npm notice 2.0MB dist/wasm/snapback4_device_bg.wasm
+npm notice 887B dist/wasm/snapback4_device_bg.wasm.d.ts
+npm notice 2.9kB dist/wasm/snapback4_device.d.ts
+npm notice 14.9kB dist/wasm/snapback4_device.js
+npm notice 150B dist/web-drain.d.ts
+npm notice 422B dist/web-drain.js
+npm notice 1.6kB dist/web-idb-buckets.d.ts
+npm notice 8.1kB dist/web-idb-buckets.js
+npm notice 1.1kB dist/web-idb-pages.d.ts
+npm notice 14.1kB dist/web-idb-pages.js
+npm notice 150B dist/web-idb.d.ts
+npm notice 13.8kB dist/web-idb.js
+npm notice 526B dist/web-journal-execution.d.ts
+npm notice 555B dist/web-journal-execution.js
+npm notice 3.0kB dist/web-journal.d.ts
+npm notice 19.8kB dist/web-journal.js
+npm notice 552B dist/web-ownership.d.ts
+npm notice 3.7kB dist/web-ownership.js
+npm notice 583B dist/web-receipts.d.ts
+npm notice 3.2kB dist/web-receipts.js
+npm notice 341B dist/web-residency.d.ts
+npm notice 2.5kB dist/web-residency.js
+npm notice 301B dist/web-wasm.d.ts
+npm notice 3.5kB dist/web-wasm.js
+npm notice 316B dist/web-worker-device.d.ts
+npm notice 14.1kB dist/web-worker-device.js
+npm notice 11B dist/web-worker-entry.d.ts
+npm notice 80B dist/web-worker-entry.js
+npm notice 2.4kB dist/web-worker-host.d.ts
+npm notice 13.4kB dist/web-worker-host.js
+npm notice 446B dist/web-worker-orphans.d.ts
+npm notice 6.1kB dist/web-worker-orphans.js
+npm notice 1.1kB dist/web-worker-runtime.d.ts
+npm notice 7.3kB dist/web-worker-runtime.js
+npm notice 855B dist/web-worker-suspend.d.ts
+npm notice 4.7kB dist/web-worker-suspend.js
+npm notice 2.7kB dist/web.d.ts
+npm notice 37.9kB dist/web.js
+npm notice 649B dist/worker-ledger.d.ts
+npm notice 5.3kB dist/worker-ledger.js
+npm notice 6.4kB dist/worker.d.ts
+npm notice 20.9kB dist/worker.js
+npm notice 2.7kB dist/writes.d.ts
+npm notice 13.5kB dist/writes.js
+npm notice 2.8kB package.json
+npm notice Tarball Details
+npm notice name: snapback4
+npm notice version: 0.4.11
+npm notice filename: snapback4-0.4.11.tgz
+npm notice package size: 997.5 kB
+npm notice unpacked size: 3.5 MB
+npm notice shasum: 513ec1993a20d29c003d70a2a8f13dbff69b4eb0
+npm notice integrity: sha512-cNHF+uPt7qnpw[...]trn6s19AYzz8g==
+npm notice total files: 236
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+publish: waiting for snapback4@0.4.11 to become readable
+{"tarballBytes":997466,"platformTarballBytes":7250670,"tarballIntegrity":"sha512-cNHF+uPt7qnpwU7Jxde7GzsuUOLwCiJ/dKDMIYa/5rakYNCk3/KCH6KhKmctNaFoPFlTygB0mtrn6s19AYzz8g==","platformTarballIntegrity":"sha512-C/UpT0BOvkFgqbUNPOahLYAyck9iFIsggGMKsnjYmp4InS5f7Nm5tTrBgB/NMrJ9h7qCKfm6uJ3wZu6/GAit2w==","files":236,"binaryVersion":"snapback4 0.4.11","binaryProfile":"production","sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"platform":"darwin-arm64","at":"2026-10-02T15:16:22.386Z","version":"0.4.11","source":"775d64b2798a059a05aaf14a76bb6330d1bfdc67","artifacts":[{"name":"snapback4-darwin-arm64","version":"0.4.11","filename":"snapback4-darwin-arm64-0.4.11.tgz","integrity":"sha512-C/UpT0BOvkFgqbUNPOahLYAyck9iFIsggGMKsnjYmp4InS5f7Nm5tTrBgB/NMrJ9h7qCKfm6uJ3wZu6/GAit2w==","bytes":7250670,"binaryProfile":"production","binarySha256":"debb1dc32db29980a629e3af7eca516f260476aeff622674b76708bf3b60e7c9","binaryVersion":"snapback4 0.4.11","binaryBytes":14771568,"cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","signing":{"signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null},"proof":{"status":"passed","clientIntegrity":"sha512-cNHF+uPt7qnpwU7Jxde7GzsuUOLwCiJ/dKDMIYa/5rakYNCk3/KCH6KhKmctNaFoPFlTygB0mtrn6s19AYzz8g==","platformIntegrity":"sha512-C/UpT0BOvkFgqbUNPOahLYAyck9iFIsggGMKsnjYmp4InS5f7Nm5tTrBgB/NMrJ9h7qCKfm6uJ3wZu6/GAit2w=="}},{"name":"snapback4-linux-x64","version":"0.4.11","filename":"snapback4-linux-x64-0.4.11.tgz","integrity":"sha512-hUsdzahWH2zVTnEWF8jpQ0TbZurpdPokrYm4Nsmz6jjPo+bdB4Zk4bFOalKgMkb04En+JMY/0lahF/eZRje6nw==","bytes":8238237,"binarySha256":"ec81a68737d838f131523f409037a76592aefcc6f43e793932a4b03a728af2dc","receiptFile":"linux-receipt.json","receiptIntegrity":"sha512-Wo/1Jf04u6HOFqiQa4IA13jGfotgzyOIMryEjWr/fpKsnB+Or3BAinxYXp+53y9M1GKd/+qe5bjg3sGsqh8EIA=="},{"name":"snapback4","version":"0.4.11","filename":"snapback4-0.4.11.tgz","integrity":"sha512-cNHF+uPt7qnpwU7Jxde7GzsuUOLwCiJ/dKDMIYa/5rakYNCk3/KCH6KhKmctNaFoPFlTygB0mtrn6s19AYzz8g==","bytes":997466,"files":236}],"resume":"/Users/ccheever/projects/snapback-pub-0411/snapback4/target/publication/snapback4-darwin-arm64-0.4.11/resume.json","signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null,"binaryBytes":14771568,"binarySha256":"debb1dc32db29980a629e3af7eca516f260476aeff622674b76708bf3b60e7c9","publish_s":411.5,"dry":false}

@@ -1,0 +1,92 @@
+{
+  "source": "775d64b2798a059a05aaf14a76bb6330d1bfdc67",
+  "sourceTrees": {
+    "snapback4-core": "6e5846c31860d3d991a9bbef576a68299195bf7b",
+    "snapback4-device": "eadcc07ab22b9fc454fc6c2c858e77cd525d5747"
+  },
+  "version": "0.4.11",
+  "published": false,
+  "qualification": "Rebuilt native framework, CLI, wasm and client package, then the Release chat-expo app; offline --prime and restart --prime --relaunch passed using this worktree\u2019s built public CLI witness verb. CLI source-suite and installed-consumer qualification pending.",
+  "xcframework": {
+    "ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "77838c81a682c116eb9cd86de7fb3fa7a330504fb71faf368454710d368215f1",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "fdf4e5ee6383f5090390a53e1eee095ba119db2188278ed5aa77add1742ae2d3"
+  },
+  "toolchain": {
+    "node": "v24.18.0",
+    "bun": "1.4.2",
+    "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "xcode": "Xcode 27.0\nBuild version 27A266a",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "cpu": "Apple M5 Max"
+  },
+  "preparedAt": "2026-10-02T10:01:56.102190+00:00",
+  "linkedNativeArchive": {
+    "built": "/Users/ccheever/projects/snapback-pub-0411/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+    "linked": "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-csiesaaeqgmbnrgdemhhjqazwaby/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/Snapback4Expo/libsnapback4_device.a",
+    "sha256": "fdf4e5ee6383f5090390a53e1eee095ba119db2188278ed5aa77add1742ae2d3",
+    "matches": true
+  },
+  "app": {
+    "built": "/Users/ccheever/projects/snapback-pub-0411/snapback4/target/expo-release/Snapback4chat.app",
+    "installed": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Bundle/Application/1E3A4383-4BA5-4E87-8E75-E79D32AA8A91/Snapback4chat.app",
+    "executable": "Snapback4chat",
+    "sha256": "879662a97b2e53a7065bf180cb4c786648a50e0861ef16ee53f7d66292d6075e",
+    "bundleSha256": "dd378e0b199a0e9bcbcdeb623d98211b02c66a7f2c71a60da5d148e1958bcf35",
+    "installedMatches": true,
+    "bundleId": "dev.snapback4.chat"
+  },
+  "cli": {
+    "path": "/Users/ccheever/projects/snapback-pub-0411/snapback4/target/debug/snapback4",
+    "sha256": "c6c6ac369238dc0091b7958fc08ed5998d7baf263caab31604cabd72144742ca"
+  },
+  "simulator": "81961F7D-DF85-4A7A-B376-20D9073AC101",
+  "port": 44441,
+  "witnesses": {
+    "offline": {
+      "manifest": "offline-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 14.472,
+      "prime": true,
+      "relaunch": false,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "879662a97b2e53a7065bf180cb4c786648a50e0861ef16ee53f7d66292d6075e"
+    },
+    "restart": {
+      "manifest": "restart-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 20.142,
+      "prime": true,
+      "relaunch": true,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "879662a97b2e53a7065bf180cb4c786648a50e0861ef16ee53f7d66292d6075e"
+    }
+  },
+  "files": {
+    "README.md": "d58fde69e6edaf1984fa101749204b8f121d3d6eb5aa698923148f09beb09c9c",
+    "expo-module.config.json": "4150f21b78b3dcfff4f15a4a2fe59ebfa76969fd3af43d10d1a9bc563eb9ad37",
+    "ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+    "ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "77838c81a682c116eb9cd86de7fb3fa7a330504fb71faf368454710d368215f1",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "fdf4e5ee6383f5090390a53e1eee095ba119db2188278ed5aa77add1742ae2d3",
+    "ios/Snapback4Expo.podspec": "c9f21e5335e77827679388d8f69a6f4396452c9b2a80f029cb8aaceaf0d15746",
+    "ios/Snapback4Module.swift": "5eacd24bcb5e592a4f5cf2a9c29db9541327c2fd48987a648777e9be48ef9159",
+    "ios/WitnessContainer.swift": "f9aba4fb3468e89d0a866f391560ac75e3cfeab37d0dbc7e0e2dee13bd1c533f",
+    "package.json": "669881f6f28ef19b19860ff1d35c06d4358d4974d167f6717571de7fdcd77df9",
+    "plugin.cjs": "1c967b792e226311d1e0ec6a096232136d4c4f95375494d745f97e152577c121",
+    "src/index.ts": "04b159568638ca68a6fcfe2aa95ea7b558c6d3869f72f3b61d6b86259aec5731",
+    "src/smoke.ts": "97907b79f24eb2d8e38e3facc9a68a350a8c2d5140d3b982ee8d4555b2d65b98",
+    "src/witness-core.ts": "f14408dddc0b786995e40411b3e244ec1ee46634cc61461b4a6f78f13603b09a",
+    "src/witness-runtime.ts": "7c442b144e35f34f479d7d85a1de724cbe9d1257ce9784536a1efa7166ee4b30",
+    "src/witness.ts": "fd4e5ba520d3ef90804fd2b56ed5aaf22a50e18a52e78ba960c9643af4f48c93"
+  },
+  "at": "2026-10-02T10:04:21.072116+00:00"
+}

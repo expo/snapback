@@ -1,0 +1,14 @@
+{
+  "step": "simulator-shutdown",
+  "command": [
+    "xcrun",
+    "simctl",
+    "shutdown",
+    "81961F7D-DF85-4A7A-B376-20D9073AC101"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0411/snapback4",
+  "start": 1790914085.81356,
+  "end": 1790914089.0337431,
+  "seconds": 3.22,
+  "exit": 0
+}
