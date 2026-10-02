@@ -1,0 +1,154 @@
+[
+  {
+    "phase": "before",
+    "sourceCommit": "850fea99574d969331f68b0df1417ad1f942d2a9",
+    "workerSourceSha256": "54589e25dfa62df37e492fa8147aa3942dcf08418e1d1becbd7e1939771d7fce",
+    "binary": "/home/ccheever/sb4-intent/lane-qf/snapback4/target/debug/snapback4",
+    "node": "v24.13.1",
+    "workerBinary": "/tmp/qf-delayed-20ms",
+    "cpus": 96,
+    "concurrency": 24,
+    "targetRuns": 3,
+    "started": "2026-10-02T18:22:43.597Z",
+    "finished": "2026-10-02T18:39:05.174Z",
+    "workerRuns": 3,
+    "workerFailures": 1,
+    "loadFiles": 795,
+    "loadFailures": [],
+    "maxActive": 23,
+    "slowest": [
+      {
+        "file": "ordinary-search-oracle.test.mjs",
+        "elapsed": 498432,
+        "passed": true
+      },
+      {
+        "file": "ordinary-search-oracle.test.mjs",
+        "elapsed": 493658,
+        "passed": true
+      },
+      {
+        "file": "ordinary-search-oracle.test.mjs",
+        "elapsed": 492406,
+        "passed": true
+      },
+      {
+        "file": "worker-regressions.test.mjs",
+        "elapsed": 440752,
+        "passed": true
+      },
+      {
+        "file": "worker-regressions.test.mjs",
+        "elapsed": 440564,
+        "passed": true
+      },
+      {
+        "file": "mixed-evidence-oracle.test.mjs",
+        "elapsed": 392914,
+        "passed": true
+      },
+      {
+        "file": "mixed-evidence-oracle.test.mjs",
+        "elapsed": 388394,
+        "passed": true
+      },
+      {
+        "file": "mixed-evidence-oracle.test.mjs",
+        "elapsed": 387614,
+        "passed": true
+      },
+      {
+        "file": "keep-app-model.test.mjs",
+        "elapsed": 380344,
+        "passed": true
+      },
+      {
+        "file": "keep-app-model.test.mjs",
+        "elapsed": 380134,
+        "passed": true
+      }
+    ],
+    "disposition": "excluded from comparison",
+    "reason": "strace default interruptibility ignored TERM; one pass required owned-tracer SIGKILL; trace=none also filtered the requested delay"
+  },
+  {
+    "phase": "before",
+    "sourceCommit": "850fea99574d969331f68b0df1417ad1f942d2a9",
+    "workerSourceSha256": "54589e25dfa62df37e492fa8147aa3942dcf08418e1d1becbd7e1939771d7fce",
+    "binary": "/home/ccheever/sb4-intent/lane-qf/snapback4/target/debug/snapback4",
+    "node": "v24.13.1",
+    "workerBinary": "/home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/delayed-server.sh",
+    "wrapperSha256": "5b7d723438cfaea2d2f9a87d7ba79bc90241ec4db8542ce8697e3be928ccfd7f",
+    "pid": 1956275,
+    "cpus": 96,
+    "concurrency": 24,
+    "targetRuns": 3,
+    "started": "2026-10-02T18:40:26.180Z",
+    "finished": "2026-10-02T18:43:01.272Z",
+    "workerRuns": 3,
+    "workerFailures": 0,
+    "loadFiles": 41,
+    "loadFailures": [
+      {
+        "file": "bounded-following.test.mjs",
+        "label": "load-37",
+        "reason": "TEST_FILE_ABORT"
+      }
+    ],
+    "maxActive": 23,
+    "slowest": [
+      {
+        "file": "acquisition.test.mjs",
+        "elapsed": 153578,
+        "passed": true
+      },
+      {
+        "file": "bounded-following.test.mjs",
+        "elapsed": 152516,
+        "passed": false
+      },
+      {
+        "file": "asset-lists.test.mjs",
+        "elapsed": 126746,
+        "passed": true
+      },
+      {
+        "file": "admit-before-identity.test.mjs",
+        "elapsed": 59185,
+        "passed": true
+      },
+      {
+        "file": "answers-stay-round3.test.mjs",
+        "elapsed": 54519,
+        "passed": true
+      },
+      {
+        "file": "client-seams.test.mjs",
+        "elapsed": 50102,
+        "passed": true
+      },
+      {
+        "file": "asset-avatars.test.mjs",
+        "elapsed": 43160,
+        "passed": true
+      },
+      {
+        "file": "client-lifecycle.test.mjs",
+        "elapsed": 41135,
+        "passed": true
+      },
+      {
+        "file": "answers-stay-round2.test.mjs",
+        "elapsed": 39228,
+        "passed": true
+      },
+      {
+        "file": "app.test.mjs",
+        "elapsed": 37345,
+        "passed": true
+      }
+    ],
+    "disposition": "excluded from comparison",
+    "reason": "setup used a wrong relative path and retained trace=none; no controlled delay; explicitly aborted driver after detecting this"
+  }
+]

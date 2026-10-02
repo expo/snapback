@@ -1,0 +1,13 @@
+(node:1349222) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ replacement copy waits for a held writer, retaining real identity in a distinct store (389.486447ms)
+✔ held replacement writer fails its test, closes its server and exits without hanging (447.7815ms)
+✔ replacement also closes when its post-copy admission assertion fails (276.879683ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1190.977756

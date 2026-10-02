@@ -1,0 +1,84 @@
+{
+  "exitRecord": [
+    "START=2026-10-02T19:11:23Z",
+    "EXIT=0",
+    "END=2026-10-02T19:35:29Z"
+  ],
+  "logSha256": "0f5e92f3cc9690cd3050dcb181c757129fe6075bd9e0923c79938834ebddada4",
+  "fileResults": 286,
+  "failedFiles": [],
+  "slowestOrdinary": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 493801,
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "passed": true,
+      "elapsed": 440567,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 388371,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "passed": true,
+      "elapsed": 380127,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "passed": true,
+      "elapsed": 204533,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "models": [
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "passed": true,
+      "elapsed": 243106,
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/online-client-model.test.mjs",
+      "passed": true,
+      "elapsed": 69991,
+      "tests": 27,
+      "pass": 27,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ]
+}

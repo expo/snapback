@@ -82679,3 +82679,50 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+
+## 2026-10-02 — QF round 0: qualification fixture races and file containment
+
+Fix the browser replacement fixture's uncoordinated identity-table copy with
+one immediate transaction and a five-second bounded SQLite BUSY/LOCKED retry.
+The fixture retains ownership until all setup assertions succeed and closes
+its replacement on every failure. Real held-writer regressions prove successful
+retry after release and a failing nested test that exits with no child server;
+a post-copy probe failure also proves cleanup. Keep every admission assertion.
+Close and move the [replacement ticket](../issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+
+The worker restart failure is a fixture startup race: the URL is printed before
+initial named-worker admission. An immediate declaration can enter initial
+admission and fatally fail the host on Node 23, so repairing Node cannot reach
+the pending-declaration retry. Wait for a served HTTP response before editing;
+retain host logs, exit state, worker status rows and liveness on timeout. A
+permanent held-admission regression fails when that readiness barrier is removed.
+No product code changes. Historical publication logs were discarded, so the
+reproduced counterexample does not uniquely attribute that historical run.
+
+Honor the publication host guard: it released at 18:07:09Z after EXIT=0.
+Natural 24-file load: original worker 0/200 failures. Under a verified 100 ms
+clone3 scheduling delay and 23 real client-file load slots: original fixture
+1/1 failure at the same 122-second wait, fixed fixture 0/200 failures. All 815
+fixed-phase background executions passed and covered the full 283-file ordinary
+inventory. Preserve excluded tracer-development batches separately.
+
+An independent parent now bounds ordinary client/fixture files at fifteen
+minutes and full-count model files at thirty minutes, diagnoses hangs and
+cleans up registered children/descendants with TERM/KILL and start-identity
+checks. Regressions include blocked JavaScript, leaked handles, detached orphans
+and preserved assertion failures. The largest qualified ordinary file took
+513.743 seconds; final model files took 243.106 and 69.991 seconds. No existing
+assertion, case or seed count is removed.
+
+The single final suite reports exactly `== 0 failure(s) in 1446 s`, exit 0.
+All Rust targets/doctests and build/app/fixture categories pass; ordinary clients
+5,792 passed, 0 failed, ten unchanged conditional skips; models 79/79 passed.
+Affected files: worker 61/61, browser admission 55/55, replacement 3/3 and
+watchdog 4/4. Full-suite failures: ours 0, baseline 0, environmental 0.
+File the separate [worker-refusal fixture overhead](../issues/20261002-snapback4-worker-refusal-tests-wait-entire-hang-guard.md)
+follow-up for three tests that unnecessarily consume their entire hang guard.
+Commands, source hashes, all repetition outcomes, controls and failure
+classifications are in the [QF report](./reports/20261002-qf-qualification-flakes/REPORT.md).
+One local commit with the requested Astra co-author trailer; nothing pushed or
+published.

@@ -1,0 +1,82 @@
+{
+  "phase": "after",
+  "sourceCommit": "850fea99574d969331f68b0df1417ad1f942d2a9",
+  "workerSourceSha256": "1efb2d8bc58d743c9142856208800fc1450b385063a6c779fa969b8fdd3fa2bb",
+  "binary": "/home/ccheever/sb4-intent/lane-qf/snapback4/target/debug/snapback4",
+  "node": "v24.13.1",
+  "workerBinary": "/home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/delayed-server.sh",
+  "wrapperSha256": "e6f5a1afe3f389e1576a367a42e017fd3f174f0c015bc18dfa2ad44b5278a129",
+  "pid": 2226799,
+  "cpus": 96,
+  "concurrency": 24,
+  "targetRuns": 200,
+  "started": "2026-10-02T18:54:27.882Z",
+  "finished": "2026-10-02T19:11:04.594Z",
+  "workerRuns": 200,
+  "workerFailures": 0,
+  "loadFiles": 815,
+  "loadFailures": [],
+  "maxActive": 23,
+  "slowest": [
+    {
+      "file": "ordinary-search-oracle.test.mjs",
+      "elapsed": 505059,
+      "passed": true
+    },
+    {
+      "file": "ordinary-search-oracle.test.mjs",
+      "elapsed": 500382,
+      "passed": true
+    },
+    {
+      "file": "ordinary-search-oracle.test.mjs",
+      "elapsed": 485841,
+      "passed": true
+    },
+    {
+      "file": "worker-regressions.test.mjs",
+      "elapsed": 445812,
+      "passed": true
+    },
+    {
+      "file": "worker-regressions.test.mjs",
+      "elapsed": 445392,
+      "passed": true
+    },
+    {
+      "file": "mixed-evidence-oracle.test.mjs",
+      "elapsed": 392589,
+      "passed": true
+    },
+    {
+      "file": "mixed-evidence-oracle.test.mjs",
+      "elapsed": 390741,
+      "passed": true
+    },
+    {
+      "file": "mixed-evidence-oracle.test.mjs",
+      "elapsed": 383065,
+      "passed": true
+    },
+    {
+      "file": "keep-app-model.test.mjs",
+      "elapsed": 380646,
+      "passed": true
+    },
+    {
+      "file": "keep-app-model.test.mjs",
+      "elapsed": 380249,
+      "passed": true
+    }
+  ],
+  "uniqueLoadFiles": 283,
+  "targetActiveLoadSlots": [
+    23
+  ],
+  "rawRunsSha256": "d879181d14b5ba06133c467303449ccec67d2ff4260b429e924734b3ac927aae",
+  "targetDurationMs": {
+    "min": 2799,
+    "median": 2883.0,
+    "max": 2927
+  }
+}

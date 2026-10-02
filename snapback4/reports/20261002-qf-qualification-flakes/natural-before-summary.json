@@ -1,0 +1,74 @@
+{
+  "phase": "before",
+  "sourceCommit": "850fea99574d969331f68b0df1417ad1f942d2a9",
+  "workerSourceSha256": "54589e25dfa62df37e492fa8147aa3942dcf08418e1d1becbd7e1939771d7fce",
+  "binary": "/home/ccheever/sb4-intent/lane-qf/snapback4/target/debug/snapback4",
+  "node": "v24.13.1",
+  "cpus": 96,
+  "concurrency": 24,
+  "targetRuns": 200,
+  "started": "2026-10-02T18:10:25.076Z",
+  "finished": "2026-10-02T18:20:28.824Z",
+  "workerRuns": 200,
+  "workerFailures": 0,
+  "loadFiles": 386,
+  "loadFailures": [],
+  "maxActive": 23,
+  "slowest": [
+    {
+      "file": "ordinary-search-oracle.test.mjs",
+      "elapsed": 505730,
+      "passed": true
+    },
+    {
+      "file": "worker-regressions.test.mjs",
+      "elapsed": 445528,
+      "passed": true
+    },
+    {
+      "file": "mixed-evidence-oracle.test.mjs",
+      "elapsed": 391350,
+      "passed": true
+    },
+    {
+      "file": "keep-app-model.test.mjs",
+      "elapsed": 380670,
+      "passed": true
+    },
+    {
+      "file": "keep-app-model.test.mjs",
+      "elapsed": 380541,
+      "passed": true
+    },
+    {
+      "file": "bounded-following.test.mjs",
+      "elapsed": 204988,
+      "passed": true
+    },
+    {
+      "file": "bounded-following.test.mjs",
+      "elapsed": 204595,
+      "passed": true
+    },
+    {
+      "file": "keep-clock.test.mjs",
+      "elapsed": 192987,
+      "passed": true
+    },
+    {
+      "file": "keep-clock.test.mjs",
+      "elapsed": 192978,
+      "passed": true
+    },
+    {
+      "file": "acquisition.test.mjs",
+      "elapsed": 152401,
+      "passed": true
+    }
+  ],
+  "uniqueLoadFiles": 283,
+  "targetActiveLoadSlots": [
+    23
+  ],
+  "rawRunsSha256": "4b767ae65b194ffa1eaa031004e0f3adb93cd1ad9e5b50c184bf74d51c6b3180"
+}
