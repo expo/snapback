@@ -188,3 +188,88 @@ fn grok_sorted_and_inspecting_mutations_refuse_but_point_extrema_stay_scalar() {
         }
     }
 }
+
+#[test]
+fn astra_captured_rows_survive_skipped_resets_and_all_consumers() {
+    for transfer in ["break", "continue"] {
+        for kind in ["query", "mutation"] {
+            for consumer in [
+                "return max(chosen, chosen)",
+                "(lo, hi) = sorted(chosen, chosen)\n  return hi.id",
+                "return share(1, [chosen], chosen)",
+                "return chosen = chosen",
+                "if max(chosen, chosen).value > 0:\n    return chosen.id\n  return null",
+            ] {
+                let tail = format!("{kind} probe(stop: bool):\n  saved = null\n  for row in unread first 10:\n    saved = row\n    if stop:\n      {transfer}\n    saved = null\n  chosen = saved ! else NOT_FOUND\n  {consumer}\n");
+                refuse(&tail, "recountPending");
+            }
+        }
+    }
+}
+
+#[test]
+fn reuse_is_scope_wide_even_before_the_row_assignment() {
+    // Both uses are null at runtime, but the local carries a row in this scope.
+    for tail in [
+        "query probe():\n  for row in unread first 10:\n    saved = row\n    saved = null\n    return share(1, [saved], saved)\n  return null\n",
+        "query probe():\n  saved = null\n  answer = share(1, [saved], saved)\n  for row in unread first 10:\n    saved = row\n  return answer\n",
+    ] {
+        let b = snapback4_lang::compile(&[("reuse.q".into(), base() + tail)]);
+        assert!(b.diagnostics.iter().any(|d| d.code == "E_VIEW_KEY" && d.message.contains("recountPending")
+            && d.rewrite.contains("use a separate variable for the row")), "{tail}\n{:?}", b.diagnostics);
+    }
+}
+
+#[test]
+fn helper_parameters_and_results_join_calls_across_operations() {
+    for helper in ["fn identity(row: unread): row\n", "fn identity(row: unread):\n  return row\n",
+        "fn identity(row: unread):\n  local = row\n  return local\n"] {
+        for reversed in [false, true] {
+            let mut calls = ["query scalar():\n  return min(identity('u'), identity('u'))\n",
+                "query helperRows():\n  for row in unread first 10:\n    return identity(row)\n  return null\n"];
+            if reversed { calls.reverse(); }
+            refuse(&format!("{helper}{}{}", calls[0], calls[1]), "recountPending");
+        }
+    }
+    refuse("fn captured(stop: bool):\n  saved = null\n  for row in unread first 10:\n    saved = row\n    if stop:\n      return saved\n    saved = null\n  return saved\nquery probe(stop: bool):\n  chosen = captured(stop) ! else NOT_FOUND\n  return max(chosen, chosen)\n", "recountPending");
+}
+
+#[test]
+fn generated_control_flow_cannot_erase_maintenance_types() {
+    let mut refusals = 0;
+    let mut controls = 0;
+    for seed in [7u64, 20261002, 0xdeadbeef, 0x5eed] {
+        let mut random = seed;
+        for _ in 0..12 {
+            random ^= random << 13; random ^= random >> 7; random ^= random << 17;
+            let row = match random % 3 {
+                0 => "row",
+                1 => "({nested: row}).nested",
+                _ => "identity(first([row]) ! else NOT_FOUND)",
+            };
+            for transfer in ["break", "continue"] {
+                let statements = if random & 1 == 0 {
+                    format!("    if stop:\n      saved = {row}\n      {transfer}\n    saved = null\n")
+                } else {
+                    format!("    saved = {row}\n    if stop:\n      {transfer}\n    if not stop:\n      saved = null\n")
+                };
+                let head = format!("fn identity(row: unread): row\nquery probe(stop: bool):\n  saved = null\n  for row in unread first 10:\n{statements}  chosen = saved ! else NOT_FOUND\n");
+                let consumer = match random % 4 {
+                    0 => "  return max(chosen, chosen)\n",
+                    1 => "  return share(1, [chosen], chosen)\n",
+                    2 => "  (lo, hi) = sorted(chosen, chosen)\n  return hi\n",
+                    _ => "  return chosen = chosen\n",
+                };
+                for kind in ["query", "mutation"] {
+                    refuse(&(head.replace("query probe", &format!("{kind} probe")) + consumer), "recountPending");
+                    refusals += 1;
+                }
+                let allowed = head + "  return chosen.value\n";
+                let b = snapback4_lang::compile(&[("generated.q".into(), base() + &allowed)]);
+                assert!(b.diagnostics.is_empty(), "{allowed}\n{:?}", b.diagnostics);
+                controls += 1;
+            }
+        }
+    }
+    eprintln!("BG round8 generated control flow: 4 seeds, {refusals} refusals, {controls} ordinary-field controls");
+}

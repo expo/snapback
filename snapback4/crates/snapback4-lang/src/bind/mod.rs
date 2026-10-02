@@ -184,6 +184,13 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         }
     }
     if diagnostics.is_empty() {
+        let scopes = programs.iter().map(|bound| (&bound.program, &bound.maintenance_scopes)).collect::<Vec<_>>();
+        for (i, message) in snapback4_core::engine::admission::check_state_predicate_scopes(&schema, &scopes) {
+            diagnostics.push(Diagnostic::new(&programs[i].site, "E_VIEW_KEY", message,
+                "project value or member fields before computing; use a separate variable for the row").guide("maintains"));
+        }
+    }
+    if diagnostics.is_empty() {
         programs.retain(|bound| match snapback4_core::engine::admission::check_detail_with_statements(&schema, &bound.program, &bound.statement_ends) {
             Ok(()) => true,
             Err(error) => {

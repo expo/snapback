@@ -154,6 +154,58 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
             }
         }
     }
+    assert_eq!(out.len(), 803, "retain the complete round-7 matrix");
+    // Round 8: captures, reset assignments and consumers surround conditional
+    // loop transfers. The generated raw IR exercises all six native boundaries.
+    for seed in [7u64, 20261002, 0xdeadbeef, 0x5eed] {
+        let mut random = seed;
+        for case in 0..12 {
+            random ^= random << 13; random ^= random >> 7; random ^= random << 17;
+            for (transfer_name, transfer) in [("break", Stmt::Break), ("continue", Stmt::Continue)] {
+                let captured = match random % 3 {
+                    0 => var("item"),
+                    1 => field_expr(Expr::Object([("nested".into(), var("item"))].into()), "nested"),
+                    _ => Expr::Block { body: vec![Stmt::Let { name: "helper".into(), value: var("item") }], value: Box::new(var("helper")) },
+                };
+                let assign = Stmt::Assign { name:"saved".into(), value: captured };
+                let reset = Stmt::Assign { name:"saved".into(), value: Expr::Literal(Value::Null) };
+                let condition = || Expr::Input(Input::Viewer);
+                let body = if random & 1 == 0 {
+                    vec![Stmt::If { condition: condition(), then_body: vec![assign, transfer], else_body: vec![] }, reset]
+                } else {
+                    vec![assign, Stmt::If { condition: condition(), then_body: vec![transfer], else_body: vec![] },
+                        Stmt::If { condition: condition(), then_body: vec![], else_body: vec![reset] }]
+                };
+                let consumer = match random % 4 {
+                    0 => Expr::Builtin { builtin: Builtin::Max, args: vec![var("chosen"), var("chosen")] },
+                    1 => Expr::Builtin { builtin: Builtin::DeterministicShare, args: vec![Expr::Literal(Value::Int(1)), Expr::Array(vec![var("chosen")]), var("chosen")] },
+                    2 => Expr::Builtin { builtin: Builtin::Sort { keys: vec![SortKey { field: "id".into(), order: Order::Asc, optional: false }] }, args: vec![Expr::Array(vec![var("chosen")])] },
+                    _ => Expr::Binary { op: BinaryOp::Eq, left: Box::new(var("chosen")), right: Box::new(var("chosen")) },
+                };
+                for kind in [ProgramKind::Query, ProgramKind::Mutation] {
+                    let mut program = programs[0].clone(); program.kind = kind;
+                    program.body = vec![Stmt::Let { name: "saved".into(), value: Expr::Literal(Value::Null) },
+                        Stmt::For { binding:"item".into(), domain:LoopDomain::Page(scan.clone()), body:body.clone() },
+                        Stmt::Let { name:"chosen".into(), value:var("saved") }, Stmt::Return(consumer.clone())];
+                    out.push((format!("control/{seed}/{case}/{transfer_name}/{kind:?}"), base.clone(), vec![program]));
+                }
+            }
+        }
+    }
+    // Contextual row names cannot hide raw assignments made inside a block.
+    for focal in ["$filter", "$project"] {
+        let overwrite = Expr::Block { body: vec![Stmt::Assign { name:focal.into(), value:row.clone() }],
+            value:Box::new(Expr::Builtin { builtin:Builtin::Max, args:vec![var(focal), var(focal)] }) };
+        let mut ordinary = scan.clone(); ordinary.table = "messages".into();
+        let expr = if focal == "$filter" {
+            ordinary.filter = Some(Box::new(overwrite)); Expr::Scan(ordinary)
+        } else {
+            Expr::Merge(Merge { position:None,view:None,order_keys:vec![],site:"focal-capture".into(),variant:None,
+                lanes:vec![MergeLane {guard:None,distinct:None,branch:None,project:Some(overwrite),setup:vec![],scan:ordinary,source:None,binding:"lane".into()}] })
+        };
+        let mut program = programs[0].clone(); program.body = vec![Stmt::Return(expr)];
+        out.push((format!("control/assigned-{focal}"), base.clone(), vec![program]));
+    }
     out
 }
 fn field_expr(base: Expr,name: &str) -> Expr { Expr::Field {base:Box::new(base),name:name.into()} }

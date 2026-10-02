@@ -1893,3 +1893,118 @@ Root reference validation: **525 LLP documents, 10,080 refs, 0 errors,
 LLP, report and journal. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
 no round-7 independent approval or main integration is claimed.
+
+## Round 8 — scope-wide maintenance types (2026-10-02)
+
+**Decision and scope.** Starts at `723fe3f962`; read round 7 first. The operator
+supplies Grok **READY** and Astra **NOT READY, one P2** for that revision. Astra
+confirms the earlier counterexamples, 39 compiler cases, 803-case native matrix
+and 28-variant builtin classification, but demonstrates a captured row whose type
+is erased by a reset skipped by `break` or `continue`. The operator replaces
+control-flow precision with one conservative property for each local's scope and
+each helper across all calls. These incoming verdicts are not round-8 approval.
+
+**Implementation.** Every assignment contributes to a monotone whole-scope type
+before validation. Assignment replacement, branch snapshots and per-loop state
+joins are deleted from this property. Validation reads the completed types and
+never changes them. Transfers and unreachable code do not remove assignments;
+uses before a row assignment carry the same type as uses afterward. Existing
+structural containers, the builtin allowlist and returned-data census remain.
+A null reset cannot erase a row, and heterogeneous reuse refuses conservatively.
+Diagnostics explain the scope rule and say **"use a separate variable for the
+row"**. Ordinary language null/type refinement remains separate.
+
+Quarry retains compiler-only identities for helper parameters, local declarations
+and block results. Inference joins every expansion, including calls in different
+operations and either declaration order. Expression helpers derive their results
+from these shared inputs. No helper identity enters serialized IR or grants a
+native exemption. Raw programs receive the same whole-scope rule over their
+runtime slots. Contextual filter/project receivers also join any raw assignments
+to their slots inside blocks. Scalar point reads now lower to separate row and
+count variables; the conditional still executes one result-binding statement on
+either path. No interpreter, count-certificate, deadline, resource, window or
+prediction-reconstruction change.
+
+**Regression coverage.** All 39 earlier compiler cases remain, with four new
+cohorts: Astra's exact captured-row program crossed with `break`/`continue`,
+query/mutation and `max`/`sorted`/`share`/equality/conditional consumers; resets
+and reuse before and after the row assignment with the new diagnostic; helper
+parameters/results shared across operations and helper-local returns; and a
+four-seed generator combining conditional assignments, wrappers, helpers and
+loop transfers. The generator has **192 refusals and 96 ordinary-field controls**;
+round 6's 96 nested compositions and 384 refusals remain intact. The 28-variant
+builtin census and every earlier allowlisted selector, exact whole-row/status
+result and scalar point-read extrema/sorted control remain.
+
+The native generator asserts the original **803** cases are retained, then adds
+192 loop/branch/reset cases and two raw contextual-slot cases: **997 cases**.
+Engine creation/adoption and Memory/SQLite opening/adoption share that matrix;
+failed device adoption must preserve generation 1. It represents **5,982 refused
+admissions** across the six boundaries.
+
+**Affected verification.** Final compiler **43/43**, guide **110/110**, builtin
+census **28/28**, native witness/deadline **6/6**, and device expiry/prediction/
+admission **14/14** pass. Core engine regressions pass **128/128**, including
+all **56** row-view tests and their independent count/lifetime models. The
+preflight full-language run covers **98 cohorts: 1,290 passed, 8 failed,
+11 ignored**. All eight failures were ours: the lowering golden shards needed
+new digests for the required separate row/count slots. No ownership-on/off IR,
+admission or execution/meter comparison differed. The corrected lowering run
+passes **11/11**, with **3,228 programs**, **6,456 IR comparisons**, **6,456
+admission comparisons** and **37,412 execution comparisons**, zero differences.
+The historical files remain intact; 96 replacement digests cover 108 point
+reads. `round8/verify-lowering.py` reverses only that exact statement pattern and
+its temporary renumbering and recovers every historical digest. Its receipt
+lists each changed program. All development failures and fixes, including the
+initial fixture mistakes, are individually classified as ours in
+`round8/FAILURES.md`.
+
+**Work and wasm.** The unchanged 50-member work regression reports
+**(0 re-certified source rows, 100 examined, 100 steps)** at both **10,000 and
+100,000 history rows**. Wasm remains **2,012,674 B raw / 605,008 B gzip**,
+SHA-256 `233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164`,
+byte-identical to round 7 and **217 B** below the unchanged **605,225 B** cap.
+Of **495** tracked client source/test files, **494** match round 7; `backend.ts`
+changes only the existing held-count shape recognizer as described below. No new latency,
+loaded-parity/speedup, merged-size or cross-platform qualification is claimed.
+
+
+**Held-count integration correction.** The first full-suite candidate exposed
+an existing client dependency on the count lowering's exact IR shape. All eight
+one-shot held-count assertions (wasm, process, app-wasm and app-process in each
+of `one-shot.test.mjs` and `one-shot-review.test.mjs`) expected `E_QUERY_HELD`
+and got `E_QUERY_RETRY`. These are **ours**, not baseline or environmental.
+They reproduce 8/8 in isolation. `backend.ts` now recognizes the new separate
+row/count slots and the earlier serialized single-slot form, with the same
+exact three statements and all existing key/schema/source exclusions. It
+retains the same static permanence proof; no retry-budget or evaluator change.
+LLP 3000.023 §11 records this integration detail. Both complete unchanged test
+files pass **117/117**, including their counterexamples and race controls.
+
+That first suite's exact summary is **`== 1 failure(s) in 1430 s`**, exit 1:
+all 281 Rust binaries / 994 scheduled executions and doctests pass; clients
+5,738 passed / 8 failed / 10 skipped; serial models 79/79. All 1,791 frozen
+source hashes remained unchanged and wasm reproduced byte-for-byte. Its full
+log and receipts remain as `round8/first-suite*`. A second suite invocation was
+necessary to qualify the corrected final source; the first red is retained,
+not omitted from the round's record.
+
+**Final-source suite.** `scripts/test.sh` ran once on the corrected final source:
+**`== 0 failure(s) in 1407 s`**, exit **0**. All **281 Rust test binaries / 994
+scheduled executions** and doctests pass; client tests report **5,746 passed,
+0 failed, 10 skipped**; serial models report **79/79**. Final failures: **ours 0,
+baseline 0, environmental 0**. The known site-48 fault-injection flake passes;
+its existing ticket remains open. There were two full-suite invocations in this
+round: the initial candidate and this corrected final source. The wrapper
+verified all **1,791 frozen source inputs unchanged** throughout this run and
+the rebuilt wasm byte-identical to measurement. `round8/final-verification.json`
+binds the exit, exact summary, source receipt and uncompressed full-log digest.
+All logs are retained in lossless gzip archives with original-byte verification.
+
+**Record.** LLP 3000.015 §3, LLP 3000.023 §11 and the maintains card match the
+implementation; one append-only journal entry records the round. Reference
+validation passes: **525 LLP documents, 10,082 refs, 0 errors, 0 unchecked**.
+`round8/SHA256SUMS` binds the changed source, governing LLPs, report, journal and
+evidence. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
+no round-8 independent approval, main integration or new performance claim.

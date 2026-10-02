@@ -1,5 +1,5 @@
 //! Structural receiver types and a returned-data allowlist, shared by Quarry
-//! admission and native raw-program admission. No field-value provenance.
+//! admission and native raw-program admission. Scope-wide, never flow-sensitive.
 // @ref LLP 3000.015#3 — maintenance fields are query output, never computation.
 use super::*;
 
@@ -56,7 +56,10 @@ impl Type {
 enum Output { Query, Forward, Effect }
 struct Check<'a> {
     schema: &'a Schema,
-    env: BTreeMap<String, Type>,
+    env: &'a mut BTreeMap<String, Type>,
+    scope: &'a str,
+    aliases: &'a BTreeMap<String, String>,
+    focal: BTreeMap<String, Type>,
     // A use census, not origins: only collectors used exclusively as returned
     // data may project status in Push. Assignments and helper blocks cannot.
     uses: BTreeMap<String, bool>,
@@ -66,23 +69,54 @@ struct Check<'a> {
 type Result<T> = std::result::Result<T, String>;
 
 pub(super) fn check(schema: &Schema, program: &Program) -> Result<()> {
-    if !schema.maintains.iter().any(|m| m.row_key.is_some()) { return Ok(()); }
-    let arguments: BTreeMap<_, _> = program.args.iter().map(|(name, ty)| (name.clone(), argument_type(ty))).collect();
-    let mut check = Check { schema, env: arguments.clone(), uses: BTreeMap::new(), outputs: BTreeSet::new(), validate: false };
-    let output = if program.kind == ProgramKind::Query { Output::Query } else { Output::Effect };
-    check.body(&program.body, output)?;
-    check.outputs = check.uses.iter().filter(|(_, data)| **data).map(|(name, _)| name.clone()).collect();
-    check.env = arguments;
-    check.validate = true;
-    check.body(&program.body, output).map(|_| ())
+    check_scopes(schema, &[(program, &BTreeMap::new())]).into_iter().next().map_or(Ok(()), |(_, message)| Err(message))
+}
+
+// Quarry supplies identities shared by every expansion of a helper parameter,
+// local declaration and block result, including calls in different operations.
+// Raw IR already has distinct runtime names; no source identity is trusted there.
+pub(super) fn check_scopes(schema: &Schema, scopes: &[(&Program, &BTreeMap<String, String>)]) -> Vec<(usize, String)> {
+    if !schema.maintains.iter().any(|m| m.row_key.is_some()) { return vec![]; }
+    let mut env = BTreeMap::new();
+    let mut uses = vec![BTreeMap::new(); scopes.len()];
+    // A monotone fixed point over ALL assignments, including unreachable ones.
+    // No branch snapshots, assignment replacement or loop-transfer state.
+    loop {
+        let prior = env.clone();
+        for (i, (program, aliases)) in scopes.iter().enumerate() {
+            let mut check = Check { schema, env: &mut env, scope: &program.name, aliases, focal: BTreeMap::new(),
+                uses: std::mem::take(&mut uses[i]), outputs: BTreeSet::new(), validate: false };
+            for (name, ty) in &program.args { check.bind(name, argument_type(ty)); }
+            check.body(&program.body, program_output(program)).expect("inference cannot refuse");
+            uses[i] = check.uses;
+        }
+        if env == prior { break; }
+    }
+    scopes.iter().enumerate().filter_map(|(i, (program, aliases))| {
+        let outputs = uses[i].iter().filter(|(_, data)| **data).map(|(name, _)| name.clone()).collect();
+        let mut check = Check { schema, env: &mut env, scope: &program.name, aliases, focal: BTreeMap::new(),
+            uses: BTreeMap::new(), outputs, validate: true };
+        check.body(&program.body, program_output(program)).err().map(|message| (i, format!("{message}; locals keep every assigned maintenance type throughout their scope: use a separate variable for the row")))
+    }).collect()
+}
+fn program_output(program: &Program) -> Output {
+    if program.kind == ProgramKind::Query { Output::Query } else { Output::Effect }
 }
 impl Check<'_> {
+    fn key(&self, name: &str) -> String {
+        self.aliases.get(name).cloned().unwrap_or_else(|| format!("operation/{}/{name}", self.scope))
+    }
     fn use_name(&mut self, name: &str, data: bool) -> Type {
         self.uses.entry(name.into()).and_modify(|only| *only &= data).or_insert(data);
-        self.env.get(name).cloned().unwrap_or(Type::Unknown)
+        let assigned = self.env.get(&self.key(name)).cloned();
+        // Focal names have a lexical receiver, but raw IR can also assign to
+        // their slot inside a Block. Such assignments participate like any local.
+        if let Some(focal) = self.focal.get(name) { return focal.clone().join(assigned.unwrap_or_default()); }
+        assigned.unwrap_or(if self.validate { Type::Unknown } else { Type::Empty })
     }
     fn field(&self, receiver: Type, field: &str, data: bool) -> Result<Type> {
         match receiver {
+            Type::Empty if !self.validate => Ok(Type::Empty),
             Type::Row(table) => {
                 if let Some(message) = self.schema.row_view_predicate_field(&table, field)
                     && self.validate && !(data && matches!(field, "recountPending" | "pending") && !self.schema.is_recount_work(&table)) {
@@ -90,8 +124,8 @@ impl Check<'_> {
                 }
                 Ok(self.schema.table(&table).and_then(|t| t.columns.get(field)).map(column_type).unwrap_or(Type::Scalar))
             },
-            Type::Shape(base, mut fields) => if field == "pending" { self.field(*base, field, data) } else { Ok(fields.remove(field).unwrap_or(Type::Unknown)) },
-            Type::Object(mut fields) => Ok(fields.remove(field).unwrap_or(Type::Unknown)),
+            Type::Shape(base, mut fields) => if field == "pending" { self.field(*base, field, data) } else { Ok(fields.remove(field).unwrap_or(if self.validate { Type::Unknown } else { Type::Empty })) },
+            Type::Object(mut fields) => Ok(fields.remove(field).unwrap_or(if self.validate { Type::Unknown } else { Type::Empty })),
             Type::Unknown | Type::List(_) if self.validate => Err(format!("E_VIEW_KEY: cannot prove the receiver type of .{field}; maintenance-field access through an unknown, heterogeneous or recursively widened type is refused; project recountPending directly from a maintained row in the query result, or compute with value/member fields (guide maintains)")),
             _ => Ok(Type::Unknown),
         }
@@ -135,9 +169,9 @@ impl Check<'_> {
         if let Some(range) = &scan.range { values.extend(range.gt.iter().chain(&range.gte).chain(&range.lt).chain(&range.lte).map(Box::as_ref)); }
         for e in values { self.inspected(e)?; }
         if let Some(filter) = &scan.filter {
-            let old = self.env.insert("$filter".into(), row.clone());
+            let old = self.focal.insert("$filter".into(), row.clone());
             self.inspected(filter)?;
-            if let Some(old) = old { self.env.insert("$filter".into(), old); } else { self.env.remove("$filter"); }
+            if let Some(old) = old { self.focal.insert("$filter".into(), old); } else { self.focal.remove("$filter"); }
         }
         Ok(row.list())
     }
@@ -175,10 +209,10 @@ impl Check<'_> {
                 let first = args.first().map(|arg| self.expr(arg, false)).transpose()?.unwrap_or(Type::Unknown);
                 if matches!(builtin, Builtin::Sum | Builtin::ExtremumOf { .. }) {
                     self.inspect(&first)?;
-                    let old = self.env.insert("$filter".into(), first.item());
+                    let old = self.focal.insert("$filter".into(), first.item());
                     let mut projection = Type::Scalar;
                     for arg in args.iter().skip(1) { projection = self.inspected(arg)?; }
-                    if let Some(old) = old { self.env.insert("$filter".into(), old); } else { self.env.remove("$filter"); }
+                    if let Some(old) = old { self.focal.insert("$filter".into(), old); } else { self.focal.remove("$filter"); }
                     return Ok(if matches!(builtin, Builtin::ExtremumOf { .. }) { projection } else { Type::Scalar });
                 }
                 let mut types = vec![first.clone()];
@@ -235,12 +269,13 @@ impl Check<'_> {
                         Some(LaneSource::List { value, .. }) => self.expr(value, false)?.item(),
                         Some(LaneSource::Range { start, end_exclusive, .. }) => { self.inspected(start)?; self.inspected(end_exclusive)?; Type::Scalar },
                     };
-                    self.env.insert(lane.binding.clone(), source);
+                    self.bind(&lane.binding, source);
                     self.body(&lane.setup, Output::Effect)?;
                     for e in lane.guard.iter().chain(&lane.distinct) { self.inspected(e)?; }
                     let row = self.scan(&lane.scan)?.item();
-                    self.env.insert("$project".into(), row.clone());
+                    let old = self.focal.insert("$project".into(), row.clone());
                     let projected = if let Some(project) = &lane.project { self.expr(project, data && merge.order_keys.is_empty())? } else { row };
+                    if let Some(old) = old { self.focal.insert("$project".into(), old); } else { self.focal.remove("$project"); }
                     for key in &merge.order_keys { let ty = self.field(projected.clone(), key, false)?; self.inspect(&ty)?; }
                     item = item.join(projected);
                 }
@@ -248,13 +283,18 @@ impl Check<'_> {
             },
         }
     }
-    fn bind(&mut self, name: &str, ty: Type) { let old = self.env.remove(name).unwrap_or_default(); self.env.insert(name.into(), old.join(ty)); }
+    fn bind(&mut self, name: &str, ty: Type) {
+        if self.validate { return; } // Validation reads the completed scope types.
+        let key = self.key(name);
+        let old = self.env.remove(&key).unwrap_or_default();
+        self.env.insert(key, old.join(ty));
+    }
     fn body(&mut self, body: &[Stmt], output: Output) -> Result<Type> {
         let query = output == Output::Query;
         let mut returned = Type::Empty;
         for stmt in body {
             match stmt {
-                Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => { let ty = self.expr(value, false)?; self.env.insert(name.clone(), ty); },
+                Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => { let ty = self.expr(value, false)?; self.bind(name, ty); },
                 Stmt::Push { target, value } => { let ty = self.expr(value, query && self.outputs.contains(target))?; self.bind(target, ty.list()); },
                 Stmt::Return(e) => {
                     let ty = self.expr(e, query)?;
@@ -265,11 +305,8 @@ impl Check<'_> {
                 Stmt::Check { condition, current } => { self.read(current)?; self.inspected(condition)?; },
                 Stmt::If { condition, then_body, else_body } => {
                     self.inspected(condition)?;
-                    let before = self.env.clone();
                     returned = returned.join(self.body(then_body, output)?);
-                    let then = std::mem::replace(&mut self.env, before);
                     returned = returned.join(self.body(else_body, output)?);
-                    for (name, ty) in then { self.bind(&name, ty); }
                 },
                 Stmt::For { binding, domain, body } => {
                     let ty = match domain {
@@ -281,12 +318,7 @@ impl Check<'_> {
                         LoopDomain::LiteralRange { .. } => Type::Scalar,
                     };
                     self.bind(binding, ty);
-                    loop {
-                        let prior = self.env.clone();
-                        returned = returned.join(self.body(body, output)?);
-                        for (name, ty) in &prior { self.bind(name, ty.clone()); }
-                        if self.env == prior { break; }
-                    }
+                    returned = returned.join(self.body(body, output)?);
                 },
                 Stmt::WriteTarget { target, patch, condition, result, .. } => {
                     let row = self.read(target)?; self.inspected(patch)?;

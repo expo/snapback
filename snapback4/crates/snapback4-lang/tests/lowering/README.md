@@ -134,3 +134,24 @@ with `generate.rs` and the same returned-shape stripping described above.
 The ordinary ownership-on/off differential executes their results, admissions
 and all meters with the existing harness. The first-paste regression separately
 executes aliases through the full compile pipeline and checks equal meters.
+
+
+LLP 3000.015 §3 BG round 8 (2026-10-02): flow-insensitive maintenance typing
+requires separate row and count slots in maintained point-read lowering. The
+96 affected census programs now use `Let(countRow, read)` followed by an `If`
+whose two arms bind `total` to zero or `countRow.value`. These two new slots
+replace the single reused `total` slot, shifting later temporary numbers by
+one per point read. `maintenance-scope-overrides.sha256` supplies only those
+96 replacement digests; the historical files and every source identity remain.
+The differential still checks the full emitted IR, both admission policies,
+all execution observations and meters between ownership enabled/disabled.
+
+`reports/20261001-bg-busy-group-render/round8/verify-lowering.py` reverses only
+that exact statement pattern and its temporary renumbering, then requires all
+**3,228** historical program digests. Its receipt, `lowering-delta.json`, proves
+that the 96 changes are exactly this lowering split; no other IR difference
+is normalized or waived. `lowering-current.jsonl.gz` holds the new serialized
+records. For reproduction, decompress it beside the script and run the script
+with Python 3; its output is the receipt. The input records were produced by
+`cases::generated()` plus `cases::census()`, `snapshot::baseline` with measurement
+false, and the same returned-shape clearing used by the differential test.

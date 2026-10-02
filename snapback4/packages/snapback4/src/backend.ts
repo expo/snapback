@@ -119,12 +119,18 @@ export function permanentlyUnavailableHeldCount(program: ProgramJson | undefined
   if (!source || object(source).through || maintain?.kind !== "Count" || maintain.parent_key || maintain.own_keys) return false;
   if (!Array.isArray(get.key) || !get.key.length || !get.key.every(key => Object.keys(object(key)).length === 1 && Object.hasOwn(object(key), "Literal"))) return false;
   if (typeof binding.name !== "string" || typeof get.site !== "string" || typeof get.index !== "string") return false;
+  const result = object(object(program.body[2]).Return).Variable;
+  if (typeof result !== "string") return false;
   const variable = { Variable: binding.name };
+  // @ref LLP 3000.015#3 — current count lowering separates the row and scalar slots.
+  // Keep the exact prior serialized form eligible as well.
+  const write = (value: unknown) => result === binding.name
+    ? { Assign: { name: result, value } } : { Let: { name: result, value } };
   return matches(program.body, [
     { Let: { name: binding.name, value: { Get: { table: get.table, index: get.index, key: get.key, site: get.site, provenance: "Shape" } } } },
     { If: { condition: { Binary: { left: variable, op: "Eq", right: { Literal: "Null" } } },
-      then_body: [{ Assign: { name: binding.name, value: { Literal: { Int: 0 } } } }],
-      else_body: [{ Assign: { name: binding.name, value: { Field: { base: variable, name: "value" } } } }] } },
-    { Return: variable },
+      then_body: [write({ Literal: { Int: 0 } })],
+      else_body: [write({ Field: { base: variable, name: "value" } })] } },
+    { Return: { Variable: result } },
   ]);
 }

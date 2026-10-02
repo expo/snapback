@@ -16,6 +16,12 @@ pub fn check_state_predicates(schema: &Schema, program: &Program) -> Result<(), 
     maintenance_types::check(schema, program).map_err(|message| RuntimeError::Structural { code: "E_VIEW_KEY", message })
 }
 
+/// Compiler-only helper identities join every call site's parameters/results.
+/// They are absent from serialized programs and confer no native permission.
+pub fn check_state_predicate_scopes(schema: &Schema, scopes: &[(&Program, &BTreeMap<String, String>)]) -> Vec<(usize, String)> {
+    maintenance_types::check_scopes(schema, scopes)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Origin {
     Other,
@@ -89,7 +95,7 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
 pub fn check_detail_with_statements(schema: &Schema, program: &Program, statement_ends: &[usize]) -> Result<(), Problem> {
     maintenance_types::check(schema, program).map_err(|message| Problem {
         code: "E_VIEW_KEY", site: program.name.clone(), page_site: None, message,
-        rewrite: "project the field you need first: value or member fields; project recountPending as data and check complete".into(),
+        rewrite: "project the field you need first: value or member fields; project recountPending as data and check complete; use a separate variable for the row".into(),
     })?;
     let mut fact = schema.operations.get(&program.name).cloned().unwrap_or_default();
     crate::schema::ephemeral::execution(schema, program, &mut fact).map_err(|message| Problem {

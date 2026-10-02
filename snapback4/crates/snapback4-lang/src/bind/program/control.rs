@@ -130,6 +130,7 @@ impl Binder<'_> {
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
                 } else {
                     let runtime = self.declare(name, ty.clone());
+                    self.maintenance_local(&runtime, site, name);
                     self.scopes.last_mut().unwrap().get_mut(name).unwrap().origins.push((ty, value.clone()));
                     out.push(Stmt::Let { name: runtime, value: expr });
                 }
@@ -322,6 +323,8 @@ impl Binder<'_> {
             out.push(Stmt::Let { name: tmp.clone(), value: Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "lexicographic-id".into() }, args: vec![ir::var(&ta), b] } });
             let first = self.declare(&names[0], Ty::Int);
             let second = self.declare(&names[1], Ty::Int);
+            self.maintenance_local(&first, site, &names[0]);
+            self.maintenance_local(&second, site, &names[1]);
             out.push(Stmt::Let { name: first, value: ir::field(ir::var(&tmp), "quotient") });
             out.push(Stmt::Let { name: second, value: ir::field(ir::var(&tmp), "remainder") });
         } else {
@@ -333,6 +336,8 @@ impl Binder<'_> {
             out.push(Stmt::Let { name: tb.clone(), value: b });
             let first = self.declare(&names[0], joined.clone());
             let second = self.declare(&names[1], joined);
+            self.maintenance_local(&first, site, &names[0]);
+            self.maintenance_local(&second, site, &names[1]);
             out.push(Stmt::Let { name: first, value: Expr::Builtin { builtin: Builtin::Min, args: vec![ir::var(&ta), ir::var(&tb)] } });
             out.push(Stmt::Let { name: second, value: Expr::Builtin { builtin: Builtin::Max, args: vec![ir::var(&ta), ir::var(&tb)] } });
         }
@@ -358,6 +363,7 @@ impl Binder<'_> {
             self.returns.truncate(returns);
             self.push_scope();
             let binding = self.declare(name, item.clone());
+            self.maintenance_local(&binding, site, name);
             self.loops += 1;
             let mut out = setup::Body::default();
             let result = self.block(body, &mut out, false);
@@ -541,6 +547,7 @@ impl Binder<'_> {
                 }));
             }
             let runtime = self.temp(&declared.name);
+            self.maintenance_scopes.insert(runtime.clone(), format!("helper/{name}/parameter/{}", declared.name));
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
             bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         }
@@ -568,6 +575,7 @@ impl Binder<'_> {
                 self.block(statements, &mut body, false).and_then(|()| {
                     let ty = self.return_type()?;
                     let result = self.temp("result");
+                    self.maintenance_scopes.insert(result.clone(), format!("helper/{}/result", function.name));
                     let done = self.temp("returned");
                     out.push(Stmt::Let { name: result.clone(), value: Expr::Literal(Value::Null) });
                     out.push(Stmt::Let { name: done.clone(), value: Expr::Literal(Value::Bool(false)) });

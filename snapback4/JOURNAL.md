@@ -81812,3 +81812,53 @@ unchanged from round 6: 2,012,674 B raw / 605,008 B gzip, 217 B below the unchan
 Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md and round7/.
 The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published; no new reviewer approval claimed.
+
+
+## 2026-10-02 — BG round 8: scope-wide maintenance types
+
+Round 7 arrived with Grok READY and Astra NOT READY, one P2: break/continue
+could skip a null reset that erased a captured row's tracked type. The operator
+requires the blunt scope-wide rule. Every assignment now contributes to a
+monotone fixed point before validation; validation cannot change those types.
+Branch snapshots, assignment replacement and per-loop state joins are removed
+from this property. Helpers share compiler-only parameter, local and result
+identities across all calls, including different operations. Raw IR independently
+checks its slots, including assignments to contextual filter/project receivers.
+Builtin classification and returned-data rules remain. The diagnostic says
+"use a separate variable for the row". LLP 3000.015 §3 records the decision.
+
+All 39 earlier compiler cases remain; 43/43 pass. New coverage crosses captured
+rows with break/continue, max/sorted/share/equality, queries/mutations and reuse
+before/after assignment. The four-seed generator adds 192 refusals and 96
+ordinary-field controls. Native matrix: original 803 retained, now 997 cases
+across six boundaries = 5,982 refusals, preserving failed-adoption generation.
+Builtin census 28/28, guide 110/110, core 128/128 (including 56 row-view tests),
+native witness 6/6 and device 14/14 pass. The maintains card stays at 879 lines.
+
+Scalar count lowering uses separate row/count slots under the new rule. Eight
+preflight golden shards required 96 replacement digests for 108 point reads;
+the exact inverse transformation restores all 3,228 historical hashes. Corrected
+lowering passes 11/11 with zero differences across 6,456 IR, 6,456 admission
+and 37,412 execution comparisons. The first full suite then exposed eight
+owned held-count assertions: its existing client shape recognizer expected the
+old slot layout, returning E_QUERY_RETRY instead of E_QUERY_HELD. They reproduce
+8/8 in isolation. The recognizer now accepts both exact layouts with unchanged
+permanence exclusions; the complete unchanged one-shot files pass 117/117.
+LLP 3000.023 §11 records that integration correction.
+
+There were two full-suite invocations. The first candidate reports exactly
+`== 1 failure(s) in 1430 s`: eight client assertions, all ours; baseline 0,
+environmental 0. The corrected final source ran once and reports exactly
+`== 0 failure(s) in 1407 s`, exit 0. All 281 Rust binaries / 994 executions
+and doctests pass; clients 5,746 passed, 0 failed, 10 skipped; serial models
+79/79. Final failures: ours 0, baseline 0, environmental 0. All 1,791 frozen
+source inputs remain unchanged. Both runs and every development failure are
+retained and classified in round8/FAILURES.md, with lossless full logs.
+
+10k/100k work remains (0 re-certified source rows, 100 examined, 100 steps).
+Wasm is byte-identical to round 7: 2,012,674 B raw / 605,008 B gzip, 217 B below
+the unchanged 605,225 B cap. Reference validation: 525 LLPs, 10,082 refs, no
+errors or unchecked refs. No new latency, merged-size or cross-platform claim.
+Report and evidence: reports/20261001-bg-busy-group-render/REPORT.md and round8/.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; no round-8 independent approval claimed.
