@@ -1,0 +1,10 @@
+/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/round4/ll-candidate.json {
+  profile: { n: 20, p50: 26.861, p95: 34.939, max: 35.255 },
+  'reaction-add': { n: 20, p50: 34.71, p95: 57.154, max: 100.71 },
+  'reaction-replace': { n: 20, p50: 30.893, p95: 38.335, max: 41.555 },
+  'reaction-remove': { n: 20, p50: 30.128, p95: 40.674, max: 41.218 },
+  reply: { n: 20, p50: 60.801, p95: 81.001, max: 81.442 },
+  photo: { n: 20, p50: 62.384, p95: 81.034, max: 84.496 },
+  'feed-image': { n: 20, p50: 24.041, p95: 39.14, max: 42.916 },
+  'once-photo': { n: 20, p50: 63.925, p95: 80.268, max: 87.754 }
+}

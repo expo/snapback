@@ -248,9 +248,9 @@ impl RowKey {
         if target
             .indexes
             .values()
-            .any(|i| i.columns().iter().any(|f| f == "value"))
+            .any(|i| i.columns().iter().any(|f| matches!(f.as_str(), "value" | "recountPending")))
         {
-            return Err("E_VIEW_KEY: row-keyed counts may be pending or awaiting expiry; read the value by member and check complete instead of indexing, ranking or probing by value (guide maintains)".into());
+            return Err("E_VIEW_KEY: row-keyed counts may be pending or awaiting expiry; read the value by member and check complete instead of indexing, ranking or probing by value/recountPending (guide maintains)".into());
         }
         fn valid(
             p: &Predicate,

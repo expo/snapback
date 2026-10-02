@@ -81620,3 +81620,61 @@ No main merge or ceiling increase. Report, test-only control patches, seeds,
 complete failure ledger, traces and hashes: reports/20261001-bg-busy-group-render/
 REPORT.md. One local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-02 — BG round 4: private recount state and certified predicate fields
+
+Round 3's late maintenance regression is fixed structurally. An expiring-member
+source event preserves cached numerical fields and restarts only private work;
+an incomplete member recount removes old evidence and preserves a cache only in
+its original parent domain. A new/moved member without a certified count has no
+numerical cache fields. Adoption validates that private shape separately from
+public/input rows. Reads reconstruct the public image. Both value and
+recountPending predicates take the same live certification in read and insert
+rules; an incomplete proof refuses with E_VIEW_KEY. Identity and every copied
+member authority field stay exact transactionally. Computed-field indexes refuse
+rather than selecting stale stored keys. LLP 3000.015 §3 states every field's
+policy; the maintains guide remains within 879 lines.
+
+The device's durable-source scan checks a capped authorization before inspecting
+a payload and resumes from the stored index key. The three/four-probe boundary
+returns incomplete meter observations on Memory and SQLite, without E_TYPE.
+Independent properties now cover every view column in matching/nonmatching read
+and insert predicates: six seeds, 1,080 actions, 144,477 comparisons across direct,
+inherited and through lifetimes. The eight-seed large property retains 2,400
+steps, 44,289 comparisons and 2,400 acquisition checks. Device seed 20261002 adds
+1,536 observations across 16 populations per host, four clocks and 0–32 remaining
+probes. Exact round-3 negative controls reproduce both review failures; rolling
+back only witness certification also fails the independent flag predicate.
+
+The first full inventory found one introduced cost mismatch: the durable private
+work-key lookup adds an examined unit, but the CLI certificate and receipt test
+still expected the old cost. The certificate now covers that lookup, member-only
+expiry and both computed predicates; extended receipt checks pass 13/13. The
+superseded suite's logs and exit 143 are retained, with every development failure
+marked ours. A full scripts/test.sh run then completed after the final code/test
+change: `== 0 failure(s) in 1506 s`. All 281 Rust test binaries/994 executions plus
+doctests pass; clients 5,745 passed with 10 skips; serial models 79/79. Final-suite
+failures: ours 0, baseline 0, environmental 0. All 1,784 captured input digests
+remain unchanged. No current-main baseline exception was asserted.
+
+Busy-group measurements alternate exact round 2 fcc4b644f9 and this round twice
+per condition, 50 sends each, using each variant's own server/SDK/wasm. Idle p95
+pairs: 213.0→181.8 and 184.3→193.1 ms. With 96 continuous normal-priority burners:
+376.0→410.6 and 572.9→533.3 ms. Pooled loaded p95: 465.6→450.0 ms, while median
+266.5→282.6 ms. Two pairs do not establish causal parity or a speedup, and do not
+support the previous unpaired 35% rise as a stable diff effect. The fixture's
+source already expires and its members do not, so round 3's joint gate selects
+the same branch. Every run preserves all 100 remote renders/150 notifications and
+zero re-certified history; all 96 burners are reaped. The 10k/100k work regression
+remains (0 re-certified source rows, 100 examined, 100 steps). LL: 320 observations,
+zero timeouts; all eight per-flow comparisons and host CPU samples are retained.
+
+Measurements bind the final engine/device/client source. The sole later source
+change is the CLI cost diagnostic and its receipt test, which the harness does
+not invoke; the saved measurement binary is not claimed to include that change.
+The final suite's wasm is byte-identical: 2,015,799 B raw / 605,215 B gzip, +210
+gzip over rebuilt round 2, with only 10 B Linux headroom under the unchanged
+605,225 B ratchet. No cross-platform budget claim. Report, exact summary, failure
+ledger, raw traces, source digests and checksums:
+reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

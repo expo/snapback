@@ -234,3 +234,61 @@ fn unchanged_mark_after_clock_expiry_memory() {
 fn unchanged_mark_after_clock_expiry_sqlite() {
     unchanged_mark_after_expiry(&mut Sqlite::new("clock"));
 }
+
+// @ref LLP 3000.015#3 — rejected candidates retain an index cursor, never a payload cursor.
+fn durable_source_rule_budget<H: Host>(host: &mut H) {
+    let source=SOURCE.replace("  expire at .until\n", "")
+        .replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  until: time ?\n  expire at .until")
+        .replace("  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public",
+            "  read <- exists access[.conversationId, viewer]\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync to access[.conversationId]")
+        + "\ntable access:\n  conversationId: conversations\n  principal: principal\n  unique conversationId, principal\n  public\n  sync public\n";
+    let mut state=20261002u64;
+    for step in 0..16 {
+        state^=state<<13; state^=state>>7; state^=state<<17;
+        let (mut engine,mut backend)=compile(&source);
+        backend.schema=backend.schema.public_projection();
+        engine.seed_at([("access".into(),wire::row_from_json(&engine.schema().tables["access"],
+            &json!({"id":"grant","conversationId":"c","principal":"bob"})).unwrap()),
+            ("members".into(),wire::row_from_json(&engine.schema().tables["members"],
+            &json!({"id":"b","conversationId":"c","principal":"bob","readUpTo":0,"joinedAt":0,"until":100})).unwrap())],1).unwrap();
+        let mut device=host.open(&format!("budget-{step}"),Some(backend)).unwrap();
+        for (n,page) in snapshot(&mut engine,1,1).iter().enumerate() { device.apply(page,n==0).unwrap(); }
+        // The first prefix is Astra's literal: one matching provisional durable source.
+        let population=if step==0 {1} else {1+(state%5) as usize};
+        let mut facts=Vec::new();
+        for n in 0..population {
+            let sender=if n==0 || (state>>(n+1))&1==0 {"alice"} else {"bob"};
+            let ordinal=if n==0 {1} else {(state>>(n+8)) as i64 % 3};
+            let id=format!("pred-{n}");
+            device.predict("send","bob",&json!({"id":id,"conversationId":"c","ordinal":ordinal,"senderId":sender,"until":null}),
+                2,vec![id],n as u64+1).unwrap();
+            facts.push((sender.to_string(),ordinal));
+        }
+        for now in [2,99,100,9] {
+            let expected=if now>=100 {0} else {facts.iter().filter(|(sender,ordinal)|sender!="bob" && *ordinal>0).count() as i64};
+            let full=device.query("unreadFor","bob",&json!({"member":"b"}),now).unwrap();
+            assert!(full.complete,"{} step={step} {full:?}",host.label());
+            assert_eq!(full.data,Value::Int(expected));
+            for remaining in [0,1,2,3,4,5,6,7,8,12,32] {
+                let result=snapback4_device::call::call(&mut device,json!({"op":"query","name":"unreadFor",
+                    "viewer":"bob","args":{"member":"b"},"now":now,
+                    "spent":snapback4_core::meter::Metered {rule_probes:8192-remaining,..Default::default()}}));
+                assert!(result["denied"].is_null() && result["ok"]["denied"].is_null(),
+                    "{} seed=20261002 step={step} clock={now} remaining={remaining}: {result}",host.label());
+                if result["ok"]["complete"]==true {
+                    assert_eq!(result["ok"]["data"],expected);
+                } else {
+                    assert!(!result["ok"]["cut"].is_null(),"meter exhaustion must be a cut: {result}");
+                }
+                if step==0 && now==2 && [3,4].contains(&remaining) {
+                    assert_eq!(result["ok"]["complete"],false);
+                    eprintln!("BG round4 {} literal remaining={remaining}: {result}",host.label());
+                }
+            }
+        }
+        host.close(&format!("budget-{step}"),device);
+    }
+    eprintln!("BG round4 {} device property: seed=20261002, 16 populations, 64 unrestricted + 704 budget observations",host.label());
+}
+#[test] fn durable_source_rule_budget_memory() { durable_source_rule_budget(&mut Memory::new()); }
+#[test] fn durable_source_rule_budget_sqlite() { durable_source_rule_budget(&mut Sqlite::new("durable-budget")); }

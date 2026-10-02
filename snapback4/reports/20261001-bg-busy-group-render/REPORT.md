@@ -1204,3 +1204,228 @@ Large raw traces, test logs and test-only patches are stored as `.gz` files
 (the prose omits that suffix for readability). Decompress patches before applying.
 `round3/SHA256SUMS` binds the retained evidence, report, governing docs, tools and
 final changed source. No main merge, push, publication or ceiling change.
+
+## Round 4 — private maintenance and certified predicate fields
+
+Base: `587b83d7c8`; paired measurement control: exact round 2 `fcc4b644f9`.
+Read the round-3 section first and applied the operator's structural ruling.
+Grok's READY and Astra's NOT READY are input reviews, not round-4 approvals.
+No main merge, push, publication, or budget increase. Context: `round4/CONTEXT.md`.
+
+**Private bookkeeping is no longer a public field mutation.** Source events for
+expiring recipients preserve the cached numerical fields and restart only private
+`$recount` work. They still emit the usual view refresh. Incomplete member recounts
+remove old `$basis` evidence and retain the previous cache only within the same
+parent domain. A new or moved member with no completed count has neither numerical
+cache field, instead of an invented zero or flipped pending bit. A separate
+stored-cache validator admits that internal shape during adoption; ordinary input
+and public projection validation remain strict. Source updates consult private
+work before applying numerical deltas. Durable source/member pairs project their
+existing incomplete fallback response from private work, whose key is reserved
+before storage access. Expiring-source/member reads retain the authorized walk
+and eligible transactional certificate path.
+
+`recountPending` describes the **current read's incompleteness**. A witness
+predicate involving either `value` or `recountPending` now takes precisely the
+same certification path, including read rules and insert rules. An uncertified
+field cannot decide a rule or writer: existing `E_VIEW_KEY` refusal applies.
+`id`/`member` remain exact identities, checked against current member existence
+and effective lifetime. Every copied member authority column is updated in the
+member transaction and never carries recount status. The compiler's projected
+field set is still authoritative; unrelated member and recorded attribution
+fields are not copied. Raw-schema indexes on either computed field also refuse,
+so index selection cannot consult a stale cache before certification. These field
+policies are specified in LLP 3000.015 §3 and the existing maintains guide.
+
+The v2 proof interpretation is unchanged: incomplete work removes evidence;
+missing fields never certify. Legacy cached pending bits still fail reuse and are
+reconstructed through the same public read path. No wire field, public schema,
+count digest tag, caller ceiling or device prediction policy changed.
+
+**The device cap is handled before payload access.** The durable-source scan now
+checks the capped read immediately after the authorization boundary. Its cursor
+comes from the encoded index position, independently of an accepted or rejected
+payload. A rejected candidate never supplies `id`. The unchanged three-probe cut
+and the previously broken four-probe cut both return incomplete meter observations
+on Memory and SQLite, with no `E_TYPE`.
+
+**Detecting regressions and independent properties.** The compiled literal puts
+an expiring member, one durable message and a guarded row at clock 2. Before and
+after private settlement, the count is 1, the returned flag is false, the read
+rule hides the row and the insert rule refuses with `E_RULE`. The raw cached
+count/flag are unchanged by the source event. The literal also tests matching and
+nonmatching read/insert predicates on its copied `principal` field and every
+other view column against explicitly constructed member/source facts.
+
+The lifetime generator now enumerates **every declared view column**, for both
+read and insert effects, with matching and nonmatching values. Expected count,
+member existence and copied columns come from independent facts at the same
+clock. Direct members use a parent access witness, so copied `conversationId`
+values are exercised across generated parent moves. The three topologies retain
+six seeds, 1,080 random/deterministic actions, clock reversal, expiry/sweeps,
+adoption, interrupted work, reopen, stream/acquisition checks and 96 overlapping
+reader/writer snapshots. Totals are **44,439 direct + 57,624 inherited + 42,414
+through = 144,477 independent comparisons**. The original eight-seed,
+2,400-step large-population property remains: **44,289 model/scalar/aggregate
+comparisons and 2,400 acquisition checks**, with 650 committed and 141 interrupted
+recount chunks. A separate 1,100-source case checks all predicates with absent
+computed cache fields and with poisoned legacy pending/value fields.
+
+The device property uses seed **20261002**, 16 generated source populations per
+host, real acquisition, real prediction, clocks **2, 99, 100, 9**, and **0, 1, 2,
+3, 4, 5, 6, 7, 8, 12, 32** remaining rule probes. Each host makes 64 unrestricted
+and 704 bounded observations, **1,536 total**, comparing every complete count
+with its independent source facts and requiring meter cuts for incomplete reads.
+The first population is the review's one-message reproduction.
+
+Negative controls use exact round-3 production files and restore them in `finally`:
+`round3-rule-negative.log` exposes the guarded row; `round3-device-negative.log`
+fails on both hosts at exactly four remaining probes with the reported `E_TYPE`.
+An isolated rollback of only `witness.rs` fails the `recountPending = false`
+independent-field assertion. These are assertion failures, not build failures.
+No one claims they reproduce a bug on current main: they are detecting controls
+for this lane's round-3 change.
+
+Final affected core cohort: **56/56**; final focused field tests: **3/3**;
+device cohort: **12/12**; disclosure/accounting/witness/legacy integration:
+**28/28**; guide: **110/110**, frozen compatibility: **1/1**. The unchanged
+50-member **10k/100k** regression is **(recertified source rows, public examined,
+public steps) = (0, 100, 100)** at both sizes. `round4/FAILURES.md` retains every
+development failure and its correction, separately from the final-source suite.
+
+**Measurement design.** The busy-group fixture already expires its source and
+never expires its members. Round 3's joint lifetime dispatch therefore selects
+the same branch as round 2; the earlier loaded rise cannot be attributed to
+that gate. Its final certification p95 also fell, 2.343 → 1.060 ms. Those unpaired
+shared-host measurements did not establish the cause of the end-to-end increase.
+
+This round builds exact round 2 in an isolated control worktree and saves each
+variant's own production server, debug LL server and instrumented SDK/wasm.
+Within each condition, order is **base, candidate, base, candidate**. All eight
+BG runs use the same seed cache copied into a fresh database, 50 measured sends,
+50 members/10,000 messages, three Chromium wasm devices, mounted history 20 and
+acquisition 500. Every idle run requires five consecutive two-second host samples
+below 15% busy before starting and retains the unchanged **p95 <250 ms** assertion.
+The four loaded runs share one continuous set of **96 normal-priority burners**.
+No BG build or test overlaps measurement. Host samples and stage traces are
+retained for every run. LL uses each variant's own debug measurement server and
+wasm, `LL_KEEP=viewed`, 20 repetitions of all eight flows.
+
+**Paired BG results.** Milliseconds from send to the slowest remote React render;
+50 sends per run. Base is rebuilt exact round 2, not its historical measurement.
+
+| Condition/order | Variant | Median / p95 / maximum (ms) | CPU median / p95 / max (%) | Certification p95 (ms) |
+| --- | --- | ---: | ---: | ---: |
+| idle 1 | base | 142.6 / 213.0 / 239.6 | 7.3 / 12.1 / 16.1 | 1.121 |
+| idle 2 | candidate | 127.7 / 181.8 / 235.0 | 9.1 / 26.8 / 43.7 | 1.024 |
+| idle 3 | base | 135.7 / 184.3 / 201.1 | 14.3 / 17.9 / 18.0 | 1.031 |
+| idle 4 | candidate | 133.8 / 193.1 / 218.2 | 11.5 / 13.1 / 13.4 | 1.057 |
+| loaded 1 | base | 244.3 / 376.0 / 465.6 | 99.6 / 99.8 / 99.9 | 3.771 |
+| loaded 2 | candidate | 257.3 / 410.6 / 450.0 | 99.8 / 99.9 / 99.9 | 1.169 |
+| loaded 3 | base | 315.2 / 572.9 / 780.3 | 99.9 / 100.0 / 100.0 | 3.788 |
+| loaded 4 | candidate | 337.7 / 533.3 / 576.0 | 99.9 / 99.9 / 99.9 | 3.699 |
+
+| Pooled condition (100 sends each) | Base median / p95 / max (ms) | Candidate median / p95 / max (ms) |
+| --- | ---: | ---: |
+| idle | 140.4 / 186.7 / 239.6 | 129.5 / 184.6 / 235.0 |
+| loaded | 266.5 / 465.6 / 780.3 | 282.6 / 450.0 / 576.0 |
+
+The two adjacent loaded p95 differences are **+34.6 ms (+9.2%)** and
+**−39.6 ms (−6.9%)**. The candidate's pooled loaded p95 is 15.6 ms lower (−3.4%),
+while its pooled median is 16.1 ms higher (+6.0%). Base p95 itself ranges from
+376.0 to 572.9 ms. Thus two pairs do not establish causal latency parity or a
+speedup, and do not support the earlier unpaired 35% rise as a stable diff effect.
+Same-send-ordinal differences are retained as descriptive pair data; send ordinal
+is not an independent control for the scheduler. No attempt was discarded.
+
+Loaded host CPU is consistently above 99.5% at the median, and the parent records
+all **96 burners alive and reaped**. Idle admissions all pass, but ambient work can
+start afterward: idle candidate 1 reaches 43.7% peak host CPU. Every idle p95 still
+passes the unchanged 250 ms gate. All eight runs have **100 remote renders, 150
+notifications, history window 20, acquisition window 500 and zero re-certified
+history rows**. Per-stage tails and all raw sends are retained; overlapping stage
+percentiles must not be added into an end-to-end explanation.
+
+**LL control.** Twenty repetitions per flow per variant, **320 observations and
+zero timeouts**, after quiet-host admission. Milliseconds from server commit to
+React. Media readiness remains separately recorded in each raw summary.
+
+| Flow | Base median / p95 / max (ms) | Candidate median / p95 / max (ms) |
+| --- | ---: | ---: |
+| profile | 34.030 / 38.655 / 39.479 | 28.961 / 38.239 / 38.455 |
+| reaction-add | 27.999 / 42.334 / 42.915 | 34.810 / 57.354 / 100.910 |
+| reaction-replace | 25.742 / 40.632 / 54.616 | 31.093 / 38.599 / 41.655 |
+| reaction-remove | 26.644 / 38.671 / 39.670 | 30.228 / 40.874 / 41.418 |
+| reply | 51.253 / 78.837 / 95.610 | 62.201 / 82.601 / 83.042 |
+| photo | 60.341 / 84.975 / 88.731 | 63.684 / 82.334 / 87.096 |
+| feed-image | 26.695 / 39.604 / 46.444 | 25.941 / 41.840 / 46.016 |
+| once-photo | 47.443 / 81.585 / 92.649 | 65.325 / 81.768 / 89.254 |
+
+This is a control for unrelated flows, not an assertion that every tail improved.
+For example, reaction-add p95 rises from 42.334 to 57.354 ms; reply rises from
+78.837 to 82.601 ms. All eight flows complete without a timeout on both variants.
+Across each LL wrapper, host CPU median / p95 / maximum is **15.3 / 18.6 / 19.3%**
+for base (26 samples) and **13.6 / 20.2 / 22.1%** for candidate (27 samples).
+`round4/paired-validation.json` verifies the BG/LL invariants and paired statistics;
+`tools/validate-paired-round4.py` accepts the archived gzip traces directly.
+
+**Wasm and artifact custody.** Final candidate: **2,015,799 B raw / 605,215 B gzip**;
+exact round 2 rebuilt here: **2,015,329 / 605,005 B**. Delta **+470 raw / +210 gzip**
+(+144 gzip versus round 3). The unchanged branch ratchet is **605,225 B**: only
+**10 B headroom on this Linux toolchain**. No macOS build or cross-platform budget
+claim is made. Candidate wasm SHA-256:
+`a4a4014a1b221e39fbc8bf8d384f64065271f57ccbdfc8e7c45532ca489f1b30`.
+`round4/wasm.json`, `toolchain.json` and `measurement-artifacts.json` bind the exact
+base/candidate binaries and SDK distributions. Temporary instrumentation was
+restored before the final-source snapshot and full suite.
+
+**Full-inventory correction and measurement scope.** The first inventory found
+one introduced mismatch: `live_view_page_and_point_certificates_cover_real_receipts`
+expected 200 examined units for 100 durable view rows, but the private-work lookup
+correctly adds 100. Its cost certificate would also understate the 300-unit
+receipt. The CLI now reserves member lookup plus either live certification or
+the private-work key lookup, recognizes member-only expiry, and describes
+`recountPending` predicates through the same live-count classification as `value`.
+The extended page/point certificate test passes **13/13**, including both
+computed predicates and both lifetime dispatches.
+
+The superseded suite was deliberately stopped with exit **143** after retaining
+its main and parallel logs (`initial-suite*`); it has no completed summary and is
+not counted as a full-suite pass. The failed test is **ours**, not baseline or
+environmental. The completed full suite began after this final correction. The only
+source delta from the measurement build is `scale.rs` and its receipt test:
+**CLI diagnostics only; engine, device, SDK and guide source are identical**.
+`measurement-source.json`, `final-source.json` and
+`measurement-source-delta.json` make that scope explicit. The BG/LL harness does
+not invoke the cost analyzer. No claim is made that the saved measurement server
+binary includes the later CLI diagnostic correction.
+
+**Final-source qualification.** `scripts/test.sh` completed once after the last
+code/test change, with `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` and
+Node 24.13.1. Exact summary:
+
+```text
+== 0 failure(s) in 1506 s
+```
+
+The complete Rust inventory (**281 binaries, 994 executions**, plus workspace
+doctests) passes. Client tests: **5,745 passed, 0 failed, 10 skipped**; the serial
+models: **79 passed, 0 failed**, retaining their full seeded sequence counts.
+Final-suite failures: **ours 0, baseline 0, environmental 0**. No current-main
+baseline exception is asserted or used. The earlier introduced cost-certificate
+failure and all development/negative-control outcomes remain in `FAILURES.md`;
+the superseded run is not a passing qualification.
+
+`round4/final-verification.json` verifies all **1,784** captured source/input
+digests unchanged from the final suite's start and its exit 0. The suite's wasm
+is byte-identical to the measured candidate, still **605,215 / 605,225 B gzip**.
+The regular SDK/server are restored by the suite's ordinary builds. Reference
+validation passes: **525 LLP documents, 10,074 refs, 0 errors, 0 unchecked**.
+
+Large raw traces and logs are retained as `.gz`; the final suite is
+`round4/full-suite.log.gz`. `round4/SHA256SUMS` binds the retained evidence,
+governing docs, report, tools and changed source. The older round-3 manifest names
+the historical content at `587b83d7c8`; it is not rewritten to describe round 4.
+One journal entry records this round. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push, publication, main merge,
+ratchet increase or round-4 reviewer approval is claimed.

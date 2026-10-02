@@ -1,6 +1,7 @@
 //! Lifetime topology is generated independently of the source's lifetime.
 use super::*;
 use crate::{ir::Program, partition};
+#[path = "field_tests.rs"] mod fields;
 
 #[derive(Clone, Copy, Debug)]
 enum Lifetime { Direct, Inherited, Through }
@@ -8,7 +9,7 @@ enum Lifetime { Direct, Inherited, Through }
 struct Config { lifetime: Lifetime, source_expiry: bool, member_expiry: bool, default_mark: i64, tombstones: bool }
 fn backend(c: Config) -> (Schema, Vec<Program>) {
     let member_life = match c.lifetime {
-        Lifetime::Direct => "read <- allow",
+        Lifetime::Direct => "read <- exists access[.conversationId, viewer]",
         Lifetime::Inherited => "read through .conversationId\n  immutable conversationId",
         Lifetime::Through => "lease: leases\n  immutable lease\n  read through .lease",
     };
@@ -17,6 +18,12 @@ table conversations:
   until: time ?
   {parent_expiry}
   immutable until
+  public
+  sync public
+table access:
+  conversationId: conversations
+  principal: principal
+  unique conversationId, principal
   public
   sync public
 table leases:
@@ -84,7 +91,8 @@ fn source(n: usize, group: usize, ordinal: i64, until: Option<i64>) -> Value {
 fn seed_parents(e: &mut Engine) {
     e.seed_at((0..2).flat_map(|n| [
         ("conversations".into(), object([("id", id(&format!("r{n}"))), ("until", Value::Int(2000 + n * 2000))])),
-        ("leases".into(), object([("id", id(&format!("l{n}"))), ("room", id(&format!("r{n}")))]))]), 1).unwrap();
+        ("leases".into(), object([("id", id(&format!("l{n}"))), ("room", id(&format!("r{n}")))])),
+        ("access".into(), object([("id", id(&format!("a{n}"))), ("conversationId", id(&format!("r{n}"))), ("principal", id("reader"))]))]), 1).unwrap();
 }
 fn config(lifetime: Lifetime) -> Config { Config { lifetime, source_expiry: false, member_expiry: true, default_mark: 0, tombstones: true } }
 
@@ -119,6 +127,7 @@ fn check_rows(tx: &crate::store::Tx<'_>, schema: &Schema, c: Config, members: &B
         let name = view.field("id").unwrap().as_str().unwrap();
         let n: usize = name[1..].parse().unwrap();
         let want = expected(c, &members[&n], messages, now);
+        comparisons += fields::predicates(tx, schema, c, &members[&n], want, now, label);
         // Every path compares separately with facts, so two dispatches agreeing
         // on the same stale cache cannot satisfy the acquisition comparison.
         for (path, image) in [("scalar", scalar.live_aggregate("unread", view.clone()).unwrap()), ("batch", batch), ("acquisition", acquired)] {

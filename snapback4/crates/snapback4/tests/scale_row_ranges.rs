@@ -103,6 +103,23 @@ fn count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness() {
     let result = analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == "guarded").unwrap().program);
     assert_eq!(result.class, Class::Grows, "{result:?}");
     assert!(result.line().contains("whole live basis"), "{result:?}");
+    for source_expiry in [true, false] {
+        for predicate in ["value = 0", "recountPending = false"] {
+            let mut source = SOURCE.replace("  expire at .until\n", "");
+            if !source_expiry {
+                source = source.replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  until: time ?\n  expire at .until")
+                    .replace("read <- exists members[.conversationId, viewer]", "read <- allow")
+                    .replace("sync to members[.conversationId] last 3 by .ordinal", "sync public");
+            }
+            source += &format!("\ntable gated:\n  member: members\n  read <- exists unread[member = .member, {predicate}]\nquery guarded(id: gated):\n  return gated[id]\n");
+            let mut b = bound(&source);
+            if source_expiry { b.schema.tables.insert("messages".into(), bound(SOURCE).schema.tables.remove("messages").unwrap()); }
+            let result = analyze(&b.schema, &b.programs.iter().find(|p|p.program.name=="guarded").unwrap().program);
+            assert_eq!(result.class,Class::Grows,"{predicate} source_expiry={source_expiry}: {result:?}");
+            assert!(result.line().contains("whole live basis"),"{result:?}");
+            assert!(!result.line().contains("does not certify the count"),"{result:?}");
+        }
+    }
 }
 
 #[test]
@@ -139,10 +156,14 @@ fn live_view_page_and_point_certificates_cover_real_receipts() {
         .replace("sync to members[.conversationId]", "sync public")
         .replace("query badgeRows():\n  return unread where .principal = viewer", "query badgeRows(conversationId: conversations):\n  return unread where .conversationId = conversationId")
         + "\ntable grants:\n  conversationId: conversations\n  principal: principal\n  immutable conversationId, principal\n  unique conversationId, principal\n  read <- .principal = viewer\n  sync to .principal\n";
-    for (variant, source, live, member_grant) in [
-        ("expiring", SOURCE.to_owned(), true, false),
-        ("non-expiring", SOURCE.replace("  expire at .until\n", ""), false, false),
-        ("member-grant", granted, true, true),
+    for (variant, source, member_grant) in [
+        ("expiring", SOURCE.to_owned(), false),
+        ("non-expiring", SOURCE.replace("  expire at .until\n", ""), false),
+        ("expiring-member", SOURCE.replace("  expire at .until\n", "")
+            .replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  until: time ?\n  expire at .until")
+            .replace("read <- exists members[.conversationId, viewer]", "read <- allow")
+            .replace("sync to members[.conversationId] last 3 by .ordinal", "sync public"), false),
+        ("member-grant", granted, true),
     ] {
         let b = bound(&source);
         let certs = ["badgeRows", "badge"].map(|name| {
@@ -178,8 +199,9 @@ fn live_view_page_and_point_certificates_cover_real_receipts() {
                 for row in page { assert_eq!(row.field("value").unwrap(), &count); }
             } else { assert_eq!(q.data, count); }
             let visited = if i == 0 { 100 } else { 1 };
-            assert_eq!(q.metered.examined, visited * if live { 3 } else { 2 }, "{variant} {name}");
-            assert_eq!(q.metered.rule_probes, visited + u64::from(member_grant), "{variant} {name}");
+            // View row + member + live certification or private work-key lookup.
+            assert_eq!(q.metered.examined, visited * 3, "{variant} {name}");
+            assert_eq!(q.metered.rule_probes, if variant=="expiring-member" {0} else {visited + u64::from(member_grant)}, "{variant} {name}");
             assert!(certs[i].bounds.rows_examined >= q.metered.examined, "{variant} {name}: {q:?} exceeds {:?}", certs[i]);
             assert!(certs[i].bounds.probes >= q.metered.rule_probes, "{variant} {name}: {q:?} exceeds {:?}", certs[i]);
             eprintln!("{variant} {name}: certificate {} examined / {} probes, receipt {} / {}", certs[i].bounds.rows_examined, certs[i].bounds.probes, q.metered.examined, q.metered.rule_probes);

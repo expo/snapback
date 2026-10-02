@@ -1,0 +1,26 @@
+{"workers": 96, "pids": [3431935, 3431936, 3431937, 3431938, 3431939, 3431940, 3431941, 3431942, 3431943, 3431944, 3431945, 3431946, 3431947, 3431948, 3431949, 3431950, 3431951, 3431952, 3431953, 3431954, 3431955, 3431956, 3431957, 3431958, 3431959, 3431960, 3431961, 3431962, 3431963, 3431964, 3431965, 3431966, 3431967, 3431968, 3431969, 3431970, 3431971, 3431972, 3431973, 3431974, 3431975, 3431976, 3431977, 3431978, 3431979, 3431980, 3431981, 3431982, 3431983, 3431984, 3431985, 3431986, 3431987, 3431988, 3431989, 3431990, 3431991, 3431992, 3431993, 3431994, 3431995, 3431996, 3431997, 3431998, 3431999, 3432000, 3432001, 3432002, 3432003, 3432004, 3432005, 3432006, 3432007, 3432008, 3432009, 3432010, 3432011, 3432012, 3432013, 3432014, 3432015, 3432016, 3432017, 3432018, 3432019, 3432020, 3432021, 3432022, 3432023, 3432024, 3432025, 3432026, 3432027, 3432028, 3432029, 3432030], "affinity": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95], "nice": 0}
+START loaded-1-base
+END loaded-1-base 0
+START loaded-1-base-summarize
+END loaded-1-base-summarize 0
+START loaded-1-base-attribute-client
+END loaded-1-base-attribute-client 0
+START loaded-2-candidate
+END loaded-2-candidate 0
+START loaded-2-candidate-summarize
+END loaded-2-candidate-summarize 0
+START loaded-2-candidate-attribute-client
+END loaded-2-candidate-attribute-client 0
+START loaded-3-base
+END loaded-3-base 0
+START loaded-3-base-summarize
+END loaded-3-base-summarize 0
+START loaded-3-base-attribute-client
+END loaded-3-base-attribute-client 0
+START loaded-4-candidate
+END loaded-4-candidate 0
+START loaded-4-candidate-summarize
+END loaded-4-candidate-summarize 0
+START loaded-4-candidate-attribute-client
+END loaded-4-candidate-attribute-client 0
+{"reaped": 96}

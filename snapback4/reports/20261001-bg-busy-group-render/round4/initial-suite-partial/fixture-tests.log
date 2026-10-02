@@ -1,0 +1,19 @@
+== fixture wrapper tests
+✔ all combined, starter, checkpoint, spot and artifact manifest facts match (1381.782429ms)
+✔ scale hub facts come from the manifest, with the starter contribution removed (1234.175208ms)
+✔ two full CLI builds are byte-identical, and every output reference resolves (3466.738157ms)
+✔ sample-50 round trip preserves all verb intents, media, quotes, ids and timestamps (3.230141ms)
+✔ --scale 2 keeps registration order and drops actors and cascading dependencies (1435.303548ms)
+✔ grammar decodes JSON escapes and enforces schema variants and constraints (0.869523ms)
+✔ set-state retries, DM pair reuse and filtered quote chains retain their meaning (0.797235ms)
+✔ stats CLI verifies manifests and reports the selected dataset (2642.152165ms)
+✔ mismatches name the field and both values, and CLI failures exit 1 (107.738204ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10412.623187
+-- ok: fixture wrapper tests (11 s)

@@ -43,7 +43,8 @@ impl Runner<'_> {
         if !present { return Ok((false, !self.device || definition.sync.as_ref().is_some_and(|s|s.horizon.is_none()))); }
         let mut known = !self.device || if current { self.witness_covered(table, index, key, &row)? }
             else { definition.sync.is_some() };
-        if equalities.iter().any(|(field,_)|field == "value") {
+        // @ref LLP 3000.015#3 — both computed fields share one live certificate.
+        if equalities.iter().any(|(field,_)| matches!(field.as_str(), "value" | "recountPending")) {
             let prior = self.timeline_pending;
             self.timeline_pending = false;
             let found = self.live_row_view(maintain, row)?;

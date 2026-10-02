@@ -711,8 +711,8 @@ count while its version matches, its basis is not in the future, and its deadlin
 has not arrived. A recount restarts its prefix on clock rollback. Source writes maintain that proof with the count. Every read still
 checks current member and source-group authority. Pending, due or unsupported
 row-dependent disclosure cases use the full authorized live recount.
-Historical pending work never selects completeness or count-dependent refusal.
-An expiring stored count is a private cache: bounded durable chunks reconcile it
+`value` and `recountPending` share live certification in queries and rules; incomplete values cannot decide a rule. Identity and copied read-rule fields follow the member transactionally.
+Private work never flips those cached fields; bounded durable chunks reconcile them
 without publishing redundant recount commits or changing watermarks. Each
 private chunk counts against the maintenance allowance and releases the
 engine lock before the next chunk. Both paths keep the fixed public reservation;
@@ -808,8 +808,8 @@ a count: an uncovered device reports a pending count until it can
 certify that live input. A device mutation that cannot certify the count,
 including an already settled count above its local allowance, enters the
 outbox without a predicted result; the server decides and settles it.
-Server writers and numeric rule probes still refuse an uncertified value;
-ordinary queries carry incomplete coverage. Indexes/ranking by `value` refuse
+Server writers and rules on `value` or `recountPending` refuse uncertified fields;
+ordinary queries compute pending from their read's completeness. Indexes/ranking by `value` or `recountPending` refuse
 with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
 when its count is zero. `online only` on the view opts
 out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.

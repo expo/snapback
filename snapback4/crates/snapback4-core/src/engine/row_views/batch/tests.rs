@@ -187,7 +187,7 @@ fn assert_receipt_committed(engine: &mut crate::Engine, members: usize, require_
     let views = engine.store().rows("unread").unwrap();
     assert_eq!(views.len(), members);
     if require_pending {
-        assert!(views.iter().any(|row| row.field("recountPending") == Ok(&Value::Bool(true))), "certification yields when probe plus walk cannot fit");
+        assert!(!engine.store().rows("$recount:unread").unwrap().is_empty(), "certification yields into private work when probe plus walk cannot fit");
     }
     let committed = engine.seq().unwrap();
     while let Some(chunk) = engine.run_view_chunk(10).unwrap() { assert!(matches!(chunk, crate::engine::ViewChunk::Private)); }

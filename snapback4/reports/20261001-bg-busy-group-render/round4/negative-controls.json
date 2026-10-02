@@ -1,0 +1,17 @@
+[
+  {
+    "name": "round3-rule-negative",
+    "exit": 101,
+    "expected": "test result: FAILED. 0 passed; 1 failed;"
+  },
+  {
+    "name": "round3-device-negative",
+    "exit": 101,
+    "expected": "test result: FAILED. 0 passed; 2 failed;"
+  },
+  {
+    "name": "flag-certification-negative",
+    "exit": 101,
+    "expected": "test result: FAILED. 0 passed; 1 failed;"
+  }
+]
