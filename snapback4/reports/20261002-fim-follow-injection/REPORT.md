@@ -1,6 +1,6 @@
-# FIM round 0 — deterministic delivery fault injection
+# FIM — deterministic delivery fault injection
 
-Base: `1687b58af2d4aa7483575e2421dff70e1d918925`, branch
+Round 0 base: `1687b58af2d4aa7483575e2421dff70e1d918925`, branch
 `sb4-intent/fim-follow-injection`. Test infrastructure only. Product source,
 the await boundary seal, fault classifications and recipes are unchanged.
 
@@ -70,8 +70,10 @@ Each source arm was copied into a private ignored package snapshot before
 launch; each copies `src/`, `dist/`, `test/` and `package.json`, with a
 symlink to the built package's `node_modules`. Both use identical product
 source, package dependencies and wasm.
-The final arm additionally overlapped build/test work and a rejected development
-batch. These are contention/failure-count measurements, not latency comparisons.
+The configured inputs matched, but external load overlapped and was not held
+equal. The final arm additionally overlapped build/test work and a rejected
+development batch. These are **observed stress results**, not a controlled
+same-load comparison, causal estimate, or latency comparison.
 
 | Run | Result |
 | --- | --- |
@@ -123,7 +125,7 @@ same delivery assertions, plus the competing-operation witnesses.
 - **Ours, excluded development batch:** `new-load` was mistakenly launched
   before inspecting that failed focused result and against the live working
   tree. Its source changed during execution. All its results are retained,
-  but none count in either of the two sealed 200-run comparison arms.
+  but none count in either of the two sealed 200-run stress arms.
   **104/200 runs fail** with all eight null-poll errors above (832 test
   failures). Runs 097 and 098 additionally fail the await seal while the
   overlapping wasm build has temporarily removed the two generated `.d.ts`
@@ -197,3 +199,109 @@ No new corpus document or new gate is introduced. Hand-off: none.
 
 Committed locally with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 Nothing pushed or published.
+
+
+## Round 1 — joined-sync failure propagation (2026-10-02)
+
+Base: `69140d7ca78089d445210baeb8b3e40bb7ea547f`. Closes Astra's P2 and P3.
+The original drain-first coverage and twelve competing-operation cases stay
+unchanged. Two additional permanent cases exercise follow's **join** branch
+with the drain-first injector disabled, bringing the full matrix to **335**.
+
+Each case starts a real `syncOnce()` outside follow's async context and holds
+its real I/O: the device host's `state` read or the `/sync` transport. A change
+notification wakes the actual follow loop. Before releasing the fault, the
+test records the original active promise at follow's call, verifies that
+joining starts no replacement, and checks that the target is still pending
+with zero injected faults. It then releases exactly one I/O failure.
+
+The host case requires the identical error to reject both the source sync and
+the joining follow await; follow's own catch consumes it. The transport case
+requires both to resolve `false`, as `syncRound` specifies. Both require the
+real join branch's original promise, one failure, follow's one-second retry
+(no completed retry at 999 ms), and a successful fresh round after the last
+millisecond. No product body/result is replaced, and the observer forwards
+both outcomes unchanged. Public `client.sync()` is not the target: it has a
+separate after-call freshness policy; these tests exercise the background
+follow call that Astra identified.
+
+The retained [negative-control hook](./round-1/hide-joined-failure.mjs) changes
+only the instrumented temporary client's join branch to
+`return syncing.then(() => true, () => true);`. The nine existing focused
+checks still pass, reproducing Astra's blind spot. Both new cases fail on the
+actual lost failure, before the promise-identity assertion: the joining host
+await has no rejection, and the joining transport await returns `true` rather
+than `false`. The source operation retains its expected failure in each case.
+The real client passes all eleven focused checks on the first run.
+
+P3 wording is corrected in the round-0 qualification above: **old 3/200 and
+new 0/200 are observed stress results**. Configured inputs matched, but the
+arms overlapped uncontrolled external load; they are not a controlled
+same-load comparison or a causal estimate. Raw totals and historical failures
+are unchanged. The append-only journal's round-1 entry carries the same
+clarification; the prior entry is preserved.
+
+### Round-1 qualification and failure ledger
+
+| Run | Result |
+| --- | --- |
+| Focused follow checks, real client | **11/11 pass**: the nine existing checks plus both joined-sync cases. |
+| Astra join mutation, same focused checks | **9 pass, 2 fail**; both new cases reject hidden failure. Exit 1, expected. |
+| Complete matrix, no filtering or retries | **335/335 pass**, exit 0. |
+| Affected client tests | **617 pass, 0 fail, 1 conditional skip** (618 total), exit 0. |
+| Guide | **110 pass, 0 fail**, exit 0. |
+| `scripts/test.sh`, one invocation | **`== 0 failure(s) in 1439 s`**, exit 0. Clients: **5,782 pass / 10 conditional skips**; models: **79/79 pass**. |
+
+Every failed round-1 test is listed here; round-0 failures remain in the
+historical ledger above.
+
+- **Ours — intentional negative control:** `joined follow sync propagates host
+  rejection and retries` fails `the joined follow await receives that same
+  rejection` under Astra's mutation (`undefined` instead of the source error).
+- **Ours — intentional negative control:** `joined follow sync propagates
+  transport false and retries` fails `the joined follow await receives false,
+  never success` under the same mutation (`true` instead of `false`).
+- The real focused run, complete matrix, affected tests and guide have **no
+  failures**. The affected skip requires the external published 0.2.32 binary
+  via `SNAPBACK4_LEGACY_BIN`; it is not a failure or manual exclusion.
+- **Full suite: no failures.** Exact summary: `== 0 failure(s) in 1439 s`.
+  All Rust targets/doctests, fixture checks, app/package checks, 5,782 client
+  tests and all 79 models pass. The ten conditional client skips are five
+  macOS-only cases, three external published-binary controls, and two
+  managed-identity fixtures requiring external binary/scratch inputs. No test
+  is manually disabled. There are **no baseline or environmental test failures**
+  in round 1, and no unintentional introduced test failures.
+
+No ordinary check was retried, and no failure is attributed to the environment
+merely because a later run passed.
+
+### Round-1 commands and custody
+
+From `snapback4/`, with Node 24.13.1:
+
+```sh
+RG_MATRIX_SITE=47,48 RG_MATRIX_OUTPUT=reports/20261002-fim-follow-injection/round-1/focused.json node --test --test-reporter=tap packages/snapback4/test/delivery-fault-matrix.test.mjs
+RG_MATRIX_SITE=47,48 node --import ./reports/20261002-fim-follow-injection/round-1/hide-joined-failure.mjs --test --test-reporter=tap packages/snapback4/test/delivery-fault-matrix.test.mjs
+RG_MATRIX_OUTPUT=reports/20261002-fim-follow-injection/round-1/matrix.json node --test --test-reporter=tap packages/snapback4/test/delivery-fault-matrix.test.mjs
+ulimit -n 4096
+node --test --test-reporter=tap --test-concurrency=8 packages/snapback4/test/delivery-*.test.mjs packages/snapback4/test/delivery.test.mjs packages/snapback4/test/sync-after-call.test.mjs packages/snapback4/test/sync-generation.test.mjs packages/snapback4/test/sync-overflow.test.mjs packages/snapback4/test/native-smoke.test.mjs packages/snapback4/test/legacy-receipts.test.mjs
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4-lang --test guide
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+The focused run, negative control, complete matrix, affected clients and guide
+finish before `scripts/test.sh` starts. Product source is unchanged throughout.
+Full logs (gzip, preserved byte-for-byte) and exit statuses live under
+`round-1/`; the TAP logs include the new
+join cases, while `matrix.json` retains the existing coverage-case records.
+[Source custody](./round-1/source-custody.json) records the tested hashes and
+confirms all 40 original assertion-bearing lines remain verbatim, including
+the mandatory positive injection assertion. The await seal, classifications,
+recipes and instrumentation are unchanged from round 0.
+
+Scoped LLP orientation/audit: LLP 3000 §1/§7, LLP 2000.000 §11, LLP 3000.019
+§3.3 and the current client guide still apply. The same installed `llp-orient`
+procedure supplies the context pack described above. This adds a regression
+for the existing follow failure/backoff contract; no product, guide or LLP
+contract change is needed. Hand-off: none. Local commit only, with the
+requested Astra co-author trailer; nothing pushed or published.

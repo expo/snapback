@@ -82070,3 +82070,37 @@ is resolved under `issues/closed/`; the
 all failure classifications and the scheduling choice's scope. Commit locally
 on `sb4-intent/fim-follow-injection` with the requested Astra co-author trailer;
 nothing pushed or published.
+
+
+## 2026-10-02 — FIM round 1: joined-sync failure propagation
+
+Closed Astra's P2 with two permanent regressions alongside the unchanged
+fresh-operation coverage. Each starts a real sync outside follow's context,
+holds its actual host/transport I/O, wakes the real follow loop and witnesses
+its join before releasing exactly one fault. The host case requires the same
+rejection at the joining await; the transport case requires `false`. Both
+verify the original shared promise, follow's failure wait and a healthy fresh
+round after recovery. The drain-first injector is disabled only in these
+separate join cases; product code and all 40 original assertion-bearing lines,
+including mandatory positive injection, remain unchanged.
+
+Astra's `syncing.then(() => true, () => true)` mutation is applied only to the
+instrumented temporary client. The nine existing focused checks still pass;
+both new cases fail precisely on hidden failure. These two failures are ours,
+intentional negative controls. The real client passes all eleven focused
+checks, the complete 335-case matrix, and 617 affected client tests with one
+conditional legacy-binary skip. Guide: 110 passed. No ordinary check failed.
+
+P3 clarification: round 0's old 3/200 and new 0/200 are observed stress
+results with matching configured inputs and overlapping uncontrolled external
+load. They are not a controlled same-load comparison or causal estimate.
+The report wording is corrected; historical raw results remain intact.
+
+The single complete suite reports exactly `== 0 failure(s) in 1439 s`:
+all Rust targets/doctests and app/package/fixture checks pass, with 5,782 client
+tests passed, ten conditional skips, and all 79 models passed. There are no
+baseline or environmental test failures in round 1. The
+[round-1 report](./reports/20261002-fim-follow-injection/REPORT.md#round-1--joined-sync-failure-propagation-2026-10-02)
+retains commands, the mutation hook, full compressed logs, exit statuses and
+source custody. One local commit with the requested Astra co-author trailer;
+nothing pushed or published.

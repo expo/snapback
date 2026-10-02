@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { setImmediate as tick } from 'node:timers/promises';
 import { census, instrument, packageRoot, awaitBoundary, sharedAwaits, followSync, followRetry } from './delivery-fault-instrument.mjs';
 import { recipe, fixtureIndex, required, absorbs } from './delivery-fault-recipes.mjs';
-import { fixture, until, ok, original } from './delivery-fault-fixture.mjs';
+import { fixture, until, ok, original, gate } from './delivery-fault-fixture.mjs';
 const directory = mkdtempSync(join(packageRoot, '.rg-matrix-'));
 instrument(directory);
 symlinkSync(join(packageRoot, 'node_modules'), join(directory, 'node_modules'), 'dir');
@@ -313,6 +313,72 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
       assert.ok(quiesced >= competingStarts, 'every competing operation was drained');
       assert.ok(owned >= competingStarts, 'the target started its own operation after each competitor');
     }
+  });
+}
+// Coverage above deliberately starts fresh work. These cases instead leave a
+// real sync parked in host/transport I/O until follow has joined it. Keep the
+// injector disabled: no drain, replacement operation, or target-thrown error.
+if (selected.some(site => site.id === followSync)) for (const kind of ['host rejection', 'transport false']) {
+  test(`joined follow sync propagates ${kind} and retries`, async t => {
+    enabled = false;
+    const held = gate(), outcomes = [];
+    let armed = false, watching = false, io = 0, injected = 0, joined, retryWaits = 0;
+    async function failSharedIO() {
+      io++;
+      await held.promise;
+      injected++;
+      throw error;
+    }
+    const f = await fixture(t, 1, {
+      createLocalClient, webDevice,
+      beforeCall(request) { if (armed && kind === 'host rejection' && request.op === 'state') return failSharedIO(); },
+      fetch(path) { if (armed && kind === 'transport false' && path === '/sync') return failSharedIO(); },
+      async closing() { armed = watching = false; held.resolve(); t.mock.timers.tick(1000); await drain(); },
+    });
+    const api = globalThis.__rgClient;
+    await until(() => f.client.acquired && f.changesWaiting && !api.syncing);
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const awaitCall = globalThis.__rgAwait;
+    t.mock.method(globalThis, '__rgAwait', (id, body) => awaitCall(id, () => {
+      if (watching && id === followRetry) retryWaits++;
+      if (!watching || id !== followSync) return body();
+      const active = api.syncing, work = body();
+      joined ??= { active, work };
+      return work.then(value => { outcomes.push({ value }); return value; },
+        reason => { outcomes.push({ error: reason }); throw reason; });
+    }));
+    armed = true;
+    const shared = stack.run([], () => api.syncOnce());
+    const sharedOutcome = shared.then(value => ({ value }), reason => ({ error: reason }));
+    await until(() => io === 1);
+    watching = true;
+    await f.changed(11);
+    await until(() => joined);
+    assert.equal(joined.active, shared, 'follow calls syncOnce while the original sync is still active');
+    assert.equal(api.syncing, shared, 'joining does not start a replacement sync');
+    assert.equal(outcomes.length, 0, 'the joined target remains pending at the held I/O');
+    assert.equal(injected, 0, 'the fault is released only after the target joins');
+    assert.equal(io, 1, 'one shared I/O operation is held');
+    armed = false;
+    held.resolve();
+    const source = await sharedOutcome;
+    await until(() => outcomes.length > 0);
+    if (kind === 'host rejection') {
+      assert.equal(source.error, error, 'the real host failure rejects the shared sync');
+      assert.equal(outcomes[0].error, error, 'the joined follow await receives that same rejection');
+    } else {
+      assert.deepEqual(source, { value: false }, 'syncRound converts transport failure to false');
+      assert.deepEqual(outcomes[0], { value: false }, 'the joined follow await receives false, never success');
+    }
+    assert.equal(joined.work, shared, 'the real join branch returned the original promise');
+    assert.equal(injected, 1, 'the shared operation actually experienced the fault');
+    await until(() => retryWaits === 1);
+    t.mock.timers.tick(999); await drain();
+    assert.equal(outcomes.length, 1, 'follow preserves its one-second failure backoff');
+    t.mock.timers.tick(1);
+    await until(() => outcomes.length === 2);
+    assert.deepEqual(outcomes[1], { value: true }, 'follow recovers through a fresh healthy sync');
+    assert.equal(retryWaits, 1, 'recovery needs no further failure wait');
   });
 }
 test.after(() => {
