@@ -1,0 +1,14 @@
+{
+  "round4-deadline-negative": {
+    "exit": 101,
+    "assertion_detected": true,
+    "source": "0da1777252",
+    "file": "crates/snapback4-core/src/engine/witness.rs"
+  },
+  "round4-metadata-negative": {
+    "exit": 101,
+    "assertion_detected": true,
+    "source": "0da1777252",
+    "file": "crates/snapback4-core/src/engine/row_views.rs"
+  }
+}

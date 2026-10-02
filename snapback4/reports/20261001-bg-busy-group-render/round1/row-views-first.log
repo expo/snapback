@@ -1,0 +1,73 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 27.61s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 30 tests
+cold scan: payload=0 ceiling=180736 used=0 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=180736 used=0 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=722944 used=0 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=722944 used=0 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=1626624 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=1626624 nested=true limit=1 maximum_scan_allocation=1632
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::batch::tests::cold_basis_falls_back_when_a_decoder_page_exceeds_available_heap ... ok
+test engine::row_views::range_tests::exhausted_provisional_rule_admission_keeps_a_covered_range_unknown ... ok
+test engine::row_views::range_tests::a_nonuniform_source_stays_pending_even_if_a_synthetic_image_would_pass ... ok
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... ok
+cold scan: payload=0 ceiling=1807360 used=0 nested=false limit=32 maximum_scan_allocation=28552
+cold scan: payload=0test engine::row_views::range_tests::pending_value_never_decides_a_probe_and_abort_keeps_its_host_policy ...  ceiling=ok1807360
+ used=0 nested=truetest engine::row_views::batch::tests::small_predicate_ranges_match_an_independent_unread_oracle ...  limit=ok32
+ maximum_scan_allocation=28552
+test engine::row_views::batch::tests::predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions ... ok
+test engine::row_views::batch::tests::cold_basis_pages_preserve_live_counts_and_private_members ... ok
+cold scan: payload=262144 ceiling=33735168 used=0 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=33735168 used=0 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=134940672 used=0 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=134940672 used=0 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=303616512 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=303616512 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=0 nested=false limit=32 maximum_scan_allocation=8417160
+cold scan: payload=262144 ceiling=337351680 used=0 nested=true limit=32 maximum_scan_allocation=8417160
+test engine::row_views::batch::tests::cold_basis_scan_requests_obey_the_caller_allowance_before_decoding ... ok
+test engine::row_views::batch::tests::stream_basis_pages_obey_finite_and_nested_heap_allowances ... ok
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+50 members / 1002 live rows: batch 15.116552ms; decoded 1002 instead of 50100
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=false allocated=263 reads=0 peak=1364128 result=Err(Bound { kind: HeapBytes, actual: 1364128, ceiling: 23136, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=true allocated=263 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1364128, ceiling: 23136, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=false allocated=263 reads=0 peak=1364128 result=Err(Bound { kind: HeapBytes, actual: 1364128, ceiling: 1325103, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=true allocated=263 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1364128, ceiling: 1325103, site: test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... "ok"
+ })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=false allocated=263 reads=0 peak=1364146 result=Err(Bound { kind: HeapBytes, actual: 1364146, ceiling: 1325121, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=true allocated=263 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 1364146, ceiling: 1325121, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=false allocated=263 reads=0 peak=1364128 result=Err(Bound { kind: HeapBytes, actual: 1364128, ceiling: 1325104, site: "" })
+
+thread 'engine::row_views::batch::tests::cold_basis_single_candidate_reserves_private_witness_before_storage_access' (1910930) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:523:25:
+Err(Bound { kind: HeapBytes, actual: 1364128, ceiling: 1325104, site: "" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::batch::tests::cold_basis_single_candidate_reserves_private_witness_before_storage_access ... FAILED
+test engine::row_views::tests::inherited::inherited_member_witness_memory ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_sqlite ... ok
+test engine::row_views::tests::member_materialization_is_precharged_and_its_transient_peak_survives_release ... ok
+test engine::row_views::tests::inherited::inherited_source_count_memory ... ok
+test engine::row_views::tests::inherited::inherited_source_count_sqlite ... ok
+test engine::row_views::batch::tests::busy_group_stream_certification_bounds_storage_requests ... ok
+test engine::row_views::tests::live_basis_walk_charges_bounded_candidates_on_its_internal_ledger ... ok
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+test engine::row_views::tests::live_basis_reservation_is_identical_for_pending_and_zero_expired_reads ... ok
+test engine::row_views::tests::private_expiry_chunks_keep_durable_cursor_edits_and_restart ... ok
+test engine::row_views::tests::exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget ... ok
+
+failures:
+
+failures:
+    engine::row_views::batch::tests::cold_basis_single_candidate_reserves_private_witness_before_storage_access
+
+test result: FAILED. 29 passed; 1 failed; 0 ignored; 0 measured; 144 filtered out; finished in 0.87s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

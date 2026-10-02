@@ -1,0 +1,24 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 8.68s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 2 tests
+
+thread 'engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules' (3182686) panicked at crates/snapback4-core/src/engine/row_views/field_tests.rs:69:5:
+[Diagnostic { site: Site { file: "fields.q", line: 10, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "fields.q", line: 10, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules ... FAILED
+
+thread 'engine::row_views::certification_tests::lifetimes::fields::every_field_rule_certifies_absent_and_legacy_pending_cache' (3182685) panicked at crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+test engine::row_views::certification_tests::lifetimes::fields::every_field_rule_certifies_absent_and_legacy_pending_cache ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::lifetimes::fields::every_field_rule_certifies_absent_and_legacy_pending_cache
+    engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 197 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

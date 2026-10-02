@@ -565,6 +565,7 @@ impl Engine {
         schema.validate_column_owners()?;
         for program in programs.values() {
             crate::schema::ephemeral::admit_program(schema, program)?;
+            admission::check_state_predicates(schema, program)?;
         }
         for program in programs.values() {
             for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }

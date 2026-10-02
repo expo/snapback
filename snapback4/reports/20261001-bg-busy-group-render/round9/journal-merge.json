@@ -1,0 +1,10 @@
+{
+  "HEAD": {
+    "tail_sha256": "dd60299b34814d103119a3ea084a6c904d17bd15145c3e04e612a7f87c736abf",
+    "preserved_verbatim": true
+  },
+  "origin/main": {
+    "tail_sha256": "76ef71fe620c86f8e6ae223cd0000047267c7a656cbd332d9a308516e24684bc",
+    "preserved_verbatim": true
+  }
+}

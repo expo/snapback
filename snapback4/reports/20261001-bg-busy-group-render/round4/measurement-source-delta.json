@@ -1,0 +1,8 @@
+{
+  "changed_after_measurement": [
+    "snapback4/crates/snapback4/src/scale.rs",
+    "snapback4/crates/snapback4/tests/scale_row_ranges.rs"
+  ],
+  "engine_device_client_guide_unchanged": true,
+  "note": "CLI cost diagnostic and its independent receipt test only; no measured runtime code changed."
+}

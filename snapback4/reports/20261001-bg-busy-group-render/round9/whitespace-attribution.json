@@ -1,0 +1,100 @@
+{
+  "exit": 2,
+  "findings": 93,
+  "files": [
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round1/inline-experiment.patch",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round1/qualification/affected.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round1/qualification/guide.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round1/qualification/inline-latency-fixed.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round1/qualification/unloaded-latency.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round4/wall-paced-candidate/qualification/test-sh.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261001-ct-contended-reads/round4/wall-paced-candidate/source.patch",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/affected-final-3.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/emfile-1.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/guide.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/http-tests.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/lifecycle-fd-fixed.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/lifecycle-fd.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/many-servers-1.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/many-servers-2.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/policy-tests.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round1/affected-final.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round1/affected.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round1/emfile-development.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round1/guide.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round2/affected.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round2/full-suite-stall.log",
+      "equals_main": true
+    },
+    {
+      "path": "snapback4/reports/20261002-fdl-fd-limit/round2/guide.log",
+      "equals_main": true
+    }
+  ],
+  "classification": "baseline: untouched main evidence artifacts",
+  "ours": 0
+}

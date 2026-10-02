@@ -1,0 +1,194 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 9.62s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 54 tests
+cold scan: payload=0 ceiling=180736 used=0 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=180736 used=0 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=722944 used=0 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=722944 used=0 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=1626624 nested=false limit=1 maximum_scan_allocation=1632
+
+thread 'engine::row_views::certification_tests::lifetimes::device_never_reuses_a_missed_member_delta' (3173352cold scan: payload=) panicked at 0crates/snapback4-core/src/engine/row_views/lifetime_tests.rs ceiling=:180736068 used=:16266245 nested=:
+true[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }] limit=
+1note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=0 nested=false limit=32 maximum_scan_allocation=28552
+cold scan: payload=0 ceiling=1807360 used=0 nested=true limit=32 maximum_scan_allocation=28552
+
+thread 'engine::row_views::certification_tests::lifetimes::fanout_overflow_rolls_back_every_contribution' (3173353) panicked at crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+
+thread 'engine::row_views::certification_tests::lifetimes::forward_only_lapsed_member_extension_recounts' (3173355) panicked at crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+
+thread 'engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules' (3173354) panicked at crates/snapback4-core/src/engine/row_views/field_tests.rs:69:5:
+[Diagnostic { site: Site { file: "fields.q", line: 10, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "fields.q", line: 10, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+
+thread 'BG heap boundary: page=engine::row_views::certification_tests::lifetimes::generated_direct_lifetimes716544' ( occupied=31733579441) panicked at ; direct/nested; -1, exact, +1; preoccupied=0/17000
+crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+
+thread 'engine::row_views::certification_tests::lifetimes::nonexpiring_source_direct_member_rollback' (3173360) panicked at crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+
+thread 'engine::row_views::certification_tests::lifetimes::forward_only_member_maintenance_refresh_recounts' (3173356) panicked at crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+
+thread 'engine::row_views::certification_tests::lifetimes::source_delete_after_member_rollback_never_subtracts_a_stale_cache' (3173362) panicked at crates/snapback4-core/src/engine/row_views/lifetime_tests.rs:68:5:
+[Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 25, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "lifetimes.q", line: 20, col: 22 }, code: "E_QUARRY_TYPE", message: "rule comparison joins principal with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::batch::tests::cold_basis_falls_back_when_a_decoder_page_exceeds_available_heap ... ok
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... ok
+test engine::row_views::certification_tests::lifetimes::device_never_reuses_a_missed_member_delta ... FAILED
+test engine::row_views::batch::tests::small_predicate_ranges_match_an_independent_unread_oracle ... ok
+test engine::row_views::certification_tests::lifetimes::fanout_overflow_rolls_back_every_contribution ... FAILED
+test engine::row_views::certification_tests::lifetimes::forward_only_lapsed_member_extension_recounts ... FAILED
+test engine::row_views::batch::tests::predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions ... ok
+test engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules ... FAILED
+test engine::row_views::certification_tests::lifetimes::generated_direct_lifetimes ... FAILED
+test engine::row_views::batch::tests::batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers ... ok
+test engine::row_views::certification_tests::lifetimes::nonexpiring_source_direct_member_rollback ... FAILED
+test engine::row_views::certification_tests::lifetimes::forward_only_member_maintenance_refresh_recounts ... FAILED
+test engine::row_views::range_tests::a_nonuniform_source_stays_pending_even_if_a_synthetic_image_would_pass ... ok
+test engine::row_views::batch::tests::cold_basis_pages_preserve_live_counts_and_private_members ... ok
+test engine::row_views::certification_tests::lifetimes::source_delete_after_member_rollback_never_subtracts_a_stale_cache ... FAILED
+test engine::row_views::range_tests::exhausted_provisional_rule_admission_keeps_a_covered_range_unknown ... ok
+test engine::row_views::range_tests::pending_value_never_decides_a_probe_and_abort_keeps_its_host_policy ... ok
+cold scan: payload=262144 ceiling=33735168 used=0 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=33735168 used=0 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=134940672 used=0 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=134940672 used=0 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=303616512 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=303616512 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=0 nested=false limit=32 maximum_scan_allocation=8417160
+cold scan: payload=262144 ceiling=337351680 used=0 nested=true limit=32 maximum_scan_allocation=8417160
+test engine::row_views::batch::tests::cold_basis_scan_requests_obey_the_caller_allowance_before_decoding ... ok
+test engine::row_views::batch::tests::stream_basis_pages_obey_finite_and_nested_heap_allowances ... ok
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+50 members / 1002 live rows: batch 18.677875ms; decoded 1002 instead of 50100
+test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... ok
+test engine::row_views::batch::tests::busy_group_stream_certification_bounds_storage_requests ... ok
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=false allocated=249 reads=0 peak=1325122 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=false allocated=7086 reads=4 peak=1325104 result=Ok(())
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=true allocated=7054 reads=4 peak=0 result=Ok(())
+BG property start: seed=1 expiring_members=false population=1762
+test engine::row_views::tests::inherited::inherited_source_count_sqlite ... ok
+BG property start: seed=7 expiring_members=true population=1328
+test engine::row_views::tests::inherited::inherited_member_witness_memory ... ok
+test engine::row_views::tests::inherited::inherited_source_count_memory ... ok
+test engine::row_views::certification_tests::pre_rollback_fix_evidence_is_never_reused ... ok
+BG round3 literal Inherited: value=Ok(Int(0)) authorized_sources=0 complete=true
+test engine::row_views::tests::member_materialization_is_precharged_and_its_transient_peak_survives_release ... ok
+BG malformed evidence: $basis:unread.at
+test engine::row_views::certification_tests::sweeping_the_minimum_deadline_restores_incremental_delivery ... ok
+test engine::row_views::certification_tests::recorded_member_inputs_keep_the_disclosed_full_recount ... ok
+test engine::row_views::certification_tests::clock_rollback_after_expired_member_skipped_delta ... ok
+test engine::row_views::tests::live_basis_walk_charges_bounded_candidates_on_its_internal_ledger ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_sqlite ... ok
+test engine::row_views::certification_tests::lifetimes::nonexpiring_source_inherited_member_rollback ... ok
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=false allocated=249 reads=0 peak=1325122 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=false allocated=87085 reads=4 peak=1325104 result=Ok(())
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=true allocated=87053 reads=4 peak=0 result=Ok(())
+test engine::row_views::certification_tests::legacy_basis_upgrades_atomically_before_reuse ... ok
+BG malformed evidence: $basis:unread.at
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=false allocated=249 reads=0 peak=5519426 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=false allocated=269230 reads=4 peak=5519408 result=Ok(())
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=true allocated=269198 reads=4 peak=0 result=Ok(())
+BG malformed evidence: $basis:unread.at
+test engine::row_views::tests::live_basis_reservation_is_identical_for_pending_and_zero_expired_reads ... ok
+test engine::row_views::certification_tests::pending_counts_and_due_deadlines_still_use_the_current_live_basis ... ok
+test engine::row_views::certification_tests::legacy_partial_recount_cannot_stamp_an_incomplete_prefix_with_new_evidence ... ok
+test engine::row_views::certification_tests::clock_rollback_during_recount_restarts_the_excluded_prefix ... ok
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=false allocated=249 reads=0 peak=5519426 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=false allocated=349229 reads=4 peak=5519408 result=Ok(())
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=true allocated=349197 reads=4 peak=0 result=Ok(())
+test engine::row_views::batch::tests::cold_basis_single_candidate_reserves_private_witness_before_storage_access ... ok
+BG malformed evidence: $basis:unread.deadline
+BG malformed evidence: $basis:unread.deadline
+test engine::row_views::tests::exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep ... ok
+BG malformed evidence: $basis:unread.deadline
+BG malformed evidence: $basis:unread.version
+BG malformed evidence: $basis:unread.version
+test engine::row_views::tests::private_expiry_chunks_keep_durable_cursor_edits_and_restart ... ok
+BG malformed evidence: $basis:unread.version
+BG malformed evidence: unread.recountPending
+BG malformed evidence: unread.recountPending
+BG malformed evidence: unread.recountPending
+BG malformed evidence: unread.value
+BG malformed evidence: unread.value
+BG malformed evidence: unread.value
+test engine::row_views::certification_tests::malformed_required_evidence_never_certifies_a_count ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets ... ok
+BG round3 topology seed=3735928559 lifetime=Through steps=180
+BG round3 topology seed=20261002 lifetime=Inherited steps=180
+BG round3 topology seed=305419896 lifetime=Through steps=180
+BG round3 topology=2: 2 seeds x 180 steps + 2 review prefixes comparisons=42414 overlapping=27 operations=[34, 33, 42, 48, 43, 37, 34, 28, 34, 27]
+test engine::row_views::certification_tests::lifetimes::generated_through_lifetimes ... ok
+BG round3 topology seed=28 lifetime=Inherited steps=180
+BG round3 topology=1: 2 seeds x 180 steps + 2 review prefixes comparisons=57624 overlapping=38 operations=[35, 37, 36, 33, 36, 37, 36, 32, 40, 38]
+test engine::row_views::certification_tests::lifetimes::generated_inherited_lifetimes ... ok
+BG history=10000: delivery work (0, 100, 100)
+BG property seed complete: case=1 seed=7; 300 steps
+BG property start: seed=20261002 expiring_members=true population=1592
+BG property seed complete: case=0 seed=1; 300 steps
+BG property start: seed=28 expiring_members=false population=2009
+BG property seed complete: case=3 seed=20261002; 300 steps
+BG property start: seed=3735928559 expiring_members=true population=1295
+BG property seed complete: case=5 seed=3735928559; 300 steps
+BG property start: seed=24301 expiring_members=true population=1225
+BG property seed complete: case=7 seed=24301; 300 steps
+BG property: expiring_members=true seeds=[7, 20261002, 3735928559, 24301]; 1200 steps; 21759 naive/scalar comparisons; 1200 full-acquisition comparisons; unread, messageCounts, reactionCounts; operations=[70, 74, 68, 87, 76, 85, 78, 81, 77, 77, 82, 68, 85, 85, 67]; committed_chunks=348 aborted_chunks=82 backward=29 forward=44
+test engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members ... ok
+BG property seed complete: case=2 seed=28; 300 steps
+BG property start: seed=195939070 expiring_members=false population=2192
+test engine::row_views::certification_tests::certification_delivery_work_is_independent_of_ten_or_hundred_thousand_history has been running for over 60 seconds
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step has been running for over 60 seconds
+BG property seed complete: case=4 seed=195939070; 300 steps
+BG property start: seed=305419896 expiring_members=false population=1337
+BG property seed complete: case=6 seed=305419896; 300 steps
+BG property: expiring_members=false seeds=[1, 28, 195939070, 305419896]; 1200 steps; 22530 naive/scalar comparisons; 1200 full-acquisition comparisons; unread, messageCounts, reactionCounts; operations=[89, 66, 76, 77, 92, 75, 78, 86, 75, 71, 83, 95, 64, 68, 65]; committed_chunks=302 aborted_chunks=59 backward=32 forward=32
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step ... ok
+BG history=100000: delivery work (0, 100, 100)
+test engine::row_views::certification_tests::certification_delivery_work_is_independent_of_ten_or_hundred_thousand_history ... ok
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::lifetimes::device_never_reuses_a_missed_member_delta
+    engine::row_views::certification_tests::lifetimes::fanout_overflow_rolls_back_every_contribution
+    engine::row_views::certification_tests::lifetimes::fields::private_settlement_cannot_change_read_or_insert_rules
+    engine::row_views::certification_tests::lifetimes::forward_only_lapsed_member_extension_recounts
+    engine::row_views::certification_tests::lifetimes::forward_only_member_maintenance_refresh_recounts
+    engine::row_views::certification_tests::lifetimes::generated_direct_lifetimes
+    engine::row_views::certification_tests::lifetimes::nonexpiring_source_direct_member_rollback
+    engine::row_views::certification_tests::lifetimes::source_delete_after_member_rollback_never_subtracts_a_stale_cache
+
+test result: FAILED. 46 passed; 8 failed; 0 ignored; 0 measured; 144 filtered out; finished in 111.96s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

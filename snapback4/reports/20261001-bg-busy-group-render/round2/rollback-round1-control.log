@@ -1,0 +1,28 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 8.53s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 2 tests
+
+thread 'engine::row_views::certification_tests::clock_rollback_after_expired_member_skipped_delta' (307205) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:339:5:
+assertion `left == right` failed: stream versus full acquisition at 9
+  left: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(0)}, false, None, false)))]
+ right: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(1)}, false, None, false)))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::clock_rollback_after_expired_member_skipped_delta ... FAILED
+
+thread 'engine::row_views::certification_tests::clock_rollback_during_recount_restarts_the_excluded_prefix' (307206) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:339:5:
+assertion `left == right` failed: stream versus full acquisition at 2
+  left: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(1100)}, false, None, false)))]
+ right: [Some(Row(ObjectFields({"id": Id("u0"), "member": Id("u0"), "recountPending": Bool(false), "value": Int(1101)}, false, None, false)))]
+test engine::row_views::certification_tests::clock_rollback_during_recount_restarts_the_excluded_prefix ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::clock_rollback_after_expired_member_skipped_delta
+    engine::row_views::certification_tests::clock_rollback_during_recount_restarts_the_excluded_prefix
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 181 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

@@ -26,7 +26,7 @@ for(const path of process.argv.slice(2)){
    const queryStart=ev.find(e=>e.stage==='device-start'&&e.id===query?.id);
    const decoration=ev.find(e=>e.stage==='device-end'&&e.op==='query'&&e.name==='decorations'&&e.at>=apply?.at);
    const decorationStart=ev.find(e=>e.stage==='device-start'&&e.id===decoration?.id);
-   const finished=counts.filter(x=>x.at>= (sync?.at??c)&&x.at<=response?.at&&x.rows>=10000);
+   const finished=counts.filter(x=>x.at>= (sync?.at??c)&&x.at<=response?.at);
    const stage={
     commit_notify_ms:change?.at-c,notify_sync_request_ms:sync?.at-change?.at,
     sync_http_ms:response?.at-sync?.at,sync_bytes:response?.bytes,

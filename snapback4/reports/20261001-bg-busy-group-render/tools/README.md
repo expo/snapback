@@ -88,3 +88,134 @@ After correcting the changed await census, run the affected audit and all its
 fault cases with `node --test packages/snapback4/test/delivery-fault-matrix.test.mjs`.
 Run `./ref-check --verbose` from the repository root. The SQLite build flag was
 held fixed for every server build, before and after.
+
+
+## Round 1
+
+The round-1 idle assertion is `BG_MAX_P95=250`. Preserve matching round-0 and
+round-1 production measurement binaries outside the repository, then run each
+against its matching built client. After each clean SDK build, add the optional
+client trace with `python3 reports/20261001-bg-busy-group-render/tools/instrument-client.py`.
+It modifies only ignored `dist/`; rebuild the SDK to remove it. The page also
+records synchronous wasm spans, IndexedDB transaction lifetimes, raw local
+publication and app facade checks. No trace adds a wait to the shipping flow.
+
+```sh
+BG_PROFILE=production BG_RUNS=50 BG_MAX_P95=250 BG_SEED_CACHE=/tmp/bg-round1-seed BG_OUT=/tmp/bg-after-idle.json SNAPBACK4_BIN=/tmp/bg-round1-production node reports/20261001-bg-busy-group-render/tools/measure.mjs
+BG_PROFILE=production BG_RUNS=50 BG_SEED_CACHE=/tmp/bg-round1-seed BG_OUT=/tmp/bg-after-loaded.json SNAPBACK4_BIN=/tmp/bg-round1-production python3 reports/20261001-bg-busy-group-render/tools/contended.py node reports/20261001-bg-busy-group-render/tools/measure.mjs
+node reports/20261001-bg-busy-group-render/tools/summarize.mjs /tmp/bg-after-idle.json /tmp/bg-after-loaded.json
+node reports/20261001-bg-busy-group-render/tools/attribute-client.mjs /tmp/bg-after-idle.json /tmp/bg-after-loaded.json
+```
+
+`contended.py` owns one CPU burner per affinity-visible logical CPU (96 here),
+keeps them alive throughout the scenario, and reaps all its children in `finally`.
+Client attribution clips and unions spans inside each named stage; IndexedDB,
+facade and lock elapsed times overlap CPU and one another. They must not be
+added together. Prediction means synchronous `admit`; other VM calls are
+reported separately. Browser timings include scheduling, not just IDB service.
+
+The negative control `negative-control.py` temporarily installs the six relevant
+round-0 Rust implementation files, adds the new test module, and requires the
+10k/100k work test to fail. It always restores sources. Do not run it alongside
+edits or builds. The retained failure must name the work assertion, not a compile
+error. Normal verification runs with the round-1 sources restored.
+
+
+`host-load.py COMMAND...` samples `/proc/stat` once per second while running a
+Linux qualification command and records host-wide busy CPU percentage and load
+average. It does not pin or reprioritize the command. The final candidate
+confirmation uses the wasm rebuilt by the full suite; both the earlier matched
+artifact runs and the final confirmation are retained.
+
+Final round-1 evidence uses `qualification-idle`, `qualification-loaded` and
+`ll-final`. Wrap the idle command with `host-load.py`; wrap the loaded command
+with `host-load.py python3 contended.py`. `SNAPBACK4_BIN` points to the final
+production or debug measurement binary as appropriate. After measurement, run:
+
+```sh
+python3 reports/20261001-bg-busy-group-render/tools/qualify-round1.py
+```
+
+This validates the retained final traces and writes `round1/qualification-final.json`.
+It accepts raw or gzip-compressed JSON. Rebuild the normal SDK and server after
+measurement to remove ignored instrumentation artifacts. Qualification does not
+publish or push anything.
+
+## Round 2
+
+The fixture, sample counts, profiles and idle p95 assertion are unchanged. Use
+`/tmp/bg-round2-production` and `/tmp/bg-round2-dev` for the instrumented binaries,
+with outputs under `round2/`. The candidate can reuse a copy of the round-0
+`BG_SEED_CACHE`; adding the optional work version causes atomic count adoption.
+Round 2's negative control is `python3 tools/negative-control-round2.py` (paths
+relative to this report). It installs the relevant `4277a65cf4` production files,
+requires both property tests and the exact-page regression to fail assertions,
+and restores the candidate. Run without concurrent builds or source edits.
+
+After the two BG scenarios, their summaries and the unchanged LL harness, run
+`BG_ROUND=round2 python3 reports/20261001-bg-busy-group-render/tools/qualify-round1.py`
+from `snapback4/`; the original trace validator now accepts the report subdirectory.
+The full suite runs once with ordinary sources/client artifacts restored. Its
+wasm digest must equal the artifact used by the measurements; retain its exact
+terminal summary and every failed test even when a later affected rerun repairs it.
+
+## Round 3
+
+`negative-control-round3.py` installs the five dispatch files and certification
+file from exact `fcc4b644f9`, runs the lifetime and malformed-evidence tests,
+requires their assertion failures, and restores every production file in
+`finally`. Do not run it concurrently with any build or source edit. The forward
+public seed/import test passes on round 2; the separately named maintenance-seam
+test fails. This distinction is intentional.
+
+`round3/main-control.patch` adds only test modules to main `738d45830c`.
+Apply it in an isolated checkout and run `cargo test -p snapback4-core --lib
+round3_control::lifetimes -- --nocapture` from `snapback4/`, with the same SQLite
+flag. The retained initial main control has both literal rollback failures;
+`main-forward-final.log` separately shows the passing public restoration and
+failing old/new-image maintenance seam. No BG production source is copied to main.
+
+`run-round3.py` records the affected Rust cohort, guide/schema compatibility,
+wasm, ordinary SDK build, temporarily instrumented dev/production binaries,
+50-send idle and 96-burner BG runs, unchanged 160-sample LL control, trace
+validation, SDK restoration and one `scripts/test.sh` invocation. It stops on
+pre-suite failures; retain those logs and resume only the unfinished stages.
+The round-3 run uses `/tmp/bg-round3-seed` (outside the repository, credentials
+mode 0600) because the old round-1 cache no longer exists. Seed once from the
+unchanged calibration and reuse copies for both conditions. The saved caller
+ceilings, message/member populations, windows and benchmark assertions stay fixed.
+The strict nominal-type corruption case was also run separately after the
+52-test cohort and is included in the suite. A source-delete underflow was found
+while that single suite was running; its final fix has a 53-test core cohort and
+29 affected integration tests. The report states which revision each run covers.
+
+`confirm-round3.py` rebuilds and measures the final maintenance fix after the
+suite drains. It records wasm, matching instrumented dev/production binaries,
+50-send idle/96-burner runs, the unchanged LL control and trace validation under
+`round3/final/`, then restores ordinary SDK/server artifacts. It never invokes
+`test.sh`. Both the earlier loaded-tail result and final confirmation are kept.
+
+The final test-only controls are `round3/current-main-final-control.patch` at
+`738d45830c` and `round3/pre-bg-main-control.patch` at `6c598ef145`. Current main
+includes BG round 0; the latter is main immediately before its merge. Both run
+the same ten lifetime tests; expected results are eight assertion failures and
+two passes (public forward renewal and fan-out rollback).
+
+The final confirmation encountered a saturated shared host during its first idle
+attempt. That failed trace is retained as `final/unexpected-contention-idle*`.
+`confirm-round3.py --measure-only` reuses and verifies recorded artifact hashes,
+waits for five two-second host CPU samples below 15% before each scenario, and
+resumes measurement without rebuilding or invoking the suite. Keep every failed
+attempt before resuming; it must not overwrite evidence.
+
+For the final LL control, quiet admission stayed busy for over six minutes.
+The owned waiting process was interrupted while no measurement was running,
+and `confirm-round3.py --ll-only --ll-current-load` ran the unchanged LL harness
+with `host-load.py` recording. Those LL timings are explicitly contended. These
+flags neither rebuild artifacts nor repeat BG or the suite.
+
+Retained large traces, test logs and test-only patches use `.gz`; the report
+omits that suffix in prose. Decompress the patches before applying them. CPU
+logs for `qualification-idle` and `qualification-loaded` remain plain text for
+the trace validator. Run `sha256sum -c .../round3/SHA256SUMS` from the repository
+root to verify the final evidence and source binding.

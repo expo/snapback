@@ -1,0 +1,44 @@
+{
+  "base": "c0d6d1ee2869760ed6605d229e975d0bdda1d15a",
+  "source_sha256": {
+    "llp/3000.013-quarry-states-intent.rfc.md": "fc418ab02e2c2c81518cffd47c42a26ea31eaa960d9706cae57a41bdac798e46",
+    "llp/3000.015-shared-baseline-for-snapback5.spec.md": "4138681be541464b24616e2f389d58abc1ca86ca140e25a01af032500f0c691a",
+    "snapback4/JOURNAL.md": "b5ff2609af9032b2c7947a4abe0d2aa616b02dd01b267dbee39e5c66c0b7f84b",
+    "snapback4/crates/snapback4-core/src/engine/row_views.rs": "496f2355fb5addf37e026f83dab89de61f7eae95104864998a599dab0c69ca1e",
+    "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "08b58cecca0cd3f8dbee878162d457b73f832556719d415908088f6cd2a157fe",
+    "snapback4/crates/snapback4-core/src/engine/row_views/live.rs": "3d70581f4741466170d778a9051a4360d4f22d6a2841b01512d6788fd97b057a",
+    "snapback4/crates/snapback4-core/src/engine/runner.rs": "0341359fec801340887813186718f82f5d094ab2274de7565b261c4da073917b",
+    "snapback4/crates/snapback4-core/src/maintain/row_key.rs": "07e7900a277b6d219d3fbd68ebcefe79f7fe9ecb13d23e75423e8d76555b4828",
+    "snapback4/crates/snapback4-core/src/successor.rs": "34025e3c4ec924104663e29fbcc8e935f756d783ef256993762ce8056eb56f45",
+    "snapback4/crates/snapback4-lang/src/guide/maintains.md": "ae529954130bf6fe507ba229745a45652eff71188731c3649f82f171407f0607",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "3bb1ff2e8ecc46bdd260cf4bf769c2c9f6463d09fd3c1d7b647520c2a0380afe",
+    "snapback4/packages/snapback4/src/app.ts": "34620d716a358d2d08e408de4c39b678d9a7491946292a15b4b3d291e5644b54",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "da47d75d320d6501aecdae24b1a075b0ed2a7e18281058ce597549e1a8d6c9c8",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "204aa8f8accd4d47205442c754762815f77ba2f5149ad8426ec5eeb85816fcae",
+    "snapback4/packages/snapback4/test/web-session-authority.test.mjs": "2f2824cfb722b836e98a567c75995a7e5ec920b490f664c64afdc1fbd78250d3",
+    "snapback4/crates/snapback4-core/src/engine/row_views/certification.rs": "e227481aa981c9d30c4f201bc1c0d5f224a973c53883ac3ebf8020ef6b7f2045",
+    "snapback4/crates/snapback4-core/src/engine/row_views/certification_tests.rs": "95662e5090bbd6d0e1a86f4185cc9d00adffa379dfffac7c2e2e9e6aafad6e70",
+    "snapback4/Cargo.lock": "024159664dc658d06d499f525b823465a6c9efb6722a1f35858ca2aca7bd5da6",
+    "snapback4/bun.lock": "dab585af3ccaad938a0afcb7ab35948fe456d40b845eec3bf5a613ffa38d2764",
+    "snapback4/Cargo.toml": "bd7d1663cb9c3105e7edca73235e7e8056f350ea8d07ab0ae8a6469f4a34b690",
+    "snapback4/packages/snapback4/package.json": "43770483a711dfc3943cbd1eef95a1271772a01246020d5a6b07ade3bb47339b",
+    "snapback4/reports/20261001-bg-busy-group-render/calibration/schema.q": "a5bbd80895d597698dfbbf17e999014e82c4d0d04580d14b4bc47a32c7968607",
+    "snapback4/reports/20261001-bg-busy-group-render/calibration/config.q": "5dd2efa737176b2447ff26f7c3c26069bbbca79518585de4912bb68d0d0e5895"
+  },
+  "measurement_binaries": {
+    "/tmp/bg-round1-production-final": "88c90245566dbf4978e23254ccf5b8e1dd7c860f3dd4c4b77482b23221b845fb",
+    "/tmp/bg-round1-debug-final": "ab3e21859fc3f2b3df76d1570bbe7a4d4839b84e609880ec41b83e28fda4ddaa"
+  },
+  "normal_client_app_sha256": "d998f75a5141cf077a42c855bc444ec9b2d3c02b70f5d352e6778e1fe147d260",
+  "wasm": {
+    "raw_bytes": 2015329,
+    "gzip_bytes": 605003,
+    "sha256": "3a6e6c86747c58bfe5aac1372ad0f78371d70eb3b77ae944f3404fa2b822af0c",
+    "ratchet": 605225
+  },
+  "uncompressed_trace_sha256": {
+    "qualification-idle": "12c4bbe89b085a6a3966104a67de1cdf7ac6b8697aced39c948dd37b8bf99c2d",
+    "qualification-loaded": "0baf5245580a453950b21f252cd0e2e868ea41982f754326a994c003f9438d97",
+    "ll-final": "ceb6daf0d60ba63e031b22e1f9e94ed6129ffd37d1384eeb33be96fa21fbda90"
+  }
+}

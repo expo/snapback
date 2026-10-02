@@ -107,7 +107,7 @@ Nested `as`, a block outside a job sweep, and a return leaving the block refuse.
 Declared calls must be Quarry queries over durable data, with ordinary server
 availability; native, held queries and all ephemeral reads refuse.
 Reads see earlier uncommitted chunk writes; separate client transactions do not.
-The clock and meter are shared. Oversized recipients park without partial digests.
+The clock and meter are shared. Oversized recipients park without partial digests. Maintained rows keep the same restrictions as client query computations (guide maintains): use `value` or member fields. A row assigned to an outer local inside `as` remains maintenance-carrying throughout that local's scope, even after a reset. Declared query results and `all` preserve that row type. A query selecting maintenance state for UI display cannot be called by a job; return ordinary fields or the whole row instead.
 
 Keep `inbox` locally complete: unavailable unread totals are unknown, not zero. Expired rows are
 absent from their expiry instant; tombstoned, own, already-read and out-of-period

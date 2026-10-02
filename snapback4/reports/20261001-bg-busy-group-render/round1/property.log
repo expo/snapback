@@ -1,0 +1,19 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 4.58s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+thread 'engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step' (2120335) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:50:25:
+called `Result::unwrap()` on an `Err` value: Require { code: "NOT_FOUND", site: Some("") }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 175 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

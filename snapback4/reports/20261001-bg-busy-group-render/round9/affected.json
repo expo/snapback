@@ -1,0 +1,159 @@
+[
+  {
+    "name": "compiler-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "row_keyed_views",
+      "--test",
+      "job_viewer",
+      "--test",
+      "guide",
+      "--test",
+      "lowering",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 182.79231524467468
+  },
+  {
+    "name": "core",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "engine::",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 148.2060568332672
+  },
+  {
+    "name": "native-matrix",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--test",
+      "row_view_witness",
+      "--test",
+      "row_view_disclosure",
+      "--test",
+      "row_view_accounting",
+      "--test",
+      "row_view_legacy",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 355.6681468486786
+  },
+  {
+    "name": "device",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "row_view_expiry",
+      "--test",
+      "row_keyed_views",
+      "--test",
+      "row_view_disclosure",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 416.9854335784912
+  },
+  {
+    "name": "cli-certificates",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "scale_row_ranges",
+      "--test",
+      "scale_windows_expiry",
+      "--test",
+      "scale_intent",
+      "--test",
+      "maintenance_chunks",
+      "--test",
+      "maintenance_latency",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 3.0395073890686035
+  },
+  {
+    "name": "digest",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "digest_count",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 6.878281116485596
+  },
+  {
+    "name": "wasm",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "exit": 0,
+    "seconds": 55.41001844406128
+  },
+  {
+    "name": "client-build",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "exit": 0,
+    "seconds": 2.617656946182251
+  },
+  {
+    "name": "client-affected",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/row-view-prediction.test.mjs",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "packages/snapback4/test/one-shot.test.mjs",
+      "packages/snapback4/test/one-shot-review.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 140.74765586853027
+  },
+  {
+    "name": "jv-wasm-fence",
+    "command": [
+      "node",
+      "reports/20261002-jv-job-reads-as-viewer/round1/wasm-fence.mjs"
+    ],
+    "exit": 0,
+    "seconds": 0.04827380180358887
+  }
+]

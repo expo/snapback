@@ -1,0 +1,16 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "available_cpus": 96,
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "gzip": "gzip 1.12",
+  "sqlite_build_flag": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "base": "fcc4b644f970b3246f051ebfbc3fbdf0858283cd",
+  "main_control": "738d45830c9d51c9c92f65180c56cbecb2f2b068",
+  "main_contains_BG": true,
+  "main_contains_round2": false,
+  "main_contains_round1": false,
+  "pre_BG_main_control": "6c598ef145e0eaf44831797bd2d631c60e03847b"
+}

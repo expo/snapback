@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-10-02T11:23:22.323723+00:00",
+  "suite_exit": 1,
+  "suite_summary": [
+    "== 1 failure(s) in 1421 s"
+  ],
+  "suite_log_sha256": "2232999734e489ef5c2a9693ebb095b88fc0c22451bc05dc738db03c89a39244",
+  "captured_source_files": 1790,
+  "source_changes": [],
+  "wasm": {
+    "raw_bytes": 2012674,
+    "gzip_bytes": 605008,
+    "sha256": "233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164"
+  },
+  "wasm_identical_to_measurement": true,
+  "failed_steps": [
+    "-- FAIL: client tests (582 s)"
+  ]
+}

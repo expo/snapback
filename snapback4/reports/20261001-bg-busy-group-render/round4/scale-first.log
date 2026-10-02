@@ -1,0 +1,88 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4)
+warning: unused import: `display::summary`
+  --> crates/snapback4/tests/../src/scale.rs:19:16
+   |
+19 | pub(crate) use display::summary;
+   |                ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:20:16
+   |
+20 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analyze_bound` is never used
+  --> crates/snapback4/tests/../src/scale.rs:85:15
+   |
+85 | pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+   |               ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+
+warning: field `summary` is never read
+  --> crates/snapback4/tests/../src/scale/search.rs:12:9
+   |
+ 5 | pub(crate) struct Search {
+   |                   ------ field in this struct
+...
+12 |     pub summary: &'static str,
+   |         ^^^^^^^
+   |
+   = note: `Search` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `snapback4` (test "scale_row_ranges") generated 5 warnings (run `cargo fix --test "scale_row_ranges" -p snapback4` to apply 2 suggestions)
+    Finished `test` profile [optimized] target(s) in 2.90s
+     Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-da0059bdede59bb6)
+
+running 13 tests
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+test scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut ... ok
+test optional_row_key_operands_keep_scalar_type_checks ... ok
+test scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers ... ok
+test certificate_uses_the_guide_plan_and_actual_fields_without_invented_backlog ... ok
+test scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile ... ok
+test scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview ... ok
+test scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names ... ok
+
+thread 'count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness' (3851712) panicked at crates/snapback4/tests/scale_row_ranges.rs:8:5:
+[Diagnostic { site: Site { file: "schema.q", line: 28, col: 1 }, code: "E_VIEW_KEY", message: "row-keyed source/member audiences are unsupported: every member-row reader must be able to read the entire counted parent group; use the same parent grant, a membership witness, or a public source", rewrite: "view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo and .senderId != m.principal and not .tombstone; declare cap 100 by conversationId on members", guide: "maintains", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test range_whole_group_non_expiring_and_witness_costs_are_distinct ... ok
+test count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness ... FAILED
+test scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema ... ok
+test scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair ... ok
+expiring badgeRows: certificate 303 examined / 202 probes, receipt 300 / 100
+expiring badge: certificate 3 examined / 2 probes, receipt 3 / 1
+non-expiring badgeRows: certificate 303 examined / 202 probes, receipt 300 / 100
+non-expiring badge: certificate 3 examined / 2 probes, receipt 3 / 1
+
+thread 'live_view_page_and_point_certificates_cover_real_receipts' (3851713) panicked at crates/snapback4/tests/scale_row_ranges.rs:8:5:
+[Diagnostic { site: Site { file: "schema.q", line: 28, col: 1 }, code: "E_VIEW_KEY", message: "row-keyed source/member audiences are unsupported: every member-row reader must be able to read the entire counted parent group; use the same parent grant, a membership witness, or a public source", rewrite: "view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo and .senderId != m.principal and not .tombstone; declare cap 100 by conversationId on members", guide: "maintains", mechanical: false, cascade_of: None }]
+test live_view_page_and_point_certificates_cover_real_receipts ... FAILED
+
+failures:
+
+failures:
+    count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness
+    live_view_page_and_point_certificates_cover_real_receipts
+
+test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p snapback4 --test scale_row_ranges`

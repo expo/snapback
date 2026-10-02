@@ -1,0 +1,15 @@
+{
+  "pid": 352240,
+  "observed_command": "node scripts/contended-reads.mjs",
+  "cpu_samples": 29,
+  "cpu_p50": 99.1875,
+  "cpu_p95": 99.65635738831615,
+  "cpu_max": 99.7301504929943,
+  "send_render_ms": {
+    "n": 50,
+    "p50": 177.800048828125,
+    "p95": 273,
+    "max": 309.199951171875
+  },
+  "classification": "environmental: requested idle condition absent; 50 sends and all samples retained"
+}

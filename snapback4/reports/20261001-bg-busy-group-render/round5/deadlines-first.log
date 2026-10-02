@@ -1,0 +1,24 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 1.11s
+     Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-0aea40e9b28df280)
+
+running 2 tests
+
+thread 'deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links' (2393582) panicked at crates/snapback4-core/tests/row_view_witness/deadlines.rs:10:5:
+[Diagnostic { site: Site { file: "schema.q", line: 28, col: 3 }, code: "E_READ_THROUGH", message: "gates.member is captured by links and must be immutable", rewrite: "immutable member  -- on table gates", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 28, col: 3 }, code: "E_READ_THROUGH", message: "gates.member is captured by links and must be immutable", rewrite: "immutable member  -- on table gates", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 24, col: 61 }, code: "E_QUARRY_UNKNOWN", message: "permits has no index with 1 column matching this key", rewrite: "declare `unique byP: <columns>` on permits; its indexes are byId: id; byMember: member; read or declaration on messages (until) at schema.q:13:3 or read or declaration on permits (until) at schema.q:19:3: until", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 32, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(link)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 28, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(gate)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links ... FAILED
+
+thread 'deadlines::generated_composed_count_rules_match_future_model_deadlines' (2393581) panicked at crates/snapback4-core/tests/row_view_witness/deadlines.rs:10:5:
+[Diagnostic { site: Site { file: "schema.q", line: 28, col: 3 }, code: "E_READ_THROUGH", message: "gates.member is captured by links and must be immutable", rewrite: "immutable member  -- on table gates", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 28, col: 3 }, code: "E_READ_THROUGH", message: "gates.member is captured by links and must be immutable", rewrite: "immutable member  -- on table gates", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 24, col: 57 }, code: "E_QUARRY_UNKNOWN", message: "permits has no index with 1 column matching this key", rewrite: "declare `unique byP: <columns>` on permits; its indexes are byId: id; byMember: member; read or declaration on members (until) at schema.q:7:3 or read or declaration on messages (until) at schema.q:13:3 or read or declaration on permits (until) at schema.q:19:3: until", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 32, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(link)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 28, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(gate)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }]
+test deadlines::generated_composed_count_rules_match_future_model_deadlines ... FAILED
+
+failures:
+
+failures:
+    deadlines::generated_composed_count_rules_match_future_model_deadlines
+    deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-core --test row_view_witness`

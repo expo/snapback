@@ -330,21 +330,33 @@ export function createApp(options: AppOptions): App {
       })),
       delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
-    async function authorized(): Promise<boolean> {
-      const valid = await persist(() => storeLock(sessionKey(url), async () => {
-        if (!scope.valid) return false;
-        if (preparing || !authority) return await readEpoch() === epoch;
-        const { marker, raw } = await authority.readScope(sessionKey(url));
-        const stored = sessionEpoch(raw) ?? "0", legacy = marker ?? "0";
-        const current = BigInt(legacy) > BigInt(stored) ? legacy : stored;
-        observeEpoch(current);
-        if (!scope.valid || current !== epoch) return false;
-        if (!raw || logoutEpoch(raw) !== null) return false;
-        try { return JSON.parse(raw)?.principal === scope.session.principal; } catch { return false; }
-      }));
-      if (!valid) {
-        fence(scope, new SessionEpochChanged()); return false;
-      }
+    let pendingAuthority: Promise<boolean> | undefined;
+    function authorized(): Promise<boolean> {
+      // Memory/native session stores keep their original scheduling: their
+      // persistence queue can contain an admitted write held by its owner.
+      if (!authority || preparing) return checkAuthority();
+      // Calls queued before this read starts share one linearization point.
+      // Clear before acquiring the lock: calls arriving during/after the read
+      // always queue a new committed transaction, including after peer logout.
+      if (pendingAuthority) return pendingAuthority;
+      return pendingAuthority = checkAuthority(() => { pendingAuthority = undefined; });
+    }
+    async function checkAuthority(start?: () => void): Promise<boolean> {
+      const valid = await persist(() => {
+        start?.();
+        return storeLock(sessionKey(url), async () => {
+          if (!scope.valid) return false;
+          if (preparing || !authority) return await readEpoch() === epoch;
+          const { marker, raw } = await authority.readScope(sessionKey(url));
+          const stored = sessionEpoch(raw) ?? "0", legacy = marker ?? "0";
+          const current = BigInt(legacy) > BigInt(stored) ? legacy : stored;
+          observeEpoch(current);
+          if (!scope.valid || current !== epoch) return false;
+          if (!raw || logoutEpoch(raw) !== null) return false;
+          try { return JSON.parse(raw)?.principal === scope.session.principal; } catch { return false; }
+        });
+      });
+      if (!valid) { fence(scope, new SessionEpochChanged()); return false; }
       return true;
     }
     function admit(): Refusal | undefined {

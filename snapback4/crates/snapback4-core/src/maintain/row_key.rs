@@ -140,6 +140,7 @@ impl crate::schema::Schema {
                     ("parked".into(), C::Bool),
                     ("at".into(), C::Time),
                     ("deadline".into(), C::Optional(Box::new(C::Time))),
+                    ("version".into(), C::Optional(Box::new(C::Text { max: 64 }))),
                 ]),
                 BTreeMap::from([
                     ("byId".into(), Index::of(&["id"], true)),
@@ -148,7 +149,11 @@ impl crate::schema::Schema {
             );
             work.rules = Rules::deny();
             self.tables.insert(m.work_table(), work);
-            let mut basis = public_table(BTreeMap::from([("id".into(), C::Id), ("at".into(), C::Time)]), BTreeMap::from([("byId".into(), Index::of(&["id"], true))]));
+            let mut basis = public_table(BTreeMap::from([
+                ("id".into(), C::Id), ("at".into(), C::Time),
+                ("deadline".into(), C::Optional(Box::new(C::Time))),
+                ("version".into(), C::Optional(Box::new(C::Text { max: 64 }))),
+            ]), BTreeMap::from([("byId".into(), Index::of(&["id"], true))]));
             basis.rules = Rules::deny();
             self.tables.insert(format!("$basis:{}", m.target), basis);
         }
@@ -163,6 +168,14 @@ impl crate::schema::Schema {
         self.maintains
             .iter()
             .any(|m| m.row_key.is_some() && (m.work_table() == name || format!("$basis:{}", m.target) == name))
+    }
+
+    // @ref LLP 3000.015#3 — maintenance state is data, never authority or a predicate.
+    pub fn row_view_predicate_field(&self, table: &str, field: &str) -> Option<String> {
+        let view = self.maintain_for(table).is_some_and(|m| m.row_key.is_some());
+        (self.is_recount_work(table) || (view && (matches!(field, "recountPending" | "pending")
+            || self.table(table).is_none_or(|t| !t.columns.contains_key(field))))).then(||
+            format!("E_VIEW_KEY: {table}.{field} is maintenance or private state; read recountPending/pending only directly in query result data; compute with value, member identity or copied member fields instead and check complete (guide maintains)"))
     }
 }
 
@@ -243,9 +256,9 @@ impl RowKey {
         if target
             .indexes
             .values()
-            .any(|i| i.columns().iter().any(|f| f == "value"))
+            .any(|i| i.columns().iter().any(|f| matches!(f.as_str(), "value" | "recountPending")))
         {
-            return Err("E_VIEW_KEY: row-keyed counts may be pending or awaiting expiry; read the value by member and check complete instead of indexing, ranking or probing by value (guide maintains)".into());
+            return Err("E_VIEW_KEY: row-keyed counts may be pending or awaiting expiry; read the value by member and check complete instead of indexing, ranking or probing by value/recountPending (guide maintains)".into());
         }
         fn valid(
             p: &Predicate,

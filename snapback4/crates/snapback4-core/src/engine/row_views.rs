@@ -14,6 +14,10 @@ use crate::value::object;
 // @ref LLP 3000.015#3 — devices predict from covered rows; durable recount
 // work and basis timestamps belong only to the server storage build.
 mod live;
+#[cfg(feature = "sqlite")]
+mod certification;
+#[cfg(all(test, feature = "sqlite"))]
+mod certification_tests;
 mod device;
 #[cfg(feature = "sqlite")]
 mod batch;
@@ -31,7 +35,7 @@ fn number(row: &Value, name: &str) -> i64 {
         .unwrap_or(0)
 }
 fn pending(row: &Value) -> bool {
-    row.field("recountPending") == Ok(&Value::Bool(true))
+    row.field("recountPending") != Ok(&Value::Bool(false))
 }
 
 impl Runner<'_> {
@@ -170,15 +174,29 @@ impl Runner<'_> {
                 column: "value".into(),
             });
         }
-        let mut fields = member
+        let mut fields = crate::small_map::collect(member
             .as_object()?
             .iter()
             .filter(|(name, _)| self.schema.tables[&m.target].columns.contains_key(*name))
-            .map(|(name, value)| (name.clone(), value.clone()))
-            .collect::<std::collections::BTreeMap<_, _>>();
+            .map(|(name, value)| (name.clone(), value.clone())));
         fields.insert("member".into(), member.field("id")?.clone());
         fields.insert("value".into(), Value::Int(total));
         fields.insert("recountPending".into(), Value::Bool(pending));
+        Ok(Value::Row(fields.into()))
+    }
+    // @ref LLP 3000.015#3 — incomplete maintenance changes private evidence only.
+    // Keep the last certified cache, or no numerical fields when none exists in
+    // this domain. Public reads reconstruct both fields before disclosure.
+    #[cfg(feature = "sqlite")]
+    fn view_cache_image(&self, m: &Maintain, member: &Value, cached: Option<&Value>) -> Result<Value, RuntimeError> {
+        let image = self.view_image(m, member, 0, false)?;
+        let mut fields = image.as_object()?.clone();
+        for name in ["value", "recountPending"] {
+            fields.remove(name);
+            if let Some(value) = cached.and_then(|row| row.field(name).ok()) {
+                fields.insert(name.into(), value.clone());
+            }
+        }
         Ok(Value::Row(fields.into()))
     }
     fn covered_view_source(
@@ -316,6 +334,8 @@ impl Runner<'_> {
                     // Source-group authority was proven before recount selection;
                     // the shared candidate boundary also removes private fields before pricing.
                     let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true, #[cfg(feature = "server-search")] None)?;
+                    // A cut can reject the payload while retaining its index position.
+                    if device_live && self.read_capped() { return Ok(None); }
                     let Some((stored, position)) = rows.into_iter().next() else { return Ok(None); };
                     let source = match stored {
                         Some(stored) => {
@@ -341,7 +361,7 @@ impl Runner<'_> {
                         i64::from(selected) - i64::from(before),
                         if expiring {
                             Value::Array(crate::key::decode(&position).unwrap().into_iter().skip(prefix.len()).collect())
-                        } else { source.field("id")?.clone() },
+                        } else { crate::key::decode(&position).unwrap().pop().unwrap() },
                         position,
                     )))
                 })();
@@ -420,7 +440,10 @@ impl Runner<'_> {
             }
             _ => None,
         };
-        let live = self.schema.tables[&m.source].is_expiring();
+        let live = m.row_count_needs_live_basis(self.schema);
+        let mut unsettled = existing.as_ref().is_none_or(pending);
+        #[cfg(feature = "sqlite")]
+        if !self.device { unsettled |= self.view_get(&work_name, id)?.is_some(); }
         let (mut changed, mut several) = (None, false);
         k.predicate.each_field(&mut |field| {
             if let Some(name) = field.strip_prefix("$row.")
@@ -430,7 +453,7 @@ impl Runner<'_> {
             }
         });
         if changed.is_none()
-            && !live
+            && !live && !unsettled
             && let Some(existing) = &existing
         {
             let row = self.view_image(m, &u, number(existing, "value"), pending(existing))?;
@@ -442,7 +465,7 @@ impl Runner<'_> {
         let delta = old.as_ref().filter(|old| {
             !live
                 && source_readable
-                && existing.as_ref().is_some_and(|v| !pending(v))
+                && !unsettled
                 && old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
         });
         if let Some(old) = delta {
@@ -469,6 +492,8 @@ impl Runner<'_> {
         }
         let limit = self.scan_room(m).min(WRITER_RECOUNT);
         // @ref LLP 3000.020#3.2 — prediction uses the read's range and proof, never a durable expiry cursor.
+        #[cfg(feature = "sqlite")]
+        let certification_expiry = self.next_expiry.scope();
         let (n, complete, _) = if self.device && live {
             if !source_readable { self.pending_view_read()?; }
             let (n, complete) = self.device_live_count(m, &u)?;
@@ -476,23 +501,33 @@ impl Runner<'_> {
         } else if live {
             self.live_basis_scan(m, &u, None, limit)?
         } else { self.view_scan(m, &u, delta, &index, bounds, limit, false)? };
+        #[cfg(feature = "sqlite")]
+        let deadline = certification_expiry.defer().deadline();
+        #[cfg(feature = "sqlite")]
+        self.next_expiry.note_option(deadline);
         if self.device && !complete {
             return Err(RuntimeError::Prediction("row-keyed count certification needs the server; queued without a predicted result (guide maintains)".into()));
         }
         let base = existing.as_ref().map_or(0, |v| number(v, "value"));
-        let total = if complete {
-            if delta.is_some() { base + n } else { n }
-        } else if old.as_ref().is_some_and(|old|
-            old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
-        ) {
-            // A settled fallback belongs to one parent counting domain only.
-            base
+        let row = if complete {
+            self.view_image(m, &u, if delta.is_some() { base + n } else { n }, false)?
         } else {
-            0
+            #[cfg(feature = "sqlite")]
+            {
+                let cached = existing.as_ref().filter(|_| old.as_ref().is_some_and(|old|
+                    old.field(&k.member_key).ok() == u.field(&k.member_key).ok()));
+                self.view_cache_image(m, &u, cached)?
+            }
+            #[cfg(not(feature = "sqlite"))]
+            unreachable!("incomplete device recount refused above")
         };
-        let row = self.view_image(m, &u, if live && !complete { 0 } else { total }, !complete)?;
         #[cfg(feature = "sqlite")]
-        if !self.device && complete { self.set_view_basis(m, id)?; }
+        if !self.device {
+            if complete { self.set_view_basis(m, id, deadline)?; }
+            else if let Some(basis) = self.view_get(&format!("$basis:{}",m.target),id)? {
+                self.view_delete(&format!("$basis:{}",m.target),&basis,true)?;
+            }
+        }
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
         #[cfg(feature = "sqlite")]
         if !self.device {
@@ -502,7 +537,9 @@ impl Runner<'_> {
                     self.view_delete(&work_name, &work, true)?;
                 }
             } else {
+                let version = self.view_certification_version(m);
                 let next = object([
+                    ("version", Value::String(version)),
                     ("id", Value::Id(id.into())),
                     ("cursor", Value::Null),
                     ("total", Value::Int(0)),
@@ -554,13 +591,30 @@ impl Runner<'_> {
                     if r.device && r.retained_row(&k.table,&member)? {continue;}
                     live+=1;if live>k.fanout {return Err(RuntimeError::Structural {code:"E_VIEW_KEY", message:"recipient cap exceeded; repair the member group (guide maintains)".into()});}
                     let member=row_image(&member,&r.schema.tables[&k.table]).into_owned();
-                    if r.device && t.is_expiring() {
+                    if r.device && m.row_count_needs_live_basis(r.schema) {
                         // Reuse the bounded new-image recount; a wire count is never a raw delta basis.
                         r.row_view_member(m, None, Some(&member))?;
                         continue;
                     }
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
+                    // @ref LLP 3000.015#3 — an expiring recipient may have missed
+                    // any earlier delta or recount-prefix adjustment. Never
+                    // subtract from that cache: even zero can be stale. Reset
+                    // bounded private work and let reads authorize current input.
+                    #[cfg(feature = "sqlite")]
+                    if !r.device && table.is_expiring() {
+                        let row=r.view_cache_image(m,&member,existing.as_ref())?;
+                        r.view_put(&m.target,&row,existing.as_ref(),false)?;
+                        let name=m.work_table();
+                        let work=r.view_get(&name,id)?;
+                        let version=r.view_certification_version(m);
+                        let next=object([("version",Value::String(version)),("id",Value::Id(id.into())),
+                            ("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),
+                            ("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
+                        r.view_put(&name,&next,work.as_ref(),true)?;
+                        continue;
+                    }
                     #[cfg(feature = "sqlite")]
                     let at = r.view_basis(m, id)?;
                     #[cfg(not(feature = "sqlite"))]
@@ -568,7 +622,10 @@ impl Runner<'_> {
                     let contributes = |v: &Value| live::live_at(t,v,at) && k.matches(v,&member);
                     let delta=i64::from(new.as_ref().is_some_and(contributes))-i64::from(old.as_ref().is_some_and(contributes));
                     r.charge_maintain(MeterKind::Steps,k.predicate.steps()*2)?;
-                    if existing.as_ref().is_some_and(pending) {
+                    let mut unsettled = existing.as_ref().is_some_and(pending);
+                    #[cfg(feature = "sqlite")]
+                    if !r.device { unsettled |= r.view_get(&m.work_table(),id)?.is_some(); }
+                    if unsettled {
                         #[cfg(feature = "sqlite")]
                         if !r.device {
                             let name=m.work_table();
@@ -596,13 +653,20 @@ impl Runner<'_> {
                             {
                                 // Adoption and ordinary member writes create the value. Repair a missing
                                 // value through bounded work, never an unreserved hidden source scan.
-                                let row=r.view_image(m,&member,0,true)?;
+                                let row=r.view_cache_image(m,&member,None)?;
                                 r.view_put(&m.target,&row,None,false)?;
-                                let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
+                                let version = r.view_certification_version(m);
+                                let work=object([("version",Value::String(version)),("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
                                 r.view_put(&m.work_table(),&work,None,true)?;
                             }
                         }
                         else {
+                            #[cfg(feature = "sqlite")]
+                            if !r.device && t.is_expiring() {
+                                let removed = old.as_ref().filter(|v| v.field(&k.source_key).ok() == Some(&parent)).and_then(|v| live::expiry(t, v));
+                                let deadline = new.as_ref().filter(|v| contributes(v)).and_then(|v| live::expiry(t, v));
+                                r.extend_view_certification(m, id, &parent, removed, deadline)?;
+                            }
                             let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;
                             r.view_put(&m.target,&row,existing.as_ref(),false)?;
                         }
@@ -654,7 +718,7 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         // @ref LLP 3000.020#3.2 — current authority is independent of whole-group acquisition.
-        if self.device && source.is_expiring() {
+        if self.device && m.row_count_needs_live_basis(self.schema) {
             if source.sync.is_none()
                 || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
                 return Ok(false);
@@ -701,7 +765,13 @@ impl Runner<'_> {
         row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
         let mark = self.meter.mark();
-        let result = self.live_row_view_inner(m, row);
+        // Pending belongs to this predicted view row, not its member image.
+        // @ref LLP 3000.015#3 — reconstruction preserves public prediction metadata.
+        let pending = match row.field("pending") { Ok(Value::Bool(flag)) => Some(*flag), _ => None };
+        let mut result = self.live_row_view_inner(m, row);
+        if let (Some(pending), Ok(Some(Value::Row(fields)))) = (pending, &mut result) {
+            fields.insert("pending".into(), Value::Bool(pending));
+        }
         // Drop the member and decode scratch, retaining the peak and any cut.
         self.meter.release_heap(mark);
         result
@@ -718,7 +788,7 @@ impl Runner<'_> {
             return Ok(None);
         };
         if !self.row_view_source_readable(m, &member)? {
-            if self.device && self.schema.tables[&m.source].is_expiring()
+            if self.device && m.row_count_needs_live_basis(self.schema)
                 && m.row_key.as_ref().unwrap().device_range(&self.schema.tables[&m.source])
                     .is_some_and(|plan| plan.lower_bound(&member).is_some()) {
                 let k = m.row_key.as_ref().unwrap();
@@ -727,13 +797,18 @@ impl Runner<'_> {
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
-        if self.schema.tables[&m.source].is_expiring() {
+        if m.row_count_needs_live_basis(self.schema) {
             #[cfg(feature = "sqlite")]
             if !self.device {
-                let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source]);
+                let limit = self.caller_heap_ceiling.map_or(self.meter.ceilings.heap_bytes, |(limit, _)| limit);
+                let used = self.meter.used.heap_bytes;
+                let reuse = self.certification_scratch(m) <= limit.saturating_sub(used);
+                let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source])
+                    .max(if reuse { self.certification_scratch(m) } else { 0 });
                 let result = self.disclosed_scratch(bytes,&[(MeterKind::Examined,1),(MeterKind::Steps,1)], |runner,_| {
                     // Certification depends only on the current live basis, never
                     // on the historical work record or stored pending bit.
+                    if reuse && let Some(n) = runner.certified_view_count(m, &member)? { return Ok(Some(n)); }
                     let (n, complete, _) = runner.live_basis_scan(m,&member,None,usize::MAX)?;
                     Ok(complete.then_some(n))
                 })?;
@@ -743,6 +818,17 @@ impl Runner<'_> {
             let (total, complete) = self.device_live_count(m, &member)?;
             if !complete { self.pending_view_read()?; }
             return Ok(Some(self.view_image(m, &member, total, !complete)?));
+        }
+        #[cfg(feature = "sqlite")]
+        if !self.device {
+            // Only the private work key is needed; reserve it before storage access.
+            let work = self.authorized_scratch(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4,
+                &[(MeterKind::Examined, 1)], |r, scope| r.tx.index_head(scope, &m.work_table(), "byId",
+                    std::slice::from_ref(member.field("id")?), &Bounds::default(), Dir::Asc))?.is_some();
+            if pending(&row) || work {
+                self.pending_view_read()?;
+                return Ok(Some(self.view_image(m, &member, number(&row, "value"), true)?));
+            }
         }
         if pending(&row) { self.pending_view_read()?; }
         Ok(Some(row))
@@ -786,7 +872,10 @@ impl Runner<'_> {
         let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
         let existing = self.view_get(&m.target, id)?;
         let now = self.context.now.unwrap_or(0);
-        let restart = work.field("deadline").ok().and_then(|v|v.as_int().ok()).is_some_and(|until|until<=now);
+        let version = self.view_certification_version(m);
+        // Old work can already contain a prefix miscertified across rollback.
+        let restart = work.field("version").ok().and_then(|v| v.as_str().ok()) != Some(version.as_str())
+            || now < number(work, "at") || work.field("deadline").ok().and_then(|v|v.as_int().ok()).is_some_and(|until|until<=now);
         let cursor = if restart { &Value::Null } else { work.field("cursor")? };
         let bounds = match cursor {
             Value::Id(id) => Bounds { after: Some(vec![Value::Id(id.clone()),Value::Id(id.clone())]), ..Default::default() },
@@ -804,12 +893,13 @@ impl Runner<'_> {
         }
         let total = if restart { n } else { number(work, "total") + n };
         if complete {
-            self.set_view_basis(m, id)?;
+            self.set_view_basis(m, id, deadline)?;
             let row = self.view_image(m, &member, total, false)?;
-            self.view_put(&m.target, &row, existing.as_ref(), self.schema.tables[&m.source].is_expiring())?;
+            self.view_put(&m.target, &row, existing.as_ref(), m.row_count_needs_live_basis(self.schema))?;
             self.view_delete(&m.work_table(), work, true)
         } else {
             let next = object([
+                ("version", Value::String(version)),
                 ("id", Value::Id(id.into())),
                 (
                     "cursor",
@@ -873,7 +963,7 @@ impl super::Engine {
                 else {
                     break;
                 };
-                let private = self.schema.tables[&m.source].is_expiring();
+                let private = m.row_count_needs_live_basis(&self.schema);
                 let seq = if private { 0 } else { tx.next_seq()? };
                 let mut runner = Runner::new(
                     &tx,

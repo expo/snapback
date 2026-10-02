@@ -1,0 +1,39 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 21.06s
+     Running tests/clock.rs (target/debug/deps/clock-355bb15b3c66dd0f)
+
+running 1 test
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4: startup schema adopted as generation 1; rebuilt unread (0 source rows, 0.049 ms)
+snapback4 dev: http://127.0.0.1:39353  (schema: snapback/, types: /tmp/sb4-clock-2444816-count-deadline/snapback/generated/api.ts)
+store: /tmp/sb4-clock-2444816-count-deadline/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+thread 'maintained_value_rule_keeps_permit_deadline_over_http_and_two_read_through_links' (2444817) panicked at crates/snapback4/tests/clock.rs:24:5:
+assertion `left == right` failed: {"head":0,"id":"seed","state":"failed","store_id":"5d27f68254a9be5a6645a687dd488582","why":{"code":"E_RULE","family":"auth","guide":"rules","message":"rooms's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"}}
+  left: String("failed")
+ right: "sent"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test maintained_value_rule_keeps_permit_deadline_over_http_and_two_read_through_links ... FAILED
+
+failures:
+
+failures:
+    maintained_value_rule_keeps_permit_deadline_over_http_and_two_read_through_links
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p snapback4 --test clock`

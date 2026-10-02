@@ -9,22 +9,30 @@ use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use std::collections::BTreeMap;
 
 pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
-    validate_image(schema, table_name, row, None, false)
+    validate_image(schema, table_name, row, None, false, false)
+}
+
+// @ref LLP 3000.015#3 — row-view storage is a private numerical cache, not a disclosure.
+// No certificate yet means no computed fields; public/input validation stays strict.
+#[cfg(feature = "sqlite")]
+pub(crate) fn validate_maintained_cache(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
+    let cache = schema.maintain_for(table_name).is_some_and(|m| m.row_key.is_some());
+    validate_image(schema, table_name, row, None, false, cache)
 }
 
 /// A predicting patch preserves unknown, untouched fields as omissions.
 /// The authoritative writer always uses the complete-row validator.
 pub(super) fn validate_projection(schema: &Schema, table_name: &str, row: &Value, viewer: Option<&str>) -> Result<(), RuntimeError> {
-    validate_image(schema, table_name, row, viewer, false)
+    validate_image(schema, table_name, row, viewer, false, false)
 }
 
 /// Application input is checked before engine slots are prepared. The final
 /// stored image must also pass validate_row, with every required slot present.
 pub(super) fn validate_before_slots(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
-    validate_image(schema, table_name, row, None, true)
+    validate_image(schema, table_name, row, None, true, false)
 }
 
-fn validate_image(schema: &Schema, table_name: &str, row: &Value, viewer: Option<&str>, before_slots: bool) -> Result<(), RuntimeError> {
+fn validate_image(schema: &Schema, table_name: &str, row: &Value, viewer: Option<&str>, before_slots: bool, cache: bool) -> Result<(), RuntimeError> {
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     let object = row.as_object()?;
     if !object.contains_key("id") {
@@ -35,6 +43,7 @@ fn validate_image(schema: &Schema, table_name: &str, row: &Value, viewer: Option
     }
     for (name, kind) in &table.columns {
         if before_slots && crate::schema::timeline::is_slot(name) { continue; }
+        if cache && matches!(name.as_str(), "value" | "recountPending") && !object.contains_key(name) { continue; }
         let value = object.get(name).or_else(|| table.maintained.contains_key(name).then_some(&Value::Int(0)));
         if value.is_none() && viewer.is_some_and(|viewer| table.written_by.get(name).is_some_and(|authority|
             !authority.audience && row.field(&authority.owner).ok() != Some(&Value::Id(viewer.into())))) { continue; }

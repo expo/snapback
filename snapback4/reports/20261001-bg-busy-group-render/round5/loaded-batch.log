@@ -1,0 +1,26 @@
+{"workers": 96, "pids": [518832, 518833, 518835, 518836, 518837, 518838, 518839, 518840, 518841, 518842, 518843, 518844, 518845, 518846, 518847, 518848, 518850, 518851, 518852, 518853, 518854, 518855, 518856, 518857, 518858, 518859, 518860, 518861, 518862, 518863, 518864, 518865, 518866, 518867, 518868, 518870, 518871, 518872, 518873, 518874, 518875, 518876, 518877, 518878, 518879, 518880, 518881, 518882, 518883, 518884, 518886, 518887, 518888, 518889, 518890, 518891, 518892, 518893, 518894, 518895, 518896, 518897, 518898, 518899, 518900, 518901, 518902, 518903, 518904, 518905, 518906, 518907, 518908, 518909, 518910, 518911, 518912, 518913, 518914, 518916, 518917, 518918, 518919, 518920, 518921, 518922, 518923, 518924, 518925, 518926, 518927, 518928, 518929, 518930, 518931, 518932], "affinity": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95], "nice": 0}
+START loaded-1-base
+END loaded-1-base 0
+START loaded-1-base-summarize
+END loaded-1-base-summarize 0
+START loaded-1-base-attribute-client
+END loaded-1-base-attribute-client 0
+START loaded-2-candidate
+END loaded-2-candidate 0
+START loaded-2-candidate-summarize
+END loaded-2-candidate-summarize 0
+START loaded-2-candidate-attribute-client
+END loaded-2-candidate-attribute-client 0
+START loaded-3-base
+END loaded-3-base 0
+START loaded-3-base-summarize
+END loaded-3-base-summarize 0
+START loaded-3-base-attribute-client
+END loaded-3-base-attribute-client 0
+START loaded-4-candidate
+END loaded-4-candidate 0
+START loaded-4-candidate-summarize
+END loaded-4-candidate-summarize 0
+START loaded-4-candidate-attribute-client
+END loaded-4-candidate-attribute-client 0
+{"reaped": 96}

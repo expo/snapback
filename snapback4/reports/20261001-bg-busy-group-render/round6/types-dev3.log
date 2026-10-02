@@ -1,0 +1,73 @@
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 6.89s
+     Running tests/row_keyed_views.rs (snapback4/target/debug/deps/row_keyed_views-965b020b853cdfb5)
+
+running 35 tests
+
+thread 'maintenance_types::generated_container_helper_projection_compositions_keep_receiver_types' (1399771) panicked at crates/snapback4-lang/tests/row_keyed_views/maintenance_types.rs:10:5:
+fn identity(row: unread): row
+query good():
+  for row in unread first 10:
+    box = ((({ value: (row { value: . }).value }).value { value: . }).value { value: . }).value
+    if box.$private:
+      return 1
+  return 0
+
+[Diagnostic { site: Site { file: "state.q", line: 46, col: 12 }, code: "E_QUARRY_SYNTAX", message: "unexpected character '$'", rewrite: "fix this Quarry line and rerun snapback4 check", guide: "language", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test counts_cannot_be_indexed_for_rules_or_ranking ... ok
+test maintenance_types::generated_container_helper_projection_compositions_keep_receiver_types ... FAILED
+test parse_bind_and_explain ... ok
+test row_key_requires_same_parent_and_bounded_recipients ... ok
+test rejected_shapes_have_rewrites ... ok
+
+thread 'maintenance_types::astra_nested_containers_and_all_nonreturn_reads_refuse' (1399769) panicked at crates/snapback4-lang/tests/row_keyed_views/maintenance_types.rs:10:5:
+query bad():
+  for row in unread first 10:
+    box = { value: row }
+    if box.value.$private:
+      return true
+  return false
+
+[Diagnostic { site: Site { file: "state.q", line: 45, col: 18 }, code: "E_QUARRY_SYNTAX", message: "unexpected character '$'", rewrite: "fix this Quarry line and rerun snapback4 check", guide: "language", mechanical: false, cascade_of: None }]
+test maintenance_types::astra_nested_containers_and_all_nonreturn_reads_refuse ... FAILED
+BG round5 compiled admission: 38 predicate/projection checks
+test maintenance_fields_refuse_in_all_authored_predicates_and_helpers ... ok
+test private_member_predicates_require_owner_read_authority ... ok
+test member_expiry_ends_existence_and_rule_authority_before_sweep ... ok
+test unread_inherits_member_authority_and_expiry_timer ... ok
+test existence_with_expiring_sources_and_raw_metadata_refusals ... ok
+test moving_source_between_two_parents_updates_both_groups ... ok
+test maintenance_types::direct_data_projection_and_whole_rows_return_exact_values ... ok
+test parent_reference_comparison_keeps_parent_scan_and_residual ... ok
+test lifecycle_sqlite ... ok
+test expired_private_member_catchup_deletes_view_before_sweep ... ok
+test emitted_work_and_chunked_deletes_maintain_all_members ... ok
+test live_cap_ignores_unswept_expired_members ... ok
+test sequence_field_authority_and_row_view_share_one_runtime ... ok
+test lifecycle_memory ... ok
+test incomplete_counts_cannot_authorize_writes_or_numeric_probes ... ok
+test completed_expiry_correction_has_one_constant_public_meter_charge ... ok
+test expired_population_never_selects_a_pending_mark ... ok
+test oversized_recount_parks_without_starving_another_member ... ok
+test hidden_marks_have_identical_meters_bounds_and_changes ... ok
+test comparison_boundaries_exclude_or_include_the_exact_mark ... ok
+test recount_survives_restart_and_concurrent_changes_on_both_sides_of_cursor ... ok
+test parent_moves_recount_the_new_domain_and_clear_the_pending_fallback ... ok
+test defaulted_member_fields_are_materialized_in_durable_recounts ... ok
+test expired_unswept_recipients_do_not_consume_the_live_cap_scan ... ok
+test small_mark_uses_the_changed_range_in_a_large_chat ... ok
+test tombstoning_exact_recount_cursor_removes_its_already_counted_contribution ... ok
+test large_mark_commits_pending_then_settles ... ok
+test settled_expiring_counts_certify_only_the_live_basis ... ok
+test blind_member_marks_have_identical_meters_bounds_and_changes ... ok
+
+failures:
+
+failures:
+    maintenance_types::astra_nested_containers_and_all_nonreturn_reads_refuse
+    maintenance_types::generated_container_helper_projection_compositions_keep_receiver_types
+
+test result: FAILED. 33 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.78s
+
+error: test failed, to rerun pass `-p snapback4-lang --test row_keyed_views`

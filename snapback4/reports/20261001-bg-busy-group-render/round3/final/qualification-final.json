@@ -1,0 +1,50 @@
+{
+  "idle": {
+    "sends": 50,
+    "remote_renders": 100,
+    "notifications": 150,
+    "send_render_ms": {
+      "n": 50,
+      "p50": 131.400146484375,
+      "p95": 171.300048828125,
+      "max": 185
+    },
+    "history_rows_recertified": 0,
+    "cpu_busy_percent_during_sends": {
+      "n": 21,
+      "p50": 15.755728400252256,
+      "p95": 19.183415763443122,
+      "max": 30.946882217090067
+    }
+  },
+  "loaded": {
+    "sends": 50,
+    "remote_renders": 100,
+    "notifications": 150,
+    "send_render_ms": {
+      "n": 50,
+      "p50": 262.10009765625,
+      "p95": 458.7001953125,
+      "max": 468.89990234375
+    },
+    "history_rows_recertified": 0,
+    "cpu_busy_percent_during_sends": {
+      "n": 44,
+      "p50": 99.4583897510676,
+      "p95": 99.7186034392913,
+      "max": 99.75067525451901
+    }
+  },
+  "ll": {
+    "flows": 8,
+    "samples": 160,
+    "timeouts": 0,
+    "once_photo_commit_render_ms": {
+      "n": 20,
+      "p50": 80.002,
+      "p95": 98.066,
+      "max": 102.744
+    }
+  },
+  "passed": true
+}

@@ -128,10 +128,13 @@ impl Runner<'_> {
     // The basis update and count share the source/member transaction. A later
     // sweep subtracts only inputs live in this basis, never a second time.
     #[cfg(feature = "sqlite")]
-    pub(super) fn set_view_basis(&mut self, m: &Maintain, id: &str) -> Result<(),RuntimeError> {
+    pub(super) fn set_view_basis(&mut self, m: &Maintain, id: &str, deadline: Option<i64>) -> Result<(),RuntimeError> {
         if self.device || !self.schema.tables[&m.source].is_expiring() { return Ok(()); }
         let table = format!("$basis:{}",m.target);
         let old = self.view_get(&table,id)?;
-        self.view_put(&table,&object([("id",Value::Id(id.into())),("at",Value::Int(self.context.now.unwrap_or(0)))]),old.as_ref(),true)
+        let version = self.view_certification_version(m);
+        self.view_put(&table,&object([("id",Value::Id(id.into())),("at",Value::Int(self.context.now.unwrap_or(0))),
+            ("deadline", deadline.map(Value::Int).unwrap_or(Value::Null)),
+            ("version", Value::String(version))]),old.as_ref(),true)
     }
 }

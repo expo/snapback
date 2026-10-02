@@ -1,0 +1,8 @@
+{
+  "raw_bytes": 2015371,
+  "gzip_bytes": 605071,
+  "sha256": "f88840a86df9aa780f4de544df676e3285f4ef7597108a1f2775cedbbd40a00c",
+  "branch_ratchet": 605225,
+  "current_main_ratchet": 610782,
+  "gzip_method": "gzip -9 -c FILE"
+}

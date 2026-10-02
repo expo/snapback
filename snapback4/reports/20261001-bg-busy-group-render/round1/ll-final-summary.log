@@ -1,0 +1,10 @@
+reports/20261001-bg-busy-group-render/round1/ll-final.json {
+  profile: { n: 20, p50: 34.535, p95: 41.533, max: 42.061 },
+  'reaction-add': { n: 20, p50: 39.352, p95: 43.971, max: 102.154 },
+  'reaction-replace': { n: 20, p50: 38.347, p95: 41.272, max: 41.439 },
+  'reaction-remove': { n: 20, p50: 39.997, p95: 47.959, max: 48.269 },
+  reply: { n: 20, p50: 81.151, p95: 88.464, max: 94.06 },
+  photo: { n: 20, p50: 85.519, p95: 94.424, max: 96.718 },
+  'feed-image': { n: 20, p50: 39.81, p95: 44.7, max: 47.68 },
+  'once-photo': { n: 20, p50: 82.604, p95: 89.236, max: 92.629 }
+}
