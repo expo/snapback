@@ -3,6 +3,9 @@ use super::*;
 use crate::{Context, Engine, Schema, Store, Ceilings, meter::{Meter, Cut}};
 use std::collections::BTreeMap;
 
+#[path = "lifetime_tests.rs"]
+mod lifetimes;
+
 const FIXTURE: &str = include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q");
 fn compile(gated: bool) -> Schema { compile_lifetimes(gated, false) }
 fn compile_lifetimes(gated: bool, expiring_members: bool) -> Schema {
@@ -203,18 +206,20 @@ fn property_clock(expiring_members: bool) {
             let mut r = Runner::new(&tx, &schema, Context::new("reader", Default::default()).at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
             let actual = r.live_aggregate_batch("unread", &views).unwrap();
             let mut naive = Runner::new(&tx, &schema, Context::new("reader", Default::default()).at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
-            assert_eq!(actual, naive.live_acquisition_batch("unread", &views).unwrap(), "full recount seed={seed} step={step}");
-            for (view, actual) in views.iter().zip(actual) {
+            let acquired = naive.live_acquisition_batch("unread", &views).unwrap();
+            for ((view, actual), acquired) in views.iter().zip(actual).zip(acquired) {
                 let name = view.field("member").unwrap().as_str().unwrap();
                 let n: usize = name[1..].parse().unwrap();
                 let u = &members[&n];
                 assertions += 1;
-                if !live(u, now) || (gated && !granted) { assert!(actual.is_none(), "seed={seed} step={step}"); continue; }
+                if !live(u, now) || (gated && !granted) { assert!(actual.is_none() && acquired.is_none(), "seed={seed} step={step}"); continue; }
                 let expected = messages.values().filter(|m| live(m, now)
                     && field(m, "ordinal") > field(u, "seenOrdinal")
                     && field(m, "ordinal") > field(u, "joinedAt")
                     && m.field("senderId").unwrap() != u.field("principal").unwrap()
                     && m.field("tombstone").unwrap() == &Value::Bool(false)).count();
+                assert_eq!(acquired.as_ref().map(|v|field(v,"value")), Some(expected as i64), "independent acquisition seed={seed} step={step}");
+                assert!(!pending(acquired.as_ref().unwrap()));
                 assert_eq!(r.live_aggregate("unread", view.clone()).unwrap(), actual, "scalar seed={seed} step={step}");
                 assertions += 1;
                 let actual = actual.unwrap();
@@ -482,4 +487,32 @@ fn legacy_partial_recount_cannot_stamp_an_incomplete_prefix_with_new_evidence() 
     }
     while e.run_view_chunk(2).unwrap().is_some() {}
     compare_unread(&mut e, 2, 1101);
+}
+
+#[test]
+fn malformed_required_evidence_never_certifies_a_count() {
+    for (table, key) in [("$basis:unread","at"),("$basis:unread","deadline"),("$basis:unread","version"),("unread","recountPending"),("unread","value")] {
+        for corruption in 0..3 {
+            let mut e=Engine::memory(compile(false),vec![]).unwrap();
+            e.seed_at([("members".into(),member(0,0,0)),("messages".into(),message(0,1,99,false,None))],1).unwrap();
+            let schema=e.schema().clone();
+            {
+                let tx=e.store_mut().transaction().unwrap();
+                // Keep a matching current version and a deliberately stale value.
+                let old=tx.get("unread","u0").unwrap().unwrap();
+                let mut bad=old.as_object().unwrap().clone();bad.insert("value".into(),Value::Int(0));
+                tx.put("unread",&schema.tables["unread"],&Value::Row(bad.into()),Some(&old)).unwrap();
+                let old=tx.get(table,"u0").unwrap().unwrap();
+                let mut bad=old.as_object().unwrap().clone();
+                match corruption {
+                    0 => {bad.remove(key);},
+                    1 => {bad.insert(key.into(),Value::String("malformed".into()));},
+                    _ => {bad.insert(key.into(),Value::Id(old.field(key).ok().and_then(|v|v.as_str().ok()).unwrap_or("malformed").into()));},
+                }
+                tx.put(table,&schema.tables[table],&Value::Row(bad.into()),Some(&old)).unwrap();tx.commit().unwrap();
+            }
+            eprintln!("BG malformed evidence: {table}.{key}");
+            compare_unread(&mut e,2,1);
+        }
+    }
 }

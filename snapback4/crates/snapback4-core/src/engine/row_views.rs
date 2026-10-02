@@ -420,7 +420,7 @@ impl Runner<'_> {
             }
             _ => None,
         };
-        let live = self.schema.tables[&m.source].is_expiring();
+        let live = m.row_count_needs_live_basis(self.schema);
         let (mut changed, mut several) = (None, false);
         k.predicate.each_field(&mut |field| {
             if let Some(name) = field.strip_prefix("$row.")
@@ -562,13 +562,30 @@ impl Runner<'_> {
                     if r.device && r.retained_row(&k.table,&member)? {continue;}
                     live+=1;if live>k.fanout {return Err(RuntimeError::Structural {code:"E_VIEW_KEY", message:"recipient cap exceeded; repair the member group (guide maintains)".into()});}
                     let member=row_image(&member,&r.schema.tables[&k.table]).into_owned();
-                    if r.device && t.is_expiring() {
+                    if r.device && m.row_count_needs_live_basis(r.schema) {
                         // Reuse the bounded new-image recount; a wire count is never a raw delta basis.
                         r.row_view_member(m, None, Some(&member))?;
                         continue;
                     }
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
+                    // @ref LLP 3000.015#3 — an expiring recipient may have missed
+                    // any earlier delta or recount-prefix adjustment. Never
+                    // subtract from that cache: even zero can be stale. Reset
+                    // bounded private work and let reads authorize current input.
+                    #[cfg(feature = "sqlite")]
+                    if !r.device && table.is_expiring() {
+                        let row=r.view_image(m,&member,0,true)?;
+                        r.view_put(&m.target,&row,existing.as_ref(),false)?;
+                        let name=m.work_table();
+                        let work=r.view_get(&name,id)?;
+                        let version=r.view_certification_version(m);
+                        let next=object([("version",Value::String(version)),("id",Value::Id(id.into())),
+                            ("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),
+                            ("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
+                        r.view_put(&name,&next,work.as_ref(),true)?;
+                        continue;
+                    }
                     #[cfg(feature = "sqlite")]
                     let at = r.view_basis(m, id)?;
                     #[cfg(not(feature = "sqlite"))]
@@ -669,7 +686,7 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         // @ref LLP 3000.020#3.2 — current authority is independent of whole-group acquisition.
-        if self.device && source.is_expiring() {
+        if self.device && m.row_count_needs_live_basis(self.schema) {
             if source.sync.is_none()
                 || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
                 return Ok(false);
@@ -733,7 +750,7 @@ impl Runner<'_> {
             return Ok(None);
         };
         if !self.row_view_source_readable(m, &member)? {
-            if self.device && self.schema.tables[&m.source].is_expiring()
+            if self.device && m.row_count_needs_live_basis(self.schema)
                 && m.row_key.as_ref().unwrap().device_range(&self.schema.tables[&m.source])
                     .is_some_and(|plan| plan.lower_bound(&member).is_some()) {
                 let k = m.row_key.as_ref().unwrap();
@@ -742,7 +759,7 @@ impl Runner<'_> {
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
-        if self.schema.tables[&m.source].is_expiring() {
+        if m.row_count_needs_live_basis(self.schema) {
             #[cfg(feature = "sqlite")]
             if !self.device {
                 let limit = self.caller_heap_ceiling.map_or(self.meter.ceilings.heap_bytes, |(limit, _)| limit);
@@ -829,7 +846,7 @@ impl Runner<'_> {
         if complete {
             self.set_view_basis(m, id, deadline)?;
             let row = self.view_image(m, &member, total, false)?;
-            self.view_put(&m.target, &row, existing.as_ref(), self.schema.tables[&m.source].is_expiring())?;
+            self.view_put(&m.target, &row, existing.as_ref(), m.row_count_needs_live_basis(self.schema))?;
             self.view_delete(&m.work_table(), work, true)
         } else {
             let next = object([
@@ -896,7 +913,7 @@ impl super::Engine {
                 else {
                     break;
                 };
-                let private = self.schema.tables[&m.source].is_expiring();
+                let private = m.row_count_needs_live_basis(&self.schema);
                 let seq = if private { 0 } else { tx.next_seq()? };
                 let mut runner = Runner::new(
                     &tx,

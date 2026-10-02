@@ -820,3 +820,387 @@ all renders, notifications, windows, zero history work, owned/reaped burners,
 idle p95 assertion and all LL samples. LLP 3000.015 §3 and the guide describe
 the revised rule; one append-only journal entry records this round. Source and
 artifact hashes and the complete evidence set are bound by the report checksums.
+## Round 3 — member lifetime dispatch and malformed evidence
+
+Base: `fcc4b644f9`. This round addresses Astra's high-severity dispatch finding
+and Grok's matching finding, forward-only maintenance concern, and malformed
+basis timestamp. No merge from main, push, publication, or budget increase.
+The scoped context pack is `round3/CONTEXT.md`.
+
+**The class is fixed at dispatch.** `Maintain::row_count_needs_live_basis`
+classifies a row-keyed count from **both** source and member effective lifetimes.
+Scalar/prepaid reads, grouped delivery, stream preparation, cold acquisition,
+device reads and prediction, member refreshes, and private recount publication
+now use that classification. Direct, inherited, two-level `read through`, and
+currently null member deadlines all qualify. An expiring member cannot reuse a
+numerical certificate. Its source can be non-expiring; the batch then walks the
+parent index instead of an expiry index. Finite caller heap admission and the
+fixed public reservation are unchanged. The busy-group fixture's source-expiry,
+non-expiring-member branch still reuses valid transactional evidence.
+
+LLP 3000.015 §3 now audits every count-return dispatch, including horizon
+fallbacks, numeric versus existence witnesses, and device prediction. The only
+remaining direct stored-count path has neither a source nor a member effective
+expiry declaration: no expired member can have been skipped. Source-only checks
+that remain select source expiry indexes/basis subtraction or ordinary aggregates;
+they cannot bypass the row-keyed dispatch.
+
+**Current-main control.** An isolated checkout of current main
+`738d45830c9d51c9c92f65180c56cbecb2f2b068` contains BG round 0, but neither
+round 1 nor round 2, and reproduces both literal review cases. Only test modules are added there; no
+production fix is transplanted. Both values below are read by a single compiled
+query, in one transaction at one clock, beside its independently authorized
+source rows, with `complete: true`:
+
+| Reproduction | Round 2 | Current main | Fixed |
+| --- | --- | --- | --- |
+| Member deadline 10; non-expiring source inserted at 11; read at 9 | 0 versus 1 source | 0 versus 1 source | 1 versus 1 source |
+| Member inherits room deadline 2000; source seeded at 1000, deleted by an ordinary mutation at 2500; read at 1500 | 1 versus 0 sources | 1 versus 0 sources | 0 versus 0 sources |
+
+**The defect predates every BG round.** The identical final lifetime tests also
+fail on main `6c598ef145e0eaf44831797bd2d631c60e03847b`, immediately before the
+round-0 merge. Both that pre-BG main and current main produce **eight expected
+assertion failures and two passes**: the two literals, three generated prefixes,
+device poison, forward maintenance seam and source-delete underflow fail; public
+forward renewal and fan-out rollback pass. `pre-bg-main.log` and
+`current-main-final.log`, plus their `*-control.patch` test-only diffs, retain
+the evidence. No production code is changed in either control.
+
+`round3/round2-negative.log` retains the same eight assertion failures on exact
+`fcc4b644f9`; `round2-malformed-negative.log` separately fails missing `at`.
+Earlier `current-main-negative.log` and initial round-2 logs remain for provenance. The fixed literals also check batch, real stream and cold
+snapshot images against raw facts. Source/member sync is enabled.
+
+**Forward-only renewal: distinguish the helper from public writes.** The
+additional sequence uses clocks **1 → 11 → 12**, never rollback. An ordinary
+mutation targeting an already-expired member refuses with `NOT_FOUND` on main
+and this branch. Seed/import restoration replaces the expired predecessor and
+already recounts correctly on round 2 and main, for direct and through expiry.
+It is **not** a reproduced public forward-only stale-count bug.
+
+The old/new-image `row_view_member` maintenance seam itself does have the unsafe
+shortcut Grok identified: with no predicate change, round 2 and main copy zero
+past a renewal although one source arrived while the member was expired. A
+separate helper regression demonstrates that failure without mislabeling it an
+ordinary mutation. The joint lifetime rule removes that shortcut and the
+incremental member-delta shortcut for expiring members; refresh recounts, or
+leaves pending work which reads independently certify. The source prediction
+path likewise recomputes instead of adding a delta to a delivered cache.
+`main-forward-final.log` retains the **one passing public-path test and one
+failing helper test** on main. The fixed branch passes both. Immutable
+read-through parent fields cannot be changed in place; generated adoption
+changes recapture lifetime inputs and rebuild counts.
+
+**Additional source-write consequence found during this round.** A real CLI
+probe seeded an expiring member at 1, inserted its non-expiring source at 11,
+then queried and deleted at 9. The corrected read returned 1, but the initial
+round-3 writer still refused deletion with `E_OVERFLOW`: it subtracted from the
+stale stored zero. This is the same untrusted numerical-cache problem on the
+maintenance side. `post-rollback-write-probe-final.log` retains the reproduction.
+
+A server source event now invalidates an expiring member's count and recount
+prefix to zero/pending and restarts bounded private work. It never uses that
+number as a delta basis; live reads/deliveries still recompute from authorized
+input. The writer adds no source-group scan, stays inside the existing per-member
+reservation and emits its ordinary view refresh. Continuous writes can restart
+that private work; it settles after quiescence. Non-expiring members keep the
+original incremental path. A regression covers direct, inherited and two-level
+members, each over both source lifetime declarations, including an ordinary
+source delete followed by private settlement.
+
+The single full-suite invocation was already running when this additional
+consequence was found. Its result is retained below, with final affected checks
+and final artifact measurements identified separately; it is not silently
+restarted or represented as having tested source bytes it did not consume.
+
+**Malformed evidence.** A matching version is insufficient without an integer
+`at <= now`, a correctly typed version and deadline, a literal false pending
+bit, and a nonnegative integer count in range. Missing/mistyped fields take the
+authorized walk. The corruption test removes or mistypes each of `at`,
+`deadline`, `version`, `recountPending`, and `value` (15 cases); the wrong nominal
+type for `version` even retains the correct digest bytes. Other evidence stays
+valid and the numerical cache is poisoned. The round-2 negative control fails
+on missing `at`; `malformed-final.log` passes all 15 cases. Valid v2 evidence
+keeps its existing meaning; this repairs validation of already-required fields,
+not the interpretation or version of a well-formed proof.
+
+**Independent property proof.** The original eight-seed generator still runs
+2,400 steps with its large populations, interrupted transactions/recounts,
+reopens, authority grants, ordinary aggregates and clock rollback. Its cold
+acquisition comparison now checks the model's expected value separately for
+every member, including absence, instead of comparing two dispatch answers.
+It retains 44,289 model/scalar/aggregate comparisons and 2,400 acquisition-batch
+checks, 650 committed recount chunks and 141 interrupted chunks on the final maintenance fix.
+
+The added generator uses the same raw-fact model approach across two groups,
+independent source/member lifetime adoption, mutable count-parent moves, source
+moves, physical sweeps, predicate and default adoption, and overlapping durable
+SQLite readers. Effective member life is computed from the fixture's parent
+facts; no stored count, engine expiry selector, `RowKey::matches`, or certificate
+decides the expected result. Defaults include legal legacy rows missing the
+defaulted field, constructed with unchanged meaning before adoption. Normal
+inserts persist their default; the oracle does not mistakenly reinterpret them.
+
+| Member topology | Seeds | Random/deterministic scheduled actions | Independent comparisons | Overlapping writer/read cases |
+| --- | --- | ---: | ---: | ---: |
+| Direct expiry | 7, 24301 | 360 | 21,480 | 31 |
+| Inherited from counted room | 20261002, 28 | 360 | 30,984 | 38 |
+| Two-level `through` with a separate lifetime parent | 3735928559, 305419896 | 360 | 22,110 | 27 |
+
+Each seed first executes a review counterexample prefix; **all three topology
+properties fail on exact round-2 dispatch** at that prefix. Across the 1,080
+subsequent actions, the operation totals are 105 member writes/moves, 233 source
+writes/moves, 121 source removals, 108 clock selections, 110 sweep calls, 106
+adoptions, 90 recount attempts, 111 physical close/reopens and 96 overlapping
+reader/writer cases. Read clocks range over 9, 1500, 1900, 2500, 3900 and 4500;
+large forward/backward moves are generated, not limited to ±20. Every overlap
+holds the old read transaction at 1500 across a write at 2500, opens a newer
+reader at 2500, and checks both against their own independent model snapshot.
+A through-member insert uses an earlier supplied writer clock when necessary
+to satisfy its parent's activation rule; the generated read clock stays separate.
+
+The **74,574** added comparisons independently check scalar, batch, acquisition,
+and actual stream/snapshot values, including absence and pending state. Two
+matching stale paths cannot pass. Separate device tests poison a stored value
+with 999 and require exact covered recomputation or incomplete uncovered output
+for all three topologies; member prediction refresh cannot preserve that poison.
+A 100-member cap overflow aborts a transaction after a source delta and leaves
+all count/source before-images unchanged. These cases augment rather than
+replace the large-population property and existing device suite.
+
+**Affected checks.** The initial 52/52 row-view cohort passed; the final
+maintenance fix passes **53/53**, including all 15 malformed-field cases. The
+separate nominal-type check also passes in `malformed-final.log`. The 50-member 10k/100k regression remains
+`(recertified source rows, public examined, public steps) = (0, 100, 100)` at
+both sizes. Negative-control tooling restores every production file in `finally`;
+all expected reds are assertion failures, not build failures.
+
+**Initial round-3 busy-group measurement (before the late maintenance fix).** The unchanged calibration was seeded once because
+its old temporary cache was no longer present, then copied for both conditions.
+Same production flags, 50 members, 10,000 messages, three Chromium wasm devices,
+20-row mounted history, 500-row acquisition, 50 measured sends and automatic
+receipt reporting. No BG build/test ran during either scenario. Both produce
+100 remote renders, 150 active-device notifications, zero browser errors or
+timeouts, and **zero recertified history rows** in all remote deliveries.
+Milliseconds, median / p95 / maximum:
+
+| Condition | Round 2 | Initial round 3 |
+| --- | ---: | ---: |
+| Idle | 136.4 / 203.5 / 225.2 | 136.4 / 186.9 / 255.3 |
+| 96 burners | 238.6 / 339.6 / 346.3 | 241.3 / 410.0 / 462.2 |
+
+Idle p95 passes the unchanged **<250 ms** assertion, improving 16.6 ms (8.2%)
+from round 2; its maximum is 30.1 ms higher. Loaded p95 is **70.4 ms higher
+(+20.7%)**, and its maximum is 115.9 ms higher. The incremental work property is
+preserved; identical loaded latency is **not** demonstrated. Both remain far
+below the round-0 377.8 / 1,075.2 ms p95 results, but the loaded tail increase is
+retained as measured, not retried away or called a test failure. These separate
+shared-host runs do not establish a causal performance attribution.
+
+Measured host CPU median / p95 / max is **6.22 / 7.43 / 7.54%** idle (21 samples)
+and **99.46 / 99.84 / 99.92%** loaded (40 samples). All 96 normal-priority burners
+stay alive through the loaded run and are reaped afterward. No other lane's
+process is stopped. The host is a shared Linux EPYC; these are not Mac results.
+
+| Stage | Idle R2 p95 | Initial idle R3 p95 | Loaded R2 p95 | Initial loaded R3 p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Send → request | 70.8 | 56.9 | 154.6 | 178.6 |
+| Request → commit | 8.0 | 8.8 | 21.3 | 19.7 |
+| Commit → notification | 13.2 | 9.6 | 64.5 | 72.3 |
+| Notification → sync request | 44.6 | 42.2 | 73.1 | 70.9 |
+| Sync request → EOF | 15.3 | 13.4 | 26.4 | 33.1 |
+| Live-count certification | 1.066 | 1.059 | 2.343 | 3.618 |
+| Response → apply start | 3.3 | 3.5 | 6.8 | 7.3 |
+| Device apply | 16.0 | 15.5 | 24.1 | 25.6 |
+| Apply end → history end | 26.6 | 30.4 | 52.2 | 56.7 |
+| History query | 23.8 | 22.5 | 18.1 | 21.3 |
+| Decorations query | 23.9 | 26.5 | 42.8 | 50.5 |
+| History end → public observation | 48.6 | 49.4 | 68.1 | 88.7 |
+| Publication → React | 1.1 | 1.1 | 4.5 | 3.9 |
+
+The trace shows higher loaded send → request and query → publication tails,
+as well as a 1.275 ms increase in live-count certification p95. These intervals
+overlap; percentile differences are not additive and do not explain the complete
+tail by subtraction. Send stages have 50 samples, remote stages 100. Source
+work, public examined rows and windows remain unchanged. Raw traces, all stage
+summaries and client attribution are under `round3/`.
+
+**Initial LL control.** Unchanged harness, `LL_KEEP=viewed`, wasm, matching debug
+measurement server, 20 repetitions of all eight flows: 160 samples, no timeout.
+Commit → React milliseconds:
+
+| Flow | Round 2 median / p95 / max | Initial round 3 median / p95 / max |
+| --- | ---: | ---: |
+| profile | 34.5 / 40.0 / 41.9 | 37.3 / 43.2 / 43.9 |
+| reaction-add | 34.7 / 41.3 / 42.1 | 36.2 / 45.5 / 56.7 |
+| reaction-replace | 36.7 / 40.5 / 40.6 | 37.3 / 44.4 / 62.7 |
+| reaction-remove | 37.9 / 42.5 / 44.2 | 40.3 / 44.8 / 48.0 |
+| reply | 77.0 / 86.3 / 100.3 | 83.6 / 88.5 / 91.8 |
+| photo | 79.3 / 89.0 / 90.7 | 87.4 / 94.6 / 95.7 |
+| feed-image | 34.0 / 44.1 / 46.0 | 41.7 / 45.9 / 47.6 |
+| once-photo | 71.5 / 89.0 / 102.2 | 73.9 / 87.9 / 88.8 |
+
+LL has neither the row-keyed count nor the app authority facade; this remains
+an incidental-effects control. Media readiness stays separate in its output.
+The combined trace validator passes (`round3/qualification-final.json`).
+
+**Initial wasm.** **2,015,371 B raw / 605,077 B gzip**, measured by the build script's
+`gzip -9 -c FILE`: **+42 raw / +72 gzip** versus round 2. The branch ratchet
+remains **605,225 B**, with **148 B** headroom. Fetched main's RV ratchet is
+**610,782 B**, 5,705 B above this artifact; it is reported, not copied into this
+branch. No ceiling changes and no Mac measurement. The artifact digest is
+`1e7be6f8e2e21af80b3cafcf47231b61302a7c28cca76f923f268f911285967d`.
+Guide **110/110** and frozen-schema compatibility pass with the original limits.
+
+**Development and control failure ledger.** Earlier failures remain evidence;
+only completed, passing runs are counted as verification.
+
+| Run / failure | Attribution and disposition |
+| --- | --- |
+| `test-draft-compile.log`: two event-type mismatches and one unresolved map type | Ours, test draft. Corrected the separate stream/snapshot event types and annotated the independent maps. |
+| `lifetimes-first.log`: two unknown operations | Ours, fixture. Core compiled operation names require the `lifetimes.` namespace. |
+| `lifetimes-second.log`: inherited literal still had its source; three generated default mismatches | Ours, fixture/oracle. Added the missing source delete permission; ordinary inserts persist defaults, so the model must not reinterpret them after adoption. Legacy absent-field rows are now constructed explicitly. |
+| `forward-first.log`: expired-member mutation returns `NOT_FOUND` | Ours, incorrect test expectation. The actual public behavior is verified on main and round 2; seed/import renewal already works. The separate old/new-image seam reproduces Grok's shortcut without claiming public mutation reachability. |
+| `negative-final-runner.log`: expected seven failures but observed six | Ours, control-harness expectation. The public renewal passed; separating the maintenance-seam regression makes the expected failure explicit. The final cohort also includes the later source-delete regression. |
+| `guide-compat.log`, `guide-compat-final.log`: `start::openings_fit_without_growing_the_eight_reference_cards` | Ours, documentation. First 884 and then 881 lines exceeded 879. Shortened to 879; `guide-final.log` passes 110 tests and frozen-schema compatibility. No ceiling changed. |
+| `post-rollback-write-probe.log`: CLI unknown operations | Ours, probe spelling. CLI `schema.q` operations omit the `schema.` namespace; corrected in the retained follow-up probe. |
+| `post-rollback-write-probe-final.log`: ordinary source delete refuses with `E_OVERFLOW` | Baseline, verified on both current main and pre-BG main. Discovered after the initial round-3 read fix; final source-event invalidation and the six-combination regression repair it. |
+| Exact `fcc4b644f9` negative controls | Expected assertion failures: both literal review cases, three topology prefixes, poisoned device count, forward-only maintenance seam, source-delete underflow; separately, missing `at`. All are retained, and production files are restored in `finally`. |
+| Current-main and pre-BG-main controls | Expected baseline assertions, with exact revisions and test-only patches retained. The public forward renewal and fan-out rollback controls pass. |
+
+`affected-first.log` was interrupted when the second review arrived; it has no
+terminal result and supplies no pass claim. The completed final core cohort
+passes 53 tests. The final integration cohort passes **29 tests**: accounting 6,
+disclosure 18, legacy 1, witness 3, sync-count delivery 1
+(`affected-integration-final.log`). These consume the late maintenance fix.
+The initial empty `workflow.log` is an abandoned launcher, not a suite invocation.
+
+**Single full-suite invocation.** Exact terminal line:
+
+```text
+== 0 failure(s) in 1485 s
+```
+
+Exit 0. The Rust phase passes (472 s), the client pool passes **5,745** tests
+with **ten skips**, zero failures/cancellations (582 s), and all **79** serial
+models pass (357 s). Builds, wasm ratchet, docs budget, release guard,
+typechecks, chat check and nine fixture tests pass. Full-suite failures:
+**ours 0, baseline 0, environmental 0**. Expected fault-injection stderr (for
+example `E_EFFECT_CLOSED` and refused auth partitions) belongs to passing tests,
+not hidden failures. The main controls establish baseline product bugs; no
+unexplained suite red is labeled baseline.
+
+The suite's binaries contain the initial round-3 dispatch/evidence fix, before
+the late source-event cache invalidation. The final 53-test core and 29-test
+integration runs cover that maintenance change. The final artifact confirmation
+below rebuilds and measures the final source. `scripts/test.sh` is not run again.
+
+**Final wasm, after the maintenance fix.** Rebuilt explicitly: **2,015,371 B
+raw / 605,071 B gzip**, **+42 raw / +66 gzip** versus round 2, and 6 gzip bytes
+smaller than the initial round-3 artifact. The branch cap remains **605,225 B**
+(**154 B headroom**); main's separate RV cap remains **610,782 B** (5,711 B above
+this artifact). No ratchet was changed. Final SHA-256:
+`f88840a86df9aa780f4de544df676e3285f4ef7597108a1f2775cedbbd40a00c`.
+The suite rebuilt the initial artifact; final measurements use this rebuilt
+artifact and newly compiled matching servers. Both artifact records are retained.
+
+**Additional environmental measurement failure, retained.** The first idle
+attempt with the final artifacts failed the unchanged `<250 ms` assertion:
+**244.1 / 397.1 / 424.7 ms** median/p95/max. During its 38 measured host samples,
+CPU was **99.95 / 99.98 / 99.98%**. Read-only PID/working-directory evidence
+identifies concurrent Rust tests in the NX review and publication worktrees,
+plus another lane's build; BG had no burners or build running. This was not an
+idle condition. All 100 remote deliveries still re-certified zero history rows.
+`final/unexpected-contention-idle*`, `unexpected-contention-assessment.json` and
+`idle-host-contention.json` preserve the failure and evidence. Attribution:
+**environmental**, specifically the absent idle precondition; the latency
+failure itself is not erased or claimed as a passing benchmark.
+
+The confirmation resumes with the **same binaries**, recording two-second
+`/proc/stat` samples and waiting for five consecutive samples below 15% busy
+before idle and before starting its own 96 burners. No other lane is stopped,
+no measured assertion changes, and no source is rebuilt to obtain a better
+sample. This host-admission step and every wait sample are retained in
+`confirm-round3.py --measure-only` and `final/*-idle-admission.jsonl`.
+
+The optional quiet-host wait for LL remained busy for over six minutes. Only our
+waiting process was interrupted (no test or measurement was active). Final LL
+then runs unchanged under recorded ambient load via `--ll-only --ll-current-load`,
+without repeating either BG scenario or the suite. Its timings are labeled
+contended; they cannot isolate incidental performance changes from host load.
+`final/ll-host-decision.json` and the load sampler retain this distinction.
+
+**Final busy-group confirmation.** Same final binaries, fixture, seed cache,
+50 sends, 100 remote renders and 150 notifications per condition. The valid
+idle run passes the unchanged `<250 ms` p95 assertion. No BG build or test
+overlaps either scenario. All 96 normal-priority burners remain alive through
+the loaded scenario and are reaped afterward; a subsequent PID check finds
+none remaining. Both runs re-certify **zero history rows** in all 100 deliveries.
+Milliseconds, median / p95 / maximum:
+
+| Condition | Round 2 | Initial round 3 | Final round 3 |
+| --- | ---: | ---: | ---: |
+| Idle | 136.4 / 203.5 / 225.2 | 136.4 / 186.9 / 255.3 | 131.4 / 171.3 / 185.0 |
+| 96 burners | 238.6 / 339.6 / 346.3 | 241.3 / 410.0 / 462.2 | 262.1 / 458.7 / 468.9 |
+
+Final idle p95 is 32.2 ms lower than round 2 (15.8%); loaded p95 is
+**119.1 ms higher (35.1%)**. The incremental work invariant and unchanged
+non-expiring-member path are proved; loaded latency parity is not. The initial
+410.0 ms loaded result and invalid-idle 397.1 ms result remain visible. This is a
+shared host, not a controlled attribution experiment; other work can begin after
+the pre-run quiet check. Host CPU after the final burners exited was about 55%,
+from other client-test processes. No cause is assigned solely from elapsed tails.
+
+During sends, host CPU median / p95 / max was **15.8 / 19.2 / 30.9%** idle (21 samples) and **99.5 / 99.7 / 99.8%** loaded (44 samples).
+
+| Stage | Final idle p95 (ms) | Final loaded p95 (ms) |
+| --- | ---: | ---: |
+| Send → request | 66.100 | 179.200 |
+| Request → commit | 7.824 | 35.231 |
+| Commit → notification | 10.167 | 59.177 |
+| Notification → sync request | 45.600 | 116.300 |
+| Sync request → EOF | 14.300 | 31.200 |
+| Live-count certification | 1.039 | 1.060 |
+| Response → apply start | 3.700 | 12.700 |
+| Device apply | 15.700 | 24.500 |
+| Apply end → history end | 28.400 | 66.100 |
+| History query | 25.200 | 21.400 |
+| Decorations query | 25.700 | 61.200 |
+| History end → public observation | 47.700 | 113.100 |
+| Publication → React | 1.300 | 3.700 |
+
+Loaded live-count certification is 1.060 ms p95, versus round 2's 2.343 ms;
+the larger tails occur elsewhere, including notification → sync request and
+query → publication. These intervals overlap, so percentile differences cannot
+be summed into an explanation of total latency. Full per-view traces, client
+attribution, host samples and artifact hashes are under `round3/final/`.
+
+**Final LL control (ambient contention).** Matching final debug measurement
+server and wasm; unchanged `LL_KEEP=viewed`, 20 repetitions of each of eight
+flows: **160 samples, zero timeouts**. Commit → React milliseconds:
+
+| Flow | Final median / p95 / maximum |
+| --- | ---: |
+| profile | 35.4 / 45.7 / 51.9 |
+| reaction-add | 38.5 / 57.6 / 61.6 |
+| reaction-replace | 38.9 / 44.9 / 49.0 |
+| reaction-remove | 37.7 / 45.7 / 47.9 |
+| reply | 85.0 / 104.8 / 129.2 |
+| photo | 90.5 / 112.3 / 147.8 |
+| feed-image | 39.8 / 54.6 / 69.5 |
+| once-photo | 80.0 / 98.1 / 102.7 |
+
+Across the LL wrapper's 38 host samples, CPU median / p95 / max was **99.8 / 99.9 / 99.9%**. These are contended timings, not a quiet-host comparison. Media readiness remains separate in the raw summary.
+
+The final combined trace validator passes (`round3/final/qualification-final.json`):
+all renders, notifications, windows, zero history work, 96 owned/reaped burners,
+idle p95 assertion and all LL flows. The source and test digest record is
+`round3/final-source-sha256.json`. The ordinary SDK and server are rebuilt after
+measurement, and temporary source instrumentation is restored.
+
+The failure ledger above covers development errors, expected baseline controls
+and the one invalid-idle environmental failure; none is dropped from the record.
+Large raw traces, test logs and test-only patches are stored as `.gz` files
+(the prose omits that suffix for readability). Decompress patches before applying.
+`round3/SHA256SUMS` binds the retained evidence, report, governing docs, tools and
+final changed source. No main merge, push, publication or ceiling change.

@@ -158,3 +158,64 @@ from `snapback4/`; the original trace validator now accepts the report subdirect
 The full suite runs once with ordinary sources/client artifacts restored. Its
 wasm digest must equal the artifact used by the measurements; retain its exact
 terminal summary and every failed test even when a later affected rerun repairs it.
+
+## Round 3
+
+`negative-control-round3.py` installs the five dispatch files and certification
+file from exact `fcc4b644f9`, runs the lifetime and malformed-evidence tests,
+requires their assertion failures, and restores every production file in
+`finally`. Do not run it concurrently with any build or source edit. The forward
+public seed/import test passes on round 2; the separately named maintenance-seam
+test fails. This distinction is intentional.
+
+`round3/main-control.patch` adds only test modules to main `738d45830c`.
+Apply it in an isolated checkout and run `cargo test -p snapback4-core --lib
+round3_control::lifetimes -- --nocapture` from `snapback4/`, with the same SQLite
+flag. The retained initial main control has both literal rollback failures;
+`main-forward-final.log` separately shows the passing public restoration and
+failing old/new-image maintenance seam. No BG production source is copied to main.
+
+`run-round3.py` records the affected Rust cohort, guide/schema compatibility,
+wasm, ordinary SDK build, temporarily instrumented dev/production binaries,
+50-send idle and 96-burner BG runs, unchanged 160-sample LL control, trace
+validation, SDK restoration and one `scripts/test.sh` invocation. It stops on
+pre-suite failures; retain those logs and resume only the unfinished stages.
+The round-3 run uses `/tmp/bg-round3-seed` (outside the repository, credentials
+mode 0600) because the old round-1 cache no longer exists. Seed once from the
+unchanged calibration and reuse copies for both conditions. The saved caller
+ceilings, message/member populations, windows and benchmark assertions stay fixed.
+The strict nominal-type corruption case was also run separately after the
+52-test cohort and is included in the suite. A source-delete underflow was found
+while that single suite was running; its final fix has a 53-test core cohort and
+29 affected integration tests. The report states which revision each run covers.
+
+`confirm-round3.py` rebuilds and measures the final maintenance fix after the
+suite drains. It records wasm, matching instrumented dev/production binaries,
+50-send idle/96-burner runs, the unchanged LL control and trace validation under
+`round3/final/`, then restores ordinary SDK/server artifacts. It never invokes
+`test.sh`. Both the earlier loaded-tail result and final confirmation are kept.
+
+The final test-only controls are `round3/current-main-final-control.patch` at
+`738d45830c` and `round3/pre-bg-main-control.patch` at `6c598ef145`. Current main
+includes BG round 0; the latter is main immediately before its merge. Both run
+the same ten lifetime tests; expected results are eight assertion failures and
+two passes (public forward renewal and fan-out rollback).
+
+The final confirmation encountered a saturated shared host during its first idle
+attempt. That failed trace is retained as `final/unexpected-contention-idle*`.
+`confirm-round3.py --measure-only` reuses and verifies recorded artifact hashes,
+waits for five two-second host CPU samples below 15% before each scenario, and
+resumes measurement without rebuilding or invoking the suite. Keep every failed
+attempt before resuming; it must not overwrite evidence.
+
+For the final LL control, quiet admission stayed busy for over six minutes.
+The owned waiting process was interrupted while no measurement was running,
+and `confirm-round3.py --ll-only --ll-current-load` ran the unchanged LL harness
+with `host-load.py` recording. Those LL timings are explicitly contended. These
+flags neither rebuild artifacts nor repeat BG or the suite.
+
+Retained large traces, test logs and test-only patches use `.gz`; the report
+omits that suffix in prose. Decompress the patches before applying them. CPU
+logs for `qualification-idle` and `qualification-loaded` remain plain text for
+the trace validator. Run `sha256sum -c .../round3/SHA256SUMS` from the repository
+root to verify the final evidence and source binding.

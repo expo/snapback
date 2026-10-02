@@ -49,17 +49,21 @@ impl Runner<'_> {
             let id = member.field("id")?.as_str()?;
             let Some(basis) = self.view_get(&format!("$basis:{}", m.target), id)? else { return Ok(None); };
             let now = self.context.now.unwrap_or(0);
-            if basis.field("version").ok().and_then(|v| v.as_str().ok()) != Some(self.view_certification_version(m).as_str())
-                || number(&basis, "at") > now { return Ok(None); }
+            if !matches!(basis.field("version"), Ok(Value::String(version)) if version == &self.view_certification_version(m))
+                || !matches!(basis.field("at"), Ok(Value::Int(at)) if *at <= now) { return Ok(None); }
             let deadline = match basis.field("deadline") {
                 Ok(Value::Null) => None,
                 Ok(Value::Int(at)) if *at > now => Some(*at),
                 _ => return Ok(None),
             };
             let Some(row) = self.view_get(&m.target, id)? else { return Ok(None); };
-            if pending(&row) { return Ok(None); }
+            if row.field("recountPending") != Ok(&Value::Bool(false)) { return Ok(None); }
+            let total = match row.field("value") {
+                Ok(Value::Int(n)) if (0..=crate::value::I53_MAX).contains(n) => *n,
+                _ => return Ok(None),
+            };
             self.next_expiry.note_option(deadline);
-            Ok(Some(number(&row, "value")))
+            Ok(Some(total))
         })();
         self.meter.release_heap(mark);
         result

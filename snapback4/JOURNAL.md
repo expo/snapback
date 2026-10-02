@@ -81563,3 +81563,60 @@ artifact. Client app.js remains byte-identical to round 1. Report, exact suite
 summary, seeds, negative controls, all traces and artifact hashes:
 reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-02 — BG round 3: member lifetime counts over timeless sources
+
+Astra and Grok's high finding is fixed across scalar/prepaid reads, batch/stream,
+cold acquisition and device reads/prediction: a row-keyed count needs authorized
+live input if either source or member can expire, including inherited and
+multi-level read-through expiry. Expiring members cannot reuse a numerical cache
+or copy it through a no-predicate-change refresh. A source event for a live
+expiring member resets bounded private recount work rather than applying a delta
+to a cache that could have missed earlier writes. That also fixes ordinary source
+deletion refusing with E_OVERFLOW after member rollback. Non-expiring members
+keep incremental maintenance; the busy-group fixture's fast path is unchanged.
+Required basis version/at/deadline and count/pending fields are validated strictly;
+15 corrupted-field cases prove missing or malformed evidence falls back to input.
+
+Both review reproductions, device poison, forward maintenance seam and source
+underflow fail on exact round 2 fcc4b644f9, current main 738d45830c (contains BG
+round 0) and pre-BG main 6c598ef145. The two main controls add tests only. The bug
+predates BG. Grok's suspected public forward renewal is qualified: ordinary
+expired-row updates refuse NOT_FOUND, and seed/import renewal already recounts
+on main. The old/new-image maintenance seam does copy stale zero at 1 → 11 → 12;
+the separate regression and fix do not claim public mutation reachability.
+
+Six topology cases (seeds 7, 24301; 20261002, 28; 3735928559, 305419896) run 1,080
+actions plus review prefixes and 74,574 independent comparisons, including two
+groups, parent moves, sweeps, lifetime/default/predicate adoption and 96 overlapping
+readers. The existing eight-seed property retains 2,400 steps and 44,289 comparisons;
+its acquisition oracle now checks raw model facts independently. Device coverage,
+fan-out rollback and all six source/member delete combinations pass. Final core
+checks: 53/53; affected integration: 29/29. The 10k/100k regression remains
+(0 source rows re-certified, 100 examined, 100 steps). Guide 110/110 and frozen
+compatibility pass within the original 879-line card limit. LLP 3000.015 §3 audits
+every count-return path and reconciles the earlier maintenance description.
+
+scripts/test.sh ran once: `== 0 failure(s) in 1485 s`. It passed 5,745 client tests
+with ten skips and all 79 serial models. Full-suite failures: ours 0, baseline 0,
+environmental 0. That run began before the late source-maintenance fix; the final
+53 core and 29 integration tests cover that change. Final artifact measurements
+use rebuilt binaries; the complete suite was not silently repeated.
+
+Final busy-group p95: idle 171.3 ms, 96 burners 458.7 ms; all 100 deliveries in each
+run re-certify zero history, with all 150 notifications and all burners reaped.
+Loaded p95 exceeds round 2's 339.6 ms by 35.1%; latency parity is not demonstrated.
+Initial round-3 186.9/410.0 ms and a failed final idle attempt at 397.1 ms remain
+in the report. That attempt encountered 99.95% median host CPU from other lanes;
+its unchanged <250 ms assertion failed. A quiet-host admission then preceded both
+final BG scenarios. LL's final quiet wait stayed busy for over six minutes, so the
+unchanged 160-sample control ran with host-load recording: no timeout; once-photo
+p95 98.066 ms. Its timings are explicitly contended. Final trace validation passes.
+
+Wasm: 2,015,371 B raw / 605,071 B gzip, +66 gzip versus round 2; 154 B below the
+unchanged 605,225 B branch ratchet. Main's 610,782 B RV ratchet is reported only.
+No main merge or ceiling increase. Report, test-only control patches, seeds,
+complete failure ledger, traces and hashes: reports/20261001-bg-busy-group-render/
+REPORT.md. One local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.

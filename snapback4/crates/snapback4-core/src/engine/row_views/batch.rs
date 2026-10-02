@@ -21,7 +21,7 @@ impl Runner<'_> {
     fn live_batch(&mut self, name: &str, rows: &[Value], probe_small: bool) -> Result<Vec<Option<Value>>, RuntimeError> {
         assert!(rows.len() <= 256);
         let Some(m) = self.schema.maintain_for(name).filter(|m|
-            !self.device && m.row_key.is_some() && self.schema.tables[&m.source].is_expiring()) else {
+            !self.device && m.row_count_needs_live_basis(self.schema)) else {
             return rows.iter().cloned().map(|row| self.live_aggregate(name, row)).collect();
         };
         let mark = self.meter.mark();
@@ -154,13 +154,16 @@ impl Runner<'_> {
         for (_, _, total) in &mut *members { *total = 0; }
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
-        let index = k.range_index(source.expiry_column().unwrap());
+        let index = source.expiry_column().map_or_else(|| k.source_index(), |expiry| k.range_index(expiry));
         let prefix = std::slice::from_ref(parent);
         self.meter.heap(crate::rows::word_heap::key_decode(source.indexes[&index].components.len() + 1,
             crate::rows::MAX_INDEX_KEY_BYTES).saturating_mul(2))?;
         let predicate_steps = k.predicate.steps() * 2 + 4;
-        for mut bounds in [Bounds { lte: Some(Value::Null), ..Default::default() },
-            Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Default::default() }] {
+        let ranges = if source.is_expiring() {
+            [Some(Bounds { lte: Some(Value::Null), ..Default::default() }),
+                Some(Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Default::default() })]
+        } else { [Some(Bounds::default()), None] };
+        for mut bounds in ranges.into_iter().flatten() {
             loop {
                 self.meter.charge(MeterKind::Examined, 1)?;
                 let mark = self.meter.mark();

@@ -705,8 +705,8 @@ and the full predicate exclude them from the count. Larger ranges and background
 recounts use the null and future ranges of the parent/expiry index, seeking past
 expired inputs. An abandoned probe stays charged against the writer's recount
 allowance; a count that cannot finish leaves a pending recount and commits the mark.
-Server reads certify the current live range, including counts above the
-writer allowance. For non-expiring members, a settled server basis can reuse its
+Server reads certify live counts above the writer allowance whenever the source **or member** can expire, including inherited expiry over non-expiring sources.
+Expiring members always use authorized input: maintenance may have skipped them while absent. Restoring their lifetime recounts or leaves pending work. For non-expiring members, a settled server basis can reuse its
 count while its version matches, its basis is not in the future, and its deadline
 has not arrived. A recount restarts its prefix on clock rollback. Source writes maintain that proof with the count. Every read still
 checks current member and source-group authority. Pending, due or unsupported
@@ -803,8 +803,8 @@ A covered device predicts within its certification allowance. Without source
 coverage, a non-expiring count keeps its settled value and queues the mark
 without prediction. An acquired horizon suffix can
 cover the changed interval; a device recount that exceeds its allowance also
-queues without prediction. Expiring sources need covered live input to certify
-an unswept count: an uncovered device reports a pending count until it can
+queues without prediction. Expiring sources or members need covered live input to certify
+a count: an uncovered device reports a pending count until it can
 certify that live input. A device mutation that cannot certify the count,
 including an already settled count above its local allowance, enters the
 outbox without a predicted result; the server decides and settles it.
