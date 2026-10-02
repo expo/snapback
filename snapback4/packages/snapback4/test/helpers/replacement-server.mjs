@@ -8,7 +8,7 @@ import { hangBudget } from './wait.mjs';
 // @ref LLP 3000#publication-suite-under-contention — the fixture competes
 // with the live server's writer. Copy one snapshot atomically, with a bounded
 // asynchronous busy retry; a failed setup still owns and closes its server.
-export async function replacementServer({ original, session, start = devServer, copyTimeout = 5000, ...options }) {
+export async function replacementServer({ original, session, start = devServer, copyTimeout = 5000, onBusy = () => {}, ...options }) {
   assert.ok(Number.isFinite(copyTimeout) && copyTimeout >= 0 && copyTimeout <= 5000, 'copy deadline must be at most five seconds');
   const replacement = await start(options);
   try {
@@ -27,6 +27,7 @@ export async function replacementServer({ original, session, start = devServer, 
         } catch (error) {
           if (transaction) db.exec('ROLLBACK');
           if (![5, 6].includes(error.errcode & 255)) throw error;
+          onBusy(error);
           if (performance.now() >= deadline)
             throw new Error(`TEST_REPLACEMENT_COPY: writer remained locked for ${copyTimeout} ms`, { cause: error });
           await sleep(Math.min(25, Math.max(1, deadline - performance.now())));

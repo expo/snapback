@@ -23,20 +23,25 @@ async function original(t) {
 
 test('replacement copy waits for a held writer, retaining real identity in a distinct store', async t => {
   const f = await original(t);
-  let lock, timer;
-  t.after(() => { clearTimeout(timer); lock?.close(); });
+  let lock, busy = 0;
+  t.after(() => lock?.close());
   const replacement = await replacementServer({ original: f.server, session: f.session, ...f.options,
+    onBusy: error => {
+      assert.ok([5, 6].includes(error.errcode & 255));
+      busy++;
+      if (lock) { lock.exec('ROLLBACK'); lock.close(); lock = undefined; }
+    },
     start: async options => {
       const server = await devServer(options);
       try {
         lock = new DatabaseSync(join(server.app, '.snapback4/store.sqlite'));
         lock.exec('PRAGMA busy_timeout=5000; BEGIN IMMEDIATE');
       } catch (error) { await server.close(); throw error; }
-      timer = setTimeout(() => { lock.exec('ROLLBACK'); lock.close(); lock = undefined; }, 100);
       return server;
     },
   });
   t.after(() => replacement.close());
+  assert.ok(busy >= 1, 'copy observed BUSY before the writer released');
   assert.equal(lock, undefined, 'copy could only succeed after the writer released');
   const result = await fetch(replacement.api + '/q/who', {
     method: 'POST', headers: { authorization: `Bearer ${f.session.token}` }, body: '{}',

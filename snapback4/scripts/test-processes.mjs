@@ -3,22 +3,41 @@ import { readFileSync, appendFileSync } from 'node:fs';
 import { ChildProcess, spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
+
+// Inspect the complete table: unlike `ps -p`, an empty selection cannot be
+// confused with a failed command. C locale makes BSD lstart exactly 24 chars.
+export function processTable({ run = spawnSync } = {}) {
+  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,lstart=,stat='], {
+    encoding: 'utf8', timeout: 2000, maxBuffer: 16 * 1024 * 1024,
+    env: { ...process.env, LC_ALL: 'C' },
+  });
+  if (result.error || result.status !== 0 || !result.stdout?.trim())
+    throw inspectionError(`ps failed: ${result.error?.message ?? `status ${result.status}, signal ${result.signal}`}; ${result.stderr ?? ''}`);
+  return result.stdout.trimEnd().split('\n').map(line => {
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.{24})\s+(\S+)\s*$/.exec(line);
+    if (!match) throw inspectionError(`malformed ps row: ${line}`);
+    const [, pid, parent, group, start, state] = match;
+    return { pid: Number(pid), parent: Number(parent), group: Number(group), start, alive: !state.startsWith('Z') };
+  });
+}
+
 export function identity(pid) {
+  if (!Number.isInteger(pid) || pid < 1) throw inspectionError(`invalid PID ${pid}`);
+  if (process.platform !== 'linux') return processTable().find(row => row.pid === pid);
   try {
-    if (process.platform === 'linux') {
-      const text = readFileSync(`/proc/${pid}/stat`, 'utf8');
-      const fields = text.slice(text.lastIndexOf(')') + 2).split(' ');
-      return { pid, start: fields[19], alive: fields[0] !== 'Z' };
-    }
-    const result = spawnSync('ps', ['-p', String(pid), '-o', 'lstart=', '-o', 'stat='], { encoding: 'utf8', timeout: 1000 });
-    const text = result.stdout?.trim();
-    if (!text || result.status !== 0) return;
-    return { pid, start: text.slice(0, 24), alive: !text.slice(24).trim().startsWith('Z') };
-  } catch {}
+    const text = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const fields = text.slice(text.lastIndexOf(')') + 2).trim().split(/\s+/);
+    if (!/^\d+$/.test(fields[19]) || !/^\d+$/.test(fields[2])) throw inspectionError(`malformed /proc/${pid}/stat`);
+    return { pid, start: fields[19], group: Number(fields[2]), alive: fields[0] !== 'Z' };
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ESRCH') return;
+    throw inspectionError(`cannot identify ${pid}: ${error.message}`);
+  }
 }
 export const live = record => {
   const now = identity(record.pid);
-  return now?.alive && now.start === record.start;
+  return !!now?.alive && now.start === record.start;
 };
 export function records(path) {
   try { return readFileSync(path, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse); }
@@ -26,8 +45,7 @@ export function records(path) {
 }
 
 // Runs in both the node:test launcher and its test child. Record immediately
-// after spawn, before user callbacks can unref or detach the child. Start-time
-// comparison prevents signalling a PID recycled after an earlier test ended.
+// after spawn, before user callbacks can unref or detach the child.
 const registry = process.env.SNAPBACK4_TEST_PROCESS_LOG;
 if (registry) {
   const original = ChildProcess.prototype.spawn;
@@ -41,34 +59,54 @@ if (registry) {
   };
 }
 
-export async function cleanupProcesses(owned, { graceMs = 5000 } = {}) {
-  const known = new Map(owned.map(row => [row.pid, row]));
-  // Capture descendants while their parents still exist; Rust's worker
-  // watchdog and Chromium can create their own process groups without Node.
-  const tree = spawnSync('ps', ['-axo', 'pid=,ppid='], { encoding: 'utf8', timeout: 2000 });
-  const inspectionError = tree.status !== 0 ? new Error(`TEST_PROCESS_CLEANUP: cannot inspect descendants: ${tree.stderr}`) : undefined;
-  const pairs = (tree.stdout ?? '').trim().split('\n').map(line => line.trim().split(/\s+/).map(Number));
+// The live keeper reserves the file's process group until verification ends.
+// Reparenting (including shell double forks) cannot remove group membership.
+// Registered detached processes additionally seed ancestry discovery. Deliberate
+// setsid/setpgid escapes from non-Node descendants remain outside this boundary.
+export function ownedProcesses(owned, keeper, inspect = processTable) {
+  const table = inspect(); // errors must propagate, even when no records exist
+  if (keeper && !live(keeper)) throw inspectionError('file group keeper exited before verification');
+  const known = new Map();
+  for (const row of owned) if (live(row)) known.set(row.pid, row);
+  for (const row of table) if (row.alive && keeper && row.group === keeper.pid && row.pid !== keeper.pid) {
+    const current = identity(row.pid);
+    if (current?.alive && current.group === keeper.pid) known.set(row.pid, current);
+  }
   let added;
   do {
     added = false;
-    for (const [pid, parent] of pairs) if (!known.has(pid) && known.has(parent) && live(known.get(parent))) {
-      const row = identity(pid);
-      if (row) { known.set(pid, row); added = true; }
+    for (const row of table) if (row.alive && !known.has(row.pid) && known.has(row.parent)) {
+      const current = identity(row.pid);
+      if (current?.alive) { known.set(row.pid, current); added = true; }
     }
   } while (added);
-  const signal = name => {
-    for (const row of [...known.values()].reverse()) if (live(row)) {
+  known.delete(keeper?.pid);
+  return [...known.values()];
+}
+
+export async function cleanupProcesses(owned, { graceMs = 5000, keeper, inspect = processTable } = {}) {
+  const known = new Map(owned.map(row => [row.pid, row]));
+  const refresh = () => {
+    const rows = ownedProcesses([...known.values()], keeper, inspect);
+    for (const row of rows) known.set(row.pid, row);
+    return rows;
+  };
+  const signal = (rows, name) => {
+    for (const row of rows.reverse()) if (live(row)) {
       try { process.kill(row.pid, name); } catch (error) { if (error.code !== 'ESRCH') throw error; }
     }
   };
-  signal('SIGTERM');
+  let remaining = refresh();
   const deadline = performance.now() + graceMs;
-  while ([...known.values()].some(live) && performance.now() < deadline) await sleep(25);
-  signal('SIGKILL');
+  signal(remaining, 'SIGTERM');
+  while (remaining.length && performance.now() < deadline) {
+    await sleep(50); remaining = refresh();
+  }
   const killedAt = performance.now();
-  while ([...known.values()].some(live) && performance.now() - killedAt < 2000) await sleep(25);
-  const remaining = [...known.values()].filter(live);
+  while (remaining.length && performance.now() - killedAt < 2000) {
+    signal(remaining, 'SIGKILL');
+    await sleep(50); remaining = refresh();
+  }
   if (remaining.length) throw new Error(`TEST_PROCESS_CLEANUP: still alive after SIGKILL: ${JSON.stringify(remaining)}`);
-  if (inspectionError) throw inspectionError;
   return [...known.values()];
 }

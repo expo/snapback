@@ -1,8 +1,8 @@
-# QF round 0 — qualification flakes
+# QF — qualification flakes
 
 Status: complete and locally qualified; no push or publication.
 
-Baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
+Round-0 baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
 `sb4-intent/qf-qualification-flakes`. Product sources match release `8e6246be14`;
 only package/Cargo versions and locks differ. Node 24.13.1, Linux, 96 available
 CPUs. Own binary: 0.4.11, SHA-256
@@ -224,3 +224,206 @@ verify the identical qualified source hash. No test input changed.
 Three manifest-refusal fixtures wait 122 seconds apiece for a host that is
 already refusing the source. Recorded separately in
 [worker-refusal fixture ticket](../../../issues/20261002-snapback4-worker-refusal-tests-wait-entire-hang-guard.md).
+
+## Round 1 — review corrections (2026-10-02)
+
+Round-0 parent: `f9aa587e10`. Read both complete reviews: Astra **NOT READY**
+(P1 descendant custody, P2 inspection errors) and Grok **READY** (three Lows).
+The fixture fixes remain; no product source, original assertion, seed count or
+inner hang allowance changes in this round.
+
+### Retained custody and inspection
+
+The external runner starts a dedicated, detached Node group keeper. The keeper
+starts `node --test` inside that group and remains alive after the test launcher
+exits. A successful full process-table snapshot can therefore still find the
+shell's `sleep 600` after its parent has exited and init has adopted it. The
+keeper reserves the group identity until the runner has signalled and verified
+its members. Registered detached Node children additionally seed descendant
+inspection. Cleanup repeatedly discovers group members, sends TERM, then KILL,
+and checks start identities before every individual signal. A completed file
+with survivors reports `TEST_FILE_LEAK` after cleanup. A stalled file keeps
+`TEST_FILE_HANG` and also reaps the orphan. Failed output-pipe closure cannot
+report a pass.
+
+This is the process-group alternative in the review request on both Linux and
+macOS; there is no subreaper or cgroup dependency. It does **not** contain a
+native daemon that deliberately changes group/session and loses its discoverable
+parent before inspection, nor descendants of an already-exited detached Node
+child after such an escape. macOS has no adopted subreaper here. Direct live
+Node detaches are registered; arbitrary daemon containment is not claimed.
+The ordinary shell double fork in Astra's reproduction does not leave its group
+and is covered on both platforms.
+
+A failed, timed-out, empty or malformed `ps` snapshot throws
+`TEST_PROCESS_INSPECTION`; Linux identity reads also propagate every error
+except verified process disappearance. macOS uses the complete process table
+instead of treating a nonzero `ps -p` result as an empty selection. Every ps
+call sets `LC_ALL=C`, giving stable 24-character start fields and zombie parsing.
+A failed inspection stays a failure even if a subsequent cleanup succeeds.
+Persistent failure triggers best-effort signals to the known children and the
+still-owned keeper group; this does not certify that inspection or cleanup
+succeeded. TERM grace is five seconds, KILL observation two seconds, and each
+ps call is limited to two seconds; inspecting many identities can add time.
+
+Permanent checks now include both unregistered shell-orphan cases, ps exit 2,
+ps timeout, malformed output, empty output, persistent inspection failure,
+C-locale enforcement, and long-file/seed-override caps. The four prior runner
+regressions remain. The replacement success test holds its real SQLite writer
+until `onBusy` has observed BUSY/LOCKED, then releases it; it asserts positive
+retry observation and retains its identity/distinct-store checks. The held-lock
+and failed-probe cleanup regressions remain unchanged.
+
+### Watchdog caps, including serial publication
+
+The old flat 900/1,800-second caps were below the declared inner guards. Named
+long files now get **900 seconds + 125% of their declared aggregate allowance**.
+Search sums both host guards and the four large-overlap guards; mixed evidence
+sums both hosts; session sums both tiers and the final guarded regression;
+online uses its full interleaving count; admission uses its 56-scenario parent
+allowance. Seed overrides feed the same calculation. For the large
+horizon/acquisition/overflow/per-row files, every current case conservatively
+gets the largest declared guard, including shorter or unguarded cases. These
+are deliberately generous hang bounds; in particular horizon's existing
+10,120-second guards produce a multi-day worst-case outer bound. Reducing those
+existing inner guards is outside this fixture fix.
+
+These exact caps apply on the loaded M5 publication MacBook with
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`; serial scheduling changes none of them.
+The ordinary/fixture-wrapper cap remains 900 seconds. Named case/work counts
+must be updated with changes to the corresponding declarations.
+
+| File (`.test.mjs`) | Default outer cap, seconds |
+| --- | ---: |
+| ordinary files / fixture wrapper directory | 900 |
+| ordinary-search-oracle | 24,060 |
+| mixed-evidence-oracle | 5,400 |
+| app-session-model | 26,150 |
+| online-client-model | 8,400 |
+| web-admission-review | 9,440 |
+| column-stream-recovery | 3,600 |
+| timeline-delivery | 3,600 |
+| horizon-boundary | 1,038,200 |
+| acquisition | 78,450 |
+| sync-overflow | 63,230 |
+| per-row-work | 67,150 |
+| per-row-react | 19,450 |
+
+### Verification and evidence
+
+Final Linux focused command, from `snapback4/`:
+
+```bash
+node scripts/run-client-tests.mjs 1 files packages/snapback4/test/test-file-runner.test.mjs packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+Result: **15/15 passed**, zero failed/skipped: runner **12/12**, replacement
+**3/3**, on eb1000 (`expose-builder-pixel`, `100.65.137.99`), Node 24.13.1.
+`round1/inputs.sha256` binds the tested runner, fixtures, stress driver and binary.
+
+Round-1 stress command (one slot alternating the two original target tests,
+23 slots cycling the full ordinary inventory; target worker only uses the
+unchanged 100 ms clone3 scheduling control):
+
+```bash
+SNAPBACK4_QF_WORKER_BIN="$PWD/reports/20261002-qf-qualification-flakes/delayed-server.sh" node reports/20261002-qf-qualification-flakes/stress.mjs after /tmp/qf-r1-stress-final 200 both
+```
+
+The final run, 2026-10-02T20:20:36.447Z–2026-10-02T20:49:50.460Z, passed **worker
+200/200**, **observed replacement 200/200**, and **background 1,714/1,714**.
+All 283 ordinary files executed in the background. Every one of the 400 target
+completions recorded 23 active background slots; the target records have one
+executed worker test or two executed browser tests (the parent plus the selected
+observed-replacement case), never an empty filter. After the targets finished,
+all in-flight background files completed before the full suite started.
+Worker min/median/max: 2913/2964.5/3042 ms;
+replacement: 3481/3682.5/4086 ms.
+No target or background failure occurred. This is repeated correctness under
+real client-file contention, not a product latency or comparative speed claim.
+Compressed metadata, every result, load timeline and TSV are in `round1/stress-*`;
+`stress-stats.json` gives the checked aggregates.
+
+Apartment mini (`100.64.36.16`), Darwin 27.0 arm64, Node 24.18.0: **15/15
+passed**, zero failed/skipped, using the identical final source hashes and
+`LC_ALL=de_DE.UTF-8` in the ambient test environment. The runner still sets
+`LC_ALL=C` on every actual ps invocation. All 12 runner checks passed in
+49.414 seconds (52.008 seconds including its outer runner); replacement checks
+passed 3/3 in 4.222 seconds (5.864 including the runner). Shell-orphan pass/hang,
+transient and persistent inspection failures, and start-identity inspection
+therefore executed natively on the required Mac.
+
+The fixture-only Mac checks used downloaded `snapback4-darwin-arm64@0.4.10`,
+SHA-256 `b30b96dcb7e66abb4a13ba664d135c218d4d8383b2be45cbc294cbc0b90d8e44`.
+This verifies portability of these runner/fixture changes, not the complete
+current release or full-suite Mac timing. The initial 0.4.12 package request
+returned npm ETARGET and ran no tests; that unavailable artifact is an
+environmental setup failure. The successful command, inside the task-created
+`/tmp/qf-r1.ojT67v` scratch directory, was:
+
+```bash
+LC_ALL=de_DE.UTF-8 SNAPBACK4_BIN=/tmp/qf-r1.ojT67v/package/snapback4 node snapback4/scripts/run-client-tests.mjs 1 files snapback4/packages/snapback4/test/test-file-runner.test.mjs snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+`round1/mini-tests.log`, `mini-tests.exit` and `mini-host.txt` retain the complete
+result, platform and source/binary hashes; both npm outcomes are retained.
+
+The **one** final `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT scripts/test.sh`
+run on eb1000 started at 2026-10-02T20:49:50.704Z and finished at
+2026-10-02T21:13:34.614Z, exit **0**. Its exact summary is:
+
+```text
+== 0 failure(s) in 1424 s
+```
+
+Every Rust target and doctest, build/budget/release check, package/app typecheck,
+and fixture-wrapper check passed. Ordinary clients: **283/283 files, 5,800
+passed, zero failed, ten unchanged conditional skips**. Models: **79/79 passed**.
+Including the nine fixture-wrapper cases, the runner records **286/286 files,
+5,888 passed, zero failed and ten skipped**. The complete worker file passed
+61/61 in 440.643 seconds; browser admission 55/55 in 122.648 seconds; search
+oracle 498.462 seconds. Model files: 240.843 and 59.936 seconds. There were no
+watchdog or unexpected leak failures. **Full-suite failure classification:
+ours 0, baseline 0, environmental 0.** No failed suite test was retried or omitted.
+
+`round1/full-suite.log.gz` retains the complete log; its uncompressed SHA-256 is
+`b357af054d82529703ff4975fcd25f604652e682ec440b89f1e2709c254e8ca0`. The JSON summary binds timestamps/exit/footer;
+`full-suite-files.tsv` retains all counts and durations, and
+`full-suite-categories.txt` retains every category verdict. All recorded inputs
+matched before and after the suite. After completion, only the obsolete
+model-count/30-minute comment in `scripts/test.sh` was corrected; its exact
+executed source is retained in `test-sh-qualified.txt`, and the manifest binds
+both that copy and the final shell file. No executable code changed after
+qualification. The scoped LLP update, reference audit and shell/whitespace
+checks accompany the change; product sources are unchanged.
+
+### Development and environmental outcomes
+
+No reviewed fixture failure is hidden by retries. Earlier Linux development
+runs passed 4/4, then 11/11 runner checks and 3/3 replacement checks. The last
+15/15 focused run uses the final source. Two edit-preparation commands used a
+repository-relative path from `snapback4/` and failed before writing; corrected
+paths succeeded. One unsupported `both` driver invocation failed before starting
+any test because that preceding edit had not applied. These are our command
+errors, not product failures. The first source read also named a nonexistent
+registration helper; the actual preload is `test-processes.mjs`.
+
+One preliminary 24-file run was intentionally stopped to make output-pipe
+closure failure explicit before final qualification. All 25 worker targets
+passed; 24 replacement targets passed and the running 25th plus all 23 active
+background files reported `TEST_FILE_ABORT`. The 271 completed background
+files passed. Those 24 aborts are our intervention, not flakes or qualifying
+failures. Retain this batch separately from the complete final run.
+
+The local fleet inventory and llp-orient skill paths were absent (the skill
+symlinks point into an uninitialized vendor directory). The fleet inventory was
+read from the permitted mini; governing LLP 3000, its adopted brief/rules,
+Snapback 4 instructions, exclusions and journal supplied the manual context.
+No app-authoring surface changed. The mini's SSH connection temporarily timed
+out before its first remote test command started; no alternate Mac was used.
+The office M1 and publication MacBook were not contacted. The mini's scratch
+copy was removed at 20:40:14Z after collecting its evidence (`mini-cleanup.log`). All signals target processes
+started by this task or their verified descendants. Nothing pushed or published.
+
+Intermittent SSH and archive-retrieval failures were environmental; a persistent
+connection was closed and bounded retries recovered the logs. They caused no
+Mac test retry. The unavailable npm 0.4.12 package likewise ran no test.

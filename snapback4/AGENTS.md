@@ -76,7 +76,11 @@ Gotchas you cannot derive from the code:
   browser renderers and workers. Acquisition and server-e2e share that pool;
   there are no extra shard processes outside it. The two full-count model
   files retain a separate serial slot. `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`
-  still forces one client file at a time; publication needs no override.
+  still forces one client file at a time. The file watchdog uses the same
+  caps in serial mode: 900 seconds ordinarily; named long files add declared
+  aggregate guards plus 25% (see `scripts/run-client-tests.mjs` and the QF
+  round-1 report). Update named work/case counts when their declarations change.
+  The M5 MacBook is the publication host; the office M1 is calibration-only.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:
   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.

@@ -92,8 +92,9 @@ run_client_tests() {
     esac
   done
   echo "-- client test files: ${#client_files[@]}; concurrency: $client_test_concurrency"
-  # Independent per-file watchdog: 15 minutes, then at most 9 seconds of
-  # TERM/KILL cleanup. It also catches blocked JS and post-failure handle leaks.
+  # Independent per-file watchdog: 15-minute base; named long files add
+  # aggregate inner guards + 25% (run-client-tests.mjs), also in serial mode.
+  # Cleanup verifies group membership after TERM/KILL, including reparenting.
   node scripts/run-client-tests.mjs "$client_test_concurrency" files "${client_files[@]}" &
   client_pids+=("$!")
   for pid in "${client_pids[@]}"; do
@@ -166,9 +167,9 @@ child_pids+=("$!")
 wait "${child_pids[0]}" || true
 child_pids=()
 collect "client-tests" "client tests"
-# The three seeded models keep full counts and aggregate hang guards. Give them a
+# The two seeded models keep full counts and aggregate hang guards. Give them a
 # serial slot after Rust compilation/tests and every other client file finish.
-# Full-count models receive a separate, finite 30-minute ceiling per file.
+# Named aggregate guards plus 25% and 900 s also apply to these model files.
 run "client models" node scripts/run-client-tests.mjs 1 models \
   packages/snapback4/test/app-session-model.test.mjs \
   packages/snapback4/test/online-client-model.test.mjs

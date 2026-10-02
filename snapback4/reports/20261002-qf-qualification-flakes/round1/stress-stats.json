@@ -1,0 +1,57 @@
+{
+  "worker": {
+    "runs": 200,
+    "failures": 0,
+    "minMs": 2913,
+    "medianMs": 2964.5,
+    "maxMs": 3042,
+    "files": 1,
+    "active": [
+      23
+    ]
+  },
+  "replacement": {
+    "runs": 200,
+    "failures": 0,
+    "minMs": 3481,
+    "medianMs": 3682.5,
+    "maxMs": 4086,
+    "files": 1,
+    "active": [
+      23
+    ]
+  },
+  "load": {
+    "runs": 1714,
+    "failures": 0,
+    "minMs": 143,
+    "medianMs": 4164.0,
+    "maxMs": 497825,
+    "files": 283,
+    "active": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ]
+  }
+}

@@ -82726,3 +82726,49 @@ Commands, source hashes, all repetition outcomes, controls and failure
 classifications are in the [QF report](./reports/20261002-qf-qualification-flakes/REPORT.md).
 One local commit with the requested Astra co-author trailer; nothing pushed or
 published.
+
+## 2026-10-02 — QF round 1: retained groups and fail-closed inspection
+
+Addressed Astra's two containment findings and Grok's three Lows from f9aa587e10.
+Each client file now has a detached group keeper that survives node:test exit.
+An unregistered shell helper remains owned after its parent exits; a completed
+file with living helpers fails TEST_FILE_LEAK after cleanup. The stalled-file
+case remains TEST_FILE_HANG and also kills its helper. Every process-inspection
+error fails closed, including ps exit/timeout, empty or malformed output and
+identity-read errors. C-locale ps makes macOS start fields stable. Regressions
+cover both shell orphans, transient and persistent inspection errors, and the
+existing blocked-loop/detached-child cases. Group containment is not a subreaper:
+native descendants that deliberately leave the group/session and lose their
+parent before discovery can escape. This limit is explicit on both platforms.
+
+Named long-file caps cover their declared aggregate guards plus 25% and 900
+seconds, also with serial files on the loaded publication MacBook. Search,
+mixed evidence, session and online defaults are 24,060/5,400/26,150/8,400 seconds;
+admission is 9,440 seconds. Conservative case-count bounds for other large files
+and all exact caps are in the report. Existing inner guards and seed counts are
+unchanged. The replacement success regression releases its real writer only
+after observing BUSY/LOCKED, so retry coverage no longer depends on a 100 ms race.
+
+Final focused checks pass 15/15 on Linux and 15/15 on the Apartment mini with a
+non-C ambient locale. Mac source hashes match; its fixture portability checks
+use the available 0.4.10 binary, not a complete release qualification. The
+mini scratch directory was deleted after evidence collection; the office M1
+and publication MacBook were not contacted. Under 24-file Linux stress, both
+original flaky targets pass 200/200, every target completion has 23 background
+slots active, and all 1,714 background executions pass across all 283 files.
+
+The one complete eb1000 suite reports exactly `== 0 failure(s) in 1424 s`, exit
+0. All Rust targets/doctests, build/app/fixture checks pass; clients pass 5,800
+with ten existing conditional skips, models 79/79. Full-suite failures: ours 0,
+baseline 0, environmental 0. No assertion or seed was weakened and no product
+source changed. The only post-suite source edit corrects an obsolete shell
+comment; both the executed and final shell sources are bound in the manifest.
+Reference and whitespace checks accompany the change.
+
+The [Round 1 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-1--review-corrections-2026-10-02)
+retains complete compressed logs, hashes, every stress result, and all failure
+classifications. One preliminary stress batch was deliberately stopped for the
+output-closure correction: 24 aborts, no spontaneous failure. Preparation path
+mistakes were ours; temporary SSH failures and the unavailable 0.4.12 npm
+artifact were environmental and ran no failing test. Local commit with the
+requested Astra co-author trailer; nothing pushed or published.
