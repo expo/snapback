@@ -82679,3 +82679,25 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+## 2026-10-03 — CX: measured client-contract costs and Draft proposals
+
+[LLP 3000.032](../llp/3000.032-client-contract-builder-costs.research.md)
+records the requested cross-calibration research: all 33 matching records,
+the Grok comparative and Cal29 bundle, 79 exact quotations, series fits,
+and 14 measured builder code excerpts. Current behavior was checked against
+the implementation and paved client/receipt guide. No product code changed.
+
+For Charlie's ruling, recommend generated receipt-family binding/seen reporting
+first and pending-intent presentation second. Five linked filesystem tickets
+remain Draft proposals; the 1,000-event history alternatives are unselected.
+The evidence supports recurring integration work, not causal score deductions
+or guaranteed score gains. The small Cal29 fallback does not justify a large
+LOC-saving claim; the copied G47 receipt hook offers a concrete 31–33-line
+replacement target.
+
+Reference checks and research arithmetic/source checks pass. The root guide
+check reports inherited drift and missing generated prerequisites; the
+[validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
+retains the full red and its causes. Commit locally with the requested Astra
+co-author trailer; no push or publication.

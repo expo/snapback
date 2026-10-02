@@ -1,0 +1,675 @@
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.structured-stored-fields' expired on 2026-08-25; owner: LLP 0115 CV-4b; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.identity-columns' expired on 2026-09-15; owner: LLP 0191 identity Decision; pointer: issues/shelved/20260808-numeric-identity-default-columns.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.bounded-children-v1' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.write-activity-v1' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.handler-typescript' expired on 2026-09-15; owner: LLP 0246; pointer: issues/shelved/20260812-0246-remaining-rollouts-stacked-on-0237.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.sequences' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-sequence-publication-targets.md
+[guide-check] warning: GAP REVIEW WARNING: row 'assets.media-collection.v1' expired on 2026-08-26; owner: LLP 0239 R3; pointer: issues/shelved/20260815-finish-media-happy-path.md
+[guide-check] warning: GAP REVIEW WARNING: row 'assets.media-command.v1' expired on 2026-09-02; owner: LLP 0239 R4; pointer: issues/shelved/20260815-finish-media-happy-path.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.notifications' expired on 2026-09-06; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-first-class-notifications.md
+[guide-check] warning: GAP REVIEW WARNING: row 'sync.offline-js-arm-protected' expired on 2026-08-26; owner: orchestrator; pointer: issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md
+[guide-check] warning: GAP REVIEW WARNING: row 'sync.settlement-bounded-skew' expired on 2026-08-28; owner: LLP 0155 Stage 2; pointer: issues/shelved/20260802-0133-receipt-wire-coordination.md
+[guide-check] warning: GAP REVIEW WARNING: row 'auth.first-party-social-providers' expired on 2026-09-21; owner: issues/shelved/20260808-wave4-identity-program.md; pointer: issues/shelved/20260808-wave4-identity-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'auth.field-masking' expired on 2026-09-04; owner: LLP 0235; pointer: issues/shelved/20260821-0235-field-masking-productization.md
+[guide-check] warning: GAP REVIEW WARNING: row 'clients.non-js' expired on 2026-09-02; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-kotlin-dart-clients.md
+[guide-check] warning: GAP REVIEW WARNING: row 'clients.poll-hosted' expired on 2026-09-04; owner: Charlie; pointer: issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md
+[guide-check] warning: GAP REVIEW WARNING: row 'clients.compose-existing-app' expired on 2026-09-12; owner: unassigned; pointer: issues/shelved/20260808-guide-gap-compose-snapback-into-existing-app.md
+[guide-check] warning: GAP REVIEW WARNING: row 'operating.agent-safe-storage' expired on 2026-09-08; owner: Charlie; pointer: issues/shelved/20260803-agent-safe-storage-acceptance-tail.md
+[guide-check] warning: GAP REVIEW WARNING: row 'operating.declaration-conformance' expired on 2026-09-10; owner: ccheever; pointer: issues/shelved/20260803-0146-d1-d3-tranche.md
+[guide-check] warning: guide/auth/agent-principals.md: authorities changed since review at sha256:4b8a139980… (current sha256:e844c9df0e…)
+[guide-check] warning: guide/auth/app-identity-binding.md: authorities changed since review at sha256:12089a8cc4… (current sha256:8aa5090406…)
+[guide-check] warning: guide/auth/logical-transfer.md: authorities changed since review at sha256:177cfb52b7… (current sha256:3d28d428be…)
+[guide-check] warning: guide/auth/native-apps.md: authorities changed since review at sha256:c6922b6105… (current sha256:182e982561…)
+[guide-check] warning: guide/auth/passwords.md: authorities changed since review at sha256:bb6b12280d… (current sha256:667fe39d96…)
+[guide-check] warning: guide/auth/protecting-data.md: authorities changed since review at sha256:f73ec7e0c4… (current sha256:7afa30fe70…)
+[guide-check] warning: guide/auth/scoped-roles.md: authorities changed since review at sha256:780bb9188d… (current sha256:57f4313618…)
+[guide-check] warning: guide/auth/sessions-and-principals.md: authorities changed since review at sha256:e9a5e7e368… (current sha256:f98cb650d5…)
+[guide-check] warning: guide/auth/targets.md: authorities changed since review at sha256:0f2146b5e3… (current sha256:4991796bfe…)
+[guide-check] warning: guide/backend/actions-and-fetch.md: authorities changed since review at sha256:63ee41d271… (current sha256:4584a43bef…)
+[guide-check] warning: guide/backend/assets.md: authorities changed since review at sha256:d8478f180e… (current sha256:3729da1cf7…)
+[guide-check] warning: guide/backend/cron.md: authorities changed since review at sha256:193d82a23f… (current sha256:c9deb416e2…)
+[guide-check] warning: guide/backend/declarative-plans.md: authorities changed since review at sha256:391f5bef50… (current sha256:88c833ab89…)
+[guide-check] warning: guide/backend/expo-push.md: authorities changed since review at sha256:1b03a6d605… (current sha256:52f833b817…)
+[guide-check] warning: guide/backend/external-api.md: authorities changed since review at sha256:5221bd4e16… (current sha256:7148412f64…)
+[guide-check] warning: guide/backend/familiar-profile.md: authorities changed since review at sha256:3d3e817a21… (current sha256:a3af1ebc5b…)
+[guide-check] warning: guide/backend/handler-runtime.md: authorities changed since review at sha256:3a2d76c659… (current sha256:453a0fad61…)
+[guide-check] warning: guide/backend/jobs.md: authorities changed since review at sha256:6d95641bb0… (current sha256:c60634f452…)
+[guide-check] warning: guide/backend/media-happy-paths.md: authorities changed since review at sha256:f0f9617cae… (current sha256:ba87093f08…)
+[guide-check] warning: guide/backend/migrations.md: authorities changed since review at sha256:0845678e9f… (current sha256:64de07216c…)
+[guide-check] warning: guide/backend/mutations.md: authorities changed since review at sha256:180e2869cb… (current sha256:e645304adb…)
+[guide-check] warning: guide/backend/queries.md: authorities changed since review at sha256:34f211c81e… (current sha256:43f1f93e9b…)
+[guide-check] warning: guide/backend/query-costs.md: authorities changed since review at sha256:0ef57f1c87… (current sha256:b316904280…)
+[guide-check] warning: guide/backend/relational-queries.md: authorities changed since review at sha256:a51f3ecd3f… (current sha256:718834dc28…)
+[guide-check] warning: guide/backend/schema-evolution.md: authorities changed since review at sha256:ab0a227067… (current sha256:b7a0bfd133…)
+[guide-check] warning: guide/backend/sequences.md: authorities changed since review at sha256:339769af56… (current sha256:393674209f…)
+[guide-check] warning: guide/backend/snapshot-batches.md: authorities changed since review at sha256:21e047f9a0… (current sha256:e6723f78cc…)
+[guide-check] warning: guide/backend/standard-patterns.md: authorities changed since review at sha256:60f16a302d… (current sha256:8ec776aafc…)
+[guide-check] warning: guide/backend/streamed-actions.md: authorities changed since review at sha256:e0fd6cecbe… (current sha256:d1ffb7a049…)
+[guide-check] warning: guide/backend/text-search.md: authorities changed since review at sha256:5e680f348c… (current sha256:5722e30bca…)
+[guide-check] warning: guide/backend/trusted-runtime-values.md: authorities changed since review at sha256:6919f120fb… (current sha256:2a712fb353…)
+[guide-check] warning: guide/backend/vector-search.md: authorities changed since review at sha256:39af92584e… (current sha256:63048556dd…)
+[guide-check] warning: guide/backend/versioned-seeds.md: authorities changed since review at sha256:d7472d809b… (current sha256:5190997a71…)
+[guide-check] warning: guide/capabilities.md: authorities changed since review at sha256:3200869a52… (current sha256:fb0789f73f…)
+[guide-check] warning: guide/clients/app-cli.md: authorities changed since review at sha256:81f4c4ce55… (current sha256:52bf6c4bd8…)
+[guide-check] warning: guide/clients/contract-adapter.md: authorities changed since review at sha256:07e25fc91a… (current sha256:e901ae9f70…)
+[guide-check] warning: guide/clients/framework-bindings.md: authorities changed since review at sha256:ef95f794e1… (current sha256:2e0a5f1350…)
+[guide-check] warning: guide/clients/headless.md: authorities changed since review at sha256:6b002186d9… (current sha256:66d2a0285a…)
+[guide-check] warning: guide/clients/react-expo.md: authorities changed since review at sha256:b351212b2a… (current sha256:30e2bb6330…)
+[guide-check] warning: guide/clients/react.md: authorities changed since review at sha256:0bf525eefc… (current sha256:6ca9be4f78…)
+[guide-check] warning: guide/clients/surfaces.md: authorities changed since review at sha256:3f24f88bcf… (current sha256:b33d07f651…)
+[guide-check] warning: guide/clients/swift.md: authorities changed since review at sha256:bb3cab052a… (current sha256:652cdea29e…)
+[guide-check] warning: guide/conventions.md: authorities changed since review at sha256:636aab1ee1… (current sha256:d5496e52f2…)
+[guide-check] warning: guide/deploying/cloudflare.md: authorities changed since review at sha256:1c337a2cb1… (current sha256:b05b893454…)
+[guide-check] warning: guide/deploying/hosted-control.md: authorities changed since review at sha256:6cb04e0ad7… (current sha256:ef2e623d52…)
+[guide-check] warning: guide/deploying/index.md: authorities changed since review at sha256:b8d0b1c8db… (current sha256:a75cc75f9b…)
+[guide-check] warning: guide/deploying/releases.md: authorities changed since review at sha256:f85a68b553… (current sha256:10199c3e0f…)
+[guide-check] warning: guide/getting-started/generated-artifacts.md: authorities changed since review at sha256:4da054aa2f… (current sha256:ff1254679d…)
+[guide-check] warning: guide/getting-started/the-authoring-loop.md: authorities changed since review at sha256:4ca8545d1f… (current sha256:618596ff59…)
+[guide-check] warning: guide/getting-started/your-first-backend.md: authorities changed since review at sha256:4d9ebe710b… (current sha256:80f6f626c6…)
+[guide-check] warning: guide/index.md: authorities changed since review at sha256:0776ae1ed8… (current sha256:c80046a3cd…)
+[guide-check] warning: guide/operating/admin-console.md: authorities changed since review at sha256:dafdda17e3… (current sha256:a48e67c5b4…)
+[guide-check] warning: guide/operating/agent-controls.md: authorities changed since review at sha256:9a942c8dd0… (current sha256:ff674cd718…)
+[guide-check] warning: guide/operating/backup-and-copy.md: authorities changed since review at sha256:fd7ebe8e26… (current sha256:c19f1302d0…)
+[guide-check] warning: guide/operating/data-patch.md: authorities changed since review at sha256:a8646ba81d… (current sha256:0ef0c9deab…)
+[guide-check] warning: guide/operating/diagnostics.md: authorities changed since review at sha256:1c25648b54… (current sha256:df073b9228…)
+[guide-check] warning: guide/operating/error-tracking.md: authorities changed since review at sha256:2945c7d8f8… (current sha256:28f74e13ff…)
+[guide-check] warning: guide/operating/host-ops.md: authorities changed since review at sha256:e276d9f43b… (current sha256:4589d046bf…)
+[guide-check] warning: guide/operating/instance-forks.md: authorities changed since review at sha256:e111ece982… (current sha256:fc65b18929…)
+[guide-check] warning: guide/operating/network-profiles.md: authorities changed since review at sha256:430e7d2de7… (current sha256:819d966705…)
+[guide-check] warning: guide/operating/observability.md: authorities changed since review at sha256:e3e7036266… (current sha256:4924f95bb9…)
+[guide-check] warning: guide/operating/replication.md: authorities changed since review at sha256:9b727f6437… (current sha256:7df1da739b…)
+[guide-check] warning: guide/operating/secrets-and-config.md: authorities changed since review at sha256:c00bd2ab81… (current sha256:dd9288ef41…)
+[guide-check] warning: guide/protocol/client-protocol.md: authorities changed since review at sha256:be072dcbd2… (current sha256:b31d1ee989…)
+[guide-check] warning: guide/realtime/ephemeral-state.md: authorities changed since review at sha256:c5511fceb5… (current sha256:c9b9dc4227…)
+[guide-check] warning: guide/realtime/live-queries.md: authorities changed since review at sha256:129507c458… (current sha256:ad847a2380…)
+[guide-check] warning: guide/realtime/snapshot-bundles.md: authorities changed since review at sha256:6d5cd59fd7… (current sha256:5c6bfd4a36…)
+[guide-check] warning: guide/recipes/activity-presence.md: authorities changed since review at sha256:5c41400693… (current sha256:0c27490038…)
+[guide-check] warning: guide/recipes/auth-transition-writes.md: authorities changed since review at sha256:147f274f19… (current sha256:2881950f95…)
+[guide-check] warning: guide/recipes/browser-auth.md: authorities changed since review at sha256:447ad2cfdb… (current sha256:8413c2f841…)
+[guide-check] warning: guide/recipes/capability-links.md: authorities changed since review at sha256:dc636112af… (current sha256:1b717a6102…)
+[guide-check] warning: guide/recipes/chunked-semijoin-feed.md: authorities changed since review at sha256:b8739e9379… (current sha256:ef673be5ae…)
+[guide-check] warning: guide/recipes/coming-from-convex-and-supabase.md: authorities changed since review at sha256:ce7e2b3148… (current sha256:c5b3bb8b1e…)
+[guide-check] warning: guide/recipes/fixed-origin-development.md: authorities changed since review at sha256:292afba7d5… (current sha256:014094958c…)
+[guide-check] warning: guide/recipes/hidden-hands.md: authorities changed since review at sha256:43d4e382c6… (current sha256:8d0f3db7ea…)
+[guide-check] warning: guide/recipes/membership-roster-projection.md: authorities changed since review at sha256:6b7e76ab01… (current sha256:2e4c68f8bc…)
+[guide-check] warning: guide/recipes/messaging-convergence.md: authorities changed since review at sha256:cdbb68320c… (current sha256:82ed0563d0…)
+[guide-check] warning: guide/recipes/multi-persona-clients.md: authorities changed since review at sha256:60c8b0cc72… (current sha256:16ff2c003b…)
+[guide-check] warning: guide/recipes/optimistic-create.md: authorities changed since review at sha256:2b48998455… (current sha256:31773c63cf…)
+[guide-check] warning: guide/recipes/optimistic-toggle.md: authorities changed since review at sha256:8ffcd72132… (current sha256:0e9f12cd93…)
+[guide-check] warning: guide/recipes/paged-list.md: authorities changed since review at sha256:cfa8b56a1c… (current sha256:6065d06364…)
+[guide-check] warning: guide/recipes/presence-cursors.md: authorities changed since review at sha256:a7db97c928… (current sha256:e2533e7db5…)
+[guide-check] warning: guide/recipes/provider-lifecycle.md: authorities changed since review at sha256:cb5e02859a… (current sha256:42ffe4dfad…)
+[guide-check] warning: guide/recipes/read-receipts.md: authorities changed since review at sha256:33603a0cf4… (current sha256:297d082693…)
+[guide-check] warning: guide/recipes/scheduled-expiry.md: authorities changed since review at sha256:c9190e6d13… (current sha256:d84a458a29…)
+[guide-check] warning: guide/recipes/sessions-fixture-install.md: authorities changed since review at sha256:31512f6cc2… (current sha256:3c34ba4ab3…)
+[guide-check] warning: guide/recipes/split-sensitive-fields.md: authorities changed since review at sha256:63d23e482a… (current sha256:4e8ea4bd16…)
+[guide-check] warning: guide/recipes/time-windowed-live-reads.md: authorities changed since review at sha256:78e85af15f… (current sha256:df128c5f9d…)
+[guide-check] warning: guide/recipes/typing-indicators.md: authorities changed since review at sha256:f3312eca75… (current sha256:4fc43692bc…)
+[guide-check] warning: guide/recipes/view-once-media.md: authorities changed since review at sha256:6c2222b689… (current sha256:91cbef23ef…)
+[guide-check] warning: guide/reference/diagnostics.md: authorities changed since review at sha256:0c9d187662… (current sha256:61f50b0792…)
+[guide-check] warning: guide/reference/index.md: authorities changed since review at sha256:c4a87b272f… (current sha256:586c7abf2a…)
+[guide-check] warning: guide/start/crud-dashboard.md: authorities changed since review at sha256:fec37765ca… (current sha256:4206e51f98…)
+[guide-check] warning: guide/start/expo-chat.md: authorities changed since review at sha256:e69e107f77… (current sha256:3c532e74c3…)
+[guide-check] warning: guide/start/familiar-react.md: authorities changed since review at sha256:7c7cec8fdb… (current sha256:b5659bd4fa…)
+[guide-check] warning: guide/start/index.md: authorities changed since review at sha256:bd97fffef9… (current sha256:03bb393cd7…)
+[guide-check] warning: guide/start/media-feed.md: authorities changed since review at sha256:50a482a3bf… (current sha256:8b2516f573…)
+[guide-check] warning: guide/start/mental-model.md: authorities changed since review at sha256:bd97fffef9… (current sha256:03bb393cd7…)
+[guide-check] warning: guide/start/react.md: authorities changed since review at sha256:9e2e713ea9… (current sha256:32b07d2c34…)
+[guide-check] warning: guide/start/todo-contract.md: authorities changed since review at sha256:775cff5217… (current sha256:118e9c827b…)
+[guide-check] warning: guide/surface-map.md: authorities changed since review at sha256:ecc5fe3900… (current sha256:26c5e17eda…)
+[guide-check] warning: guide/sync/offline-and-retention.md: authorities changed since review at sha256:338c67399e… (current sha256:05f02c8542…)
+[guide-check] warning: guide/testing/acceptance.md: authorities changed since review at sha256:4b19959c43… (current sha256:58829e64a1…)
+[guide-check] warning: guide/testing/large-fixtures.md: authorities changed since review at sha256:05ade0a595… (current sha256:d7ed7433e0…)
+[guide-check] warning: guide/testing/verify.md: authorities changed since review at sha256:359ad5ef75… (current sha256:d038ae70fd…)
+[guide-check] status list:
+[guide-check] PASS — guide shell/CLI source binding
+[guide-check] FAILED — diagnostics registry
+[guide-check]   error: [diagnostics-registry] stale: guide/reference/diagnostics-registry.json
+[diagnostics-registry] stale: guide/reference/diagnostics.md
+[diagnostics-registry] stale: packages/snapback-client/diagnostic-codes.d.mts
+[diagnostics-registry] run node scripts/generate-diagnostics-registry.mjs
+[guide-check] SKIPPED (dependency unavailable: @expo/snapback-contract) — symbol registry
+[guide-check] PASS — asset client minimal example packed typecheck
+[guide-check] PASS — auth settlement packed proof
+[guide-check] PASS — multi-persona clients packed vertical contract
+[guide-check] FAILED — guide corpus
+[guide-check]   precondition: guide/backend/trusted-runtime-values.md: examples path does not exist: demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json — run `./scripts/check-generated-artifacts` first (it regenerates every committed demo backend, including any SNAPBACK_OUTBOUND_ACTIONS-gated ones per scripts/generated-artifact-policy.mjs)
+[guide-check]   error: guide/auth/app-identity-binding.md: content changed from legacy authoring-profile baseline 5bec544602d2… (current 00db4e9b36c6…); declare 'authoring-profiles' and remove its inventory row
+[guide-check]   error: guide/deploying/hosted-control.md: content changed from legacy authoring-profile baseline ae5488046adb… (current 7001d35b2ef5…); declare 'authoring-profiles' and remove its inventory row
+[guide-check]   error: guide/deploying/index.md: content changed from legacy authoring-profile baseline 582b0f54f790… (current dc1ce384da8a…); declare 'authoring-profiles' and remove its inventory row
+[guide-check]   error: guide/recipes/auth-transition-writes.md: content changed from legacy authoring-profile baseline 6124fea75b3f… (current 8f2f534116e6…); declare 'authoring-profiles' and remove its inventory row
+[guide-check]   error: guide/recipes/split-sensitive-fields.md: content changed from legacy authoring-profile baseline a8a6eca78544… (current 859faacbc660…); declare 'authoring-profiles' and remove its inventory row
+[guide-check]   error: guide/sync/offline-and-retention.md: content changed from legacy authoring-profile baseline 5aa1cd14fd5b… (current 1ee0d3ab1b38…); declare 'authoring-profiles' and remove its inventory row
+[guide-check] PRECONDITION (generated demo artifacts unavailable) — snippet transclusions
+[guide-check]   precondition: guide/backend/trusted-runtime-values.md:81: snippet source does not exist: demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json — run `./scripts/check-generated-artifacts` first (it regenerates every committed demo backend, including any SNAPBACK_OUTBOUND_ACTIONS-gated ones per scripts/generated-artifact-policy.mjs)
+[guide-check]   precondition: guide/clients/contract-adapter.md:72: snippet source does not exist: demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts — this is Exact/Contract-generated output; run `bun install --frozen-lockfile --cwd demos/<name>/surfaces/contract && bun demos/<name>/tests/acceptance/contract.mjs` first (see scripts/verify-local-proof's exact-<name>-install/-contract jobs)
+[guide-check]   precondition: guide/clients/contract-adapter.md:81: snippet source does not exist: demos/todo-v2/snapback/generated/contract/runtime-links.ts — this is Exact/Contract-generated output; run `bun install --frozen-lockfile --cwd demos/<name>/surfaces/contract && bun demos/<name>/tests/acceptance/contract.mjs` first (see scripts/verify-local-proof's exact-<name>-install/-contract jobs)
+[guide-check] PASS — guide links
+[guide-check] PASS — guide reachability
+[guide-check] FAILED — capability index parsing
+[guide-check]   error: guide/capabilities.md: exceeds its size budget (63496 > 63488 bytes)
+[guide-check] PASS — capability and surface joins
+[guide-check] PASS — published-closure fence
+[guide-check] PASS — bootstrap command resolvability
+[guide-check] PASS — authority freshness
+[guide-check] PASS — control-catalog Guide projection
+[guide-check] FAILED — Rosetta record
+[guide-check]   error: check-rosetta: 1 error(s)
+  - guide/capabilities.md: exceeds its size budget (63496 > 63488 bytes)
+[guide-check] PASS — first-read profiles
+[guide-check] FAILED — retrieval-eval static routing
+[guide-check]   error: check-retrieval-eval: case 1 (Realtime): "realtime" -> Aliases[realtime.live-queries] -> realtime/live-queries.md
+check-retrieval-eval: case 1 (Realtime): "subscription" -> Aliases[realtime.live-queries] -> realtime/live-queries.md
+check-retrieval-eval: case 1 (Realtime): "live-updating" -> body of realtime/live-queries.md
+check-retrieval-eval: case 2 (Ephemeral): "cursors" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 2 (Ephemeral): "presence" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 3 (Auth): "per-user" -> Aliases[auth.scoped-queries] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 3 (Auth): "row security" -> Aliases[auth.scoped-queries] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 3 (Auth): "hidden data" -> Aliases[auth.scoped-queries] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 4 (Relational routing): "joins" -> Aliases[backend.relational-queries] -> backend/relational-queries.md
+check-retrieval-eval: case 4 (Relational routing): "conversation membership" -> Aliases[backend.relational-queries] -> backend/relational-queries.md
+check-retrieval-eval: case 4 (Relational routing): "relational" -> Aliases[backend.relational-queries] -> backend/relational-queries.md
+check-retrieval-eval: case 5 (Ephemeral vocabulary): "typing indicator" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 5 (Ephemeral vocabulary): "ephemeral" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 5 (Ephemeral vocabulary): "presence" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 5 (Ephemeral vocabulary): "useSnapbackPresence" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 6 (Operating): "console" -> Aliases[operating.admin-console] -> operating/admin-console.md
+check-retrieval-eval: case 6 (Operating): "inspect function" -> Aliases[operating.admin-console] -> operating/admin-console.md
+check-retrieval-eval: case 6 (Operating): "debug backend" -> Aliases[operating.admin-console] -> operating/admin-console.md
+check-retrieval-eval: case 7 (Assets): "upload" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 7 (Assets): "Expo ImagePicker" -> heading in backend/assets.md
+check-retrieval-eval: case 7 (Assets): "images" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 8 (Expo binding identity): "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH" -> body of clients/react-expo.md
+check-retrieval-eval: case 8 (Expo binding identity): "expo" -> Aliases[clients.react-expo] -> clients/react-expo.md
+check-retrieval-eval: case 8 (Expo binding identity): SNAPBACK_APP_BINDING_IDENTITY_MISMATCH => /_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch
+check-retrieval-eval: case 9 (Asset rendering): "empty image" -> body of backend/assets.md
+check-retrieval-eval: case 9 (Asset rendering): "useSnapbackAssetImage" -> body of backend/assets.md
+check-retrieval-eval: case 10 (Rosetta — protected reads): "Supabase RLS" -> Aliases[auth.scoped-queries] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 10 (Rosetta — protected reads): "row-level security" -> body of recipes/coming-from-convex-and-supabase.md
+check-retrieval-eval: case 10 (Rosetta — protected reads): "row security" -> Aliases[auth.scoped-queries] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 11 (Rosetta — asset upload): "Supabase Storage" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 11 (Rosetta — asset upload): "Convex generateUploadUrl" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 11 (Rosetta — asset upload): "object storage" -> body of recipes/coming-from-convex-and-supabase.md
+check-retrieval-eval: case 12 (Rosetta — relational reads): "Supabase joins" -> Aliases[backend.relational-queries] -> backend/relational-queries.md
+check-retrieval-eval: case 12 (Rosetta — relational reads): "Convex joins" -> Aliases[backend.relational-queries] -> backend/relational-queries.md
+check-retrieval-eval: case 12 (Rosetta — relational reads): "nested joins" -> body of recipes/coming-from-convex-and-supabase.md
+check-retrieval-eval: case 13 (Rosetta — presence and cursors): "Supabase Presence" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 13 (Rosetta — presence and cursors): "Supabase Broadcast" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 13 (Rosetta — presence and cursors): "cursors" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 14 (Rosetta — reactive queries): "Convex useQuery" -> Aliases[clients.react] -> clients/react.md
+check-retrieval-eval: case 14 (Rosetta — reactive queries): "useQuery" -> Aliases[clients.react] -> clients/react.md
+check-retrieval-eval: case 15 (Large fixtures): "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED" -> body of testing/large-fixtures.md
+check-retrieval-eval: case 15 (Large fixtures): "large fixture" -> Aliases[testing.large-fixtures] -> testing/large-fixtures.md
+check-retrieval-eval: case 15 (Large fixtures): "seed ceiling" -> Aliases[testing.large-fixtures] -> testing/large-fixtures.md
+check-retrieval-eval: case 15 (Large fixtures): SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED => shared/per-operation; registry primary /_snapback/guide/backend/versioned-seeds.md#interpret-refusals
+check-retrieval-eval: case 16 (Domain errors and optimistic create): "optimistic create" -> Aliases[clients.optimistic-create] -> recipes/optimistic-create.md
+check-retrieval-eval: case 16 (Domain errors and optimistic create): "server-minted ID" -> title of recipes/optimistic-create.md
+check-retrieval-eval: case 16 (Domain errors and optimistic create): "ctx.refuse" -> body of clients/react.md
+check-retrieval-eval: case 16 (Domain errors and optimistic create): "refusals" -> body of clients/react.md
+check-retrieval-eval: case 17 (Retention routing): "retention" -> Aliases[backend.single-table-v1] -> sync/offline-and-retention.md
+check-retrieval-eval: case 17 (Retention routing): "args-filtered" -> body of sync/offline-and-retention.md
+check-retrieval-eval: case 17 (Retention routing): "retainable" -> heading in sync/offline-and-retention.md
+check-retrieval-eval: case 17 (Retention routing): "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE" -> body of sync/offline-and-retention.md
+check-retrieval-eval: case 17 (Retention routing): SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE => /_snapback/guide/sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority
+check-retrieval-eval: case 18 (Declared refusals): "declared refusal" -> body of backend/mutations.md
+check-retrieval-eval: case 18 (Declared refusals): "ctx.refuse" -> body of backend/mutations.md
+check-retrieval-eval: case 18 (Declared refusals): "SNAPBACK_APP_REFUSAL" -> body of backend/mutations.md
+check-retrieval-eval: case 18 (Declared refusals): "appCode" -> body of backend/mutations.md
+check-retrieval-eval: case 18 (Declared refusals): SNAPBACK_APP_REFUSAL => shared/per-operation; registry primary /_snapback/guide/backend/declarative-plans.md#anti-patterns
+check-retrieval-eval: case 19 (Principal to app identity): "bind a principal" -> title of auth/app-identity-binding.md
+check-retrieval-eval: case 19 (Principal to app identity): "identityBinding" -> body of auth/app-identity-binding.md
+check-retrieval-eval: case 19 (Principal to app identity): "app user row" -> body of auth/app-identity-binding.md
+check-retrieval-eval: case 20 (SVG assets): "SVG" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 20 (SVG assets): "image/svg+xml" -> body of backend/assets.md
+check-retrieval-eval: case 20 (SVG assets): "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED" -> body of backend/assets.md
+check-retrieval-eval: case 20 (SVG assets): "nosniff" -> heading in backend/assets.md
+check-retrieval-eval: case 20 (SVG assets): SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED => /_snapback/guide/backend/assets.md#svg-why-the-image-intent-refuses-it-and-the-safe-adapter
+check-retrieval-eval: case 21 (Store copy and backup): "backup" -> Aliases[operating.store-durable-state] -> operating/backup-and-copy.md
+check-retrieval-eval: case 21 (Store copy and backup): "copy database" -> Aliases[operating.store-durable-state] -> operating/backup-and-copy.md
+check-retrieval-eval: case 21 (Store copy and backup): "clone database" -> Aliases[operating.store-durable-state] -> operating/backup-and-copy.md
+check-retrieval-eval: case 21 (Store copy and backup): "auth-keyring.json" -> Aliases[operating.store-durable-state] -> operating/backup-and-copy.md
+check-retrieval-eval: case 21 (Store copy and backup): "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE" -> Aliases[operating.store-durable-state] -> operating/backup-and-copy.md
+check-retrieval-eval: case 21 (Store copy and backup): SNAPBACK_AUTH_PROVIDER_UNAVAILABLE => shared/per-operation; registry primary /_snapback/guide/capabilities.md#capabilities
+check-retrieval-eval: case 22 (Mutation database verbs): "ctx.db" -> heading in backend/mutations.md
+check-retrieval-eval: case 22 (Mutation database verbs): "withIndex" -> body of backend/mutations.md
+check-retrieval-eval: case 22 (Mutation database verbs): "bounded collection" -> body of backend/mutations.md
+check-retrieval-eval: case 23 (Headless argument nesting): "SNAPBACK_ARGUMENT_VALIDATION_FAILED" -> body of clients/headless.md
+check-retrieval-eval: case 23 (Headless argument nesting): SNAPBACK_ARGUMENT_VALIDATION_FAILED => shared/per-operation; registry primary /_snapback/guide/backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments
+check-retrieval-eval: case 24 (Verify config authoring): "snapback.verify.config.mjs" -> heading in testing/verify.md
+check-retrieval-eval: case 24 (Verify config authoring): "defineVerifyConfig" -> body of testing/verify.md
+check-retrieval-eval: case 24 (Verify config authoring): "@expo/snapback-cli/verify" -> body of testing/verify.md
+check-retrieval-eval: case 24 (Verify config authoring): "acceptance profile" -> body of testing/verify.md
+check-retrieval-eval: case 25 (Expo supervised cold offline boot): "EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN" -> body of clients/react-expo.md
+check-retrieval-eval: case 25 (Expo supervised cold offline boot): "bare Metro" -> heading in clients/react-expo.md
+check-retrieval-eval: case 25 (Expo supervised cold offline boot): "cold offline" -> body of clients/react-expo.md
+check-retrieval-eval: case 25 (Expo supervised cold offline boot): "persisted-receipt" -> body of clients/react-expo.md
+check-retrieval-eval: case 26 (Headless iOS simulator proof): "plistlib" -> heading in clients/react-expo.md
+check-retrieval-eval: case 26 (Headless iOS simulator proof): "Expo Go onboarding" -> heading in clients/react-expo.md
+check-retrieval-eval: case 26 (Headless iOS simulator proof): "simctl openurl" -> body of clients/react-expo.md
+check-retrieval-eval: case 27 (React load-more list): "load more" -> Aliases[clients.react-paged-list] -> recipes/paged-list.md
+check-retrieval-eval: case 27 (React load-more list): "infinite scroll" -> Aliases[clients.react-paged-list] -> recipes/paged-list.md
+check-retrieval-eval: case 27 (React load-more list): "whole-result replacement" -> Aliases[clients.react-paged-list] -> recipes/paged-list.md
+check-retrieval-eval: case 27 (React load-more list): "retained pages" -> Aliases[clients.react-paged-list] -> recipes/paged-list.md
+check-retrieval-eval: case 27 (React load-more list): "pageKey" -> Aliases[clients.react-paged-list] -> recipes/paged-list.md
+check-retrieval-eval: case 28 (Server-minted optimistic ID under response loss): "createOptimisticMutationView" -> body of recipes/optimistic-create.md
+check-retrieval-eval: case 28 (Server-minted optimistic ID under response loss): "logical mint" -> body of recipes/optimistic-create.md
+check-retrieval-eval: case 28 (Server-minted optimistic ID under response loss): "idMap" -> Aliases[clients.optimistic-create] -> recipes/optimistic-create.md
+check-retrieval-eval: case 28 (Server-minted optimistic ID under response loss): "response loss" -> Aliases[clients.optimistic-create] -> recipes/optimistic-create.md
+check-retrieval-eval: case 29 (Structured route arguments): "query context" -> Aliases[realtime.snapshot-bundles] -> realtime/snapshot-bundles.md
+check-retrieval-eval: case 30 (Replay-stable effect intent): "ctx.mutation.settlement" -> Aliases[backend.mutation-settlement-identity] -> backend/mutations.md
+check-retrieval-eval: case 30 (Replay-stable effect intent): "settlementId" -> Aliases[backend.mutation-settlement-identity] -> backend/mutations.md
+check-retrieval-eval: case 30 (Replay-stable effect intent): "replay-stable effect" -> Aliases[backend.mutation-settlement-identity] -> backend/mutations.md
+check-retrieval-eval: case 30 (Replay-stable effect intent): "provider idempotency key" -> Aliases[backend.mutation-settlement-identity] -> backend/mutations.md
+check-retrieval-eval: case 31 (Browser external sign-in and reload): "createIndexedDbAuthCustodyStorage" -> body of recipes/browser-auth.md
+check-retrieval-eval: case 31 (Browser external sign-in and reload): "issuer subject" -> Aliases[auth.external-identity-broker] -> recipes/browser-auth.md
+check-retrieval-eval: case 32 (Retryable durable job and DLQ inspection): "retryable by design" -> Aliases[backend.jobs-one-off] -> backend/jobs.md
+check-retrieval-eval: case 32 (Retryable durable job and DLQ inspection): "SNAPBACK_AUTH_RESERVATION_STALE" -> body of backend/jobs.md
+check-retrieval-eval: case 32 (Retryable durable job and DLQ inspection): "dead-letter" -> Aliases[backend.jobs-one-off] -> backend/jobs.md
+check-retrieval-eval: case 32 (Retryable durable job and DLQ inspection): "DLQ" -> Aliases[backend.jobs-one-off] -> backend/jobs.md
+check-retrieval-eval: case 32 (Retryable durable job and DLQ inspection): "succeeded after retry" -> Aliases[backend.jobs-one-off] -> backend/jobs.md
+check-retrieval-eval: case 32 (Retryable durable job and DLQ inspection): SNAPBACK_AUTH_RESERVATION_STALE => /_snapback/guide/backend/jobs.md#budget-retries-for-expected-contention
+check-retrieval-eval: case 33 (Expo durable-store registration): "registerExpoFileSystemRqsFiles" -> body of clients/react-expo.md
+check-retrieval-eval: case 33 (Expo durable-store registration): "Platform.OS" -> body of clients/react-expo.md
+check-retrieval-eval: case 33 (Expo durable-store registration): "npx expo install" -> body of clients/react-expo.md
+check-retrieval-eval: case 33 (Expo durable-store registration): "expo-file-system" -> body of clients/react-expo.md
+check-retrieval-eval: case 34 (System-field index boundary): "system fields" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 34 (System-field index boundary): "SCHEMA_UNKNOWN_FIELD" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 34 (System-field index boundary): "_version" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 35 (Vite development virtual module): "virtual:snapback/dev" -> body of getting-started/the-authoring-loop.md
+check-retrieval-eval: case 35 (Vite development virtual module): "snapback-dev.d.ts" -> body of getting-started/the-authoring-loop.md
+check-retrieval-eval: case 35 (Vite development virtual module): "snapbackBasePath" -> body of getting-started/the-authoring-loop.md
+check-retrieval-eval: case 36 (Headless live transport default): "manual polling" -> body of clients/headless.md
+check-retrieval-eval: case 36 (Headless live transport default): "transport default" -> body of clients/headless.md
+check-retrieval-eval: case 36 (Headless live transport default): "transport: 'stream'" -> body of clients/headless.md
+check-retrieval-eval: case 36 (Headless live transport default): "poll()" -> body of clients/headless.md
+check-retrieval-eval: case 37 (Expo multi-persona auth): "dev-auth, multi-persona" -> body of clients/react-expo.md
+check-retrieval-eval: case 37 (Expo multi-persona auth): "SnapbackExpoProvider" -> Aliases[clients.react-expo] -> clients/react-expo.md
+check-retrieval-eval: case 37 (Expo multi-persona auth): "one custody identity" -> body of clients/react-expo.md
+check-retrieval-eval: case 38 (Packaged codegen command): "snapback generate" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 38 (Packaged codegen command): "Generate and load" -> heading in getting-started/your-first-backend.md
+check-retrieval-eval: case 39 (Compose into an existing app): "backend-only initializer" -> body of clients/react-expo.md
+check-retrieval-eval: case 39 (Compose into an existing app): "sibling directory" -> body of clients/react-expo.md
+check-retrieval-eval: case 39 (Compose into an existing app): "compose into existing app" -> Aliases[clients.compose-existing-app] -> clients/react-expo.md
+check-retrieval-eval: case 40 (Agent control MCP setup): "mcp-control" -> Aliases[operating.agent-controls] -> operating/agent-controls.md
+check-retrieval-eval: case 40 (Agent control MCP setup): "control mcp" -> Aliases[operating.agent-controls] -> operating/agent-controls.md
+check-retrieval-eval: case 40 (Agent control MCP setup): "agent setup" -> Aliases[operating.agent-controls] -> operating/agent-controls.md
+check-retrieval-eval: case 40 (Agent control MCP setup): "control tools" -> Aliases[operating.agent-controls] -> operating/agent-controls.md
+check-retrieval-eval: case 41 (Session-mint identity broker): "auth.mintSession" -> body of operating/host-ops.md
+check-retrieval-eval: case 41 (Session-mint identity broker): "SNAPBACK_AUTH_REQUEST_INVALID" -> body of operating/host-ops.md
+check-retrieval-eval: case 41 (Session-mint identity broker): "identity broker" -> body of operating/host-ops.md
+check-retrieval-eval: case 41 (Session-mint identity broker): SNAPBACK_AUTH_REQUEST_INVALID => /_snapback/guide/operating/host-ops.md#mint-a-session-over-http
+check-retrieval-eval: case 42 (Supervised Expo web selection): "--expo-platform web" -> body of clients/react-expo.md
+check-retrieval-eval: case 42 (Supervised Expo web selection): "--client-command" -> body of clients/react-expo.md
+check-retrieval-eval: case 42 (Supervised Expo web selection): "SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED" -> body of clients/react-expo.md
+check-retrieval-eval: case 42 (Supervised Expo web selection): SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED => /_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns
+check-retrieval-eval: case 43 (Contract presence publishing): "publish ordinary presence" -> heading in recipes/presence-cursors.md
+check-retrieval-eval: case 43 (Contract presence publishing): "pointerChannel" -> body of recipes/presence-cursors.md
+check-retrieval-eval: case 43 (Contract presence publishing): "heartbeat" -> body of recipes/presence-cursors.md
+check-retrieval-eval: case 43 (Contract presence publishing): "Collection publishing is not pointer-only" -> body of recipes/presence-cursors.md
+check-retrieval-eval: case 44 (Contract/Vite local sign-in code): "serve-only dev mailbox relay" -> body of recipes/browser-auth.md
+check-retrieval-eval: case 44 (Contract/Vite local sign-in code): "sign-in code" -> heading in recipes/browser-auth.md
+check-retrieval-eval: case 44 (Contract/Vite local sign-in code): "authRequestCode" -> body of recipes/browser-auth.md
+check-retrieval-eval: case 44 (Contract/Vite local sign-in code): "authExchange" -> body of recipes/browser-auth.md
+check-retrieval-eval: case 45 (Disclosure-claim ceiling): "Contract invariant" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 45 (Disclosure-claim ceiling): "disclosure claim" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 45 (Disclosure-claim ceiling): "wire-level acceptance test" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 46 (Keyed scopes with presence): "keyedQueryScopes" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 46 (Keyed scopes with presence): "SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 46 (Keyed scopes with presence): "forceEphemeralState" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 46 (Keyed scopes with presence): SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED => /_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure
+check-retrieval-eval: case 47 (Npm-only generated Contract imports): "npm-only typecheck" -> Aliases[backend.codegen] -> getting-started/generated-artifacts.md
+check-retrieval-eval: case 47 (Npm-only generated Contract imports): "contractMetadata" -> Aliases[backend.codegen] -> getting-started/generated-artifacts.md
+check-retrieval-eval: case 47 (Npm-only generated Contract imports): "contract-meta" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 48 (Signed-in principal whoami): "who am I" -> Aliases[auth.sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 48 (Signed-in principal whoami): "am I signed in" -> Aliases[auth.sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 48 (Signed-in principal whoami): "settledView" -> Aliases[auth.sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 48 (Signed-in principal whoami): "currentAuthorizationScope" -> Aliases[auth.sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 48 (Signed-in principal whoami): "whoami" -> Aliases[auth.sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 49 (Handler helper import): "Can I import a helper?" -> Aliases[backend.handler-runtime-profile] -> backend/handler-runtime.md
+check-retrieval-eval: case 49 (Handler helper import): "BUNDLE_UNSUPPORTED_IMPORT" -> Aliases[backend.handler-runtime-profile] -> backend/handler-runtime.md
+check-retrieval-eval: case 49 (Handler helper import): "same-file helper" -> heading in backend/handler-runtime.md
+check-retrieval-eval: case 50 (Node crypto in handlers): "Can I use Node crypto?" -> Aliases[backend.handler-runtime-profile] -> backend/handler-runtime.md
+check-retrieval-eval: case 50 (Node crypto in handlers): "node:crypto" -> body of backend/handler-runtime.md
+check-retrieval-eval: case 50 (Node crypto in handlers): "BUNDLE_UNSUPPORTED_PROCESS" -> body of backend/handler-runtime.md
+check-retrieval-eval: case 51 (Unexported definition): "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED" -> Aliases[backend.handler-runtime-profile] -> backend/handler-runtime.md
+check-retrieval-eval: case 51 (Unexported definition): "unexported top-level operation" -> body of backend/handler-runtime.md
+check-retrieval-eval: case 51 (Unexported definition): "definition path" -> body of backend/handler-runtime.md
+check-retrieval-eval: case 51 (Unexported definition): SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED => /_snapback/guide/backend/handler-runtime.md#diagnostic-attribution
+check-retrieval-eval: case 52 (Unserializable definition value): "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE" -> Aliases[backend.handler-runtime-profile] -> backend/handler-runtime.md
+check-retrieval-eval: case 52 (Unserializable definition value): "nested property path" -> body of backend/handler-runtime.md
+check-retrieval-eval: case 52 (Unserializable definition value): "definition path" -> body of backend/handler-runtime.md
+check-retrieval-eval: case 52 (Unserializable definition value): SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE => /_snapback/guide/backend/handler-runtime.md#diagnostic-attribution
+check-retrieval-eval: case 53 (Declaration suggestions): "infer result" -> Aliases[authoring.declaration-suggestions] -> getting-started/the-authoring-loop.md
+check-retrieval-eval: case 53 (Declaration suggestions): "suggest contract" -> Aliases[authoring.declaration-suggestions] -> getting-started/the-authoring-loop.md
+check-retrieval-eval: case 53 (Declaration suggestions): "write my result contract" -> Aliases[authoring.declaration-suggestions] -> getting-started/the-authoring-loop.md
+check-retrieval-eval: case 53 (Declaration suggestions): "convex-style inference" -> Aliases[authoring.declaration-suggestions] -> getting-started/the-authoring-loop.md
+check-retrieval-eval: case 54 (Store media from explicit authoring): "storing media" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 55 (Sessions schema evolution): "sessions schema change" -> Aliases[backend.schema-evolution] -> backend/schema-evolution.md
+check-retrieval-eval: case 55 (Sessions schema evolution): "expectedDeployment" -> Aliases[backend.schema-evolution] -> backend/schema-evolution.md
+check-retrieval-eval: case 55 (Sessions schema evolution): "partial load" -> Aliases[backend.schema-evolution] -> backend/schema-evolution.md
+check-retrieval-eval: case 55 (Sessions schema evolution): "successor activation" -> Aliases[backend.schema-evolution] -> backend/schema-evolution.md
+check-retrieval-eval: case 56 (Familiar profile end-to-end): "Familiar TypeScript" -> Aliases[backend.familiar-profile-v1] -> backend/familiar-profile.md
+check-retrieval-eval: case 56 (Familiar profile end-to-end): "Expo Router familiar" -> Aliases[backend.familiar-profile-v1] -> backend/familiar-profile.md
+check-retrieval-eval: case 56 (Familiar profile end-to-end): "SecureStore custody" -> Aliases[backend.familiar-profile-v1] -> backend/familiar-profile.md
+check-retrieval-eval: case 57 (Sessions fixture install): "install sessions fixtures" -> title of recipes/sessions-fixture-install.md
+check-retrieval-eval: case 57 (Sessions fixture install): "fixture-source digest" -> body of recipes/sessions-fixture-install.md
+check-retrieval-eval: case 57 (Sessions fixture install): "SNAPBACK_AUTH_PASSWORD_EXISTS" -> body of recipes/sessions-fixture-install.md
+check-retrieval-eval: case 57 (Sessions fixture install): "matched repeat" -> body of recipes/sessions-fixture-install.md
+check-retrieval-eval: case 57 (Sessions fixture install): SNAPBACK_AUTH_PASSWORD_EXISTS => shared/per-operation; registry primary /_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately
+check-retrieval-eval: case 58 (Frozen provider-neutral Contract adapter): "frozen provider-neutral declaration" -> heading in clients/contract-adapter.md
+check-retrieval-eval: case 58 (Frozen provider-neutral Contract adapter): "ContractDataProvider adapter" -> Aliases[clients.contract-provider-generation] -> clients/contract-adapter.md
+check-retrieval-eval: case 58 (Frozen provider-neutral Contract adapter): "foreign declaration digest" -> Aliases[clients.contract-provider-generation] -> clients/contract-adapter.md
+check-retrieval-eval: case 58 (Frozen provider-neutral Contract adapter): "no polling above the seam" -> body of clients/contract-adapter.md
+check-retrieval-eval: case 59 (Fixed-origin development): "fixed-profile development loop" -> heading in recipes/fixed-origin-development.md
+check-retrieval-eval: case 59 (Fixed-origin development): "--external-client-origin" -> body of recipes/fixed-origin-development.md
+check-retrieval-eval: case 59 (Fixed-origin development): "startup carrier" -> heading in recipes/fixed-origin-development.md
+check-retrieval-eval: case 60 (Node multi-persona custody): "every persona wrote as Henry" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 60 (Node multi-persona custody): "multiple clients same session" -> Aliases[auth.browser-session-custody] -> recipes/multi-persona-clients.md
+check-retrieval-eval: case 60 (Node multi-persona custody): "personas share login" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 60 (Node multi-persona custody): "storagePartition" -> Aliases[auth.browser-session-custody] -> recipes/multi-persona-clients.md
+check-retrieval-eval: case 60 (Node multi-persona custody): "process-global in Node" -> Aliases[auth.browser-session-custody] -> recipes/multi-persona-clients.md
+check-retrieval-eval: case 60 (Node multi-persona custody): "multi-persona harness" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 61 (Background writes during auth transitions): "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED" -> body of recipes/auth-transition-writes.md
+check-retrieval-eval: case 61 (Background writes during auth transitions): "eager route-entry receipt" -> body of recipes/auth-transition-writes.md
+check-retrieval-eval: case 61 (Background writes during auth transitions): "background writes during auth transitions" -> body of recipes/auth-transition-writes.md
+check-retrieval-eval: case 61 (Background writes during auth transitions): "authorization-suspended foreground" -> body of recipes/auth-transition-writes.md
+check-retrieval-eval: case 61 (Background writes during auth transitions): SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED => shared/per-operation; registry primary /_snapback/guide/clients/headless.md#enter-and-leave-session-authority
+check-retrieval-eval: case 62 (Presence heartbeat versus bound value): "typing indicator stuck" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 62 (Presence heartbeat versus bound value): "presence not expiring" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 62 (Presence heartbeat versus bound value): "track() equivalent" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 62 (Presence heartbeat versus bound value): "supabase track" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 62 (Presence heartbeat versus bound value): "presence heartbeat" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 62 (Presence heartbeat versus bound value): "surface presence value is a continuous publish" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 63 (Familiar dynamic array access): "array[i]" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 63 (Familiar dynamic array access): "dynamic computed access" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 64 (Familiar imported helper): "imported helper" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 64 (Familiar imported helper): "same-file function declaration" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 65 (Familiar captured constant): "captured constants" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 66 (Familiar trusted time): "Date.now" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 66 (Familiar trusted time): "ctx.runtime.now" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 67 (Familiar mutation document arrays): "mutation document arrays" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 67 (Familiar mutation document arrays): "v.array(v.doc" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 68 (Familiar monotonic counter): "monotonic counter" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 68 (Familiar monotonic counter): "sequences" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 69 (Private authority plus product roster): "private membership roster" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 69 (Private authority plus product roster): "product-visible roster projection" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 69 (Private authority plus product roster): "display roster" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 69 (Private authority plus product roster): "send-time recipient set" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 70 (Provider connection lifecycle): "connection per subscription" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 70 (Provider connection lifecycle): "N cells imply N transport connections" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 70 (Provider connection lifecycle): "provider lifecycle budget" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 70 (Provider connection lifecycle): "active connections and subscriptions by owner" -> heading in recipes/provider-lifecycle.md
+check-retrieval-eval: case 70 (Provider connection lifecycle): "one connection per query" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 70 (Provider connection lifecycle): "too many websockets" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 71 (Familiar point-read carrier): "bounded document arrays" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 71 (Familiar point-read carrier): "results.value" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 72 (Asset client accessor correction): "client.assets.start" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 72 (Asset client accessor correction): "createAssetClient(client)" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 72 (Asset client accessor correction): "raw SnapbackClient assets" -> Aliases[backend.assets] -> backend/assets.md
+check-retrieval-eval: case 73 (Provider WebSocket fan-out): "one connection per query" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 73 (Provider WebSocket fan-out): "too many websockets" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 73 (Provider WebSocket fan-out): "connection pool" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 74 (Provider auth rebuild): "provider adapter pattern" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 74 (Provider auth rebuild): "rebuild stream on auth" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 75 (List chat members): "list chat members" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 76 (Show roster): "show roster" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 77 (Who is in the room): "who is in the room" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 78 (Membership table public): "membership table public" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 79 (Enumerate members): "enumerate members" -> body of recipes/membership-roster-projection.md
+check-retrieval-eval: case 80 (Sensitive field split): "maskField" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 80 (Sensitive field split): "mask a field" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 80 (Sensitive field split): "hide one field" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 80 (Sensitive field split): "mask phone number" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 80 (Sensitive field split): "private column" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 80 (Sensitive field split): "field level security" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 80 (Sensitive field split): "column visibility" -> Aliases[auth.field-masking] -> recipes/split-sensitive-fields.md
+check-retrieval-eval: case 81 (Invite link): "invite link" -> Aliases[api.capability-links] -> recipes/capability-links.md
+check-retrieval-eval: case 82 (Capture link): "capture link" -> Aliases[api.capability-links] -> recipes/capability-links.md
+check-retrieval-eval: case 83 (Claim link): "claim link" -> Aliases[api.capability-links] -> recipes/capability-links.md
+check-retrieval-eval: case 84 (Single-use token): "single-use token" -> Aliases[api.capability-links] -> recipes/capability-links.md
+check-retrieval-eval: case 85 (Deep link grant): "deep link grant" -> Aliases[api.capability-links] -> recipes/capability-links.md
+check-retrieval-eval: case 87 (Second client adopted the same user): "second client same user" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 87 (Second client adopted the same user): "multiple clients same session" -> Aliases[auth.browser-session-custody] -> recipes/multi-persona-clients.md
+check-retrieval-eval: case 87 (Second client adopted the same user): "personas share login" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 87 (Second client adopted the same user): "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 87 (Second client adopted the same user): SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE => /_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context
+check-retrieval-eval: case 88 (Five-hundred-follow feed): "500-follow probe" -> Aliases[backend.query-in-chunking] -> recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 88 (Five-hundred-follow feed): "followingFeed" -> Aliases[backend.query-in-chunking] -> recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 88 (Five-hundred-follow feed): "chunked semi-join" -> Aliases[backend.query-in-chunking] -> recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 88 (Five-hundred-follow feed): "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED" -> Aliases[backend.query-in-chunking] -> recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 88 (Five-hundred-follow feed): SNAPBACK_QUERY_IN_ITEMS_EXCEEDED => shared/per-operation; registry primary /_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes
+check-retrieval-eval: case 89 (Force the membership-feed chunk seam): "actorChunkSize" -> body of recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 89 (Force the membership-feed chunk seam): "multi-chunk path" -> heading in recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 89 (Force the membership-feed chunk seam): "indexed top-20 per chunk" -> Aliases[backend.query-in-chunking] -> recipes/chunked-semijoin-feed.md
+check-retrieval-eval: case 90 (whereApplicable index option): "whereApplicable index option" -> body of backend/queries.md
+check-retrieval-eval: case 91 (Unique index optional field): "unique index optional field" -> body of backend/queries.md
+check-retrieval-eval: case 92 (Guest entry and claim): "enterAsGuest" -> Aliases[auth.guest-sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 92 (Guest entry and claim): "claimGuestWithPassword" -> Aliases[auth.guest-sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 92 (Guest entry and claim): "guest entry" -> Aliases[auth.guest-sessions] -> auth/sessions-and-principals.md
+check-retrieval-eval: case 93 (Familiar defineAuth): "familiar defineAuth" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 94 (Auth in generated server): "auth in generated server" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 95 (Presence rate limit): "presence rate limit" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 96 (Typing publishes too often): "typing indicator too many publishes" -> body of recipes/activity-presence.md
+check-retrieval-eval: case 97 (Table live query blank after insert): "blank after insert" -> Aliases[realtime.live-queries] -> realtime/live-queries.md
+check-retrieval-eval: case 97 (Table live query blank after insert): "Loading thread" -> Aliases[realtime.live-queries] -> realtime/live-queries.md
+check-retrieval-eval: case 97 (Table live query blank after insert): "live_delta empty" -> Aliases[realtime.live-queries] -> realtime/live-queries.md
+check-retrieval-eval: case 98 (Generated directory spelling): "_generated/" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 98 (Generated directory spelling): "compatibility alias" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 98 (Generated directory spelling): "refused alias" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 98 (Generated directory spelling): "generated directory spelling" -> heading in backend/familiar-profile.md
+check-retrieval-eval: case 99 (Stale auth result lookup): "SNAPBACK_AUTH_STALE_RESULT" -> body of auth/sessions-and-principals.md
+check-retrieval-eval: case 99 (Stale auth result lookup): "stale auth result" -> body of auth/sessions-and-principals.md
+check-retrieval-eval: case 99 (Stale auth result lookup): SNAPBACK_AUTH_STALE_RESULT => /_snapback/guide/auth/sessions-and-principals.md#recover-from-stale-authorization-results
+check-retrieval-eval: case 100 (URL-first activity presence import): "URL-first activity presence" -> body of backend/familiar-profile.md
+check-retrieval-eval: case 100 (URL-first activity presence import): "useSnapbackActivityPresence" -> Aliases[realtime.ephemeral] -> realtime/ephemeral-state.md
+check-retrieval-eval: case 101 (Durable custody in Node and Expo Native acceptance): "durable-required" -> body of start/expo-chat.md
+check-retrieval-eval: case 101 (Durable custody in Node and Expo Native acceptance): "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE" -> body of start/expo-chat.md
+check-retrieval-eval: case 101 (Durable custody in Node and Expo Native acceptance): "Expo Native acceptance" -> heading in testing/acceptance.md
+check-retrieval-eval: case 101 (Durable custody in Node and Expo Native acceptance): SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE => /_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable
+check-retrieval-eval: case 102 (Expo same-owner successor mismatch): "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH" -> body of clients/react-expo.md
+check-retrieval-eval: case 102 (Expo same-owner successor mismatch): "same-owner successor" -> body of clients/react-expo.md
+check-retrieval-eval: case 102 (Expo same-owner successor mismatch): SNAPBACK_APP_BINDING_IDENTITY_MISMATCH => /_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch
+check-retrieval-eval: case 103 (Removed member live cutoff with retained history): "removed member" -> body of auth/scoped-roles.md
+check-retrieval-eval: case 103 (Removed member live cutoff with retained history): "already-open subscription" -> body of auth/scoped-roles.md
+check-retrieval-eval: case 103 (Removed member live cutoff with retained history): "live cutoff" -> body of auth/scoped-roles.md
+check-retrieval-eval: case 103 (Removed member live cutoff with retained history): "retain pre-removal history" -> body of auth/scoped-roles.md
+check-retrieval-eval: case 104 (Signup dispatcher and profile hydration): "authenticated dispatcher" -> body of start/expo-chat.md
+check-retrieval-eval: case 104 (Signup dispatcher and profile hydration): "HANDLE_TAKEN" -> body of start/expo-chat.md
+check-retrieval-eval: case 104 (Signup dispatcher and profile hydration): "getMine" -> body of start/expo-chat.md
+check-retrieval-eval: case 105 (Time-windowed protected live reads and typing leases): "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY" -> body of realtime/live-queries.md
+check-retrieval-eval: case 105 (Time-windowed protected live reads and typing leases): "trending in the last hour" -> body of realtime/live-queries.md
+check-retrieval-eval: case 105 (Time-windowed protected live reads and typing leases): "time-windowed live reads" -> body of realtime/live-queries.md
+check-retrieval-eval: case 105 (Time-windowed protected live reads and typing leases): "expiring soon" -> body of realtime/live-queries.md
+check-retrieval-eval: case 105 (Time-windowed protected live reads and typing leases): "typing lease" -> heading in recipes/time-windowed-live-reads.md
+check-retrieval-eval: case 105 (Time-windowed protected live reads and typing leases): SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY => /_snapback/guide/recipes/time-windowed-live-reads.md#recipe-time-windowed-live-reads
+check-retrieval-eval: case 106 (Cross-client live updates appear stale): "second client does not receive live updates" -> body of realtime/live-queries.md
+check-retrieval-eval: case 106 (Cross-client live updates appear stale): "query stays stale on the other client" -> body of realtime/live-queries.md
+check-retrieval-eval: case 106 (Cross-client live updates appear stale): "cross-client fanout then looks broken" -> body of realtime/live-queries.md
+check-retrieval-eval: case 106 (Cross-client live updates appear stale): "committed write does not wake the other client's live hook" -> body of realtime/live-queries.md
+check-retrieval-eval: case 106 (Cross-client live updates appear stale): "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE" -> body of recipes/multi-persona-clients.md
+check-retrieval-eval: case 106 (Cross-client live updates appear stale): SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE => /_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context
+check-retrieval-eval: case 107 (Broad module-evaluation code): "the Guide search returned no entry for the broad module-evaluation code" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 107 (Broad module-evaluation code): "broad module-evaluation code" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 107 (Broad module-evaluation code): "CODEGEN_MODULE_EVALUATION_FAILED" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 108 (Incomplete Codegen policy): "CODEGEN_POLICY_INVALID and committedProjections policy field" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 108 (Incomplete Codegen policy): "CODEGEN_POLICY_INVALID" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 108 (Incomplete Codegen policy): "committedProjections policy field" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 109 (Drive the generated API from Node): "drive the generated API from Node" -> body of clients/headless.md
+check-retrieval-eval: case 109 (Drive the generated API from Node): "command-client input shape" -> body of clients/headless.md
+check-retrieval-eval: case 110 (Membership-scoped table reads): "membership-scoped reads that hide rows from a removed group member without a client-side `recipientIds` CSV" -> body of auth/protecting-data.md
+check-retrieval-eval: case 110 (Membership-scoped table reads): "membership-scoped reads" -> body of auth/protecting-data.md
+check-retrieval-eval: case 110 (Membership-scoped table reads): "removed group member" -> body of auth/protecting-data.md
+check-retrieval-eval: case 111 (Membership-scoped ephemeral authorization): "generated ephemeral authorization composition that could share the custom membership check" -> body of realtime/ephemeral-state.md
+check-retrieval-eval: case 111 (Membership-scoped ephemeral authorization): "custom membership check" -> body of realtime/ephemeral-state.md
+check-retrieval-eval: case 112 (Membership-scoped asset reads): "access.read: 'members' isn't in the closed union" -> body of backend/assets.md
+check-retrieval-eval: case 112 (Membership-scoped asset reads): "access.read: 'members'" -> body of backend/assets.md
+check-retrieval-eval: case 113 (IDs inside structured receipt arrays): "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 113 (IDs inside structured receipt arrays): "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 113 (IDs inside structured receipt arrays): "messages receipt arrays" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 114 (Batch-result correlation in inline handlers): "used dynamic array indexing while correlating bounded getMany results" -> body of backend/queries.md
+check-retrieval-eval: case 114 (Batch-result correlation in inline handlers): "Computed array lookup used to associate uniqueMany media" -> body of backend/queries.md
+check-retrieval-eval: case 115 (Anonymous media result validator): "v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator" -> body of backend/queries.md
+check-retrieval-eval: case 116 (Single-literal validator): "A schema field with a single literal compiled as unsupported Json; represented the closed digest identity as a one-member union" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 116 (Single-literal validator): "v.union requires at least two validators" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 117 (Wrong-table owner policy review): "owner-visible collection parents interacted with cross-author feed reads" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 117 (Wrong-table owner policy review): "The owner-visible parent required by the now-abandoned generated collection also scoped ordinary handler reads, so Bob could not resolve Alice's parent post" -> body of getting-started/generated-artifacts.md
+check-retrieval-eval: case 118 (Elevated-read placement): "elevated reads can't hide in helper modules" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 118 (Elevated-read placement): "defineJsQuery elevatedReads refused on inline handlers" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 119 (Patch row-id-only refusal): "SNAPBACK_UNKNOWN_TABLE when given row id only" -> body of backend/mutations.md
+check-retrieval-eval: case 119 (Patch row-id-only refusal): SNAPBACK_UNKNOWN_TABLE => /_snapback/guide/backend/mutations.md#read-and-delete-through-ctxdb
+check-retrieval-eval: case 120 (Stored optional fields in document results): "Optional asset fields still must serialize as null in document results" -> body of backend/queries.md
+check-retrieval-eval: case 121 (Causal live-query trace): "single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision" -> body of backend/query-costs.md
+check-retrieval-eval: case 122 (Authority blocker attribution): "which provider operation stranded which hook" -> body of recipes/provider-lifecycle.md
+check-retrieval-eval: case 123 (Open a direct conversation without a profile gate): "Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query" -> body of recipes/messaging-convergence.md
+check-retrieval-eval: case 124 (Remove or disappear, then navigate): "Router-navigation recipe for settled mutations that must survive page replacement" -> body of recipes/messaging-convergence.md
+check-retrieval-eval: case 125 (From chat template to social product): "short, product-shaped path from that chat to the canonical social schema" -> body of start/index.md
+check-retrieval-eval: case 126 (Messaging convergence as one answer): "same-account live messaging, cross-device unread clearing, and dual-client offline convergence" -> body of recipes/messaging-convergence.md
+check-retrieval-eval: case 127 (Base64 media reaches the structured ceiling): "base64 video" -> body of getting-started/your-first-backend.md
+check-retrieval-eval: case 128 (Public social media relationship choice): "owner-visible collection parents interacted with cross-author feed reads" -> body of backend/media-happy-paths.md
+check-retrieval-eval: case 129 (Media readiness for view-once UI): "video bytes never became observable" -> body of recipes/view-once-media.md
+check-retrieval-eval: case 130 (Legacy one-asset command refusal): "no multi-asset command (`defineCommand` is one asset)" -> body of backend/media-happy-paths.md
+check-retrieval-eval: case 131 (Package, template, and Expo-tuple guesses): "mistaken unscoped `snapback@0.1.29` lookup" -> body of start/index.md
+check-retrieval-eval: case 131 (Package, template, and Expo-tuple guesses): "published CLI rejected unknown `expo-router` template" -> body of start/index.md
+check-retrieval-eval: case 131 (Package, template, and Expo-tuple guesses): "assumed legacy `expo-router` major 7 for Expo 57" -> body of start/index.md
+check-retrieval-eval: case 132 (Metro listener outside the assigned lane): "Metro's inner port escaped 4287–4387" -> body of start/expo-chat.md
+check-retrieval-eval: case 133 (Pipe EOF under supervised dev): "supervised Expo web wants stdin detached or the owner dies on pipe EOF" -> body of start/expo-chat.md
+check-retrieval-eval: case 134 (Scheduled expiry, status flips, and daily digests): "expire stale rows" -> body of recipes/scheduled-expiry.md
+check-retrieval-eval: case 134 (Scheduled expiry, status flips, and daily digests): "flip a link to expired" -> body of recipes/scheduled-expiry.md
+check-retrieval-eval: case 134 (Scheduled expiry, status flips, and daily digests): "send a daily digest" -> body of recipes/scheduled-expiry.md
+check-retrieval-eval: case 135 (Generated app exceeds the React identity budget): "generated app 4096 nodes" -> Aliases[clients.react-expo] -> clients/react-expo.md
+check-retrieval-eval: case 135 (Generated app exceeds the React identity budget): "app.api.queries" -> Aliases[clients.react-expo] -> clients/react-expo.md
+check-retrieval-eval: case 135 (Generated app exceeds the React identity budget): "blank Expo boot" -> Aliases[clients.react-expo] -> clients/react-expo.md
+check-retrieval-eval: case 136 (Read receipts with no server-observed fetch primitive): "read receipt" -> title of recipes/read-receipts.md
+check-retrieval-eval: case 136 (Read receipts with no server-observed fetch primitive): "mark as read" -> heading in recipes/read-receipts.md
+check-retrieval-eval: case 136 (Read receipts with no server-observed fetch primitive): "mark delivered when this principal's live query fetches" -> body of recipes/read-receipts.md
+check-retrieval-eval: case 136 (Read receipts with no server-observed fetch primitive): "seen by" -> body of recipes/read-receipts.md
+check-retrieval-eval: case 137 (Live query blanks at the implicit collection ceiling): "live query went silent" -> heading in realtime/live-queries.md
+check-retrieval-eval: case 137 (Live query blanks at the implicit collection ceiling): "blank after many rows" -> heading in realtime/live-queries.md
+check-retrieval-eval: case 137 (Live query blanks at the implicit collection ceiling): "stopped updating large thread" -> heading in realtime/live-queries.md
+check-retrieval-eval: case 138 (Retained conversation keeps its outbox and composer): "retained conversation" -> body of recipes/messaging-convergence.md
+check-retrieval-eval: case 138 (Retained conversation keeps its outbox and composer): "composer disappeared" -> body of recipes/messaging-convergence.md
+check-retrieval-eval: case 138 (Retained conversation keeps its outbox and composer): "queued intent still existed" -> body of recipes/messaging-convergence.md
+check-retrieval-eval: case 139 (Exact disposable seed reset route): "changed seed identity" -> body of start/expo-chat.md
+check-retrieval-eval: case 139 (Exact disposable seed reset route): "exact fresh reset" -> body of start/expo-chat.md
+check-retrieval-eval: case 139 (Exact disposable seed reset route): "what it preserves" -> body of start/expo-chat.md
+check-retrieval-eval: case 140 (Generate-time unbounded collection warning): "SNAPBACK_QUERY_COLLECT_UNBOUNDED" -> body of backend/queries.md
+check-retrieval-eval: case 140 (Generate-time unbounded collection warning): "why does codegen warn about collect" -> body of backend/queries.md
+check-retrieval-eval: case 140 (Generate-time unbounded collection warning): "unbounded query warning" -> body of backend/queries.md
+check-retrieval-eval: case 140 (Generate-time unbounded collection warning): SNAPBACK_QUERY_COLLECT_UNBOUNDED => /_snapback/guide/backend/queries.md#bound-every-collection-intentionally
+check-retrieval-eval: case 141 (Recorded explicit-take ceiling vocabulary): "list take(1200) exceeded Familiar relational ceiling 1024" -> body of backend/queries.md
+check-retrieval-eval: note: case 9 (Asset rendering): route term "render image" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 9 (Asset rendering): route term "strict delivery URL" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 19 (Principal to app identity): route term "identity broker" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 22 (Mutation database verbs): route term "delete row" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 23 (Headless argument nesting): route term "args nesting" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 23 (Headless argument nesting): route term "nested args" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 23 (Headless argument nesting): route term "liveQuery args" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 26 (Headless iOS simulator proof): route term "headless simulator" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 26 (Headless iOS simulator proof): route term "deep-link drive channel" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 28 (Server-minted optimistic ID under response loss): route term "ambiguous retry" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 29 (Structured route arguments): route term "structured route arguments" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 29 (Structured route arguments): route term "nested routeParam" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 29 (Structured route arguments): route term "route group args" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 31 (Browser external sign-in and reload): route term "browser auth reload" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 31 (Browser external sign-in and reload): route term "IndexedDB auth custody" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 33 (Expo durable-store registration): route term "white-screening" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 34 (System-field index boundary): route term "composite system-field index" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 35 (Vite development virtual module): route term "ambient declaration" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 37 (Expo multi-persona auth): route term "per-call userId" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 38 (Packaged codegen command): route term "packaged" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 39 (Compose into an existing app): route term "existing standalone Expo" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 41 (Session-mint identity broker): route term "session mint HTTP" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 42 (Supervised Expo web selection): route term "custom broker origin" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 47 (Npm-only generated Contract imports): route term "@exact/contract unavailable" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 54 (Store media from explicit authoring): route term "data URL media" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 54 (Store media from explicit authoring): route term "base64 image" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 59 (Fixed-origin development): route term "receipt-verified attach" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 65 (Familiar captured constant): route term "top-level const" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 71 (Familiar point-read carrier): route term "point read" matched nothing (dead vocabulary?)
+check-retrieval-eval: note: case 103 (Removed member live cutoff with retained history): route term "post-removal message" matched nothing (dead vocabulary?)
+check-retrieval-eval: 1 error(s)
+  - guide/capabilities.md: exceeds its size budget (63496 > 63488 bytes)
+[guide-check] FAILED — generated API cold signatures
+[guide-check]   error: node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /readonly profiles\?: readonly \{/u. Input:
+
+'export interface VerifyConfig {\n' +
+  "  readonly schemaVersion: 'snapback.verify-config.v1';\n" +
+  '  readonly backendDirectory?: string;\n' +
+  '  readonly generatedDirectory?: string;\n' +
+  "  readonly coverageRequirement?: 'path-observation' | 'complete-operation-provenance';\n" +
+  '  readonly servedTarget?: {\n' +
+  '    readonly url: string;\n' +
+  '    readonly adminTokenEnv?: string;\n' +
+  "    readonly authorityMode?: 'admin-token';\n" +
+  '    readonly timeoutMs?: number;\n' +
+  '  };\n' +
+  '  readonly context?: Partial<VerifyIdentityContext>;\n' +
+  '  readonly profiles?: readonly VerifyProfile[];\n' +
+  '}'
+
+    at file:///home/ccheever/sb5-lanes/lane-cx/tests/generated-api-reference-v1.mjs:53:8
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'export interface VerifyConfig {\n' +
+    "  readonly schemaVersion: 'snapback.verify-config.v1';\n" +
+    '  readonly backendDirectory?: string;\n' +
+    '  readonly generatedDirectory?: string;\n' +
+    "  readonly coverageRequirement?: 'path-observation' | 'complete-operation-provenance';\n" +
+    '  readonly servedTarget?: {\n' +
+    '    readonly url: string;\n' +
+    '    readonly adminTokenEnv?: string;\n' +
+    "    readonly authorityMode?: 'admin-token';\n" +
+    '    readonly timeoutMs?: number;\n' +
+    '  };\n' +
+    '  readonly context?: Partial<VerifyIdentityContext>;\n' +
+    '  readonly profiles?: readonly VerifyProfile[];\n' +
+    '}',
+  expected: /readonly profiles\?: readonly \{/u,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.13.1
+[guide-check] FAILED — guide manifest and MCP projection
+[guide-check]   error: guide MCP resource snapback-guide://flat does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/auth does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/auth does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/backend does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/backend does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/clients does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/clients does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/deploying does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/deploying does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/getting-started does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/getting-started does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/meta does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/meta does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/recipes does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/recipes does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://flat/sync does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://flat/sync does not match manifest byte count
+[guide-check]   error: guide MCP resource snapback-guide://page/deploying.index does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/getting-started.your-first-backend does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/sync.offline-and-retention does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/auth.app-identity-binding does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/backend.mutations does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/clients.react does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/meta.capabilities does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/clients.react-expo does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/deploying.hosted-control does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/auth.scoped-roles does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/recipes.auth-transition-writes does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/recipes.split-sensitive-fields does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/meta.conventions does not match manifest sha256
+[guide-check]   error: guide MCP resource snapback-guide://page/meta.retrieval-eval does not match manifest sha256
+[guide-check]   error: guide/guide-manifest.generated.json: comparison requires the missing generated demo artifacts; materialize those preconditions before attributing manifest drift
+[guide-check] PASS — guide flat projections
+[guide-check] FAILED — 13 passed, 7 failed, 1 skipped, 1 preconditions; 162 pages, 1934 snippets, 174 routes + 51 host-ops joined, 123 warnings
