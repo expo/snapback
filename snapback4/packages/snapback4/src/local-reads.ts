@@ -90,6 +90,7 @@ export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<stri
 }
 
 export type ServerAnswer = {
+  decorationExpiry?: number | null | undefined;
   read: Extract<import("./contract.ts").Read<unknown>, { data: unknown }>;
   scopes?: ReadScopes | undefined;
   at: number;

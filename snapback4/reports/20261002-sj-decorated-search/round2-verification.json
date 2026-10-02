@@ -1,0 +1,301 @@
+{
+  "round": 2,
+  "parent": "5929c5d1649d0a2e2228fcd0aed02dd74ed879f5",
+  "started_utc": "2026-10-02T20:52:08.627862+00:00",
+  "full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "cwd": "/home/ccheever/sb4-intent/lane-sj/snapback4",
+    "runs": 1,
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1419 s",
+    "failure_classification": {
+      "ours": 0,
+      "baseline": 0,
+      "environmental": 0
+    },
+    "clients": {
+      "tests": 5832,
+      "pass": 5822,
+      "fail": 0,
+      "skipped": 10
+    },
+    "models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "skipped": 0
+    },
+    "rust": {
+      "binaries": 286,
+      "executions": 999,
+      "passed_including_doctests": 4729,
+      "failed": 0,
+      "ignored": 34
+    },
+    "explicit_client_skips": [
+      "\ufe63 Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle (0.527891ms) # requires macOS Foundation and AVFoundation",
+      "\ufe63 managed organization and invitation policy runs in the shared interpreter (0.085568ms) # set SNAPBACK4_B1D_MANAGED_BIN, SNAPBACK4_B1D_MANAGED_BIN_SHA256, SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT to the pinned parent binary and a private scratch parent",
+      "\ufe63 managed OIDC profile binding orders and expires trusted email evidence (0.468852ms) # set SNAPBACK4_IDENTITY_PROFILE_SCRATCH_PARENT to an existing private directory",
+      "\ufe63 published 0.2.27 reference: four tasks with one and two search cursors (0.194341ms) # set BOUNDS_BINARY to the published 0.2.27 binary",
+      "\ufe63 published 0.2.33 rejects F2 stores, serving, backend opening and device adoption (0.541892ms) # set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary",
+      "\ufe63 published 0.2.33 capability fence: timeline-v2 (0.579178ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "\ufe63 published 0.2.33 capability fence: recorded-attribution (0.099889ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "\ufe63 published 0.2.33 capability fence: maintained-column (0.07363ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "\ufe63 published 0.2.33 control: capability-free bytes and stores stay compatible (0.102404ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "\ufe63 new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract (0.049384ms) # set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary"
+    ]
+  },
+  "affected": {
+    "rust_decorated_search": {
+      "passed": 11,
+      "failed": 0
+    },
+    "guide": {
+      "passed": 110,
+      "failed": 0
+    },
+    "initial_clients": {
+      "passed": 1027,
+      "failed": 3,
+      "classification": "ours: unconditional estimatedServerNow call in armReadExpiry on bare test clocks; corrected to authority-specific delay methods"
+    },
+    "corrected_clock_and_decorated": {
+      "passed": 83,
+      "failed": 0
+    },
+    "final_expiry_witnesses": {
+      "passed": 9,
+      "failed": 0
+    },
+    "client_command": "node --test --test-concurrency=8 packages/snapback4/test/decorated-search.test.mjs packages/snapback4/test/local-reads.test.mjs packages/snapback4/test/online-read-order.test.mjs packages/snapback4/test/read-observation.test.mjs packages/snapback4/test/one-shot*.test.mjs packages/snapback4/test/keep*expiry.test.mjs packages/snapback4/test/keep-clock.test.mjs packages/snapback4/test/expiry-retry-watch.test.mjs packages/snapback4/test/server-clock*.test.mjs packages/snapback4/test/retention*.test.mjs packages/snapback4/test/delivery-fault-matrix.test.mjs"
+  },
+  "oracle": {
+    "process": {
+      "pages": 985,
+      "online": 686,
+      "offline": 299,
+      "short": 8,
+      "currentNull": 1059,
+      "retainedNull": 2094,
+      "expiryPages": 764,
+      "expiryNulls": 355
+    },
+    "wasm": {
+      "pages": 985,
+      "online": 686,
+      "offline": 299,
+      "short": 8,
+      "currentNull": 1059,
+      "retainedNull": 2094,
+      "expiryPages": 764,
+      "expiryNulls": 355
+    }
+  },
+  "source_unchanged_during_full_suite": true,
+  "source_hashes": {
+    "llp/3000.028-one-query-online-or-offline.rfc.md": "b72725d3526eba24cbf6d85c8a29e42deac7f70f0cb65a4d3119315403d2bc4d",
+    "snapback4/crates/snapback4-core/src/search_decoration.rs": "b001f51288a802e6247150d2fe3b905c25f32ce45eff35588b6236221f448f08",
+    "snapback4/crates/snapback4-lang/src/guide/search_all.md": "9544b33d2f3ab32ef41b360665a573cb823035a3a7da7a23dbccfe4d27e43b2a",
+    "snapback4/crates/snapback4/src/serve.rs": "1a951154a5e54659b2787f2cc41e898e911756fe55e5b20518a1b89e037e94be",
+    "snapback4/packages/snapback4/src/client.ts": "251003ffbc0b76e8bb05e288114b47446e7e20a0b79dc1d07b0dee9e750e96c9",
+    "snapback4/packages/snapback4/src/local-query.ts": "80d8c299fe8c2e63960ef0d9d373fa0e43439951657f54072759b977dca9d3ab",
+    "snapback4/packages/snapback4/src/local-read-deadlines.ts": "a96360dc049335c96f3c2bf0b2e059fb3f6d9dea9b852d7d8d6681a9ae883fe1",
+    "snapback4/packages/snapback4/src/local-search.ts": "b604fba66172f2c175285f057996247196b2ac5b761dd761495d8a24bbac7ab8",
+    "snapback4/packages/snapback4/src/local.ts": "0f15ec09ce884d52fa030fc080769c6076f1c0364f7b2add7f448c8db19e59bd",
+    "snapback4/packages/snapback4/src/read-approval.ts": "99591df293481ea4001a1e88f241fd8ed5f23db3c0fcf417d380b266742d6b09",
+    "snapback4/packages/snapback4/src/read-decoration.ts": "35a06816546cf5cd03b27b2b79374322ce791789c27a3ff22ab930459627a021",
+    "snapback4/packages/snapback4/src/read-expiry.ts": "27a28f15f0817ffc24e70d52730b0447e3e4ec283337aed1366e5684a84f052e",
+    "snapback4/packages/snapback4/src/read-observation.ts": "cf46b1228fecf29ce8b7622695ebbda18aaf28f14b23159225638c9be7740cf0",
+    "snapback4/packages/snapback4/test/decorated-search.test.mjs": "b505272b4e039ece79b8eaef0c8a9bacf8458c3be82896783f645b8efb304945",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "ca080edd5862583659dd84de47bab72d2c493273bab026b9aaa00c53d4e80809"
+  },
+  "artifact_hashes": {
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8",
+    "snapback4/packages/snapback4/dist/wasm/snapback4_device_bg.wasm": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8"
+  },
+  "logs": {
+    "full-suite.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/full-suite.log",
+      "sha256": "d8d2aa4f7c3fd7ab702c44d73b72f62486d0e2fe349e0d42e7e3ba42b94f663c",
+      "gzip_sha256": "42f4fbae093c70f9fafb5e407d320cb83f758c00742e24e21f4d527f2a1335ce",
+      "bytes": 929279,
+      "gzip_bytes": 172031
+    },
+    "sj-r2-cargo-build-final.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-cargo-build-final.log",
+      "sha256": "715dd5145e873b670465f258f5cf44a9bca0d511e43592809b90dbadd4a3894d",
+      "gzip_sha256": "37b82ac75742aad50729e6b6179be83c27c54ec114b4a9a00fd72c9c7b2a5580",
+      "bytes": 834,
+      "gzip_bytes": 372
+    },
+    "sj-r2-cargo-build.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-cargo-build.log",
+      "sha256": "6bb25e51585e2a720b4c36d8e4c2bd3dd4e678a677bf74afbe25272cc209a5d4",
+      "gzip_sha256": "8566da5c77ad1cc4858504c6c0ce20135b97d9adaf1acc3a010716e12918dbc8",
+      "bytes": 835,
+      "gzip_bytes": 373
+    },
+    "sj-r2-cargo-build3.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-cargo-build3.log",
+      "sha256": "9c14c5bb737fa9f74687a02edb3d3a6eadc28724ddaa2e7edc1dc1a8acee0b1f",
+      "gzip_sha256": "83d69c7271c903c9f243d3a6dc5d6ac927813990fcb918c75d3623e36e65fcb6",
+      "bytes": 560,
+      "gzip_bytes": 323
+    },
+    "sj-r2-cargo-build4.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-cargo-build4.log",
+      "sha256": "c39146d1dae2e60580e8b23ec3479ed63a645d9cca6fdc1cd30421988c5b1f54",
+      "gzip_sha256": "ec8911c91ae3ef51e3c78a07309d56adefa0f2c9e235843744a8b9b8fcedf60d",
+      "bytes": 452,
+      "gzip_bytes": 311
+    },
+    "sj-r2-docs-budget.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-docs-budget.log",
+      "sha256": "7274fcb4021f33c3408dec9aaa1870d3dfd6224aea77a3702404b2876de76192",
+      "gzip_sha256": "e2960361cbffb6ee52e7a90bf8ab38acaee3b74029f4ef7bfeceb5e66978e2f4",
+      "bytes": 726,
+      "gzip_bytes": 373
+    },
+    "sj-r2-guide.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-guide.log",
+      "sha256": "1a64b7d84c4e48c072625a434cff4d1738982248a0c5bf8f02cee9cd073342ef",
+      "gzip_sha256": "c22c25aed0783e9565210cbe528fb09f03d8e64d022605262f689aedb55582f5",
+      "bytes": 8242,
+      "gzip_bytes": 2858
+    },
+    "sj-r2-js-affected.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-affected.log",
+      "sha256": "7dcd115d129bcd52e8016c281951b57bca449fc550e56ac8a2f7687e3c4231ad",
+      "gzip_sha256": "adadd9fb8a7ca7620a196c08000da3037838d0794318d3cb6347127deb18d640",
+      "bytes": 102527,
+      "gzip_bytes": 18451
+    },
+    "sj-r2-js-build-final.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-build-final.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "gzip_sha256": "e75f19523cf789984b09254fe291b1a4c78b9cb0224a7436535f5d5558eeed0d",
+      "bytes": 201,
+      "gzip_bytes": 116
+    },
+    "sj-r2-js-build.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-build.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "gzip_sha256": "e75f19523cf789984b09254fe291b1a4c78b9cb0224a7436535f5d5558eeed0d",
+      "bytes": 201,
+      "gzip_bytes": 116
+    },
+    "sj-r2-js-build2.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-build2.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "gzip_sha256": "e75f19523cf789984b09254fe291b1a4c78b9cb0224a7436535f5d5558eeed0d",
+      "bytes": 201,
+      "gzip_bytes": 116
+    },
+    "sj-r2-js-build3.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-build3.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "gzip_sha256": "e75f19523cf789984b09254fe291b1a4c78b9cb0224a7436535f5d5558eeed0d",
+      "bytes": 201,
+      "gzip_bytes": 116
+    },
+    "sj-r2-js-build4.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-build4.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "gzip_sha256": "e75f19523cf789984b09254fe291b1a4c78b9cb0224a7436535f5d5558eeed0d",
+      "bytes": 201,
+      "gzip_bytes": 116
+    },
+    "sj-r2-js-final.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-js-final.log",
+      "sha256": "074d29c7cfc4d215f6e83fe69b9c3841b47e044a899f83b3542a6d4d14204a34",
+      "gzip_sha256": "1e737da6fe1bf3f95266fff5c5d8580689028f36b996543715f3c95fe9e79acc",
+      "bytes": 7963,
+      "gzip_bytes": 1761
+    },
+    "sj-r2-oracle-first.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-oracle-first.log",
+      "sha256": "e463034591b01c840e2c0ead9077fa3920d81c3824f14d87e4aa533e2e175a46",
+      "gzip_sha256": "1b31e3b6230cfa7e9115283deafdda7ee939ef06b304e25fc89e450ec4e1ba1f",
+      "bytes": 21014,
+      "gzip_bytes": 1579
+    },
+    "sj-r2-oracle2.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-oracle2.log",
+      "sha256": "92bfae75a7f0e45dc87bc47cf315d137b294050f8e22c0d10d03983098242a5d",
+      "gzip_sha256": "9d0e4b467431c61ecee556215e2abbfe79439244ae2a0f131e4e73240d7c0f6d",
+      "bytes": 1281,
+      "gzip_bytes": 510
+    },
+    "sj-r2-ref-check.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-ref-check.log",
+      "sha256": "91b733de7617bd30ce79017a9adc282db6c7667a6c644e81d8c99cce40f35285",
+      "gzip_sha256": "af8b4beb028ea7b0376ca2a8300ed8e11b6e79b4df6bdc0f7a00d0ef1d6f25f0",
+      "bytes": 81,
+      "gzip_bytes": 94
+    },
+    "sj-r2-rust.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-rust.log",
+      "sha256": "dacf2594be3b87e79844ae9ff5aec5aed91ed99438aa6b0f005bff620cf70142",
+      "gzip_sha256": "c5f472be555172a3a2873a0a637a98035b193427b300962f9915081f3e2fd599",
+      "bytes": 433,
+      "gzip_bytes": 226
+    },
+    "sj-r2-rust2.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-rust2.log",
+      "sha256": "3ba89df8bfb21407d1500bf4f1df6836cb9b056c4df225f5779223ef9aa58552",
+      "gzip_sha256": "ed80d7c009acfe46355e19e60ae8cb0dcbfa390090992c0fb66cf3dc9376babd",
+      "bytes": 3344,
+      "gzip_bytes": 1043
+    },
+    "sj-r2-typecheck-final.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-typecheck-final.log",
+      "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+      "gzip_sha256": "5f1b9892743da674f03ebeceba2d680b68317110f622836a234cf343d2c47f74",
+      "bytes": 32,
+      "gzip_bytes": 49
+    },
+    "sj-r2-typecheck.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-typecheck.log",
+      "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+      "gzip_sha256": "5f1b9892743da674f03ebeceba2d680b68317110f622836a234cf343d2c47f74",
+      "bytes": 32,
+      "gzip_bytes": 49
+    },
+    "sj-r2-wasm.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-wasm.log",
+      "sha256": "48f1e9cfdbe55fed529b077613fbd6baa72a219a8a54e80c0d0a7047a571f37e",
+      "gzip_sha256": "fd956167fa94ac39b33a5898b38fc767596bd2246cdbfcec73b29570f17e5bcb",
+      "bytes": 8697,
+      "gzip_bytes": 2175
+    },
+    "sj-r2-witness-final.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-witness-final.log",
+      "sha256": "0da2235b668c802439bf4ce556708d2208eac443e2a50e13c8590acc2adea46e",
+      "gzip_sha256": "9071035a18152b35589827a401acef2f6ce29b2e8619670f507635a2d57152fb",
+      "bytes": 956,
+      "gzip_bytes": 400
+    },
+    "sj-r2-witness.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-witness.log",
+      "sha256": "a8bbe3d37075f2441ac61fd6d2f4f54cd7ea5c40222827e446ecb31e5f2e686f",
+      "gzip_sha256": "556eb4649e7106f36ba36628d4c37a3e78fdfc70ee91f1747a268cf990bcdfb7",
+      "bytes": 19367,
+      "gzip_bytes": 2435
+    },
+    "sj-r2-witness2.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/sj-r2-witness2.log",
+      "sha256": "84b0908852a0e84cf93899a84da859b8c3b64f4922ff468677a084043bc8a6cd",
+      "gzip_sha256": "75141cbd23f546e792183bbf0ac4d28022fa9f5d0b9c63e0f28720bf74f1296e",
+      "bytes": 2330,
+      "gzip_bytes": 695
+    },
+    "ref-check-final.log": {
+      "path": "/home/ccheever/sb4-intent/sj-r2-evidence/ref-check-final.log",
+      "sha256": "9f19d00735e8f0cd07152c8282be88e2eb37144cea910225d230f92aa5398bbd",
+      "gzip_sha256": "e726d43ed02584433e2baf0a12c03e12838dd9043e53a62d0b730588c80a82a7",
+      "bytes": 81,
+      "gzip_bytes": 94
+    }
+  },
+  "reference_check": "ref-check: ok \u2014 525 LLP docs, 10111 refs in 32468 files, 0 errors, 0 unchecked"
+}

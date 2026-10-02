@@ -1207,8 +1207,18 @@ fn handle(mut request: Request, shared: &Shared) {
                     },
                     None => None,
                 };
+                if let Some(value) = payload.get("searchRetainedOrder") {
+                    let order: Vec<i64> = match value.as_array().and_then(|values| values.iter().map(snapback4_core::search_decoration::order_key).collect()) {
+                        Some(order) => order,
+                        None => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetainedOrder must contain integer ordering keys")),
+                    };
+                    if retained.as_ref().is_none_or(|ids| ids.len() != order.len()) {
+                        return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "retained search ordering keys require matching candidate IDs"));
+                    }
+                    context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
+                }
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes) = match reader {
+                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1218,13 +1228,14 @@ fn handle(mut request: Request, shared: &Shared) {
                         let reads_presence = presence_of(&reader);
                         let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), reader.generation());
                         let query_generation = reader.generation();
+                        let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
                         let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
@@ -1236,10 +1247,11 @@ fn handle(mut request: Request, shared: &Shared) {
                         let reads_presence = presence_of(&engine);
                         if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
                         let query_generation = engine.generation();
+                        let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
                         let (outcome, cut, current) = engine.query_search_at(&op, context, retained.as_deref());
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1251,6 +1263,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             scopes: &'a Option<Json>,
                             #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
                             search_scopes: &'a Option<Vec<String>>,
+                            #[serde(rename = "searchRows", skip_serializing_if = "Option::is_none")]
+                            search_rows: Option<wire::Plain<'a>>,
                             #[serde(rename = "searchCurrent", skip_serializing_if = "Option::is_none")]
                             search_current: &'a Option<Vec<String>>,
                             #[serde(skip_serializing_if = "Option::is_none")]
@@ -1264,6 +1278,10 @@ fn handle(mut request: Request, shared: &Shared) {
                             next: &'a Option<String>,
                             #[serde(rename = "nextExpiry")]
                             next_expiry: Option<i64>,
+                            #[serde(rename = "decorationPaths", skip_serializing_if = "Option::is_none")]
+                            decoration_paths: Option<Vec<Vec<String>>>,
+                            #[serde(rename = "decorationExpiry", skip_serializing_if = "Option::is_none")]
+                            decoration_expiry: Option<Option<i64>>,
                             seq: u64,
                             store_id: String,
                             tables: &'a [String],
@@ -1295,7 +1313,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: decoration_paths.is_some().then_some(outcome.decoration_expiry), decoration_paths, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {

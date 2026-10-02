@@ -102,7 +102,12 @@ pub fn typescript(bound: &Bound) -> String {
             } else { words };
             // Only a page of source rows proves that `id` is row identity.
             // Projected objects can give that field any authored meaning.
-            let words = if kind == "query" && matches!(program.result, Ty::Page(..)) { format!("{words}, rowKey: \"id\"") } else { words };
+            let decorated_identity = fact.search_decoration && snapback4_core::search_decoration::parts(&program.program).is_some_and(|parts| {
+                let snapback4_core::ir::Expr::Shape { fields, .. } = parts.value else { return false };
+                matches!(fields.get("id"), Some(snapback4_core::ir::Expr::Field { base, name })
+                    if name == "id" && matches!(base.as_ref(), snapback4_core::ir::Expr::Variable(name) if name == parts.binding))
+            });
+            let words = if kind == "query" && (matches!(program.result, Ty::Page(..)) || decorated_identity) { format!("{words}, rowKey: \"id\"") } else { words };
             let words = if fact.held { format!("{words}, held: true") } else { words };
             out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {}{words} }},\n", property(short), string_literal(&program.program.name)));
         }

@@ -1,0 +1,188 @@
+{
+  "round": 3,
+  "parent": "1202d4cb56b551d90a22084065402c877f11562b",
+  "host": "expose-builder-pixel",
+  "platform": "linux-x86_64",
+  "source_frozen_utc": "2026-10-02T22:09:54.935484+00:00",
+  "full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "cwd": "/home/ccheever/sb4-intent/lane-sj/snapback4",
+    "runs": 1,
+    "status": "complete",
+    "started_utc": "2026-10-02T22:14:23.977060+00:00",
+    "finished_utc": "2026-10-02T22:42:06.774188+00:00",
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1509 s",
+    "failure_classification": {
+      "ours": 0,
+      "baseline": 0,
+      "environmental": 0
+    },
+    "rust": {
+      "binaries": 286,
+      "executions": 999,
+      "passed_including_doctests": 4729,
+      "failed": 0,
+      "ignored": 34
+    },
+    "clients": {
+      "tests": 5892,
+      "pass": 5882,
+      "fail": 0,
+      "skipped": 10
+    },
+    "models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "skipped": 0
+    },
+    "explicit_client_skips": [
+      "﹣ Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle (0.553759ms) # requires macOS Foundation and AVFoundation",
+      "﹣ managed organization and invitation policy runs in the shared interpreter (0.74081ms) # set SNAPBACK4_B1D_MANAGED_BIN, SNAPBACK4_B1D_MANAGED_BIN_SHA256, SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT to the pinned parent binary and a private scratch parent",
+      "﹣ managed OIDC profile binding orders and expires trusted email evidence (0.458958ms) # set SNAPBACK4_IDENTITY_PROFILE_SCRATCH_PARENT to an existing private directory",
+      "﹣ published 0.2.27 reference: four tasks with one and two search cursors (0.189644ms) # set BOUNDS_BINARY to the published 0.2.27 binary",
+      "﹣ published 0.2.33 rejects F2 stores, serving, backend opening and device adoption (0.556244ms) # set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary",
+      "﹣ published 0.2.33 capability fence: timeline-v2 (0.602072ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "﹣ published 0.2.33 capability fence: recorded-attribution (0.098708ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "﹣ published 0.2.33 capability fence: maintained-column (0.074953ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "﹣ published 0.2.33 control: capability-free bytes and stores stay compatible (0.099919ms) # the published 0.2.33 native witness requires darwin-arm64",
+      "﹣ new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract (0.054822ms) # set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary"
+    ]
+  },
+  "affected": {
+    "typecheck": {
+      "exit": 0
+    },
+    "guide": {
+      "pass": 110,
+      "fail": 0
+    },
+    "rust_decorated_search": {
+      "pass": 11,
+      "fail": 0
+    },
+    "composed_routing": {
+      "pass": 223,
+      "fail": 0
+    },
+    "nested_generated_types": {
+      "hosts": [
+        "process",
+        "wasm",
+        "online"
+      ],
+      "pass": 3,
+      "fail": 0
+    },
+    "live_retained_browse": {
+      "hosts": [
+        "process",
+        "wasm"
+      ],
+      "needles": [
+        "",
+        "   ",
+        "!?",
+        "☕️"
+      ],
+      "modes": [
+        "watch",
+        "one-shot"
+      ],
+      "pass": 16,
+      "fail": 0
+    },
+    "oracle_per_host": {
+      "seeds": 12,
+      "pages": 1475,
+      "online": 1080,
+      "offline": 395,
+      "short": 41,
+      "currentNull": 2210,
+      "retainedNull": 2471,
+      "expiryPages": 1143,
+      "expiryNulls": 526,
+      "browsePages": 490,
+      "browseExpiryPages": 379
+    },
+    "final_clients": {
+      "tests": 955,
+      "pass": 955,
+      "fail": 0,
+      "skipped": 0,
+      "duration_ms": 622326.560649,
+      "command": "node --test --test-concurrency=8 packages/snapback4/test/decorated-search.test.mjs packages/snapback4/test/prediction-routing.test.mjs packages/snapback4/test/ordinary-search*.test.mjs packages/snapback4/test/server-clock*.test.mjs packages/snapback4/test/raw-read-deadlines.test.mjs packages/snapback4/test/read-observation.test.mjs packages/snapback4/test/expiry-retry-watch.test.mjs packages/snapback4/test/remembered-answers.test.mjs packages/snapback4/test/query-publication-session.test.mjs packages/snapback4/test/read-through-provenance.test.mjs packages/snapback4/test/approval-lifecycle.test.mjs packages/snapback4/test/approval-notifications.test.mjs packages/snapback4/test/delivery-fault-matrix.test.mjs packages/snapback4/test/keep-expiry.test.mjs"
+    }
+  },
+  "intentional_negative_checks": {
+    "type_omissions": {
+      "cases": 3,
+      "rejected": 3
+    },
+    "collapsed_shapes": {
+      "cases": 3,
+      "rejected": 3
+    },
+    "discarded_composed_deadlines": {
+      "cases": 8,
+      "rejected": 8
+    }
+  },
+  "await_boundary": {
+    "client_count": 58,
+    "sha256": "2cd8e08be5a54c1a01aaf878edbfb874e75342d658e9cecdf8d557a2a709456a",
+    "classifications_changed": false
+  },
+  "source_files": 11,
+  "raw_log_directory": "/home/ccheever/sb4-intent/reviews/sj-r3-evidence",
+  "pushed": false,
+  "published": false,
+  "development_failures": [
+    {
+      "kind": "typecheck",
+      "classification": "ours",
+      "reason": "unknown reducer accumulator needed explicit generic",
+      "corrected": true
+    },
+    {
+      "log": "regressions-initial.log",
+      "pass": 7,
+      "fail": 16,
+      "classification": "ours: fixture expected a server response from a complete local source",
+      "corrected": true
+    },
+    {
+      "log": "browse.log",
+      "pass": 4,
+      "fail": 16,
+      "classification": "ours: horizon fixture did not emit retained provenance",
+      "corrected": true
+    },
+    {
+      "log": "browse-debug.log",
+      "pass": 0,
+      "fail": 1,
+      "classification": "ours: same fixture diagnosis",
+      "corrected": true
+    },
+    {
+      "log": "build-final.log",
+      "classification": "ours: accidental root cargo invocation; uninitialized Ibex dependency; no root runtime built",
+      "corrected": true
+    },
+    {
+      "kind": "mutation harness",
+      "classification": "ours: waiting for disabled refresh before checking values timed out at 70 seconds; corrected assertion order and eight completed one-shot mutations",
+      "corrected": true
+    }
+  ],
+  "source_hashes_after_suite_verified": true,
+  "ref_check": {
+    "exit": 0,
+    "summary": "ref-check: ok — 525 LLP docs, 10112 refs in 32471 files, 0 errors, 0 unchecked"
+  },
+  "diff_check": {
+    "exit": 0
+  }
+}

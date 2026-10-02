@@ -233,7 +233,7 @@ window.searchCalls = [];
 const app = createApp({ url, sessionStore, device: webDevice({ wasm: fetch("/device.wasm") }),
   fetch: async (input, init) => {
     const path = new URL(input).pathname;
-    if (path.startsWith("/q/search")) window.searchCalls.push({ path, body: JSON.parse(init.body) });
+    if (path.startsWith("/q/")) window.searchCalls.push({ path, body: JSON.parse(init.body) });
     return fetch(input, init);
   },
 });

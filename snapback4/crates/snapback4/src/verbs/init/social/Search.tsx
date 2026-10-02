@@ -25,7 +25,7 @@ function Hits({ page, label }: { page: ReturnType<typeof usePage<ArgsOf<typeof a
   return <ScrollView>
     <Text>{label}</Text>
     <Text>{existence(page.read) === "loading" ? "Loading…" : existence(page.read) === "partial" ? "Partial results" : "denied" in page.read ? page.read.denied.message : ""}</Text>
-    {page.items.map(row => <Button key={row.id} title={row.text || "Photo"}
+    {page.items.map(row => <Button key={row.id} title={`${row.chatTitle ?? "Conversation"} · ${row.senderName ?? "Unknown sender"}: ${row.text || "Photo"}`}
       onPress={() => router.push({ pathname: "/conversation/[id]", params: { id: row.conversation } })} />)}
     <Button title="More matches" disabled={!page.hasMore} onPress={page.loadMore} />
   </ScrollView>;

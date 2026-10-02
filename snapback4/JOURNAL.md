@@ -82644,6 +82644,49 @@ source custody. One local commit with the requested Astra co-author trailer;
 nothing pushed or published.
 
 
+## 2026-10-02 — SJ round 0: point-decorated ordinary search
+
+LLP 3000.028 §3.3.1 now defines a bare page followed by row-preserving point
+decorations. Ordinary global and pinned search can return chat titles, sender
+names and nested key lookups in the hit projection. The source page keeps its
+IDs, order, completeness, cut, continuation and freshness. Distinct point keys
+share one ordinary authorized read per page/authority; missing or unreadable
+rows become null. Unsupported aggregates, decoration predicates and non-key
+subqueries retain their evaluator and narrowed diagnostics.
+
+The one-call SDK merge carries source ordering keys separately from presentation,
+so projections need not expose their ID/order fields. The server decorates only
+selected current rows; the existing final device state-fence call decorates
+only emitted retained rows. Shared logical and physical allowances remain in
+force. The social starter's search/searchChat and rendered labels use this form,
+and the search/client/why guide surfaces now teach it. There are no separate
+detail queries. CLI cost output names the lift and its distinct-key reads, with
+conservative numeric allowances for projection points and their authorization.
+
+The generated process/Wasm oracle passed 985 page comparisons per host, including
+random memberships, departures/rejoins, scope moves, delete/reinsert, decoration
+edits, offline reads, hidden/deleted details and suppression-shortened pages.
+Independent point reads check decoration authority. The real Chromium retained
+search witnesses pass with title/name labels and all query paths recorded.
+Twenty hits in three rooms cost 46 → 50 examined rows; the established W13
+30,030-message corpus costs 2,040 → 2,061 for 20 rooms and one sender.
+
+Affected Rust: 4,662 passes, 34 ignored, zero failures across 286 summaries;
+final CLI rerun 848 passes; guide 110; final focused JS 462. The frozen complete
+suite reports exactly `== 0 failure(s) in 1390 s`, including 5,800 client passes
+(10 conditional skips) and all 79 models. An earlier full attempt reported
+`== 1 failure(s) in 1510 s`: my concurrent Wasm rebuild caused four ENOENT leaf
+cases and their failed parent summary. These were ours, not baseline failures;
+all 119 tests in the three affected files passed afterward, then the entire
+suite passed with source/artifacts frozen. The report also records corrected
+development failures and one transient unchanged smoke-test ownership conflict.
+
+Linux Wasm is 2,050,348 B raw / 616,951 B gzip. Raise the 610,782 B cap to
+617,581 B for the projection/cache and retained decoration path: estimated
+macOS 617,081 B (+130 B), plus 500 B headroom. Runtime ceilings are unchanged.
+Small metering, oracle, hash and verification receipts accompany the
+[report](./reports/20261002-sj-decorated-search/REPORT.md). No publication or push.
+
 ## 2026-10-02 — BG round 9: merge with main
 
 Merge origin/main 9ca48d2804 into reviewed round 8 at 58e3c443af, without rebase.
@@ -82701,3 +82744,170 @@ check reports inherited drift and missing generated prerequisites; the
 [validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
 retains the full red and its causes. Commit locally with the requested Astra
 co-author trailer; no push or publication.
+## 2026-10-02 — SJ round 1: preserve search pages across decoration expiry
+
+Read both complete round-0 reviews (Astra READY/P3; Grok READY WITH CHANGES,
+Medium and Low). Merge origin/main e15de2e49a with real merge commit 878da80018;
+retain both JOURNAL tails and BG count/maintenance rules alongside SJ's lift.
+CT, FDL and FIM semantics remain intact. Decoration children now return a
+separate value-refresh deadline: watches keep current and retained rows and
+bare-page freshness while fields re-evaluate to null. Only source deadlines
+withdraw the page. One-shots reject crossed decoration deadlines through their
+existing bounded publication retry. LLP 3000.028 §3.3.1 and the guide record it.
+
+Internal order keys outside the exact JavaScript integer range travel as decimal
+strings and compare with BigInt; cursor tokens retain exact i64 numeric text.
+Public numeric writes retain their signed-53 restriction. The unsafe-key Rust
+witness uses storage seeding, and eight SDK witnesses cover adjacent +/-2^53
+keys, both directions and i64 extrema. Ordinary devices stop constructing,
+metering and serializing unused searchRows: isolated saving 400 B gzip.
+
+Linux locked Wasm measures 2,048,753 B raw / 617,410 B gzip. Raise the cap from
+617,581 to 618,040 B: Linux +130 B estimated macOS offset +500 B reserve.
+MacOS is estimated at 617,540 B, not measured. Same-host rebuilt base 96ae8da9a5
+is 2,032,879 / 610,147, incoming main e15de2e49a is 2,030,224 / 610,085.
+Thus BG/incoming main saves 2,655 raw / 62 gzip; SJ on that main adds 18,529 raw /
+7,325 gzip. Net versus rebuilt base is +15,874 raw / +7,263 gzip. These are
+successive whole-artifact deltas; runtime ceilings are unchanged. The budget
+file and commit record the same reason.
+
+Affected Rust: 4,713 passed, 0 failed, 34 ignored across 286 summaries, including
+binary units, all integration targets, and guide 110. Decorated search is 11/11;
+the 30,030-message/1,000-room case remains 2,040 -> 2,061 examined rows. Generated
+process/Wasm oracles check 1,970 pages plus mixed current/retained expiry witnesses
+and independent device/server wakeup cases. Focused JS initially passed 539/540;
+only the changed client await-boundary hash needed refreshing (all 58 awaits and
+classified site IDs unchanged); its targeted rerun passes. Final generic deadline
+selection is 64/64. All development failures are ours and corrected; the report
+classifies them individually.
+
+The single final scripts/test.sh run exits 0: `== 0 failure(s) in 1394 s`.
+Rust: 286 binaries / 999 executions plus doctests; clients 5,816 passed, 0 failed,
+10 explicit platform/fixture skips; models 79/79. Full-suite failure classification:
+ours 0, baseline 0, environmental 0. No full-suite rerun or waiver.
+
+Final diff review restored the W13 fixture's original public seed setup; a final
+11/11 affected-target run verifies it after the full suite. Product sources and
+measured Wasm stayed unchanged throughout qualification. The report's Round 1
+section and small hash/verification/measurement receipts retain the evidence.
+No push or publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — SJ round 2: decoration deadlines never gate page availability
+
+Read both complete round-1 reviews (Astra READY WITH CHANGES/P2; Grok READY
+WITH CHANGES/Medium). Expired or uncertain decoration deadlines now mask values
+at publication and synchronous watch access without rejecting the page. The
+online-only client, composed local client, remembered offline answers, one-shots
+and approved facade holds apply the same rule. Hits, order, completeness, cut,
+continuation and freshness remain the bare page's; its own deadlines and the
+existing authority/sequence fences still withdraw. LLP 3000.028 §3.3.1 and the
+search guide state the rule.
+
+Conservatively null every top-level output field containing a point read when
+either page-wide decoration deadline cannot prove freshness. Source fields and
+point-independent outputs survive. No per-row or per-field deadlines: server
+replies carry one static field-name list, and the local client derives it from
+its compiled projection. One field adds 29 B per page, the four-field oracle
+64 B; an explicit no-expiry null adds 24 B where round 1 omitted it. Online
+watches accept the server's page, retry values with 25 ms to 1 s bounded backoff
+without a give-up count, and stop when the server proves no upcoming expiry.
+
+Astra's unsynced/public reproduction passes for one-shot and watch on process
+and Wasm. Grok's real-server skew window exceeds the old four-attempt window,
+including an open revocation episode and unknown deadlines. The fields are null
+while HTTP is held, and one-shots return the page in one call. Bare source expiry
+still withdraws. An older facade-approved page retains its own value deadline.
+The random oracle now seeds room/profile/card expiries and advances through them:
+1,970 pages, 1,528 after profile expiry, 710 explicit expired-label checks before
+deletion, with both authorities checked against independent ordinary point reads.
+
+Affected Rust: 11 decorated-search tests and 110 guide tests pass. The broad
+client selection first passed 1,027 with three failures caused by our unnecessary
+clock-method call; corrected clock/decorated coverage passes 83/83 and final
+focused witnesses 9/9. Other development fixture/type/invocation failures are
+classified in the report; the unavailable local orient symlink was resolved by
+reading the existing skill in lane-dx. Existing await classifications and hashes
+are unchanged; the new synchronous module adds zero awaits.
+
+The single final suite exits 0: `== 0 failure(s) in 1419 s`. All 286 Rust binaries /
+999 executions plus doctests, 5,822 client tests (10 explicit platform/fixture
+skips), and 79 models pass. Full-suite failures: ours 0, baseline 0,
+environmental 0. All 15 qualified source hashes remain unchanged. Linux Wasm
+is byte-identical to round 1: 2,048,753 B raw / 617,410 B gzip, 630 B below the
+unchanged 618,040 B budget. No macOS measurement or budget raise. The
+[Round 2 report](./reports/20261002-sj-decorated-search/REPORT.md#round-2--value-deadlines-in-every-client-path-2026-10-02)
+and small receipts retain commands, byte accounting and log/source hashes.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No merge, push or publication in this round.
+
+## 2026-10-03 — SJ round 3: nested placeholders and structural value deadlines
+
+Read both complete round-2 reviews (Astra READY WITH CHANGES/P2, Grok READY
+WITH CHANGES/Medium), starting at 1202d4cb56. Mask point-dependent output paths
+at any depth, keeping constructed objects, literal/source siblings and generated
+client types aligned. Whole point-read values remain nullable. Selecting a
+literal from an object with an unused point-read sibling keeps that literal.
+Server replies name static paths; local clients derive the same paths. No
+per-row/per-field clocks, extra requests or authority changes.
+
+Both value deadlines are now required `number | null` fields in local, ordinary
+search and online query results. Retained-row and object-component composition
+merge the earliest deadline per authority, preserving unknown deadlines.
+Three deliberate omitted-field mutations fail TypeScript. Recovery, loading,
+refusals and forwarding returns explicitly construct or preserve both fields;
+the Round 3 report lists every internal query-result return site. Source-page
+withdrawal remains independent. LLP 3000.028 §3.3.1 and the guide explain that
+masked values are placeholders, not absence; page freshness does not certify
+every decoration; a refresh restores values after proving a later deadline.
+
+Nested/doubly nested projections pass on process, Wasm and the online client,
+including held refresh, stable siblings, generated types and restored values.
+Sixteen live process/Wasm browse regressions cover empty, whitespace,
+punctuation and emoji needles, watches and one-shots, with actual retained-row
+provenance and composition. Twelve oracle seeds per host check 2,950 pages,
+including 758 browse pages after profile expiry and 1,052 explicit expired-label
+checks before deletion. Mutation controls detect both reviewed defects.
+
+Affected clients: 955/955; guide: 110/110; Rust decorated search: 11/11.
+The single final suite exits 0: `== 0 failure(s) in 1509 s`. All 4,729 Rust tests
+(34 ignored), 5,882 client tests (10 explicit platform/fixture skips) and 79
+models pass. Full-suite failures: ours 0, baseline 0, environmental 0. The report
+classifies corrected fixture/type/build-invocation/mutation-harness failures
+separately from the intentional negative controls. All 11 qualified source hashes
+remain unchanged after the suite.
+
+Locked Linux Wasm is byte-identical to round 2: 2,048,753 B raw / 617,410 B gzip,
+630 B below the unchanged 618,040 B budget. No Mac measurement. Only the local
+Linux host was used; neither the office M1 nor M5. The
+[Round 3 report](./reports/20261002-sj-decorated-search/REPORT.md#round-3--structural-value-deadlines-and-nested-placeholders-2026-10-03)
+retains return-site audit, commands, byte accounting and small verification
+receipts. Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing merged, pushed or published.
+
+
+## 2026-10-03 — SJ round 4: enforce value deadlines through publication
+
+Read round 3's Astra review (READY WITH CHANGES, one P3; Grok READY).
+Reproduced its undefined-deadline mutation compiling against 1bb5c5732d.
+No production omission existed. Explicit result types now preserve required
+ValueDeadlines through the final local wrapper and runLocal; shared/local/online
+scheduler inputs require them, and absent deadlines are explicit nulls.
+Audited and annotated the remaining inferred query-result helpers. LLP 3000.028
+§3.3.1 and the report record the enforcement boundary.
+
+Package typecheck/build pass; permanent compiler controls pass 17/17, rejecting
+16 mutations including Astra's exact return. Decorated search passes 57/57 on
+process, Wasm and online paths (2,950 oracle pages); affected clients 903/903;
+local-read/lifecycle/sign-out/ephemeral resets 75/75. Zero final failures/skips.
+The sole development failure was an ambiguous mutation-test anchor, corrected.
+Reference validation passes: 525 LLPs / 10,114 refs / zero errors or unchecked.
+
+Emitted JavaScript changes only absent scheduler deadlines to explicit nulls;
+runtime behavior is unchanged, so no full-suite run. One await hash changes
+for an erased annotation; all 32 local-query awaits and delivery classifications
+remain. Wasm stays byte-identical: 2,048,753 B raw / 617,410 B gzip under the
+unchanged 618,040 B cap. The Round 4 report and receipt retain commands,
+source/log hashes and scope. Only local Linux; neither office M1 nor M5.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

@@ -1,0 +1,14 @@
+{
+  "host": "Linux x86_64",
+  "rust": "1.97.0",
+  "binaryen": "132.0.0",
+  "raw": 2050348,
+  "gzip": 616951,
+  "inherited_cap": 610782,
+  "cap": 617581,
+  "macos_estimate": 617081,
+  "macos_estimate_increment": 130,
+  "estimated_macos_headroom": 500,
+  "sha256": "ff08978191bd4029c065ca567b0ab3a04f65caed170644aa62d908fbefbc778f",
+  "src_dist_identical": true
+}

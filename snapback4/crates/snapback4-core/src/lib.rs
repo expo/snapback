@@ -32,6 +32,7 @@ pub mod schema;
 pub mod small_map;
 #[cfg(feature = "server-search")]
 pub mod search_plan;
+pub mod search_decoration;
 #[cfg(feature = "sqlite")]
 pub mod store;
 pub mod successor;

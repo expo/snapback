@@ -1,0 +1,106 @@
+{
+  "affected-js.log": {
+    "bytes": 99082,
+    "sha256": "61540902484ea9b406a636c0bd108488070a5df03d42b080f3c247196a1f1310"
+  },
+  "browse-debug.log": {
+    "bytes": 1727,
+    "sha256": "a7571d68bc955a429c24a91dba97ef859da5b8ec8c49f4f72dc3f6c05b104c7c"
+  },
+  "browse-through.log": {
+    "bytes": 1457,
+    "sha256": "ae76478b039b6c017562ce79553d220a1b17327acd0699f30eb1c8917421b03b"
+  },
+  "browse.log": {
+    "bytes": 15992,
+    "sha256": "0c93272fd48e74cc7a85a4672e9cdf0423ca90e566a7e3e38b31454f93c4d90c"
+  },
+  "build-final-sb4.log": {
+    "bytes": 870,
+    "sha256": "70013215c0e33f8b87b2d74592e7e8c398de754497a2089f3bf10ed34b4c733d"
+  },
+  "build-final.log": {
+    "bytes": 433,
+    "sha256": "dacf2594be3b87e79844ae9ff5aec5aed91ed99438aa6b0f005bff620cf70142"
+  },
+  "build.log": {
+    "bytes": 937,
+    "sha256": "37663c3f527549eb22bbd020fc98d3a178f870567106893c5b7d5620df45845e"
+  },
+  "client-build-final.log": {
+    "bytes": 201,
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+  },
+  "client-build.log": {
+    "bytes": 201,
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+  },
+  "full-suite.exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "full-suite.log": {
+    "bytes": 933518,
+    "sha256": "b49c5267ce3f49be449330fa26ee0c6ab7f9505a837e111cc7714bf888d98638"
+  },
+  "guide.log": {
+    "bytes": 8308,
+    "sha256": "051e65ddd91ea4d052410aab7d80460484950ca2d01c27e7988c2221dc0d6b8f"
+  },
+  "mutation-local-query.js.log": {
+    "bytes": 9662,
+    "sha256": "2276b884c8386c7fbd4c6da321b5b43ef4c90e3915aa492fa9dd65141c69a083"
+  },
+  "mutation-read-decoration.js.log": {
+    "bytes": 3308,
+    "sha256": "6c8b1c0e8962110c38272249624225c861dd056850bfb6403c1db53522ed3c6b"
+  },
+  "nested-selected.log": {
+    "bytes": 424,
+    "sha256": "0855cb1d324048d4d8d1547b140dedbebb4c1a27d0c9294eecd391246a010d2a"
+  },
+  "oracle-initial.log": {
+    "bytes": 1417,
+    "sha256": "7ce84194b4dc79767efd7da74fda904fa61de0f4e02e3e7a71374efe0e028893"
+  },
+  "ref-check-final.log": {
+    "bytes": 81,
+    "sha256": "b71cea3ec0eebdbe1b225773bbcd1b122fac8c661aa69f413244365a1502d6c7"
+  },
+  "ref-check.log": {
+    "bytes": 81,
+    "sha256": "8b445a78566e98bc8993c68ad0c7c9f7268d9502b3d4f942a0df0b72857e2343"
+  },
+  "regressions-initial.log": {
+    "bytes": 12416,
+    "sha256": "4235a6438f0854cc63032b0240134f5571b8775a0f30bb8111c3da3a0c5b73b4"
+  },
+  "routing.log": {
+    "bytes": 21267,
+    "sha256": "a254601bad332146980559e977e5fb7a4bd3de7919fddcbade79fd8a5a4cfe17"
+  },
+  "rust-decorated.log": {
+    "bytes": 1475,
+    "sha256": "5c99d88d416c5270c82c3e130fa38865aac987fbd973510298fa68cf88af1f51"
+  },
+  "type-omission-client.ts.log": {
+    "bytes": 266,
+    "sha256": "66d7d895a8e0732c6b4bc1a946d84353095a56d774fb26e7b02f424baad9b7be"
+  },
+  "type-omission-local-query.ts.log": {
+    "bytes": 379,
+    "sha256": "ad30a55f81ef17effc881f369d958a6faef48a994ce275717cbc6b84c7c0d9d0"
+  },
+  "type-omission-local-search.ts.log": {
+    "bytes": 243,
+    "sha256": "68105beb2777531706c93d9c95ceb89c1a636fee059b64f63bef17aa48027224"
+  },
+  "typecheck.log": {
+    "bytes": 32,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+  },
+  "wasm-build.log": {
+    "bytes": 8697,
+    "sha256": "48f1e9cfdbe55fed529b077613fbd6baa72a219a8a54e80c0d0a7047a571f37e"
+  }
+}

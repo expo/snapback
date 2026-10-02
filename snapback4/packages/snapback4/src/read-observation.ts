@@ -1,3 +1,4 @@
+import { copyDecorations, currentDecorations } from "./read-decoration.ts";
 import { pendingRead, readyRead, readyExistence } from "./read-existence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
@@ -11,11 +12,17 @@ export function answerIdentity(read: Read<unknown>): object { return identities.
 export function answerObservation(read: Read<unknown>): ReadObservation<unknown> | undefined { return owners.get(read); }
 
 function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
+  copyDecorations(from, to);
   identities.set(to, answerIdentity(from));
   const owner = owners.get(from);
   if (owner) owners.set(to, owner);
   copyEpisode(from, to);
   return to;
+}
+
+export function decorationAnswer<T>(read: Read<T>): Read<T> {
+  const next = currentDecorations(read);
+  return next === read ? read : copyAnswer(read, next);
 }
 
 /** Closed facades expose a fixed deadline without freezing their live peer. */
@@ -108,11 +115,20 @@ export class ReadObservation<T> {
   private revision = 0;
   private changePending = false;
 
+  expireValues(): () => void {
+    const next = decorationAnswer(this.snapshot);
+    if (next === this.snapshot) return () => {};
+    this.snapshot = next;
+    const deliver = this.deliver("answer");
+    return () => { deliver(); this.onWithdrawal(); };
+  }
+
   read(denied: Refusal | null): Read<T> {
     if (denied && (!("denied" in this.snapshot) || this.snapshot.denied.code !== denied.code)) this.reset({ denied });
     // A detached handle is absent from client.close's sweep; its owner's denial still wins.
     if (denied) return this.snapshot;
     checkReadExpiry(this);
+    this.snapshot = decorationAnswer(this.snapshot);
     this.episode.check();
     this.updateExistence();
     return this.snapshot;
@@ -207,6 +223,8 @@ export class ReadObservation<T> {
     this.snapshot = "data" in read ? readyRead<T>({ ...read,
       ...(read.since !== undefined ? { since: Math.min(read.since, Date.now()) } : {}),
     }, this.pending?.() ?? pendingRead(read)) : { ...read };
+    copyDecorations(read, this.snapshot);
+    this.snapshot = decorationAnswer(this.snapshot);
     this.transportOffline = this.transportOffline && "data" in read && !read.fresh;
     identities.set(this.snapshot, {});
     owners.set(this.snapshot, this);
