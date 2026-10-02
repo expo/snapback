@@ -71,22 +71,7 @@ pub(super) fn begin(options: &Options) -> Result<Option<File>> {
 }
 fn stop(record: &Value, signal: i32) -> Result<()> {
     if record["group"].is_number() { return stop_group(record); }
-    if !alive(record) { return Ok(()); }
-    let pid = record["pid"].as_u64().unwrap() as i32;
-    unsafe { libc::kill(pid, signal); }
-    let end = Instant::now() + Duration::from_secs(10);
-    while alive(record) {
-        if Instant::now() >= end {
-            // Recheck the start time immediately before every signal.
-            if alive(record) { unsafe { libc::kill(pid, libc::SIGKILL); } }
-            let killed = Instant::now() + Duration::from_secs(2);
-            while alive(record) && Instant::now() < killed { sleep(Duration::from_millis(20)); }
-            if alive(record) { return Err(error("E_WITNESS_PROCESS", "recorded abandoned process did not stop")); }
-            break;
-        }
-        sleep(Duration::from_millis(50));
-    }
-    Ok(())
+    recorded_process::stop(record, signal)
 }
 fn members(group: u32) -> Result<Vec<Value>> {
     let output = Command::new("ps").args(["-axo", "pid=,pgid=,stat="]).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
@@ -98,7 +83,8 @@ fn members(group: u32) -> Result<Vec<Value>> {
         identity(pid)
     }).collect())
 }
-fn stop_group(record: &Value) -> Result<()> {
+fn stop_group(record: &Value) -> Result<()> { stop_group_with(record, || {}) }
+fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) -> Result<()> {
     let group = record["group"].as_u64().unwrap() as u32;
     if members(group)?.is_empty() { return Ok(()); }
     // A persistent preparation leader stays alive even after its worker exits.
@@ -113,6 +99,11 @@ fn stop_group(record: &Value) -> Result<()> {
         loop {
             if !alive(&record["leader"]) { return Err(error("E_WITNESS_PROCESS", "lost custody of abandoned process group")); }
             let children: Vec<_> = members(group)?.into_iter().filter(|p| p["pid"] != group).collect();
+            after_snapshot();
+            // Membership observations belong to this recorded leader only if
+            // its birth still matches AFTER collecting them. Otherwise a reused
+            // group number could authorize unrelated newly observed members.
+            if !alive(&record["leader"]) { return Err(error("E_WITNESS_PROCESS", "lost custody while inspecting abandoned process group")); }
             if children.is_empty() {
                 stop(&record["leader"], libc::SIGTERM)?;
                 if members(group)?.is_empty() { return Ok(()); }
@@ -120,7 +111,7 @@ fn stop_group(record: &Value) -> Result<()> {
             }
             for child in children {
                 if alive(&child) && unsafe { libc::getpgid(child["pid"].as_u64().unwrap() as i32) } == group as i32 {
-                    unsafe { libc::kill(child["pid"].as_u64().unwrap() as i32, signal); }
+                    recorded_process::stop(&child, signal)?;
                 }
             }
             if Instant::now() >= end { break; }
@@ -202,7 +193,7 @@ fn recover(dir: &Path) -> Result<bool> {
                 if alive(&record["app"]) {
                     let bundle = record["bundle"].as_str().unwrap_or_default();
                     if app_pid(&simctl(&["spawn", udid, "launchctl", "list"], Duration::from_secs(10))?, bundle)? == record["app"]["pid"].as_u64().map(|n| n as u32) {
-                        simctl(&["terminate", udid, bundle], Duration::from_secs(10))?;
+                        recorded_process::stop(&record["app"], libc::SIGTERM)?;
                     }
                 }
                 // Staging is nested in a recorded tool-owned simulator. Refuse
@@ -221,6 +212,10 @@ fn recover(dir: &Path) -> Result<bool> {
     // Process recovery is independent of wrapper custody. A surviving wrapper
     // owns the export and journal through publication, even after driver exit.
     let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { return Ok(false); };
+    if dir.join("publication-pending.json").exists() {
+        eprintln!("witness: interrupted publication preserved at {}; publication recovery required (see publication-pending.json)", dir.display());
+        return Ok(false);
+    }
     for entry in fs::read_dir(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -263,6 +258,7 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     for (index, dir) in runs.iter().enumerate().skip(5) {
         let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { continue; };
         let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { continue; };
+        if dir.join("publication-pending.json").exists() { continue; }
         if index >= 25 { remove(dir)?; continue; }
         if dir.join("retention.json").exists() { continue; }
         let mut retained = Vec::new(); let mut removed = Vec::new();
@@ -349,6 +345,15 @@ mod tests {
         let bytes = fs::read(&heartbeat).unwrap(); sleep(Duration::from_millis(100));
         assert_eq!(bytes, fs::read(&heartbeat).unwrap());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn witness_group_leader_exit_during_member_snapshot_revokes_custody() {
+        use std::os::unix::process::CommandExt;
+        let mut leader = Owned::spawn(Command::new("sleep").arg("60").process_group(0)).unwrap();
+        let record = json!({ "group": leader.0.id(), "leader": identity(leader.0.id()).unwrap() });
+        let result = stop_group_with(&record, || { leader.stop(libc::SIGKILL).unwrap(); });
+        assert!(result.unwrap_err().contains("lost custody while inspecting"));
     }
 
     #[test]

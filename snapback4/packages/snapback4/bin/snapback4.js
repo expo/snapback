@@ -7,6 +7,7 @@
 import { spawn } from "node:child_process";
 import { resolveBinary } from "../dist/resolve-binary.js";
 import { fileURLToPath } from "node:url";
+import { constants } from "node:os";
 
 if (process.argv[2] === "web-shell") {
   try { await (await import("./web-shell.js")).runWebShell(process.argv.slice(3)); }
@@ -22,8 +23,17 @@ const exportLease = process.argv[2] === "witness" && ["export-lease", "export-pu
 const child = spawn(binary, process.argv.slice(2), { stdio: exportLease ? ["inherit", "inherit", "inherit", 3] : "inherit", env: {
   ...process.env, SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("./witness-acquire.js", import.meta.url)),
 } });
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { try { child.kill(signal); } catch { /* gone */ } });
+const handlers = new Map(["SIGINT", "SIGTERM", "SIGHUP"].map(signal => [signal, () => { try { child.kill(signal); } catch { /* gone */ } }]));
+for (const [signal, handler] of handlers) process.on(signal, handler);
 child.on("exit", (code, signal) => {
-  if (signal) { process.kill(process.pid, signal); return; }
+  for (const [name, handler] of handlers) process.off(name, handler);
+  if (signal) {
+    // Restore the default disposition before re-raising. Some platforms do not
+    // terminate on this call; never let their empty event loop report success.
+    const status = 128 + (constants.signals[signal] ?? { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 }[signal] ?? 1);
+    setTimeout(() => process.exit(status), 100);
+    try { process.kill(process.pid, signal); } catch { process.exit(status); }
+    return;
+  }
   process.exit(code ?? 1);
 });

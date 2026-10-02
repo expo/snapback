@@ -1,0 +1,112 @@
+[
+  {
+    "path": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "sha256": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs",
+    "sha256": "883ff5c80df8d71b60bff6222f1d383814b900a8883d59c0034282c9fba85177",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/delivery-fault-recipes.mjs",
+    "sha256": "2660366037686f3a071b4d6f7077f0ae35f82070c0b557ce7117f92abb51e7ae",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/delivery-fault-fixture.mjs",
+    "sha256": "f406dbbb8f6ae93b03d22cefd30167d83531b99bfdcec7c02675df590222e773",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-receipts.ts",
+    "sha256": "1bc84ad4e45c17bf737befd69d7f13f892dc7d3f9a4f5c0eb3068d47a5065a58",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-device.ts",
+    "sha256": "3a10750f79a21c067d19c5063e31660e4a74b81df082dfa800e143af7ad92ee8",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-native.ts",
+    "sha256": "56ccf7d001d3f389468fa658d342900fa79b67e70e6ac636c565d359a5555c09",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-exit.ts",
+    "sha256": "87b804c1856e66f37a0d0a1641afdb76a082904e03272ee276fa531e3bfda752",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-delivery.ts",
+    "sha256": "7a276d361b226daf0909ea682daba32365a5b17c0d593d572345bb9ea55e787e",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-query.ts",
+    "sha256": "50baa0c51623ef0b9896683c6e4a5f6dec0903e873feffbf1ee6a6c64becbe8d",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-through.ts",
+    "sha256": "435fae2fc760e4c048550f665e808da3f2672c169d9f00402df1b6d0d7054d87",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-read-deadlines.ts",
+    "sha256": "7ffca05bdebb16be6d48841e5b2145e892e32178479b495a16cd4b967210ea29",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-types.ts",
+    "sha256": "23dedb1f95aabc8080e729ab25ea3e270824d80b96a8afe72fcc7b16493c2d7d",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-following.ts",
+    "sha256": "ab205f6f631a4b1b8896e8f985bc5e144501977ddabc59e760f2b2c85df6187e",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local.ts",
+    "sha256": "91d7d65a553ab4093aef268cb101e25fcd82443c29e71d553e2016a2a69a6346",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-reads.ts",
+    "sha256": "e9b81b5c2b1aeed633183322fab173e0e6bdd273e76118120a73cf8ecd95063c",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-publication.ts",
+    "sha256": "372ceaedcad7f652eb5062b3f84712f65a6fc1f8279a5b9a83e12ac5ec921019",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-exit-settlement.ts",
+    "sha256": "72b0801b13231000420d3cf5972faf789719ab76660b436bc03b9d74faa3a560",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-assets.ts",
+    "sha256": "c05479e462c3114d4459417ed528aaa527ae5195f58478b81f25c98c0a726f2f",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-sync.ts",
+    "sha256": "e86fafcb925887d396b841047e77ac8f82598f7b67157c7713321fbf2d2729ff",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-search.ts",
+    "sha256": "95d3e5d606d253b168343bc63f0070ab3468f2c67bc8ad616c3c67c728ce7fe4",
+    "unchangedFromRound4": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-backend.ts",
+    "sha256": "23d63082441e1b657d601a577167713dbbb4ee618c74973b4ff19024e5e7b93f",
+    "unchangedFromRound4": true
+  }
+]

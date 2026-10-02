@@ -12,7 +12,7 @@ npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --
 ```
 
 For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18.4/24.4 s warm medians, 259/291 s cold on this mini).
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (round-5 warm medians 20.840/29.128 s; social exceeds 25 s; last cold 174.512/229.510 s on this mini).
 Both starters provide these scripts. Unavailable hosts skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
 
 The build route chooses a free backend port and writes fresh artifacts under
@@ -138,7 +138,7 @@ Release app, replacing its bundle/assets with the exact export. Dependencies and
 lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
 bound with per-export evaluated Expo prebuild config; all project-local plugins and unknown mods retain JS. Remote/URI resources and out-of-tree config files refuse; the image toolchain is pinned. This cache optimizes correctness for honest projects; a plugin already runs arbitrary code during prebuild, so it is not a sandbox. The app reports the selected file's SHA-256 on
 all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
-`export:ios` leases its private export through atomic `dist/` publication and verification against the smoke inventory; a mismatch fails. Cleanup drains abandoned children but never prunes a leased export. Publishers serialize through verification. Each path lookup sees a complete old or new directory; separate file opens can cross generations. Five full plus twenty compressed runs remain, with temporary apps removed and asset removals matching fresh builds. `native:smoke` always builds.
+`export:ios` leases its private export through atomic `dist/` publication and verification against the smoke inventory; a missing/mismatched publication receipt fails. Failed verification restores the previous export; interrupted swaps preserve it for the next exporter to recover. Cleanup never prunes leased or pending exports. Publishers serialize through verification. Each path lookup sees a complete old or new directory; separate file opens can cross generations. Five full plus twenty compressed runs remain, with temporary apps removed and asset removals matching fresh builds. `native:smoke` always builds.
 A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
 
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;

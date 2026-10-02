@@ -1,0 +1,360 @@
+{
+  "starter": "social",
+  "label": "warm5-final",
+  "startedAt": 1790975955056,
+  "durationMs": 29797,
+  "status": 0,
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790975955172-55297/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "f5c04192647572c718461d20d45075889deedd5ee467e43002dda9e61fcca4a2"
+      }
+    },
+    "hit": true
+  },
+  "exitStatus": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "41fb782e48881a5cba05b6de272db9e95a2f760a4be05b2759507a99d5ccdd2a",
+  "exportHash": "41fb782e48881a5cba05b6de272db9e95a2f760a4be05b2759507a99d5ccdd2a",
+  "publicationProofHash": "99cb4f56cdbadf9d079b606eeb4965fc8f20a77cb933a2a93fc95929c78bfb4e",
+  "proofHash": "99cb4f56cdbadf9d079b606eeb4965fc8f20a77cb933a2a93fc95929c78bfb4e",
+  "publishedFiles": 32,
+  "evidence": [
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/before-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "2e2b551c07da4cc895ca8ad9933489aa8e155614dcf09acdb31407131b220b34",
+      "bytes": 9553,
+      "path": "round5/evidence/social-warm5-final/build.json.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/check-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/check-stderr.log.gz"
+    },
+    {
+      "sha256": "3bd2c0479633cfbf9e46dd703ff2a87a128b8f59f2f17ef382dbd709580d6bb0",
+      "bytes": 1009,
+      "path": "round5/evidence/social-warm5-final/check-stdout.log.gz"
+    },
+    {
+      "sha256": "ae55fba010db8f3a61559a24083892303b7448f387fc635d083af837b48b1a85",
+      "bytes": 2336,
+      "path": "round5/evidence/social-warm5-final/effective-config.mjs.gz"
+    },
+    {
+      "sha256": "a19d561d83d7ff406f00d4b0003566ec8d1830fe304ff6665258c7f77124c7cd",
+      "bytes": 5806,
+      "path": "round5/evidence/social-warm5-final/export-cache.mjs.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "94677aabbb9247b511e1418dde2a680a49715e58bd1090937f3b2d940b9fffc7",
+      "bytes": 96,
+      "path": "round5/evidence/social-warm5-final/export-developer.log.gz"
+    },
+    {
+      "sha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab",
+      "bytes": 27,
+      "path": "round5/evidence/social-warm5-final/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "faa16e16681ef159b277f0fcc883f5385e5dcb8a79bd4618bb5a575c85b3f333",
+      "bytes": 92,
+      "path": "round5/evidence/social-warm5-final/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb",
+      "bytes": 27,
+      "path": "round5/evidence/social-warm5-final/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "5134aa6510d3e5bc7e03dea98bcb028d1b8e3b8497b36bfbb9c63473a0bf6c6c",
+      "bytes": 107,
+      "path": "round5/evidence/social-warm5-final/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f",
+      "bytes": 25,
+      "path": "round5/evidence/social-warm5-final/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "9b0c841b33217a1be5795fd8dd8fc0a62d0dbe1f90acd9af1e9943fc3a60d144",
+      "bytes": 94,
+      "path": "round5/evidence/social-warm5-final/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "4e3f7dfa9251a9ac2e720d7ffb29c37a238b66e69366a4188798b0f9544bd941",
+      "bytes": 102,
+      "path": "round5/evidence/social-warm5-final/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "7471df41e55c50253bee278eea408e832b34ec6e5ea2c6593bae66d6d37e19e8",
+      "bytes": 97,
+      "path": "round5/evidence/social-warm5-final/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e",
+      "bytes": 52,
+      "path": "round5/evidence/social-warm5-final/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "52d454c0f129a786b397e7de088e5fab9f80b321881236c77ce66350efadf7e8",
+      "bytes": 76,
+      "path": "round5/evidence/social-warm5-final/finished.json.gz"
+    },
+    {
+      "sha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8",
+      "bytes": 157,
+      "path": "round5/evidence/social-warm5-final/install-check.mjs.gz"
+    },
+    {
+      "sha256": "e4ea024645d774674a369695793c1917027a3fb3e3d541d118a2ec165e5d494e",
+      "bytes": 4805,
+      "path": "round5/evidence/social-warm5-final/installed.json.gz"
+    },
+    {
+      "sha256": "42451c52a15d29bd8548abb600eb7096ee963c8fe0d3f6c980f4f87a1f11fc31",
+      "bytes": 485,
+      "path": "round5/evidence/social-warm5-final/live.json.gz"
+    },
+    {
+      "sha256": "69f78c2c7c0fab1f98b8a85e0c3a955056506fb08fc4a267c5cb1f85f5a0994a",
+      "bytes": 7847,
+      "path": "round5/evidence/social-warm5-final/native-closure.mjs.gz"
+    },
+    {
+      "sha256": "41c9621779a5d476fd6ea3d1aabe0dad3de8cd330f9775dfd3d0053a78118a29",
+      "bytes": 4494,
+      "path": "round5/evidence/social-warm5-final/native-inputs.mjs.gz"
+    },
+    {
+      "sha256": "a71e571a0282fdde244e7c152d40e5d96a942efa4fc33d4037d2070f18110204",
+      "bytes": 1033,
+      "path": "round5/evidence/social-warm5-final/native-mods.json.gz"
+    },
+    {
+      "sha256": "b1322c829a923ca99bdc2f3c295cc2ae2f881efd310d12c4279f6dced7b8a33d",
+      "bytes": 3807,
+      "path": "round5/evidence/social-warm5-final/native-scripts.mjs.gz"
+    },
+    {
+      "sha256": "94db9b14cf09ac1d614fc01464892e01f2ec6a5fdbd9a4e9886a1b5772e3b61f",
+      "bytes": 1709,
+      "path": "round5/evidence/social-warm5-final/payload.mjs.gz"
+    },
+    {
+      "sha256": "17e46505d4b0e3d0118394932de8ca41fb665a6688bf264d737a865375da8e19",
+      "bytes": 1034,
+      "path": "round5/evidence/social-warm5-final/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "cfe080a278c8f730f799760d23fb6232ed9e0b3336e616b8be2a2331d7e96ca0",
+      "bytes": 417,
+      "path": "round5/evidence/social-warm5-final/preparation-runner.mjs.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/preparation-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "4ea25dd1daaf77004d80118fe14257eaa319861bdba8a6dc327bc4e2a839aff4",
+      "bytes": 7103,
+      "path": "round5/evidence/social-warm5-final/prepare.mjs.gz"
+    },
+    {
+      "sha256": "b540976b9773685fd4412f8ed19316c5befb4aefe73980fb139fd695a85c1895",
+      "bytes": 12314,
+      "path": "round5/evidence/social-warm5-final/proof.json.gz"
+    },
+    {
+      "sha256": "8dc36e5ac8011ef97d909e34368136ef2e6e8a04043db280c13f90dce675a34d",
+      "bytes": 2120,
+      "path": "round5/evidence/social-warm5-final/publication.json.gz"
+    },
+    {
+      "sha256": "7164c8de64a42e87727ab8946adffe1ae1648dc3f8e04737be8f9eba8ebaa0fa",
+      "bytes": 44,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "67d68d6cadb0385c59f92e51889beb93c51e8269cb7077537e74e5ba30c5d9c6",
+      "bytes": 548,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "dad71ecdae4437e314bfc143ae2402d5a2c9004ac64c37c784f39ba0c3558592",
+      "bytes": 355394,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "a32ebe50c1a60beabbcde084cefefdd4521170153af02dc867bbb59033729c75",
+      "bytes": 61,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c",
+      "bytes": 63,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "8d450318d9505adc13d946bf69c2687822b68d5165309123e4e491ddf81da959",
+      "bytes": 48545,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-offline.png"
+    },
+    {
+      "sha256": "8d450318d9505adc13d946bf69c2687822b68d5165309123e4e491ddf81da959",
+      "bytes": 48545,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-prime.png"
+    },
+    {
+      "sha256": "da3a599a528c622a4e999ecc5947dac039f7c7ca7889e10ea47b7ea055ce30fd",
+      "bytes": 1312,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-reserved.gz"
+    },
+    {
+      "sha256": "8d450318d9505adc13d946bf69c2687822b68d5165309123e4e491ddf81da959",
+      "bytes": 48545,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-restart.png"
+    },
+    {
+      "sha256": "15ffe0e57b00de399e2bd7294baff7e458f228d2ecf26f94d13b4926a989fda0",
+      "bytes": 5227,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "eb2874963edf62476c00ecf52797c0c9217a45bbd511320d25b01c4395eb1c97",
+      "bytes": 5149331,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-screen.mp4"
+    },
+    {
+      "sha256": "375e9f3ae866f5d1a67507abfbd6dd33bd7859589e4659d3cd7e660ec0ee0bc4",
+      "bytes": 139,
+      "path": "round5/evidence/social-warm5-final/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/social-warm5-final/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/social-warm5-final/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2",
+      "bytes": 154,
+      "path": "round5/evidence/social-warm5-final/verify.mjs.gz"
+    }
+  ]
+}

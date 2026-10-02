@@ -81709,3 +81709,79 @@ bulk output remains, and the known unstarted legacy directory stays untouched.
 See reports/20261001-nx-export-proves-native/REPORT.md, Round 4. Independent round-4
 review is pending. Nothing pushed or externally published. The local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 5: signal status, publication rollback and recorded-process custody
+
+Addressed the round-4 Astra and Grok findings on the slim NX branch without
+merging main. The CLI shim now removes its forwarding handlers before re-raising
+a child's termination signal, with a 128+signal fallback if it survives. This
+exit-zero defect **predates the NX lane and ships to every CLI user**, not just
+native export users. Installed-shim regressions cover SIGINT, SIGTERM and SIGHUP
+on Darwin and Linux. Main's open ticket
+`issues/20261002-snapback4-cli-shim-signal-exit-zero.md` is absent from this branch;
+the report records its resolution for the operator to close at landing.
+
+The export wrapper requires a matching verified publication.json, including the
+proved inventory and proof hash; status zero or an allowed environment skip
+cannot replace that receipt. A durable publication intent precedes exchange.
+Post-check failure swaps back; publisher death before the verified commit leaves
+the previous tree recoverable, protected from wrapper finally and retention.
+The next publisher restores under destination and export leases, or reports an
+identity/custody conflict without deleting either tree. The verified receipt is
+the commit point; a later crash during old-tree reclaim may leave partial old
+reclamation, with the accepted new export already verified. Namespace switches
+remain atomic, not a snapshot across separate reader opens.
+
+Linux opens a pidfd, binds the birth check to that handle, and signals through
+it. Darwin verifies identity, stops, verifies the stopped identity, then kills;
+it never sends another signal after a mismatch. The initial check-to-STOP gap
+can stop an unrelated recycled PID; it cannot safely resume that process. An
+external actor can also kill/reap or resume/exit the stopped process between the
+second check and numeric KILL, permitting reuse. These residual windows are
+explicit in LLP 3000.030 section 15 and the report, not an absolute Darwin
+PID-reuse claim. Actual parents retain their child handles. A late audit added
+a group-leader birth recheck after collecting members and before any signal.
+
+Real wrapper/shim/Rust publisher controls use a test-only syscall interposer at
+both requested termination boundaries and for post-exchange mutation. Wrapper
+finally preserves the exact previous inventory; next-export rollback and
+retention-pressure controls pass. Zero-status missing/mismatched receipts also
+fail, including environment skips. Final affected checks: Darwin witness units
+26/26 and integration 53/53; Linux units 27/27 and integration 13/13; Darwin JS
+export/shim 19/19 and Linux installed-shim/publication 6/6. Earlier fixture-path,
+config-timeout and parallel-lease failures remain recorded; the unresolved
+parallel-lease observation has a filesystem ticket. No assertion was weakened.
+
+Five warm samples per starter retain the first requested pair: plain median
+**20.840 s**, social **29.128 s**. All ten are cache hits with all three native
+segments passed, distinct exact exports and matching publication/proof hashes.
+**Social misses the requested 25 s target**; most increase is in native execution,
+but no contemporaneous baseline establishes cause. The witness card now quotes
+these measurements; the report and a ticket preserve the timing miss. Initial
+audit-pinning misses and their successful rebuild attempts are retained, not
+called warm samples. The final measured runtime differs only by the later
+abandoned-group guard, which ordinary export execution does not enter.
+
+Ran scripts/test.sh exactly once. Its exact summary is
+`== 1 failure(s) in 2240 s`, group `client tests`: 5,764 passed, three failed,
+five skipped. All three are unchanged delivery-fault fixture assertions that
+no fault was injected (47 transient/persistent at local.ts:850, 48 transient at
+local.ts:855). A focused rerun reproduces 47 transient (7/8 overall). Source
+identity is established; baseline execution and root cause are not. The ticket
+keeps this open. All other groups pass, including final models 79/79 and guide
+110/110. Canonical Rust ran before the late group guard; the final affected
+Darwin/Linux reruns cover that delta separately, not a second full-suite claim.
+
+Wasm is unchanged: SHA-256
+c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c,
+2,014,420 B raw / 604,666 B canonical gzip under the unchanged 605,225 B cap.
+No engine/contract or wasm source changed. Large logs, dumps and recordings are
+hash-indexed in the external evidence archive; only summaries and small logs
+are added to git. The precommit audit counts all staged blobs against 15 MB,
+including the existing large JOURNAL and archive index. Deleted only this
+round's recorded simulator under both leases; mini-verify-iphone was untouched.
+Retention leaves five full runs per starter; the known legacy directory stays
+untouched. See reports/20261001-nx-export-proves-native/REPORT.md, Round 5.
+Nothing pushed or externally published. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

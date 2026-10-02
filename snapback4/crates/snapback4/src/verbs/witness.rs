@@ -7,6 +7,7 @@ mod acquire;
 mod simulator;
 mod ownership;
 mod recovery;
+mod recorded_process;
 mod publication;
 use protocol::*;
 use serde_json::{Value, json};

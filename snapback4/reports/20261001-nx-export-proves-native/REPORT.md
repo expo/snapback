@@ -1011,3 +1011,245 @@ Each archive write is read back and hash-checked. The final staged blob audit
 records the under-15-MB round budget and absence of new oversized/gzip/video blobs.
 LLP 3000.030 §15 and the witness guide describe the new custody and reader
 semantics; the journal is append-only. Nothing is pushed or published.
+
+## Round 5 — signal status, verified receipts and recoverable publication (2026-10-02)
+
+Continues only `sb4-np/nx-export-proves-native-slim` from `e1adc01ddc`.
+No merge from main, push or external publication. The named `mini-verify-iphone`
+was never selected, stopped, changed or deleted. Raw evidence follows the same
+content-addressed archive and `EVIDENCE-ARCHIVE.tsv` policy.
+
+### Review findings and resolution
+
+- **Astra P1, CLI signal status:** the packaged shim removes its own SIGINT,
+  SIGTERM and SIGHUP forwarding listeners before re-raising a child's termination
+  signal. A live timer exits 128+N if re-raising does not end the process; a
+  platform refusal takes the same numeric fallback. The installed-shim test
+  launches a real executable which dies from each signal and inspects the shim's
+  own signal/status. This bug **predates lane NX and affects every CLI command**,
+  not just export. Resolution for the operator's main-only ticket
+  `issues/20261002-snapback4-cli-shim-signal-exit-zero.md`: land this shim change
+  and its installed-shim regression, then close that ticket. This branch neither
+  imports nor closes the main-only ticket.
+- **Astra P1, wrapper publication proof:** success requires `publication.json`
+  with this run's source, target, proof SHA-256 and exact inventory, captured
+  before publisher launch and bound to the successful smoke receipt. Missing,
+  unreadable or mismatched publication receipts fail even when the publisher
+  returns zero. Environment-skip publication must also match a freshly captured
+  inventory (and null proof hash). Nothing about publication failure is skippable.
+- **Astra P2, recorded process identity:** Linux opens a pidfd, binds the birth
+  inspection to its fdinfo PID, checks the handle is still live after inspection,
+  and sends both termination and escalation through that handle. Missing pidfd
+  support refuses recovery instead of falling back to numeric PID signaling.
+  Actual parents retain their unreaped Rust/Node child handles. Darwin uses
+  verify → SIGSTOP → wait for matching stopped birth → SIGKILL, including
+  recovered app instances and preparation group members. A mismatch ends all
+  signaling. Tests inject mismatch at each observation, exercise a real wrong
+  birth and successful stop, and on Linux exercise wrong-handle identity and
+  original-process death/reaping after validation. Group recovery also rechecks
+  its leader after taking each member snapshot; a forced leader-exit regression
+  proves that loss revokes custody before any member signal. Forced PID-number recycling
+  itself was not reproduced.
+- **Grok P2, previous export:** durable intent in the run and destination records
+  directory identities before exchange. The destination lock covers exchange,
+  post-check, receipt creation and old-tree removal. A failed post-check rolls
+  back before returning. After attempting publication, the wrapper's `finally`
+  never deletes the possibly displaced private tree. A killed publisher's
+  pending marker protects that tree from recovery/pruning even under retention
+  pressure or a prematurely written completion marker. The next publisher
+  acquires the old run's lease and restores the old arrangement before proceeding;
+  a verified receipt instead permits completion of old-tree removal. Changed
+  inode identities or live wrapper custody refuse with an actionable diagnostic.
+- **Grok P3, witness card:** replaces round-2 numbers with the round-5 five-run
+  warm medians and explicitly marks social above 25 s; the last actual cold
+  measurements remain round 3. The existing 399-line guide cap remains unchanged.
+
+**Darwin residual, precisely:** exit, external reaping and PID reuse between the
+first identity check and SIGSTOP can stop an unrelated replacement. The stopped
+birth mismatch prevents our SIGKILL, but we cannot safely send that replacement
+SIGCONT. After a matching stopped-state check, another actor can kill and reap
+the process (or resume it so it exits), then reuse the PID before our numeric
+SIGKILL; that final signal can reach the replacement. Stopping prevents self-exit
+in that interval, not external interference. There is no absolute PID-reuse
+immunity claim on Darwin. Linux signals remain bound to the pidfd even if the
+original process exits after verification. See the primary
+[pidfd_open](https://man7.org/linux/man-pages/man2/pidfd_open.2.html) and
+[pidfd_send_signal](https://man7.org/linux/man-pages/man2/pidfd_send_signal.2.html)
+contracts; Darwin still uses the numeric
+[kill](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/kill.2.html)
+interface. LLP 3000.030 §15 records these limits.
+
+**Publication limits:** this is a process-crash recovery contract, not a power-loss
+or hostile-filesystem contract. A killed publisher can leave the new tree visible
+until the next publisher restores it; the previous tree remains intact at the
+recorded private path until verification commits its receipt. Once that receipt
+commits, old-tree reclamation is allowed; interruption during reclamation leaves
+a verified new export and recovery finishes reclamation. Readers still have the
+round-4 namespace guarantee, not
+a snapshot across separate opens. A successful later exporter may legitimately
+replace the restored export with its own verified generation.
+
+### Regression boundaries
+
+`export-failure.test.mjs` installs the actual package shim in a temporary consumer,
+uses the real export wrapper and Rust publisher, and mocks only Expo export and
+native smoke. A compiled test-only syscall interposer terminates the Rust
+publisher before the actual rename, or after the exchange but before post-check;
+a third case mutates the exchanged tree. No production fault-injection switch
+was added. The wrapper returns nonzero with a missing-publication diagnostic in
+all three cases, and its `finally` preserves the exact old inventory. The killed
+cases then apply retention pressure, recover in a second export, fail that
+second post-check and verify the original old inventory is restored, before a
+third export succeeds. Zero-status publishers with absent/mismatched receipts
+also fail, including the allowed native-environment-skip path; a valid skip
+publication succeeds. The existing concurrent-writer, descriptor inheritance, SIGKILL lease
+release and 10,001-file pruning controls remain in the affected tests.
+
+### Development attempts retained
+
+The first audit-pinning pass omitted the changed Expo package-tree digest.
+It therefore correctly fell back to conservative keys and rebuilt on JS edits:
+plain/social primers **807.214 / 195.059 s**, nominal warm attempts
+**119.877 / 155.308 s**, all cache misses and all successful proofs. These are
+not cold measurements or warm samples. The first primer overlapped severe
+shared-host contention. Added the missing audited digest without excluding any
+additional inputs; the final pass has distinct `*-final` filenames.
+
+An early fault-injection fixture used `/var` where macOS canonicalized the target
+to `/private/var`; corrected the fixture, then both boundary controls passed.
+One later prebuild-config test timed out under observed shared load; its isolated
+rerun passes without a code or deadline change. Linux setup encountered a missing
+C compiler on the first host and missing benchmark include files on the second;
+no test failures were reclassified as passes. See
+[development-failures.md](round5/development-failures.md) and its retained logs.
+
+### Final warm measurements and the unmet timing target
+
+The requested first samples passed at **22.256 s plain / 26.686 s social**.
+Because social exceeded 25 s, extended to five samples each, keeping the first
+samples in the same cohort. No failed/slower sample was discarded:
+
+| Starter | Five complete warm export times (s) | Median | Result |
+| --- | --- | ---: | --- |
+| Plain | 22.256, 19.838, 20.840, 20.405, 20.905 | **20.840 s** | below 25 s |
+| Social | 26.686, 29.128, 28.563, 30.380, 29.797 | **29.128 s** | **above 25 s** |
+
+All ten are cache hits, pass all three native segments, load five distinct exact
+exports per starter, and have matching publication/smoke proof hashes. Corrected
+primers were 130.845 / 155.981 s, with existing native/dependency caches, not cold
+measurements. The entire cohort uses the same corrected production binary and
+installed wrapper/shim. The guide timing text and a later abandoned-group
+leader recheck (outside ordinary export execution) were added afterward; their
+source delta and final affected checks are explicit below.
+
+The social native receipt spans 21.264–25.506 s; time outside that receipt is
+4.160–5.422 s. Round 4's single social sample split into 19.019 s native and
+3.925 s outside. This localizes most of the increase to native execution, but
+neither proves a code regression nor proves contention is the cause. There is
+no contemporaneous baseline control. **Round 5 does not claim the requested
+social timing qualification.** The prior medians remain historical evidence;
+no budget, proof check or deadline was weakened. Follow-up:
+[`20261002-snapback4-nx-round5-social-warm-timing.md`](../../../issues/20261002-snapback4-nx-round5-social-warm-timing.md).
+
+### Affected verification
+
+- Darwin witness units: initial parallel run **25/25**, later parallel run
+  **24/25** with the unchanged immediate lease-reacquisition test failing;
+  canonical serialized rerun **25/25**; final source with the added group-custody
+  regression passes **26/26**. No assertion/timeout was changed.
+  Root cause is not established; the possible fork/descriptor window and
+  follow-up are in
+  [`20261002-snapback4-witness-parallel-lease-test.md`](../../../issues/20261002-snapback4-witness-parallel-lease-test.md).
+- Darwin witness integration: **53/53**; the single canonical suite also passes
+  53/53 before the late group-custody guard; the final affected rerun also passes
+  **53/53** in 507.99 s. JS export/shim tests: **19/19** in the final affected
+  run, including missing/mismatched receipts on environment skips.
+- Linux (expo-build-450a / `expose-builder-nothing`): witness units initially **26/26**,
+  final source **27/27**; final integration **13/13** and installed-shim/publication
+  tests **6/6**. Native
+  iOS execution was not attempted on Linux. Source identities are recorded in
+  `linux-source.json` and `linux-source.sha256`; the final unit and integration
+  reruns include the late group-custody guard.
+- The witness card stays at **399 lines**. `ref-check` reports zero errors and
+  zero unchecked references. The affected LLP reconciliation updates the
+  publication commit point, interruption recovery, platform-specific process
+  identity and current timing claims; no unrelated corpus was rewritten.
+- Wasm remains SHA-256
+  `c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`,
+  **2,014,420 B raw / 604,666 B canonical gzip**, with the unchanged 605,225 B
+  cap. No engine/contract, wasm source, runtime ceiling or model count changed.
+
+**Final group-custody audit delta.** While the canonical suite was in its client
+phase, source audit found that a leader could disappear between its initial
+birth check and group-member collection. Added a second birth check after the
+snapshot and before any member signal, with a forced real leader exit at that
+boundary. The canonical Rust phase precedes this guard; the final Darwin/Linux
+witness unit and integration reruns cover it separately. Ordinary warm export
+execution does not enter abandoned-group recovery, so no new timing claim is
+inferred for that guard. The full suite was invoked once and is not represented
+as an exact-final-source Rust run. No second full-suite invocation was made.
+
+
+### One canonical suite, exact result and failure classification
+
+The one requested `scripts/test.sh` invocation exited 1 and reports exactly:
+
+```text
+== 1 failure(s) in 2240 s
+   client tests
+```
+
+The client pool contains **5,772 tests: 5,764 passed, three failed, five skipped,
+zero cancelled**. Each failure is the assertion at
+`packages/snapback4/test/delivery-fault-matrix.test.mjs:264`,
+“the classified await must actually experience an injected fault”, with
+`failures > 0` false:
+
+| Failing control | Classification |
+| --- | --- |
+| 47 transient: local.ts:850 follow | No injected fault observed; unchanged fixture coverage failure, cause unresolved. |
+| 47 persistent: local.ts:850 follow | No injected fault observed; unchanged fixture coverage failure, cause unresolved. |
+| 48 transient: local.ts:855 follow | No injected fault observed; unchanged fixture coverage failure, cause unresolved. |
+
+The fixture, instrumenter, recipes and relevant local client sources are byte
+identical to e1adc01ddc, and these are in-process client tests. This establishes
+that the failing source is unchanged; it does **not** establish a separately
+executed baseline failure or prove a cause. The focused rerun is **7 passed /
+one failed**, reproducing 47 transient; its other selected cases pass. The
+unanchored pattern also selected 147/148 in both modes and those four pass.
+Follow-up: [delivery fault injection ticket](../../../issues/20261002-snapback4-delivery-fault-follow-injection.md).
+
+Every other suite group passes: cargo build/test, wasm build, docs budget,
+release guard, package checks, chat checks, both app typechecks, fixture wrappers
+**9/9**, and final client models **79/79**. Rust inventory records 281 binaries
+and 994 executions; the CLI binary is **228 passed / four ignored**, guide
+**110/110**, witness integration **53/53**. The new installed-shim/export controls
+also pass in the canonical client pool. No assertion, deadline, budget, model
+count or skip rule was changed to clear these failures. The complete log is
+archived, with its exact bytes and digest in
+[full-suite-archive.json](round5/full-suite-archive.json); the small
+[summary](round5/full-suite-summary.log) and
+[failure classifications](round5/full-suite-failures.json) remain in git.
+
+### Evidence and remaining qualification limits
+
+The archive index includes every new raw recording, gzip dump and oversized
+log; the complete suite log is compressed there rather than committed. Each
+added archive reference is rehashed before commit: **2,201 references / 643
+distinct blobs** pass the final audit. Original small logs with trailing
+whitespace are archived before formatting that whitespace in the committed
+copy; see `small-log-formatting.json`. The staged blob audit includes the full
+existing JOURNAL and index and stays below 15 MB. Only this round's recorded
+simulator was deleted, after matching its creation record and taking both
+custody leases; **mini-verify-iphone was untouched**. Retention leaves 25 completed
+runs per starter (five full, 20 compressed), no per-run bulk output, and preserves
+the known unstarted legacy directory. Cleanup and archive summaries are under
+`round5/`.
+
+All review findings have corresponding changes and regressions. Qualification
+is **not all green**: the social warm median exceeds 25 s, the canonical client
+fixture group is red, and the earlier parallel lease test observation remains
+open. Their tickets retain the unresolved work without weakening checks. The
+platform and publication limits above remain explicit. No push, external
+publication or merge from main was performed. The operator can close main's
+CLI signal ticket using the resolution recorded above when this branch lands.

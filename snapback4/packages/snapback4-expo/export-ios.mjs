@@ -5,6 +5,36 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
+
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+function exportFiles(root, relative = '') {
+  return fs.readdirSync(path.join(root, relative)).sort().flatMap(name => {
+    const file = path.join(relative, name), full = path.join(root, file), stat = fs.lstatSync(full);
+    const row = { path: file, mode: stat.mode & 0o777 };
+    if (stat.isDirectory()) return [{ ...row, type: 'directory' }, ...exportFiles(root, file)];
+    if (!stat.isFile()) throw Error('export contains an unsupported file type');
+    const bytes = fs.readFileSync(full);
+    return [{ ...row, type: 'file', bytes: bytes.length, sha256: sha256(bytes) }];
+  });
+}
+function publicationExpectation(artifacts, source, skipped, smoke) {
+  if (skipped) return { proofSha256: null, files: exportFiles(source) };
+  const bytes = fs.readFileSync(path.join(artifacts, 'proof.json'));
+  const proofSha256 = sha256(bytes), files = JSON.parse(bytes).exported?.inventory?.files;
+  if (smoke?.exitStatus !== 0 || smoke?.proof?.sha256 !== proofSha256 || !Array.isArray(files)) throw Error('export proof does not match successful smoke receipt');
+  return { proofSha256, files };
+}
+export function verifyPublication(artifacts, source, target, expected) {
+  let receipt;
+  try { receipt = JSON.parse(fs.readFileSync(path.join(artifacts, 'publication.json'), 'utf8')); }
+  catch { throw Error('missing or unreadable verified publication.json'); }
+  if (receipt.source !== source || receipt.target !== target || !Number.isFinite(receipt.verifiedAt) ||
+      receipt.proofSha256 !== expected.proofSha256 || !isDeepStrictEqual(receipt.files, expected.files)) {
+    throw Error('publication.json does not match the export proved by this run');
+  }
+}
 
 export function skipReason(platform, env) {
   if (env.SNAPBACK4_NATIVE_SMOKE === 'off') return 'SNAPBACK4_NATIVE_SMOKE=off';
@@ -70,6 +100,7 @@ export async function main() {
   const receiptPath = path.join(artifacts, 'smoke-ios-run.json');
   fs.mkdirSync(artifacts, { recursive: true });
   const lease = acquireExportLease(artifacts);
+  let publicationAttempted = false;
   try {
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
     if (exported.status !== 0) return exported.status;
@@ -78,13 +109,20 @@ export async function main() {
     try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
     const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);
     if (outcome.status === 0) {
+      const expected = publicationExpectation(artifacts, privateExport, result.status !== 0, receipt);
+      publicationAttempted = true;
       const published = await runChild('snapback4', ['witness', 'export-publish', privateExport, path.resolve('dist'), ...(result.status === 0 ? [] : ['--environment-skip'])], { stdio: ['inherit', 'inherit', 'inherit', lease] });
-      if (published.status !== 0) { outcome.status = published.status; outcome.message = 'export output publication failed'; }
+      try {
+        verifyPublication(artifacts, privateExport, path.resolve('dist'), expected);
+        if (published.status !== 0) throw Error(`publisher exited with status ${published.status}`);
+      } catch (error) { outcome.status = published.status || 1; outcome.message = `export output publication failed: ${error.message}`; }
     }
     console.log(`${outcome.message}; receipt: ${receiptPath}`);
     return outcome.status;
   } finally {
-    try { fs.rmSync(privateExport, { recursive: true, force: true }); }
+    // After a publication attempt this path may be the displaced last good
+    // export. Only the publisher, under its destination lock, may remove it.
+    try { if (!publicationAttempted) fs.rmSync(privateExport, { recursive: true, force: true }); }
     finally { fs.closeSync(lease); retainEvidence(root, artifacts); }
   }
 }

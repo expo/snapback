@@ -1,0 +1,43 @@
+✔ installed CLI shim preserves each forwarded child termination signal (2410.338125ms)
+✔ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (152663.444292ms)
+✔ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (24758.226417ms)
+✖ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (128447.662875ms)
+native smoke evidence cleanup deferred: spawnSync /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-prune-r2-HrPqeG/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (457.586791ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (22077.716917ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.433708ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (320.776667ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (48.109042ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (560.808459ms)
+✔ negative header topology follows SDK root aliases (5.831125ms)
+✔ config file references bind excluded source bytes and refuse external paths (1649.344625ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (350.992125ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (589.898125ms)
+✔ react-native.config.mjs refuses through the real static preparation adapter (77.968541ms)
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (4851.313834ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (905.009709ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (867.646041ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (1101.878208ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 155580.872458
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-native-round2.test.mjs:60:1
+✖ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (128447.662875ms)
+  Error: E_WITNESS_NATIVE_COMPAT: cannot evaluate effective Expo prebuild config; use installed-app mode
+      at fail (file:///Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4/src/verbs/witness/payload.mjs:8:48)
+      at nativeFingerprint (file:///Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4/src/verbs/witness/export-cache.mjs:21:49)
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/export-native-round2.test.mjs:71:58)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)

@@ -1,0 +1,36 @@
+
+> snapback4-expo-starter@0.0.1 export:ios
+> snapback4-export-ios
+
+Starting Metro Bundler
+
+| (node:9799) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 2277ms index.js (725 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-88e0175e16ab978080b879c2a97d23c1.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790974942138-9792/export
+witness: using simulator sb4-nx-r5-1790973981888-89960 (69B7AC93-86E1-400D-B4AD-5576DB1C8C5E), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+native-cache miss: input changed: src/Inbox.tsx; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off.
+witness: backend-ready
+witness: recording-started
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: waiting-offline-done
+witness: offline-done
+witness: smoke-sync-barrier
+witness: backend-ready
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+native smoke passed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790974942138-9792/smoke-ios-run.json

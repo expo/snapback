@@ -70,20 +70,82 @@ fn exchange(source: &Path, target: &Path) -> Result<()> {
     Err(error("E_WITNESS_ARTIFACT", std::io::Error::last_os_error()))
 }
 
-fn publish(source: &Path, target: &Path, expected: &Value, after_exchange: impl FnOnce()) -> Result<()> {
-    // Serializes publishers through verification and displaced-tree removal.
+// Durable intent precedes the namespace switch. Both the run marker (retention)
+// and destination marker (next publisher) survive abrupt process termination.
+fn inode(path: &Path) -> Result<Value> {
+    match fs::symlink_metadata(path) {
+        Ok(meta) if meta.is_dir() => Ok(json!([meta.dev(), meta.ino()])),
+        Ok(_) => Err(error("E_WITNESS_ARTIFACT", "publication path is not a directory")),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Value::Null),
+        Err(e) => Err(error("E_WITNESS_ARTIFACT", e)),
+    }
+}
+fn save(path: &Path, value: &Value) -> Result<()> {
+    let temp = path.with_extension("json.tmp");
+    let mut file = File::create(&temp).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    file.write_all(&serde_json::to_vec(value).unwrap()).and_then(|_| file.sync_all()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    fs::rename(temp, path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    File::open(path.parent().unwrap()).and_then(|f| f.sync_all()).map_err(|e| error("E_WITNESS_ARTIFACT", e))
+}
+fn rollback(pending: &Value, source: &Path, target: &Path) -> Result<()> {
+    let at_source = inode(source)?; let at_target = inode(target)?;
+    if at_source == pending["new"] && at_target == pending["old"] { return Ok(()); }
+    if at_target == pending["new"] && at_source == pending["old"] {
+        return exchange(target, source);
+    }
+    Err(error("E_WITNESS_ARTIFACT", format!("interrupted publication identity changed; preserve {} and {} for recovery", source.display(), target.display())))
+}
+fn clear_pending(marker: &Path, source: &Path) -> Result<()> {
+    // Clear the destination first: a leftover run marker is conservative and
+    // prevents pruning; the reverse order could strand a pointer to a pruned run.
+    recovery::remove(marker)?;
+    recovery::remove(&source.parent().unwrap().join("publication-pending.json"))
+}
+fn recover_pending(marker: &Path, target: &Path) -> Result<()> {
+    if !marker.exists() { return Ok(()); }
+    let pending: Value = serde_json::from_slice(&fs::read(marker).map_err(|e| error("E_WITNESS_ARTIFACT", e))?).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    let source = Path::new(pending["source"].as_str().ok_or_else(|| error("E_WITNESS_ARTIFACT", "invalid interrupted publication source"))?);
+    if pending["target"].as_str() != target.to_str() || pending["new"].is_null() { return Err(error("E_WITNESS_ARTIFACT", "interrupted publication targets differ; manual recovery required")); }
+    let dir = source.parent().ok_or_else(|| error("E_WITNESS_ARTIFACT", "invalid interrupted publication directory"))?;
+    let _custody = preparation::lease(&dir.join("export.lock")).map_err(|_| error("E_WITNESS_PROCESS", format!("interrupted publication still has wrapper custody; preserved {}", source.display())))?;
+    let receipt: Value = fs::read(dir.join("publication.json")).ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or(Value::Null);
+    if receipt["transaction"] == pending && inode(target)? == pending["new"] {
+        recovery::remove(source)?;
+    } else {
+        rollback(&pending, source, target)?;
+        eprintln!("witness: restored previous export after interrupted publication at {}", source.display());
+    }
+    clear_pending(marker, source)
+}
+fn publish(source: &Path, target: &Path, expected: &Value, proof_hash: &Value, after_exchange: impl FnOnce()) -> Result<()> {
+    // Serializes recovery, publication, receipt and displaced-tree removal.
     // Never unlink this lock: waiters must share the same inode.
     let lock_path = target.parent().ok_or_else(|| error("E_WITNESS_INPUT", "missing export parent"))?.join("artifacts/native-smoke/publication.lock");
     fs::create_dir_all(lock_path.parent().unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false)
-        .open(lock_path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        .open(&lock_path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     lock.lock().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    let marker = lock_path.with_file_name("publication-pending.json");
+    recover_pending(&marker, target)?;
     verify(source, expected)?;
-    exchange(source, target)?;
-    after_exchange();
-    verify(target, expected)?;
+    let dir = source.parent().unwrap();
+    let pending = json!({ "source": source, "target": target, "new": inode(source)?, "old": inode(target)? });
+    recovery::remove(&dir.join("publication.json"))?;
+    save(&dir.join("publication-pending.json"), &pending)?;
+    save(&marker, &pending)?;
+    let result = (|| {
+        exchange(source, target)?;
+        after_exchange();
+        verify(target, expected)?;
+        save(&dir.join("publication.json"), &json!({ "verifiedAt": now(), "source": source, "target": target, "proofSha256": proof_hash, "files": expected, "transaction": pending }))
+    })();
+    if let Err(e) = result {
+        rollback(&pending, source, target)?;
+        clear_pending(&marker, source)?;
+        return Err(e);
+    }
     recovery::remove(source)?;
-    Ok(())
+    clear_pending(&marker, source)
 }
 pub(super) fn command(args: &[String]) -> i32 {
     status((|| {
@@ -106,8 +168,7 @@ pub(super) fn command(args: &[String]) -> i32 {
             if receipt["exitStatus"] != 0 || receipt["proof"]["sha256"] != hash { return Err(error("E_WITNESS_PROOF", "export proof differs from the successful smoke receipt")); }
             (proof["exported"]["inventory"]["files"].clone(), hash)
         };
-        publish(source, target, &expected, || {})?;
-        fs::write(dir.join("publication.json"), serde_json::to_vec_pretty(&json!({ "verifiedAt": now(), "target": target, "proofSha256": proof_hash, "files": expected })).unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        publish(source, target, &expected, &proof_hash, || {})?;
         Ok(())
     })())
 }
@@ -137,7 +198,7 @@ mod tests {
         let _lease = preparation::lease(&dir.join("export.lock")).unwrap();
         let journal = fs::read(dir.join("live.json")).unwrap();
         recovery::cleanup(&root.join("runs"), None).unwrap();
-        publish(&source, &root.join("dist"), &expected, || {
+        publish(&source, &root.join("dist"), &expected, &Value::Null, || {
             recovery::cleanup(&root.join("runs"), None).unwrap();
             assert_eq!(fs::read(dir.join("live.json")).unwrap(), journal);
             assert!(!dir.join("finished.json").exists());
@@ -160,9 +221,9 @@ mod tests {
                     _ => fs::write(where_.join("extra"), "added").unwrap(),
                 };
                 if phase == "before" { tamper(&source); }
-                let result = publish(&source, &root.join("dist"), &expected, || { if phase == "after" { tamper(&root.join("dist")); } });
+                let result = publish(&source, &root.join("dist"), &expected, &Value::Null, || { if phase == "after" { tamper(&root.join("dist")); } });
                 assert!(result.unwrap_err().starts_with("E_WITNESS_PROOF:"));
-                if phase == "before" { assert!(root.join("dist/old").exists()); }
+                assert_eq!(fs::read_to_string(root.join("dist/old")).unwrap(), "old export");
                 fs::remove_dir_all(root).unwrap();
             }
         }
@@ -180,7 +241,7 @@ mod tests {
         fs::write(dir.join("live.json"), serde_json::to_vec(&record).unwrap()).unwrap();
         let expected: Value = serde_json::from_slice(&fs::read(dir.join("expected.json")).unwrap()).unwrap();
         fs::write(dir.join("ready"), "ready").unwrap();
-        publish(&source, &root.join("dist"), &expected, || {
+        publish(&source, &root.join("dist"), &expected, &Value::Null, || {
             fs::write(dir.join("exchanged"), "exchanged").unwrap();
             if label == "1-123" { loop { sleep(Duration::from_secs(1)); } }
         }).unwrap();
@@ -213,8 +274,10 @@ mod tests {
         recovery::cleanup(&root.join("runs"), Some(&dir)).unwrap();
         await_file(&survivor.join("verified"));
         assert!(live.0.wait().unwrap().success());
+        recovery::cleanup(&root.join("runs"), Some(&dir)).unwrap();
         assert!(dir.join("finished.json").exists());
-        assert!(!source.exists());
+        assert!(!dir.join("publication-pending.json").exists());
+        let _ = source;
         let expected: Value = serde_json::from_slice(&fs::read(survivor.join("expected.json")).unwrap()).unwrap();
         verify(&root.join("dist"), &expected).unwrap();
         assert_eq!(fs::read_dir(root.join("dist")).unwrap().count(), 1);

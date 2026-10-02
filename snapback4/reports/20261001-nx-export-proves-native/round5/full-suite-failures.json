@@ -1,0 +1,36 @@
+{
+  "exactSummary": "== 1 failure(s) in 2240 s",
+  "failedGroup": "client tests",
+  "failures": [
+    {
+      "case": "47 transient: local.ts:850 follow",
+      "file": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:264",
+      "assertion": "the classified await must actually experience an injected fault",
+      "actual": "failures > 0 was false",
+      "classification": "Untriggered fault-injection coverage assertion in unchanged in-process client fixtures; cause unresolved. Source equality is established, a baseline execution is not.",
+      "followup": "issues/20261002-snapback4-delivery-fault-follow-injection.md"
+    },
+    {
+      "case": "47 persistent: local.ts:850 follow",
+      "file": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:264",
+      "assertion": "the classified await must actually experience an injected fault",
+      "actual": "failures > 0 was false",
+      "classification": "Untriggered fault-injection coverage assertion in unchanged in-process client fixtures; cause unresolved. Source equality is established, a baseline execution is not.",
+      "followup": "issues/20261002-snapback4-delivery-fault-follow-injection.md"
+    },
+    {
+      "case": "48 transient: local.ts:855 follow",
+      "file": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:264",
+      "assertion": "the classified await must actually experience an injected fault",
+      "actual": "failures > 0 was false",
+      "classification": "Untriggered fault-injection coverage assertion in unchanged in-process client fixtures; cause unresolved. Source equality is established, a baseline execution is not.",
+      "followup": "issues/20261002-snapback4-delivery-fault-follow-injection.md"
+    }
+  ],
+  "focusedRecheck": {
+    "pass": 7,
+    "fail": 1,
+    "failedCase": "47 transient: local.ts:850 follow",
+    "unanchoredPatternAlsoRan": "147 and 148 transient/persistent; all four passed"
+  }
+}
