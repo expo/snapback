@@ -82679,3 +82679,62 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+## 2026-10-03 — UB: advise on shape reads that outgrow the meter
+
+Calibration #29's inbox was accepted at check and refused only at full scale.
+Before changing the compiler, reproduced the silent check and the inclusive
+follow's E_SHAPE_EXCEEDS_METER with 9,000 messages, both for an inline unread
+count and the remaining unreadIn helper. The reduced schema and engine witness
+are now compiler regressions.
+
+Add N_SHAPE_METER, advisory rather than static refusal, under LLP 3000.007 §24.
+It identifies the query shape field, source and lowered read site, including
+transitive helpers, and points to maintained counts/views, bounded previews or
+separate queries. Fitting declared table/group caps, pinned total unique keys,
+maintained scalar lookups, ordinary bounded pages and indexed extrema stay
+clean. Residual filters can inspect unbounded rejected candidates despite a
+page limit. Plain unbounded nested collections retain E_QUARRY_BOUND. The note
+is not a whole-shape cost certificate and changes no runtime admission or IR.
+
+Update the why registry and pages, reads/views guidance and defining/recovery
+facts. Repair the jobs guide's own raw unread shape by sharing the inbox and a
+separate unreadTotal query with the digest; retain exact totals and atomic
+emission. Update the corresponding job witnesses and the search-repair test's
+expectation for valid residual-filter meter advice.
+
+Sweep all 606 repository Quarry files (including 75 calibration source modules)
+and calibration #29's two-module schema: nine justified notes in five groups,
+zero new refusals or changed exits. 201 groups already refuse under the baseline
+and are recorded as such. The maintained inbox remains clean. Final affected
+checks pass: 110 guide, seven shape-meter, 18 job-viewer, 84 Quarry check, 242
+CLI unit, 40 expiry-write and 27 fix tests. Wasm is unchanged byte-for-byte:
+2,030,224 B raw / 610,085 B gzip against the unchanged 610,782 B budget.
+
+The requested root inventory check fails in unchanged Snapback 1 inputs:
+unregistered caps.test.mjs, stale/missing generated artifacts and authoring
+profile baselines, and the capabilities page size budget. Snapback 4's diagnostic
+registry checks pass. Shared target artifacts were replaced by concurrent lanes;
+pinned CLI copies and a separate artifact fingerprint within the required shared
+target make the final focused checks attributable to this source. All commands,
+reproduction, complete diagnostic census and failure classifications are in
+`~/sb5-lanes/ub.report.md` with logs in `~/sb5-lanes/ub-evidence/`.
+
+The single complete suite reports exactly `== 2 failure(s) in 1758 s`, exit 1:
+`cargo test` and `client tests`. Rust has ten failed targets: 25 private-store
+assertions rejected this lane's initial ignored target symlink; two job-viewer
+and two search-repair assertions needed the expectation updates above; two
+CLI/guide comparisons and four current-executable child launches suffered shared
+artifact replacement; one simulator target exited without output, with cause
+unproven. Final focused reruns cover all failures and pass. Replacing the target
+symlink with a real local directory also left the event-slot trace in its old
+location; regenerating it restored all 48 affected client cases. The other 36
+client failures could not find witness-acquire's JavaScript helper outside the
+shared executable's ancestors; its existing helper-path override restored all
+43 witness tests. No assertion was weakened to accommodate those environment
+failures. Full-run clients: 5,700 passed, 38 failed, ten skipped; all 79 models
+passed. The whole suite was not rerun; its red result remains explicit.
+
+Reference audit: `ref-check: ok — 525 LLP docs, 10104 refs in 32454 files, 0 errors, 0 unchecked`.
+One local commit with the requested GPT-6 Astra co-author trailer; nothing
+pushed or published.

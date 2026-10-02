@@ -38,6 +38,7 @@ impl Binder<'_> {
         }
         let (source, item, domain) = if let Some(read) = domain {
             let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+            self.shape_meter_note(&scan, &read);
             (Expr::Scan(scan), Ty::Row(read.table), true)
         } else {
             let (source, ty) = self.expr(&args[0], out)?;
@@ -108,6 +109,11 @@ impl Binder<'_> {
                     if range.gt.is_none() && range.gte.is_none() { range.gt = Some(Box::new(Expr::Literal(Value::Null))); }
                 }
             }
+            // The runtime seeks the first qualifying ordered value. Price that
+            // candidate limit for advice only; the aggregate IR keeps its domain.
+            let mut advice = scan.clone();
+            if scan.orders_field(self.schema, field) { advice.take = Bound::Literal(1); }
+            self.shape_meter_note(&advice, &read);
             (Expr::Scan(scan), Ty::Row(read.table), true)
         } else {
             let (source, ty) = self.expr(&args[0], out)?;

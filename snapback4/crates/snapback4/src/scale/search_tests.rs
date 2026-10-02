@@ -180,7 +180,13 @@ fn builtin_repairs_use_quarry_spellings_on_the_originating_schema() {
         assert!(notes.iter().any(|n|n.code=="N_SEARCH_OPEN"),"{predicate}: {notes:?}");
         for note in notes {
             assert!(note.rewrite.contains("last 3 by .sent"),"{note:?}");
-            let fixed=compile(&format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {}\n",note.rewrite));
+            let source = format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {}\n", note.rewrite);
+            let fixed = snapback4_lang::compile(&[("schema.q".into(), source)]);
+            assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
+            // The rewrite preserves the residual on each hits preview. A page
+            // bounds matches, so candidate work still deserves meter advice.
+            if predicate == "count(.body) > 3" { assert!(!fixed.notes.is_empty()); }
+            assert!(fixed.notes.iter().all(|n| n.code == "N_SHAPE_METER" && n.message.contains("rejected candidates")), "{:?}", fixed.notes);
             assert!(classify(&fixed.schema,&fixed.programs[0].program).is_empty(),"{note:?}");
         }
     }

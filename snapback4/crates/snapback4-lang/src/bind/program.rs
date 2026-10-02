@@ -19,6 +19,7 @@ mod flow;
 mod conditional;
 mod joins;
 mod returned_shapes;
+mod shape_meter;
 mod diagnostics;
 mod constraints;
 mod expr;
@@ -104,6 +105,7 @@ pub struct Binder<'a> {
     /// Only direct scanned-row columns get false-on-null ordering in where.
     in_predicate: bool,
     returned_data: bool,
+    shape_field: Option<(String, Site)>,
     variants: Vec<(String, bool)>,
     temps: u32,
     sites: u32,
@@ -151,7 +153,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -499,6 +501,7 @@ impl<'a> Binder<'a> {
             }
         }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
+        if position != prefix::Position::Aggregate { self.shape_meter_note(&scan, read); }
         Ok((scan, range.take))
     }
 
@@ -899,9 +902,12 @@ impl<'a> Binder<'a> {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
                         add(self, name.clone(), e, t, setup::Body::default(), out);
                     }
-                    ShapeField::Field { name, value, .. } => {
+                    ShapeField::Field { name, value, site } => {
                         let mut setup = setup::Body::default();
-                        let (e, t) = self.expr(value, &mut setup)?;
+                        let prior = self.shape_field.replace((name.clone(), site.clone()));
+                        let result = self.expr(value, &mut setup);
+                        self.shape_field = prior;
+                        let (e, t) = result?;
                         add(self, name.clone(), e, t, setup, out);
                     }
                 }

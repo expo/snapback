@@ -57,8 +57,9 @@ job observe(r: conversations, periodStart: time, periodEnd: time):
     as p.principal:
       for m in all(room(r, null)):
         rows = rows + [m]
-      for m in all(unreadPreview(periodStart, periodEnd, null)):
-        totals = totals + [m]
+      for m in all(inbox(null)):
+        n = unreadTotal(m.conversationId, m.readOrdinal, periodStart, periodEnd).data
+        totals = totals + [{ conversationId: m.conversationId, unread: n }]
     emit push { principal: p.principal, rows, totals, authorityRestored: viewer }
 "#;
     let people = ["dev:alice", "user:bob", "guest:carol", "service:reader", "user:none", "user:removed"];
@@ -85,7 +86,14 @@ job observe(r: conversations, periodStart: time, periodEnd: time):
         let mut expected = BTreeMap::new();
         for p in people {
             let rows = drain(&mut e, "room", p, BTreeMap::from([("r".into(), id("r0"))]), 200);
-            let totals = drain(&mut e, "unreadPreview", p, args(100, 200), 200);
+            let totals = drain(&mut e, "inbox", p, BTreeMap::new(), 200).into_iter().map(|m| {
+                let mut input = args(100, 200);
+                input.insert("conversationId".into(), m.field("conversationId").unwrap().clone());
+                input.insert("readOrdinal".into(), m.field("readOrdinal").unwrap().clone());
+                let total = e.query("unreadTotal", Context::new(p, input).at(200)).unwrap();
+                assert!(total.complete);
+                object([("conversationId", m.field("conversationId").unwrap().clone()), ("unread", total.data)])
+            }).collect::<Vec<_>>();
             if p == "user:none" || p == "user:removed" { assert!(rows.is_empty() && totals.is_empty()); }
             for row in &rows {
                 let visible = row.as_object().unwrap().contains_key("secret");
@@ -285,7 +293,10 @@ query unreadPreview(start: time, end: time, c: cursor ?):
 
 #[test]
 fn all_refuses_a_cursor_argument_that_does_not_continue_the_returned_page() {
-    let source = source().replace("first 20 by .conversationId after c { conversationId, unread:", "first 20 by .conversationId { conversationId, unread:");
+    let source = source();
+    let page = "first 20 by .conversationId after c { conversationId, readOrdinal }";
+    assert!(source.contains(page));
+    let source = source.replace(page, "first 20 by .conversationId { conversationId, readOrdinal }");
     let b = compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.iter().any(|d| d.code == "E_JOB_VIEWER_QUERY" && d.message.contains("owns the returned page")), "{:?}", b.diagnostics);
 }

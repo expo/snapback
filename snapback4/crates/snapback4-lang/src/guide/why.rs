@@ -56,6 +56,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "NOT_FOUND" => include_str!("why/NOT_FOUND.md"),
         "E_SEARCH_OPEN" | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_SEARCH_WORDS" | "N_SEARCH_SHAPE" => include_str!("why/SEARCH.md"),
         "N_NEVER_COMPLETE" => include_str!("why/N_NEVER_COMPLETE.md"),
+        "N_SHAPE_METER" => include_str!("why/N_SHAPE_METER.md"),
         "N_NO_CURSOR" => include_str!("why/N_NO_CURSOR.md"),
         "N_OPTIONAL_FILTER_LIMIT" => include_str!("why/N_OPTIONAL_FILTER_LIMIT.md"),
         "N_HELD_UNKNOWN" => include_str!("why/N_HELD_UNKNOWN.md"),
