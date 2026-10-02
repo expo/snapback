@@ -75,7 +75,13 @@ and partition events apply, the meter counts, and so the ordinary query and
 a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic
 parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of
 fuel per chunk (about 90,000 per host call) is the step ceiling, so the row
-ceilings bind first. Native reads get 200,000,000 fuel units. Each instance
+ceilings usually bind first. A native invocation is indivisible: the server's
+250 µs contended / 2 ms quiet cooperative slice cannot preempt it. Return
+`Next::Again` frequently to keep requests responsive. The host admits at most
+one invocation per slice, meters its fuel and host operations, and paces the
+next slice by its consumed thread CPU time (wall time if sampling fails);
+this is not a wall-clock deadline.
+Native reads get 200,000,000 fuel units. Each instance
 bounds its memory and table within the existing heap allowance; bridge buffers,
 answers and logs also have byte bounds. A queued native job binds the exact wasm
 bytes: changing or removing the module parks it with E_JOB_GENERATION before

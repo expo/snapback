@@ -268,3 +268,25 @@ fn clock_maintenance_retry_open_is_wait_not_engine() {
     assert!(lock(&host.shared.readers).source.is_some(), "retry must restore the factory");
     assert_open_wait(&reply, 1);
 }
+
+#[test]
+fn maintenance_coordination_gate_does_not_claim_engine_ownership() {
+    let host = Host::new(true);
+    let request = tiny_http::TestRequest::new().with_method(Method::Post)
+        .with_path("/dev/clock/advance").into();
+    let sample = latency::Sample::with_headers(&request, &host.shared.latency, true).unwrap();
+    let mut reply = String::new();
+    sample.run(|| {
+        {
+            let _maintenance = lock(&host.shared.maintenance);
+            // Between engine slices a synchronous advance can do filesystem
+            // work. That interval belongs only to total, never engine or wait.
+            thread::sleep(OPEN_DELAY);
+        }
+        reply = format!("{}\r\n\r\n", latency::header().unwrap());
+        latency::finished(false);
+    });
+    let sample = timing(&reply).unwrap();
+    assert!(sample["total"] - sample["engine"] - sample["wait"] >= OPEN_DELAY.as_secs_f64() * 1000.0 * 0.9,
+        "coordination was mislabeled engine ownership: {sample:?}");
+}

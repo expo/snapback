@@ -1,0 +1,50 @@
+2026-10-02T03:57:51Z mixed-demoted-0
+2026-10-02T04:00:06Z mixed-demoted-0 exit=0
+2026-10-02T04:00:06Z mixed-ordinary-0
+2026-10-02T04:02:22Z mixed-ordinary-0 exit=0
+2026-10-02T04:02:22Z mixed-split-0
+2026-10-02T04:04:37Z mixed-split-0 exit=0
+2026-10-02T04:04:37Z mixed-ordinary-0.5
+2026-10-02T04:06:54Z mixed-ordinary-0.5 exit=0
+2026-10-02T04:06:54Z mixed-split-0.5
+2026-10-02T04:09:11Z mixed-split-0.5 exit=0
+2026-10-02T04:09:11Z mixed-demoted-0.5
+2026-10-02T04:11:27Z mixed-demoted-0.5 exit=0
+2026-10-02T04:11:27Z mixed-split-1
+2026-10-02T04:13:46Z mixed-split-1 exit=0
+2026-10-02T04:13:46Z mixed-demoted-1
+2026-10-02T04:16:06Z mixed-demoted-1 exit=0
+2026-10-02T04:16:06Z mixed-ordinary-1
+2026-10-02T04:18:25Z mixed-ordinary-1 exit=0
+2026-10-02T04:18:25Z mixed-ordinary-1.5
+2026-10-02T04:20:55Z mixed-ordinary-1.5 exit=0
+2026-10-02T04:20:55Z mixed-demoted-1.5
+2026-10-02T04:23:23Z mixed-demoted-1.5 exit=0
+2026-10-02T04:23:23Z mixed-split-1.5
+2026-10-02T04:25:46Z mixed-split-1.5 exit=0
+2026-10-02T04:25:46Z mixed-following-split
+2026-10-02T04:42:33Z mixed-following-split exit=0
+2026-10-02T04:42:33Z drain-demoted-0-1
+2026-10-02T04:43:10Z drain-demoted-0-1 exit=0
+2026-10-02T04:43:10Z drain-ordinary-0-1
+2026-10-02T04:43:49Z drain-ordinary-0-1 exit=0
+2026-10-02T04:43:49Z drain-split-0-1
+2026-10-02T04:44:29Z drain-split-0-1 exit=0
+2026-10-02T04:44:29Z drain-split-96-1
+2026-10-02T04:46:43Z drain-split-96-1 exit=0
+2026-10-02T04:46:43Z drain-ordinary-96-1
+2026-10-02T04:48:22Z drain-ordinary-96-1 exit=0
+2026-10-02T04:48:22Z drain-demoted-96-1
+2026-10-02T04:52:55Z drain-demoted-96-1 exit=0
+2026-10-02T04:52:55Z drain-split-0-2
+2026-10-02T04:53:40Z drain-split-0-2 exit=0
+2026-10-02T04:53:40Z drain-ordinary-0-2
+2026-10-02T04:54:23Z drain-ordinary-0-2 exit=0
+2026-10-02T04:54:23Z drain-demoted-0-2
+2026-10-02T04:55:06Z drain-demoted-0-2 exit=0
+2026-10-02T04:55:06Z drain-demoted-96-2
+2026-10-02T04:58:22Z drain-demoted-96-2 exit=0
+2026-10-02T04:58:22Z drain-ordinary-96-2
+2026-10-02T05:00:13Z drain-ordinary-96-2 exit=0
+2026-10-02T05:00:13Z drain-split-96-2
+2026-10-02T05:03:14Z drain-split-96-2 exit=0

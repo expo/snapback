@@ -56,6 +56,8 @@ impl RefusalCounters {
 
 #[derive(Clone, Debug)]
 pub struct ConnectionLimits {
+    /// Optional host scheduling policy for accept and connection parser threads.
+    pub thread_start: Option<fn()>,
     pub max_connections: usize,
     pub idle_timeout: Duration,
     pub header_timeout: Duration,
@@ -67,6 +69,7 @@ pub struct ConnectionLimits {
 impl Default for ConnectionLimits {
     fn default() -> Self {
         Self {
+            thread_start: None,
             max_connections: 128,
             idle_timeout: Duration::from_secs(5),
             header_timeout: Duration::from_secs(5),

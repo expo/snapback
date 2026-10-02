@@ -14,6 +14,7 @@ mod dev_worker;
 mod dev_replay;
 mod dev_clock;
 mod lifecycle;
+mod thread_priority;
 mod verbs;
 mod timeline_cost;
 mod column_cost;
@@ -55,6 +56,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   --version";
 
 fn main() -> ExitCode {
+    snapback4_core::diagnostics::set_thread_start(thread_priority::background);
     // Keep this first: lifecycle tests distinguish a pre-main process-launch
     // stall from a server that reached its own bounded readiness window.
     if std::env::var_os("SNAPBACK4_TEST_MAIN_REACHED").is_some() {

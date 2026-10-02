@@ -1,0 +1,6 @@
+{
+  "atUnixMs": 1790927227750,
+  "pending": 307,
+  "elapsedMs": 5.976433865725994,
+  "scope": "one supplemental read-only check during final 144-process mixed drain; not part of latency samples"
+}

@@ -108,6 +108,8 @@ impl Runner<'_> {
         let mut total = 0;
         let mut last = None;
         for mut bounds in [Bounds {lte:Some(Value::Null),..Default::default()},Bounds {gt:Some(Value::Int(self.context.now.unwrap_or(0))),..Default::default()}] {
+            #[cfg(feature = "sqlite")]
+            if last.is_some() && self.recount_budget.is_some_and(|(at, budget)| at.elapsed() >= budget) { return Ok((total, false, last)); }
             bounds.after = after.clone();
             let before = self.meter.used.examined;
             let (n,complete,next) = self.view_scan(m,member,None,&index,bounds,remaining,true)?;

@@ -1,0 +1,8 @@
+{
+  "raw": 2015329,
+  "gzip": 605001,
+  "budget": 605225,
+  "headroom": 224,
+  "source": "qualification/test-sh.log and final GNU gzip -9 -c on packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "sha256": "1af9d7fe60bae0062df11d2f7e35e547530a5d93f2e04eb2b6b198921ebbea43"
+}

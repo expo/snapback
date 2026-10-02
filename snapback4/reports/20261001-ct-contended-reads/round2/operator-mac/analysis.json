@@ -1,0 +1,50 @@
+{
+  "sourcePostAt": "2026-10-02T01:22:20.579000+00:00",
+  "deliveryAt": "2026-10-02T01:42:31.093000+00:00",
+  "postToDeliveryMs": 1210514,
+  "lastApplicationMutationAt": "2026-10-02T01:24:23.867000+00:00",
+  "lastMutationToDeliveryMs": 1087226,
+  "firstMismatchAt": "2026-10-02T01:42:31.130Z",
+  "bothComplete": true,
+  "bothFresh": true,
+  "remainingWork": [
+    {
+      "state": "done",
+      "n": 9453
+    },
+    {
+      "state": "pending",
+      "n": 15175
+    }
+  ],
+  "deliveryIntervals": [
+    {
+      "firstSecond": 1790904070,
+      "lastSecond": 1790904070,
+      "commits": 33,
+      "first": "2026-10-02T01:21:10+00:00",
+      "last": "2026-10-02T01:21:10+00:00"
+    },
+    {
+      "firstSecond": 1790904097,
+      "lastSecond": 1790904277,
+      "commits": 23570,
+      "first": "2026-10-02T01:21:37+00:00",
+      "last": "2026-10-02T01:24:37+00:00"
+    },
+    {
+      "firstSecond": 1790904841,
+      "lastSecond": 1790904867,
+      "commits": 5304,
+      "first": "2026-10-02T01:34:01+00:00",
+      "last": "2026-10-02T01:34:27+00:00"
+    },
+    {
+      "firstSecond": 1790905348,
+      "lastSecond": 1790905351,
+      "commits": 834,
+      "first": "2026-10-02T01:42:28+00:00",
+      "last": "2026-10-02T01:42:31+00:00"
+    }
+  ]
+}

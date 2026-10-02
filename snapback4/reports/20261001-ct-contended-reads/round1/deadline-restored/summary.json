@@ -1,0 +1,62 @@
+[
+  {
+    "level": 0,
+    "busy": 0,
+    "reads": 2976,
+    "id": "effect-0000000000000002-0000000000000000",
+    "state": "failed",
+    "at": 1790903146822,
+    "deadline": 1790903147822,
+    "settled_at": 1790903148131,
+    "error_code": "E_EFFECT_DEADLINE",
+    "claimAt": 1790903146825,
+    "observed": 1790903148150,
+    "delay": 328,
+    "clockAdvanced": false
+  },
+  {
+    "level": 0.5,
+    "busy": 48,
+    "reads": 3839,
+    "id": "effect-0000000000000002-0000000000000000",
+    "state": "failed",
+    "at": 1790903151597,
+    "deadline": 1790903152597,
+    "settled_at": 1790903152903,
+    "error_code": "E_EFFECT_DEADLINE",
+    "claimAt": 1790903151600,
+    "observed": 1790903152905,
+    "delay": 308,
+    "clockAdvanced": false
+  },
+  {
+    "level": 1,
+    "busy": 96,
+    "reads": 2315,
+    "id": "effect-0000000000000002-0000000000000000",
+    "state": "failed",
+    "at": 1790903158545,
+    "deadline": 1790903159545,
+    "settled_at": 1790903159864,
+    "error_code": "E_EFFECT_DEADLINE",
+    "claimAt": 1790903158556,
+    "observed": 1790903159888,
+    "delay": 343,
+    "clockAdvanced": false
+  },
+  {
+    "level": 1.5,
+    "busy": 144,
+    "reads": 873,
+    "id": "effect-0000000000000002-0000000000000000",
+    "state": "failed",
+    "at": 1790903169173,
+    "deadline": 1790903170173,
+    "settled_at": 1790903170225,
+    "error_code": "E_EFFECT_DEADLINE",
+    "claimAt": 1790903169177,
+    "observed": 1790903170242,
+    "delay": 69,
+    "clockAdvanced": false
+  }
+]

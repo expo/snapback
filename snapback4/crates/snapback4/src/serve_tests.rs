@@ -40,9 +40,9 @@ fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_mete
     }
 }
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
-struct Host {
+pub(super) struct Host {
     server: Arc<Server>,
-    shared: Arc<Shared>,
+    pub(super) shared: Arc<Shared>,
     admission: Arc<RequestAdmission>,
     worker: Option<JoinHandle<()>>,
     address: SocketAddr,
@@ -52,7 +52,7 @@ impl Host {
         Self::with_store(dev, snapback4_core::Store::memory().unwrap(), SCHEMA)
     }
 
-    fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
+    pub(super) fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
         Self::with_store_on(dev, store, source, "127.0.0.1")
     }
     fn with_store_on(dev: bool, store: snapback4_core::Store, source: &str, bind: &str) -> Self {
@@ -752,6 +752,7 @@ fn an_effect_claim_rechecks_service_session_after_waiting() {
 
 fn quick_limits() -> tiny_http::ConnectionLimits {
     tiny_http::ConnectionLimits {
+        thread_start: None,
         max_connections: 2,
         idle_timeout: Duration::from_millis(150),
         header_timeout: Duration::from_millis(300),

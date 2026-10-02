@@ -1,0 +1,72 @@
+[
+  {
+    "variant": "split",
+    "tid": 1274447,
+    "name": "maintenance",
+    "priority": 120,
+    "nice": 0
+  },
+  {
+    "variant": "split",
+    "tid": 1274448,
+    "name": "bulk-maintenanc",
+    "priority": 125,
+    "nice": 5
+  },
+  {
+    "variant": "split",
+    "tid": 1274452,
+    "name": "worker",
+    "priority": 125,
+    "nice": 5
+  },
+  {
+    "variant": "split",
+    "tid": 1274457,
+    "name": "worker",
+    "priority": 125,
+    "nice": 5
+  },
+  {
+    "variant": "split",
+    "tid": 1274458,
+    "name": "worker",
+    "priority": 125,
+    "nice": 5
+  },
+  {
+    "variant": "paced",
+    "tid": 1317590,
+    "name": "maintenance",
+    "priority": 120,
+    "nice": 0
+  },
+  {
+    "variant": "paced",
+    "tid": 1317591,
+    "name": "bulk-maintenanc",
+    "priority": 120,
+    "nice": 0
+  },
+  {
+    "variant": "paced",
+    "tid": 1317595,
+    "name": "worker",
+    "priority": 120,
+    "nice": 0
+  },
+  {
+    "variant": "paced",
+    "tid": 1317600,
+    "name": "worker",
+    "priority": 125,
+    "nice": 5
+  },
+  {
+    "variant": "paced",
+    "tid": 1317601,
+    "name": "worker",
+    "priority": 125,
+    "nice": 5
+  }
+]

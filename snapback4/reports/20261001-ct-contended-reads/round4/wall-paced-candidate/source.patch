@@ -1,0 +1,759 @@
+diff --git a/snapback4/crates/snapback4-core/src/engine/job.rs b/snapback4/crates/snapback4-core/src/engine/job.rs
+index d72653dd03..cce009ec76 100644
+--- a/snapback4/crates/snapback4-core/src/engine/job.rs
++++ b/snapback4/crates/snapback4-core/src/engine/job.rs
+@@ -233,6 +233,12 @@ impl Engine {
+ 
+     /// Yield between complete Quarry iterations. A native call remains one
+     /// fuel- and meter-bounded atomic invocation, as does one Quarry iteration.
++    /// The guest ABI only yields on `again`: at most one native invocation is
++    /// admitted per slice, with 2,000,000,000 fuel, 1,000,000 host steps, 16,384
++    /// examined rows and 8,192 writes (Ceilings::job). It cannot be suspended
++    /// across a commit without losing its transaction. The duration is therefore
++    /// cooperative, not a wall-clock bound on a native call or one row/commit.
++    /// The host charges the full overrun to its between-slice pacing pause.
+     pub fn run_job_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<JobRun>, RuntimeError> {
+         let started = std::time::Instant::now();
+         let presence = self.presence.clone();
+diff --git a/snapback4/crates/snapback4-core/src/engine/row_views.rs b/snapback4/crates/snapback4-core/src/engine/row_views.rs
+index 11d6c77aca..6f5210ae9f 100644
+--- a/snapback4/crates/snapback4-core/src/engine/row_views.rs
++++ b/snapback4/crates/snapback4-core/src/engine/row_views.rs
+@@ -306,6 +306,10 @@ impl Runner<'_> {
+             let mut total = 0i64;
+             let mut last = None;
+             for _ in 0..limit {
++                // @ref LLP 3000#contended-read-serving — commit the durable
++                // recount cursor between complete rows, including filtered rows.
++                #[cfg(feature = "sqlite")]
++                if last.is_some() && self.recount_budget.is_some_and(|(at, budget)| at.elapsed() >= budget) { break; }
+                 self.meter.charge(MeterKind::Examined, 1)?;
+                 let mark = self.meter.mark();
+                 let next = (|| {
+@@ -839,7 +843,8 @@ impl super::Engine {
+     }
+ 
+     /// Background callers yield the engine between bounded durable chunks.
+-    pub fn run_view_chunk_for(&mut self, now: i64, _budget: std::time::Duration) -> Result<Option<ViewChunk>, RuntimeError> {
++    pub fn run_view_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<ViewChunk>, RuntimeError> {
++        let started = std::time::Instant::now();
+         use crate::{
+             Ceilings, Context,
+             meter::{Cut, Meter},
+@@ -877,6 +882,7 @@ impl super::Engine {
+                     Meter::new(Ceilings::job(), Cut::Abort),
+                     seq,
+                 );
++                runner.recount_budget = Some((started, budget));
+                 if let Err(error) = runner.recount_chunk(&m, &work) {
+                     if !matches!(
+                         error,
+diff --git a/snapback4/crates/snapback4-core/src/engine/row_views/live.rs b/snapback4/crates/snapback4-core/src/engine/row_views/live.rs
+index 7410c72ce7..84ee731a9b 100644
+--- a/snapback4/crates/snapback4-core/src/engine/row_views/live.rs
++++ b/snapback4/crates/snapback4-core/src/engine/row_views/live.rs
+@@ -108,6 +108,8 @@ impl Runner<'_> {
+         let mut total = 0;
+         let mut last = None;
+         for mut bounds in [Bounds {lte:Some(Value::Null),..Default::default()},Bounds {gt:Some(Value::Int(self.context.now.unwrap_or(0))),..Default::default()}] {
++            #[cfg(feature = "sqlite")]
++            if last.is_some() && self.recount_budget.is_some_and(|(at, budget)| at.elapsed() >= budget) { return Ok((total, false, last)); }
+             bounds.after = after.clone();
+             let before = self.meter.used.examined;
+             let (n,complete,next) = self.view_scan(m,member,None,&index,bounds,remaining,true)?;
+diff --git a/snapback4/crates/snapback4-core/src/engine/runner.rs b/snapback4/crates/snapback4-core/src/engine/runner.rs
+index b817d35c74..75bb54b9d9 100644
+--- a/snapback4/crates/snapback4-core/src/engine/runner.rs
++++ b/snapback4/crates/snapback4-core/src/engine/runner.rs
+@@ -180,6 +180,8 @@ pub struct Runner<'a> {
+     #[cfg(feature = "sqlite")]
+     pub(super) rebuilt_source_rows: u64,
+     #[cfg(feature = "sqlite")]
++    pub(super) recount_budget: Option<(std::time::Instant, std::time::Duration)>,
++    #[cfg(feature = "sqlite")]
+     pub(crate) import_targets: Option<&'a BTreeMap<(String, String), Value>>,
+     /// The device touched an online-only table or a horizon: `complete: false`.
+     pub(crate) beyond_horizon: bool,
+@@ -313,6 +315,8 @@ impl<'a> Runner<'a> {
+             #[cfg(feature = "sqlite")]
+             rebuilt_source_rows: 0,
+             #[cfg(feature = "sqlite")]
++            recount_budget: None,
++            #[cfg(feature = "sqlite")]
+             import_targets: None,
+             beyond_horizon: false,
+             missing_fact: None,
+diff --git a/snapback4/crates/snapback4-lang/src/guide/native.rs b/snapback4/crates/snapback4-lang/src/guide/native.rs
+index f8e207a61d..aaec4fff36 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/native.rs
++++ b/snapback4/crates/snapback4-lang/src/guide/native.rs
+@@ -75,7 +75,12 @@ and partition events apply, the meter counts, and so the ordinary query and
+ a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic
+ parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of
+ fuel per chunk (about 90,000 per host call) is the step ceiling, so the row
+-ceilings bind first. Native reads get 200,000,000 fuel units. Each instance
++ceilings usually bind first. A native invocation is indivisible: the server's
++250 µs contended / 2 ms quiet cooperative slice cannot preempt it. Return
++`Next::Again` frequently to keep requests responsive. The host admits at most
++one invocation per slice, meters its fuel and host operations, and paces the
++next slice using the elapsed time; this is not a wall-clock deadline.
++Native reads get 200,000,000 fuel units. Each instance
+ bounds its memory and table within the existing heap allowance; bridge buffers,
+ answers and logs also have byte bounds. A queued native job binds the exact wasm
+ bytes: changing or removing the module parks it with E_JOB_GENERATION before
+diff --git a/snapback4/crates/snapback4-lang/tests/guide/definitions.rs b/snapback4/crates/snapback4-lang/tests/guide/definitions.rs
+index 196009bfed..6dadd1c4fa 100644
+--- a/snapback4/crates/snapback4-lang/tests/guide/definitions.rs
++++ b/snapback4/crates/snapback4-lang/tests/guide/definitions.rs
+@@ -221,7 +221,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
+     ("E_NATIVE", "E_NATIVE means a native declaration or loaded module cannot perform the requested operation."),
+     ("E_NATIVE_BUILD", "E_NATIVE_BUILD means the native crate could not be built or its generated files could not be written or loaded."),
+     ("E_NATIVE_TOOLCHAIN", "E_NATIVE_TOOLCHAIN means the native build cannot find Cargo or the `wasm32-unknown-unknown` target."),
+-    ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings bind first."),
++    ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings usually bind first."),
+     ("E_NOT_PREDICTABLE", "`mutation name(args) predicts:` asserts this eligibility: `check` refuses `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with the reason and rewrite."),
+     ("E_OFFLINE", "Offline it returns its last server answer, held in memory for this client's lifetime, with fresh: false and since. Without one it refuses E_OFFLINE (family link, retryable)."),
+     ("E_HTTP_LIMIT", "E_HTTP_LIMIT warns below 1024"),
+diff --git a/snapback4/crates/snapback4-lang/tests/row_keyed_views.rs b/snapback4/crates/snapback4-lang/tests/row_keyed_views.rs
+index d2b3544888..0729a9728d 100644
+--- a/snapback4/crates/snapback4-lang/tests/row_keyed_views.rs
++++ b/snapback4/crates/snapback4-lang/tests/row_keyed_views.rs
+@@ -1135,3 +1135,27 @@ fn sequence_field_authority_and_row_view_share_one_runtime() {
+     let ordinals=e.store().rows("messages").unwrap().into_iter().map(|r|r.field("ordinal").unwrap().as_int().unwrap()).collect::<Vec<_>>();
+     assert_eq!(ordinals,[1,2]);
+ }
++
++// @ref LLP 3000#contended-read-serving — zero budget still commits one row,
++// then resumes its durable cursor rather than doing all 256 candidates.
++#[test]
++fn recount_time_slice_resumes_after_each_row_including_expiring_sources() {
++    use std::time::Duration;
++    for expiring in [false, true] {
++        let source = if expiring { SOURCE.to_owned() } else { SOURCE.replace("  expire at .until\n", "") };
++        let b = bound(&source);
++        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
++        for n in 0..1200 { send(&mut engine, &format!("m{n:05}"), 5, "bob", Value::Null); }
++        join(&mut engine, "a", "alice", 0, 0);
++        let initial = engine.store().rows("$recount:unread").unwrap();
++        assert_eq!(initial.len(), 1);
++        let before = initial[0].field("total").unwrap().as_int().unwrap();
++        assert!(engine.run_view_chunk_for(1, Duration::ZERO).unwrap().is_some());
++        let work = engine.store().rows("$recount:unread").unwrap();
++        assert_eq!(work.len(), 1);
++        assert_eq!(work[0].field("total").unwrap().as_int().unwrap(), before + 1);
++        assert_ne!(work[0].field("cursor").unwrap(), initial[0].field("cursor").unwrap());
++        while engine.run_view_chunk_for(1, Duration::from_micros(250)).unwrap().is_some() {}
++        count(&mut engine, "a", 1200);
++    }
++}
+diff --git a/snapback4/crates/snapback4-sim/tests/native.rs b/snapback4/crates/snapback4-sim/tests/native.rs
+index 97b3a55298..f384c4763c 100644
+--- a/snapback4/crates/snapback4-sim/tests/native.rs
++++ b/snapback4/crates/snapback4-sim/tests/native.rs
+@@ -146,7 +146,7 @@ fn a_native_job_resumes_by_the_state_it_returns() {
+     let job = engine.enqueue_job("rescore", BTreeMap::new(), NOW).unwrap();
+     // A page of 100 per chunk: two full pages return `again` with the page's
+     // position, the third (50 rows) returns `done`.
+-    let first = engine.run_job_chunk(NOW + 1).unwrap().unwrap();
++    let first = engine.run_job_chunk_for(NOW + 1, std::time::Duration::ZERO).unwrap().unwrap();
+     assert_eq!((first.state, first.chunks, first.rows_written), (JobState::Running, 1, 100));
+     let second = engine.run_job_chunk(NOW + 2).unwrap().unwrap();
+     assert_eq!((second.state, second.chunks, second.rows_written), (JobState::Running, 2, 200));
+diff --git a/snapback4/crates/snapback4/src/dev_worker.rs b/snapback4/crates/snapback4/src/dev_worker.rs
+index f6d8d76ade..4b26b7238a 100644
+--- a/snapback4/crates/snapback4/src/dev_worker.rs
++++ b/snapback4/crates/snapback4/src/dev_worker.rs
+@@ -340,7 +340,7 @@ impl DevWorker {
+                 use std::io::BufRead;
+                 let mut stdout = std::io::BufReader::new(child.stdout.take().expect("piped stdout"));
+                 let mut pid = String::new();
+-                self.worker_pid = stdout.read_line(&mut pid).ok().and_then(|_| pid.trim().parse().ok());
++                self.worker_pid = stdout.read_line(&mut pid).ok().and_then(|_| crate::thread_priority::worker_started(&pid));
+                 environment::pipe(stdout, redact.clone(), self.name.as_deref().unwrap_or("worker").to_owned());
+                 environment::pipe(child.stderr.take().expect("piped stderr"), redact, self.name.as_deref().unwrap_or("worker").to_owned());
+                 snapback4_core::diagnostic!("snapback4 worker: {} (pid {})", self.source.display(), self.worker_pid.unwrap_or(0)); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running");
+diff --git a/snapback4/crates/snapback4/src/lifecycle.rs b/snapback4/crates/snapback4/src/lifecycle.rs
+index 58532a25a3..1b25bfec1a 100644
+--- a/snapback4/crates/snapback4/src/lifecycle.rs
++++ b/snapback4/crates/snapback4/src/lifecycle.rs
+@@ -145,8 +145,7 @@ pub(crate) fn run(verb: &str, body: impl FnOnce() -> Result<(), String>) -> i32
+ 
+ pub(crate) fn background(name: &'static str, body: impl FnOnce() + Send + 'static) -> Result<std::thread::JoinHandle<()>, String> {
+     std::thread::Builder::new().name(name.into()).spawn(move || {
+-        if name == "maintenance" { crate::thread_priority::maintenance(); }
+-        else { crate::thread_priority::background(); }
++        crate::thread_priority::maintenance();
+         struct Exit(&'static str);
+         impl Drop for Exit {
+             fn drop(&mut self) {
+diff --git a/snapback4/crates/snapback4/src/serve_lock.rs b/snapback4/crates/snapback4/src/serve_lock.rs
+index 2818dde923..1bef51045f 100644
+--- a/snapback4/crates/snapback4/src/serve_lock.rs
++++ b/snapback4/crates/snapback4/src/serve_lock.rs
+@@ -21,6 +21,8 @@ pub struct FairMutex<T, C: Clock = SystemClock> {
+     queue: Mutex<Queue>,
+     available: Condvar,
+     value: Mutex<T>,
++    #[cfg(test)]
++    background_pause: Mutex<Option<(bool, std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>>,
+ }
+ 
+ impl<T> FairMutex<T> {
+@@ -37,7 +39,7 @@ impl<T> FairMutex<T> {
+ }
+ impl<T, C: Clock> FairMutex<T, C> {
+     fn with_clock(value: T, clock: C) -> Self {
+-        Self { clock, engine_timing: true, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
++        Self { clock, engine_timing: true, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value), #[cfg(test)] background_pause: Mutex::new(None) }
+     }
+     fn background_wait(&self, queue: &Queue, started: Instant) -> Option<Duration> {
+         // An existing queue is sustained contention: join its tail now.
+@@ -56,7 +58,14 @@ impl<T, C: Clock> FairMutex<T, C> {
+     /// maintenance takes a ticket even under continuous traffic; later arrivals
+     /// cannot starve it. No engine lock is held during the deferral.
+     pub fn background(&self) -> FairGuard<'_, T, C> {
+-        recover(self.admit(true), || self.clear_poison())
++        #[cfg(test)]
++        let pause = self.background_pause.lock().unwrap().take();
++        #[cfg(test)]
++        if let Some((false, entered, resume)) = &pause { entered.send(()).unwrap(); resume.recv().unwrap(); }
++        let guard = recover(self.admit(true), || self.clear_poison());
++        #[cfg(test)]
++        if let Some((true, entered, resume)) = pause { entered.send(()).unwrap(); resume.recv().unwrap(); }
++        guard
+     }
+     fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T, C>> {
+         let trace_start = super::trace::begin();
+@@ -86,8 +95,19 @@ impl<T, C: Clock> FairMutex<T, C> {
+             Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended, _timing: timing })),
+         }
+     }
++    pub fn has_waiters(&self) -> bool {
++        let queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
++        queue.next.wrapping_sub(queue.serving) > 1
++    }
+     pub fn clear_poison(&self) { self.value.clear_poison(); }
+     #[cfg(test)]
++    pub(super) fn pause_next_background(&self, holding: bool) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
++        let (entered, observed) = std::sync::mpsc::channel();
++        let (release, resume) = std::sync::mpsc::channel();
++        *self.background_pause.lock().unwrap() = Some((holding, entered, resume));
++        (observed, release)
++    }
++    #[cfg(test)]
+     pub(super) fn waiting(&self) -> u64 {
+         let queue = self.queue.lock().unwrap();
+         queue.next.wrapping_sub(queue.serving).saturating_sub(1)
+diff --git a/snapback4/crates/snapback4/src/serve_maintenance.rs b/snapback4/crates/snapback4/src/serve_maintenance.rs
+index ab74b32135..bc29dbc3db 100644
+--- a/snapback4/crates/snapback4/src/serve_maintenance.rs
++++ b/snapback4/crates/snapback4/src/serve_maintenance.rs
+@@ -11,10 +11,27 @@ struct Work { delivery_chunks: usize, expired: u64, schedules: usize, chunks: us
+ const WORK_TIME: Duration = Duration::from_millis(2);
+ const CONTENDED_TIME: Duration = Duration::from_micros(250);
+ 
++// Detached readers do not take engine tickets. Sample OS load as well as the
++// round-3 engine contention signal; cache the syscall for 100 ms. Load includes
++// other tenants and trails short bursts, so this is a pacing hint, not admission.
++fn host_contended() -> bool {
++    use std::sync::{Mutex, OnceLock};
++    static SAMPLE: Mutex<(Option<Instant>, bool)> = Mutex::new((None, false));
++    static CPUS: OnceLock<usize> = OnceLock::new();
++    let mut sample = lock(&SAMPLE);
++    if sample.0.is_none_or(|at| at.elapsed() >= Duration::from_millis(100)) {
++        let mut load = 0.0;
++        let cpus = *CPUS.get_or_init(|| std::thread::available_parallelism().map_or(1, |n| n.get()));
++        sample.1 = unsafe { libc::getloadavg(&mut load, 1) } == 1 && load >= cpus as f64;
++        sample.0 = Some(Instant::now());
++    }
++    sample.1
++}
++
+ fn engine_work<T>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> T) -> T {
+     let mut engine = shared.engine.background();
+     lock(&shared.readers).retry_missing(&engine);
+-    let budget = if engine.contended() { CONTENDED_TIME } else { WORK_TIME };
++    let budget = if engine.contended() || host_contended() { CONTENDED_TIME } else { WORK_TIME };
+     let result = run(&mut engine, budget);
+     // Publish from this guard: a second ordinary admission would both delay
+     // notification and mistake maintenance for a newly arrived request.
+@@ -102,67 +119,92 @@ fn delivery(shared: &Shared, drain: bool) -> Result<usize, RuntimeError> {
+     Ok(chunks)
+ }
+ 
+-// @ref LLP 3000#contended-read-serving — one aged bulk slice gets ordinary
+-// priority without trying to undo Linux nice. The shared cursor also prevents
+-// a busy delivery queue from starving recounts or jobs.
++// @ref LLP 3000#contended-read-serving — ordinary-priority bulk work yields
++// outside every shared lock. Aged service protects finite backlogs from traffic.
+ const BULK_AGE: Duration = Duration::from_secs(1);
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ enum BulkKind { Delivery, Recount, Job }
+-pub(super) struct State { next: BulkKind, serviced: Instant }
++pub(super) struct State {
++    next: BulkKind,
++    serviced: Instant,
++    resume_at: Instant,
++    advancing: bool,
++    // Separate clock callers may wait here; maintenance never takes this lock.
++    advance: Arc<std::sync::Mutex<()>>,
++}
+ impl Default for State {
+-    fn default() -> Self { Self { next: BulkKind::Delivery, serviced: Instant::now() } }
++    fn default() -> Self {
++        let now = Instant::now();
++        Self { next: BulkKind::Delivery, serviced: now, resume_at: now,
++            advancing: false, advance: Arc::new(std::sync::Mutex::new(())) }
++    }
+ }
+ impl State {
+     fn aged(&self, now: Instant) -> bool { now.saturating_duration_since(self.serviced) >= BULK_AGE }
+-    fn completed(&mut self, now: Instant) {
++    fn eligible(&self, now: Instant, aged_only: bool) -> bool {
++        !self.advancing && if aged_only { self.aged(now) } else { now >= self.resume_at }
++    }
++    fn completed(&mut self, now: Instant, elapsed: Duration, contended: bool) {
+         self.next = match self.next { BulkKind::Delivery => BulkKind::Recount, BulkKind::Recount => BulkKind::Job, BulkKind::Job => BulkKind::Delivery };
+         self.serviced = now;
++        // Target 1/8 duty under contention, charging actual slice time including
++        // atomic overruns. Cap the pause at 100 ms; aged service is independent.
++        let pause = if contended { (elapsed * 7).clamp(Duration::from_millis(1), Duration::from_millis(100)) } else { Duration::ZERO };
++        self.resume_at = now + pause;
+     }
+ }
+ 
+-// Exactly one engine slice, under the same FIFO maintenance gate as clock
+-// advancement. Both threads advance this cursor, including on an empty/error
+-// slice. No bulk phase can monopolize another phase's turn.
+-fn bulk_slice(shared: &Shared, state: &mut State) -> bool {
+-    let result = match state.next {
+-        BulkKind::Delivery => engine_work(shared, |engine, budget| engine.run_timeline_chunk_for(shared.now(), budget)).map(|r| r.is_some()),
+-        BulkKind::Recount => engine_work(shared, |engine, budget| engine.run_view_chunk_for(shared.now(), budget)).map(|r| r.is_some()),
+-        BulkKind::Job => {
+-            let (run, logs) = engine_work(shared, |engine, budget| {
++// Admission owns no maintenance gate. Once admitted, the engine serializes the
++// cursor's read -> chunk commit -> advance; the gate only protects small state
++// accesses. Ordinary work never waits for a bulk thread to enter the engine.
++fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
++    if !lock(&shared.maintenance).eligible(Instant::now(), aged_only) { return false; }
++    engine_work(shared, |engine, budget| {
++        let kind = {
++            let state = lock(&shared.maintenance);
++            if !state.eligible(Instant::now(), aged_only) { return false; }
++            state.next
++        };
++        let started = Instant::now();
++        let result = match kind {
++            BulkKind::Delivery => engine.run_timeline_chunk_for(shared.now(), budget).map(|r| r.is_some()),
++            BulkKind::Recount => engine.run_view_chunk_for(shared.now(), budget).map(|r| r.is_some()),
++            BulkKind::Job => {
+                 let run = engine.run_job_chunk_for(shared.now(), budget);
+-                (run, engine.take_native_logs())
+-            });
+-            for line in logs { snapback4_core::diagnostic!("snapback4: native {line}"); }
+-            run.map(|run| {
+-            if let Some(run) = &run {
+-                match run.state {
+-                    snapback4_core::JobState::Done => snapback4_core::diagnostic!("snapback4: job {} done: {} chunks, {} rows written", run.name, run.chunks, run.rows_written),
+-                    snapback4_core::JobState::Parked => {
+-                        if shared.personas { shared.refusals.job(run); }
+-                        snapback4_core::diagnostic!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or(""));
++                for line in engine.take_native_logs() { snapback4_core::diagnostic!("snapback4: native {line}"); }
++                run.map(|run| {
++                    if let Some(run) = &run {
++                        match run.state {
++                            snapback4_core::JobState::Done => snapback4_core::diagnostic!("snapback4: job {} done: {} chunks, {} rows written", run.name, run.chunks, run.rows_written),
++                            snapback4_core::JobState::Parked => {
++                                if shared.personas { shared.refusals.job(run); }
++                                snapback4_core::diagnostic!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or(""));
++                            }
++                            _ => {}
++                        }
+                     }
+-                    _ => {}
+-                }
++                    run.is_some()
++                })
+             }
+-                run.is_some()
+-            })
+-        }
+-    };
+-    state.completed(Instant::now());
+-    phase(shared, result, false, "bulk maintenance").unwrap_or(false)
++        };
++        lock(&shared.maintenance).completed(Instant::now(), started.elapsed(), budget == CONTENDED_TIME || shared.engine.has_waiters());
++        phase(shared, result, false, "bulk maintenance").unwrap_or(false)
++    })
+ }
+ 
+-fn timely_engine_work<T>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> T) -> T {
+-    let mut state = lock(&shared.maintenance);
+-    let result = engine_work(shared, run);
+-    if state.aged(Instant::now()) { bulk_slice(shared, &mut state); }
++fn timely_engine_work<T: Default>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
++    let result = engine_work(shared, |engine, budget| {
++        if lock(&shared.maintenance).advancing { return Ok(T::default()); }
++        run(engine, budget)
++    });
++    promote_aged(shared, Instant::now());
+     result
+ }
+ 
+ fn timely(shared: &Shared, tick: u64) -> Result<(), RuntimeError> {
+     phase(shared, timely_engine_work(shared, |engine, budget| engine.sweep_expired_for(shared.now(), 2_000, budget)), false, "the expiry sweep")?;
+     if !shared.hold_schedules {
+-        let count = timely_engine_work(shared, |engine, _| engine.schema().schedules.len());
++        let count = timely_engine_work(shared, |engine, _| Ok(engine.schema().schedules.len()))?;
+         for index in 0..count {
+             // One atomic boundary per admission, never the entire schedule set.
+             // Adoption between slices is harmless: the next tick visits its set.
+@@ -185,10 +227,15 @@ fn timely(shared: &Shared, tick: u64) -> Result<(), RuntimeError> {
+     }
+     if tick % 60 == 0 {
+         phase(shared, (|| {
+-            let mut sweep = timely_engine_work(shared, |engine, budget| engine.prepare_asset_sweep_for(shared.now(), budget))?;
++            let Some(mut sweep) = timely_engine_work(shared, |engine, budget| engine.prepare_asset_sweep_for(shared.now(), budget).map(Some))? else { return Ok(()); };
+             // Bounded stale batch; filesystem work owns no engine lock.
+             sweep.remove_files()?;
+-            while !sweep.is_empty() { timely_engine_work(shared, |engine, budget| engine.finish_asset_sweep_for(&mut sweep, budget))?; }
++            while !sweep.is_empty() {
++                // A clock drain that began between file removal and retirement
++                // owns the sweep now. Its durable metadata also permits retry
++                // on the next asset tick; do not spin on skipped slices.
++                if timely_engine_work(shared, |engine, budget| engine.finish_asset_sweep_for(&mut sweep, budget))? == 0 { break; }
++            }
+             Ok(())
+         })(), false, "the asset sweep")?;
+     }
+@@ -201,8 +248,8 @@ pub(super) fn maintain(shared: Arc<Shared>) {
+     loop {
+         if crate::lifecycle::stopping() { return; }
+         {
+-            let _maintenance = lock(&shared.maintenance);
+-            if let Err(error) = shared.ephemeral.sweep(shared.now()) { snapback4_core::diagnostic!("snapback4: ephemeral sweep: {error}"); }
++            let state = lock(&shared.maintenance);
++            if !state.advancing && let Err(error) = shared.ephemeral.sweep(shared.now()) { snapback4_core::diagnostic!("snapback4: ephemeral sweep: {error}"); }
+         }
+         if last_tick.elapsed() >= Duration::from_secs(1) {
+             tick += 1; last_tick = Instant::now();
+@@ -214,8 +261,7 @@ pub(super) fn maintain(shared: Arc<Shared>) {
+ }
+ 
+ fn promote_aged(shared: &Shared, now: Instant) {
+-    let mut state = lock(&shared.maintenance);
+-    if state.aged(now) { bulk_slice(shared, &mut state); }
++    if lock(&shared.maintenance).eligible(now, true) { bulk_slice(shared, true); }
+ }
+ 
+ pub(super) fn bulk(shared: Arc<Shared>) {
+@@ -225,7 +271,13 @@ pub(super) fn bulk(shared: Arc<Shared>) {
+         let mut did_work = false;
+         for _ in 0..3 {
+             if crate::lifecycle::stopping() { return; }
+-            did_work |= bulk_slice(&shared, &mut lock(&shared.maintenance));
++            did_work |= bulk_slice(&shared, false);
++            let pause = lock(&shared.maintenance).resume_at.saturating_duration_since(Instant::now());
++            if !pause.is_zero() {
++                // No shared lock survives this pause. Request commits do not
++                // cancel repayment; empty kinds do not idle an active cycle.
++                std::thread::sleep(pause.min(Duration::from_millis(100)));
++            }
+         }
+         if !did_work {
+             let seq = lock(&shared.seq);
+@@ -236,6 +288,17 @@ pub(super) fn bulk(shared: Arc<Shared>) {
+     }
+ }
+ 
++// Reset even when a debug/unwind request panics mid-drain. Engine poison
++// recovery and durable work cursors retain the normal retry semantics.
++struct Advancing<'a>(&'a Shared);
++impl Drop for Advancing<'_> {
++    fn drop(&mut self) {
++        let mut state = lock(&self.0.maintenance);
++        state.advancing = false;
++        state.next = BulkKind::Delivery;
++    }
++}
++
+ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
+     if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&crate::dev_clock::release())})); }
+     let duration = serde_json::from_str::<serde_json::Value>(body).ok()
+@@ -245,14 +308,17 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
+         Ok(milliseconds) => milliseconds,
+         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
+     };
+-    // Serialize advances with each other and the periodic tick, without
+-    // holding the engine or clock lock during maintenance or response I/O.
+-    let _maintenance = lock(&shared.maintenance);
++    // Serialize clock callers only. Background slices check advancing after
++    // engine admission and skip during this synchronous drain.
++    let advance = lock(&shared.maintenance).advance.clone();
++    let _advance = lock(&advance);
++    let _advancing = Advancing(shared);
+     // @ref LLP 3000.007#20.12 — simulated time makes retries due without stealing a live worker's claim or viewer session.
+     let advanced = (|| {
+         // Match claims' engine-then-clock lock order: no claim can land
+         // between shifting its lease and publishing the advanced clock.
+         let mut engine = lock(&shared.engine);
++        lock(&shared.maintenance).advancing = true;
+         let mut clock = lock(&shared.clock);
+         let mut next = clock.clone();
+         let now = next.advance(milliseconds)?;
+@@ -280,7 +346,7 @@ mod tests {
+     use super::super::tests::Host;
+ 
+     #[test]
+-    fn aged_bulk_progresses_when_the_lower_priority_thread_never_runs() {
++    fn aged_bulk_progresses_when_the_bulk_thread_never_runs() {
+         let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+             "table rows:\n  n: int\n  public\njob catchup():\n  for row in rows:\n    update rows[row.id] { n: 1 }\n");
+         let shared = &host.shared;
+@@ -291,11 +357,12 @@ mod tests {
+         promote_aged(shared, now + BULK_AGE - Duration::from_nanos(1));
+         assert_eq!(lock(&shared.maintenance).next, BulkKind::Delivery);
+         assert_eq!(lock(&shared.engine).job(&job).unwrap().unwrap().chunks, 0);
+-        // No utility/nice-5 thread exists. Three aged ordinary opportunities
++        // No bulk thread exists. Three aged ordinary opportunities
+         // still visit every bulk class, including the queued job.
+         for kind in [BulkKind::Delivery, BulkKind::Recount, BulkKind::Job] {
+             assert_eq!(lock(&shared.maintenance).next, kind);
+             let due = lock(&shared.maintenance).serviced + BULK_AGE;
++            lock(&shared.maintenance).serviced = Instant::now() - BULK_AGE;
+             promote_aged(shared, due);
+         }
+         assert_eq!(lock(&shared.maintenance).next, BulkKind::Delivery);
+@@ -303,19 +370,84 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn each_bulk_slice_releases_the_maintenance_gate_to_an_existing_waiter() {
+-        // This gate also serializes clock advancement; a bulk loop must not
+-        // reacquire it ahead of an ordinary/advance waiter.
+-        let gate = Arc::new(super::super::FairMutex::gate(State::default()));
+-        let first = lock(&gate);
+-        let waiter = gate.clone();
+-        let (sent, received) = std::sync::mpsc::channel();
+-        let thread = std::thread::spawn(move || { let _turn = lock(&waiter); sent.send(()).unwrap(); });
+-        let timeout = Instant::now() + Duration::from_secs(5);
+-        while gate.waiting() == 0 { assert!(Instant::now() < timeout); std::thread::yield_now(); }
+-        drop(first);
+-        let _next_bulk = lock(&gate);
+-        received.try_recv().expect("bulk overtook the waiting ordinary turn");
+-        thread.join().unwrap();
++    fn stalled_bulk_admission_does_not_stop_an_ordinary_expiry_slice() {
++        stalled_bulk(false);
++    }
++
++    #[test]
++    fn stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued() {
++        stalled_bulk(true);
++    }
++
++    fn stalled_bulk(holding: bool) {
++        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
++            "table rows:\n  until: time\n  expire at .until\n  public\n");
++        let shared = host.shared.clone();
++        lock(&shared.engine).seed_at([("rows".into(), snapback4_core::value::object([
++            ("id", snapback4_core::Value::Id("expired".into())),
++            ("until", snapback4_core::Value::Int(1)),
++        ]))], 0).unwrap();
++        // A real bulk slice is stopped inside engine.background(), either
++        // before admission (engine free) or immediately after owning it.
++        let (entered, resume) = shared.engine.pause_next_background(holding);
++        let worker = shared.clone();
++        let bulk = std::thread::Builder::new().name("bulk-maintenance".into()).spawn(move || {
++            crate::thread_priority::maintenance();
++            bulk_slice(&worker, false);
++        }).unwrap();
++        entered.recv_timeout(Duration::from_secs(5)).unwrap();
++        let (sent, observed) = std::sync::mpsc::channel();
++        let ordinary = shared.clone();
++        let timely = std::thread::spawn(move || {
++            // Ordinary can enter its coordination slice while bulk is stopped.
++            drop(lock(&ordinary.maintenance));
++            sent.send(None).unwrap();
++            let expired = timely_engine_work(&ordinary, |engine, budget| engine.sweep_expired_for(ordinary.now(), 2_000, budget)).unwrap();
++            sent.send(Some(expired)).unwrap();
++        });
++        observed.recv_timeout(Duration::from_secs(5)).expect("ordinary slice blocked on the bulk gate");
++        if holding {
++            let until = Instant::now() + Duration::from_secs(5);
++            while !shared.engine.has_waiters() { assert!(Instant::now() < until, "ordinary did not reach engine admission"); std::thread::yield_now(); }
++            assert!(observed.try_recv().is_err(), "an exclusive engine cannot run two chunks at once");
++            resume.send(()).unwrap();
++            assert_eq!(observed.recv_timeout(Duration::from_secs(5)).unwrap(), Some(1));
++        } else {
++            // The regression: complete real expiry before bulk can run again.
++            assert_eq!(observed.recv_timeout(Duration::from_secs(5)).unwrap(), Some(1));
++            resume.send(()).unwrap();
++        }
++        timely.join().unwrap(); bulk.join().unwrap();
++        assert!(lock(&shared.engine).store().rows("rows").unwrap().is_empty());
++    }
++
++    #[test]
++    fn pacing_charges_atomic_overruns_but_cannot_suppress_aged_service() {
++        let now = Instant::now();
++        for (elapsed, expected) in [(Duration::from_micros(250), Duration::from_micros(1750)),
++            (Duration::from_millis(50), Duration::from_millis(100))] {
++            let mut state = State::default();
++            state.completed(now, elapsed, true);
++            assert_eq!(state.resume_at - now, expected);
++            assert!(!state.eligible(now, false));
++            assert!(state.eligible(now + BULK_AGE, true));
++        }
++        let mut state = State::default();
++        state.completed(now, WORK_TIME, false);
++        assert!(state.eligible(now, false));
++    }
++
++    #[test]
++    fn clock_drain_unwind_releases_background_work() {
++        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "table rows:\n  n: int\n  public\n");
++        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++            let _advancing = Advancing(&host.shared);
++            lock(&host.shared.maintenance).advancing = true;
++            assert_eq!(timely_engine_work(&host.shared, |_, _| -> Result<u64, RuntimeError> { panic!("ordinary slice ran during drain") }).unwrap(), 0);
++            assert!(!bulk_slice(&host.shared, false));
++            panic!("clock drain");
++        }));
++        assert!(result.is_err());
++        assert!(lock(&host.shared.maintenance).eligible(Instant::now(), false));
+     }
+ }
+diff --git a/snapback4/crates/snapback4/src/thread_priority.rs b/snapback4/crates/snapback4/src/thread_priority.rs
+index 714ad906dd..448f8e7dee 100644
+--- a/snapback4/crates/snapback4/src/thread_priority.rs
++++ b/snapback4/crates/snapback4/src/thread_priority.rs
+@@ -10,11 +10,12 @@ pub(crate) struct Failure { count: usize, last_errno: i32, last_at_ms: u64 }
+ #[serde(rename_all = "camelCase")]
+ pub(crate) struct Diagnostics {
+     qos_failures: usize,
++    nice_failures: usize,
+     failures: BTreeMap<&'static str, Failure>,
+     startup_readback: &'static str,
+ }
+ static DIAGNOSTICS: Mutex<Diagnostics> = Mutex::new(Diagnostics {
+-    qos_failures: 0, failures: BTreeMap::new(), startup_readback: "not performed",
++    qos_failures: 0, nice_failures: 0, failures: BTreeMap::new(), startup_readback: "not performed",
+ });
+ pub(crate) fn diagnostics() -> Diagnostics {
+     DIAGNOSTICS.lock().unwrap_or_else(|e| e.into_inner()).clone()
+@@ -23,6 +24,9 @@ impl Diagnostics {
+     #[cfg(any(test, target_os = "macos"))]
+     fn failure(&mut self, class: &'static str, error: i32, at: u64) {
+         self.qos_failures += 1;
++        self.record_failure(class, error, at);
++    }
++    fn record_failure(&mut self, class: &'static str, error: i32, at: u64) {
+         let entry = self.failures.entry(class).or_insert(Failure { count: 0, last_errno: 0, last_at_ms: 0 });
+         entry.count += 1;
+         entry.last_errno = error;
+@@ -83,8 +87,34 @@ pub(crate) fn background() {
+     #[cfg(target_os = "linux")]
+     unsafe {
+         let current = libc::getpriority(libc::PRIO_PROCESS, 0);
+-        if current < 5 { libc::setpriority(libc::PRIO_PROCESS, 0, 5); }
++        if current < 5 {
++            let result = libc::setpriority(libc::PRIO_PROCESS, 0, 5);
++            if result != 0 { record_nice_failure("background-nice", std::io::Error::last_os_error().raw_os_error().unwrap_or(libc::EINVAL)); }
++        }
++    }
++}
++#[cfg(target_os = "linux")]
++pub(crate) fn record_nice_failure(class: &'static str, error: i32) {
++    let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
++    let mut state = DIAGNOSTICS.lock().unwrap_or_else(|e| e.into_inner());
++    state.nice_failures += 1;
++    state.record_failure(class, error, at);
++    drop(state);
++    snapback4_core::diagnostic!("snapback4: setpriority nice 5 failed (thread class {class}, errno {error}, at unix ms {at}); inspect doctor host.scheduling: {}", std::io::Error::from_raw_os_error(error));
++}
++// The watchdog is a separate process; carry its Linux setter refusal in the
++// private PID handshake so the owning server's doctor can count it too.
++pub(crate) fn child_nice_error() -> i32 {
++    diagnostics().failures.get("background-nice").map_or(0, |f| f.last_errno)
++}
++pub(crate) fn worker_started(line: &str) -> Option<u32> {
++    let mut words = line.split_whitespace();
++    let pid = words.next()?.parse().ok()?;
++    #[cfg(target_os = "linux")]
++    if let Some(error) = words.next().and_then(|v| v.parse::<i32>().ok()).filter(|e| *e != 0) {
++        record_nice_failure("worker-nice", error);
+     }
++    Some(pid)
+ }
+ pub(crate) fn dispatcher() {
+     // Keep Linux's thread-creation parent unchanged: otherwise its children
+@@ -103,7 +133,7 @@ pub(crate) fn current_qos() -> u32 {
+ mod tests {
+     #[test]
+     fn later_failures_preserve_startup_evidence_and_identify_each_class() {
+-        let mut state = super::Diagnostics { qos_failures: 0, failures: Default::default(), startup_readback: "passed: default or higher" };
++        let mut state = super::Diagnostics { qos_failures: 0, nice_failures: 0, failures: Default::default(), startup_readback: "passed: default or higher" };
+         state.failure("maintenance", libc::EINVAL, 1234);
+         state.failure("background", libc::EPERM, 2345);
+         state.failure("maintenance", libc::EINVAL, 3456);
+@@ -115,6 +145,31 @@ mod tests {
+         assert_eq!(wire["failures"]["background"]["lastErrno"], libc::EPERM);
+     }
+ 
++    #[cfg(target_os = "linux")]
++    #[test]
++    fn linux_setpriority_failure_is_counted_without_replacing_startup_readback() {
++        let before = super::diagnostics();
++        // Invalid selector guarantees a real setter failure without changing
++        // this test thread or requiring any scheduling privilege.
++        assert_eq!(unsafe { libc::setpriority(u32::MAX, 0, 5) }, -1);
++        super::record_nice_failure("background-nice", std::io::Error::last_os_error().raw_os_error().unwrap());
++        let wire = serde_json::to_value(super::diagnostics()).unwrap();
++        assert!(wire["niceFailures"].as_u64().unwrap() > before.nice_failures as u64);
++        assert_eq!(wire["startupReadback"], before.startup_readback);
++        assert_eq!(wire["failures"]["background-nice"]["lastErrno"], libc::EINVAL);
++    }
++
++    #[cfg(target_os = "linux")]
++    #[test]
++    fn watchdog_nice_failure_reaches_the_owning_host() {
++        let before = super::diagnostics().nice_failures;
++        assert_eq!(super::worker_started(&format!("123 {}\n", libc::EPERM)), Some(123));
++        assert_eq!(super::worker_started("456 0\n"), Some(456));
++        let wire = serde_json::to_value(super::diagnostics()).unwrap();
++        assert!(wire["niceFailures"].as_u64().unwrap() > before as u64);
++        assert_eq!(wire["failures"]["worker-nice"]["lastErrno"], libc::EPERM);
++    }
++
+     #[test]
+     fn background_priority_is_lower_without_changing_its_parent() {
+         #[cfg(target_os = "linux")]
+diff --git a/snapback4/crates/snapback4/src/verbs.rs b/snapback4/crates/snapback4/src/verbs.rs
+index 8077ef24b0..58eb997a01 100644
+--- a/snapback4/crates/snapback4/src/verbs.rs
++++ b/snapback4/crates/snapback4/src/verbs.rs
+@@ -763,9 +763,9 @@ pub fn doctor(options: &Options) -> i32 {
+         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
+     };
+     if let Some(host) = &host {
+-        if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) > 0 {
++        if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) + host["scheduling"]["niceFailures"].as_u64().unwrap_or(0) > 0 {
+             ok = false;
+-            lines.push(format!("scheduling  {} QoS setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));
++            lines.push(format!("scheduling  {} QoS / {} nice setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["niceFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));
+             if let Some(classes) = host["scheduling"]["failures"].as_object() {
+                 for (class, failure) in classes {
+                     lines.push(format!("scheduling  {class}: {} failed setters; last errno {} at Unix ms {}", failure["count"], failure["lastErrno"], failure["lastAtMs"]));
+diff --git a/snapback4/crates/snapback4/src/worker_process.rs b/snapback4/crates/snapback4/src/worker_process.rs
+index 65f787a266..5cf6edadfb 100644
+--- a/snapback4/crates/snapback4/src/worker_process.rs
++++ b/snapback4/crates/snapback4/src/worker_process.rs
+@@ -68,7 +68,7 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
+     // Consume this PID before forwarding any worker output. Public status and
+     // restart controls refer to the Node child, never the watchdog itself.
+     use std::io::Write;
+-    let handshake = writeln!(std::io::stdout(), "{group}").and_then(|_| std::io::stdout().flush());
++    let handshake = writeln!(std::io::stdout(), "{group} {}", crate::thread_priority::child_nice_error()).and_then(|_| std::io::stdout().flush());
+     if handshake.is_err() {
+         unsafe { libc::kill(-group, libc::SIGKILL); }
+         let _ = child.wait(); return 1;

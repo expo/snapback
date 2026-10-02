@@ -1,0 +1,5 @@
+extern crate self as snapback4_core;
+#[macro_export] macro_rules! diagnostic { ($($arg:tt)*) => { eprintln!($($arg)*); }; }
+#[path="/home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/thread_priority.rs"] mod thread_priority;
+#[path="/home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/serve_trace.rs"] mod trace;
+#[path="/home/ccheever/sb4-intent/lane-ct/snapback4/crates/snapback4/src/request_workers.rs"] mod request_workers;

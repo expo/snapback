@@ -81747,3 +81747,291 @@ bundle ID or tool output appears. On the office M1, the binary's unit tests
 pass 217/217 and `--test witness` passes 49/49. A single in-suite failure of
 `cli_missing_app_never_starts_a_backend` passed three isolated reruns and a
 full rerun.
+
+## 2026-10-02 — CT round 0: contended read serving
+
+Replayed calibration #28's actual packet to its 50% marker on eb1000:
+88,143 actions, original invariant verification passed. Probed the published
+0.4.10 token client in 23-call cohorts (drop three, rank 19/20) with arithmetic
+CPU contention at 0/half/all/1.5× available CPUs. Retained ten-CPU and whole
+96-logical-CPU matrices, alternating controls, shared-clock stage stamps,
+49,680 unchanged normalized answers, and an operator-only Mac harness.
+No harness or tests ran on the Macs.
+
+LLP 3000 §7 owns the decision: seven persistent request-worker pools behind
+unchanged RequestAdmission capacities and refusals; explicit Darwin
+user-initiated request QoS versus utility background QoS; unprivileged Linux
+background nice reduction. Detached reader custody, writer FIFO, answers,
+and KA's existing token-client connection reuse/retry contract are unchanged.
+The structural regression sees bounded serving-thread identities across
+1,000 reads and fails on the base's 1,000 new request threads.
+
+At 96 busy children, traced full-contention medians improve 47–64% and tails
+6–51%; dispatch median drops from about 1 ms to about 0.01 ms. The target is
+**not met**: idle regressions remain, and every traced full-contention p95/idle
+ratio exceeds 1.5. Untraced matrices confirm substantial loaded improvement
+but retain idle regressions and seven tail-ratio misses. One-CPU controls
+remove the query-execution increase; placement/frequency is a hypothesis,
+not a proven cause. Exploratory Linux utilization hints were inconsistent and
+are not retained. Mac scheduling behavior remains operator qualification.
+
+Affected server tests: 220 passed, four inherited ignores. Guide: 110 passed.
+KA/transport: 35 passed. The whole `scripts/test.sh` ran once and reported
+exactly `== 1 failure(s) in 1547 s` (`cargo test`): our standalone lifecycle
+abort fixture lacked its new scheduling import. Corrected the fixture;
+all 22 lifecycle tests pass. Client tests passed 5,742 with ten skips; all
+79 client models passed. Earlier descriptor exhaustion at ulimit 1,024 is
+recorded separately; the final affected run used 4,096. The Mac-specific
+modules and readback tests cross-compile on Linux; no runtime Mac claim.
+Wasm is 2,015,329 B raw / 605,001 B gzip against 605,225 B: unchanged budget,
+224 B remaining. The gzip differs by +276 B from the incoming host's recorded
+size; no wasm-executed code changed and no increase was necessary.
+
+Full tables, commands, source custody, qualification limitations, and every
+failed invocation/classification are in
+[`reports/20261001-ct-contended-reads/REPORT.md`](./reports/20261001-ct-contended-reads/REPORT.md).
+Committed on `sb4-intent/ct-contended-reads`; nothing pushed or published.
+
+## 2026-10-02 — CT round 1: intake and child QoS, inline comparison, live background qualification
+
+Resolved Astra and Grok's scheduling defects from b0e606306e. Darwin's listener
+creator, accept, parser, dispatcher and request workers now establish
+user-initiated QoS; a failed raise cannot admit utility/unknown inheritance.
+Failures are counted in host status and reported by doctor. Supervised Node
+uses posix_spawnp with a utility task clamp, preserving its process group,
+stdio and watchdog-only ownership flock; Linux retains inherited nice 5.
+The Mac test loads an N-API probe inside executed Node and reads every Mach
+thread's effective base priority, with an ordinary-exec control. The modules,
+tests and addon compile-check for aarch64-apple-darwin; runtime is operator work.
+Every pool-worker exit now repairs live/idle accounting, including unwind
+outside the request catch. A destructor-panic witness verifies replacement.
+
+Measured parser-inline short execution against the pool with the original
+32-short permits, refusal accounting, panic isolation and deadlines. Four
+ABBA matrices retain 58,880 answers: 96-CPU and ten-CPU, traced and untraced.
+Whole-host untraced idle following-500 is 4.335 ms pooled versus 5.070 inline;
+at 96 busy it is 3.119 versus 3.004, with the inline p95 worse (9.633 versus
+8.783). Keep the pool; preserve the runnable alternative patch. CPU identity,
+thread CPU time and migration evidence did not establish an idle fix; hardware
+cycles were denied by perf_event_paranoid=4. The idle/loaded trade-off remains
+for the operator. All answers match within matrices; a calendar-day control
+explains Insights' exact hash change across UTC midnight. A final 3,680-sample
+untraced control on the restored candidate also matches the current-day hashes.
+
+Added real-clock mixed reads, minute jobs, supervised effects, retries,
+fixed-lease abandonment and physical expiry at 0/48/96/144 busy processes,
+before CT, demoted and restored. Every expected boundary completed; each cell
+delivered 507 effects, handled one deliberate deadline failure and 106 retries,
+verified a 1,000 ms clock extension, and cleared expiry/abandoned leases.
+Worker HTTP is paused during lease recovery observations. Maintenance is back
+to ordinary priority (Linux inherited, Darwin default), covering schedules,
+expiry and requeue. Exact maxima still vary: restored recovery reaches 5.227 s
+and reclamation 1.136 s. This shared host had another lane's tests running;
+no causal timing-equivalence claim is made. Development clock maintenance/jobs
+intentionally remain synchronous at request QoS because the developer awaits
+them. Ordinary effect leases have no heartbeat.
+
+Fixture review found the first deliberate deadline probe could be expired by
+clock advancement. Retain that source/evidence, move its emission after the
+advance, and supplement with twelve real-clock deadline-only cells: all workers
+claim before the deadline, reads run, and all late effects fail as documented
+without clock advancement. The corrected complete-mode 65-second smoke passes.
+
+Final serving tests: 222 passed, four inherited ignores; lifecycle: 23 passed;
+guide: 110 passed; separate KA/transport: 61 passed. The single complete suite
+reports exactly `== 0 failure(s) in 1411 s`: client tests 5,742 passed with ten
+conditional skips; all 79 client models passed. Earlier failures and their
+ours/environmental classifications are retained in the report's round-1
+ledger, including the corrected inline refusal-latency sample and loaded wall-
+clock assertions that pass in final qualification and a focused unloaded check.
+No baseline product failure remains. Wasm is unchanged: 2,015,329 B raw /
+605,001 B gzip, cap 605,225 B, headroom 224 B; no ratchet increase.
+
+LLP 3000 §7 and the guide record the policy. Tables, raw samples, commands,
+source/binary custody, limitations and the Mac operator commands are in
+[`reports/20261001-ct-contended-reads/REPORT.md`](./reports/20261001-ct-contended-reads/REPORT.md).
+This round does not claim the idle target or Mac runtime qualification. Commit
+locally with the requested Astra trailer; push and publish nothing.
+
+
+## 2026-10-02 — CT round 2: queued exits, settled measurements, Mac evidence
+
+Closed the remaining round-1 findings. Any request-worker exit now refuses
+queued work outside the queue lock, including when a surviving worker stays
+blocked; partial-exit and last-exit regressions pass, and the partial-exit case
+fails on round 1. Scheduling diagnostics identify HTTP startup, later HTTP,
+maintenance and background failures with count, errno and last failure time;
+`doctor` reports startup readback separately. The Node probe requires utility
+priority 20, rejecting a background clamp. Host sampling has a 16 MiB cap and
+two-second timeout and records failures without aborting measurements.
+
+Copied the operator's M5 Pro runtime logs: four thread-priority tests and the
+executed-Node probe passed on f5353623a2, with 13 Node threads at 20 versus 31
+unclamped. Read-only SQL identifies the exact cause of the changed u0005 feed:
+a durable Following delivery at 01:42:31.093Z inserted the 01:22:20.579Z post,
+37 ms before the captured mismatch. This is pending new-event delivery, not a
+tie. Delivery occurred 1,087.226 seconds after the last application mutation,
+with server-off gaps in the history; it is not evidence of continuous draining
+for that entire time. The guide permits asynchronous new-event delivery without
+changing `complete` and sets no hard backlog deadline. That latency/completeness
+limitation remains disclosed; this lane does not change the product contract.
+
+The harness now waits for pending delivery, recounts and jobs, then a stable
+commit head for one second, and records every observation. Fresh 50%-scale
+preparation left 5,221 tasks pending. After restart on eb1000, the first empty
+snapshot was at 23.560 seconds and total settlement wait was 24.741 seconds.
+All 3,680 subsequent answers agree across all eight queries and four loads.
+The Mac store still had 15,175 pending tasks after debug1; its full drain time
+and quiet-host comparison remain unmeasured.
+
+The corrected combined real-clock harness passes before and after at every
+load, 0/48/96/144, and also on the maintenance-demoted variant: twelve full
+125-second cells, 72/72 deliberately abandoned claims observed, zero unexpected
+lease changes, exact clock extension, and all schedules/expiry/deadlines/retries
+verified. There are 2,325,244 successful continuous reads. With maintenance active,
+restored versus demoted read p95 is 21.9% worse at 48 busy processes and 58.3%
+worse at 96, 7.4% better at 144 and 0.6% better idle. These sequential shared-host
+observations do not isolate causality. Keep ordinary maintenance priority and
+explicitly retain this cost and the earlier idle trade-off for the operator.
+
+Affected serving tests passed 225/0 with four ignores; lifecycle 24/0, guide
+110/0, KA/transport 61/0, harness controls 3/0 and doctor controls 2/0. Darwin
+cross-check passed (metadata only, no round-2 Mac runtime claim). The single
+complete suite reports exactly `== 0 failure(s) in 1364 s`: 5,742 client tests
+passed with ten conditional skips and all 79 client models passed. Development
+failures and expected negative controls are classified in the report; no baseline
+product failure is claimed. Wasm remains 2,015,329 B raw / 605,001 B gzip,
+below the unchanged 605,225 B ratchet by 224 B.
+
+Updated LLP 3000 §7 and retained commands, binary/source digests, raw samples,
+Mac captures and qualification logs in the
+[round-2 report](./reports/20261001-ct-contended-reads/REPORT.md#round-2--queued-exits-faithful-qualification-and-mac-findings-2026-10-02).
+The operator's quiet-Mac measurement and idle-cost decision remain pending.
+Commit locally with the requested Astra trailer; push and publish nothing.
+
+
+## 2026-10-02 — CT round 3: timed maintenance and protected bulk progress
+
+Implemented the operator's split on round 2's 32e111fff0. Ordinary maintenance
+handles lease recovery/deadlines, expiry, schedule admission and stale assets;
+a utility/nice-5 thread rotates delivery, recount and job slices. Schedules now
+admit one atomic boundary at a time. Both threads share FIFO maintenance and
+engine gates. Delivery commits before recount in each bulk cycle, with urgent
+work allowed between slices; recounts retain their durable basis/delta rules.
+Development-clock advancement preserves its synchronous full-drain order and
+lease extension. The running Linux process confirms maintenance/request nice 0
+and bulk nice 5; there is no new Darwin runtime claim.
+
+After one second without a bulk turn, ordinary maintenance executes the next
+turn itself. The 100 ms loop and per-slice checks visit every kind in three aged
+turns even when the lower-priority thread never runs. The nominal 3.3-second
+service opportunity adds OS scheduling, FIFO, atomic commit/filesystem and clock
+drain delays; it is neither a wall-clock completion deadline nor new per-view
+fair queuing. Regressions cover actual queued-job completion without the bulk
+thread and a waiting ordinary gate acquisition preceding the next bulk slice.
+
+All twelve corrected small mixed cells pass at 0/48/96/144 busy processes:
+2,424,961 reads, 72/72 abandoned claims observed, zero unexpected lease changes,
+exact clock extension, schedules, expiry, retries and deadline outcomes. Split
+p95 is 0.726/0.471/1.232/4.188 ms. At 96 it is 53.6% below ordinary-all and 7.1%
+above demoted-all. The separate split fixture with 1,000 real Following tasks
+also passes all four loads: 726,752 reads, 24/24 abandoned claims, zero lease
+changes, and drain times 52.438/80.313/277.007/428.446 seconds. The longer tails
+remain under synthetic CPU load after the 125-second read window ends.
+
+The real 50%-scale replay leaves 6,507 deliveries in its stopped store. Twelve
+fresh restorations, including committed WAL, retain 323,472 builder-probe samples
+and agree on all eight settled answers. At 96 processes, split's pooled p95 is
+lower than both controls on all eight queries: Following-500 is 9.738 ms versus
+12.897 ordinary and 11.132 demoted. Split drains in 124.531/167.005 seconds,
+between ordinary's 87.176/100.813 and demoted's 260.588/185.044. Idle split drain
+is slower (32.577/37.699 seconds), and p95 loses to ordinary on five of eight
+queries. Other tenants' builds/tests and substantial between-trial variation
+remain visible; no causal isolation, quiet-Mac win or calibration midpoint-pass
+claim. The delivery latency product finding is an open filesystem ticket;
+this lane does not optimize the delivery algorithm.
+
+Affected serving tests pass 228/0 with four ignores; schedules 6/0, row-view/
+Following 31/17, guide 110/0, KA/transport 61/0, harness controls 3/0, and final
+clock/latency/lifecycle/replay integration 70/0. The sole complete suite reports
+exactly `== 2 failure(s) in 1411 s`, listing cargo and client tests. Ours:
+the new coordination gate inherited engine timing, exposed by
+`clock_maintenance_retry_open_is_wait_not_engine`; corrected with a coordination-only
+gate and verified before rebuilding the measured binary. Environmental/transient
+harness, exact cause unresolved: `47 transient: local.ts:850 follow` missed its
+injected fault. Both CT and isolated current main
+738d45830c9d51c9c92f65180c56cbecb2f2b068 pass all 321 matrix cases on rerun;
+no baseline product failure is claimed, and the reachability follow-up is ticketed.
+All 79 models passed. Every development failure and its classification remains
+in the report ledger; the complete suite was not rerun.
+
+Wasm remains 2,015,329 B raw / 605,001 B gzip, below the unchanged 605,225 B
+ratchet by 224 B. Main was inspected/tested in isolation, not merged. LLP 3000
+§7 and LLP 3000.013 record the policy and historical distinction. The
+[round-3 report](./reports/20261001-ct-contended-reads/REPORT.md#round-3--maintenance-split-by-protected-obligation-2026-10-02)
+retains tables, commands, samples, queue histories, failures and custody.
+Generated projects/stores remain ignored local artifacts. Commit locally with
+the requested Astra trailer; push and publish nothing.
+
+
+## 2026-10-02 — CT round 4: ordinary lock holders and paced bulk
+
+Round 3's independent reviews found the same shared-gate priority inversion.
+All lifecycle-managed engine/writer holders now run at ordinary priority,
+including bulk, the source watcher and worker supervisor. The short maintenance
+gate never spans engine admission or chunk execution. Selection, commit and
+cursor advance serialize through engine ownership; delivery still precedes
+recount, schedule admission stays separately atomic, and synchronous clock
+advancement retains atomic lease extension with a separate caller mutex and
+unwind-safe exclusion. Node/watchdog demotion remains. Linux nice refusals are
+counted for doctor, including the watchdog's startup refusal via its handshake.
+
+Bulk uses 250 µs contended / 2 ms quiet cooperative slices. Recounts now stop
+between complete candidates, including expiring-source ranges. Native calls
+remain one indivisible fuel/meter-bounded invocation per slice, with the exact
+exception and unchanged bounds in the guide. Between contended slices the
+worker pauses outside shared locks for seven times consumed thread CPU, capped
+at 100 ms, with no minimum pause. The existing request signal and a cached
+host-load hint select contention. After one second without a completed bulk
+turn, ordinary maintenance supplies the next; three turns cover every kind,
+plus 100 ms polling per turn and explicit OS/FIFO/atomic/I/O/clock-drain delays.
+This reserves finite-backlog service opportunities, not a hard wall deadline.
+
+The real-thread regression pauses bulk inside engine.background with the engine
+free and completes ordinary expiry before resuming it. A second pause while
+bulk owns the engine proves the gate stays free and ordinary admission queues;
+it completes after engine release. Existing ordering, shutdown, clock, restart
+and panic coverage passes. The rejected wall-time pacing candidate remains in
+its own archive: it overcharged descheduling and cheap turns, and its unfinished
+144-process cell is explicitly incomplete. No candidate sample enters final ranks.
+
+All 28 final timing runs pass. Twelve mixed cells retain 2,117,919 reads and
+72/72 abandoned claims with no unexpected lease changes. Paced combined drains
+of 1,000 Following tasks take 143.037/220.737/693.048/1,177.746 seconds at
+0/48/96/144 busy. Sixteen real-backlog trials restore identical DB/WAL bytes and
+6,507 tasks; all eight settled answer hashes agree with round 3. At 96 busy,
+paced pooled Following-500 p95 is 8.865 ms versus split 9.609 and ordinary
+10.473. Paced beats ordinary p95 on all eight endpoints and split on three;
+five are 0.8–3.8% slower than split. Drain costs 819.789/551.717 seconds versus
+split's 140.144/147.438. At zero owned busy, paced drains in 712.475/32.443
+seconds amid large shared-host variation. No universal latency or quiet-Mac win
+is claimed; slower drains contribute more probe cohorts and intermediate states.
+
+The final-source full suite ran once after timing and reports exactly
+`== 0 failure(s) in 1417 s`: all Rust targets/doctests, fixture/guide/typechecks,
+5,742 client tests (10 skipped) and 79 models pass. Affected server tests pass
+234 with four ignores, guide 110, KA/transport 61, and doctor controls two.
+The known follow fault-injection case passes in this run without a retry.
+The earlier rejected source's separate full suite had two failed categories;
+all environmental cached-wasm mismatches, baseline fault-injection failures and
+our corrected development errors remain enumerated in the report ledger. Our
+archiver also unlinked the running final-suite log; its original open inode was
+recovered in full and followed through exit, without restarting any test.
+
+Final wasm is 2,015,329 B raw / 605,002 B gzip, 223 B below the unchanged 605,225 B
+ratchet. Source and all measured binaries retain their recorded hashes; all
+measurement tables reproduce byte for byte. LLP 3000 §7 and LLP 3000.013 state
+the revised policy. The [round-4 report](./reports/20261001-ct-contended-reads/REPORT.md#round-4--ordinary-lock-holders-and-paced-bulk-2026-10-02)
+retains every trial, failure, command and custody record. The Apartment mini
+timing remains with the operator. Local commit with the requested Astra trailer;
+nothing pushed or published.

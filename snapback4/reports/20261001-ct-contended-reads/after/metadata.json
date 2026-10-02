@@ -1,0 +1,234 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "linux",
+  "node": "v24.13.1",
+  "uv": "1.51.0",
+  "cpu": "AMD EPYC 9454 48-Core Processor",
+  "cores": 10,
+  "affinity": "pid 1031502's current affinity list: 0-9",
+  "binary": "/tmp/ct-after",
+  "binarySha256": "dea24248b290b386cd8dd1de94af7c343604f9d5bc8df0a5fe1bebd2ff23202b",
+  "client": "0.4.10",
+  "actions": 88143,
+  "started": "2026-10-01T22:53:52.434Z",
+  "rounds": 5,
+  "serverPid": 1031514,
+  "load": [
+    43.54,
+    32.66,
+    19.23
+  ],
+  "finished": "2026-10-01T22:54:13.609Z",
+  "processes": [
+    {
+      "pid": 1032631,
+      "level": 0.5
+    },
+    {
+      "pid": 1032638,
+      "level": 0.5
+    },
+    {
+      "pid": 1032645,
+      "level": 0.5
+    },
+    {
+      "pid": 1032652,
+      "level": 0.5
+    },
+    {
+      "pid": 1032659,
+      "level": 0.5
+    },
+    {
+      "pid": 1032887,
+      "level": 1
+    },
+    {
+      "pid": 1032894,
+      "level": 1
+    },
+    {
+      "pid": 1032901,
+      "level": 1
+    },
+    {
+      "pid": 1032908,
+      "level": 1
+    },
+    {
+      "pid": 1032921,
+      "level": 1
+    },
+    {
+      "pid": 1032928,
+      "level": 1
+    },
+    {
+      "pid": 1032935,
+      "level": 1
+    },
+    {
+      "pid": 1032942,
+      "level": 1
+    },
+    {
+      "pid": 1032959,
+      "level": 1
+    },
+    {
+      "pid": 1033031,
+      "level": 1
+    },
+    {
+      "pid": 1034573,
+      "level": 1.5
+    },
+    {
+      "pid": 1034598,
+      "level": 1.5
+    },
+    {
+      "pid": 1034621,
+      "level": 1.5
+    },
+    {
+      "pid": 1034646,
+      "level": 1.5
+    },
+    {
+      "pid": 1034669,
+      "level": 1.5
+    },
+    {
+      "pid": 1034694,
+      "level": 1.5
+    },
+    {
+      "pid": 1034716,
+      "level": 1.5
+    },
+    {
+      "pid": 1034734,
+      "level": 1.5
+    },
+    {
+      "pid": 1034755,
+      "level": 1.5
+    },
+    {
+      "pid": 1034774,
+      "level": 1.5
+    },
+    {
+      "pid": 1034793,
+      "level": 1.5
+    },
+    {
+      "pid": 1034824,
+      "level": 1.5
+    },
+    {
+      "pid": 1034855,
+      "level": 1.5
+    },
+    {
+      "pid": 1034898,
+      "level": 1.5
+    },
+    {
+      "pid": 1034946,
+      "level": 1.5
+    }
+  ],
+  "loadSamples": [
+    {
+      "level": 0,
+      "phase": "start",
+      "at": "2026-10-01T22:53:54.619Z",
+      "load": [
+        41.65,
+        32.45,
+        19.23
+      ],
+      "processes": "1031502 1031501 18.4 MainThread\n1031514 1031502  7.2 ct-after\n"
+    },
+    {
+      "level": 0,
+      "phase": "end",
+      "at": "2026-10-01T22:53:57.572Z",
+      "load": [
+        41.65,
+        32.45,
+        19.23
+      ],
+      "processes": "1031502 1031501 38.0 MainThread\n1031514 1031502 40.7 ct-after\n"
+    },
+    {
+      "level": 0.5,
+      "phase": "start",
+      "at": "2026-10-01T22:53:59.750Z",
+      "load": [
+        40.24,
+        32.31,
+        19.26
+      ],
+      "processes": "1031502 1031501 27.4 MainThread\n1031514 1031502 29.0 ct-after\n1032631 1031502  101 MainThread\n1032638 1031502  101 MainThread\n1032645 1031502  100 MainThread\n1032652 1031502  101 MainThread\n1032659 1031502  100 MainThread\n"
+    },
+    {
+      "level": 0.5,
+      "phase": "end",
+      "at": "2026-10-01T22:54:02.783Z",
+      "load": [
+        40.24,
+        32.31,
+        19.26
+      ],
+      "processes": "1031502 1031501 31.8 MainThread\n1031514 1031502 40.7 ct-after\n1032631 1031502  100 MainThread\n1032638 1031502  100 MainThread\n1032645 1031502  100 MainThread\n1032652 1031502  100 MainThread\n1032659 1031502  100 MainThread\n"
+    },
+    {
+      "level": 1,
+      "phase": "start",
+      "at": "2026-10-01T22:54:05.149Z",
+      "load": [
+        38.46,
+        32.08,
+        19.25
+      ],
+      "processes": "1031502 1031501 26.3 MainThread\n1031514 1031502 33.2 ct-after\n1032887 1031502  102 MainThread\n1032894 1031502  103 MainThread\n1032901 1031502  102 MainThread\n1032908 1031502  101 MainThread\n1032921 1031502  102 MainThread\n1032928 1031502 92.6 MainThread\n1032935 1031502  102 MainThread\n1032942 1031502 92.9 MainThread\n1032959 1031502 98.1 MainThread\n1033031 1031502 98.0 MainThread\n"
+    },
+    {
+      "level": 1,
+      "phase": "end",
+      "at": "2026-10-01T22:54:07.872Z",
+      "load": [
+        37.94,
+        32.07,
+        19.32
+      ],
+      "processes": "1031502 1031501 26.7 MainThread\n1031514 1031502 37.7 ct-after\n1032887 1031502 91.6 MainThread\n1032894 1031502 98.6 MainThread\n1032901 1031502 96.8 MainThread\n1032908 1031502 93.3 MainThread\n1032921 1031502 98.1 MainThread\n1032928 1031502 82.3 MainThread\n1032935 1031502 99.1 MainThread\n1032942 1031502 87.2 MainThread\n1032959 1031502 99.1 MainThread\n1033031 1031502 82.6 MainThread\n"
+    },
+    {
+      "level": 1.5,
+      "phase": "start",
+      "at": "2026-10-01T22:54:10.506Z",
+      "load": [
+        37.94,
+        32.07,
+        19.32
+      ],
+      "processes": "1031502 1031501 23.1 MainThread\n1031514 1031502 32.3 ct-after\n1034573 1031502 84.2 MainThread\n1034598 1031502 48.0 MainThread\n1034621 1031502 97.1 MainThread\n1034646 1031502  104 MainThread\n1034669 1031502 55.9 MainThread\n1034694 1031502 61.1 MainThread\n1034716 1031502 67.7 MainThread\n1034734 1031502 50.6 MainThread\n1034755 1031502 86.2 MainThread\n1034774 1031502 59.3 MainThread\n1034793 1031502 61.2 MainThread\n1034824 1031502  100 MainThread\n1034855 1031502 56.6 MainThread\n1034898 1031502 81.6 MainThread\n1034946 1031502 50.9 MainThread\n"
+    },
+    {
+      "level": 1.5,
+      "phase": "end",
+      "at": "2026-10-01T22:54:13.386Z",
+      "load": [
+        37.54,
+        32.09,
+        19.4
+      ],
+      "processes": "1031502 1031501 23.5 MainThread\n1031514 1031502 35.0 ct-after\n1034573 1031502 60.8 MainThread\n1034598 1031502 44.0 MainThread\n1034621 1031502 76.5 MainThread\n1034646 1031502  101 MainThread\n1034669 1031502 48.4 MainThread\n1034694 1031502 65.0 MainThread\n1034716 1031502 73.8 MainThread\n1034734 1031502 47.2 MainThread\n1034755 1031502 75.0 MainThread\n1034774 1031502 50.2 MainThread\n1034793 1031502 49.6 MainThread\n1034824 1031502 84.9 MainThread\n1034855 1031502 69.2 MainThread\n1034898 1031502 78.4 MainThread\n1034946 1031502 52.0 MainThread\n"
+    }
+  ]
+}

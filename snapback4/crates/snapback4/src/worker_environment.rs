@@ -66,6 +66,7 @@ impl Redactor {
 
 pub(super) fn pipe(mut input: impl Read + Send + 'static, secrets: Vec<Vec<u8>>, name: String) {
     std::thread::spawn(move || {
+        crate::thread_priority::background();
         let mut redactor = Redactor::new(secrets);
         let mut bytes = [0; 4096];
         let output = std::io::stderr();

@@ -1,0 +1,10 @@
+✔ every delivery await is explicitly classified (145.871734ms)
+✔ 47 transient: local.ts:850 follow (501.912711ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5985.843535

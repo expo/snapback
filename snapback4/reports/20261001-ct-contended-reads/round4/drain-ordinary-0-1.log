@@ -1,0 +1,8 @@
+(node:3500613) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3500613) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round3/pristine/snapback/generated/api.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round3/pristine/package.json.
+(node:3500613) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"busy":0,"initialPending":6507,"drainFromSpawnMs":67676,"reads":[{"endpoint":"following500","n":2060,"p50":4.180390000001353,"p95":8.137564999997267},{"endpoint":"following5","n":2060,"p50":3.8673199999975623,"p95":8.059747999999672},{"endpoint":"celebrityFollowing","n":2060,"p50":3.8945109999913257,"p95":7.783924000001207},{"endpoint":"globalSearch","n":2040,"p50":5.653179000000819,"p95":9.689622999998392},{"endpoint":"insights","n":2040,"p50":0.9451370000024326,"p95":2.480550000000221},{"endpoint":"trending","n":2040,"p50":1.830736000003526,"p95":4.5868389999996},{"endpoint":"busyPage1","n":2040,"p50":1.337454999997135,"p95":3.4653069999912987},{"endpoint":"busyPage50","n":2040,"p50":1.3584069999997155,"p95":3.7914660000024014}]}

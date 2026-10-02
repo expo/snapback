@@ -228,7 +228,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_NATIVE", "E_NATIVE means a native declaration or loaded module cannot perform the requested operation."),
     ("E_NATIVE_BUILD", "E_NATIVE_BUILD means the native crate could not be built or its generated files could not be written or loaded."),
     ("E_NATIVE_TOOLCHAIN", "E_NATIVE_TOOLCHAIN means the native build cannot find Cargo or the `wasm32-unknown-unknown` target."),
-    ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings bind first."),
+    ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings usually bind first."),
     ("E_NOT_PREDICTABLE", "`mutation name(args) predicts:` asserts this eligibility: `check` refuses `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with the reason and rewrite."),
     ("E_OFFLINE", "Offline it returns its last server answer, held in memory for this client's lifetime, with fresh: false and since. Without one it refuses E_OFFLINE (family link, retryable)."),
     ("E_HTTP_LIMIT", "E_HTTP_LIMIT warns below 1024"),

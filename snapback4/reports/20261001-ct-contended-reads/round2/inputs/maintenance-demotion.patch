@@ -1,0 +1,14 @@
+--- a/snapback4/crates/snapback4/src/thread_priority.rs
++++ b/snapback4/crates/snapback4/src/thread_priority.rs
+@@ -73,10 +73,7 @@
+ }
+ // Lease recovery, expiry and schedules have a real-time completion obligation.
+ // Keep Linux's inherited priority and select Darwin default (not utility).
+-pub(crate) fn maintenance() {
+-    #[cfg(target_os = "macos")]
+-    { qos(libc::qos_class_t::QOS_CLASS_DEFAULT, "maintenance"); }
+-}
++pub(crate) fn maintenance() { background(); }
+ pub(crate) fn background() {
+     #[cfg(target_os = "macos")]
+     { qos(libc::qos_class_t::QOS_CLASS_UTILITY, "background"); }
