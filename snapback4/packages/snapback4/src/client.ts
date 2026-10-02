@@ -1,3 +1,4 @@
+import { withDecorations, currentDecorations } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
@@ -602,16 +603,19 @@ export function createClient(options: ClientOptions): Client {
     if (json.denied) return { ephemeral: json.ephemeral, read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null, refresh };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, decorationExpiry: json.decorationExpiry as number | null | undefined, refresh };
+    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, decorationExpiry: json.decorationExpiry === undefined && Array.isArray(json.decorationFields) ? NaN : json.decorationExpiry as number | null | undefined, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, decorationExpiry: json.decorationExpiry as number | null | undefined, refresh };
+    const read = readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter });
+    withDecorations(read, Array.isArray(json.decorationFields) ? json.decorationFields as string[] : [], null,
+      json.decorationExpiry === undefined ? NaN : json.decorationExpiry as number | null, clock.issuedDeviceNow, clock.estimatedServerNow);
+    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, decorationExpiry: json.decorationExpiry === undefined && Array.isArray(json.decorationFields) ? NaN : json.decorationExpiry as number | null | undefined, refresh };
   }
 
   const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
+    result.read = currentDecorations(result.read);
     const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
-      && (result.decorationExpiry == null || result.decorationExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
       && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
     return current;
@@ -673,14 +677,14 @@ export function createClient(options: ClientOptions): Client {
     for (const subscriber of watch.subscribers) subscriber();
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer?: number | null) {
-    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false, valueServer }, clock,
-      () => !closed && watches.get(watch.key) === watch, sweepExpiries);
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer?: number | null, valueRetry?: number) {
+    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false, valueServer, valueRetry }, clock,
+      () => !closed && watches.get(watch.key) === watch, sweepExpiries, undefined, link === "online");
   }
 
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.server, d.valueServer),
+      (watch, d) => scheduleExpiry(watch, d.server, d.valueServer, d.valueRetry),
       watch => { if (watches.get(watch.key) === watch) void acquireRead(watch); });
   }
 

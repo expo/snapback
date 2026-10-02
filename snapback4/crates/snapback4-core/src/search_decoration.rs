@@ -112,3 +112,23 @@ pub fn order_key(value: &serde_json::Value) -> Option<i64> {
     let key: i64 = text.parse().ok()?;
     (key.to_string() == text).then_some(key)
 }
+
+// @ref LLP 3000.028#3.3.1 — one field-name list per page, no per-row deadlines.
+#[cfg(feature = "server-search")]
+pub fn fields(program: &Program) -> Vec<String> {
+    fn point(value: &Expr) -> bool {
+        match value {
+            Expr::Get(_) => true,
+            Expr::Field { base, .. } => point(base),
+            Expr::Shape { fields, .. } | Expr::Object(fields) => fields.values().any(point),
+            Expr::Builtin { args, .. } => args.iter().any(point),
+            _ => false,
+        }
+    }
+    let Some(parts) = parts(program) else { return Vec::new() };
+    match parts.value {
+        Expr::Shape { fields, .. } | Expr::Object(fields) => fields.iter()
+            .filter(|(_, value)| point(value)).map(|(name, _)| name.clone()).collect(),
+        _ => Vec::new(),
+    }
+}

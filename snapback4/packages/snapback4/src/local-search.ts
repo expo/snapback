@@ -370,7 +370,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
       ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) }),
       nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
-      valueDevice: after.decorationExpiry, valueServer: remote.decorationExpiry,
+      valueDevice: decorated && retainedPositions.length > 0 && after.decorationExpiry === undefined ? NaN : after.decorationExpiry, valueServer: decorated && remote.decorationExpiry === undefined ? NaN : remote.decorationExpiry,
       credential, seq, served: true, searchAttempt: true };
   } catch (error) {
     if (error instanceof SearchBound) return { ...loading, read: { denied: error.refusal } };

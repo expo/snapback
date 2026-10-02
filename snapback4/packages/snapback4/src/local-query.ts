@@ -1,3 +1,4 @@
+import { decorationFields, withDecorations } from "./read-decoration.ts";
 import { readyRead } from "./read-existence.ts";
 import { checkRead } from "./read-work.ts";
 import { combinedCursor, ordinarySearch } from "./local-search.ts";
@@ -171,7 +172,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // are filtered separately. Local freshness is assigned only at publication.
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true }
       : readyRead({ data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null });
-    latest = { outcome, result: { read, tables, nextExpiry, valueDevice: outcome.decorationExpiry, scopes: outcome.scopes } };
+    latest = { outcome, result: { read, tables, nextExpiry, valueDevice: outcome.decorationExpiry === undefined && env.backend.schema.operations?.[op.name]?.search_decoration ? NaN : outcome.decorationExpiry, scopes: outcome.scopes } };
     return latest;
   };
   const server = async (provenance = false, retain = true): Promise<Candidate<R>> => {
@@ -201,7 +202,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null });
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
-        return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, valueServer: json.decorationExpiry as number | null | undefined, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
+        return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, valueServer: json.decorationExpiry === undefined && env.backend.schema.operations?.[op.name]?.search_decoration ? NaN : json.decorationExpiry as number | null, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
@@ -371,6 +372,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   try {
     const candidate = await route(); checkpoint();
     const result = await publish(candidate); checkpoint();
+    withDecorations(result.read, env.backend.schema.operations?.[op.name]?.search_decoration ? decorationFields(program) : [],
+      result.valueDevice ?? null, result.valueServer ?? null, env.deviceNow, env.serverNow);
     return { ...result, ...(searchAttempt ? { searchAttempt: true } : {}) };
   } catch (error) {
     if (error instanceof Interrupted) return { ...error.result as Result<R>, ...(searchAttempt ? { searchAttempt: true } : {}) };

@@ -82770,3 +82770,52 @@ Final diff review restored the W13 fixture's original public seed setup; a final
 measured Wasm stayed unchanged throughout qualification. The report's Round 1
 section and small hash/verification/measurement receipts retain the evidence.
 No push or publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — SJ round 2: decoration deadlines never gate page availability
+
+Read both complete round-1 reviews (Astra READY WITH CHANGES/P2; Grok READY
+WITH CHANGES/Medium). Expired or uncertain decoration deadlines now mask values
+at publication and synchronous watch access without rejecting the page. The
+online-only client, composed local client, remembered offline answers, one-shots
+and approved facade holds apply the same rule. Hits, order, completeness, cut,
+continuation and freshness remain the bare page's; its own deadlines and the
+existing authority/sequence fences still withdraw. LLP 3000.028 §3.3.1 and the
+search guide state the rule.
+
+Conservatively null every top-level output field containing a point read when
+either page-wide decoration deadline cannot prove freshness. Source fields and
+point-independent outputs survive. No per-row or per-field deadlines: server
+replies carry one static field-name list, and the local client derives it from
+its compiled projection. One field adds 29 B per page, the four-field oracle
+64 B; an explicit no-expiry null adds 24 B where round 1 omitted it. Online
+watches accept the server's page, retry values with 25 ms to 1 s bounded backoff
+without a give-up count, and stop when the server proves no upcoming expiry.
+
+Astra's unsynced/public reproduction passes for one-shot and watch on process
+and Wasm. Grok's real-server skew window exceeds the old four-attempt window,
+including an open revocation episode and unknown deadlines. The fields are null
+while HTTP is held, and one-shots return the page in one call. Bare source expiry
+still withdraws. An older facade-approved page retains its own value deadline.
+The random oracle now seeds room/profile/card expiries and advances through them:
+1,970 pages, 1,528 after profile expiry, 710 explicit expired-label checks before
+deletion, with both authorities checked against independent ordinary point reads.
+
+Affected Rust: 11 decorated-search tests and 110 guide tests pass. The broad
+client selection first passed 1,027 with three failures caused by our unnecessary
+clock-method call; corrected clock/decorated coverage passes 83/83 and final
+focused witnesses 9/9. Other development fixture/type/invocation failures are
+classified in the report; the unavailable local orient symlink was resolved by
+reading the existing skill in lane-dx. Existing await classifications and hashes
+are unchanged; the new synchronous module adds zero awaits.
+
+The single final suite exits 0: `== 0 failure(s) in 1419 s`. All 286 Rust binaries /
+999 executions plus doctests, 5,822 client tests (10 explicit platform/fixture
+skips), and 79 models pass. Full-suite failures: ours 0, baseline 0,
+environmental 0. All 15 qualified source hashes remain unchanged. Linux Wasm
+is byte-identical to round 1: 2,048,753 B raw / 617,410 B gzip, 630 B below the
+unchanged 618,040 B budget. No macOS measurement or budget raise. The
+[Round 2 report](./reports/20261002-sj-decorated-search/REPORT.md#round-2--value-deadlines-in-every-client-path-2026-10-02)
+and small receipts retain commands, byte accounting and log/source hashes.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No merge, push or publication in this round.

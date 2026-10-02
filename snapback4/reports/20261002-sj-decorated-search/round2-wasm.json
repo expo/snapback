@@ -1,0 +1,47 @@
+{
+  "command": "bash scripts/build-wasm.sh",
+  "host": "Linux x86_64",
+  "raw_bytes": 2048753,
+  "gzip_bytes": 617410,
+  "sha256": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8",
+  "budget_bytes": 618040,
+  "delta_round1_raw_bytes": 0,
+  "delta_round1_gzip_bytes": 0,
+  "macos": "not measured; no device code change; existing estimate retained",
+  "metadata": [
+    {
+      "fields": [
+        "label"
+      ],
+      "deadline": 1790970000000,
+      "added_utf8_bytes_per_page": 29
+    },
+    {
+      "fields": [
+        "label"
+      ],
+      "deadline": null,
+      "added_utf8_bytes_per_page": 53
+    },
+    {
+      "fields": [
+        "ownerName",
+        "privateName",
+        "sender",
+        "title"
+      ],
+      "deadline": 1790970000000,
+      "added_utf8_bytes_per_page": 64
+    },
+    {
+      "fields": [
+        "ownerName",
+        "privateName",
+        "sender",
+        "title"
+      ],
+      "deadline": null,
+      "added_utf8_bytes_per_page": 88
+    }
+  ]
+}

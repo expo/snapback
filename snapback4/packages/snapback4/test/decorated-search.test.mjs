@@ -9,6 +9,7 @@ import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
+import { setTimeout as delay } from 'node:timers/promises';
 import { ServerClock } from '../dist/clock.js';
 import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
@@ -70,13 +71,16 @@ mutation rename(room: id, name: text <=80):
   update rooms[room] { title: name }
   update profiles[principal = 'dev:alice'] { name }
 mutation renameRoom(room: id, name: text <=80):
-  update rooms[room] { title: name }
+  if rooms[room] != null:
+    update rooms[room] { title: name }
 mutation hide():
   update cards[principal = 'dev:alice'] { reader: 'dev:alice' }
 mutation dropProfile():
-  delete profiles[principal = 'dev:alice']
+  if profiles[principal = 'dev:alice'] != null:
+    delete profiles[principal = 'dev:alice']
 mutation dropRoom(room: id):
-  delete rooms[room]
+  if rooms[room] != null:
+    delete rooms[room]
 `;
 }
 function normalized(cursor) {
@@ -86,19 +90,20 @@ function normalized(cursor) {
   return value;
 }
 for (const tier of ['process','wasm']) test(`decorated generated search oracle on ${tier}`, { timeout: 180000 }, async t => {
-  const counts = { pages: 0, online: 0, offline: 0, short: 0, currentNull: 0, retainedNull: 0 };
+  const counts = { pages: 0, online: 0, offline: 0, short: 0, currentNull: 0, retainedNull: 0, expiryPages: 0, expiryNulls: 0 };
   for (let seed = 1; seed <= Number(process.env.SJ_SEARCH_SEEDS ?? 8); seed++) {
     await t.test(`seed ${seed}`, async t => {
       const rng = random(seed * 9989), direction = seed % 2 ? 'last' : 'first', limit = 3 + rng(4);
       const { url, dir } = await server(t,'',source(direction,limit));
       const remote = createClient({url,persona:'bob'}), admin = createClient({url,persona:'alice'});
-      const initial = [];
+      const initial = [], expiryRng=random(seed*7919), epoch=Date.now(), expires=()=>epoch+(4+expiryRng(3))*60000;
+      const profileExpiry=expires();
       const memberships = new Set(['live','left', ...(rng(2) ? ['extra'] : [])]);
       for (const room of ['live','left','extra']) {
         for (const who of ['bob','alice'].filter(who => who === 'alice' || memberships.has(room))) initial.push({table:'members',row:{id:`${room}-${who}`,room,principal:`dev:${who}`}});
-        initial.push({table:'rooms',row:{id:room,title:room,owner:'dev:alice'}});
+        initial.push({table:'rooms',row:{id:room,title:room,owner:'dev:alice',expires:expires()}});
       }
-      initial.push({table:'profiles',row:{id:'p',principal:'dev:alice',name:'Alice'}}, {table:'cards',row:{id:'c',principal:'dev:alice',reader:'dev:bob',name:'Private Alice'}});
+      initial.push({table:'profiles',row:{id:'p',principal:'dev:alice',name:'Alice',expires:profileExpiry}}, {table:'cards',row:{id:'c',principal:'dev:alice',reader:'dev:bob',name:'Private Alice',expires:expires()}});
       for (let i=0;i<25;i++) initial.push({table:'messages',row:{id:`m${String(i).padStart(2,'0')}`,room:i>15?'left':rng(2)?'live':'extra',author:'dev:alice',text:'coffee',at:1000+i,tombstone:false,expires:null}});
       const seeded=await fetch(`${url}/seed`,{method:'POST',body:JSON.stringify(initial)}).then(r=>r.json()); assert.equal(seeded.seeded,initial.length,JSON.stringify(seeded));
       let offline=false, core, requests=0;
@@ -117,7 +122,7 @@ for (const tier of ['process','wasm']) test(`decorated generated search oracle o
       }});
       t.after(async()=>{await client.close();await remote.close();await admin.close();}); await client.sync();
       const call=async(name,args={},as=admin)=>{const r=await as.mutate(mutation(name),args);assert.equal(r.state,'sent',JSON.stringify(r));};
-      const heldPoint=async(name,args)=>{const r=await core.call({op:'query',name,viewer:'dev:bob',args,now:Date.now()});assert.ok(!r.denied,JSON.stringify(r));return r.ok?.data??null;};
+      const heldPoint=async(name,args)=>{const r=await core.call({op:'query',name,viewer:'dev:bob',args,now:client.now()});assert.ok(!r.denied,JSON.stringify(r));return r.ok?.data??null;};
       async function check(step, chat) {
         const names=chat?['chat','chatDecorated']:['search','decorated'];
         let aCursor=null,bCursor=null;
@@ -133,7 +138,7 @@ for (const tier of ['process','wasm']) test(`decorated generated search oracle o
           for(const key of ['complete','cut','fresh','since'])assert.equal(b[key],a[key],`${label} ${key}`);
           assert.deepEqual(normalized(b.next),normalized(a.next),`${label} next`);
           if(!chat&&!offline)assert.equal(requests-start,2,`${label} exactly one server call per form`);
-          counts.pages++;counts[offline?'offline':'online']++;if(b.data.length<limit&&b.next)counts.short++;
+          counts.pages++;if(client.now()>=profileExpiry)counts.expiryPages++;counts[offline?'offline':'online']++;if(b.data.length<limit&&b.next)counts.short++;
           const points=new Map();
           for(const hit of b.data) {
             const current=offline || chat && !paths.slice(pathStart).includes(`/q/${names[1]}`)?null:(await remote.query(op('point'),{id:hit.id})).data;
@@ -146,12 +151,14 @@ for (const tier of ['process','wasm']) test(`decorated generated search oracle o
             const owner=room?await point('profilePoint',{who:room.owner}):null;
             assert.deepEqual([hit.title,hit.sender,hit.ownerName,hit.privateName],[room?.title??null,profile?.name??null,owner?.name??null,card?.name??null],label);
             if(!profile)counts[current?'currentNull':'retainedNull']++;
+            if(client.now()>=profileExpiry && step<7){assert.equal(hit.sender,null,`${label} seeded expiry`);counts.expiryNulls++;}
           }
           aCursor=a.next;bCursor=b.next;if(!aCursor)break;
         }
       }
       for(let step=0;step<24;step++) {
         if(offline){offline=false;await client.sync();}
+        if(step) {const advanced=await fetch(`${url}/dev/clock/advance`,{method:'POST',body:JSON.stringify({duration:'1m'})});assert.equal(advanced.status,200);}
         switch(step) {
           case 1:await call('leave',{room:'left'},remote);memberships.delete('left');break;
           case 2:await call('rename',{room:'left',name:`After leave ${seed}`});break;
@@ -182,7 +189,7 @@ for (const tier of ['process','wasm']) test(`decorated generated search oracle o
       }
     });
   }
-  assert.ok(counts.online&&counts.offline&&counts.short&&counts.currentNull&&counts.retainedNull,JSON.stringify(counts));
+  assert.ok(counts.online&&counts.offline&&counts.short&&counts.currentNull&&counts.retainedNull&&counts.expiryPages&&counts.expiryNulls,JSON.stringify(counts));
   console.log(`SJ ${tier} oracle ${JSON.stringify(counts)}`);
 });
 
@@ -238,19 +245,20 @@ for(const tier of ['process','wasm']) for(const mode of ['watch','one-shot']) te
     await until(()=>live.getSnapshot().data?.length===2,'initial decorated publication');
     const first=live.getSnapshot();publications.length=0;
     await advance();live.getSnapshot();await reached.promise;
-    assert.deepEqual(live.getSnapshot().data,first.data,'value refresh in flight keeps both sources');
+    assert.deepEqual(live.getSnapshot().data.map(r=>r.id),first.data.map(r=>r.id),'value refresh in flight keeps both sources');
+    assert.ok(live.getSnapshot().data.every(r=>[r.title,r.sender,r.ownerName,r.privateName].every(v=>v===null)),'in-flight expired fields are already null');
     for(const key of ['fresh','since','complete','cut','next'])assert.equal(live.getSnapshot()[key],first[key],key);
-    blocked.release();await until(()=>live.getSnapshot().data?.every(r=>r.sender===null),'expired decorations refreshed');
+    blocked.release();await until(()=>raw.findLast(r=>r.name==='decorated').decorationExpiry==null && live.getSnapshot().data?.every(r=>r.sender===null),'expired decorations refreshed');
     after=live.getSnapshot();assert.ok(publications.every(r=>r.data?.length===2),'no loading/empty publication');
   }else{
     cross=true;const calls=raw.length;after=await client.query(op('decorated'),args);
-    assert.equal(raw.slice(calls).filter(r=>r.name==='decorated').length,2,'one-shot retries a crossed value deadline');
+    assert.equal(raw.slice(calls).filter(r=>r.name==='decorated').length,1,'one-shot returns the bare page with nulled decorations in one attempt');
   }
   assert.deepEqual(after.data.map(r=>r.id),bare.data.map(r=>r.id));
   for(const key of ['fresh','since','complete','cut'])assert.equal(after[key],bare[key],key);
   assert.deepEqual(normalized(after.next),normalized(bare.next));
   for(const row of after.data)assert.deepEqual([row.title,row.sender,row.ownerName,row.privateName],[null,null,null,null]);
-  const last=raw.findLast(r=>r.name==='decorated');assert.equal(last.nextExpiry,null);assert.equal(last.decorationExpiry??null,null);
+  const last=raw.findLast(r=>r.name==='decorated');assert.equal(last.nextExpiry,null);if(mode==='watch')assert.equal(last.decorationExpiry??null,null);
   const device=await core.call({op:'query',name:'decorated',args,viewer:'dev:bob',now:wall});
   assert.equal(device.ok.nextExpiry,null);assert.equal(device.ok.decorationExpiry,null);
   assert.ok(device.ok.data.every(r=>r.sender===null));
@@ -258,14 +266,148 @@ for(const tier of ['process','wasm']) for(const mode of ['watch','one-shot']) te
 
 // Each authority's value deadline is independent of the later bare deadline.
 for(const clockKind of ['valueDevice','valueServer']) test(`decoration ${clockKind} refresh preserves bare expiry`,async()=>{
-  const {correctReadExpiries}=await import('../dist/read-expiry.js');
+  const {correctReadExpiries,armReadExpiry}=await import('../dist/read-expiry.js');
   let now=100,refreshed=0,withdrawn=0;
   const row={id:'hit'},watch={deadlines:{device:200,server:300,localWakeup:false,valueDevice:150,valueServer:150,[clockKind]:100},expiryTimer:null,snapshot:{data:[row],fresh:true}};
-  const clock={issuedDeviceNow:()=>now,estimatedServerNow:()=>now};
-  const sweep=()=>correctReadExpiries([watch],clock,()=>{withdrawn++;return()=>{};},(w,d)=>{w.deadlines=d;},()=>{refreshed++;});
+  const clock={issuedDeviceNow:()=>now,estimatedServerNow:()=>now,deviceDelay:d=>Math.max(0,d-now),serverDelay:d=>Math.max(0,d-now)};
+  const sweep=()=>correctReadExpiries([watch],clock,()=>{withdrawn++;return()=>{};},(w,d)=>armReadExpiry(w,d,clock,()=>true,()=>{},undefined,false),()=>{refreshed++;});
   sweep();assert.equal(withdrawn,0);assert.equal(refreshed,1);assert.equal(watch.snapshot.data[0],row);assert.equal(watch.snapshot.fresh,true);
   assert.equal(watch.deadlines.device,200);assert.equal(watch.deadlines.server,300);
   sweep();assert.equal(refreshed,1,'consumed value wakeup does not spin');
   now=150;sweep();assert.equal(refreshed,2,'the other authority keeps its future value wakeup');assert.equal(withdrawn,0);
   now=200;sweep();assert.equal(withdrawn,1,'bare page deadline still withdraws');
+  clearTimeout(watch.expiryTimer);
+});
+
+
+const rememberedSource=`use identity
+table messages:
+  text: text <=200
+  at: time
+  immutable at
+  expires: time ?
+  expire at .expires
+  search text
+  public
+table profiles:
+  name: text <=80
+  expires: time ?
+  expire at .expires
+  public
+query bare(q: text <=100, c: cursor ?):
+  return messages matching q last 10 by .at after c
+query decorated(q: text <=100, c: cursor ?):
+  return messages matching q last 10 by .at after c { *, label: profiles['p'].name, stable: 'source-independent' }
+`;
+const pageFacts=read=>({ids:read.data?.map(r=>r.id),complete:read.complete,cut:read.cut,next:read.next??null,fresh:read.fresh,since:read.since});
+for(const tier of ['process','wasm']) test(`remembered unsynced decorated answer expires offline: ${tier} query and watch`,{timeout:60000},async t=>{
+  const {url,dir}=await server(t,'',rememberedSource),deadline=Date.now()+3600000;
+  assert.equal((await fetch(url+'/seed',{method:'POST',body:JSON.stringify([
+    {table:'messages',row:{id:'m',text:'coffee',at:1,expires:null}},
+    {table:'profiles',row:{id:'p',name:'Label',expires:deadline}},
+  ])}).then(r=>r.json())).seeded,2);
+  const backend=await fetch(url+'/schema',{headers:{'x-snapback-persona':'bob'}}).then(r=>r.json());
+  assert.equal(backend.schema.operations.decorated.search_decoration,true);
+  let offline=false,child;const clock=new ServerClock(),fork=clock.fork.bind(clock);clock.fork=()=>child=fork();
+  const opener=tier==='process'?processDevice({binary,dir:join(dir,'device'),spawn:(cmd,args)=>spawn(cmd,args,{stdio:['pipe','pipe','inherit']})}):webDevice({persist:memoryPersistence(),wasm:readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm',import.meta.url))});
+  const client=await createLocalClient({url,persona:'bob',device:opener,fetch:clock.wrap(async(input,init)=>{
+    if(offline)throw new TypeError('offline');
+    if(new URL(input).pathname==='/changes')return parkedChanges(init.signal);
+    return fetch(input,init);
+  })});t.after(()=>client.close());await client.sync();
+  assert.equal((await client.query(op('bare'),{q:'coffee'})).data[0].id,'m');
+  assert.equal((await client.query(op('decorated'),{q:'coffee'})).data[0].label,'Label');
+  const bare=client.observe(op('bare'),{q:'coffee'}),watch=client.observe(op('decorated'),{q:'coffee'});
+  const publications=[],stop=watch.subscribe(()=>publications.push(watch.getSnapshot()));
+  t.after(()=>{stop();watch.close();bare.close();});
+  await until(()=>watch.getSnapshot().data?.[0]?.label==='Label'&&bare.getSnapshot().data?.length===1);
+  offline=true;await client.sync();
+  await until(()=>watch.getSnapshot().fresh===false&&bare.getSnapshot().fresh===false);
+  publications.length=0;
+  child.sample(deadline+1,Date.now(),Date.now(),'offline:1');
+  const now=watch.getSnapshot();assert.equal(now.data?.[0]?.label,null,'access masks before any async recovery');
+  assert.equal(now.data[0].stable,'source-independent');
+  const a=await client.query(op('bare'),{q:'coffee'}),b=await client.query(op('decorated'),{q:'coffee'});
+  const expected=pageFacts(a),actual=pageFacts(b);delete expected.since;delete actual.since;
+  assert.deepEqual(actual,expected);assert.equal(b.data[0].label,null);assert.equal(b.data[0].stable,'source-independent');
+  assert.ok(a.since<=Date.now()&&b.since<=Date.now(),'both retain their remembered confirmation ages');
+  await delay(200);assert.ok(publications.every(r=>r.data?.[0]?.id==='m'&&r.data[0].label===null),JSON.stringify(publications));
+  assert.equal(watch.getSnapshot().data[0].label,null);
+});
+
+for(const episode of [false,true]) test(`createClient accepts skewed decoration replies and keeps refreshing${episode?' during revocation':''}`,{timeout:60000},async t=>{
+  const {url}=await server(t,'',rememberedSource),deadline=Date.now()+3600000;
+  await fetch(url+'/seed',{method:'POST',body:JSON.stringify([
+    {table:'messages',row:{id:'m',text:'coffee',at:1,expires:null}},
+    {table:'profiles',row:{id:'p',name:'Label',expires:deadline}},
+  ])});
+  const clock=new ServerClock();let skew=false,unknown=false,hold=false;const requests=[],gateReply=gate();
+  const client=createClient({url,persona:'bob',fetch:clock.wrap(async(input,init)=>{
+    const path=new URL(input).pathname;if(path==='/changes')return parkedChanges(init.signal);
+    if(path==='/q/decorated'){requests.push(performance.now());if(hold)await gateReply.promise;}
+    const response=await fetch(input,init);
+    if(!skew)return response;
+    const headers=new Headers(response.headers);headers.delete('x-snapback-time');
+    const body=await response.json();if(unknown)delete body.decorationExpiry;
+    return Response.json(body,{status:response.status,headers});
+  })});t.after(async()=>{gateReply.release();await client.close();});
+  const watch=client.observe(op('decorated'),{q:'coffee'}),publications=[];
+  const stop=watch.subscribe(()=>publications.push(watch.getSnapshot()));t.after(()=>{stop();watch.close();});
+  await until(()=>watch.getSnapshot().data?.[0]?.label==='Label');
+  const before=watch.getSnapshot();publications.length=0;
+  if(episode){const {answerObservation}=await import('../dist/read-observation.js');answerObservation(before).reload(true);}
+  skew=true;hold=true;clock.sample(deadline+3600000,Date.now(),Date.now(),'skew:1');
+  const masked=watch.getSnapshot();assert.equal(masked.data?.[0]?.label,null);assert.deepEqual(pageFacts(masked),pageFacts(before));
+  gateReply.release();hold=false;
+  const at=requests.length,one=await client.query(op('decorated'),{q:'coffee'});
+  assert.equal(one.data?.[0]?.label,null,'one-shot returns the page under skew');assert.deepEqual(pageFacts(one),pageFacts(before));
+  assert.equal(one.data[0].stable,'source-independent');
+  await until(()=>requests.length>=at+6,'unbounded value retries past four attempts');
+  assert.ok(requests.at(-1)-requests[at]>175,'skew outlasts the old retry window');
+  assert.ok(requests.length<20,'value retries are paced');
+  assert.ok(publications.every(r=>r.data?.[0]?.id==='m'&&r.data[0].label===null),JSON.stringify(publications));
+  unknown=true;assert.equal((await client.query(op('decorated'),{q:'coffee'})).data?.[0]?.label,null,'unknown value deadline cannot block or expose old values');unknown=false;
+  const attempts=requests.length;
+  await fetch(url+'/dev/clock/advance',{method:'POST',body:JSON.stringify({duration:'2h'})});
+  await until(()=>requests.length>attempts,'server expiry refresh');await delay(1200);
+  const settled=requests.length;await delay(1200);assert.equal(requests.length,settled,'authoritative null expiry ends value retries despite the skewed estimate');
+  assert.equal(watch.getSnapshot().data?.[0]?.label,null);
+});
+
+test('createClient source-page deadline still withdraws a decorated page',async t=>{
+  const clock=new ServerClock();let serverNow=1000,queryCalls=0;const stopReply=gate();
+  const client=createClient({url:'http://expiry.invalid',persona:'bob',fetch:clock.wrap(async(input,init)=>{
+    if(new URL(input).pathname==='/changes')return parkedChanges(init.signal);
+    if(++queryCalls>1)await stopReply.promise;
+    return Response.json({data:[{id:'m',label:'Label'}],tables:['messages'],seq:1,complete:true,nextExpiry:3000,decorationExpiry:2000,decorationFields:['label']},
+      {headers:{'x-snapback-time':String(serverNow),'x-snapback-clock':`clock:${serverNow}`}});
+  })});t.after(async()=>{stopReply.release();await client.close();});
+  const watch=client.observe(op('decorated'),{});t.after(()=>watch.close());
+  await until(()=>watch.getSnapshot().data?.length===1);
+  serverNow=2000;clock.sample(serverNow,Date.now(),Date.now(),'clock:2000');
+  assert.equal(watch.getSnapshot().data?.[0]?.label,null);
+  serverNow=3000;clock.sample(serverNow,Date.now(),Date.now(),'clock:3000');
+  assert.deepEqual(watch.getSnapshot(),{loading:true});
+});
+
+test('an approved older page nulls its own decorations while a newer raw page waits for approval',async()=>{
+  const {ReadObservation}=await import('../dist/read-observation.js');
+  const {ReadApprovals}=await import('../dist/read-approval.js');
+  const {withDecorations}=await import('../dist/read-decoration.js');
+  const {armReadExpiry,correctReadExpiries}=await import('../dist/read-expiry.js');
+  const {readyRead}=await import('../dist/read-existence.js');
+  let now=100;const clock={issuedDeviceNow:()=>now,estimatedServerNow:()=>now,deviceDelay:d=>Math.max(0,d-now),serverDelay:d=>Math.max(0,d-now)};
+  const owner=new ReadObservation(),approvals=new ReadApprovals();
+  const sweep=()=>correctReadExpiries([owner],clock,w=>w.expire(),arm,()=>{});
+  const arm=(w,d)=>armReadExpiry(w,d,clock,()=>true,sweep,undefined,false);
+  const answer=(label,expiry)=>withDecorations(readyRead({data:[{id:'m',label}],complete:true,cut:null,fresh:true}),['label'],null,expiry,()=>now,()=>now);
+  owner.publish(answer('A',150));arm(owner,{device:null,server:300,localWakeup:false,valueServer:150});
+  const approved=approvals.approve(owner.snapshot);
+  owner.publish(answer('B',250));arm(owner,{device:null,server:400,localWakeup:false,valueServer:250});
+  assert.equal(approved.read().data[0].label,'A');
+  now=150;sweep();
+  assert.equal(approved.read().data[0].label,null);assert.equal(approved.read().data[0].id,'m');
+  assert.equal(owner.read(null).data[0].label,'B');
+  now=300;sweep();assert.deepEqual(approved.read(),{loading:true});
+  approvals.close();clearTimeout(owner.expiryTimer);
 });

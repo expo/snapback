@@ -12,16 +12,16 @@ export function withdrawnLocalResult(watches: Iterable<Watch>, watch: Watch,
 }
 
 export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalReads, clock: ServerClock,
-  closed: () => boolean, unavailable: () => Refusal | null, acquireRead: (watch: Watch) => void) {
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false, valueDevice?: number | null, valueServer?: number | null) {
-    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup, valueDevice, valueServer };
+  closed: () => boolean, unavailable: () => Refusal | null, acquireRead: (watch: Watch) => void, online: () => boolean) {
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false, valueDevice?: number | null, valueServer?: number | null, valueRetry?: number) {
+    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup, valueDevice, valueServer, valueRetry };
     armReadExpiry(watch, deadlines, clock,
       () => !closed() && watches.get(watch.key) === watch, sweepExpiries,
-      (serverDue, now) => answers.expire(watch, serverDue, now));
+      (serverDue, now) => answers.expire(watch, serverDue, now), online());
   }
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer),
+      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer, d.valueRetry),
       watch => { if (watches.get(watch.key) === watch) acquireRead(watch); });
   }
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {

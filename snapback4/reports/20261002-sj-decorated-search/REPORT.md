@@ -329,3 +329,134 @@ suite; none is waived as baseline or environmental:
 
 Final full-suite failures: **ours 0, baseline 0, environmental 0**. No rerun
 of `scripts/test.sh`, failure waiver, or runtime ceiling increase.
+
+## Round 2 — value deadlines in every client path (2026-10-02)
+
+Read both complete round-1 reviews: Astra READY WITH CHANGES/P2 and Grok
+READY WITH CHANGES/Medium. This round starts at `5929c5d164`, on merge
+`878da80018`. No further merge, push or publication.
+
+### Rule and implementation
+
+LLP 3000.028 §3.3.1 and the search guide now state the same rule for local,
+composed, online-only, remembered, watched and one-shot answers. Decoration
+expiry never participates in page acceptance. At publication or a value wakeup,
+the page remains available and expired or uncertain decoration fields become
+null synchronously, including while the next read waits. The bare page retains
+its identity/order, completeness, cut, continuation and freshness. Source-row
+expiry, sequence/authority fences, and actual revocation keep their existing
+withdrawal behavior.
+
+The chosen policy is conservative: null all top-level output fields containing
+point reads, across the page, when either decoration authority's deadline is
+due or unknown. Source fields and point-independent output fields survive.
+A nested lookup makes its containing output field a decoration. The existing
+page-wide deadline cannot identify individual affected rows or fields. Adding
+per-field deadlines would enlarge both the engine protocol and retained data;
+this round adds none. The online reply carries one static field-name list;
+the local client derives the same list from its compiled projection. Explicit
+`decorationExpiry: null` proves no upcoming value expiry; an absent deadline
+on a decorated answer is unknown and masks values without rejecting the page.
+
+Value retries use the existing expiry scheduler, independently of row expiry,
+with backoff beginning at 25 ms and capped at one second, with no attempt
+limit. An uncertain reply is accepted with nulled decorations, not routed to
+`ReadObservation.fetch`'s bounded rejection loop. A server answer that proves
+no upcoming decoration expiry ends retries even while the client's estimate
+remains ahead. Offline recovery keeps the remembered page and its confirmation
+age; it does not repeatedly reject the same expired cache entry. Masked copies
+preserve answer identity, revocation episodes and facade ownership. An older
+approved answer also retains its own value timer while raw replacements await
+approval.
+
+### Witnesses and byte accounting
+
+- Astra's public, unsynced `messages` plus expiring `profiles['p'].name`:
+  both process and Wasm clients cache online, disconnect, cross the deadline,
+  and return the hit from the one-shot and watch with `label: null`. A stable
+  literal field remains present. The watch never publishes loading/empty.
+- Grok's `createClient` window: the real server stays before expiry while the
+  estimate is two hours ahead. Held HTTP exposes immediate nulling; a one-shot
+  returns its page. More than four paced refreshes run beyond 175 ms. A second
+  case starts with a revocation episode open. An unknown deadline also returns
+  the nulled page. Advancing the server proves expiry and stops the retries.
+- The mixed current/retained process/Wasm witnesses now require null values
+  while HTTP is still held, and exactly one one-shot server call across expiry.
+  The later source deadline still withdraws, in the online client and in the
+  independent device/server scheduler controls. An older approved facade page
+  nulls its label while a newer raw page remains independently fresh.
+- The independent seed stream now sets expiries on rooms, profiles and cards;
+  the server clock advances through them. It preserves the original membership,
+  write and cursor trace: **985 pages per host, 1,970 total**. Each host has
+  **764 pages after the profile deadline and 355 explicit expired-label checks
+  before deletion**. Both authorities' ordinary point reads remain the value
+  oracle. Fixture rename/delete operations tolerate rows the expiry sweep has
+  already removed.
+
+Locked Wasm is byte-identical to round 1: **2,048,753 B raw / 617,410 B gzip**,
+SHA-256 `6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8`.
+The **618,040 B** budget has **630 B** remaining; no raise. The Rust field-list
+helper is server-only. No macOS measurement is claimed. `round2-wasm.json`
+records the build and wire accounting: one field name adds **29 B/page**,
+the four-field oracle adds **64 B/page**; when round 1 omitted a null deadline,
+the new explicit null adds another **24 B/page**. These are UTF-8 JSON deltas
+independent of the row count, not per-row deadlines or compressed estimates.
+
+### Verification and failure classification
+
+The affected JS selection initially reports **1,027 passed, 3 failed, 0 skipped**
+(1,030 tests). All three failures are ours: the scheduler unnecessarily called
+`estimatedServerNow` on bare-deadline test clocks that supply the two delay
+methods. It now checks each value deadline through its own delay method.
+The selection includes createClient, local reads, recovery, one-shot settlement,
+clock/expiry/retention, and the complete delivery fault matrix. The await census
+has exactly one addition: the new synchronous `read-decoration.ts` module with
+zero awaits. Existing await counts, digests and fault-site classifications are
+unchanged.
+
+Affected Rust decorated-search: **11/11**. Guide: **110/110**. The established
+30,030-message scale witness remains **2,040 → 2,061 examined rows**.
+Typecheck/build, documentation budget and reference validation pass.
+
+Other development failures, all corrected:
+
+- Ours: initial TypeScript generic spread/read narrowing errors.
+- Ours: the first focused run's six failures were two obsolete assertions that
+  assumed null values implied a completed HTTP refresh, and four new fixtures
+  using incorrect Quarry spellings. The next run's two failures omitted the
+  persona on a direct schema request.
+- Ours: the first expiry-seeded oracle tried to edit/delete rows already removed
+  by expiry. The corrected fixture preserves the historical search trace and
+  passes all seeds on both hosts.
+- Ours: one Cargo invocation used the repository root and stopped at the
+  uninitialized Snapback 1 Ibex dependency; no root runtime was built. One edit
+  command also used a path relative to the wrong directory, and the initial
+  edit script used unavailable `python` instead of `python3`. None changed
+  product behavior or qualified as a successful check.
+- Environment/orientation only: this lane's `llp-orient` symlink target is absent;
+  used the existing skill in `lane-dx/vendor/llp/skills/llp-orient/SKILL.md`.
+  Governing context: LLP 3000.028 §3.3.1, LLP 3000.007 §6.5,
+  LLP 3000.019 §3.3, and LLP 3000.023 §§10–11.
+
+The corrected clock/decorated selection passes **83/83**, and the final
+focused expiry/remembered/skew/facade selection passes **9/9**. The complete
+Rust battery passes: **286 binaries / 999 executions plus doctests**, zero
+failures and 34 explicit ignores. The single final
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh`
+run exits 0 and reports exactly **`== 0 failure(s) in 1419 s`**. Client tests:
+**5,822 passed, 0 failed, 10 skipped**; client models: **79/79**. The skips
+are five platform cases and five optional fixture cases, named in the receipt.
+All build, budget, release, package/app and fixture stages pass. Full-suite
+failure classification: **ours 0, baseline 0, environmental 0**. No suite
+rerun or waiver. All 15 qualified source hashes remained unchanged throughout
+the suite; the final source and packaged Wasm hashes match round 1. Full logs remain in
+`/home/ccheever/sb4-intent/sj-r2-evidence/`; the verification receipt binds their
+hashes and the qualified source/artifact hashes.
+
+
+`round2-verification.json` records commands, counts, all ten skip reasons,
+source hashes, artifact hashes, and raw/compressed log hashes. The source review
+keeps the generic row-expiry and authority fences; all full-suite changes after
+qualification are this report, the receipt and the append-only journal entry.
+The local commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Nothing pushed or published.
