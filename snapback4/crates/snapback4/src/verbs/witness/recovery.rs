@@ -1,7 +1,7 @@
 //! @ref LLP 3000.030#15 — recover abandoned exports only under leases and process birth identities.
 use super::*;
 
-fn identity(pid: u32) -> Option<Value> {
+pub(super) fn identity(pid: u32) -> Option<Value> {
     if pid == 0 { return None; }
     #[cfg(target_os = "macos")]
     {
@@ -54,6 +54,9 @@ pub(super) fn app(options: &Options, pid: Option<u32>, udid: &str, bundle: &str,
         value["app"] = pid.and_then(identity).unwrap_or(Value::Null);
         value["udid"] = json!(udid); value["bundle"] = json!(bundle); value["staging"] = json!(dir);
     })
+}
+pub(super) fn begin_wrapper(dir: &Path) -> Result<()> {
+    write(&dir.join("live.json"), &json!({ "owner": null, "wrapper": std::env::var("SNAPBACK4_EXPORT_WRAPPER_PID").ok().and_then(|s| s.parse().ok()).and_then(identity), "children": {}, "startedAt": now() }))
 }
 pub(super) fn begin(options: &Options) -> Result<Option<File>> {
     if options.export.is_none() { return Ok(None); }
@@ -151,7 +154,10 @@ fn recover(dir: &Path) -> Result<bool> {
         let id = match simulator::created_udid(&text) { Some(id) => Some(id.to_owned()), None => simulator::reconcile_created(&record["simulator"])? };
         if let Some(id) = id {
             record["simulator"]["udid"] = json!(id);
-            write(&dir.join("live.json"), &record)?;
+            // Keep the journal unchanged while a wrapper has custody.
+            if let Ok(_export) = preparation::lease(&dir.join("export.lock")) {
+                write(&dir.join("live.json"), &record)?;
+            }
         }
     }
     let simulator = &record["simulator"];
@@ -212,6 +218,9 @@ fn recover(dir: &Path) -> Result<bool> {
         }
     }
     if alive(&record["app"]) { return Err(error("E_WITNESS_PROCESS", "cannot clean up recorded app without simulator custody")); }
+    // Process recovery is independent of wrapper custody. A surviving wrapper
+    // owns the export and journal through publication, even after driver exit.
+    let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { return Ok(false); };
     for entry in fs::read_dir(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -223,34 +232,11 @@ fn recover(dir: &Path) -> Result<bool> {
     eprintln!("witness: recovered abandoned export {}", dir.display());
     Ok(true)
 }
-// Darwin's swap makes a complete directory visible in one operation, including
-// to simultaneous wrappers. No observer sees another run's partial export.
-pub(super) fn publish(args: &[String]) -> i32 {
-    let result = (|| -> Result<()> {
-        if args.len() != 2 { return Err(error("E_WITNESS_INPUT", "export-publish requires private and visible export directories")); }
-        #[cfg(target_os = "macos")]
-        {
-            use std::ffi::CString;
-            let source = CString::new(args[0].as_str()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-            let target = CString::new(args[1].as_str()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-            // RENAME_EXCL handles a simultaneous first publisher without
-            // replacing a nonempty directory. Retry as an atomic exchange.
-            if unsafe { libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_EXCL) } == 0 { return Ok(()); }
-            if unsafe { libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_SWAP) } != 0 {
-                return Err(error("E_WITNESS_ARTIFACT", std::io::Error::last_os_error()));
-            }
-            Ok(())
-        }
-        #[cfg(not(target_os = "macos"))]
-        { Err(error("E_WITNESS_PLATFORM", "native export publication requires macOS")) }
-    })();
-    match result { Ok(()) => 0, Err(e) => { eprintln!("{e}"); 1 } }
-}
-fn remove(path: &Path) -> Result<()> {
+pub(super) fn remove(path: &Path) -> Result<()> {
     let result = if path.is_dir() && !path.is_symlink() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
     result.or_else(|e| if e.kind() == std::io::ErrorKind::NotFound { Ok(()) } else { Err(e) }).map_err(|e| error("E_WITNESS_ARTIFACT", e))
 }
-const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json"];
+const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json", "publication.json"];
 pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     // Blocking OS lock: no PID-file takeover race, and SIGKILL releases it.
@@ -276,13 +262,14 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     // current native producer separately in the cache (saveBase owns its copy).
     for (index, dir) in runs.iter().enumerate().skip(5) {
         let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { continue; };
+        let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { continue; };
         if index >= 25 { remove(dir)?; continue; }
         if dir.join("retention.json").exists() { continue; }
         let mut retained = Vec::new(); let mut removed = Vec::new();
         for entry in fs::read_dir(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
             let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
             let name = entry.file_name().to_string_lossy().into_owned();
-            if ["finished.json", "run.lock"].contains(&name.as_str()) { continue; }
+            if ["finished.json", "run.lock", "export.lock"].contains(&name.as_str()) { continue; }
             if name.ends_with(".gz") && RECEIPTS.contains(&name.trim_end_matches(".gz")) { retained.push(name); continue; }
             if RECEIPTS.contains(&name.as_str()) && entry.file_type().is_ok_and(|t| t.is_file()) {
                 let compressed = Command::new("gzip").args(["-n", "-c"]).arg(entry.path()).output().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -347,8 +334,15 @@ mod tests {
         let end = Instant::now() + Duration::from_secs(5);
         while !heartbeat.exists() && Instant::now() < end { sleep(Duration::from_millis(20)); }
         assert!(heartbeat.exists());
+        let lease = preparation::lease(&dir.join("export.lock")).unwrap();
+        let journal = fs::read(dir.join("live.json")).unwrap();
         cleanup(&root, Some(&dir)).unwrap();
         keeper.wait().unwrap();
+        assert!(!dir.join("finished.json").exists());
+        assert!(dir.join("export.app").exists());
+        assert_eq!(fs::read(dir.join("live.json")).unwrap(), journal);
+        drop(lease);
+        cleanup(&root, Some(&dir)).unwrap();
         assert!(members(keeper.id()).unwrap().is_empty());
         assert!(!dir.join("export.app").exists());
         assert_eq!(read(&dir.join("finished.json"))["recovered"], true);
@@ -361,5 +355,34 @@ mod tests {
     fn pid_reuse_does_not_keep_an_abandoned_run_alive() {
         let mut id = identity(std::process::id()).unwrap();
         assert!(alive(&id)); id["start"] = json!([0, 0]); assert!(!alive(&id));
+    }
+
+    #[test]
+    fn live_wrapper_lease_preserves_export_and_journal_after_driver_exit() {
+        let root = std::env::temp_dir().join(format!("sb4-wrapper-{}-{}", std::process::id(), now()));
+        let dir = root.join("1-123"); fs::create_dir_all(dir.join("export")).unwrap();
+        fs::write(dir.join("export/bundle"), "proved bytes").unwrap();
+        let mut driver = Owned::spawn(Command::new("sleep").arg("60")).unwrap();
+        let owner = identity(driver.0.id()).unwrap(); driver.stop(libc::SIGTERM).unwrap();
+        let journal = json!({ "owner": owner, "wrapper": identity(std::process::id()), "children": {} });
+        write(&dir.join("live.json"), &journal).unwrap();
+        let before = fs::read(dir.join("live.json")).unwrap();
+        let lease = preparation::lease(&dir.join("export.lock")).unwrap();
+        for i in 2..=6 {
+            let newer = root.join(format!("{i}-123")); fs::create_dir_all(&newer).unwrap();
+            write(&newer.join("finished.json"), &json!({ "finishedAt": now() })).unwrap();
+        }
+        cleanup(&root, Some(&dir)).unwrap();
+        assert_eq!(fs::read(dir.join("live.json")).unwrap(), before);
+        assert_eq!(fs::read_to_string(dir.join("export/bundle")).unwrap(), "proved bytes");
+        assert!(!dir.join("finished.json").exists());
+        // Even a prematurely finalized/legacy record cannot bypass custody.
+        write(&dir.join("finished.json"), &json!({ "finishedAt": now() })).unwrap();
+        cleanup(&root, None).unwrap();
+        assert!(dir.join("export/bundle").exists());
+        drop(lease);
+        cleanup(&root, None).unwrap();
+        assert!(!dir.join("export").exists());
+        fs::remove_dir_all(root).unwrap();
     }
 }

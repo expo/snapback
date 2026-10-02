@@ -47,6 +47,15 @@ export function retainEvidence(root, completed, binary = 'snapback4') {
   if (result.status !== 0) console.error(`native smoke evidence cleanup deferred: ${result.stderr || result.error?.message || result.status}`);
   return result.status === 0;
 }
+// The helper locks a duplicate of this descriptor, so the kernel lease stays
+// with this process after the helper exits. Children do not inherit it unless
+// explicitly listed in stdio (the publisher must keep it if this wrapper dies).
+export function acquireExportLease(artifacts, binary = 'snapback4') {
+  const fd = fs.openSync(path.join(artifacts, 'export.lock'), 'a+');
+  const result = spawnSync(binary, ['witness', 'export-lease', artifacts], { encoding: 'utf8', env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) }, stdio: ['ignore', 'pipe', 'pipe', fd] });
+  if (result.status !== 0) { fs.closeSync(fd); throw Error(result.stderr || result.error?.message || 'export lease failed'); }
+  return fd;
+}
 export async function main() {
   const req = createRequire(path.resolve('package.json'));
   const skip = skipReason(process.platform, process.env);
@@ -60,20 +69,24 @@ export async function main() {
   const privateExport = path.join(artifacts, 'export');
   const receiptPath = path.join(artifacts, 'smoke-ios-run.json');
   fs.mkdirSync(artifacts, { recursive: true });
-  const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
-  if (exported.status !== 0) return exported.status;
-  const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', privateExport, '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
-  let receipt;
-  try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
-  const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);
-  if (outcome.status === 0) {
-    const published = await runChild('snapback4', ['witness', 'export-publish', privateExport, path.resolve('dist')]);
-    if (published.status !== 0) { outcome.status = published.status; outcome.message = 'export output publication failed'; }
+  const lease = acquireExportLease(artifacts);
+  try {
+    const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
+    if (exported.status !== 0) return exported.status;
+    const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', privateExport, '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
+    let receipt;
+    try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
+    const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);
+    if (outcome.status === 0) {
+      const published = await runChild('snapback4', ['witness', 'export-publish', privateExport, path.resolve('dist'), ...(result.status === 0 ? [] : ['--environment-skip'])], { stdio: ['inherit', 'inherit', 'inherit', lease] });
+      if (published.status !== 0) { outcome.status = published.status; outcome.message = 'export output publication failed'; }
+    }
+    console.log(`${outcome.message}; receipt: ${receiptPath}`);
+    return outcome.status;
+  } finally {
+    try { fs.rmSync(privateExport, { recursive: true, force: true }); }
+    finally { fs.closeSync(lease); retainEvidence(root, artifacts); }
   }
-  fs.rmSync(privateExport, { recursive: true, force: true });
-  retainEvidence(root, artifacts);
-  console.log(`${outcome.message}; receipt: ${receiptPath}`);
-  return outcome.status;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   try { process.exitCode = await main(); }

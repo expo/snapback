@@ -855,3 +855,159 @@ LLP 3000.030 §15 and the witness guide carry the honest-project boundary and
 new custody rules. One append-only journal entry records this round. The local
 commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push,
 publication, physical-device or application-scenario claim is made.
+
+
+## Round 4 — wrapper custody through verified publication (2026-10-02)
+
+Input: slim branch `sb4-np/nx-export-proves-native-slim`, commit `fb9c037bd4`.
+The original branch is not used or merged. Astra's round-3 verdict was NOT READY
+with one P1: pruning after driver exit could delete the live wrapper's export,
+including through its atomic rename into dist. Grok supplied no round-3 verdict.
+This round fixes that custody gap under the unchanged honest-project threat
+model; it does not claim independent reviewer approval.
+
+### Fix and observable publication semantics
+
+The Node wrapper opens `export.lock` before creating its private export. A small
+Rust helper takes an exclusive kernel flock on an inherited duplicate of that
+open file description. Node keeps the descriptor until publication, verification
+and private/displaced-tree removal finish. Its CLI shim forwards the descriptor
+to the publisher; the publisher keeps it even if Node is killed mid-publication.
+No PID record substitutes for this lease. Exit closes descriptors and releases
+custody automatically. The driver retains its separate `run.lock`.
+
+Recovery still drains a dead driver's recorded children and matching app/device
+under the existing birth identities and simulator leases. While `export.lock`
+is held, it leaves the journal and bulk export unchanged and writes no completion.
+Pruning must acquire both leases and retain them throughout deletion, including
+when an older finalized receipt already exists. Compression retains the lease
+inode and now retains `publication.json` as a compressed receipt.
+
+A destination lock under `artifacts/native-smoke/publication.lock` serializes
+publishers through exchange, verification and displaced-tree deletion. It lives
+under the already-excluded artifact tree, so publication cannot change the native
+key. The publisher binds the proof file to the successful smoke receipt's SHA-256,
+then compares every exported path, size, hash, mode and type before and after the
+atomic rename/exchange. Missing/extra/changed files fail with `E_WITNESS_PROOF`;
+they never become an environment skip. `publication.json` records the inventory
+and proof hash. An allowed environment skip checks export-only inventory and
+records a null native proof hash.
+
+On the native-proof path, with these cooperating writers and cleaners, **dist is never half-replaced or
+temporarily absent during replacement**. An individual path lookup sees the
+complete old or complete new directory; first publication switches absent to
+complete. This is not a snapshot for readers opening several files across the
+switch: they can mix generations. Open file handles keep their bytes, while a
+reader holding the displaced directory handle can see entries removed as that
+old tree is reclaimed. Outside writes are not prevented; detected inventory
+changes fail publication. Another successful publisher can subsequently replace
+the output after this one's verification. Explicit opt-out and non-macOS retain
+the ordinary Expo output path, which has no atomic-replacement guarantee.
+
+### Detecting regressions
+
+- **Live wrapper / dead driver / five newer completed runs:** the Rust control
+  records an actual driver's birth identity, terminates it, and holds the wrapper
+  export lease. Cleanup preserves both export bytes and the exact journal and
+  writes no completion. It also cannot prune a prematurely finalized record.
+  `round4/round3-counterexample.json` runs the retained round-3 binary with a real
+  Node-held kernel lease: it returns 0, deletes the export, compresses the journal
+  and writes completion. The corrected CLI/Node regression preserves them.
+- **Pruning during publication:** a controlled callback in the test build runs
+  cleanup before exchange and at the post-exchange/pre-verification boundary of
+  the actual publication implementation. All **10,001** current files survive.
+  Hash, length, renamed-path and extra-file mutations both before and after
+  exchange each fail. `round4/round3-tamper-counterexample.json` also runs the
+  actual old/new CLIs: round 3 publishes changed bytes with status 0; round 4
+  refuses them with status 1 and `E_WITNESS_PROOF`. Test boundary hooks are absent
+  from the shipped CLI.
+- **Concurrent publishers, one killed mid-publication:** two subprocess fixtures
+  share the real locks and exchange implementation. A pauses after exchange;
+  B waits on the destination lock. Kill A, race recovery with B, and require dist
+  to equal B's entire recorded inventory, with A recovered and its displaced tree
+  pruned. Separate JavaScript controls prove SIGKILL releases Node custody and a
+  real publication child retains the descriptor when its Node wrapper dies while
+  blocked on the destination lock. These process fixtures exercise custody, not
+  a fabricated claim of native smoke.
+- The preparation-group test still drains its TERM-resistant descendant with a
+  live wrapper, now asserting the journal is unchanged and completion/bulk removal
+  wait for the wrapper lease to close. The installed CLI forwarding path is tested.
+
+### Measurements and validation
+
+| Starter | Priming build on final code | One final JS-edit warm export | Cache / segments / publication |
+|---|---:|---:|---|
+| plain | 89.462 s | **15.805 s** | hit / three passed / 8 inventory entries verified |
+| social | 139.918 s | **22.944 s** | hit / three passed / 32 inventory entries verified |
+
+These are full `npm run export:ios` wall times, including export, native smoke,
+publication verification and wrapper cleanup. The requested one sample per starter
+is below 25 s; it is not a new five-run median. Round 3's five-run warm medians
+remain 15.820 / 21.073 s. Final priming rebuilds follow installed wrapper/CLI
+changes and removal of the initial misplaced lock; they reuse existing Pods,
+DerivedData, dependencies and system caches and are **not cold-build claims**.
+Warm runs append a distinct application JS edit. The dependency audit records
+only two changed installed paths (wrapper and CLI); their config-plugin behavior
+is unchanged, and the audited complete snapshots plus Expo package tree are pinned.
+The published and loaded bundle hashes agree for both starters, and each
+publication receipt's proof hash equals the successful smoke's recorded proof.
+The lane-created simulator is reused; no Simulator.app UI or Metro is opened.
+A command-scoped caffeinate assertion ends with each batch.
+
+Affected verification: **23/23 Rust witness units**, **53/53 witness integration**
+(serial canonical thread count), and **17/17 JavaScript export tests** pass.
+The final suite repeats these affected targets with the corrected lock location.
+Reference validation passes: 525 LLP documents, 10,184 refs, zero errors or unchecked.
+No engine, client contract, wasm source or budget changes. Wasm's SHA-256 remains
+`c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`:
+**2,014,420 B raw / 604,666 B gzip**, 559 B below the unchanged 605,225 B cap.
+
+The requested single canonical `scripts/test.sh` invocation used Node 24.18.0
+and `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Exact summary:
+
+```
+== 1 failure(s) in 2287 s
+```
+
+**Sole failure: introduced documentation-budget regression, now fixed.** The
+`cargo test` group reported `snapback4-lang::guide` failing
+`client::native_smoke_is_the_milestone_path_with_honest_limits`: my expanded witness
+card had 407 lines against its existing 399-line cap. Compacted the new paragraph
+to restore 399 lines, preserving the custody and reader semantics; no cap or test
+was changed. The affected guide target then passed **110/110** in
+`round4/guide-after-budget-fix.log`. The canonical invocation remains recorded as
+red and was not rerun. No other suite failure occurred. Its witness integration
+passed **53/53**; client pool **5,765 passed, zero failed/cancelled, five fixture
+skips**; final serial models **79/79**. Both 300-history mixed-evidence oracles
+completed. This does not resolve the older intermittent oracle issue's cause.
+The measured publication/recovery code is unchanged by the guide-only compaction.
+`round4/full-suite-summary.log`, `full-suite-status.json` and
+`full-suite-failures.json` retain the summary, invocation count and classification;
+the complete raw log is in the archive index.
+
+Deleted the one device this round created, UDID
+`905940BD-8BAE-4C0B-87CB-57D36AA37845`, only after matching its journal and ownership
+record and holding both state and simulator-home leases. Confirmed it absent.
+No operation targeted `mini-verify-iphone`. Both starters retain five full runs;
+plain has twenty compressed runs and social fourteen. No per-run app, xcresult,
+preparation directory or export remains. The known round-3 unstarted directory
+is preserved without inventing completion.
+
+### Development failures and evidence custody
+
+The initial root-level publication lock caused the first plain warm attempt to
+miss its native cache: **96.372 s**, despite a successful exact smoke/publication.
+This is our product regression, corrected by locating the lock in the excluded
+artifact tree. Its initial **135.929 s** priming build and all raw records remain;
+final measurements are separately named `*-final`. Two edit commands used the
+wrong cwd and failed before editing; both are recorded in
+`round4/development-failures.md`. Expected crash/tampering refusals are negative
+controls, not failed native proofs. Full-suite outcomes are classified above.
+
+Only summaries, verdict/timing JSON and small logs are committed. Raw smoke
+records, media and every gzip go directly to the content-addressed archive;
+`EVIDENCE-ARCHIVE.tsv` records SHA-256, stored byte size and report-relative path.
+Each archive write is read back and hash-checked. The final staged blob audit
+records the under-15-MB round budget and absence of new oversized/gzip/video blobs.
+LLP 3000.030 §15 and the witness guide describe the new custody and reader
+semantics; the journal is append-only. Nothing is pushed or published.

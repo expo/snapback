@@ -7,6 +7,7 @@ mod acquire;
 mod simulator;
 mod ownership;
 mod recovery;
+mod publication;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
@@ -473,7 +474,8 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
 }
 
 pub fn run(args: &[String]) -> i32 {
-    if args.first().is_some_and(|arg| arg == "export-publish") { return recovery::publish(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-publish") { return publication::command(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-lease") { return publication::lease_command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {

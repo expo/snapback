@@ -138,7 +138,7 @@ Release app, replacing its bundle/assets with the exact export. Dependencies and
 lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
 bound with per-export evaluated Expo prebuild config; all project-local plugins and unknown mods retain JS. Remote/URI resources and out-of-tree config files refuse; the image toolchain is pinned. This cache optimizes correctness for honest projects; a plugin already runs arbitrary code during prebuild, so it is not a sandbox. The app reports the selected file's SHA-256 on
 all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
-`export:ios` proves a private export before atomically updating `dist/`, recovers abandoned owned process groups, removes temporary app copies and keeps five full plus twenty compressed runs; asset removals match fresh builds. `native:smoke` always builds.
+`export:ios` leases its private export through atomic `dist/` publication and verification against the smoke inventory; a mismatch fails. Cleanup drains abandoned children but never prunes a leased export. Publishers serialize through verification. Each path lookup sees a complete old or new directory; separate file opens can cross generations. Five full plus twenty compressed runs remain, with temporary apps removed and asset removals matching fresh builds. `native:smoke` always builds.
 A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
 
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;

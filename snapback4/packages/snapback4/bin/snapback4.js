@@ -17,7 +17,9 @@ if (process.argv[2] === "web-shell") {
 let binary;
 try { binary = resolveBinary(); }
 catch (error) { console.error(error.message); process.exit(2); }
-const child = spawn(binary, process.argv.slice(2), { stdio: "inherit", env: {
+// Internal export helpers share the wrapper's kernel lease through fd 3.
+const exportLease = process.argv[2] === "witness" && ["export-lease", "export-publish"].includes(process.argv[3]);
+const child = spawn(binary, process.argv.slice(2), { stdio: exportLease ? ["inherit", "inherit", "inherit", 3] : "inherit", env: {
   ...process.env, SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("./witness-acquire.js", import.meta.url)),
 } });
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { try { child.kill(signal); } catch { /* gone */ } });

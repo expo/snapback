@@ -81652,3 +81652,60 @@ reports/20261001-nx-export-proves-native/REPORT.md (round 3). This is no new
 independent review, physical-device or application-scenario claim.
 Nothing pushed or published. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 4: wrapper lease through verified export publication
+
+Worked on `sb4-np/nx-export-proves-native-slim` from `fb9c037bd4`; the original
+branch was not used or merged. Fixed Astra's remaining P1 under the same honest-
+project boundary: Node holds a kernel flock from private export creation through
+publication, manifest verification and removal, explicitly inherited through the
+CLI shim by the publisher. Recovery drains dead-driver processes but cannot finish
+or prune a run whose wrapper/publisher holds that lease. Pruning keeps both run
+and export leases throughout deletion. A destination lock serializes exchange,
+verification against the smoke proof's paths/sizes/hashes/modes/types and old-tree
+removal. Publication mismatches fail, never skip. On the native-smoke path, dist
+switches atomically from complete old to complete new; separate opens spanning
+the switch can mix generations. Ordinary opt-out/non-macOS Expo output retains
+its existing behavior, without an atomic-replacement claim.
+
+Controls: live wrapper plus dead driver plus five newer completed runs preserves
+export and exact journal; 10,001 files survive cleanup at the exchange boundary;
+pre/post-exchange hash/size/path/extra-file tampering fails; a publisher killed
+after exchange is recovered while its concurrent survivor leaves exactly its own
+verified inventory. Actual Node tests cover kernel custody after helper/shim exit,
+SIGKILL release, and surviving-child inheritance. The retained round-3 binary
+reproduces deletion despite a live wrapper and accepts tampered publication; the
+new regressions reject both. Rust witness units 23/23, witness integration 53/53,
+JavaScript export tests 17/17. No test guard or runtime budget changed.
+
+One final JS-edit warm export per starter: **15.805 s plain / 22.944 s social**,
+both cache hits with all three smoke segments and matching published/loaded proof
+bytes. Final priming rebuilds were 89.462 / 139.918 s with native/dependency caches
+already present, not cold claims. The initial root-level publication lock entered
+the native key and caused a 96.372 s warm-attempt rebuild; fixed by locating it in
+the excluded artifacts tree and retained that attempt. The installed dependency
+audit changes only the wrapper and CLI files and pins the new complete snapshots.
+
+The requested single canonical suite reports exactly:
+`== 1 failure(s) in 2287 s`.
+Its sole failure was ours: the witness card grew to 407 lines against the existing
+399-line cap. Compacted the paragraph without raising the cap; the affected guide
+target then passes 110/110. The original suite remains red and is not rerun or
+relabeled. Its witness target passes 53/53, client pool 5,765 passed / five fixture
+skips / zero failed or cancelled, final models 79/79. Both 300-history oracles
+complete; the old intermittent issue's cause remains unresolved. Two wrong-cwd
+edit commands failed before mutation and are also recorded. Wasm remains exactly
+2,014,420 B raw / 604,666 B gzip, 559 B below the unchanged cap and with the same
+SHA-256 as round 3. No core or contract source changed.
+
+Large evidence, gzip dumps and all six original recordings are hash-verified in
+`~/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs/`; the report's
+EVIDENCE-ARCHIVE.tsv is the index. Only summaries, JSON and small logs enter git;
+the precommit audit checks the 256-KiB new-evidence and 15-MB staged-blob limits.
+Deleted only this round's recorded device after both custody checks/leases;
+mini-verify-iphone was untouched. Five full runs remain per starter, no per-run
+bulk output remains, and the known unstarted legacy directory stays untouched.
+See reports/20261001-nx-export-proves-native/REPORT.md, Round 4. Independent round-4
+review is pending. Nothing pushed or externally published. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

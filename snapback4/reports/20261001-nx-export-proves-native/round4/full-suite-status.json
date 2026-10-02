@@ -1,0 +1,10 @@
+{
+  "invocations": 1,
+  "command": "scripts/test.sh",
+  "node": "24.18.0",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "startedAt": 1790958713.745354,
+  "exitStatus": 1,
+  "durationSeconds": 2286.857724905014,
+  "summary": "== 1 failure(s) in 2287 s"
+}

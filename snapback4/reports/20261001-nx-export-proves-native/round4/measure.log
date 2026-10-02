@@ -1,0 +1,13 @@
+{"starter":"plain","label":"prime","startedAt":1790958037580,"durationMs":135929,"status":0,"signal":null,"receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790958037743-80238/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"43504029a51f16a349f0267dacd4fd68d78df8ea75de6841c754c6225619e944"}},"hit":false},"exitStatus":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"loadedHash":"2491fa11dab87c30b0434b558a595c594690611bf4dfbc64121d5d582eafbf86","exportHash":"2491fa11dab87c30b0434b558a595c594690611bf4dfbc64121d5d582eafbf86","publicationProofHash":"3e58aa548ee22583f76b4b08be0c5ca0282f683ac96222a4120b20b342aaa484","proofHash":"3e58aa548ee22583f76b4b08be0c5ca0282f683ac96222a4120b20b342aaa484","publishedFiles":8,"evidence":82}
+{"starter":"plain","label":"warm","startedAt":1790958174121,"durationMs":96372,"status":0,"signal":null,"receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790958174272-85210/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"8a1cca38fcaab15d38453ba79dbef9ff31ab3de69310e6c2014f8b4b751591ba"}},"hit":false},"exitStatus":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"loadedHash":"1354c46090e96891766bdc84d3b2580eab5fd9994a919b7e6b49bdedba9c0876","exportHash":"1354c46090e96891766bdc84d3b2580eab5fd9994a919b7e6b49bdedba9c0876","publicationProofHash":"8fb57102ad58d4a1a185014052f3056153a48014acacf2292899d2fa73dccde5","proofHash":"8fb57102ad58d4a1a185014052f3056153a48014acacf2292899d2fa73dccde5","publishedFiles":8,"evidence":82}
+file:///private/tmp/nx-r4-measure.mjs:26
+  if(r.status!==0||receipt?.exitStatus!==0||!publication||row.loadedHash!==row.exportHash||row.publicationProofHash!==row.proofHash||Object.values(row.segments).some(s=>s!=='passed')||(label==='warm'&&!row.cache?.hit))throw Error('real export verification failed: '+starter+' '+label);
+                                                                                                                                                                                                                                ^
+
+Error: real export verification failed: plain warm
+    at file:///private/tmp/nx-r4-measure.mjs:26:225
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0

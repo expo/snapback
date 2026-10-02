@@ -1,0 +1,52 @@
+{
+  "base": "fb9c037bd4bb56f5933bdde07b266393496e544f",
+  "branch": "sb4-np/nx-export-proves-native-slim",
+  "files": [
+    {
+      "path": "crates/snapback4/src/verbs/witness.rs",
+      "bytes": 41134,
+      "sha256": "56dde727298eb1fa575727bf4ebe668c8d7d54acd3bceb7c736c18127155c18c"
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/recovery.rs",
+      "bytes": 24095,
+      "sha256": "17f64c11efb74a27cbcb5fe49f8d98335a7228f891d4f361075410d5c69d64f9"
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/publication.rs",
+      "bytes": 13606,
+      "sha256": "b66c39d25385b72c696b2b333c75a089a3bae0b16e8379ca9cb4b860dad73580"
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-mods.json",
+      "bytes": 1686,
+      "sha256": "1f35fbb4226ad56a4dad3f1a14de913ad33745db94c0a28f228b2bb781a036fe"
+    },
+    {
+      "path": "packages/snapback4-expo/export-ios.mjs",
+      "bytes": 5978,
+      "sha256": "6fcd2fd6539f1044684164ae61c444225f3a641f7870d87548c873cb5c671a90"
+    },
+    {
+      "path": "packages/snapback4/bin/snapback4.js",
+      "bytes": 1613,
+      "sha256": "aaa4f85b9d33b23db92e10e2fd9cf02b9eb82424b9cd43118cd27567dc99ee0b"
+    },
+    {
+      "path": "packages/snapback4/test/export-publication.test.mjs",
+      "bytes": 7745,
+      "sha256": "223419b4dc674808fe506cf692efbea88214a83e7dd854e83f3e9e5e4e91baa9"
+    },
+    {
+      "path": "crates/snapback4-lang/src/guide/witness.md",
+      "bytes": 25631,
+      "sha256": "c333736108e28d005784792fa102f72c5f0bb698291a3c0bb68b671235e0b726"
+    },
+    {
+      "path": "target/production/snapback4",
+      "bytes": 14806576,
+      "sha256": "1ba426e29e56926bea4eac00bdd166d0b70a05c6eda7638400fb54ce93980b9e"
+    }
+  ],
+  "measurementNote": "The production binary measured final publication logic before the later guide-only line-budget compaction. The affected guide target was rerun after compaction; runtime publication/recovery code is unchanged."
+}
