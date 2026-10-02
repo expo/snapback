@@ -35,3 +35,23 @@ Follow-up: coordinate or boundedly retry the fixture's database copy, and close
 the replacement on every setup failure before returning it. Verify that an
 injected writer lock reports failure without leaving a child server or hanging
 the test process. Keep the browser's admission assertions intact.
+
+## X27R recurrence, 2026-10-02
+
+The one required full suite on `sb4/xcode27-reconcile` at `d7c8c35a59`
+reproduced the same observed-replacement failure at line 321:
+`ERR_SQLITE_ERROR`, errcode 5, `database is locked`. The client stage reports
+`5796` tests, `5789` passes, `2` failures (child and parent), `5` skips and
+`0` cancellations; `-- FAIL: client tests (1177 s)`.
+
+The leaked server PID 62758 was a child of this suite's
+`web-admission-review.test.mjs` process 62516. Before SIGTERM, X27R checked
+its ancestry, exact executable in the X27R worktree, and cwd in its owned
+`sb4-witness-app-QidyMB` temporary fixture. Only that leaked child received
+SIGTERM; the existing failure was preserved and the suite continued to its
+serial client models. No failed test was omitted or retried. The fixture and
+client sources are unchanged by X27R.
+
+Evidence on the Apartment mini: `~/x27r-evidence/full-suite.log`,
+`client-process-tree.log` and `client-leak-cleanup.json`. The complete
+`~/x27r.final.md` includes their hashes and the suite's final summary.
