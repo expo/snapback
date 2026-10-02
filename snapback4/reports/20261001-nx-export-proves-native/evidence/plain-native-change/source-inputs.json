@@ -1,0 +1,189 @@
+{
+  "sha256": "0a120a99540ed9b8035957d648b3ff94552e199901e87a13dd994a2410c51284",
+  "bytes": 291300,
+  "files": [
+    {
+      "path": ".gitignore",
+      "mode": 420,
+      "type": "file",
+      "bytes": 88,
+      "sha256": "a16bddccd708151c692df7bb2a44e37f69a4bcc1c7fd81b749435221bc750e94"
+    },
+    {
+      "path": "App.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1691,
+      "sha256": "a42498f5fb7f7f84a5fa8c618a9695b2445dca21e029e87f45cd7558f8c5487e"
+    },
+    {
+      "path": "README.md",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2387,
+      "sha256": "318f8b01536b1b986d23268b560ec6e92d301fe0332742c8f84642382b62c234"
+    },
+    {
+      "path": "app.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 551,
+      "sha256": "d4f4d4fefda162ae4aa91f942626f22b1810e2c6bef4137e5ff99356182155a9"
+    },
+    {
+      "path": "babel.config.js",
+      "mode": 420,
+      "type": "file",
+      "bytes": 101,
+      "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+    },
+    {
+      "path": "index.js",
+      "mode": 420,
+      "type": "file",
+      "bytes": 103,
+      "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+    },
+    {
+      "path": "metro-wasm-transformer.cjs",
+      "mode": 420,
+      "type": "file",
+      "bytes": 579,
+      "sha256": "79924fe3d076765a6e032da1018159f478cea6a570016be78f4ddd6e66a30b30"
+    },
+    {
+      "path": "metro.config.js",
+      "mode": 420,
+      "type": "file",
+      "bytes": 543,
+      "sha256": "f19c0ab4c2eaff2f7f80e17a0617ce87658e8d410df714da6ac1cfc74d43ec42"
+    },
+    {
+      "path": "package-lock.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 244451,
+      "sha256": "30273e71a869c03f9edf8e7f872e8831149e38bf7d3ecabfc5f24e4a6c2c015b"
+    },
+    {
+      "path": "package.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 941,
+      "sha256": "51a18d144c9ee17ca3f0c6f107159af2680ea77165289d89784a30f0a33c6bd2"
+    },
+    {
+      "path": "snapback",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "snapback/generated",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "snapback/generated/api.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 6686,
+      "sha256": "fcb440a165f1aaff346952df5f1895e1d942379316e15afbe88eeb07c8c40260"
+    },
+    {
+      "path": "snapback/generated/package.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 18,
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    },
+    {
+      "path": "snapback/generated/residency.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 11934,
+      "sha256": "c80bbb97c8900f8d9ea78cbc9b7728a78b911ab73fe33b3405264f44febe7bd8"
+    },
+    {
+      "path": "snapback/generated/server.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 673,
+      "sha256": "63be3693446214f661e1cca7935bd77c100d79d9afc90b8c3e8e340ee64575ac"
+    },
+    {
+      "path": "snapback/schema.q",
+      "mode": 420,
+      "type": "file",
+      "bytes": 5596,
+      "sha256": "bbd84eccce1b0a8d4c9cabbfb137ef2e6301eff2dd51890215da15537112fd15"
+    },
+    {
+      "path": "src",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "src/Inbox.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1690,
+      "sha256": "df77d524dc9f4974076698d687c38d5f125a6a00c0e9ec00b237949e92de2c22"
+    },
+    {
+      "path": "src/Thread.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 7651,
+      "sha256": "8634a6b47b6d5691b250e73a557a81a266b2fd8054561bd50c63aef3677114aa"
+    },
+    {
+      "path": "src/client.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1191,
+      "sha256": "c29a3eb90e78efbc2e08a650dcd066f58ebe2b9c699b014b285ce64dc35f6c23"
+    },
+    {
+      "path": "src/intent-store.native.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 369,
+      "sha256": "4ab5bdeeeb3de3d3d86ea02deaf3ed68cd4592578260fe1df63981d26bebe850"
+    },
+    {
+      "path": "src/intent-store.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 126,
+      "sha256": "d88eadf6a0d477ba2b4b0beac3277fc9ffa5f86d9ec7a70bead1267c366442d4"
+    },
+    {
+      "path": "src/intent-store.web.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 334,
+      "sha256": "8d17c1ac81c3925767581a5d39962e9c7652ffb97e9efc16f139a1c3d9a8098e"
+    },
+    {
+      "path": "src/intents.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2790,
+      "sha256": "b4700ed7344bc34bbea7ab602bb10ce3e94dda895e21f43d3244503aebaacf1a"
+    },
+    {
+      "path": "src/native-smoke.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 509,
+      "sha256": "6ac63dacf346165280593ccdcdde8a28607b7ad9d6369482794aa754bffabe3c"
+    },
+    {
+      "path": "tsconfig.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 298,
+      "sha256": "c8b789a4e7a4a1e5404cd52fb7fed4d7ca5550539ff0c4279d7e0b123782e932"
+    }
+  ]
+}

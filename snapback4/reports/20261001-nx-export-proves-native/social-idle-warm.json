@@ -1,0 +1,27 @@
+{
+  "starter": "social",
+  "label": "idle-warm",
+  "startedAt": 1790897613520,
+  "durationMs": 17073,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "a057ba230596dd1cdf3c3f6042007f6953478175664ec02cc6cea8e2cd4035f2",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790897617228-94628/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "51776e00b73bd8aca410d1acfcaf75547dc0a875e06879c44c99162a6be8777b"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 1,
+  "error": "E_WITNESS_PROCESS: video recorder exited early (exit status: 16)",
+  "segments": {
+    "offline": "not-run",
+    "prime": "not-run",
+    "restart": "not-run"
+  },
+  "loadedHash": "a057ba230596dd1cdf3c3f6042007f6953478175664ec02cc6cea8e2cd4035f2"
+}

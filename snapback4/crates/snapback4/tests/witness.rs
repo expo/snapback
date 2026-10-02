@@ -12,6 +12,8 @@ fn witness_cli_refuses_missing_bundle_with_a_recipe() {
 fn preparation_selectors_are_exclusive_and_repack_is_withdrawn() {
     for (flags, reason) in [
         (vec!["--bundle-id", "app.test", "--build", "."], "select exactly one"),
+        (vec!["--build", ".", "--export", "dist"], "--export requires --build and --smoke"),
+        (vec!["--bundle-id", "app.test", "--smoke", "--export", "dist"], "--export requires --build and --smoke"),
         (vec!["--repack=build.json"], "repack is withdrawn; use witness ios --build"),
         (vec!["--repack", "build.json", "--app-project", ".", "--smoke"], "repack is withdrawn; use witness ios --build"),
         (vec!["--repack", "build.json"], "repack is withdrawn; use witness ios --build"),
@@ -335,7 +337,9 @@ mod driver {
             assert_eq!(output.status.code(), Some(1));
             let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_eq!(receipt["simulator"]["selection"], "created");
-            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"));
+            assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_SIMULATOR:"), "{mode}: {receipt}");
+            let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
+            assert_eq!(calls.last().unwrap()[0], if mode.ends_with("boot-fails") { "boot" } else { "bootstatus" });
             assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
             assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
             assert!(receipt["simulator"]["name"].as_str().unwrap().starts_with("snapback4-smoke-"));
@@ -408,6 +412,28 @@ mod driver {
             assert!(fixture.0.join("artifacts/native-smoke").exists());
             assert_eq!(fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().count(), 1);
         }
+    }
+    #[test]
+    fn export_classifies_only_native_environment_setup_as_skippable() {
+        for mode in ["no-xcode", "no-runtime", "auto-create-boot-fails", "auto-create-bootstatus-fails"] {
+            let fixture = Fixture::new();
+            if mode.starts_with("auto-create") {
+                fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
+            let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"])
+                .env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
+        }
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("snapback/generated"), "block codegen").unwrap();
+        let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"]), watchdog::SCENARIO_GUARD);
+        assert_eq!(output.status.code(), Some(1));
+        let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_ne!(receipt["phase"], "environment");
+        assert!(receipt["error"].as_str().unwrap().contains("backend check failed"));
     }
     #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {

@@ -68,7 +68,7 @@ Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `use
 
 ## Expo and acquisition
 Social: native `nativeDevice`, web `webDevice()`, Expo Go online. `guide sync` covers acquisition/Workers.
-Every milestone: `npm run export:ios` for Hermes; Mac/Xcode: `npm run native:smoke` (about 3 minutes warm). Proves Release/local-store acquisition and offline reopen/reconnect. Write replay needs an app scenario (`guide witness`).
+Every milestone: `npm run export:ios` also proves the app runs on iOS with Xcode/runtime (18–24 s warm, 170–244 s cold, mini). Hermes: `dist/`. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs an app scenario (`guide witness`).
 
 ## Receipts
 `guide receipts`: schema, mutations, `useReceipts`; SDK owns delivery reporting; screen owns visible `seen` reporting above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.

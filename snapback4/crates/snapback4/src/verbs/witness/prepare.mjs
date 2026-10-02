@@ -1,5 +1,6 @@
 // @ref LLP 3000.030#3 — private own-project preparation; never launch through Expo CLI.
 import fs from 'node:fs';
+import { nativeFingerprint as exportFingerprint, toolIdentity, overlayExport, readBase, saveBase } from './export-cache.mjs';
 import { nativeReferences } from './native-inputs.mjs';
 import { privateBuildFlags, validateOutputs, auditNativeProject, compilerClosure, canonical } from './native-closure.mjs';
 import path from 'node:path';
@@ -9,11 +10,11 @@ import { hash, fail, safeFailure, readJSON, seal, inventory, hbc, nativeFiles, d
 
 // Unexpected setup errors can include paths; never print a Node stack or raw error.
 process.on('uncaughtException', error => { console.error(safeFailure(error)); process.exitCode = 1; });
-const [mode, projectArg, artifactsArg, udid, origin] = process.argv.slice(2);
+const [mode, projectArg, artifactsArg, udid, origin, exported] = process.argv.slice(2);
 // Refuse before resolving projects, creating caches, or invoking any tool.
 if (mode !== 'build') fail('E_WITNESS_INPUT', 'repack is withdrawn; use witness ios --build <project> --smoke with fresh artifacts');
 const out = path.resolve(artifactsArg), project = fs.realpathSync(projectArg);
-const adapter = hash(fs.readFileSync(new URL('./prepare.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-inputs.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-closure.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-scripts.mjs', import.meta.url)));
+const adapter = hash(fs.readFileSync(new URL('./payload.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./export-cache.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./prepare.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-inputs.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-closure.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-scripts.mjs', import.meta.url)));
 const started = Date.now(), deadline = started + 900_000, phases = [];
 const cache = path.join(project, '.snapback4-witness'), snapshot = path.join(cache, 'snapshot');
 const env = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'DEVELOPER_DIR', 'LANG'].filter(k => process.env[k]).map(k => [k, process.env[k]]));
@@ -92,6 +93,22 @@ try {
   const req = createRequire(path.join(project, 'package.json'));
   const version = name => req(`${name}/package.json`).version;
   if (version('expo') !== '57.0.22' || version('react-native') !== '0.86.3' || version('@expo/fingerprint') !== '0.20.13') fail('E_WITNESS_BUILD', 'this preparation adapter requires Expo 57.0.22, RN 0.86.3 and @expo/fingerprint 0.20.13; use installed-app mode');
+  let exportKey;
+  if (exported) {
+    const identity = toolIdentity(command, project);
+    const pendingBase = readBase(cache, null);
+    exportKey = exportFingerprint(project, identity, adapter, env);
+    const base = await pendingBase;
+    if (base?.exportFingerprint.hash === exportKey.hash) {
+      const transformed = overlayExport(project, exported, base, path.join(out, 'export.app'), command);
+      const after = exportFingerprint(project, exportKey.toolchain, adapter, env);
+      if (after.hash !== exportKey.hash) fail('E_WITNESS_PROOF', 'native inputs changed while replacing export');
+      seal(path.join(out, 'build.json'), { ...base, ...transformed, proofKind: 'application-export', cacheHit: true,
+        nativeFingerprint: { fingerprint: { hash: exportKey.hash } }, exportFingerprint: exportKey,
+        startedAt: started, durationMs: Date.now() - started, phases, origin });
+      process.exit(0);
+    }
+  }
   const source = inventory(project, sourceOmit), inputs = nativeInput(project);
   if (inputs.manifest.codegenConfig || inputs.manifest.expo?.autolinking || inputs.config.expo?.autolinking || inputs.manifest.workspaces || fs.existsSync(path.join(project, 'modules'))
       || Object.values({ ...inputs.manifest.dependencies, ...inputs.manifest.devDependencies }).some(v => /^(file:|link:|workspace:|\.)/.test(v))
@@ -126,7 +143,17 @@ try {
   const expoCLI = path.join(snapshot, 'node_modules/expo/bin/cli');
   const publicConfig = JSON.parse(command('public-config', process.execPath, [expoCLI, 'config', '--type', 'public', '--json']));
   let app, settings = null;
-  if (generatedIOS) command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install']);
+  if (generatedIOS) {
+    // Export cache misses must regenerate config, including removals. Keep only
+    // installed pod dependencies so a native-input change adds no download step.
+    const keptPods = path.join(cache, 'retained-pods'), pods = path.join(snapshot, 'ios/Pods');
+    const lock = path.join(snapshot, 'ios/Podfile.lock');
+    const oldLock = exported && fs.existsSync(lock) ? fs.readFileSync(lock) : null;
+    if (exported && fs.existsSync(pods)) { fs.rmSync(keptPods, { recursive: true, force: true }); fs.renameSync(pods, keptPods); }
+    command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install', ...(exported ? ['--clean'] : [])]);
+    if (exported && fs.existsSync(keptPods)) fs.renameSync(keptPods, pods);
+    if (oldLock) fs.writeFileSync(lock, oldLock);
+  }
   // rsync preserves the ignored environment entry, including an outside link.
   // Replace that entry without following it; exclusive creation also refuses a
   // replacement link appearing between removal and creation.
@@ -197,6 +224,13 @@ try {
     buildResult: inventory(path.join(out, 'build.xcresult')),
     nativeBase: null,
     resolvedNative: hash(fs.readFileSync(path.join(out, 'resolved-native.json'))) };
+  if (exported) {
+    if (exportFingerprint(project, exportKey.toolchain, adapter, env).hash !== exportKey.hash) fail('E_WITNESS_PROOF', 'native inputs changed during build');
+    const base = saveBase(cache, result, exportKey);
+    const transformed = overlayExport(project, exported, base, path.join(out, 'export.app'), command);
+    Object.assign(result, transformed, { proofKind: 'application-export', cacheHit: false,
+      nativeFingerprint: { fingerprint: { hash: exportKey.hash } }, exportFingerprint: exportKey, durationMs: Date.now() - started });
+  }
   seal(path.join(out, 'build.json'), result);
 } catch (error) {
   seal(path.join(out, 'preparation-failure.json'), { startedAt: started, durationMs: Date.now() - started, error: safeFailure(error), phases });

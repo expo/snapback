@@ -1,0 +1,61 @@
+snapback4/scripts/run-rust-tests.mjs at 9845a1f013cf0c0a14194efecef86f865cfdc2a1
+84: }
+85: 
+86: function testThreads(artifact) {
+87:   const packageNameValue = packageName(artifact.packageId);
+88:   if (packageNameValue === "snapback4-sim") return 4;
+89:   if (packageNameValue === "snapback4-device") return artifact.target === "device" ? 8 : 2;
+90:   if (packageNameValue === "snapback4") return ["lifecycle", "snapback4", "witness"].includes(artifact.target) ? 1 : 2;
+91:   if (packageNameValue === "snapback4-lang" && artifact.target === "lowering") return 8;
+92:   return 4;
+93: }
+122:   const env = { ...process.env };
+123:   if (packageName(artifact.packageId) === "snapback4-device") env.RUST_MIN_STACK = "33554432";
+124:   const args = ["--quiet", `--test-threads=${testThreads(artifact)}`];
+125:   if (artifact.filter) args.push(artifact.filter);
+126:   if (artifact.exact) args.push("--exact");
+127:   const child = spawn(artifact.executable, args, {
+197:   console.log(`-- rust inventory: ${build.artifacts.length} test binaries, ${executions.length} executions; at most ${processLimit} concurrent processes`);
+198:   // Wall-clock scaling and fresh process startup need the same quiet slot as
+199:   // the simulator witness. Concurrent test startup can turn linear born-row
+200:   // work into a false ratio regression or exhaust the abort probe's pre-main
+201:   // allowance. Keep every assertion, seed and deadline; drain the pool first.
+202:   const isolatedTargets = new Set(["snapback4-core::born_perf", "snapback4::lifecycle", "snapback4::witness"]);
+203:   const exclusive = executions.filter((artifact) => isolatedTargets.has(`${packageName(artifact.packageId)}::${artifact.target}`));
+204:   console.log(`-- rust isolated targets: ${exclusive.map((artifact) => `${packageName(artifact.packageId)}::${artifact.target}`).join(", ")}`);
+205:   const regular = executions.filter((artifact) => !exclusive.includes(artifact));
+snapback4/crates/snapback4/tests/witness.rs at 9845a1f013cf0c0a14194efecef86f865cfdc2a1
+145:             // of the fake Python simctl. Intentional timeout cases below still
+146:             // withhold progress and assert the exact failing phase and cleanup.
+147:             command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "120"])
+148:                 .args(if mode.starts_with("smoke") { vec!["--smoke"] } else { vec!["--segment", "offline", "--prime"] })
+149:                 .arg("--artifacts").arg(artifacts)
+150:                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
+247:         // The real checker has its own 30-second deadline. Keep the Node
+248:         // descendant and diagnostic pipes alive after its wrapper is reaped,
+249:         // so only the witness's 120-second startup guard ends this scenario.
+250:         fs::write(fixture.0.join("checker"), format!("#!/bin/sh\n'{}' '{}' &\nwait\n", node.trim(), fixture.0.join("stalled.mjs").display())).unwrap();
+251:         fs::set_permissions(fixture.0.join("checker"), fs::Permissions::from_mode(0o755)).unwrap();
+252:         let port = Fixture::port();
+271:     fn interrupted_startup_does_not_leak_listener_to_checker() { failed_startup_releases_listener(true); }
+272:     #[test]
+273:     fn timed_out_startup_does_not_leak_listener_to_checker() { failed_startup_releases_listener(false); }
+274:     #[test]
+275:     fn automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime() {
+276:         for (mode, prefix) in [("normal", "snapback4-smoke-"), ("auto-create", "snapback4-smoke-"), ("auto-create-lane", "sb4-ns-")] {
+546:     }
+547:     #[test]
+548:     fn cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend() {
+549:         for (mode, code) in [("json", "E_WITNESS_RECEIPT"), ("empty-video", "E_WITNESS_ARTIFACT"), ("timeout", "E_WITNESS_TIMEOUT"), ("out-of-order", "E_WITNESS_STEP")] {
+550:             let fixture = Fixture::new(); let port = Fixture::port(); let output = fixture.run(mode, port);
+551:             assert!(!output.status.success()); let error = String::from_utf8_lossy(&output.stderr);
+562:     }
+563:     #[test]
+564:     fn cli_preparation_timeout_still_records_failure_manifest() {
+565:         let fixture = Fixture::new();
+566:         let port = Fixture::port();
+567:         let output = fixture.run("timeout-prepare", port);
+
+snapback4/packages/snapback4/test/worker-regressions.test.mjs at baseline HEAD (three symlink subprocess controls)
+100: for (const scope of ['snapback', 'project', 'ancestor']) test(`named snapshot refuses a symlinked ${scope} package manifest`, async t => {
+111:   const result=spawnSync(binary,['dev','--port','0','--no-watch'],{cwd:project,encoding:'utf8',timeout:hangBudget()});

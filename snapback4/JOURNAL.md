@@ -81441,3 +81441,46 @@ the new file passes 4/4 with the publication cache; the original file fails the
 same three cases in the same tree (control); with the variable unset the fence
 downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
 changed.
+
+
+## 2026-10-01 — NX round 0: export proves native execution
+
+Both Expo starters now export the same Hermes payload into dist and, on an
+available Mac/Xcode simulator environment, install and smoke that exact export.
+A conservative native fingerprint and byte-validated Release base avoid a new
+native build for starter JS edits. Three bounded workers validate dependency,
+generated-native and compiler inputs; each launch binds the actual selected
+bundle hash. Missing native tooling/create/boot conditions skip; app/SDK/backend
+failures stay nonzero. SNAPBACK4_NATIVE_SMOKE=off is explicit; native:smoke still
+builds fully. The runtime smoke origin keeps the export unchanged while using
+the driver's owned loopback backend. LLP 3000.030 §15 records the design and
+its conservative boundaries; starter READMEs and client/witness cards teach it.
+
+Apartment mini final five-run complete-export warm medians: plain 17.888 s,
+social 23.870 s (native-only 15.138 / 19.969 s); cold native-cache/Pods/Xcode
+runs 170.134 / 243.806 s. All ten warm runs are under 25 s, cache hits, and load
+new distinct export hashes through all three smoke segments. Both starters'
+native-input controls rebuild, startup throws fail, missing runtimes skip,
+and opt-outs succeed. These are unpublished local candidate simulator proofs;
+empty starters do not establish application scenarios, M6/M8 or publication.
+
+Affected JS 60/60 plus final fingerprint controls 6/6; Rust witness units 14/14,
+starter integration 22/22, final full-suite witness 50/50, whole guide 110/110.
+The requested scripts/test.sh ran once; exact summary:
+`== 1 failure(s) in 2593 s` (`client tests`). Its eight generated-storage cases
+failed because our new smokeOrigin import lacked a VM fixture mock. The mock
+is corrected, all storage assertions retained, and that file passes 14/14.
+All 79 final model tests pass. The original red suite is retained, not rerun.
+The 60 s suite budget is unmet; the report records baseline serial timeout
+controls, cold compilation, full counts and phase durations. Earlier guide
+failures were ours and corrected; one baseline witness diagnostic expectation
+was corrected; interrupted capture recovery was environmental. Every failure,
+exact original output, five external-fixture skips and scope limit is reported.
+Wasm: 2,014,420 B raw / 604,666 B gzip, unchanged cap 605,225 B, 559 B headroom.
+Reference audit passes with zero errors; no runtime/core or wasm-budget change.
+
+Evidence and reproduction: reports/20261001-nx-export-proves-native/REPORT.md.
+The one owned simulator and its creation record were deleted; all lane-created
+build products and installed worktree dependencies were removed after evidence
+verification. Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

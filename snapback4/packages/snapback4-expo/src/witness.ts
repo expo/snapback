@@ -21,3 +21,11 @@ export function smokeSegment(): "prime" | "offline" | "restart" | null {
   const config = JSON.parse(container.witnessLaunch);
   return config.smoke === true && ["prime", "offline", "restart"].includes(config.segment) ? config.segment : null;
 }
+
+/** Simulator smoke uses its owned loopback backend; ordinary launches keep the app URL. */
+export function smokeOrigin(fallback: string): string {
+  const container = requireOptionalNativeModule<WitnessContainer>("Snapback4");
+  if (!container?.witnessLaunch) return fallback;
+  const config = JSON.parse(container.witnessLaunch);
+  return config.smoke === true && /^http:\/\/127\.0\.0\.1:[0-9]+$/.test(config.origin) ? config.origin : fallback;
+}

@@ -20,7 +20,7 @@ fn tick() -> Result<()> {
 struct Options {
     bundle: String, udid: Option<String>, segment: String, artifacts: PathBuf,
     port: u16, timeout: Duration, prime: bool, relaunch: bool, smoke: bool,
-    build: Option<PathBuf>,
+    build: Option<PathBuf>, export: Option<PathBuf>,
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
@@ -34,7 +34,7 @@ impl Options {
             let Some(raw) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", "unexpected argument; see snapback4 guide witness")); };
             let key = raw.split('=').next().unwrap();
             if ["token", "token-file"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("--{key} is unsupported for witness ios"))); }
-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", "unknown flag; see snapback4 guide witness")); }
+            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build", "export"].contains(&key) { return Err(error("E_WITNESS_INPUT", "unknown flag; see snapback4 guide witness")); }
             if raw.contains('=') { return Err(error("E_WITNESS_INPUT", format!("--{key} does not accept equals spelling; see snapback4 guide witness"))); }
             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
@@ -45,6 +45,9 @@ impl Options {
         let selectors = ["bundle-id", "build"].iter().filter(|k| flags.contains_key(**k)).count();
         if selectors == 0 { return Err(error("E_WITNESS_INPUT", "--bundle-id is required for installed-app mode, or use --build <project>")); }
         if selectors != 1 { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id or --build")); }
+        if flags.contains_key("export") && (!flags.contains_key("build") || !flags.contains_key("smoke")) {
+            return Err(error("E_WITNESS_INPUT", "--export requires --build and --smoke"));
+        }
         let bundle = flags.get("bundle-id").cloned().unwrap_or_default();
         if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "--bundle-id must be a valid bundle identifier")); }
         let smoke = flags.contains_key("smoke");
@@ -59,7 +62,7 @@ impl Options {
         let artifacts = flags.get("artifacts").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(format!("artifacts/native-smoke/{}-{}", now(), std::process::id())));
         let port = flags.get("port").map_or(Ok(if flags.contains_key("build") { 0 } else { 4400 }), |s| s.parse::<u16>()).ok().filter(|p| *p > 0 || !flags.contains_key("port")).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
-        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from) })
+        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from), export: flags.get("export").map(PathBuf::from) })
     }
 }
 
@@ -397,7 +400,12 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     if options.build.is_some() && std::env::current_dir().ok().and_then(|p| crate::project::Project::locate(&p)).is_none() {
         return Err(error("E_WITNESS_BUILD", "no snapback/schema.q here or above; run snapback4 init before native smoke"));
     }
-    let simulator = simulator::select(&options, preparation)?;
+    // Only this bounded pre-build stage may classify environment unavailability.
+    // App/install/SDK errors after selection always remain failures.
+    let simulator = match simulator::select(&options, preparation) {
+        Ok(value) => value,
+        Err(problem) => { if options.export.is_some() && !problem.starts_with("E_WITNESS_INPUT") && !problem.starts_with("E_WITNESS_INTERRUPTED") { preparation["phase"] = json!("environment"); } return Err(problem); }
+    };
     let udid = simulator["udid"].as_str().unwrap().to_owned();
     let runtime = simulator["runtime"].as_str().unwrap().to_owned();
     preparation["simulator"] = simulator.clone();
@@ -435,6 +443,8 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     let cwd = std::env::current_dir().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
     let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "simulator": simulator, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+        "exported": proof.as_ref().map(|p| p["exported"].clone()),
+        "nativeCache": proof.as_ref().map(|p| json!({ "hit": p["cacheHit"], "fingerprint": p["nativeFingerprint"] })),
         "proofKind": proof.as_ref().map_or(json!("installed-application"), |p| p["proofKind"].clone()),
         "queryFacts": Value::Null, "queryGeneration": Value::Null,
         "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
@@ -482,11 +492,11 @@ pub fn run(args: &[String]) -> i32 {
         let saved = run.save(&result);
         result?; saved?;
         let label = match (run.options.smoke, run.manifest["proofKind"].as_str()) {
-            (true, Some("application-release")) => "Own Release smoke passed",
+            (true, Some("application-release" | "application-export")) => "Own Release smoke passed",
             (true, _) => "Installed-app smoke passed (preparation unknown)",
             _ => "Installed-app scenario complete (preparation unknown)",
         };
-        println!("witness: {label} — command's own receipt path: {}", run.path("run.json").display());
+        if run.options.export.is_none() { println!("witness: {label} — command's own receipt path: {}", run.path("run.json").display()); }
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(problem) => { if problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("{problem}"); } else { eprintln!("{problem}; see snapback4 guide witness"); } 1 } }

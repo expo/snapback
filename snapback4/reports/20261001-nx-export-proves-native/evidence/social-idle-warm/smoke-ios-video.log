@@ -1,0 +1,5 @@
+Note: No display specified. Defaulting to display: 8B246014-1B67-4E4E-9A9B-53A53D7D5035 (screenID: 1, name: LCD)
+Error starting video recorder: Error Domain=NSPOSIXErrorDomain Code=16 "Resource busy" UserInfo={NSLocalizedFailureReason=Host recording is already in progress}.
+An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=16):
+The operation couldn’t be completed. Host recording is already in progress
+Host recording is already in progress

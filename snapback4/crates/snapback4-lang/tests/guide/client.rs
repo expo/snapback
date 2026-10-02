@@ -119,7 +119,7 @@ fn membership_wording_covers_pending_predictions_and_withdrawals() {
 fn native_smoke_is_the_milestone_path_with_honest_limits() {
     for name in ["client", "witness"] {
         let text = card(name).unwrap();
-        for term in ["every milestone", "npm run export:ios", "npm run native:smoke", "about 3 minutes warm", "write replay"] {
+        for term in ["every milestone", "npm run export:ios", "npm run native:smoke", "also proves the app runs on ios", "write replay"] {
             assert!(text.to_lowercase().contains(term), "{name}: missing {term}");
         }
         assert!(text.lines().count() <= if name == "client" { 114 } else { 399 });

@@ -113,11 +113,13 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     fs::write(&helper, include_str!("prepare.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("payload.mjs"), include_str!("payload.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("native-inputs.mjs"), include_str!("native-inputs.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs"))] {
+    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs")), ("export-cache.mjs", include_str!("export-cache.mjs"))] {
         fs::write(options.artifacts.join(name), contents).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     }
     let origin = format!("http://127.0.0.1:{}", options.port);
-    node(options, &[helper.to_str().unwrap(), "build", project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin], "preparation")?;
+    let exported = options.export.as_ref().map(|p| fs::canonicalize(p).map_err(|e| error("E_WITNESS_BUILD", e))).transpose()?;
+    node(options, &[helper.to_str().unwrap(), "build", project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin,
+        exported.as_ref().map_or("", |p| p.to_str().unwrap())], "preparation")?;
     let receipt = options.artifacts.join("build.json");
     let prepared: Value = serde_json::from_slice(&fs::read(&receipt).map_err(|e| error("E_WITNESS_PROOF", e))?).map_err(|e| error("E_WITNESS_PROOF", e))?;
     options.bundle = prepared["executedApp"]["info"]["CFBundleIdentifier"].as_str().ok_or_else(|| error("E_WITNESS_BUILD", "prepared app has no bundle identifier"))?.to_owned();
@@ -137,14 +139,14 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     let mut proof = json!({ "format": 1, "proofKind": prepared["proofKind"], "nativeBase": prepared["nativeBase"],
         "installedApp": installed, "installedBundlePath": fs::canonicalize(Path::new(&installed_path).join("main.jsbundle")).map_err(|e| error("E_WITNESS_PROOF", e))?,
         "executedApp": prepared["executedApp"], "javascript": prepared["executedApp"]["javascript"], "compiler": prepared["compiler"],
-        "nativeFingerprint": prepared["nativeFingerprint"], "preparation": artifact(&receipt)?, "runtime": { "udid": udid, "toolchain": prepared["toolchain"] },
+        "nativeFingerprint": prepared["nativeFingerprint"], "exported": prepared["exported"], "cacheHit": prepared["cacheHit"], "preparation": artifact(&receipt)?, "runtime": { "udid": udid, "toolchain": prepared["toolchain"] },
         "scope": { "scenario": options.segment, "backendOrigin": origin, "preparationMs": prepared["durationMs"],
             "installation": { "startedAt": install_started, "durationMs": now() - install_started, "command": ["xcrun", "simctl", "install", udid, app] },
             "fixture": "application-provided; driver injects no application rows",
             "authentication": "normal application flow; driver provides no credentials/session",
             "reset": "one install before prime, existing data/keychain preserved; no reset or reinstall between segments",
             "limits": "Native smoke only; authentication and nonempty fixture are application responsibilities. No M6/M8 admission." } });
-    { proof["nativeBase"] = json!({ "app": prepared["executedApp"]["inventory"]["sha256"], "build": artifact(&receipt)?["sha256"], "fingerprint": prepared["nativeFingerprint"]["fingerprint"]["hash"] }); }
+    if proof["nativeBase"].is_null() { proof["nativeBase"] = json!({ "app": prepared["executedApp"]["inventory"]["sha256"], "build": artifact(&receipt)?["sha256"], "fingerprint": prepared["nativeFingerprint"]["fingerprint"]["hash"] }); }
     let path = options.artifacts.join("proof.json");
     let mut file = OpenOptions::new().create_new(true).write(true).open(&path).map_err(|e| error("E_WITNESS_PROOF", e))?;
     file.write_all(&serde_json::to_vec_pretty(&proof).unwrap()).map_err(|e| error("E_WITNESS_PROOF", e))?;

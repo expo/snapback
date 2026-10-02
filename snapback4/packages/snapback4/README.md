@@ -77,16 +77,13 @@ Availability and handle saves use the server; your private profile is held local
 ### 3. Create the app
 
 Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts.
-Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage.
-Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
+Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-At every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
-Smoke installs the Release app and proves local-store acquisition, offline reopen and reconnect; pending write replay needs an application scenario.
-Read `npx snapback4 guide witness` for exact pins, helper/session requirements, immutable proofs, output restrictions, installed-app mode and deeper scenarios.
-After edits, repeat `npm run native:smoke`; artifacts are fresh and the private Xcode cache stays warm. Repack is withdrawn.
-NS round 0 cohort (2026-09-30), fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**. Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27.
-One-minute host load: cold 3.61–61.41, warm 3.21–7.22, social 14.62–47.52; tools/dependencies installed first. Guidance, not a promise.
-Compiler-declared server-only reads must answer online and record expected offline unavailability. A build receipt alone proves neither smoke nor M6/M8 application behavior.
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm, 170–244 s cold on this mini).
+Both Expo starters include the wrapper. Matching native inputs reuse a Release app; native changes rebuild. `npm run native:smoke` always runs the full build.
+Unavailable environments skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
+Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Empty starters prove lifecycle; write replay needs an app scenario.
+Measured on the Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27, with tools/dependencies installed first; warm medians use five JS-only runs.
 
 ```ts
 // src/client.ts
@@ -95,6 +92,7 @@ import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { smokeOrigin } from "snapback4-expo/witness";
 import { webDevice } from "snapback4/web";
 const sessionStore = {
   get: (key: string) => SecureStore.getItemAsync(key),
@@ -102,7 +100,7 @@ const sessionStore = {
   delete: (key: string) => SecureStore.deleteItemAsync(key),
 };
 export const app = createApp({
-  url: process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400",
+  url: smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400"),
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined,
   assets: { keep: "viewed", maxBytes: 67108864 },
@@ -117,6 +115,7 @@ picker's Blob to `upload`. Uploads require a connection; placement is a mutation
 
 ```tsx
 // App.tsx
+import { useNativeSmokeGuest } from "./src/native-smoke";
 import { useState } from "react";
 import { Button, Image, Text, TextInput, View } from "react-native";
 import { AppProvider, useAuth, useClient, useQuery, useMutation, useAsset } from "snapback4/react";
@@ -124,6 +123,7 @@ import { app } from "./src/client";
 import { api } from "./snapback/generated/api";
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
 function Account() {
+  useNativeSmokeGuest();
   const auth = useAuth();
   const [email, setEmail] = useState(""), [password, setPassword] = useState("");
   const [problem, setProblem] = useState("");

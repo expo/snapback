@@ -1,0 +1,29 @@
+✖ generated Expo storage keeps a!b and a~b write custody separate (54.647333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 200.450333
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-storage.test.mjs:81:117
+✖ generated Expo storage keeps a!b and a~b write custody separate (54.647333ms)
+  evalmachine.<anonymous>:18
+  exports.url = (0, witness_1.smokeOrigin)(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
+                                          ^
+  
+  TypeError: (0 , witness_1.smokeOrigin) is not a function
+      at evalmachine.<anonymous>:18:41
+      at Script.runInContext (node:vm:149:12)
+      at Script.runInNewContext (node:vm:154:17)
+      at Object.runInNewContext (node:vm:310:38)
+      at generated (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/app-storage.test.mjs:53:6)
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/app-storage.test.mjs:82:53)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17)

@@ -1,0 +1,34 @@
+Baseline 9845a1f013cf0c0a14194efecef86f865cfdc2a1
+
+fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
+    let mut command = Command::new("xcrun");
+    command.arg("simctl").args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = Owned::spawn(&mut command)?;
+    let stdout = child.0.stdout.take().unwrap(); let stderr = child.0.stderr.take().unwrap();
+    let read = |mut pipe: Box<dyn Read + Send>| std::thread::spawn(move || { let mut text = String::new(); let _ = pipe.read_to_string(&mut text); text });
+    let out = read(Box::new(stdout)); let err = read(Box::new(stderr));
+    let end = Instant::now() + timeout;
+    let status = loop {
+        if let Some(status) = child.status()? { break status; }
+        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "xcrun simctl timed out; check --udid and --timeout")); }
+        tick()?;
+    };
+    let text = out.join().unwrap_or_default(); let _ = err.join();
+    if !status.success() { return Err(error("E_WITNESS_SIMULATOR", "xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime")); }
+    Ok(text.trim().to_owned())
+}
+
+
+    fn boot_failure_keeps_created_identity_in_receipt() {
+        for mode in ["auto-create-boot-fails", "auto-create-bootstatus-fails"] {
+            let fixture = Fixture::new();
+            let output = fixture.run(mode, Fixture::port());
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(receipt["simulator"]["selection"], "created");
+            assert!(receipt["error"].as_str().unwrap().contains("simctl boot"));
+            assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
+            assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
+            assert!(receipt["simulator"]["name"].as_str().unwrap().starts_with("snapback4-smoke-"));
+        }
+    }

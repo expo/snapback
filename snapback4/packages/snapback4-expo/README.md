@@ -59,13 +59,13 @@ runner, commands and artifact contract are in `snapback4 guide witness`
 “Proving it on an iOS simulator”. No Expo Go or Metro process supplies a
 Release witness.
 
-At every milestone, run `npm run export:ios` for Hermes; on a Mac with Xcode,
-`npm run native:smoke` (about 3 minutes warm). The Expo starters include both scripts.
-The smoke builds and installs your Release app, chooses its own simulator and free
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm, 170–244 s cold on this mini).
+`npm run native:smoke` always runs the full Release build; `SNAPBACK4_NATIVE_SMOKE=off` skips the automatic smoke. Unavailable hosts skip, app/SDK failures fail.
+The smoke prepares and installs your Release app, chooses its own simulator and free
 port, and keeps receipts in `artifacts/native-smoke/<timestamp>`. It proves local
 store acquisition, cold offline reopen and reconnect. Pending write replay, media
 and application assertions need the deeper scenario in `snapback4 guide witness`.
-An empty starter proves lifecycle only; export alone proves no native execution.
+An empty starter proves lifecycle only; a skipped smoke proves no native execution.
 
 Own-build preparation (`witness ios --build . --smoke`) uses the witness helper
 in matching current `snapback4` and `snapback4-expo` packages. Its synchronous native observation hashes
@@ -84,9 +84,9 @@ E_OFFLINE is recorded as expected unavailability. Server-only reads
 must answer online in prime and restart. Conditional native-module queries
 require an application witness; generic smoke refuses that unsupported shape. Client semantics are unchanged.
 
-After JS/assets edits, repeat `npm run native:smoke`; simulator selection and
-fresh artifact directories are automatic. Warm Xcode intermediates
-are reused; each run builds the current app and seals a new receipt. Repack
-is withdrawn. NS round 0 cohort (2026-09-30), fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**.
-Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27; one-minute load: cold 3.61–61.41, warm 3.21–7.22, social 14.62–47.52.
-Tools/dependencies installed first. Guidance, not a promise. See `guide witness` for scope.
+After JS edits, repeat `npm run export:ios`; simulator selection and fresh
+artifact directories are automatic. Matching native inputs reuse the Release
+app and install the exact exported bundle/assets. Native changes rebuild;
+`npm run native:smoke` always runs Xcode. Both routes retain the same loaded-file
+hash and prime/offline/restart proof. Measured on the Apartment M5 Pro mini,
+18 cores/64 GiB, Xcode/iOS 27, with tools/dependencies installed first.
