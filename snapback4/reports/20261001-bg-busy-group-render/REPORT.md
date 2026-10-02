@@ -250,6 +250,16 @@ The optional seed database and temporary password-session credentials stay in
 `/tmp`, outside the repository. No push or publication is authorized or performed.
 
 
+
+> **Evidence archive.** The raw scenario dumps (`*.json.gz`) of rounds 1–9,
+> 237 paths and about 221 MB, are not in git; round 0's dumps are. They live in a
+> content-addressed archive on eb1000 (`~/sb4-evidence-archive/20261001-bg-busy-group-render/`,
+> copied to the office M1), and [`EVIDENCE-ARCHIVE.tsv`](EVIDENCE-ARCHIVE.tsv)
+> lists each one's sha256, size and path. Paths below that end in `.gz` refer to
+> that archive. The branch was rewritten to drop them before landing; every other
+> byte is unchanged, and the manifest header maps the original commits to the
+> rewritten ones.
+
 ## Round 1 — incremental certification and concurrent authority reads
 
 **Final qualification:** the shipping production build reaches **132.5 ms median,
