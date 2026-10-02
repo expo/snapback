@@ -1,0 +1,14 @@
+{
+  "base": "69140d7ca78089d445210baeb8b3e40bb7ea547f",
+  "node": "v24.13.1",
+  "all_original_assertion_lines_preserved": 40,
+  "sources": {
+    "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs": "441ab676e6f6e40ff61dc2e770b70667b3a8549ba40db6c8d0f0babdfb5eaf2d",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "5c9a466d554ca4adf56542483e5a210bd08931575dce461a3bc989c06b0639e0",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "106baf7558f55b9ca9387ec6c01ca749ed9726409018dc7bba99e2a232cc58e6",
+    "snapback4/packages/snapback4/test/delivery-fault-sites.json": "3b97f6ad80282e965a78c39460cf546ed3f9dafe520f3297c306435952bb8ad6",
+    "snapback4/packages/snapback4/test/delivery-fault-recipes.mjs": "2660366037686f3a071b4d6f7077f0ae35f82070c0b557ce7117f92abb51e7ae",
+    "snapback4/packages/snapback4/src/local.ts": "2309d09298d2fee6f9d8bcd9fa32b842abbd3ad6d43c0c47d60f13b825102189",
+    "snapback4/packages/snapback4/dist/wasm/snapback4_device_bg.wasm": "def8d3bf6bf0f1d9fa3f4906a4459eddb9c3cfdfdb43d21e60b55992bd96b693"
+  }
+}

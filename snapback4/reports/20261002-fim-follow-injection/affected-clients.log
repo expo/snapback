@@ -1,0 +1,3735 @@
+TAP version 13
+# Subtest: activation waits for startup witnessing and for persisted debt to finish flushing
+ok 1 - activation waits for startup witnessing and for persisted debt to finish flushing
+  ---
+  duration_ms: 177.469403
+  type: 'test'
+  ...
+# Subtest: activation retries a failed page from the persisted cursor with bounded backoff until done
+ok 2 - activation retries a failed page from the persisted cursor with bounded backoff until done
+  ---
+  duration_ms: 1082.37572
+  type: 'test'
+  ...
+# Subtest: activation completes while a live group is replenished before every report settles
+ok 3 - activation completes while a live group is replenished before every report settles
+  ---
+  duration_ms: 72.126512
+  type: 'test'
+  ...
+# Subtest: createApp online: false authority refusal never collects delivery
+ok 4 - createApp online: false authority refusal never collects delivery
+  ---
+  duration_ms: 1832.13276
+  type: 'test'
+  ...
+# Subtest: createApp online: throw authority refusal never collects delivery
+ok 5 - createApp online: throw authority refusal never collects delivery
+  ---
+  duration_ms: 1376.336175
+  type: 'test'
+  ...
+# Subtest: createApp online: superseded answer never reports; approved successor reports exactly once
+ok 6 - createApp online: superseded answer never reports; approved successor reports exactly once
+  ---
+  duration_ms: 1861.652338
+  type: 'test'
+  ...
+# Subtest: createApp online: episode expiry before approval never collects
+ok 7 - createApp online: episode expiry before approval never collects
+  ---
+  duration_ms: 2051.178743
+  type: 'test'
+  ...
+# Subtest: createApp online: row expiry before approval never collects
+ok 8 - createApp online: row expiry before approval never collects
+  ---
+  duration_ms: 1177.139004
+  type: 'test'
+  ...
+# Subtest: createApp online: peer approval shares one collection of the exact manifest
+ok 9 - createApp online: peer approval shares one collection of the exact manifest
+  ---
+  duration_ms: 1579.307714
+  type: 'test'
+  ...
+# Subtest: createApp online: temporary session-store failure at raw publication cannot report unseen 41
+ok 10 - createApp online: temporary session-store failure at raw publication cannot report unseen 41
+  ---
+  duration_ms: 1267.62801
+  type: 'test'
+  ...
+# Subtest: createApp online: a new peer can approve the same answer after storage recovers
+ok 11 - createApp online: a new peer can approve the same answer after storage recovers
+  ---
+  duration_ms: 1832.548483
+  type: 'test'
+  ...
+# Subtest: createApp online: a new peer can refuse the same answer after storage recovers
+ok 12 - createApp online: a new peer can refuse the same answer after storage recovers
+  ---
+  duration_ms: 1641.260818
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final approve check before accepting delivery
+ok 13 - createApp online: query waits for final approve check before accepting delivery
+  ---
+  duration_ms: 951.162212
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final false check before accepting delivery
+ok 14 - createApp online: query waits for final false check before accepting delivery
+  ---
+  duration_ms: 1395.523676
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final throw check before accepting delivery
+ok 15 - createApp online: query waits for final throw check before accepting delivery
+  ---
+  duration_ms: 1246.75255
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final expired check before accepting delivery
+ok 16 - createApp online: query waits for final expired check before accepting delivery
+  ---
+  duration_ms: 1633.432594
+  type: 'test'
+  ...
+# Subtest: createApp online: background-only delivery waits for facade approval with changes held
+ok 17 - createApp online: background-only delivery waits for facade approval with changes held
+  ---
+  duration_ms: 1470.237447
+  type: 'test'
+  ...
+# Subtest: createApp local: false authority refusal never collects delivery
+ok 18 - createApp local: false authority refusal never collects delivery
+  ---
+  duration_ms: 2795.030864
+  type: 'test'
+  ...
+# Subtest: createApp local: throw authority refusal never collects delivery
+ok 19 - createApp local: throw authority refusal never collects delivery
+  ---
+  duration_ms: 1470.809024
+  type: 'test'
+  ...
+# Subtest: createApp local: superseded answer never reports; approved successor reports exactly once
+ok 20 - createApp local: superseded answer never reports; approved successor reports exactly once
+  ---
+  duration_ms: 1624.279866
+  type: 'test'
+  ...
+# Subtest: createApp local: episode expiry before approval never collects
+ok 21 - createApp local: episode expiry before approval never collects
+  ---
+  duration_ms: 2429.674903
+  type: 'test'
+  ...
+# Subtest: createApp local: row expiry before approval never collects
+ok 22 - createApp local: row expiry before approval never collects
+  ---
+  duration_ms: 2617.238367
+  type: 'test'
+  ...
+# Subtest: createApp local: peer approval shares one collection of the exact manifest
+ok 23 - createApp local: peer approval shares one collection of the exact manifest
+  ---
+  duration_ms: 1784.538101
+  type: 'test'
+  ...
+# Subtest: createApp local: temporary session-store failure at raw publication cannot report unseen 41
+ok 24 - createApp local: temporary session-store failure at raw publication cannot report unseen 41
+  ---
+  duration_ms: 1181.537318
+  type: 'test'
+  ...
+# Subtest: createApp local: a new peer can approve the same answer after storage recovers
+ok 25 - createApp local: a new peer can approve the same answer after storage recovers
+  ---
+  duration_ms: 2194.917729
+  type: 'test'
+  ...
+# Subtest: createApp local: a new peer can refuse the same answer after storage recovers
+ok 26 - createApp local: a new peer can refuse the same answer after storage recovers
+  ---
+  duration_ms: 2551.003847
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final approve check before accepting delivery
+ok 27 - createApp local: query waits for final approve check before accepting delivery
+  ---
+  duration_ms: 1121.413967
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final false check before accepting delivery
+ok 28 - createApp local: query waits for final false check before accepting delivery
+  ---
+  duration_ms: 1881.863976
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final throw check before accepting delivery
+ok 29 - createApp local: query waits for final throw check before accepting delivery
+  ---
+  duration_ms: 1403.59817
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final expired check before accepting delivery
+ok 30 - createApp local: query waits for final expired check before accepting delivery
+  ---
+  duration_ms: 1623.498526
+  type: 'test'
+  ...
+# Subtest: createApp local: background-only delivery waits for facade approval with changes held
+ok 31 - createApp local: background-only delivery waits for facade approval with changes held
+  ---
+  duration_ms: 1914.829589
+  type: 'test'
+  ...
+# Subtest: createApp local: superseding an approved answer fences its delayed collection commit
+ok 32 - createApp local: superseding an approved answer fences its delayed collection commit
+  ---
+  duration_ms: 1835.349385
+  type: 'test'
+  ...
+# Subtest: every losing collection CAS rechecks authority without unaccepting the answer
+ok 33 - every losing collection CAS rechecks authority without unaccepting the answer
+  ---
+  duration_ms: 13.094788
+  type: 'test'
+  ...
+# Subtest: every losing collection CAS rechecks credential without unaccepting the answer
+ok 34 - every losing collection CAS rechecks credential without unaccepting the answer
+  ---
+  duration_ms: 1.056223
+  type: 'test'
+  ...
+# Subtest: every losing collection CAS rechecks incarnation without unaccepting the answer
+ok 35 - every losing collection CAS rechecks incarnation without unaccepting the answer
+  ---
+  duration_ms: 0.834331
+  type: 'test'
+  ...
+# Subtest: a device Left publication wins the acceptance CAS and the retry never recreates its debt
+ok 36 - a device Left publication wins the acceptance CAS and the retry never recreates its debt
+  ---
+  duration_ms: 2139.98039
+  type: 'test'
+  ...
+# Subtest: an answer rejected at its final fence neither publishes nor starts collection
+ok 37 - an answer rejected at its final fence neither publishes nor starts collection
+  ---
+  duration_ms: 0.336224
+  type: 'test'
+  ...
+# Subtest: a host without conditional commit under-reports an accepted manifest
+ok 38 - a host without conditional commit under-reports an accepted manifest
+  ---
+  duration_ms: 15.677239
+  type: 'test'
+  ...
+# Subtest: online home-screen manifest sends exact positions without an application mutate
+ok 39 - online home-screen manifest sends exact positions without an application mutate
+  ---
+  duration_ms: 362.942063
+  type: 'test'
+  ...
+# Subtest: online calls judge out-of-order heads against their own dispatch floors
+ok 40 - online calls judge out-of-order heads against their own dispatch floors
+  ---
+  duration_ms: 26.455845
+  type: 'test'
+  ...
+# Subtest: local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore
+ok 41 - local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore
+  ---
+  duration_ms: 321.035248
+  type: 'test'
+  ...
+# Subtest: online sign-out clears the viewer immediately while giving an active report its bounded drain
+ok 42 - online sign-out clears the viewer immediately while giving an active report its bounded drain
+  ---
+  duration_ms: 283.355529
+  type: 'test'
+  ...
+# Subtest: an unrelated generation preserves an online range refusal
+ok 43 - an unrelated generation preserves an online range refusal
+  ---
+  duration_ms: 651.208673
+  type: 'test'
+  ...
+# Subtest: online query below the publication floor accepts no manifest
+ok 44 - online query below the publication floor accepts no manifest
+  ---
+  duration_ms: 495.268551
+  type: 'test'
+  ...
+# Subtest: online E_OFFLINE reaches the existing probe and reconnects the same attempt
+ok 45 - online E_OFFLINE reaches the existing probe and reconnects the same attempt
+  ---
+  duration_ms: 521.636193
+  type: 'test'
+  ...
+# Subtest: online one-shot acceptance belongs to its final returned answer
+ok 46 - online one-shot acceptance belongs to its final returned answer
+  ---
+  duration_ms: 1.518326
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND why once until the next start
+ok 47 - online adapter parks E_BOUND why once until the next start
+  ---
+  duration_ms: 45.45285
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND denied once until the next start
+ok 48 - online adapter parks E_BOUND denied once until the next start
+  ---
+  duration_ms: 26.321814
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND headless once until the next start
+ok 49 - online adapter parks E_BOUND headless once until the next start
+  ---
+  duration_ms: 37.910776
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND why once until the next start
+ok 50 - local adapter parks E_BOUND why once until the next start
+  ---
+  duration_ms: 76.045727
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND denied once until the next start
+ok 51 - local adapter parks E_BOUND denied once until the next start
+  ---
+  duration_ms: 37.557656
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND headless once until the next start
+ok 52 - local adapter parks E_BOUND headless once until the next start
+  ---
+  duration_ms: 21.549281
+  type: 'test'
+  ...
+# Subtest: killed wasm host retains publication debt and the uncertain attempt id
+ok 53 - killed wasm host retains publication debt and the uncertain attempt id
+  ---
+  duration_ms: 5670.028818
+  type: 'test'
+  ...
+# Subtest: every delivery await is explicitly classified
+ok 54 - every delivery await is explicitly classified
+  ---
+  duration_ms: 494.34134
+  type: 'test'
+  ...
+# Subtest: 0 transient: local.ts:149 read
+ok 55 - 0 transient: local.ts:149 read
+  ---
+  duration_ms: 1099.004285
+  type: 'test'
+  ...
+# Subtest: 0 persistent: local.ts:149 read
+ok 56 - 0 persistent: local.ts:149 read
+  ---
+  duration_ms: 309.153909
+  type: 'test'
+  ...
+# Subtest: 1 transient: local.ts:150 lookup
+ok 57 - 1 transient: local.ts:150 lookup
+  ---
+  duration_ms: 230.858029
+  type: 'test'
+  ...
+# Subtest: 1 persistent: local.ts:150 lookup
+ok 58 - 1 persistent: local.ts:150 lookup
+  ---
+  duration_ms: 206.415842
+  type: 'test'
+  ...
+# Subtest: 2 transient: local.ts:152 save
+ok 59 - 2 transient: local.ts:152 save
+  ---
+  duration_ms: 209.631201
+  type: 'test'
+  ...
+# Subtest: 2 persistent: local.ts:152 save
+ok 60 - 2 persistent: local.ts:152 save
+  ---
+  duration_ms: 321.699443
+  type: 'test'
+  ...
+# Subtest: 3 transient: local.ts:216 refreshAcquired
+ok 61 - 3 transient: local.ts:216 refreshAcquired
+  ---
+  duration_ms: 829.491446
+  type: 'test'
+  ...
+# Subtest: 3 persistent: local.ts:216 refreshAcquired
+ok 62 - 3 persistent: local.ts:216 refreshAcquired
+  ---
+  duration_ms: 160.018355
+  type: 'test'
+  ...
+# Subtest: 4 transient: local.ts:283 captureStore
+ok 63 - 4 transient: local.ts:283 captureStore
+  ---
+  duration_ms: 112.147941
+  type: 'test'
+  ...
+# Subtest: 4 persistent: local.ts:283 captureStore
+ok 64 - 4 persistent: local.ts:283 captureStore
+  ---
+  duration_ms: 119.228865
+  type: 'test'
+  ...
+# Subtest: 5 transient: local.ts:290 call
+ok 65 - 5 transient: local.ts:290 call
+  ---
+  duration_ms: 181.273365
+  type: 'test'
+  ...
+# Subtest: 5 persistent: local.ts:290 call
+ok 66 - 5 persistent: local.ts:290 call
+  ---
+  duration_ms: 106.579675
+  type: 'test'
+  ...
+# Subtest: 6 transient: local.ts:320 call
+ok 67 - 6 transient: local.ts:320 call
+  ---
+  duration_ms: 258.143107
+  type: 'test'
+  ...
+# Subtest: 6 persistent: local.ts:320 call
+ok 68 - 6 persistent: local.ts:320 call
+  ---
+  duration_ms: 527.230951
+  type: 'test'
+  ...
+# Subtest: 7 transient: local.ts:324 call
+ok 69 - 7 transient: local.ts:324 call
+  ---
+  duration_ms: 122.144675
+  type: 'test'
+  ...
+# Subtest: 7 persistent: local.ts:324 call
+ok 70 - 7 persistent: local.ts:324 call
+  ---
+  duration_ms: 107.127386
+  type: 'test'
+  ...
+# Subtest: 8 transient: local.ts:510 sendPost
+ok 71 - 8 transient: local.ts:510 sendPost
+  ---
+  duration_ms: 149.448522
+  type: 'test'
+  ...
+# Subtest: 8 persistent: local.ts:510 sendPost
+ok 72 - 8 persistent: local.ts:510 sendPost
+  ---
+  duration_ms: 244.653417
+  type: 'test'
+  ...
+# Subtest: 9 transient: local.ts:513 sendPost
+ok 73 - 9 transient: local.ts:513 sendPost
+  ---
+  duration_ms: 127.928616
+  type: 'test'
+  ...
+# Subtest: 9 persistent: local.ts:513 sendPost
+ok 74 - 9 persistent: local.ts:513 sendPost
+  ---
+  duration_ms: 473.642335
+  type: 'test'
+  ...
+# Subtest: 10 transient: local.ts:519 sendPost
+ok 75 - 10 transient: local.ts:519 sendPost
+  ---
+  duration_ms: 472.980082
+  type: 'test'
+  ...
+# Subtest: 10 persistent: local.ts:519 sendPost
+ok 76 - 10 persistent: local.ts:519 sendPost
+  ---
+  duration_ms: 219.711391
+  type: 'test'
+  ...
+# Subtest: 11 transient: local.ts:526 sendPost
+ok 77 - 11 transient: local.ts:526 sendPost
+  ---
+  duration_ms: 188.636231
+  type: 'test'
+  ...
+# Subtest: 11 persistent: local.ts:526 sendPost
+ok 78 - 11 persistent: local.ts:526 sendPost
+  ---
+  duration_ms: 195.862363
+  type: 'test'
+  ...
+# Subtest: 12 transient: local.ts:537 sendPost
+ok 79 - 12 transient: local.ts:537 sendPost
+  ---
+  duration_ms: 106.467406
+  type: 'test'
+  ...
+# Subtest: 12 persistent: local.ts:537 sendPost
+ok 80 - 12 persistent: local.ts:537 sendPost
+  ---
+  duration_ms: 104.636622
+  type: 'test'
+  ...
+# Subtest: 13 transient: local.ts:569 syncRound
+ok 81 - 13 transient: local.ts:569 syncRound
+  ---
+  duration_ms: 139.535573
+  type: 'test'
+  ...
+# Subtest: 13 persistent: local.ts:569 syncRound
+ok 82 - 13 persistent: local.ts:569 syncRound
+  ---
+  duration_ms: 122.713428
+  type: 'test'
+  ...
+# Subtest: 14 transient: local.ts:570 syncRound
+ok 83 - 14 transient: local.ts:570 syncRound
+  ---
+  duration_ms: 199.096812
+  type: 'test'
+  ...
+# Subtest: 14 persistent: local.ts:570 syncRound
+ok 84 - 14 persistent: local.ts:570 syncRound
+  ---
+  duration_ms: 130.884135
+  type: 'test'
+  ...
+# Subtest: 15 transient: local.ts:588 syncRound
+ok 85 - 15 transient: local.ts:588 syncRound
+  ---
+  duration_ms: 189.160848
+  type: 'test'
+  ...
+# Subtest: 15 persistent: local.ts:588 syncRound
+ok 86 - 15 persistent: local.ts:588 syncRound
+  ---
+  duration_ms: 147.820743
+  type: 'test'
+  ...
+# Subtest: 16 transient: local.ts:603 syncRound
+ok 87 - 16 transient: local.ts:603 syncRound
+  ---
+  duration_ms: 130.981342
+  type: 'test'
+  ...
+# Subtest: 16 persistent: local.ts:603 syncRound
+ok 88 - 16 persistent: local.ts:603 syncRound
+  ---
+  duration_ms: 171.960525
+  type: 'test'
+  ...
+# Subtest: 17 transient: local.ts:631 syncRound
+ok 89 - 17 transient: local.ts:631 syncRound
+  ---
+  duration_ms: 202.450088
+  type: 'test'
+  ...
+# Subtest: 17 persistent: local.ts:631 syncRound
+ok 90 - 17 persistent: local.ts:631 syncRound
+  ---
+  duration_ms: 311.962709
+  type: 'test'
+  ...
+# Subtest: 18 transient: local.ts:641 syncRound
+ok 91 - 18 transient: local.ts:641 syncRound
+  ---
+  duration_ms: 377.638762
+  type: 'test'
+  ...
+# Subtest: 18 persistent: local.ts:641 syncRound
+ok 92 - 18 persistent: local.ts:641 syncRound
+  ---
+  duration_ms: 135.431522
+  type: 'test'
+  ...
+# Subtest: 19 transient: local.ts:655 syncRound
+ok 93 - 19 transient: local.ts:655 syncRound
+  ---
+  duration_ms: 246.658773
+  type: 'test'
+  ...
+# Subtest: 19 persistent: local.ts:655 syncRound
+ok 94 - 19 persistent: local.ts:655 syncRound
+  ---
+  duration_ms: 256.89076
+  type: 'test'
+  ...
+# Subtest: 20 transient: local.ts:660 syncRound
+ok 95 - 20 transient: local.ts:660 syncRound
+  ---
+  duration_ms: 183.606383
+  type: 'test'
+  ...
+# Subtest: 20 persistent: local.ts:660 syncRound
+ok 96 - 20 persistent: local.ts:660 syncRound
+  ---
+  duration_ms: 136.882156
+  type: 'test'
+  ...
+# Subtest: 21 transient: local.ts:676 syncRound
+ok 97 - 21 transient: local.ts:676 syncRound
+  ---
+  duration_ms: 451.100095
+  type: 'test'
+  ...
+# Subtest: 21 persistent: local.ts:676 syncRound
+ok 98 - 21 persistent: local.ts:676 syncRound
+  ---
+  duration_ms: 242.862493
+  type: 'test'
+  ...
+# Subtest: 22 transient: local.ts:678 syncRound
+ok 99 - 22 transient: local.ts:678 syncRound
+  ---
+  duration_ms: 245.20899
+  type: 'test'
+  ...
+# Subtest: 22 persistent: local.ts:678 syncRound
+ok 100 - 22 persistent: local.ts:678 syncRound
+  ---
+  duration_ms: 129.690286
+  type: 'test'
+  ...
+# Subtest: 23 transient: local.ts:686 syncRound
+ok 101 - 23 transient: local.ts:686 syncRound
+  ---
+  duration_ms: 111.189755
+  type: 'test'
+  ...
+# Subtest: 23 persistent: local.ts:686 syncRound
+ok 102 - 23 persistent: local.ts:686 syncRound
+  ---
+  duration_ms: 96.804983
+  type: 'test'
+  ...
+# Subtest: 24 transient: local.ts:687 syncRound
+ok 103 - 24 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 137.161495
+  type: 'test'
+  ...
+# Subtest: 24 persistent: local.ts:687 syncRound
+ok 104 - 24 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 152.321598
+  type: 'test'
+  ...
+# Subtest: 25 transient: local.ts:689 syncRound
+ok 105 - 25 transient: local.ts:689 syncRound
+  ---
+  duration_ms: 113.870774
+  type: 'test'
+  ...
+# Subtest: 25 persistent: local.ts:689 syncRound
+ok 106 - 25 persistent: local.ts:689 syncRound
+  ---
+  duration_ms: 123.397354
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page
+# Subtest: 26 transient: local.ts:706 syncRound
+ok 107 - 26 transient: local.ts:706 syncRound
+  ---
+  duration_ms: 171.443331
+  type: 'test'
+  ...
+# Subtest: 26 persistent: local.ts:706 syncRound
+ok 108 - 26 persistent: local.ts:706 syncRound
+  ---
+  duration_ms: 252.460229
+  type: 'test'
+  ...
+# Subtest: 27 transient: local.ts:713 syncRound
+ok 109 - 27 transient: local.ts:713 syncRound
+  ---
+  duration_ms: 89.638632
+  type: 'test'
+  ...
+# Subtest: 27 persistent: local.ts:713 syncRound
+ok 110 - 27 persistent: local.ts:713 syncRound
+  ---
+  duration_ms: 88.558262
+  type: 'test'
+  ...
+# Subtest: 28 transient: local.ts:721 syncRound
+ok 111 - 28 transient: local.ts:721 syncRound
+  ---
+  duration_ms: 77.349041
+  type: 'test'
+  ...
+# Subtest: 28 persistent: local.ts:721 syncRound
+ok 112 - 28 persistent: local.ts:721 syncRound
+  ---
+  duration_ms: 107.453836
+  type: 'test'
+  ...
+# Subtest: 29 transient: local.ts:744 syncRound
+ok 113 - 29 transient: local.ts:744 syncRound
+  ---
+  duration_ms: 118.932821
+  type: 'test'
+  ...
+# Subtest: 29 persistent: local.ts:744 syncRound
+ok 114 - 29 persistent: local.ts:744 syncRound
+  ---
+  duration_ms: 133.482441
+  type: 'test'
+  ...
+# Subtest: 30 transient: local.ts:747 syncRound
+ok 115 - 30 transient: local.ts:747 syncRound
+  ---
+  duration_ms: 220.41101
+  type: 'test'
+  ...
+# Subtest: 30 persistent: local.ts:747 syncRound
+ok 116 - 30 persistent: local.ts:747 syncRound
+  ---
+  duration_ms: 293.15701
+  type: 'test'
+  ...
+# Subtest: 31 transient: local.ts:773 probe
+ok 117 - 31 transient: local.ts:773 probe
+  ---
+  duration_ms: 89.162098
+  type: 'test'
+  ...
+# Subtest: 31 persistent: local.ts:773 probe
+ok 118 - 31 persistent: local.ts:773 probe
+  ---
+  duration_ms: 84.201722
+  type: 'test'
+  ...
+# Subtest: 32 transient: local.ts:775 probe
+ok 119 - 32 transient: local.ts:775 probe
+  ---
+  duration_ms: 123.324715
+  type: 'test'
+  ...
+# Subtest: 32 persistent: local.ts:775 probe
+ok 120 - 32 persistent: local.ts:775 probe
+  ---
+  duration_ms: 136.73106
+  type: 'test'
+  ...
+# Subtest: 33 transient: local.ts:776 probe
+ok 121 - 33 transient: local.ts:776 probe
+  ---
+  duration_ms: 160.396282
+  type: 'test'
+  ...
+# Subtest: 33 persistent: local.ts:776 probe
+ok 122 - 33 persistent: local.ts:776 probe
+  ---
+  duration_ms: 148.284057
+  type: 'test'
+  ...
+# Subtest: 34 transient: local.ts:778 probe
+ok 123 - 34 transient: local.ts:778 probe
+  ---
+  duration_ms: 104.874189
+  type: 'test'
+  ...
+# Subtest: 34 persistent: local.ts:778 probe
+ok 124 - 34 persistent: local.ts:778 probe
+  ---
+  duration_ms: 165.040203
+  type: 'test'
+  ...
+# Subtest: 35 transient: local.ts:782 probe
+ok 125 - 35 transient: local.ts:782 probe
+  ---
+  duration_ms: 114.218045
+  type: 'test'
+  ...
+# Subtest: 35 persistent: local.ts:782 probe
+ok 126 - 35 persistent: local.ts:782 probe
+  ---
+  duration_ms: 348.312044
+  type: 'test'
+  ...
+# Subtest: 36 transient: local.ts:786 probe
+ok 127 - 36 transient: local.ts:786 probe
+  ---
+  duration_ms: 239.348586
+  type: 'test'
+  ...
+# Subtest: 36 persistent: local.ts:786 probe
+ok 128 - 36 persistent: local.ts:786 probe
+  ---
+  duration_ms: 504.817043
+  type: 'test'
+  ...
+# Subtest: 37 transient: local.ts:796 waitForChange
+ok 129 - 37 transient: local.ts:796 waitForChange
+  ---
+  duration_ms: 581.559525
+  type: 'test'
+  ...
+# Subtest: 37 persistent: local.ts:796 waitForChange
+ok 130 - 37 persistent: local.ts:796 waitForChange
+  ---
+  duration_ms: 455.463286
+  type: 'test'
+  ...
+# Subtest: 38 transient: local.ts:797 waitForChange
+ok 131 - 38 transient: local.ts:797 waitForChange
+  ---
+  duration_ms: 523.996583
+  type: 'test'
+  ...
+# Subtest: 38 persistent: local.ts:797 waitForChange
+ok 132 - 38 persistent: local.ts:797 waitForChange
+  ---
+  duration_ms: 273.144113
+  type: 'test'
+  ...
+# Subtest: 39 transient: local.ts:800 waitForChange
+ok 133 - 39 transient: local.ts:800 waitForChange
+  ---
+  duration_ms: 281.960027
+  type: 'test'
+  ...
+# Subtest: 39 persistent: local.ts:800 waitForChange
+ok 134 - 39 persistent: local.ts:800 waitForChange
+  ---
+  duration_ms: 222.509916
+  type: 'test'
+  ...
+# Subtest: 40 transient: local.ts:805 waitForChange
+ok 135 - 40 transient: local.ts:805 waitForChange
+  ---
+  duration_ms: 224.366899
+  type: 'test'
+  ...
+# Subtest: 40 persistent: local.ts:805 waitForChange
+ok 136 - 40 persistent: local.ts:805 waitForChange
+  ---
+  duration_ms: 553.48284
+  type: 'test'
+  ...
+# Subtest: 41 transient: local.ts:807 waitForChange
+ok 137 - 41 transient: local.ts:807 waitForChange
+  ---
+  duration_ms: 669.768654
+  type: 'test'
+  ...
+# Subtest: 41 persistent: local.ts:807 waitForChange
+ok 138 - 41 persistent: local.ts:807 waitForChange
+  ---
+  duration_ms: 576.578249
+  type: 'test'
+  ...
+# Subtest: 42 transient: local.ts:810 waitForChange
+ok 139 - 42 transient: local.ts:810 waitForChange
+  ---
+  duration_ms: 288.516215
+  type: 'test'
+  ...
+# Subtest: 42 persistent: local.ts:810 waitForChange
+ok 140 - 42 persistent: local.ts:810 waitForChange
+  ---
+  duration_ms: 802.583474
+  type: 'test'
+  ...
+# Subtest: 43 transient: local.ts:812 waitForChange
+ok 141 - 43 transient: local.ts:812 waitForChange
+  ---
+  duration_ms: 588.68835
+  type: 'test'
+  ...
+# Subtest: 43 persistent: local.ts:812 waitForChange
+ok 142 - 43 persistent: local.ts:812 waitForChange
+  ---
+  duration_ms: 866.170606
+  type: 'test'
+  ...
+# Subtest: 44 transient: local.ts:820 waitForChange
+ok 143 - 44 transient: local.ts:820 waitForChange
+  ---
+  duration_ms: 319.011494
+  type: 'test'
+  ...
+# Subtest: 44 persistent: local.ts:820 waitForChange
+ok 144 - 44 persistent: local.ts:820 waitForChange
+  ---
+  duration_ms: 367.856119
+  type: 'test'
+  ...
+# Subtest: 45 transient: local.ts:838 waitForChange
+ok 145 - 45 transient: local.ts:838 waitForChange
+  ---
+  duration_ms: 478.276621
+  type: 'test'
+  ...
+# Subtest: 45 persistent: local.ts:838 waitForChange
+ok 146 - 45 persistent: local.ts:838 waitForChange
+  ---
+  duration_ms: 609.92305
+  type: 'test'
+  ...
+# Subtest: 46 transient: local.ts:847 follow
+ok 147 - 46 transient: local.ts:847 follow
+  ---
+  duration_ms: 436.122095
+  type: 'test'
+  ...
+# Subtest: 46 persistent: local.ts:847 follow
+ok 148 - 46 persistent: local.ts:847 follow
+  ---
+  duration_ms: 971.627778
+  type: 'test'
+  ...
+# Subtest: 47 transient: local.ts:850 follow
+ok 149 - 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 630.609037
+  type: 'test'
+  ...
+# Subtest: 47 persistent: local.ts:850 follow
+ok 150 - 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 396.377761
+  type: 'test'
+  ...
+# Subtest: 48 transient: local.ts:855 follow
+ok 151 - 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 960.954701
+  type: 'test'
+  ...
+# Subtest: 48 persistent: local.ts:855 follow
+ok 152 - 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 703.550691
+  type: 'test'
+  ...
+# Subtest: 49 transient: local.ts:1065 flush
+ok 153 - 49 transient: local.ts:1065 flush
+  ---
+  duration_ms: 489.810771
+  type: 'test'
+  ...
+# Subtest: 49 persistent: local.ts:1065 flush
+ok 154 - 49 persistent: local.ts:1065 flush
+  ---
+  duration_ms: 415.448106
+  type: 'test'
+  ...
+# Subtest: 50 transient: local.ts:1083 flushOnce
+ok 155 - 50 transient: local.ts:1083 flushOnce
+  ---
+  duration_ms: 281.715631
+  type: 'test'
+  ...
+# Subtest: 50 persistent: local.ts:1083 flushOnce
+ok 156 - 50 persistent: local.ts:1083 flushOnce
+  ---
+  duration_ms: 295.948826
+  type: 'test'
+  ...
+# Subtest: 51 transient: local.ts:1085 flushOnce
+ok 157 - 51 transient: local.ts:1085 flushOnce
+  ---
+  duration_ms: 271.847669
+  type: 'test'
+  ...
+# Subtest: 51 persistent: local.ts:1085 flushOnce
+ok 158 - 51 persistent: local.ts:1085 flushOnce
+  ---
+  duration_ms: 464.656255
+  type: 'test'
+  ...
+# Subtest: 52 transient: local.ts:1087 flushOnce
+ok 159 - 52 transient: local.ts:1087 flushOnce
+  ---
+  duration_ms: 81.870227
+  type: 'test'
+  ...
+# Subtest: 52 persistent: local.ts:1087 flushOnce
+ok 160 - 52 persistent: local.ts:1087 flushOnce
+  ---
+  duration_ms: 197.983162
+  type: 'test'
+  ...
+# Subtest: 53 transient: local.ts:1091 flushOnce
+ok 161 - 53 transient: local.ts:1091 flushOnce
+  ---
+  duration_ms: 130.669775
+  type: 'test'
+  ...
+# Subtest: 53 persistent: local.ts:1091 flushOnce
+ok 162 - 53 persistent: local.ts:1091 flushOnce
+  ---
+  duration_ms: 195.090767
+  type: 'test'
+  ...
+# Subtest: 54 transient: local.ts:1093 flushOnce
+ok 163 - 54 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 204.177407
+  type: 'test'
+  ...
+# Subtest: 54 persistent: local.ts:1093 flushOnce
+ok 164 - 54 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 265.5497
+  type: 'test'
+  ...
+# Subtest: 55 transient: local.ts:1093 flushOnce
+ok 165 - 55 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 196.984485
+  type: 'test'
+  ...
+# Subtest: 55 persistent: local.ts:1093 flushOnce
+ok 166 - 55 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 147.060182
+  type: 'test'
+  ...
+# Subtest: 56 transient: local.ts:1098 flushOnce
+ok 167 - 56 transient: local.ts:1098 flushOnce
+  ---
+  duration_ms: 176.288534
+  type: 'test'
+  ...
+# Subtest: 56 persistent: local.ts:1098 flushOnce
+ok 168 - 56 persistent: local.ts:1098 flushOnce
+  ---
+  duration_ms: 181.00964
+  type: 'test'
+  ...
+# Subtest: 57 transient: local.ts:1099 flushOnce
+ok 169 - 57 transient: local.ts:1099 flushOnce
+  ---
+  duration_ms: 390.415945
+  type: 'test'
+  ...
+# Subtest: 57 persistent: local.ts:1099 flushOnce
+ok 170 - 57 persistent: local.ts:1099 flushOnce
+  ---
+  duration_ms: 313.749578
+  type: 'test'
+  ...
+# Subtest: 58 transient: local.ts:1101 flushOnce
+ok 171 - 58 transient: local.ts:1101 flushOnce
+  ---
+  duration_ms: 240.775685
+  type: 'test'
+  ...
+# Subtest: 58 persistent: local.ts:1101 flushOnce
+ok 172 - 58 persistent: local.ts:1101 flushOnce
+  ---
+  duration_ms: 247.606874
+  type: 'test'
+  ...
+# Subtest: 59 transient: local.ts:1106 flushOnce
+ok 173 - 59 transient: local.ts:1106 flushOnce
+  ---
+  duration_ms: 87.57548
+  type: 'test'
+  ...
+# Subtest: 59 persistent: local.ts:1106 flushOnce
+ok 174 - 59 persistent: local.ts:1106 flushOnce
+  ---
+  duration_ms: 126.856808
+  type: 'test'
+  ...
+# Subtest: 60 transient: local.ts:1112 flushOnce
+ok 175 - 60 transient: local.ts:1112 flushOnce
+  ---
+  duration_ms: 343.128014
+  type: 'test'
+  ...
+# Subtest: 60 persistent: local.ts:1112 flushOnce
+ok 176 - 60 persistent: local.ts:1112 flushOnce
+  ---
+  duration_ms: 170.813607
+  type: 'test'
+  ...
+# Subtest: 61 transient: local.ts:1115 flushOnce
+ok 177 - 61 transient: local.ts:1115 flushOnce
+  ---
+  duration_ms: 519.208546
+  type: 'test'
+  ...
+# Subtest: 61 persistent: local.ts:1115 flushOnce
+ok 178 - 61 persistent: local.ts:1115 flushOnce
+  ---
+  duration_ms: 132.025347
+  type: 'test'
+  ...
+# Subtest: 62 transient: local.ts:1118 flushOnce
+ok 179 - 62 transient: local.ts:1118 flushOnce
+  ---
+  duration_ms: 130.878487
+  type: 'test'
+  ...
+# Subtest: 62 persistent: local.ts:1118 flushOnce
+ok 180 - 62 persistent: local.ts:1118 flushOnce
+  ---
+  duration_ms: 238.115638
+  type: 'test'
+  ...
+# Subtest: 63 transient: local.ts:1123 flushOnce
+ok 181 - 63 transient: local.ts:1123 flushOnce
+  ---
+  duration_ms: 214.843264
+  type: 'test'
+  ...
+# Subtest: 63 persistent: local.ts:1123 flushOnce
+ok 182 - 63 persistent: local.ts:1123 flushOnce
+  ---
+  duration_ms: 216.58819
+  type: 'test'
+  ...
+# Subtest: 64 transient: local.ts:1132 flushOnce
+ok 183 - 64 transient: local.ts:1132 flushOnce
+  ---
+  duration_ms: 178.739737
+  type: 'test'
+  ...
+# Subtest: 64 persistent: local.ts:1132 flushOnce
+ok 184 - 64 persistent: local.ts:1132 flushOnce
+  ---
+  duration_ms: 205.076384
+  type: 'test'
+  ...
+# Subtest: 65 transient: local.ts:1136 flushOnce
+ok 185 - 65 transient: local.ts:1136 flushOnce
+  ---
+  duration_ms: 368.725071
+  type: 'test'
+  ...
+# Subtest: 65 persistent: local.ts:1136 flushOnce
+ok 186 - 65 persistent: local.ts:1136 flushOnce
+  ---
+  duration_ms: 280.423575
+  type: 'test'
+  ...
+# Subtest: 66 transient: local.ts:1148 flushOnce
+ok 187 - 66 transient: local.ts:1148 flushOnce
+  ---
+  duration_ms: 141.640639
+  type: 'test'
+  ...
+# Subtest: 66 persistent: local.ts:1148 flushOnce
+ok 188 - 66 persistent: local.ts:1148 flushOnce
+  ---
+  duration_ms: 208.213487
+  type: 'test'
+  ...
+# Subtest: 67 transient: local.ts:1152 flushOnce
+ok 189 - 67 transient: local.ts:1152 flushOnce
+  ---
+  duration_ms: 364.011677
+  type: 'test'
+  ...
+# Subtest: 67 persistent: local.ts:1152 flushOnce
+ok 190 - 67 persistent: local.ts:1152 flushOnce
+  ---
+  duration_ms: 101.742585
+  type: 'test'
+  ...
+# Subtest: 68 transient: local.ts:1153 flushOnce
+ok 191 - 68 transient: local.ts:1153 flushOnce
+  ---
+  duration_ms: 119.082246
+  type: 'test'
+  ...
+# Subtest: 68 persistent: local.ts:1153 flushOnce
+ok 192 - 68 persistent: local.ts:1153 flushOnce
+  ---
+  duration_ms: 249.592401
+  type: 'test'
+  ...
+# Subtest: 69 transient: local.ts:1156 flushOnce
+ok 193 - 69 transient: local.ts:1156 flushOnce
+  ---
+  duration_ms: 91.061435
+  type: 'test'
+  ...
+# Subtest: 69 persistent: local.ts:1156 flushOnce
+ok 194 - 69 persistent: local.ts:1156 flushOnce
+  ---
+  duration_ms: 231.591869
+  type: 'test'
+  ...
+# Subtest: 70 transient: local.ts:1160 replayOnOpen
+ok 195 - 70 transient: local.ts:1160 replayOnOpen
+  ---
+  duration_ms: 216.583012
+  type: 'test'
+  ...
+# Subtest: 70 persistent: local.ts:1160 replayOnOpen
+ok 196 - 70 persistent: local.ts:1160 replayOnOpen
+  ---
+  duration_ms: 301.965244
+  type: 'test'
+  ...
+# Subtest: 71 transient: local.ts:1165 replayOnOpen
+ok 197 - 71 transient: local.ts:1165 replayOnOpen
+  ---
+  duration_ms: 223.503616
+  type: 'test'
+  ...
+# Subtest: 71 persistent: local.ts:1165 replayOnOpen
+ok 198 - 71 persistent: local.ts:1165 replayOnOpen
+  ---
+  duration_ms: 368.937531
+  type: 'test'
+  ...
+# Subtest: 72 transient: local.ts:1168 replayOnOpen
+ok 199 - 72 transient: local.ts:1168 replayOnOpen
+  ---
+  duration_ms: 201.171031
+  type: 'test'
+  ...
+# Subtest: 72 persistent: local.ts:1168 replayOnOpen
+ok 200 - 72 persistent: local.ts:1168 replayOnOpen
+  ---
+  duration_ms: 115.724162
+  type: 'test'
+  ...
+# Subtest: 73 transient: local.ts:1169 replayOnOpen
+ok 201 - 73 transient: local.ts:1169 replayOnOpen
+  ---
+  duration_ms: 155.768034
+  type: 'test'
+  ...
+# Subtest: 73 persistent: local.ts:1169 replayOnOpen
+ok 202 - 73 persistent: local.ts:1169 replayOnOpen
+  ---
+  duration_ms: 154.989518
+  type: 'test'
+  ...
+# Subtest: 74 transient: local.ts:1171 replayOnOpen
+ok 203 - 74 transient: local.ts:1171 replayOnOpen
+  ---
+  duration_ms: 231.169486
+  type: 'test'
+  ...
+# Subtest: 74 persistent: local.ts:1171 replayOnOpen
+ok 204 - 74 persistent: local.ts:1171 replayOnOpen
+  ---
+  duration_ms: 334.505079
+  type: 'test'
+  ...
+# Subtest: 75 transient: local.ts:1443 commit
+ok 205 - 75 transient: local.ts:1443 commit
+  ---
+  duration_ms: 322.205944
+  type: 'test'
+  ...
+# Subtest: 75 persistent: local.ts:1443 commit
+ok 206 - 75 persistent: local.ts:1443 commit
+  ---
+  duration_ms: 174.623729
+  type: 'test'
+  ...
+# Subtest: 76 transient: local.ts:1445 commit
+ok 207 - 76 transient: local.ts:1445 commit
+  ---
+  duration_ms: 152.238113
+  type: 'test'
+  ...
+# Subtest: 76 persistent: local.ts:1445 commit
+ok 208 - 76 persistent: local.ts:1445 commit
+  ---
+  duration_ms: 221.377719
+  type: 'test'
+  ...
+# Subtest: 77 transient: local.ts:1454 listenForExit
+ok 209 - 77 transient: local.ts:1454 listenForExit
+  ---
+  duration_ms: 229.042619
+  type: 'test'
+  ...
+# Subtest: 77 persistent: local.ts:1454 listenForExit
+ok 210 - 77 persistent: local.ts:1454 listenForExit
+  ---
+  duration_ms: 154.142298
+  type: 'test'
+  ...
+# Subtest: 78 transient: local-receipts.ts:11 settleReceipt
+ok 211 - 78 transient: local-receipts.ts:11 settleReceipt
+  ---
+  duration_ms: 198.144934
+  type: 'test'
+  ...
+# Subtest: 78 persistent: local-receipts.ts:11 settleReceipt
+ok 212 - 78 persistent: local-receipts.ts:11 settleReceipt
+  ---
+  duration_ms: 485.560029
+  type: 'test'
+  ...
+# Subtest: 79 transient: local-receipts.ts:12 settleReceipt
+ok 213 - 79 transient: local-receipts.ts:12 settleReceipt
+  ---
+  duration_ms: 347.795079
+  type: 'test'
+  ...
+# Subtest: 79 persistent: local-receipts.ts:12 settleReceipt
+ok 214 - 79 persistent: local-receipts.ts:12 settleReceipt
+  ---
+  duration_ms: 395.504933
+  type: 'test'
+  ...
+# Subtest: 80 transient: local-receipts.ts:30 receiptBatch
+ok 215 - 80 transient: local-receipts.ts:30 receiptBatch
+  ---
+  duration_ms: 137.023799
+  type: 'test'
+  ...
+# Subtest: 80 persistent: local-receipts.ts:30 receiptBatch
+ok 216 - 80 persistent: local-receipts.ts:30 receiptBatch
+  ---
+  duration_ms: 333.466321
+  type: 'test'
+  ...
+# Subtest: 81 transient: local-receipts.ts:43 deliverAcknowledgedReceipt
+ok 217 - 81 transient: local-receipts.ts:43 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 355.090165
+  type: 'test'
+  ...
+# Subtest: 81 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+ok 218 - 81 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 246.734908
+  type: 'test'
+  ...
+# Subtest: 82 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+ok 219 - 82 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 145.723568
+  type: 'test'
+  ...
+# Subtest: 82 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+ok 220 - 82 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 96.640397
+  type: 'test'
+  ...
+# Subtest: 83 transient: local-receipts.ts:65 syncSettledWrites
+ok 221 - 83 transient: local-receipts.ts:65 syncSettledWrites
+  ---
+  duration_ms: 227.946615
+  type: 'test'
+  ...
+# Subtest: 83 persistent: local-receipts.ts:65 syncSettledWrites
+ok 222 - 83 persistent: local-receipts.ts:65 syncSettledWrites
+  ---
+  duration_ms: 248.599343
+  type: 'test'
+  ...
+# Subtest: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 223 - 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 136.52439
+  type: 'test'
+  ...
+# Subtest: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 224 - 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 392.411165
+  type: 'test'
+  ...
+# Subtest: 85 transient: local-receipts.ts:70 recoverReceipt
+ok 225 - 85 transient: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 237.195809
+  type: 'test'
+  ...
+# Subtest: 85 persistent: local-receipts.ts:70 recoverReceipt
+ok 226 - 85 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 189.418415
+  type: 'test'
+  ...
+# Subtest: 86 transient: local-receipts.ts:70 recoverReceipt
+ok 227 - 86 transient: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 138.34525
+  type: 'test'
+  ...
+# Subtest: 86 persistent: local-receipts.ts:70 recoverReceipt
+ok 228 - 86 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 86.004825
+  type: 'test'
+  ...
+# Subtest: 87 transient: local-receipts.ts:74 recoverReceipt
+ok 229 - 87 transient: local-receipts.ts:74 recoverReceipt
+  ---
+  duration_ms: 128.374755
+  type: 'test'
+  ...
+# Subtest: 87 persistent: local-receipts.ts:74 recoverReceipt
+ok 230 - 87 persistent: local-receipts.ts:74 recoverReceipt
+  ---
+  duration_ms: 101.93964
+  type: 'test'
+  ...
+# Subtest: 88 transient: local-receipts.ts:82 lookupWrite
+ok 231 - 88 transient: local-receipts.ts:82 lookupWrite
+  ---
+  duration_ms: 246.733946
+  type: 'test'
+  ...
+# Subtest: 88 persistent: local-receipts.ts:82 lookupWrite
+ok 232 - 88 persistent: local-receipts.ts:82 lookupWrite
+  ---
+  duration_ms: 148.116115
+  type: 'test'
+  ...
+# Subtest: 89 transient: local-receipts.ts:86 lookupWrite
+ok 233 - 89 transient: local-receipts.ts:86 lookupWrite
+  ---
+  duration_ms: 87.275189
+  type: 'test'
+  ...
+# Subtest: 89 persistent: local-receipts.ts:86 lookupWrite
+ok 234 - 89 persistent: local-receipts.ts:86 lookupWrite
+  ---
+  duration_ms: 112.929132
+  type: 'test'
+  ...
+# Subtest: 90 transient: local-receipts.ts:88 lookupWrite
+ok 235 - 90 transient: local-receipts.ts:88 lookupWrite
+  ---
+  duration_ms: 165.628254
+  type: 'test'
+  ...
+# Subtest: 90 persistent: local-receipts.ts:88 lookupWrite
+ok 236 - 90 persistent: local-receipts.ts:88 lookupWrite
+  ---
+  duration_ms: 139.083576
+  type: 'test'
+  ...
+# Subtest: 91 transient: local-receipts.ts:94 lookupWrite
+ok 237 - 91 transient: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 190.399425
+  type: 'test'
+  ...
+# Subtest: 91 persistent: local-receipts.ts:94 lookupWrite
+ok 238 - 91 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 147.774873
+  type: 'test'
+  ...
+# Subtest: 92 transient: local-receipts.ts:94 lookupWrite
+ok 239 - 92 transient: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 196.649633
+  type: 'test'
+  ...
+# Subtest: 92 persistent: local-receipts.ts:94 lookupWrite
+ok 240 - 92 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 142.315521
+  type: 'test'
+  ...
+# Subtest: 93 transient: local-receipts.ts:108 terminalDeviceCall
+ok 241 - 93 transient: local-receipts.ts:108 terminalDeviceCall
+  ---
+  duration_ms: 117.065112
+  type: 'test'
+  ...
+# Subtest: 93 persistent: local-receipts.ts:108 terminalDeviceCall
+ok 242 - 93 persistent: local-receipts.ts:108 terminalDeviceCall
+  ---
+  duration_ms: 124.465715
+  type: 'test'
+  ...
+# Subtest: 94 transient: local-receipts.ts:117 readQueued
+ok 243 - 94 transient: local-receipts.ts:117 readQueued
+  ---
+  duration_ms: 99.799412
+  type: 'test'
+  ...
+# Subtest: 94 persistent: local-receipts.ts:117 readQueued
+ok 244 - 94 persistent: local-receipts.ts:117 readQueued
+  ---
+  duration_ms: 125.08956
+  type: 'test'
+  ...
+# Subtest: 95 transient: local-receipts.ts:132 resolveClosingWrites
+ok 245 - 95 transient: local-receipts.ts:132 resolveClosingWrites
+  ---
+  duration_ms: 72.631789
+  type: 'test'
+  ...
+# Subtest: 95 persistent: local-receipts.ts:132 resolveClosingWrites
+ok 246 - 95 persistent: local-receipts.ts:132 resolveClosingWrites
+  ---
+  duration_ms: 54.586952
+  type: 'test'
+  ...
+# Subtest: 96 transient: local-receipts.ts:135 resolveClosingWrites
+ok 247 - 96 transient: local-receipts.ts:135 resolveClosingWrites
+  ---
+  duration_ms: 33.307255
+  type: 'test'
+  ...
+# Subtest: 96 persistent: local-receipts.ts:135 resolveClosingWrites
+ok 248 - 96 persistent: local-receipts.ts:135 resolveClosingWrites
+  ---
+  duration_ms: 190.224443
+  type: 'test'
+  ...
+# Subtest: 97 transient: writes.ts:160 keep
+ok 249 - 97 transient: writes.ts:160 keep
+  ---
+  duration_ms: 143.483562
+  type: 'test'
+  ...
+# Subtest: 97 persistent: writes.ts:160 keep
+ok 250 - 97 persistent: writes.ts:160 keep
+  ---
+  duration_ms: 138.649145
+  type: 'test'
+  ...
+# Subtest: 98 transient: writes.ts:187 acknowledged
+ok 251 - 98 transient: writes.ts:187 acknowledged
+  ---
+  duration_ms: 166.006873
+  type: 'test'
+  ...
+# Subtest: 98 persistent: writes.ts:187 acknowledged
+ok 252 - 98 persistent: writes.ts:187 acknowledged
+  ---
+  duration_ms: 146.520394
+  type: 'test'
+  ...
+# Subtest: 99 transient: writes.ts:193 acknowledged
+ok 253 - 99 transient: writes.ts:193 acknowledged
+  ---
+  duration_ms: 90.619311
+  type: 'test'
+  ...
+# Subtest: 99 persistent: writes.ts:193 acknowledged
+ok 254 - 99 persistent: writes.ts:193 acknowledged
+  ---
+  duration_ms: 190.197782
+  type: 'test'
+  ...
+# Subtest: 100 transient: writes.ts:200 persistPending
+ok 255 - 100 transient: writes.ts:200 persistPending
+  ---
+  duration_ms: 205.524787
+  type: 'test'
+  ...
+# Subtest: 100 persistent: writes.ts:200 persistPending
+ok 256 - 100 persistent: writes.ts:200 persistPending
+  ---
+  duration_ms: 563.72937
+  type: 'test'
+  ...
+# Subtest: 101 transient: writes.ts:206 read
+ok 257 - 101 transient: writes.ts:206 read
+  ---
+  duration_ms: 89.374236
+  type: 'test'
+  ...
+# Subtest: 101 persistent: writes.ts:206 read
+ok 258 - 101 persistent: writes.ts:206 read
+  ---
+  duration_ms: 100.459531
+  type: 'test'
+  ...
+# Subtest: 102 transient: writes.ts:209 read
+ok 259 - 102 transient: writes.ts:209 read
+  ---
+  duration_ms: 76.500278
+  type: 'test'
+  ...
+# Subtest: 102 persistent: writes.ts:209 read
+ok 260 - 102 persistent: writes.ts:209 read
+  ---
+  duration_ms: 112.589964
+  type: 'test'
+  ...
+# Subtest: 103 transient: writes.ts:221 lookup
+ok 261 - 103 transient: writes.ts:221 lookup
+  ---
+  duration_ms: 107.29018
+  type: 'test'
+  ...
+# Subtest: 103 persistent: writes.ts:221 lookup
+ok 262 - 103 persistent: writes.ts:221 lookup
+  ---
+  duration_ms: 88.589289
+  type: 'test'
+  ...
+# Subtest: 104 transient: writes.ts:223 lookup
+ok 263 - 104 transient: writes.ts:223 lookup
+  ---
+  duration_ms: 127.125302
+  type: 'test'
+  ...
+# Subtest: 104 persistent: writes.ts:223 lookup
+ok 264 - 104 persistent: writes.ts:223 lookup
+  ---
+  duration_ms: 97.043591
+  type: 'test'
+  ...
+# Subtest: 105 transient: local-exit.ts:38 exitTransport
+ok 265 - 105 transient: local-exit.ts:38 exitTransport
+  ---
+  duration_ms: 87.123492
+  type: 'test'
+  ...
+# Subtest: 105 persistent: local-exit.ts:38 exitTransport
+ok 266 - 105 persistent: local-exit.ts:38 exitTransport
+  ---
+  duration_ms: 78.263391
+  type: 'test'
+  ...
+# Subtest: 106 transient: local-exit.ts:41 exitTransport
+ok 267 - 106 transient: local-exit.ts:41 exitTransport
+  ---
+  duration_ms: 223.961693
+  type: 'test'
+  ...
+# Subtest: 106 persistent: local-exit.ts:41 exitTransport
+ok 268 - 106 persistent: local-exit.ts:41 exitTransport
+  ---
+  duration_ms: 85.759978
+  type: 'test'
+  ...
+# Subtest: 107 transient: local-exit.ts:42 exitTransport
+ok 269 - 107 transient: local-exit.ts:42 exitTransport
+  ---
+  duration_ms: 79.017381
+  type: 'test'
+  ...
+# Subtest: 107 persistent: local-exit.ts:42 exitTransport
+ok 270 - 107 persistent: local-exit.ts:42 exitTransport
+  ---
+  duration_ms: 207.449832
+  type: 'test'
+  ...
+# Subtest: 108 transient: local-exit-settlement.ts:22 exitRefusalSettlement
+ok 271 - 108 transient: local-exit-settlement.ts:22 exitRefusalSettlement
+  ---
+  duration_ms: 200.690781
+  type: 'test'
+  ...
+# Subtest: 108 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+ok 272 - 108 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+  ---
+  duration_ms: 142.447899
+  type: 'test'
+  ...
+# Subtest: 109 transient: local-exit-settlement.ts:25 exitRefusalSettlement
+ok 273 - 109 transient: local-exit-settlement.ts:25 exitRefusalSettlement
+  ---
+  duration_ms: 186.411968
+  type: 'test'
+  ...
+# Subtest: 109 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+ok 274 - 109 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+  ---
+  duration_ms: 168.383745
+  type: 'test'
+  ...
+# Subtest: 110 transient: local-assets.ts:52 call
+ok 275 - 110 transient: local-assets.ts:52 call
+  ---
+  duration_ms: 105.112987
+  type: 'test'
+  ...
+# Subtest: 110 persistent: local-assets.ts:52 call
+ok 276 - 110 persistent: local-assets.ts:52 call
+  ---
+  duration_ms: 144.971321
+  type: 'test'
+  ...
+# Subtest: 111 transient: local-assets.ts:70 home
+ok 277 - 111 transient: local-assets.ts:70 home
+  ---
+  duration_ms: 216.757784
+  type: 'test'
+  ...
+# Subtest: 111 persistent: local-assets.ts:70 home
+ok 278 - 111 persistent: local-assets.ts:70 home
+  ---
+  duration_ms: 371.973231
+  type: 'test'
+  ...
+# Subtest: 112 transient: local-assets.ts:73 save
+ok 279 - 112 transient: local-assets.ts:73 save
+  ---
+  duration_ms: 283.3424
+  type: 'test'
+  ...
+# Subtest: 112 persistent: local-assets.ts:73 save
+ok 280 - 112 persistent: local-assets.ts:73 save
+  ---
+  duration_ms: 130.220631
+  type: 'test'
+  ...
+# Subtest: 113 transient: local-assets.ts:79 drop
+ok 281 - 113 transient: local-assets.ts:79 drop
+  ---
+  duration_ms: 132.034941
+  type: 'test'
+  ...
+# Subtest: 113 persistent: local-assets.ts:79 drop
+ok 282 - 113 persistent: local-assets.ts:79 drop
+  ---
+  duration_ms: 302.743922
+  type: 'test'
+  ...
+# Subtest: 114 transient: local-assets.ts:103 check
+ok 283 - 114 transient: local-assets.ts:103 check
+  ---
+  duration_ms: 234.048252
+  type: 'test'
+  ...
+# Subtest: 114 persistent: local-assets.ts:103 check
+ok 284 - 114 persistent: local-assets.ts:103 check
+  ---
+  duration_ms: 249.291349
+  type: 'test'
+  ...
+# Subtest: 115 transient: local-assets.ts:105 check
+ok 285 - 115 transient: local-assets.ts:105 check
+  ---
+  duration_ms: 361.333903
+  type: 'test'
+  ...
+# Subtest: 115 persistent: local-assets.ts:105 check
+ok 286 - 115 persistent: local-assets.ts:105 check
+  ---
+  duration_ms: 234.797935
+  type: 'test'
+  ...
+# Subtest: 116 transient: local-assets.ts:112 check
+ok 287 - 116 transient: local-assets.ts:112 check
+  ---
+  duration_ms: 85.595131
+  type: 'test'
+  ...
+# Subtest: 116 persistent: local-assets.ts:112 check
+ok 288 - 116 persistent: local-assets.ts:112 check
+  ---
+  duration_ms: 108.567525
+  type: 'test'
+  ...
+# Subtest: 117 transient: local-assets.ts:116 check
+ok 289 - 117 transient: local-assets.ts:116 check
+  ---
+  duration_ms: 76.965836
+  type: 'test'
+  ...
+# Subtest: 117 persistent: local-assets.ts:116 check
+ok 290 - 117 persistent: local-assets.ts:116 check
+  ---
+  duration_ms: 108.603008
+  type: 'test'
+  ...
+# Subtest: 118 transient: request-wait.ts:20 postForCaller
+ok 291 - 118 transient: request-wait.ts:20 postForCaller
+  ---
+  duration_ms: 129.810516
+  type: 'test'
+  ...
+# Subtest: 118 persistent: request-wait.ts:20 postForCaller
+ok 292 - 118 persistent: request-wait.ts:20 postForCaller
+  ---
+  duration_ms: 238.445342
+  type: 'test'
+  ...
+# Subtest: 119 transient: request-wait.ts:21 postForCaller
+ok 293 - 119 transient: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 154.371051
+  type: 'test'
+  ...
+# Subtest: 119 persistent: request-wait.ts:21 postForCaller
+ok 294 - 119 persistent: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 221.461114
+  type: 'test'
+  ...
+# Subtest: 120 transient: request-wait.ts:21 postForCaller
+ok 295 - 120 transient: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 182.246634
+  type: 'test'
+  ...
+# Subtest: 120 persistent: request-wait.ts:21 postForCaller
+ok 296 - 120 persistent: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 158.120441
+  type: 'test'
+  ...
+# Subtest: 121 transient: local-sync.ts:51 legacyInput
+ok 297 - 121 transient: local-sync.ts:51 legacyInput
+  ---
+  duration_ms: 211.7378
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+# Subtest: 121 persistent: local-sync.ts:51 legacyInput
+ok 298 - 121 persistent: local-sync.ts:51 legacyInput
+  ---
+  duration_ms: 104.047489
+  type: 'test'
+  ...
+# Subtest: 122 transient: local-sync.ts:68 syncTransport
+ok 299 - 122 transient: local-sync.ts:68 syncTransport
+  ---
+  duration_ms: 108.272272
+  type: 'test'
+  ...
+# Subtest: 122 persistent: local-sync.ts:68 syncTransport
+ok 300 - 122 persistent: local-sync.ts:68 syncTransport
+  ---
+  duration_ms: 136.956228
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+# Subtest: 123 transient: local-sync.ts:69 syncTransport
+ok 301 - 123 transient: local-sync.ts:69 syncTransport
+  ---
+  duration_ms: 182.348527
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+# Subtest: 123 persistent: local-sync.ts:69 syncTransport
+ok 302 - 123 persistent: local-sync.ts:69 syncTransport
+  ---
+  duration_ms: 100.863948
+  type: 'test'
+  ...
+# Subtest: 124 transient: local-sync.ts:70 syncTransport
+ok 303 - 124 transient: local-sync.ts:70 syncTransport
+  ---
+  duration_ms: 108.562898
+  type: 'test'
+  ...
+# Subtest: 124 persistent: local-sync.ts:70 syncTransport
+ok 304 - 124 persistent: local-sync.ts:70 syncTransport
+  ---
+  duration_ms: 95.053508
+  type: 'test'
+  ...
+# Subtest: 125 transient: device-restore.ts:57 restoreWitness
+ok 305 - 125 transient: device-restore.ts:57 restoreWitness
+  ---
+  duration_ms: 330.010752
+  type: 'test'
+  ...
+# Subtest: 125 persistent: device-restore.ts:57 restoreWitness
+ok 306 - 125 persistent: device-restore.ts:57 restoreWitness
+  ---
+  duration_ms: 96.286327
+  type: 'test'
+  ...
+# Subtest: 126 transient: local-backend.ts:25 loadBackend
+ok 307 - 126 transient: local-backend.ts:25 loadBackend
+  ---
+  duration_ms: 174.75143
+  type: 'test'
+  ...
+# Subtest: 126 persistent: local-backend.ts:25 loadBackend
+ok 308 - 126 persistent: local-backend.ts:25 loadBackend
+  ---
+  duration_ms: 140.598558
+  type: 'test'
+  ...
+# Subtest: 127 transient: local-native.ts:16 installNativeAttempt
+ok 309 - 127 transient: local-native.ts:16 installNativeAttempt
+  ---
+  duration_ms: 215.463985
+  type: 'test'
+  ...
+# Subtest: 127 persistent: local-native.ts:16 installNativeAttempt
+ok 310 - 127 persistent: local-native.ts:16 installNativeAttempt
+  ---
+  duration_ms: 295.67822
+  type: 'test'
+  ...
+# Subtest: 128 transient: local-native.ts:28 installNativeAttempt
+ok 311 - 128 transient: local-native.ts:28 installNativeAttempt
+  ---
+  duration_ms: 128.476547
+  type: 'test'
+  ...
+# Subtest: 128 persistent: local-native.ts:28 installNativeAttempt
+ok 312 - 128 persistent: local-native.ts:28 installNativeAttempt
+  ---
+  duration_ms: 201.145583
+  type: 'test'
+  ...
+# Subtest: 129 transient: local-native.ts:41 installNativeAttempt
+ok 313 - 129 transient: local-native.ts:41 installNativeAttempt
+  ---
+  duration_ms: 85.541991
+  type: 'test'
+  ...
+# Subtest: 129 persistent: local-native.ts:41 installNativeAttempt
+ok 314 - 129 persistent: local-native.ts:41 installNativeAttempt
+  ---
+  duration_ms: 101.877217
+  type: 'test'
+  ...
+# Subtest: 130 transient: local-native.ts:43 installNativeAttempt
+ok 315 - 130 transient: local-native.ts:43 installNativeAttempt
+  ---
+  duration_ms: 268.616437
+  type: 'test'
+  ...
+# Subtest: 130 persistent: local-native.ts:43 installNativeAttempt
+ok 316 - 130 persistent: local-native.ts:43 installNativeAttempt
+  ---
+  duration_ms: 307.878147
+  type: 'test'
+  ...
+# Subtest: 131 transient: local-native.ts:46 installNativeAttempt
+ok 317 - 131 transient: local-native.ts:46 installNativeAttempt
+  ---
+  duration_ms: 295.499703
+  type: 'test'
+  ...
+# Subtest: 131 persistent: local-native.ts:46 installNativeAttempt
+ok 318 - 131 persistent: local-native.ts:46 installNativeAttempt
+  ---
+  duration_ms: 138.699431
+  type: 'test'
+  ...
+# Subtest: 132 transient: pending-writes.ts:50 revision
+ok 319 - 132 transient: pending-writes.ts:50 revision
+  ---
+  duration_ms: 182.734305
+  type: 'test'
+  ...
+# Subtest: 132 persistent: pending-writes.ts:50 revision
+ok 320 - 132 persistent: pending-writes.ts:50 revision
+  ---
+  duration_ms: 196.395793
+  type: 'test'
+  ...
+# Subtest: 133 transient: pending-writes.ts:57 record
+ok 321 - 133 transient: pending-writes.ts:57 record
+  ---
+  duration_ms: 206.537275
+  type: 'test'
+  ...
+# Subtest: 133 persistent: pending-writes.ts:57 record
+ok 322 - 133 persistent: pending-writes.ts:57 record
+  ---
+  duration_ms: 218.583451
+  type: 'test'
+  ...
+# Subtest: 134 transient: pending-writes.ts:60 record
+ok 323 - 134 transient: pending-writes.ts:60 record
+  ---
+  duration_ms: 109.986081
+  type: 'test'
+  ...
+# Subtest: 134 persistent: pending-writes.ts:60 record
+ok 324 - 134 persistent: pending-writes.ts:60 record
+  ---
+  duration_ms: 192.704971
+  type: 'test'
+  ...
+# Subtest: 135 transient: clock.ts:89 wrapped
+ok 325 - 135 transient: clock.ts:89 wrapped
+  ---
+  duration_ms: 306.866912
+  type: 'test'
+  ...
+# Subtest: 135 persistent: clock.ts:89 wrapped
+ok 326 - 135 persistent: clock.ts:89 wrapped
+  ---
+  duration_ms: 249.559512
+  type: 'test'
+  ...
+# Subtest: 136 transient: clock.ts:135 save
+ok 327 - 136 transient: clock.ts:135 save
+  ---
+  duration_ms: 179.147799
+  type: 'test'
+  ...
+# Subtest: 136 persistent: clock.ts:135 save
+ok 328 - 136 persistent: clock.ts:135 save
+  ---
+  duration_ms: 130.768452
+  type: 'test'
+  ...
+# Subtest: 137 transient: changes.ts:52 changeFeed
+ok 329 - 137 transient: changes.ts:52 changeFeed
+  ---
+  duration_ms: 516.814197
+  type: 'test'
+  ...
+# Subtest: 137 persistent: changes.ts:52 changeFeed
+ok 330 - 137 persistent: changes.ts:52 changeFeed
+  ---
+  duration_ms: 568.707211
+  type: 'test'
+  ...
+# Subtest: 138 transient: changes.ts:61 changeFeed
+ok 331 - 138 transient: changes.ts:61 changeFeed
+  ---
+  duration_ms: 278.474223
+  type: 'test'
+  ...
+# Subtest: 138 persistent: changes.ts:61 changeFeed
+ok 332 - 138 persistent: changes.ts:61 changeFeed
+  ---
+  duration_ms: 723.841996
+  type: 'test'
+  ...
+# Subtest: 139 transient: changes.ts:70 changeFeed
+ok 333 - 139 transient: changes.ts:70 changeFeed
+  ---
+  duration_ms: 212.296307
+  type: 'test'
+  ...
+# Subtest: 139 persistent: changes.ts:70 changeFeed
+ok 334 - 139 persistent: changes.ts:70 changeFeed
+  ---
+  duration_ms: 268.975735
+  type: 'test'
+  ...
+# Subtest: 140 transient: changes.ts:74 changeFeed
+ok 335 - 140 transient: changes.ts:74 changeFeed
+  ---
+  duration_ms: 477.767319
+  type: 'test'
+  ...
+# Subtest: 140 persistent: changes.ts:74 changeFeed
+ok 336 - 140 persistent: changes.ts:74 changeFeed
+  ---
+  duration_ms: 324.290077
+  type: 'test'
+  ...
+# Subtest: 141 transient: local-search.ts:15 searchReplyIdentity
+ok 337 - 141 transient: local-search.ts:15 searchReplyIdentity
+  ---
+  duration_ms: 314.280804
+  type: 'test'
+  ...
+# Subtest: 141 persistent: local-search.ts:15 searchReplyIdentity
+ok 338 - 141 persistent: local-search.ts:15 searchReplyIdentity
+  ---
+  duration_ms: 246.410232
+  type: 'test'
+  ...
+# Subtest: 142 transient: local-search.ts:69 decode
+ok 339 - 142 transient: local-search.ts:69 decode
+  ---
+  duration_ms: 403.430603
+  type: 'test'
+  ...
+# Subtest: 142 persistent: local-search.ts:69 decode
+ok 340 - 142 persistent: local-search.ts:69 decode
+  ---
+  duration_ms: 114.257243
+  type: 'test'
+  ...
+# Subtest: 143 transient: local-search.ts:78 decode
+ok 341 - 143 transient: local-search.ts:78 decode
+  ---
+  duration_ms: 292.372034
+  type: 'test'
+  ...
+# Subtest: 143 persistent: local-search.ts:78 decode
+ok 342 - 143 persistent: local-search.ts:78 decode
+  ---
+  duration_ms: 143.147788
+  type: 'test'
+  ...
+# Subtest: 144 transient: local-search.ts:155 ordinarySearch
+ok 343 - 144 transient: local-search.ts:155 ordinarySearch
+  ---
+  duration_ms: 251.777556
+  type: 'test'
+  ...
+# Subtest: 144 persistent: local-search.ts:155 ordinarySearch
+ok 344 - 144 persistent: local-search.ts:155 ordinarySearch
+  ---
+  duration_ms: 126.178112
+  type: 'test'
+  ...
+# Subtest: 145 transient: local-search.ts:189 ordinarySearch
+ok 345 - 145 transient: local-search.ts:189 ordinarySearch
+  ---
+  duration_ms: 195.808062
+  type: 'test'
+  ...
+# Subtest: 145 persistent: local-search.ts:189 ordinarySearch
+ok 346 - 145 persistent: local-search.ts:189 ordinarySearch
+  ---
+  duration_ms: 180.503692
+  type: 'test'
+  ...
+# Subtest: 146 transient: local-search.ts:196 ordinarySearch
+ok 347 - 146 transient: local-search.ts:196 ordinarySearch
+  ---
+  duration_ms: 255.374267
+  type: 'test'
+  ...
+# Subtest: 146 persistent: local-search.ts:196 ordinarySearch
+ok 348 - 146 persistent: local-search.ts:196 ordinarySearch
+  ---
+  duration_ms: 185.758709
+  type: 'test'
+  ...
+# Subtest: 147 transient: local-search.ts:206 ordinarySearch
+ok 349 - 147 transient: local-search.ts:206 ordinarySearch
+  ---
+  duration_ms: 173.740965
+  type: 'test'
+  ...
+# Subtest: 147 persistent: local-search.ts:206 ordinarySearch
+ok 350 - 147 persistent: local-search.ts:206 ordinarySearch
+  ---
+  duration_ms: 84.623014
+  type: 'test'
+  ...
+# Subtest: 148 transient: local-search.ts:208 ordinarySearch
+ok 351 - 148 transient: local-search.ts:208 ordinarySearch
+  ---
+  duration_ms: 273.104534
+  type: 'test'
+  ...
+# Subtest: 148 persistent: local-search.ts:208 ordinarySearch
+ok 352 - 148 persistent: local-search.ts:208 ordinarySearch
+  ---
+  duration_ms: 104.071736
+  type: 'test'
+  ...
+# Subtest: 149 transient: local-search.ts:221 ordinarySearch
+ok 353 - 149 transient: local-search.ts:221 ordinarySearch
+  ---
+  duration_ms: 179.482892
+  type: 'test'
+  ...
+# Subtest: 149 persistent: local-search.ts:221 ordinarySearch
+ok 354 - 149 persistent: local-search.ts:221 ordinarySearch
+  ---
+  duration_ms: 103.424836
+  type: 'test'
+  ...
+# Subtest: 150 transient: local-query.ts:266 route
+ok 355 - 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 158.491407
+  type: 'test'
+  ...
+# Subtest: 150 persistent: local-query.ts:266 route
+ok 356 - 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 188.802801
+  type: 'test'
+  ...
+# Subtest: 151 transient: local-query.ts:271 route
+ok 357 - 151 transient: local-query.ts:271 route
+  ---
+  duration_ms: 107.339114
+  type: 'test'
+  ...
+# Subtest: 151 persistent: local-query.ts:271 route
+ok 358 - 151 persistent: local-query.ts:271 route
+  ---
+  duration_ms: 127.666002
+  type: 'test'
+  ...
+# Subtest: 152 transient: local-query.ts:273 route
+ok 359 - 152 transient: local-query.ts:273 route
+  ---
+  duration_ms: 261.586679
+  type: 'test'
+  ...
+# Subtest: 152 persistent: local-query.ts:273 route
+ok 360 - 152 persistent: local-query.ts:273 route
+  ---
+  duration_ms: 120.384978
+  type: 'test'
+  ...
+# Subtest: 153 transient: local-query.ts:277 route
+ok 361 - 153 transient: local-query.ts:277 route
+  ---
+  duration_ms: 225.970494
+  type: 'test'
+  ...
+# Subtest: 153 persistent: local-query.ts:277 route
+ok 362 - 153 persistent: local-query.ts:277 route
+  ---
+  duration_ms: 95.444164
+  type: 'test'
+  ...
+# Subtest: 154 transient: local-query.ts:280 route
+ok 363 - 154 transient: local-query.ts:280 route
+  ---
+  duration_ms: 82.05195
+  type: 'test'
+  ...
+# Subtest: 154 persistent: local-query.ts:280 route
+ok 364 - 154 persistent: local-query.ts:280 route
+  ---
+  duration_ms: 84.58013
+  type: 'test'
+  ...
+# Subtest: 155 transient: local-query.ts:281 route
+ok 365 - 155 transient: local-query.ts:281 route
+  ---
+  duration_ms: 127.456147
+  type: 'test'
+  ...
+# Subtest: 155 persistent: local-query.ts:281 route
+ok 366 - 155 persistent: local-query.ts:281 route
+  ---
+  duration_ms: 95.257434
+  type: 'test'
+  ...
+# Subtest: 156 transient: http-response.ts:42 readResponse
+ok 367 - 156 transient: http-response.ts:42 readResponse
+  ---
+  duration_ms: 163.556169
+  type: 'test'
+  ...
+# Subtest: 156 persistent: http-response.ts:42 readResponse
+ok 368 - 156 persistent: http-response.ts:42 readResponse
+  ---
+  duration_ms: 202.619292
+  type: 'test'
+  ...
+# Subtest: 157 transient: http-response.ts:42 readResponse
+ok 369 - 157 transient: http-response.ts:42 readResponse
+  ---
+  duration_ms: 102.083506
+  type: 'test'
+  ...
+# Subtest: 157 persistent: http-response.ts:42 readResponse
+ok 370 - 157 persistent: http-response.ts:42 readResponse
+  ---
+  duration_ms: 215.722923
+  type: 'test'
+  ...
+# Subtest: 158 transient: local.ts:1086 flushOnce
+ok 371 - 158 transient: local.ts:1086 flushOnce
+  ---
+  duration_ms: 126.892773
+  type: 'test'
+  ...
+# Subtest: 158 persistent: local.ts:1086 flushOnce
+ok 372 - 158 persistent: local.ts:1086 flushOnce
+  ---
+  duration_ms: 100.884418
+  type: 'test'
+  ...
+# Subtest: 159 transient: local-assets.ts:48 remove
+ok 373 - 159 transient: local-assets.ts:48 remove
+  ---
+  duration_ms: 138.791859
+  type: 'test'
+  ...
+# Subtest: 159 persistent: local-assets.ts:48 remove
+ok 374 - 159 persistent: local-assets.ts:48 remove
+  ---
+  duration_ms: 296.160674
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 24 transient: local.ts:687 syncRound
+ok 375 - competing sync/install: 24 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 135.740445
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 24 persistent: local.ts:687 syncRound
+ok 376 - competing sync/install: 24 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 175.522395
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 47 transient: local.ts:850 follow
+ok 377 - competing sync/install: 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 240.61223
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 47 persistent: local.ts:850 follow
+ok 378 - competing sync/install: 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 295.952011
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 48 transient: local.ts:855 follow
+ok 379 - competing sync/install: 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 294.746033
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 48 persistent: local.ts:855 follow
+ok 380 - competing sync/install: 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 362.895004
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 55 transient: local.ts:1093 flushOnce
+ok 381 - competing sync/install: 55 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 147.633832
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 55 persistent: local.ts:1093 flushOnce
+ok 382 - competing sync/install: 55 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 157.237598
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 383 - competing sync/install: 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 115.297793
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 384 - competing sync/install: 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 497.756571
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 150 transient: local-query.ts:266 route
+ok 385 - competing sync/install: 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 583.1098
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 150 persistent: local-query.ts:266 route
+ok 386 - competing sync/install: 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 330.32277
+  type: 'test'
+  ...
+# Subtest: integrated delivery binding, manifest, report and no-op replay: online
+ok 387 - integrated delivery binding, manifest, report and no-op replay: online
+  ---
+  duration_ms: 1948.004433
+  type: 'test'
+  ...
+# Subtest: integrated delivery binding, manifest, report and no-op replay: local-fallback
+ok 388 - integrated delivery binding, manifest, report and no-op replay: local-fallback
+  ---
+  duration_ms: 6101.736696
+  type: 'test'
+  ...
+# Subtest: integrated delivery binding, manifest, report and no-op replay: local-publication
+ok 389 - integrated delivery binding, manifest, report and no-op replay: local-publication
+  ---
+  duration_ms: 2994.123989
+  type: 'test'
+  ...
+# Subtest: declarative full runs compact a long deleted hole through the real SDK
+ok 390 - declarative full runs compact a long deleted hole through the real SDK
+  ---
+  duration_ms: 3328.589617
+  type: 'test'
+  ...
+# Subtest: real local outbox keeps submission order ahead of delivery load
+ok 391 - real local outbox keeps submission order ahead of delivery load
+  ---
+  duration_ms: 9572.687682
+  type: 'test'
+  ...
+# Subtest: real local fallback accepts before supplementary debt becomes durable
+ok 392 - real local fallback accepts before supplementary debt becomes durable
+  ---
+  duration_ms: 5867.253344
+  type: 'test'
+  ...
+# Subtest: a delayed local save never delays query acceptance
+ok 393 - a delayed local save never delays query acceptance
+  ---
+  duration_ms: 1718.726914
+  type: 'test'
+  ...
+# Subtest: a failed manifest save leaves the successful local fallback answer intact
+ok 394 - a failed manifest save leaves the successful local fallback answer intact
+  ---
+  duration_ms: 1664.623266
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when commit changes before acceptance
+ok 395 - local fallback rejects its manifest when commit changes before acceptance
+  ---
+  duration_ms: 1845.881759
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when credential changes before acceptance
+ok 396 - local fallback rejects its manifest when credential changes before acceptance
+  ---
+  duration_ms: 1235.114094
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when expiry changes before acceptance
+ok 397 - local fallback rejects its manifest when expiry changes before acceptance
+  ---
+  duration_ms: 1798.791155
+  type: 'test'
+  ...
+# Subtest: a query below its local restore floor creates no delivery debt
+ok 398 - a query below its local restore floor creates no delivery debt
+  ---
+  duration_ms: 2032.698605
+  type: 'test'
+  ...
+# Subtest: a watch publishes before a delayed save, and expiry cannot resurrect that answer
+ok 399 - a watch publishes before a delayed save, and expiry cannot resurrect that answer
+  ---
+  duration_ms: 2137.53749
+  type: 'test'
+  ...
+# Subtest: local E_OFFLINE reconnects through the existing link path and retains its attempt id
+ok 400 - local E_OFFLINE reconnects through the existing link path and retains its attempt id
+  ---
+  duration_ms: 3951.27588
+  type: 'test'
+  ...
+# Subtest: a credential change during save withdraws an already accepted watch without republishing it
+ok 401 - a credential change during save withdraws an already accepted watch without republishing it
+  ---
+  duration_ms: 1131.882528
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after credential
+ok 402 - a held collection write after query acceptance omits debt after credential
+  ---
+  duration_ms: 969.026479
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after expiry
+ok 403 - a held collection write after query acceptance omits debt after expiry
+  ---
+  duration_ms: 1931.366205
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after commit
+ok 404 - a held collection write after query acceptance omits debt after commit
+  ---
+  duration_ms: 2171.773738
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after credential
+ok 405 - a host save held after its CAS check writes nothing after credential
+  ---
+  duration_ms: 575.118781
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after expiry
+ok 406 - a host save held after its CAS check writes nothing after expiry
+  ---
+  duration_ms: 2277.078022
+  type: 'test'
+  ...
+# Subtest: why: E_BOUND parks until start and calls onDeliveryRefused exactly once
+ok 407 - why: E_BOUND parks until start and calls onDeliveryRefused exactly once
+  ---
+  duration_ms: 25.255636
+  type: 'test'
+  ...
+# Subtest: why: next start sends the refused report with a new id and succeeds
+ok 408 - why: next start sends the refused report with a new id and succeeds
+  ---
+  duration_ms: 4.668297
+  type: 'test'
+  ...
+# Subtest: why: no E_BOUND retry during the session on time, reconnect, publication or recollection
+ok 409 - why: no E_BOUND retry during the session on time, reconnect, publication or recollection
+  ---
+  duration_ms: 4.720095
+  type: 'test'
+  ...
+# Subtest: why: multi-position refusal survives interval eviction with adjacent clean coverage
+ok 410 - why: multi-position refusal survives interval eviction with adjacent clean coverage
+  ---
+  duration_ms: 735.328993
+  type: 'test'
+  ...
+# Subtest: why: multi-position refusal survives group eviction with adjacent clean coverage
+ok 411 - why: multi-position refusal survives group eviction with adjacent clean coverage
+  ---
+  duration_ms: 10.529183
+  type: 'test'
+  ...
+# Subtest: why: reset(false) preserves refusal suppression until start
+ok 412 - why: reset(false) preserves refusal suppression until start
+  ---
+  duration_ms: 1.848761
+  type: 'test'
+  ...
+# Subtest: why: interval eviction and recollection cannot resend before start
+ok 413 - why: interval eviction and recollection cannot resend before start
+  ---
+  duration_ms: 925.097963
+  type: 'test'
+  ...
+# Subtest: why: group eviction and recollection cannot resend before start
+ok 414 - why: group eviction and recollection cannot resend before start
+  ---
+  duration_ms: 5.915476
+  type: 'test'
+  ...
+# Subtest: denied: E_BOUND parks until start and calls onDeliveryRefused exactly once
+ok 415 - denied: E_BOUND parks until start and calls onDeliveryRefused exactly once
+  ---
+  duration_ms: 21.03463
+  type: 'test'
+  ...
+# Subtest: denied: next start sends the refused report with a new id and succeeds
+ok 416 - denied: next start sends the refused report with a new id and succeeds
+  ---
+  duration_ms: 2.436221
+  type: 'test'
+  ...
+# Subtest: denied: no E_BOUND retry during the session on time, reconnect, publication or recollection
+ok 417 - denied: no E_BOUND retry during the session on time, reconnect, publication or recollection
+  ---
+  duration_ms: 1.739898
+  type: 'test'
+  ...
+# Subtest: denied: multi-position refusal survives interval eviction with adjacent clean coverage
+ok 418 - denied: multi-position refusal survives interval eviction with adjacent clean coverage
+  ---
+  duration_ms: 351.314194
+  type: 'test'
+  ...
+# Subtest: denied: multi-position refusal survives group eviction with adjacent clean coverage
+ok 419 - denied: multi-position refusal survives group eviction with adjacent clean coverage
+  ---
+  duration_ms: 1.271015
+  type: 'test'
+  ...
+# Subtest: denied: reset(false) preserves refusal suppression until start
+ok 420 - denied: reset(false) preserves refusal suppression until start
+  ---
+  duration_ms: 1.228101
+  type: 'test'
+  ...
+# Subtest: denied: interval eviction and recollection cannot resend before start
+ok 421 - denied: interval eviction and recollection cannot resend before start
+  ---
+  duration_ms: 619.807905
+  type: 'test'
+  ...
+# Subtest: denied: group eviction and recollection cannot resend before start
+ok 422 - denied: group eviction and recollection cannot resend before start
+  ---
+  duration_ms: 1.293019
+  type: 'test'
+  ...
+# Subtest: headless: E_BOUND parks until start and calls onDeliveryRefused exactly once
+ok 423 - headless: E_BOUND parks until start and calls onDeliveryRefused exactly once
+  ---
+  duration_ms: 0.918116
+  type: 'test'
+  ...
+# Subtest: headless: next start sends the refused report with a new id and succeeds
+ok 424 - headless: next start sends the refused report with a new id and succeeds
+  ---
+  duration_ms: 12.270592
+  type: 'test'
+  ...
+# Subtest: headless: no E_BOUND retry during the session on time, reconnect, publication or recollection
+ok 425 - headless: no E_BOUND retry during the session on time, reconnect, publication or recollection
+  ---
+  duration_ms: 1.919126
+  type: 'test'
+  ...
+# Subtest: headless: multi-position refusal survives interval eviction with adjacent clean coverage
+ok 426 - headless: multi-position refusal survives interval eviction with adjacent clean coverage
+  ---
+  duration_ms: 872.870367
+  type: 'test'
+  ...
+# Subtest: headless: multi-position refusal survives group eviction with adjacent clean coverage
+ok 427 - headless: multi-position refusal survives group eviction with adjacent clean coverage
+  ---
+  duration_ms: 20.90769
+  type: 'test'
+  ...
+# Subtest: headless: reset(false) preserves refusal suppression until start
+ok 428 - headless: reset(false) preserves refusal suppression until start
+  ---
+  duration_ms: 1.25435
+  type: 'test'
+  ...
+# Subtest: headless: interval eviction and recollection cannot resend before start
+ok 429 - headless: interval eviction and recollection cannot resend before start
+  ---
+  duration_ms: 717.097977
+  type: 'test'
+  ...
+# Subtest: headless: group eviction and recollection cannot resend before start
+ok 430 - headless: group eviction and recollection cannot resend before start
+  ---
+  duration_ms: 1.413378
+  type: 'test'
+  ...
+# Subtest: ordinary E_INPUT refusal has the same eviction and next-start behavior
+ok 431 - ordinary E_INPUT refusal has the same eviction and next-start behavior
+  ---
+  duration_ms: 1.042542
+  type: 'test'
+  ...
+# Subtest: wasm publication eviction and recollection preserve the start-only refusal
+ok 432 - wasm publication eviction and recollection preserve the start-only refusal
+  ---
+  duration_ms: 3163.690335
+  type: 'test'
+  ...
+# Subtest: a retried refusal CAS notifies once after commit
+ok 433 - a retried refusal CAS notifies once after commit
+  ---
+  duration_ms: 2.497123
+  type: 'test'
+  ...
+# Subtest: start-only suppression is scoped by fingerprint, group and store
+ok 434 - start-only suppression is scoped by fingerprint, group and store
+  ---
+  duration_ms: 10.575682
+  type: 'test'
+  ...
+# Subtest: E_STORE_RESTORE takes precedence over a report's original refusal
+ok 435 - E_STORE_RESTORE takes precedence over a report's original refusal
+  ---
+  duration_ms: 0.813369
+  type: 'test'
+  ...
+# Subtest: E_STORE_REPLACED takes precedence over a report's original refusal
+ok 436 - E_STORE_REPLACED takes precedence over a report's original refusal
+  ---
+  duration_ms: 8.064108
+  type: 'test'
+  ...
+# Subtest: wasm publication and delivery meta persist atomically, including a failed save
+ok 437 - wasm publication and delivery meta persist atomically, including a failed save
+  ---
+  duration_ms: 1500.157224
+  type: 'test'
+  ...
+# Subtest: wasm activation excludes predictions and withdrawal persists only restored ids
+ok 438 - wasm activation excludes predictions and withdrawal persists only restored ids
+  ---
+  duration_ms: 57.556553
+  type: 'test'
+  ...
+# Subtest: client manifest-only binding keeps its fallback debt through device adoption (older binding: false)
+ok 439 - client manifest-only binding keeps its fallback debt through device adoption (older binding: false)
+  ---
+  duration_ms: 38.40732
+  type: 'test'
+  ...
+# Subtest: client manifest-only binding keeps its fallback debt through device adoption (older binding: true)
+ok 440 - client manifest-only binding keeps its fallback debt through device adoption (older binding: true)
+  ---
+  duration_ms: 39.192036
+  type: 'test'
+  ...
+# Subtest: a failed wasm activation save retries the device cursor without skipping its page
+ok 441 - a failed wasm activation save retries the device cursor without skipping its page
+  ---
+  duration_ms: 207.165546
+  type: 'test'
+  ...
+# Subtest: a JSON-normalizing adapter cannot strip the conditional host commit guard
+ok 442 - a JSON-normalizing adapter cannot strip the conditional host commit guard
+  ---
+  duration_ms: 7.049136
+  type: 'test'
+  ...
+# Subtest: local activation resumes a real blocked wasm page after reports free capacity and collects the rest
+ok 443 - local activation resumes a real blocked wasm page after reports free capacity and collects the rest
+  ---
+  duration_ms: 3969.350179
+  type: 'test'
+  ...
+# Subtest: memory conditional commit stays in the passing fence turn when its next microtask invalidates it
+ok 444 - memory conditional commit stays in the passing fence turn when its next microtask invalidates it
+  ---
+  duration_ms: 0.485899
+  type: 'test'
+  ...
+# Subtest: maximal exact runs, binding identity and named arguments
+ok 445 - maximal exact runs, binding identity and named arguments
+  ---
+  duration_ms: 28.565768
+  type: 'test'
+  ...
+# Subtest: why: RUNS_FULL
+ok 446 - why: RUNS_FULL
+  ---
+  duration_ms: 3.314419
+  type: 'test'
+  ...
+# Subtest: why: NOT_MEMBER
+ok 447 - why: NOT_MEMBER
+  ---
+  duration_ms: 2.733658
+  type: 'test'
+  ...
+# Subtest: why: NOT_FOUND
+ok 448 - why: NOT_FOUND
+  ---
+  duration_ms: 3.646265
+  type: 'test'
+  ...
+# Subtest: why: NOT_A_RUN
+ok 449 - why: NOT_A_RUN
+  ---
+  duration_ms: 3.43576
+  type: 'test'
+  ...
+# Subtest: why: PAST_LAST_MESSAGE
+ok 450 - why: PAST_LAST_MESSAGE
+  ---
+  duration_ms: 1.617244
+  type: 'test'
+  ...
+# Subtest: why: E_INPUT
+ok 451 - why: E_INPUT
+  ---
+  duration_ms: 1.745917
+  type: 'test'
+  ...
+# Subtest: why: E_OP
+ok 452 - why: E_OP
+  ---
+  duration_ms: 1.91451
+  type: 'test'
+  ...
+# Subtest: why: NEW_CODE
+ok 453 - why: NEW_CODE
+  ---
+  duration_ms: 5.373725
+  type: 'test'
+  ...
+# Subtest: why: E_AUTH
+ok 454 - why: E_AUTH
+  ---
+  duration_ms: 1.090925
+  type: 'test'
+  ...
+# Subtest: why: E_OFFLINE
+ok 455 - why: E_OFFLINE
+  ---
+  duration_ms: 1.292828
+  type: 'test'
+  ...
+# Subtest: denied: RUNS_FULL
+ok 456 - denied: RUNS_FULL
+  ---
+  duration_ms: 1.235512
+  type: 'test'
+  ...
+# Subtest: denied: NOT_MEMBER
+ok 457 - denied: NOT_MEMBER
+  ---
+  duration_ms: 1.116253
+  type: 'test'
+  ...
+# Subtest: denied: NOT_FOUND
+ok 458 - denied: NOT_FOUND
+  ---
+  duration_ms: 3.530542
+  type: 'test'
+  ...
+# Subtest: denied: NOT_A_RUN
+ok 459 - denied: NOT_A_RUN
+  ---
+  duration_ms: 1.571455
+  type: 'test'
+  ...
+# Subtest: denied: PAST_LAST_MESSAGE
+ok 460 - denied: PAST_LAST_MESSAGE
+  ---
+  duration_ms: 1.038476
+  type: 'test'
+  ...
+# Subtest: denied: E_INPUT
+ok 461 - denied: E_INPUT
+  ---
+  duration_ms: 0.936674
+  type: 'test'
+  ...
+# Subtest: denied: E_OP
+ok 462 - denied: E_OP
+  ---
+  duration_ms: 1.004506
+  type: 'test'
+  ...
+# Subtest: denied: NEW_CODE
+ok 463 - denied: NEW_CODE
+  ---
+  duration_ms: 1.133529
+  type: 'test'
+  ...
+# Subtest: denied: E_AUTH
+ok 464 - denied: E_AUTH
+  ---
+  duration_ms: 1.210354
+  type: 'test'
+  ...
+# Subtest: denied: E_OFFLINE
+ok 465 - denied: E_OFFLINE
+  ---
+  duration_ms: 0.987691
+  type: 'test'
+  ...
+# Subtest: RUNS_FULL continues; coalesced wakes retry one after 30 seconds
+ok 466 - RUNS_FULL continues; coalesced wakes retry one after 30 seconds
+  ---
+  duration_ms: 4.677871
+  type: 'test'
+  ...
+# Subtest: four slots, one per group, longest waiter precedes busy group
+ok 467 - four slots, one per group, longest waiter precedes busy group
+  ---
+  duration_ms: 2.011495
+  type: 'test'
+  ...
+# Subtest: uncertain retry id persists across restart; recorded conflict uses a new id
+ok 468 - uncertain retry id persists across restart; recorded conflict uses a new id
+  ---
+  duration_ms: 2.175341
+  type: 'test'
+  ...
+# Subtest: missing head is uncertain; obsolete auth retries same id; current auth pauses
+ok 469 - missing head is uncertain; obsolete auth retries same id; current auth pauses
+  ---
+  duration_ms: 1.276554
+  type: 'test'
+  ...
+# Subtest: refused manifests and eviction cannot recreate debt; saturation survives restart
+ok 470 - refused manifests and eviction cannot recreate debt; saturation survives restart
+  ---
+  duration_ms: 19.764716
+  type: 'test'
+  ...
+# Subtest: stale group callback releases slot and cannot erase rejoin
+ok 471 - stale group callback releases slot and cannot erase rejoin
+  ---
+  duration_ms: 16.275566
+  type: 'test'
+  ...
+# Subtest: online membership refusal preserves post-dispatch collections
+ok 472 - online membership refusal preserves post-dispatch collections
+  ---
+  duration_ms: 14.291882
+  type: 'test'
+  ...
+# Subtest: generation and viewer fences reject callbacks
+ok 473 - generation and viewer fences reject callbacks
+  ---
+  duration_ms: 6.190779
+  type: 'test'
+  ...
+# Subtest: deadline frees slot with same attempt id
+ok 474 - deadline frees slot with same attempt id
+  ---
+  duration_ms: 7.452992
+  type: 'test'
+  ...
+# Subtest: offline spends no retries; outbox dispatch gate sends nothing
+ok 475 - offline spends no retries; outbox dispatch gate sends nothing
+  ---
+  duration_ms: 4.983831
+  type: 'test'
+  ...
+# Subtest: eight uncertain retries park until reconnect and preserve each exhausted id
+ok 476 - eight uncertain retries park until reconnect and preserve each exhausted id
+  ---
+  duration_ms: 24.080415
+  type: 'test'
+  ...
+# Subtest: the slow timer wakes a RUNS_FULL run while home remains mounted
+ok 477 - the slow timer wakes a RUNS_FULL run while home remains mounted
+  ---
+  duration_ms: 6.326903
+  type: 'test'
+  ...
+# Subtest: new owed work in any group precedes a parked retry
+ok 478 - new owed work in any group precedes a parked retry
+  ---
+  duration_ms: 8.725289
+  type: 'test'
+  ...
+# Subtest: CAS retry discards abandoned NOT_A_RUN callback effects
+ok 479 - CAS retry discards abandoned NOT_A_RUN callback effects
+  ---
+  duration_ms: 8.619701
+  type: 'test'
+  ...
+# Subtest: CAS retry discards abandoned E_AUTH callback effects
+ok 480 - CAS retry discards abandoned E_AUTH callback effects
+  ---
+  duration_ms: 4.631643
+  type: 'test'
+  ...
+# Subtest: CAS retry discards abandoned E_OFFLINE callback effects
+ok 481 - CAS retry discards abandoned E_OFFLINE callback effects
+  ---
+  duration_ms: 1.38746
+  type: 'test'
+  ...
+# Subtest: an outcome splitting a collected interval still enforces the debt cap
+ok 482 - an outcome splitting a collected interval still enforces the debt cap
+  ---
+  duration_ms: 4.991432
+  type: 'test'
+  ...
+# Subtest: evicting lowest debt also fences its persisted uncertain attempt
+ok 483 - evicting lowest debt also fences its persisted uncertain attempt
+  ---
+  duration_ms: 27.966189
+  type: 'test'
+  ...
+# Subtest: a pre-transport serial gate race spends no retry and keeps its persisted id
+ok 484 - a pre-transport serial gate race spends no retry and keeps its persisted id
+  ---
+  duration_ms: 14.233695
+  type: 'test'
+  ...
+# Subtest: a lost recorded membership refusal keeps its original collection boundary on retry
+ok 485 - a lost recorded membership refusal keeps its original collection boundary on retry
+  ---
+  duration_ms: 10.719658
+  type: 'test'
+  ...
+# Subtest: positions 41 and 43 never report unfetched 42
+ok 486 - positions 41 and 43 never report unfetched 42
+  ---
+  duration_ms: 7.028495
+  type: 'test'
+  ...
+# Subtest: binding fingerprints travel on reports and reconcile only changed bindings
+ok 487 - binding fingerprints travel on reports and reconcile only changed bindings
+  ---
+  duration_ms: 11.670884
+  type: 'test'
+  ...
+# Subtest: why: E_DELIVERY_BINDING drops the entire binding only
+ok 488 - why: E_DELIVERY_BINDING drops the entire binding only
+  ---
+  duration_ms: 5.2109
+  type: 'test'
+  ...
+# Subtest: denied: E_DELIVERY_BINDING drops the entire binding only
+ok 489 - denied: E_DELIVERY_BINDING drops the entire binding only
+  ---
+  duration_ms: 1.377404
+  type: 'test'
+  ...
+# Subtest: identical fingerprints keep refused and saturated evicted state
+ok 490 - identical fingerprints keep refused and saturated evicted state
+  ---
+  duration_ms: 0.555343
+  type: 'test'
+  ...
+# Subtest: an exhausted attempt retains its collection boundary while another interval runs: fresh reply held
+ok 491 - an exhausted attempt retains its collection boundary while another interval runs: fresh reply held
+  ---
+  duration_ms: 4.869009
+  type: 'test'
+  ...
+# Subtest: an exhausted attempt retains its collection boundary while another interval runs: fresh reply arrived
+ok 492 - an exhausted attempt retains its collection boundary while another interval runs: fresh reply arrived
+  ---
+  duration_ms: 4.864332
+  type: 'test'
+  ...
+# Subtest: manifests omit unsafe coordinates rather than rounding an unfetched position
+ok 493 - manifests omit unsafe coordinates rather than rounding an unfetched position
+  ---
+  duration_ms: 7.714444
+  type: 'test'
+  ...
+# Subtest: the completed startup barrier cannot reopen when bounded reported history ages out
+ok 494 - the completed startup barrier cannot reopen when bounded reported history ages out
+  ---
+  duration_ms: 6.101605
+  type: 'test'
+  ...
+# Subtest: startup waits for a ready persisted retry behind a post-start lower interval
+ok 495 - startup waits for a ready persisted retry behind a post-start lower interval
+  ---
+  duration_ms: 9.395894
+  type: 'test'
+  ...
+# Subtest: startup waits for a ready persisted start behind a post-start lower interval
+ok 496 - startup waits for a ready persisted start behind a post-start lower interval
+  ---
+  duration_ms: 2.569592
+  type: 'test'
+  ...
+# Subtest: startup stops waiting for its retry when this session exhausts it again
+ok 497 - startup stops waiting for its retry when this session exhausts it again
+  ---
+  duration_ms: 3.183541
+  type: 'test'
+  ...
+# Subtest: answers without delivery manifests leave the dormant queue without timers
+ok 498 - answers without delivery manifests leave the dormant queue without timers
+  ---
+  duration_ms: 0.671306
+  type: 'test'
+  ...
+# Subtest: retired refusal state is removed and restored only for its fingerprint
+ok 499 - retired refusal state is removed and restored only for its fingerprint
+  ---
+  duration_ms: 0.280771
+  type: 'test'
+  ...
+# Subtest: an older membership retry cannot resurrect reported coverage
+ok 500 - an older membership retry cannot resurrect reported coverage
+  ---
+  duration_ms: 12.947157
+  type: 'test'
+  ...
+# Subtest: an older membership retry cannot resurrect refused coverage
+ok 501 - an older membership retry cannot resurrect refused coverage
+  ---
+  duration_ms: 7.946081
+  type: 'test'
+  ...
+# Subtest: a due full park cannot replace a held attempt on reconnect
+ok 502 - a due full park cannot replace a held attempt on reconnect
+  ---
+  duration_ms: 4.018844
+  type: 'test'
+  ...
+# Subtest: a due full park cannot replace a held attempt on start
+ok 503 - a due full park cannot replace a held attempt on start
+  ---
+  duration_ms: 8.907201
+  type: 'test'
+  ...
+# Subtest: a due full park cannot replace a held attempt on timer
+ok 504 - a due full park cannot replace a held attempt on timer
+  ---
+  duration_ms: 5.255277
+  type: 'test'
+  ...
+# Subtest: receipt compaction resumes full runs and retries coverage with fresh ids
+ok 505 - receipt compaction resumes full runs and retries coverage with fresh ids
+  ---
+  duration_ms: 27.238909
+  type: 'test'
+  ...
+# Subtest: receipt compaction blocked preserves debt without a busy loop
+ok 506 - receipt compaction blocked preserves debt without a busy loop
+  ---
+  duration_ms: 4.825914
+  type: 'test'
+  ...
+# Subtest: receipt compaction uncertain preserves debt without a busy loop
+ok 507 - receipt compaction uncertain preserves debt without a busy loop
+  ---
+  duration_ms: 6.395076
+  type: 'test'
+  ...
+# Subtest: receipt compaction refused preserves debt without a busy loop
+ok 508 - receipt compaction refused preserves debt without a busy loop
+  ---
+  duration_ms: 3.023933
+  type: 'test'
+  ...
+# Subtest: receipt compaction unaccepted preserves debt without a busy loop
+ok 509 - receipt compaction unaccepted preserves debt without a busy loop
+  ---
+  duration_ms: 3.438003
+  type: 'test'
+  ...
+# Subtest: stale compaction reply cannot acknowledge or retry a replaced binding
+ok 510 - stale compaction reply cannot acknowledge or retry a replaced binding
+  ---
+  duration_ms: 7.290969
+  type: 'test'
+  ...
+# (node:311235) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: sequence-only acknowledgement with no history stays unknown
+ok 511 - sequence-only acknowledgement with no history stays unknown
+  ---
+  duration_ms: 2.399166
+  type: 'test'
+  ...
+# Subtest: authored refusal NOT_ADMIN wins over a success-qualified acknowledgement
+ok 512 - authored refusal NOT_ADMIN wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 3.145024
+  type: 'test'
+  ...
+# Subtest: authored refusal NOT_FOUND wins over a success-qualified acknowledgement
+ok 513 - authored refusal NOT_FOUND wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.200721
+  type: 'test'
+  ...
+# Subtest: authored refusal CONFLICT wins over a success-qualified acknowledgement
+ok 514 - authored refusal CONFLICT wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.57373
+  type: 'test'
+  ...
+# Subtest: an aborted replay receipt retains its original-store proof for persistence retry
+ok 515 - an aborted replay receipt retains its original-store proof for persistence retry
+  ---
+  duration_ms: 1.398586
+  type: 'test'
+  ...
+# Subtest: memory: legacy observed_seq with empty history replays NOT_ADMIN without executing
+ok 516 - memory: legacy observed_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4552.538205
+  type: 'test'
+  ...
+# {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M3YCV7704XAM2MTEWE8Z44XV","replayed":true,"audit":0}
+# Subtest: memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+ok 517 - memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3844.338436
+  type: 'test'
+  ...
+# {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M3YCVB5EZC9G5WSQK7VHPW50","replayed":true,"audit":0}
+# Subtest: memory: legacy sent_seq with empty history replays NOT_ADMIN without executing
+ok 518 - memory: legacy sent_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3655.263008
+  type: 'test'
+  ...
+# {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M3YCVEY6ZNVPC54JVDFESZT7","replayed":true,"audit":0}
+# Subtest: memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+ok 519 - memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3899.898248
+  type: 'test'
+  ...
+# {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M3YCVJK77DX6X4C9FDZ3H1P9","replayed":true,"audit":0}
+# Subtest: memory: legacy old-page with empty history replays NOT_ADMIN without executing
+ok 520 - memory: legacy old-page with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4570.100512
+  type: 'test'
+  ...
+# {"tier":"memory","field":"old-page","prior":"empty","id":"01M3YCVQ0RRVSGDHYXRV40DBET","replayed":true,"audit":0}
+# Subtest: memory: legacy old-page with replacement history replays NOT_ADMIN without executing
+ok 521 - memory: legacy old-page with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3918.010609
+  type: 'test'
+  ...
+# {"tier":"memory","field":"old-page","prior":"replacement","id":"01M3YCVTRGNVYAHP61K7263CF9","replayed":true,"audit":0}
+# Subtest: sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing
+ok 522 - sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 5260.251118
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M3YCVZQZHD23JVT1NXRV2VND","replayed":true,"audit":0}
+# Subtest: sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+ok 523 - sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 5380.819963
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M3YCW4TNGKPEZPN2YSCQY1HD","replayed":true,"audit":0}
+# Subtest: sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing
+ok 524 - sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4782.647959
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M3YCW9YAPSQ67PNQXKRWJ6AH","replayed":true,"audit":0}
+# Subtest: sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+ok 525 - sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 5438.308158
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M3YCWE5M2C65H8RWJA8YP3Y0","replayed":true,"audit":0}
+# Subtest: sqlite: legacy old-page with empty history replays NOT_ADMIN without executing
+ok 526 - sqlite: legacy old-page with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 5739.171959
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"old-page","prior":"empty","id":"01M3YCWKC9G4JN5E32SA098TMP","replayed":true,"audit":0}
+# Subtest: sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing
+ok 527 - sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 5850.429718
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"old-page","prior":"replacement","id":"01M3YCWSDH9T7K44PVY9H35WX0","replayed":true,"audit":0}
+# Subtest: ordinary and application witness launches never install the smoke runner
+ok 528 - ordinary and application witness launches never install the smoke runner
+  ---
+  duration_ms: 3.581879
+  type: 'test'
+  ...
+# Subtest: prime waits for acquisition and records device counts, identity and link, without rows
+ok 529 - prime waits for acquisition and records device counts, identity and link, without rows
+  ---
+  duration_ms: 5.408877
+  type: 'test'
+  ...
+# Subtest: offline calls precisely all optional-argument queries on the own client and records counts only
+ok 530 - offline calls precisely all optional-argument queries on the own client and records counts only
+  ---
+  duration_ms: 1.358816
+  type: 'test'
+  ...
+# Subtest: explained refusals are results; loading and crashes are failures with receipts
+ok 531 - explained refusals are results; loading and crashes are failures with receipts
+  ---
+  duration_ms: 5.166224
+  type: 'test'
+  ...
+# Subtest: lost persisted rows, changed backend identity and stale restart watermarks fail
+ok 532 - lost persisted rows, changed backend identity and stale restart watermarks fail
+  ---
+  duration_ms: 7.445991
+  type: 'test'
+  ...
+# Subtest: uncaught errors before attachment and after completion persist before forwarding the original handler
+ok 533 - uncaught errors before attachment and after completion persist before forwarding the original handler
+  ---
+  duration_ms: 0.75456
+  type: 'test'
+  ...
+# Subtest: restart rejects a tail past prime until the exact driver barrier is consumed
+ok 534 - restart rejects a tail past prime until the exact driver barrier is consumed
+  ---
+  duration_ms: 2.092427
+  type: 'test'
+  ...
+# Subtest: receipts sample the state after the render pause and recheck offline counts and identity
+ok 535 - receipts sample the state after the render pause and recheck offline counts and identity
+  ---
+  duration_ms: 2.953356
+  type: 'test'
+  ...
+# Subtest: losing client acquisition during the render pause emits a failure despite acquired device state
+ok 536 - losing client acquisition during the render pause emits a failure despite acquired device state
+  ---
+  duration_ms: 2.823482
+  type: 'test'
+  ...
+# Subtest: a restart watermark regressing during the render pause emits a failure receipt
+ok 537 - a restart watermark regressing during the render pause emits a failure receipt
+  ---
+  duration_ms: 2.490773
+  type: 'test'
+  ...
+# Subtest: a replacement client supersedes an in-flight sample without a failure receipt
+ok 538 - a replacement client supersedes an in-flight sample without a failure receipt
+  ---
+  duration_ms: 0.617405
+  type: 'test'
+  ...
+# Subtest: compiler server facts permit only expected offline unavailability and require online answers
+ok 539 - compiler server facts permit only expected offline unavailability and require online answers
+  ---
+  duration_ms: 3.744803
+  type: 'test'
+  ...
+# Subtest: missing or invalid facts never classify loading as an online-only result
+ok 540 - missing or invalid facts never classify loading as an online-only result
+  ---
+  duration_ms: 1.022653
+  type: 'test'
+  ...
+# Subtest: all residency and held facts must match the kept generation before any query
+ok 541 - all residency and held facts must match the kept generation before any query
+  ---
+  duration_ms: 4.084893
+  type: 'test'
+  ...
+# Subtest: conditional native queries refuse generic smoke instead of excusing a missing module
+ok 542 - conditional native queries refuse generic smoke instead of excusing a missing module
+  ---
+  duration_ms: 0.562412
+  type: 'test'
+  ...
+# Subtest: ten explicit calls during one round share exactly one follow-up
+ok 543 - ten explicit calls during one round share exactly one follow-up
+  ---
+  duration_ms: 112.303335
+  type: 'test'
+  ...
+# Subtest: a call during the follow-up waits for its own newer round
+ok 544 - a call during the follow-up waits for its own newer round
+  ---
+  duration_ms: 14.916278
+  type: 'test'
+  ...
+# Subtest: a wake-driven round is not doubled
+ok 545 - a wake-driven round is not doubled
+  ---
+  duration_ms: 16.841124
+  type: 'test'
+  ...
+# Subtest: explicit sync during a held wake-driven round observes the newer head
+ok 546 - explicit sync during a held wake-driven round observes the newer head
+  ---
+  duration_ms: 6.925651
+  type: 'test'
+  ...
+# Subtest: a wake during an explicit round coalesces without an extra round
+ok 547 - a wake during an explicit round coalesces without an extra round
+  ---
+  duration_ms: 5.597921
+  type: 'test'
+  ...
+# Subtest: explicit sync waits for the follow-up's offline fetch
+ok 548 - explicit sync waits for the follow-up's offline fetch
+  ---
+  duration_ms: 10.991736
+  type: 'test'
+  ...
+# Subtest: explicit sync waits for the follow-up's device rejection
+ok 549 - explicit sync waits for the follow-up's device rejection
+  ---
+  duration_ms: 4.818272
+  type: 'test'
+  ...
+# Subtest: an older round returning false after network error cannot skip the explicit follow-up
+ok 550 - an older round returning false after network error cannot skip the explicit follow-up
+  ---
+  duration_ms: 8.026111
+  type: 'test'
+  ...
+# Subtest: an older round returning false after HTTP 500 cannot skip the explicit follow-up
+ok 551 - an older round returning false after HTTP 500 cannot skip the explicit follow-up
+  ---
+  duration_ms: 5.874846
+  type: 'test'
+  ...
+# Subtest: a failed older round cannot skip the explicit follow-up attempt
+ok 552 - a failed older round cannot skip the explicit follow-up attempt
+  ---
+  duration_ms: 3.995639
+  type: 'test'
+  ...
+# Subtest: the legacy refusal constant matches the published 0.2.32 capture
+ok 553 - the legacy refusal constant matches the published 0.2.32 capture
+  ---
+  duration_ms: 22.704001
+  type: 'test'
+  ...
+# Subtest: wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 554 - wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 4443.770461
+  type: 'test'
+  ...
+# Subtest: process: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 555 - process: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 2520.214294
+  type: 'test'
+  ...
+# Subtest: legacy fallback returns the distinct successful retry and latches only its origin and transport
+ok 556 - legacy fallback returns the distinct successful retry and latches only its origin and transport
+  ---
+  duration_ms: 20.200569
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on same E_INPUT
+ok 557 - legacy fallback does not latch on same E_INPUT
+  ---
+  duration_ms: 0.902734
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on throw
+ok 558 - legacy fallback does not latch on throw
+  ---
+  duration_ms: 1.052888
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 503
+ok 559 - legacy fallback does not latch on 503
+  ---
+  duration_ms: 10.817354
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 429
+ok 560 - legacy fallback does not latch on 429
+  ---
+  duration_ms: 0.460801
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 401
+ok 561 - legacy fallback does not latch on 401
+  ---
+  duration_ms: 0.341682
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 408
+ok 562 - legacy fallback does not latch on 408
+  ---
+  duration_ms: 0.372999
+  type: 'test'
+  ...
+# Subtest: legacy fallback captures each overlapping attempt and waits for successful retry before latching
+ok 563 - legacy fallback captures each overlapping attempt and waits for successful retry before latching
+  ---
+  duration_ms: 17.220261
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores other refusals and never retries an attempt without generation
+ok 564 - legacy fallback ignores other refusals and never retries an attempt without generation
+  ---
+  duration_ms: 10.54071
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+ok 565 - legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+  ---
+  duration_ms: 1204.869559
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+ok 566 - legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.889572
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+ok 567 - legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 6.974664
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+ok 568 - legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 12.986285
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+ok 569 - legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.768742
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+ok 570 - legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.64694
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+ok 571 - legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.544787
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+ok 572 - legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 21.732064
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+ok 573 - legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.849904
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+ok 574 - legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 1.489663
+  type: 'test'
+  ...
+# Subtest: new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract
+ok 575 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+  ---
+  duration_ms: 0.11354
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from deferred stream
+ok 576 - wasm: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 848.243865
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from staged snapshot
+ok 577 - wasm: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 910.028665
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from deferred stream
+ok 578 - process: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 2419.722545
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from staged snapshot
+ok 579 - process: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 2259.211741
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide deferred stream evidence identically
+ok 580 - wasm: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 2732.656901
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide deferred stream evidence identically
+ok 581 - wasm: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 2336.555133
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves deferred stream evidence until a headed retry
+ok 582 - wasm: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 2246.485646
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 583 - wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 2281.581111
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 584 - wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 3609.712733
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 585 - wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 1976.363994
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide deferred stream evidence identically
+ok 586 - process: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 4232.90919
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide deferred stream evidence identically
+ok 587 - process: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 3808.092413
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves deferred stream evidence until a headed retry
+ok 588 - process: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 2269.884962
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 589 - process: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 2992.207851
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 590 - process: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 2665.8404
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 591 - process: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 2510.508008
+  type: 'test'
+  ...
+# Subtest: wasm: invalid early heads are retryable and never reach observation or adoption
+ok 592 - wasm: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 629.408117
+  type: 'test'
+  ...
+# Subtest: process: invalid early heads are retryable and never reach observation or adoption
+ok 593 - process: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 1308.004904
+  type: 'test'
+  ...
+# Subtest: oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+    # Subtest: snapshot overflow preserves generation and store identity
+    ok 1 - snapshot overflow preserves generation and store identity
+      ---
+      duration_ms: 337.774989
+      type: 'test'
+      ...
+    # Subtest: stream overflow preserves generation and store identity
+    ok 2 - stream overflow preserves generation and store identity
+      ---
+      duration_ms: 501.591279
+      type: 'test'
+      ...
+    # Subtest: limit 1 instructs a snapshot only for an indivisible stream page
+    ok 3 - limit 1 instructs a snapshot only for an indivisible stream page
+      ---
+      duration_ms: 857.568752
+      type: 'test'
+      ...
+    # Subtest: wasm reacquires an indivisible commit by snapshot at the same generation
+    ok 4 - wasm reacquires an indivisible commit by snapshot at the same generation
+      ---
+      duration_ms: 21037.019189
+      type: 'test'
+      ...
+    # Subtest: process reacquires an indivisible commit by snapshot at the same generation
+    ok 5 - process reacquires an indivisible commit by snapshot at the same generation
+      ---
+      duration_ms: 19074.303699
+      type: 'test'
+      ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+    # Subtest: wasm a wedged device discovers generation before shrinking the oversized page
+    ok 6 - wasm a wedged device discovers generation before shrinking the oversized page
+      ---
+      duration_ms: 4163.951714
+      type: 'test'
+      ...
+    # Subtest: process a wedged device discovers generation before shrinking the oversized page
+    ok 7 - process a wedged device discovers generation before shrinking the oversized page
+      ---
+      duration_ms: 5460.698475
+      type: 'test'
+      ...
+    1..7
+ok 594 - oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ---
+  duration_ms: 80298.788234
+  type: 'test'
+  ...
+# current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+# wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+# process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+# Subtest: an oversized reply from a replacement store is observed before shrinking even at the same generation
+    # Subtest: wasm replaces the old store before shrinking
+    ok 1 - wasm replaces the old store before shrinking
+      ---
+      duration_ms: 4035.525154
+      type: 'test'
+      ...
+    # Subtest: process replaces the old store before shrinking
+    ok 2 - process replaces the old store before shrinking
+      ---
+      duration_ms: 4691.072113
+      type: 'test'
+      ...
+    1..2
+ok 595 - an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ---
+  duration_ms: 12211.905043
+  type: 'test'
+  ...
+# Subtest: wasm a new replica recovers its oversized first commit
+ok 596 - wasm a new replica recovers its oversized first commit
+  ---
+  duration_ms: 3436.702973
+  type: 'test'
+  ...
+# {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+# Subtest: process a new replica recovers its oversized first commit
+ok 597 - process a new replica recovers its oversized first commit
+  ---
+  duration_ms: 3906.906475
+  type: 'test'
+  ...
+# {"tier":"process","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+# Subtest: wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+ok 598 - wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+  ---
+  duration_ms: 8083.18491
+  type: 'test'
+  ...
+# Subtest: process an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+ok 599 - process an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+  ---
+  duration_ms: 6997.72175
+  type: 'test'
+  ...
+# Subtest: wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+ok 600 - wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+  ---
+  duration_ms: 14464.568941
+  type: 'test'
+  ...
+# Subtest: process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+ok 601 - process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+  ---
+  duration_ms: 12702.43345
+  type: 'test'
+  ...
+# Subtest: wasm: many ordinary commits recover by halving without snapshot
+ok 602 - wasm: many ordinary commits recover by halving without snapshot
+  ---
+  duration_ms: 2766.49306
+  type: 'test'
+  ...
+# Subtest: process: many ordinary commits recover by halving without snapshot
+ok 603 - process: many ordinary commits recover by halving without snapshot
+  ---
+  duration_ms: 2933.914503
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# Subtest: wasm a snapshot continuation overflow keeps its cursor and terminates at limit one
+ok 604 - wasm a snapshot continuation overflow keeps its cursor and terminates at limit one
+  ---
+  duration_ms: 182.61033
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# Subtest: process a snapshot continuation overflow keeps its cursor and terminates at limit one
+ok 605 - process a snapshot continuation overflow keeps its cursor and terminates at limit one
+  ---
+  duration_ms: 245.880267
+  type: 'test'
+  ...
+# Subtest: wasm bare refusals retain held rows beyond the horizon and allow a later sync retry
+ok 606 - wasm bare refusals retain held rows beyond the horizon and allow a later sync retry
+  ---
+  duration_ms: 180.840727
+  type: 'test'
+  ...
+# Subtest: process bare refusals retain held rows beyond the horizon and allow a later sync retry
+ok 607 - process bare refusals retain held rows beyond the horizon and allow a later sync retry
+  ---
+  duration_ms: 241.333723
+  type: 'test'
+  ...
+1..607
+# tests 616
+# suites 0
+# pass 615
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 160800.748638

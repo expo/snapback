@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: every delivery await is explicitly classified
+ok 1 - every delivery await is explicitly classified
+  ---
+  duration_ms: 165.099611
+  type: 'test'
+  ...
+# Subtest: 24 transient: local.ts:687 syncRound
+ok 2 - 24 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 462.017267
+  type: 'test'
+  ...
+# Subtest: 24 persistent: local.ts:687 syncRound
+ok 3 - 24 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 137.195434
+  type: 'test'
+  ...
+# Subtest: 47 transient: local.ts:850 follow
+ok 4 - 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 119.17276
+  type: 'test'
+  ...
+# Subtest: 47 persistent: local.ts:850 follow
+ok 5 - 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 98.365963
+  type: 'test'
+  ...
+# Subtest: 48 transient: local.ts:855 follow
+ok 6 - 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 122.471095
+  type: 'test'
+  ...
+# Subtest: 48 persistent: local.ts:855 follow
+ok 7 - 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 100.965449
+  type: 'test'
+  ...
+# Subtest: 55 transient: local.ts:1093 flushOnce
+ok 8 - 55 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 55.376885
+  type: 'test'
+  ...
+# Subtest: 55 persistent: local.ts:1093 flushOnce
+ok 9 - 55 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 58.14178
+  type: 'test'
+  ...
+# Subtest: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 10 - 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 65.113359
+  type: 'test'
+  ...
+# Subtest: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 11 - 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 135.073094
+  type: 'test'
+  ...
+# Subtest: 150 transient: local-query.ts:266 route
+ok 12 - 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 69.569099
+  type: 'test'
+  ...
+# Subtest: 150 persistent: local-query.ts:266 route
+ok 13 - 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 55.836515
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 24 transient: local.ts:687 syncRound
+ok 14 - competing sync/install: 24 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 64.713481
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 24 persistent: local.ts:687 syncRound
+ok 15 - competing sync/install: 24 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 60.345474
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 47 transient: local.ts:850 follow
+ok 16 - competing sync/install: 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 129.236425
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 47 persistent: local.ts:850 follow
+ok 17 - competing sync/install: 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 131.057735
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 48 transient: local.ts:855 follow
+ok 18 - competing sync/install: 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 109.250277
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 48 persistent: local.ts:855 follow
+ok 19 - competing sync/install: 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 118.18499
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 55 transient: local.ts:1093 flushOnce
+ok 20 - competing sync/install: 55 transient: local.ts:1093 flushOnce
+  ---
+  duration_ms: 62.215917
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 55 persistent: local.ts:1093 flushOnce
+ok 21 - competing sync/install: 55 persistent: local.ts:1093 flushOnce
+  ---
+  duration_ms: 71.216829
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 22 - competing sync/install: 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 77.456851
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 23 - competing sync/install: 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 112.345697
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 150 transient: local-query.ts:266 route
+ok 24 - competing sync/install: 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 62.502126
+  type: 'test'
+  ...
+# Subtest: competing sync/install: 150 persistent: local-query.ts:266 route
+ok 25 - competing sync/install: 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 60.127796
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8219.803034

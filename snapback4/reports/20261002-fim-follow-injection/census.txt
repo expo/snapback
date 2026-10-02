@@ -1,0 +1,160 @@
+0 local.ts:read:call({ op: "meta", key: "write-history" })#1
+1 local.ts:lookup:call({ op: "meta", key: "write-history", lookup: true })#1
+2 local.ts:save:terminalDeviceCall(committed => call({ op: "keep_write", value }, undefined, committed), () => {})#1
+3 local.ts:refreshAcquired:call({ op: "sync_state", capture: false })#1
+4 local.ts:captureStore:call({ op: "sync_state", capture: false })#1
+5 local.ts:call:history.persistPending()#1
+6 local.ts:call:work#1
+7 local.ts:call:media?.reconcile( ["apply", "admit", "settle"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined)#1
+8 local.ts:sendPost:captureStore()#1
+9 local.ts:sendPost:withReadSignal(signal, eph?.signal ?? aborter.signal, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode))#1
+10 local.ts:sendPost:holds.record((body as { id: string }).id, why.code)#1
+11 local.ts:sendPost:refusedSession(denied, request.revision)#1
+12 local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1
+13 local.ts:syncRound:history.persistPending()#1
+14 local.ts:syncRound:call({ op: "state" })#1
+15 local.ts:syncRound:call({ op: "sync_state" })#1
+16 local.ts:syncRound:readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: "POST", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && request.revision === credentialRevision, aborter.signal)#1
+17 local.ts:syncRound:refusePartition(denied, pageRevision)#1
+18 local.ts:syncRound:call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1
+19 local.ts:syncRound:call({ op: "sync_state", capture: false })#1
+20 local.ts:syncRound:call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" })#1
+21 local.ts:syncRound:loadBackend(doFetch, base, request.headers, aborter.signal)#1
+22 local.ts:syncRound:call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1
+23 local.ts:syncRound:refreshAcquired(true)#1
+24 local.ts:syncRound:installNative(aborter.signal)#1
+25 local.ts:syncRound:refusedSession(error.denied, backendRevision)#1
+26 local.ts:syncRound:refusePartition(denied, pageRevision)#2
+27 local.ts:syncRound:call({ op: "apply", page, first: !catchingUp && after === undefined }, touched)#1
+28 local.ts:syncRound:call({ op: "sync_state", capture: false })#2
+29 local.ts:syncRound:refreshAcquired()#1
+30 local.ts:syncRound:call({ op: "set_meta", key: "syncedAt:wall:1", value: String(lastSyncAt) })#1
+31 local.ts:probe:captureStore()#1
+32 local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1
+33 local.ts:probe:readResponse(response)#1
+34 local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1
+35 local.ts:probe:pauseRefusal(response, { ...denied, retryable: true }, aborter.signal)#1
+36 local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1
+37 local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1
+38 local.ts:waitForChange:probe()#1
+39 local.ts:waitForChange:probe()#2
+40 local.ts:waitForChange:captureStore()#1
+41 local.ts:waitForChange:changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)#1
+42 local.ts:waitForChange:refusedSession(json.denied, request.revision)#1
+43 local.ts:waitForChange:pauseRefusal(response, json.denied, aborter.signal)#1
+44 local.ts:waitForChange:witnessRestore(json.store_id, json.seq, capture)#1
+45 local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2
+46 local.ts:follow:waitForChange()#1
+47 local.ts:follow:syncOnce()#1
+48 local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1
+49 local.ts:flush:flushOnce()#1
+50 local.ts:flushOnce:exitDone#1
+51 local.ts:flushOnce:media?.reconcile()#1
+52 local.ts:flushOnce:exitDone#2
+53 local.ts:flushOnce:deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)#1
+54 local.ts:flushOnce:queued().catch(() => { retryFlush(); return undefined; })#1
+55 local.ts:flushOnce:syncOnce()#1
+56 local.ts:flushOnce:network(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: "begin_send", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) { try { await settleReceipt(history, receiptCall, json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1
+57 local.ts:flushOnce:exitDone#3
+58 local.ts:flushOnce:queued()#1
+59 local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)#1
+60 local.ts:flushOnce:call({ op: "begin_send", id: entry.id })#1
+61 local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)#1
+62 local.ts:flushOnce:post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response)#1
+63 local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined)#1
+64 local.ts:flushOnce:syncUnobserved()#1
+65 local.ts:flushOnce:syncUnobserved()#2
+66 local.ts:flushOnce:syncUnobserved(outcome.state === "sent")#1
+67 local.ts:flushOnce:syncUnobserved()#3
+68 local.ts:flushOnce:syncUnobserved()#4
+69 local.ts:flushOnce:syncUnobserved()#5
+70 local.ts:replayOnOpen:captureStore()#1
+71 local.ts:replayOnOpen:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1
+72 local.ts:replayOnOpen:response.json()#1
+73 local.ts:replayOnOpen:refusedSession(head.denied ?? head.why, request.revision)#1
+74 local.ts:replayOnOpen:witnessRestore(head.store_id, head.seq, capture)#1
+75 local.ts:commit:history.read(write.id, true)#1
+76 local.ts:commit:receiptCall({ op: "settle_exit", write })#1
+77 local.ts:listenForExit:holds.record(entry.id, why.code)#1
+78 local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore)#1
+79 local-receipts.ts:settleReceipt:call({ op: "settle", id: write.id, ...(write.state === "sent" ? { seq: write.seq } : {}) })#1
+80 local-receipts.ts:receiptBatch:queued()#1
+81 local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1
+82 local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1
+83 local-receipts.ts:syncSettledWrites:queued()#1
+84 local-receipts.ts:syncSettledWrites:sync()#1
+85 local-receipts.ts:recoverReceipt:history.read(id, true)#1
+86 local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1
+87 local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1
+88 local-receipts.ts:lookupWrite:queued()#1
+89 local-receipts.ts:lookupWrite:history.lookup(id)#1
+90 local-receipts.ts:lookupWrite:queued()#2
+91 local-receipts.ts:lookupWrite:history.read(id)#1
+92 local-receipts.ts:lookupWrite:history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))#1
+93 local-receipts.ts:terminalDeviceCall:call(reply => { durable = reply; })#1
+94 local-receipts.ts:readQueued:call({ op: "queued" })#1
+95 local-receipts.ts:resolveClosingWrites:queued().catch(() => [])#1
+96 local-receipts.ts:resolveClosingWrites:(seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined)#1
+97 writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1
+98 writes.ts:acknowledged:this.read(id, true)#1
+99 writes.ts:acknowledged:this.keep(sent)#1
+100 writes.ts:persistPending:this.keep(write)#1
+101 writes.ts:read:this.keep(known)#1
+102 writes.ts:read:this.storage?.read()#1
+103 writes.ts:lookup:this.read(id)#1
+104 writes.ts:lookup:this.storage.lookup()#1
+105 local-exit.ts:exitTransport:response.json()#1
+106 local-exit.ts:exitTransport:held?.(entry, why)#1
+107 local-exit.ts:exitTransport:refused?.(entry, why)#1
+108 local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1
+109 local-exit-settlement.ts:exitRefusalSettlement:work#1
+110 local-assets.ts:call:this.core.call(request)#1
+111 local-assets.ts:home:this.call({ op: "asset_home", id, home, viewer: this.viewer, now: this.now() })#1
+112 local-assets.ts:save:this.call({ op: "set_meta", key: "media:manifest", value: JSON.stringify([...this.entries.values()]) })#1
+113 local-assets.ts:drop:this.store.remove(id)#1
+114 local-assets.ts:check:this.home(entry.id, entry.home)#1
+115 local-assets.ts:check:this.drop(entry.id)#1
+116 local-assets.ts:check:this.drop(entry.id)#2
+117 local-assets.ts:check:this.save()#1
+118 request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted, stopped, decode)#1
+119 request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode) }))#1
+120 request-wait.ts:postForCaller:readResponse(response, decode)#1
+121 local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1
+122 local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1
+123 local-sync.ts:syncTransport:legacyInput(response)#1
+124 local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1
+125 device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1
+126 local-backend.ts:loadBackend:readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })#1
+127 local-native.ts:installNativeAttempt:call({ op: "state" })#1
+128 local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1
+129 local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1
+130 local-native.ts:installNativeAttempt:response.arrayBuffer()#1
+131 local-native.ts:installNativeAttempt:call({ op: "install_native", wasm: hex, digest: wanted, generation: targetGeneration })#1
+132 pending-writes.ts:revision:call({ op: "sync_state", capture: false })#1
+133 pending-writes.ts:record:revision()#1
+134 pending-writes.ts:record:call({ op: "hold_write", id, reason })#1
+135 clock.ts:wrapped:fetcher(input, init)#1
+136 clock.ts:save:core.call({ op: "set_meta", key: "server-clock", value })#1
+137 changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1
+138 changes.ts:changeFeed:reader.read()#1
+139 changes.ts:changeFeed:response.json()#1
+140 changes.ts:changeFeed:Promise.race([work, aborted])#1
+141 local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1
+142 local-search.ts:decode:reader.read()#1
+143 local-search.ts:decode:reader.cancel().catch(() => {})#1
+144 local-search.ts:ordinarySearch:env.call({ op: "search_state", name })#1
+145 local-search.ts:ordinarySearch:env.call({ op: "query", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1
+146 local-search.ts:ordinarySearch:blocked()#1
+147 local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))#1
+148 local-search.ts:ordinarySearch:blocked()#2
+149 local-search.ts:ordinarySearch:env.call({ op: "search_state", name, spent: ledger.used })#1
+150 local-query.ts:route:env.installNative(env.signal)#1
+151 local-query.ts:route:server()#1
+152 local-query.ts:route:blocked()#1
+153 local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1
+154 local-query.ts:route:local()#1
+155 local-query.ts:route:routeLocal(first)#1
+156 http-response.ts:readResponse:decode(response)#1
+157 http-response.ts:readResponse:response.json()#1
+158 local.ts:flushOnce:for await receiptBatch(queued, history)
+159 local-assets.ts:remove:this.call({ op: "set_meta", key: `media:bytes:${id}`, value: "" })#1

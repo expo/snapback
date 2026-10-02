@@ -82167,3 +82167,70 @@ All six changed Rust source hashes remained unchanged through qualification.
 Wasm remains 2,032,879 B raw / 610,171 B gzip, 611 B below the unchanged ratchet.
 LLP 3000 §7 and the guide state the corrected rule. Local commit with the
 requested Astra trailer; nothing pushed or published.
+## 2026-10-02 — FIM round 0: deterministic follow fault injection
+
+Closed the follow fault-injection ticket without changing product code. The
+matrix's async-context injector could miss I/O when `syncOnce()` returned work
+started elsewhere. A test-only barrier now drains an existing sync or native
+installation, rechecks ownership, then evaluates the real classified call in
+the same JavaScript turn. Its actual host/transport I/O receives the fault.
+The audit covers follow, flush, settlement sync and both shared-native callers;
+the follow timer retains its real failed-sync input. A single change driver
+also reaches the live follow sync before the eight retry epochs, avoiding an
+already-invalidated fixture poll. All 40 original assertion-bearing lines,
+classifications, recipes and the await-boundary seal remain unchanged.
+
+Twelve permanent transient/persistent regressions start a competing operation
+outside the target async context. Removing only the barrier makes both follow
+sync regressions fail the original positive-injection assertion: target reached,
+zero faults, three sends and three terminal notifications. The unchanged old
+harness also fails with Astra's competing-sync hook. Sealed full-matrix runs at
+96-process concurrency on 96 CPUs: old 3/200 failed (two persistent follow sync,
+one transient follow timer); final 0/200 failed, 333 cases each, 66,600 passes.
+The report retains every run, source hashes and the rejected development batch;
+its null-poll and overlapping-build seal failures are ours and excluded from
+qualification, never hidden by the final green runs.
+
+Affected clients pass 615 with one conditional legacy-binary skip; guide passes
+110. The single complete suite reports exactly `== 0 failure(s) in 1661 s`:
+all Rust targets/doctests, app checks, 5,780 client tests (ten conditional skips)
+and all 79 models pass. No full-suite failures remain to classify. The ticket
+is resolved under `issues/closed/`; the
+[report](./reports/20261002-fim-follow-injection/REPORT.md) records commands,
+all failure classifications and the scheduling choice's scope. Commit locally
+on `sb4-intent/fim-follow-injection` with the requested Astra co-author trailer;
+nothing pushed or published.
+
+
+## 2026-10-02 — FIM round 1: joined-sync failure propagation
+
+Closed Astra's P2 with two permanent regressions alongside the unchanged
+fresh-operation coverage. Each starts a real sync outside follow's context,
+holds its actual host/transport I/O, wakes the real follow loop and witnesses
+its join before releasing exactly one fault. The host case requires the same
+rejection at the joining await; the transport case requires `false`. Both
+verify the original shared promise, follow's failure wait and a healthy fresh
+round after recovery. The drain-first injector is disabled only in these
+separate join cases; product code and all 40 original assertion-bearing lines,
+including mandatory positive injection, remain unchanged.
+
+Astra's `syncing.then(() => true, () => true)` mutation is applied only to the
+instrumented temporary client. The nine existing focused checks still pass;
+both new cases fail precisely on hidden failure. These two failures are ours,
+intentional negative controls. The real client passes all eleven focused
+checks, the complete 335-case matrix, and 617 affected client tests with one
+conditional legacy-binary skip. Guide: 110 passed. No ordinary check failed.
+
+P3 clarification: round 0's old 3/200 and new 0/200 are observed stress
+results with matching configured inputs and overlapping uncontrolled external
+load. They are not a controlled same-load comparison or causal estimate.
+The report wording is corrected; historical raw results remain intact.
+
+The single complete suite reports exactly `== 0 failure(s) in 1439 s`:
+all Rust targets/doctests and app/package/fixture checks pass, with 5,782 client
+tests passed, ten conditional skips, and all 79 models passed. There are no
+baseline or environmental test failures in round 1. The
+[round-1 report](./reports/20261002-fim-follow-injection/REPORT.md#round-1--joined-sync-failure-propagation-2026-10-02)
+retains commands, the mutation hook, full compressed logs, exit statuses and
+source custody. One local commit with the requested Astra co-author trailer;
+nothing pushed or published.

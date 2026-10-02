@@ -1,0 +1,22 @@
+{
+  "base": "1687b58af2d4aa7483575e2421dff70e1d918925",
+  "node": "v24.13.1",
+  "sources": {
+    "old": {
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+      "packages/snapback4/test/delivery-fault-instrument.mjs": "04a13df790a17a409bd03728a5b9f40b591065bef3b2dadcdb9feb8d2e5b2612",
+      "packages/snapback4/test/delivery-await-boundary.json": "106baf7558f55b9ca9387ec6c01ca749ed9726409018dc7bba99e2a232cc58e6",
+      "packages/snapback4/src/local.ts": "2309d09298d2fee6f9d8bcd9fa32b842abbd3ad6d43c0c47d60f13b825102189",
+      "packages/snapback4/src/local-native.ts": "56ccf7d001d3f389468fa658d342900fa79b67e70e6ac636c565d359a5555c09",
+      "packages/snapback4/dist/wasm/snapback4_device_bg.wasm": "def8d3bf6bf0f1d9fa3f4906a4459eddb9c3cfdfdb43d21e60b55992bd96b693"
+    },
+    "new": {
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs": "289734a2861ba1abc8063836864e9b0c7ba4a198e1aab917af85f69d16ce8fa4",
+      "packages/snapback4/test/delivery-fault-instrument.mjs": "5c9a466d554ca4adf56542483e5a210bd08931575dce461a3bc989c06b0639e0",
+      "packages/snapback4/test/delivery-await-boundary.json": "106baf7558f55b9ca9387ec6c01ca749ed9726409018dc7bba99e2a232cc58e6",
+      "packages/snapback4/src/local.ts": "2309d09298d2fee6f9d8bcd9fa32b842abbd3ad6d43c0c47d60f13b825102189",
+      "packages/snapback4/src/local-native.ts": "56ccf7d001d3f389468fa658d342900fa79b67e70e6ac636c565d359a5555c09",
+      "packages/snapback4/dist/wasm/snapback4_device_bg.wasm": "def8d3bf6bf0f1d9fa3f4906a4459eddb9c3cfdfdb43d21e60b55992bd96b693"
+    }
+  }
+}
