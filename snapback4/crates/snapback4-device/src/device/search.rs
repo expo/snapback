@@ -4,6 +4,26 @@ use super::*;
 pub(super) const RESET: &str = "device:search-reset";
 
 impl<S: DeviceStore> Device<S> {
+    pub(crate) fn search_decorations(&mut self, request: &serde_json::Value, spent: snapback4_core::meter::Metered) -> Result<(serde_json::Value, snapback4_core::meter::Metered, Option<i64>), RuntimeError> {
+        *self.read_scopes.borrow_mut() = serde_json::json!({});
+        let name = request["name"].as_str().ok_or_else(|| RuntimeError::Input("search name required".into()))?;
+        let plan = self.schema.operations.get(name).and_then(|f| f.search.as_ref())
+            .ok_or_else(|| RuntimeError::Input("ordinary search required".into()))?;
+        let values = request["decorationRows"].as_array().filter(|v| v.len() <= plan.limit as usize)
+            .ok_or_else(|| RuntimeError::Input("decorations need one bounded page".into()))?;
+        let tx = self.store.read_transaction()?;
+        store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
+        let reading = history::Reading { scopes: Some(&self.read_scopes), tx: &tx, schema: &self.schema,
+            groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
+        let values = values.iter().map(|v| wire::row_from_json(&self.schema.tables[&plan.table], v).map_err(RuntimeError::Input)).collect::<Result<Vec<_>, _>>()?;
+        let now = expiry_clock::now(&tx, request["now"].as_i64().unwrap_or(0))?;
+        let viewer = request["viewer"].as_str().ok_or_else(|| RuntimeError::Input("viewer required".into()))?;
+        let context = Context::new(viewer, BTreeMap::new()).at(now).with_generation(self.generation);
+        let (data, meter, expiry) = local::decorate_search(&reading, &self.schema, &self.programs[name], context, values, spent)?;
+        drop(reading); tx.rollback()?;
+        Ok((wire::to_json(&data), meter, expiry))
+    }
+
     // @ref LLP 3000.028#3.3 — a continuation binds the device incarnation and membership observation.
     pub(crate) fn search_state(&mut self, name: &str, spent: Option<snapback4_core::meter::Metered>) -> Result<serde_json::Value, RuntimeError> {
         let Some(plan) = self.schema.operations.get(name).and_then(|fact| fact.search.as_ref()) else { return Ok(serde_json::Value::Null) };

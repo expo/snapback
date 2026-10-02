@@ -13,9 +13,10 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=nul
   const env={backend:{generation:1},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
     deviceNow:()=>now,serverNow:()=>now,
     async call(r){
-      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent&&remainingSteps!==undefined?{...r.spent,steps:ceilings.steps-remainingSteps}:r.spent??counts()}};
+      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent??counts()}};
       assert.equal(r.search,true);assert.ok(r.spent.heap_bytes>0);
       scanUsed={...r.spent,heap_bytes:exhaust?ceilings.heap_bytes-1:r.spent.heap_bytes+1000,steps:r.spent.steps+100};
+      if(remainingSteps!==undefined)scanUsed.steps=ceilings.steps-remainingSteps;
       if(localCut==='meter')scanUsed.examined=ceilings.examined+1;
       const found=retained.filter(x=>x.at<sourceCursor(r.args.c));
       return {ok:{data:found.slice(0,limit),complete:localComplete,cut:localCut,next:!localCut&&found.length>limit?'next':null,metered:scanUsed,nextExpiry:race==='expiry'?5:null}};
@@ -57,10 +58,11 @@ test('decoder and coordinator cannot reset a nearly exhausted device scan ledger
   assert.throws(()=>alone.resume(counts()),SearchBound,'receipts cannot lower prior work');
 });
 for (const tie of [false,true]) test(`mixed comparisons exhaust the shared step allowance (${tie?'equal-time Unicode IDs':'time order'})`,async()=>{
-  // The final state receipt leaves just enough for both mixed rows. One fewer
-  // step must refuse. These fixed allowances include all merge/output work;
+  // The candidate scan receipt leaves just enough for decode and both mixed
+  // rows before the final fence. One fewer step must refuse. Fixed allowances
+  // include all remaining merge/output work;
   // deleting either comparison charge makes the corresponding tight run pass.
-  const steps=tie?1679:1667;
+  const steps=tie?1875:1863;
   const inputs={retained:[{id:'\u{10000}left',at:100,text:'coffee'}],live:[{id:'\ue000live',at:tie?100:101,text:'coffee'}]};
   const enough=fixture({...inputs,remainingSteps:steps}),tight=fixture({...inputs,remainingSteps:steps-1});
   const full=await enough.run(),cut=await tight.run();

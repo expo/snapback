@@ -19,7 +19,26 @@ pub(crate) struct Search {
 pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
     use snapback4_core::search_plan;
     let mut out = Vec::new();
+    let original = program;
+    let lifted = snapback4_core::search_decoration::admit(schema, program);
     let inferred = search_plan::ordinary::plan(schema, program);
+    if let Err(reason) = lifted {
+        // An explicit membership merge retains its existing diagnostics below.
+        // A point read in a predicate is a decoration filter, unlike an ordinary
+        // scalar predicate or the membership existence proof itself.
+        if snapback4_lang::bind::merges(&program.body).is_empty() {
+            let decorated = program.body.iter().any(|s| matches!(s, Stmt::For {domain,..} if hit_domain(domain).is_some()));
+            if let Some(scan) = snapback4_core::ir::scans(program).into_iter().find(|scan|
+                scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)))
+                && (decorated || scan.filter.as_deref().is_some_and(point_predicate))) {
+                let reason = if scan.filter.as_deref().is_some_and(point_predicate) { "filter depends on a decoration value" } else { reason };
+                out.push(Search { code: "N_SEARCH_SHAPE", site: scan.site.clone(), class: "unliftable-decoration",
+                    summary: "this search shape cannot lift presentation reads after the bare page; existing evaluation and coverage apply",
+                    message: format!("cannot lift this search: {reason}; only row-preserving total-key point decorations preserve the bare page"),
+                    rewrite: "keep the search predicate and order on message fields; use total-key lookups for presentation fields".into(), guide: "search" });
+            }
+        }
+    }
     let program = inferred.as_ref().map_or(program, |plan| &plan.program);
     let bindings = search_plan::bindings(schema, program);
     let merges = snapback4_lang::bind::merges(&program.body);
@@ -57,9 +76,9 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
                 rewrite, guide: "search" });
         }
     }
-    for (position, stmt) in program.body.iter().enumerate() {
+    for (position, stmt) in original.body.iter().enumerate() {
         let Stmt::For { domain, body, .. } = stmt else { continue };
-        let returned = matches!((body.last(), program.body.get(position + 1)),
+        let returned = matches!((body.last(), original.body.get(position + 1)),
             (Some(Stmt::Push { target, .. }), Some(Stmt::Return(Expr::Variable(name)))) if target == name);
         if !returned && !program.returned_shapes.contains_key(&format!("{}:{}", program.name, position + 1)) { continue; }
         let Some(message_table) = hit_domain(domain) else {continue};
@@ -73,11 +92,21 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
             let Some(rewrite) = merges.iter().find_map(|m|search_plan::bare(schema,m,&bindings)) else {continue};
             out.push(Search { code: "N_SEARCH_SHAPE", site: scan.site.clone(), class: "per-hit-group-decoration",
                 summary: "per-hit membership/roster reads repeat work within the query-wide meter and can cut the result",
-                message: format!("the returned message hit repeats the membership/roster subquery over {} per hit, including inside an inlined helper; read peer details separately once per distinct group", scan.table),
+                message: format!("the returned message hit repeats the membership/roster subquery over {} per hit, including inside an inlined helper; this non-key group subquery cannot be lifted; use key lookups for presentation, or keep this evaluator without the bare-page guarantee", scan.table),
                 rewrite, guide: "search" });
         }
     }
     out
+}
+
+fn point_predicate(value: &Expr) -> bool {
+    match value {
+        Expr::Get(_) => true,
+        Expr::Field {base,..} | Expr::Unary {value:base,..} => point_predicate(base),
+        Expr::Binary {left,right,..} => point_predicate(left) || point_predicate(right),
+        Expr::Builtin {args,..} => args.iter().any(point_predicate),
+        _ => false,
+    }
 }
 
 fn roster_tables<'a>(rule: &'a snapback4_core::schema::RuleExpr, out: &mut BTreeSet<&'a str>) {

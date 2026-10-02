@@ -185,3 +185,35 @@ fn builtin_repairs_use_quarry_spellings_on_the_originating_schema() {
         }
     }
 }
+
+#[test]
+fn lifted_search_and_precise_non_key_refusals() {
+    let base = include_str!("../../../../crates/snapback4-sim/tests/decorated_search.q");
+    for (name, body, reason) in [
+        ("point", "messages matching q last 20 by .at after c { *, title: rooms[.room].title }", None),
+        ("nonkey", "messages matching q last 20 by .at after c { *, peers: members[room = .room] first 3 by .id }", Some("projection")),
+        ("aggregate", "messages matching q last 20 by .at after c { *, peers: count(members[room = .room] first 3 by .id) }", Some("projection")),
+        ("filtered", "messages matching q where rooms[.room].title = 'Room' last 20 by .at after c", Some("filter depends on a decoration value")),
+    ] {
+        let b = snapback4_lang::compile(&[("schema.q".into(), format!("{base}\nquery {name}(q: text, c: cursor ?):\n  return {body}\n"))]);
+        assert!(b.diagnostics.is_empty(), "{name}: {:?}", b.diagnostics);
+        let p = &b.programs.last().unwrap().program;
+        let notes = classify(&b.schema, p);
+        let note = notes.iter().find(|n| n.code == "N_SEARCH_SHAPE");
+        if let Some(reason) = reason {
+            assert!(!b.schema.operations[name].search_decoration);
+            assert!(note.is_some_and(|n|n.message.contains(reason)), "{name}: {notes:?}");
+        } else {
+            assert!(b.schema.operations[name].search_decoration);
+            assert!(note.is_none(), "{notes:?}");
+            let cost = super::super::analyze(&b.schema, p);
+            assert!(cost.search_decoration.unwrap().contains("one read per distinct decoration key"));
+            let bare = &b.programs.iter().find(|p|p.program.name=="bare").unwrap().program;
+            let baseline = super::super::analyze(&b.schema, bare);
+            assert_eq!(cost.bounds.rows_examined, baseline.bounds.rows_examined + 20);
+            assert_eq!(cost.bounds.probes, baseline.bounds.probes + 40); // reservation + witness evaluation
+        }
+    }
+    let b = snapback4_lang::compile(&[("schema.q".into(), format!("{base}\nquery ordered(q: text):\n  return messages matching q last 20 by rooms[.room].title\n"))]);
+    assert!(!b.diagnostics.is_empty(), "ordering by a decoration must be diagnosed");
+}

@@ -133,6 +133,9 @@ pub struct Runner<'a> {
     pub(super) effect_presence: super::presence::EffectPresence,
     /// How deep inside page loops the runner is; a scan at depth 0 may own
     /// the program's `next`.
+    pub(crate) search_rows: Option<Value>,
+    pub(crate) retained_seen: bool,
+    pub(super) decoration_cache: Option<BTreeMap<(String, String, Vec<u8>), Value>>,
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
@@ -288,6 +291,9 @@ impl<'a> Runner<'a> {
             retiring: None,
             outbox: Vec::new(),
             effect_presence: Default::default(),
+            search_rows: None,
+            retained_seen: false,
+            decoration_cache: None,
             page_depth: 0,
             page: None,
             pages: BTreeMap::new(),
@@ -350,6 +356,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         self.receipt_operation = program.name.clone();
         self.prepare_components(program);
         self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());

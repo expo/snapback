@@ -1207,6 +1207,16 @@ fn handle(mut request: Request, shared: &Shared) {
                     },
                     None => None,
                 };
+                if let Some(value) = payload.get("searchRetainedOrder") {
+                    let order: Vec<i64> = match serde_json::from_value(value.clone()) {
+                        Ok(order) => order,
+                        Err(_) => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetainedOrder must contain integer ordering keys")),
+                    };
+                    if retained.as_ref().is_none_or(|ids| ids.len() != order.len()) {
+                        return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "retained search ordering keys require matching candidate IDs"));
+                    }
+                    context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
+                }
                 let reader = shared.reader();
                 let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes) = match reader {
                     Ok((epoch, mut reader)) => {
@@ -1251,6 +1261,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             scopes: &'a Option<Json>,
                             #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
                             search_scopes: &'a Option<Vec<String>>,
+                            #[serde(rename = "searchRows", skip_serializing_if = "Option::is_none")]
+                            search_rows: Option<wire::Plain<'a>>,
                             #[serde(rename = "searchCurrent", skip_serializing_if = "Option::is_none")]
                             search_current: &'a Option<Vec<String>>,
                             #[serde(skip_serializing_if = "Option::is_none")]
@@ -1295,7 +1307,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {

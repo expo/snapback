@@ -93,8 +93,8 @@ function decoded(value: string): unknown {
   return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0))));
 }
 type Row = Record<string, unknown> & { id: string };
-type Page = { data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
-type State = { metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
+type Page = { searchRows?: Row[]; data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
+type State = { decorations?: Row[]; decorationExpiry?: number | null; metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
 type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; after: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
@@ -151,6 +151,7 @@ export interface SearchResult {
 
 export async function ordinarySearch(env: QueryEnvironment, name: string, input: unknown, plan: SearchComposition,
   checkpoint: () => void, blocked: () => Promise<boolean>): Promise<SearchResult> {
+  const decorated = !!env.backend.schema?.operations?.[name]?.search_decoration;
   const loading: SearchResult = { read: { loading: true }, nextExpiry: null, searchAttempt: true };
   const stateReply = await env.call({ op: "search_state", name }); checkpoint();
   const state = stateReply.ok as State | undefined;
@@ -200,10 +201,12 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     // only point readability; current rows win even outside the needle/keyset.
     ledger.charge("heap_bytes", 128 + (local.data?.length ?? 0) * 64);
     ledger.charge("steps", local.data?.length ?? 0);
-    const retained = local.cut && !local.next ? [] : (local.data ?? []).map(row => row.id);
+    const retained = local.cut && !local.next ? [] : (local.searchRows ?? local.data ?? []).map(row => row.id);
     if (retained.length > plan.limit + 1) throw new SearchBound("overlap candidates");
     ledger.text(jsonBound(retained, ledger));
-    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r)); checkpoint();
+    const decorationSelection = decorated ? { searchRetainedOrder: (local.cut && !local.next ? [] : local.data ?? []).map(row => row[plan.column]), searchRetainedMore: !!local.next } : {};
+    if (decorated) ledger.text(jsonBound(decorationSelection, ledger));
+    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r)); checkpoint();
     if (!response.ok) return { ...loading, transportOffline: true };
     if (response.obsoleteAuth || await blocked()) return loading;
     checkpoint();
@@ -218,12 +221,13 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     }
     position.identity = response.searchIdentity;
     if (!Array.isArray(remote.data)) return loading;
-    const afterReply = await env.call({ op: "search_state", name, spent: ledger.used }); checkpoint();
-    if (afterReply.denied) return { ...loading, read: { denied: afterReply.denied as Refusal } };
-    const after = afterReply.ok as State | undefined;
-    if (!after?.metered) return loading;
-    ledger.resume(after.metered);
-    if (!state.delivery || after.delivery !== state.delivery || after.epoch !== state.epoch || env.link !== "online" || credential !== env.credentialRevision) return loading;
+    if (decorated) {
+      ledger.charge("steps", remote.data.length);
+      if (!Array.isArray(remote.searchRows) || remote.searchRows.length !== remote.data.length
+        || !remote.searchRows.every(row => row && typeof row.id === "string" && Number.isSafeInteger(row[plan.column]))) {
+        return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support lifted search source keys" } } };
+      }
+    }
     const scopes = response.json.searchScopes;
     if (!Array.isArray(scopes)) return loading;
     ledger.charge("steps", scopes.length);
@@ -274,10 +278,11 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     }
     ledger.charge("heap_bytes", 128 + current.length * 64);
     const suppressed = new Set(current);
-    const left = local.data!, right = remote.data;
+    const left = local.searchRows ?? local.data!, right = remote.searchRows ?? remote.data;
     ledger.charge("heap_bytes", 128 + plan.limit * 128);
     const data: Row[] = [];
     let retainedEmitted = false;
+    const retainedPositions: number[] = [];
     const seen = new Set<string>(); // Defense in depth if a source/proof repeats an ID.
     let i = 0, j = 0;
     let consumed = false;
@@ -306,11 +311,12 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (!(fromLocal && suppressed.has(row.id)) && !seen.has(row.id)) {
         ledger.text(64 + row.id.length);
         // Decoded rows are already reserved; output serializing/copying is also paid.
-        const bytes = jsonBound(row, ledger);
+        const value = fromLocal ? local.data![i]! : remote.data[j]!;
+        const bytes = jsonBound(value, ledger);
         ledger.charge("heap_bytes", bytes * 2);
         ledger.charge("output_bytes", bytes + 1);
-        data.push(row); seen.add(row.id);
-        if (fromLocal) retainedEmitted = true;
+        data.push(value); seen.add(row.id);
+        if (fromLocal) { retainedEmitted = true; retainedPositions.push(data.length - 1); }
       }
       const next = sourceCursor(plan, row, env.backend.generation, ledger);
       // Both lanes seek the combined consumed key on the next request. A new
@@ -318,6 +324,20 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       // emitted nothing yet. All fetched/unconsumed keys after it remain eligible.
       position.after = next; consumed = true;
       if (fromLocal) { position.local = next; i++; } else { position.server = next; j++; }
+    }
+    const decorationRows = decorated ? retainedPositions.map(position => data[position]!) : undefined;
+    if (decorationRows) ledger.text(jsonBound(decorationRows, ledger));
+    const afterReply = await env.call({ op: "search_state", name, spent: ledger.used,
+      ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) }); checkpoint();
+    if (afterReply.denied) return { ...loading, read: { denied: afterReply.denied as Refusal } };
+    const after = afterReply.ok as State | undefined;
+    if (!after?.metered) return loading;
+    ledger.resume(after.metered);
+    if (!state.delivery || after.delivery !== state.delivery || after.epoch !== state.epoch || env.link !== "online" || credential !== env.credentialRevision) return loading;
+    if (decorated) {
+      if (!after.decorations || after.decorations.length !== retainedPositions.length) return loading;
+      for (let k = 0; k < retainedPositions.length; k++) data[retainedPositions[k]!] = after.decorations[k]!;
+      if (after.decorationExpiry != null) local.nextExpiry = Math.min(local.nextExpiry ?? Infinity, after.decorationExpiry);
     }
     const more = i < left.length || j < right.length || !!local.next || !!remote.next;
     let next: string | null = null;

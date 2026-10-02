@@ -82234,3 +82234,47 @@ baseline or environmental test failures in round 1. The
 retains commands, the mutation hook, full compressed logs, exit statuses and
 source custody. One local commit with the requested Astra co-author trailer;
 nothing pushed or published.
+
+
+## 2026-10-02 — SJ round 0: point-decorated ordinary search
+
+LLP 3000.028 §3.3.1 now defines a bare page followed by row-preserving point
+decorations. Ordinary global and pinned search can return chat titles, sender
+names and nested key lookups in the hit projection. The source page keeps its
+IDs, order, completeness, cut, continuation and freshness. Distinct point keys
+share one ordinary authorized read per page/authority; missing or unreadable
+rows become null. Unsupported aggregates, decoration predicates and non-key
+subqueries retain their evaluator and narrowed diagnostics.
+
+The one-call SDK merge carries source ordering keys separately from presentation,
+so projections need not expose their ID/order fields. The server decorates only
+selected current rows; the existing final device state-fence call decorates
+only emitted retained rows. Shared logical and physical allowances remain in
+force. The social starter's search/searchChat and rendered labels use this form,
+and the search/client/why guide surfaces now teach it. There are no separate
+detail queries. CLI cost output names the lift and its distinct-key reads, with
+conservative numeric allowances for projection points and their authorization.
+
+The generated process/Wasm oracle passed 985 page comparisons per host, including
+random memberships, departures/rejoins, scope moves, delete/reinsert, decoration
+edits, offline reads, hidden/deleted details and suppression-shortened pages.
+Independent point reads check decoration authority. The real Chromium retained
+search witnesses pass with title/name labels and all query paths recorded.
+Twenty hits in three rooms cost 46 → 50 examined rows; the established W13
+30,030-message corpus costs 2,040 → 2,061 for 20 rooms and one sender.
+
+Affected Rust: 4,662 passes, 34 ignored, zero failures across 286 summaries;
+final CLI rerun 848 passes; guide 110; final focused JS 462. The frozen complete
+suite reports exactly `== 0 failure(s) in 1390 s`, including 5,800 client passes
+(10 conditional skips) and all 79 models. An earlier full attempt reported
+`== 1 failure(s) in 1510 s`: my concurrent Wasm rebuild caused four ENOENT leaf
+cases and their failed parent summary. These were ours, not baseline failures;
+all 119 tests in the three affected files passed afterward, then the entire
+suite passed with source/artifacts frozen. The report also records corrected
+development failures and one transient unchanged smoke-test ownership conflict.
+
+Linux Wasm is 2,050,348 B raw / 616,951 B gzip. Raise the 610,782 B cap to
+617,581 B for the projection/cache and retained decoration path: estimated
+macOS 617,081 B (+130 B), plus 500 B headroom. Runtime ceilings are unchanged.
+Small metering, oracle, hash and verification receipts accompany the
+[report](./reports/20261002-sj-decorated-search/REPORT.md). No publication or push.

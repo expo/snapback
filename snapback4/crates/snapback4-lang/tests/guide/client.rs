@@ -43,8 +43,8 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
     let block = &blocks[0];
     let (document, errors) = snapback4_lang::parse_document("schema.q", block);
     assert!(errors.is_empty(), "{errors:?}");
-    assert_eq!(document.programs.len(), 4);
-    for form in ["searchHeld", "searchGrouped", "search", "searchNewest"] {
+    assert_eq!(document.programs.len(), 5);
+    for form in ["searchHeld", "searchGrouped", "search", "searchNewest", "searchChat"] {
         let declaration = document.programs.iter().find(|query| query.name == form).expect(form);
         assert_eq!(declaration.args.iter().filter(|arg| arg.type_.kind == snapback4_lang::ast::TypeKind::Cursor).count(), 1, "{form}");
     }
@@ -54,7 +54,11 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
     assert!(block.contains("query search(q: text <=100, c: cursor ?):\n  return messages matching q last 20 by .at after c"));
     // The explicit held scope still diagnoses missing sync. Ordinary search's
     // inferred audience requires sync, so exercise this old control separately.
-    let explicit_scopes = block.replace("query search(q: text <=100, c: cursor ?):\n  return messages matching q last 20 by .at after c\n", "");
+    let explicit_scopes = block.lines().scan(false, |skip, line| {
+        if *skip { *skip = false; return Some(None); }
+        if line.starts_with("query search(") || line.starts_with("query searchChat(") { *skip = true; return Some(None); }
+        Some(Some(line))
+    }).flatten().collect::<Vec<_>>().join("\n");
     let server = explicit_scopes.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
     // Turning off every sync deliberately makes searchHeld an unsynced held read.
     let bound = compile(&server);

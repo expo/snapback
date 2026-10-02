@@ -10,6 +10,7 @@ fn refusal(code: &'static str, message: &str) -> RuntimeError {
 impl Runner<'_> {
     /// The server query door and job query calls share this execution path.
     pub(super) fn run_server_query(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         #[cfg(feature = "server-search")]
         let search = (!self.context.is_system()).then(|| crate::search_plan::ordinary::plan(self.schema, program)).flatten();
         #[cfg(feature = "server-search")]

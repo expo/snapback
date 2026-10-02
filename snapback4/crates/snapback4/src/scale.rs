@@ -29,6 +29,8 @@ pub(crate) enum Class { Constant, Backlog, Grows }
 pub(crate) struct Certificate {
     pub operation: String,
     pub search: Vec<search::Search>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_decoration: Option<String>,
     pub class: Class,
     pub per_chunk: bool,
     pub bounds: Bounds,
@@ -88,13 +90,19 @@ pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgra
 
 fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4_lang::BoundProgram>) -> Certificate {
     let search = search::classify(schema, program);
+    let decoration = snapback4_core::search_decoration::admit(schema, program).ok();
+    let search_decoration = decoration.as_ref().map(|parts| {
+        let keys = snapback4_core::search_decoration::reads(schema, &parts).into_iter()
+            .map(|(table,index)|format!("{table} by {index}")).collect::<Vec<_>>().join(", ");
+        format!("lifted search: bare page, then point decorations; one read per distinct decoration key per authority ({keys})")
+    });
     let inferred = snapback4_core::search_plan::ordinary::plan(schema, program);
     let program = inferred.as_ref().map_or(program, |plan| &plan.program);
     let ceilings = if program.kind == ProgramKind::Job { Ceilings::job() } else { Ceilings::default() };
     let mut a = Analysis {
         schema, program, source,
         result: Certificate {
-            operation: program.name.clone(), search, class: Class::Constant,
+            operation: program.name.clone(), search, search_decoration, class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
@@ -125,6 +133,13 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             stmt
         }).collect();
         a.body(&body, 1);
+        // The inferred body is only the source page. Keep numeric allowances
+        // conservative too: every emitted row may introduce distinct point keys.
+        if inferred.is_some() && let Some(parts) = &decoration {
+            let count = a.bound(&snapback4_core::search_decoration::scan(parts).unwrap().take);
+            a.data.insert(parts.binding.into(), true);
+            a.expr(parts.value, count);
+        }
         if program.kind == ProgramKind::Job {
             // @ref LLP 3000.013#14.4 — a sweep after a `return` never runs, so the job does not grow with it.
             for stmt in &program.body {

@@ -67,7 +67,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { search_scopes: None,
+    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { search_rows: runner.search_rows.take(), search_scopes: None,
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
         unavailable: runner.query_unavailable,
@@ -86,7 +86,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     })();
     let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
     // @ref LLP 3000.007#20.22.1 — presence is server knowledge too; a resource or structural cut is not.
-    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), components, runner.components.provenance())}
+    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete() && (!schema.operations.get(&program.name).is_some_and(|f| f.search_decoration) || runner.retained_seen), components, runner.components.provenance())}
 
 /// What a mutation predicts on the device: its result, and the tables it
 /// wrote through the store. A refusal is the caller's to show; the host
@@ -193,7 +193,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
         };
         let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
-        Ok(QueryOutcome { search_scopes: None,
+        Ok(QueryOutcome { search_rows: runner.search_rows.take(), search_scopes: None,
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
             unavailable: runner.query_unavailable,
@@ -251,4 +251,20 @@ impl Runner<'_> {
             self.missing_fact = Some(format!("site {site}: this device cannot establish {table} by {index} at key {key}; the row or its absence is past the acquired horizon or online only"));
         }
     }
+}
+
+/// Internal coordinator projection over already selected device images. The
+/// device delivery fence binds those images; ordinary point reads authorize
+/// every decoration. No source rescan or extra read allowance is introduced.
+pub fn decorate_search(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context,
+    values: Vec<Value>, spent: crate::meter::Metered) -> Result<(Value, crate::meter::Metered, Option<i64>), RuntimeError> {
+    if !schema.operations.get(&program.name).is_some_and(|f| f.search_decoration) {
+        return Err(RuntimeError::Input("query has no lifted search projection".into()));
+    }
+    let meter = Meter::resume(Ceilings::default(), spent)?;
+    let mut runner = Runner::new(rows, schema, context, meter, 0);
+    runner.device = true;
+    let data = runner.decorate_search_values(program, values)?;
+    runner.charge_output(&data)?;
+    Ok((data, runner.meter.used, runner.next_expiry.get()))
 }

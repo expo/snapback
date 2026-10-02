@@ -31,6 +31,7 @@ mod read_only;
 #[cfg(feature = "sqlite")]
 mod job_reads;
 mod pages;
+mod search_decoration;
 pub use pages::drain_cursor;
 pub use pages::expression_page_site;
 mod shaping;
@@ -143,6 +144,11 @@ pub struct Context {
     #[cfg(feature = "sqlite")]
     pub(crate) refusal_trace: Option<refusal_trace::RefusalTrace>,
     pub retained_search: bool,
+    /// Bounded retained ordering keys supplied by the coordinator, never authority.
+    #[cfg(feature = "server-search")]
+    pub search_retained_order: Option<(Vec<i64>, bool)>,
+    #[cfg(feature = "server-search")]
+    pub(crate) search_retained_candidates: Vec<(String, i64, bool)>,
     pub read_spent: Option<crate::meter::Metered>,
     pub viewer: String,
     pub kind: String,
@@ -169,7 +175,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] refusal_trace: None, retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -258,6 +264,9 @@ pub struct QueryOutcome {
     /// Complete, authorized current audience of an inferred ordinary search.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub search_scopes: Option<Vec<String>>,
+    /// Source ordering keys, separate from an arbitrary presentation projection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_rows: Option<Value>,
     #[cfg(feature = "sqlite")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delivery: Option<delivery::Manifest>,
@@ -949,7 +958,7 @@ impl Engine {
                 let data = value?;
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-                let outcome = QueryOutcome { search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -967,6 +976,13 @@ impl Engine {
             let descriptor = crate::search_plan::ordinary::composition(&self.schema, original)
                 .ok_or_else(|| RuntimeError::Input("this query does not support retained search overlap".into()))?;
             *_current = Some(runner.search_overlap(&descriptor, ids)?);
+            if let Some((order, _)) = &runner.context.search_retained_order {
+                if order.len() != ids.len() { return Err(RuntimeError::Input("retained search keys must match candidate IDs".into()).into()); }
+                let current: std::collections::BTreeSet<_> = _current.as_ref().unwrap().iter().collect();
+                runner.meter.heap((ids.len() * 160) as u64)?;
+                runner.meter.step((ids.len() * 4) as u64)?;
+                runner.context.search_retained_candidates = ids.iter().zip(order).map(|(id, at)| (id.clone(), *at, current.contains(id))).collect();
+            }
         }
         let data = runner.run_server_query(&program)?;
         runner.charge_output(&data)?;
@@ -975,6 +991,7 @@ impl Engine {
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
         let outcome = QueryOutcome {
+            search_rows: runner.search_rows.take(),
             #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
             #[cfg(not(feature = "server-search"))] search_scopes: None,
             delivery, delivery_meter, ephemeral: version,

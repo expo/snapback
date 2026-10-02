@@ -122,7 +122,16 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 arg(&request, "page")?; // Preserve the missing-argument diagnostic.
                 page_call(device, parse(request)?)?
             }
-            "search_state" => device.search_state(text(&request, "name")?, request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?)?,
+            "search_state" => {
+                let mut spent = request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?;
+                let decorations = if request.get("decorationRows").is_some() {
+                    let (data, meter, expiry) = device.search_decorations(&request, spent.unwrap_or_default())?;
+                    spent = Some(meter); Some((data, expiry))
+                } else { None };
+                let mut state = device.search_state(text(&request, "name")?, spent)?;
+                if let Some((data, expiry)) = decorations { state["decorations"] = data; state["decorationExpiry"] = json!(expiry); }
+                state
+            },
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
@@ -133,6 +142,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let mut reply = match result {
                     Ok(outcome) => {
                         let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "scopes": device.read_scopes.take() });
+                        if let Some(rows) = &outcome.search_rows { reply["searchRows"] = snapback4_core::wire::to_json(rows); }
                         if search { reply["metered"] = encoded(&outcome.metered)?; }
                         if !outcome.unavailable && outcome.data.has_retained_rows() {
                             reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());
