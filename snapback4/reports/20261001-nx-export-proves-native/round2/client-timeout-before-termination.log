@@ -1,0 +1,12 @@
+✔ retained media: authorization footprint keeps authorization and revocation (0.417ms)
+✔ retained media: unknown footprint keeps authorization and revocation (0.32575ms)
+✔ retained media: legacy footprint keeps authorization and revocation (0.492ms)
+✔ retained media: empty footprint keeps authorization and revocation (0.384666ms)
+✔ retained media: malformed footprint keeps authorization and revocation (0.268041ms)
+✔ retained media: expiry footprint keeps authorization and revocation (0.231375ms)
+✔ process: live asset-home dependencies preserve unrelated bytes and revoke on membership loss (230.399042ms)
+✔ wasm: live asset-home dependencies preserve unrelated bytes and revoke on membership loss (347.691417ms)
+✔ reference rejects transient empty member answers and sign-out loading (0.68425ms)
+{"host":"process","seeds":300,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule process: 300 independent histories (185856.089042ms)
+✖ mixed evidence schedule wasm: 300 independent histories (1800125.008708ms)

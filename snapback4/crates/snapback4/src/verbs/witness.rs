@@ -6,6 +6,7 @@ mod smoke;
 mod acquire;
 mod simulator;
 mod ownership;
+mod recovery;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
@@ -144,7 +145,7 @@ struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
     backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
     manifest: Value, events: Vec<Value>, observed: Vec<Value>,
-    _lease: File, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
+    _lease: Vec<File>, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
 }
 impl Run {
     fn event(&mut self, step: &str) { self.events.push(json!({ "step": step, "at": now() })); eprintln!("witness: {step}"); }
@@ -203,6 +204,7 @@ impl Run {
         // Even an interrupted or failed simctl may already have reported the
         // app it launched. Record that PID before any fallible log write.
         self.app_pid = text.lines().find_map(|l| l.strip_prefix(&prefix).and_then(|p| p.trim().parse::<u32>().ok())).filter(|p| *p > 0);
+        recovery::app(&self.options, self.app_pid, &self.udid, &self.options.bundle, &self.dir)?;
         output(&self.path("launch.log"))?.write_all(text.as_bytes()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let status = status?;
         if !status.success() { return Err(error("E_WITNESS_APP", format!("--bundle-id app launch failed ({status}); see the command's own log path: {}", self.path("launch.log").display()))); }
@@ -220,6 +222,7 @@ impl Run {
             .stdin(Stdio::null()).stdout(output(&stdout)?).stderr(output(&self.path("backend.log"))?);
         crate::witness_socket::inherit(&mut command, &reservation);
         self.backend = Some(Owned::spawn(&mut command)?);
+        recovery::child(&self.options, "backend", self.backend.as_ref().unwrap().0.id())?;
         drop(reservation);
         let end = Instant::now() + self.options.timeout;
         loop {
@@ -291,12 +294,14 @@ impl Run {
         video.args(["simctl", "io", &self.udid, "recordVideo", "--codec=h264"]).arg(self.path("screen.mp4"))
             .stdin(Stdio::null()).stdout(Stdio::null()).stderr(output(&self.path("video.log"))?);
         self.video = Some(Owned::spawn(&mut video)?);
+        recovery::child(&self.options, "video", self.video.as_ref().unwrap().0.id())?;
         let mut logs = Command::new("xcrun");
         // Only the app's own process: a whole-simulator debug stream is tens of megabytes per segment.
         let executable = self.manifest["appBuild"]["CFBundleExecutable"].as_str().unwrap_or_default().replace('"', "");
         logs.args(["simctl", "spawn", &self.udid, "log", "stream", "--style", "json", "--level", "debug", "--predicate"]).arg(format!("process == \"{executable}\""))
             .stdin(Stdio::null()).stdout(output(&self.path("device.log"))?).stderr(output(&self.path("log-stderr.log"))?);
         self.logs = Some(Owned::spawn(&mut logs)?);
+        recovery::child(&self.options, "logs", self.logs.as_ref().unwrap().0.id())?;
         let end = Instant::now() + self.options.timeout;
         loop {
             self.video.as_mut().unwrap().alive("video recorder")?;
@@ -413,10 +418,11 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     }
     // Only this bounded pre-build stage may classify environment unavailability.
     // App/install/SDK errors after selection always remain failures.
-    let simulator = match simulator::select(&options, preparation) {
+    let (simulator, selection_lease) = match simulator::select(&options, preparation) {
         Ok(value) => value,
         Err(problem) => { if options.export.is_some() && preparation["environmentCondition"].is_string() { preparation["phase"] = json!("environment"); } return Err(problem); }
     };
+    recovery::simulator(&options, &simulator)?;
     let udid = simulator["udid"].as_str().unwrap().to_owned();
     let runtime = simulator["runtime"].as_str().unwrap().to_owned();
     preparation["simulator"] = simulator.clone();
@@ -463,10 +469,11 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
         "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", artifact_segment(&options))),
         "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&options)))).collect::<Vec<_>>() });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, _project_lease: project_lease, proof, reservation: Some(_port) })
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: vec![selection_lease, lease], _project_lease: project_lease, proof, reservation: Some(_port) })
 }
 
 pub fn run(args: &[String]) -> i32 {
+    if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {
         let invoked = now();
@@ -482,6 +489,7 @@ pub fn run(args: &[String]) -> i32 {
             "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
             "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
             "events": [], "artifacts": {} });
+        let _run_lease = recovery::begin(&options)?;
         let _temporary = preparation::ExportTemporary::new(&options);
         let mut run = match prepare(options, &mut preparation) {
             Ok(run) => run,

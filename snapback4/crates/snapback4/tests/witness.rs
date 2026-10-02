@@ -117,7 +117,7 @@ mod driver {
     impl Fixture {
         fn new() -> Self {
             static SERIAL: AtomicUsize = AtomicUsize::new(0);
-            let dir = std::env::temp_dir().join(format!("sb4-witness-driver-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+            let dir = std::env::temp_dir().join(format!("00000000-0000-4000-8000-{:06}{:06}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
             for name in ["app", "data", "snapback"] {
                 fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(name)).unwrap();
             }
@@ -132,7 +132,7 @@ mod driver {
             for (id, runtime) in [(dir.file_name().unwrap().to_str().unwrap(), "26-5"), ("owned-old", "9-3"), ("owned-18", "18-0"), ("deleted-device", "99")] {
                 use std::io::Write;
                 let mut record = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(state.join(format!("{id}.json"))).unwrap();
-                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"})).unwrap();
+                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-", "ready":true})).unwrap();
             }
             Self(dir, Default::default())
         }
@@ -460,6 +460,65 @@ mod driver {
             assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
         }
     }
+    #[test]
+    fn boot_rollback_holds_the_simulator_lease_against_a_second_process() {
+        let fixture = Fixture::new();
+        let mut a = fixture.command("auto-create-race", Fixture::port(), std::path::Path::new("artifacts-a"));
+        let mut a = watchdog::Guarded::spawn(&mut a, &fixture.0, watchdog::SCENARIO_GUARD);
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while !fixture.0.join("bootstatus-waiting").exists() {
+            assert!(a.is_running(), "creator exited before bootstatus");
+            assert!(std::time::Instant::now() < end);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let id = fixture.0.file_name().unwrap().to_str().unwrap();
+        let state = fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{id}.json"));
+        let pending: Value = serde_json::from_slice(&fs::read(&state).unwrap()).unwrap();
+        assert_eq!(pending["ready"], false);
+        // Explicit selection cannot bypass the pending device's lease either.
+        let mut b = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts-b"));
+        b.args(["--udid", id]);
+        let output = b.output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("another witness holds the --udid lease"));
+        assert!(!fixture.0.join("deleted-simulator").exists());
+        // Automatic selection also skips the boot-pending record. Our fake
+        // allocator returns the same ID, so creation must refuse its held lease.
+        let output = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts-c")).output().unwrap();
+        assert!(!output.status.success());
+        let calls = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap();
+        assert_eq!(calls.lines().filter(|line| line.starts_with("[\"create\"")).count(), 2);
+        assert!(!fixture.0.join("deleted-simulator").exists());
+        fs::write(fixture.0.join("release-bootstatus"), "release").unwrap();
+        let output = a.finish();
+        assert!(!output.status.success());
+        assert!(fixture.0.join("deleted-simulator").exists());
+        assert!(!state.exists());
+    }
+
+    #[test]
+    fn export_create_partial_output_rolls_back_on_failure_timeout_and_group_interrupt() {
+        for mode in ["auto-create-printed-fails", "auto-create-printed-timeout", "auto-create-group-interrupt"] {
+            let fixture = Fixture::new();
+            fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            let mut command = build_command(&fixture);
+            command.args(["--export", "dist"]).env("WITNESS_TEST_MODE", mode);
+            if mode.ends_with("timeout") {
+                // build_command does not supply --timeout.
+                command.args(["--timeout", "1"]);
+            }
+            let output = fixture.run_command(&mut command, watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1), "{mode}: {}", String::from_utf8_lossy(&output.stderr));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert_eq!(receipt["simulator"]["deleted"], true, "{mode}: {receipt}");
+            assert!(fixture.0.join("deleted-simulator").exists());
+            if mode.ends_with("interrupt") { assert!(fixture.0.join("create-survived-group-interrupt").exists()); }
+            let state = fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()));
+            assert!(!state.exists());
+        }
+    }
+
     #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
         let fixture = Fixture::new();

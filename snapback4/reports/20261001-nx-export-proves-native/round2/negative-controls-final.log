@@ -1,0 +1,36 @@
+{"starter":"plain","label":"startup-throw","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922426461,"durationMs":14871,"status":1,"signal":null,"bundleHash":"b748e0a758d30ba6c8c4a60c8a30674635fe9dad06538bae3db429e80164ab5b","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790922429602-65796/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"5702296a1635dfe740dfff543d8784de40ae3228886c7de13ae039a41b13f57d"}},"hit":true},"proofKind":"application-export","receiptExit":1,"error":"E_WITNESS_STEP: app step failed; check --segment and see receipts and device log","segments":{"offline":"not-run","prime":"failed","restart":"not-run"},"nativeDurationMs":11625,"loadedHash":"b748e0a758d30ba6c8c4a60c8a30674635fe9dad06538bae3db429e80164ab5b","metroResources":0,"warmReceiptBytes":37126}
+{"starter":"plain","label":"FILE-url","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922441392,"durationMs":5734,"status":1,"signal":null,"bundleHash":"87c6af4e62a3096d937cdcd10f082d82060eeddd1330ac2fd5d19976bacc8399","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790922444078-66892/smoke-ios-run.json","receiptExit":1,"phase":"preparation","error":"E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790922444078-66892/preparation-stderr.log"}
+node:fs:561
+  return binding.open(
+                 ^
+
+Error: EEXIST: file already exists, open '/Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round2/plain-File-url.log'
+    at Object.openSync (node:fs:561:18)
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round2/run.mjs:14:67 {
+  errno: -17,
+  code: 'EEXIST',
+  syscall: 'open',
+  path: '/Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round2/plain-File-url.log'
+}
+
+Node.js v24.18.0
+{"starter":"plain","label":"missing-runtime","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922447190,"durationMs":3943,"status":0,"signal":null,"bundleHash":"9fc02ba035b15fd1bf78267b4ad85b110e8dd81bed14f4662e2000e7d31ef22e","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790922450020-67358/smoke-ios-run.json","receiptExit":1,"phase":"environment","error":"E_WITNESS_PLATFORM: native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)","environmentCondition":"missing-runtime"}
+{"starter":"plain","label":"opt-out","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922451161,"durationMs":2795,"status":0,"signal":null,"bundleHash":"03765d33c9355ab37c731fadf696b1b2bf7969397cb78df0f0f5c09e25e9f95f"}
+{"starter":"social","label":"startup-throw","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922453986,"durationMs":19178,"status":1,"signal":null,"bundleHash":"8e323a7a8f551b34513b520bed6084c0d8e4fd865d25beb7abf0e0cdebe1a058","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790922457699-67555/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"556e4c1fae7a990331bbd18cc1b303e3716f93d7e45b8e35c86e688fcd3f5105"}},"hit":true},"proofKind":"application-export","receiptExit":1,"error":"E_WITNESS_STEP: app step failed; check --segment and see receipts and device log","segments":{"offline":"not-run","prime":"failed","restart":"not-run"},"nativeDurationMs":15353,"loadedHash":"8e323a7a8f551b34513b520bed6084c0d8e4fd865d25beb7abf0e0cdebe1a058","metroResources":26,"warmReceiptBytes":58600}
+{"starter":"social","label":"FILE-url","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922473242,"durationMs":7471,"status":1,"signal":null,"bundleHash":"bb13ea515ffad99faa77aee2260d653ba894601ba18a7421387e5fa6653be3ed","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790922476929-68727/smoke-ios-run.json","receiptExit":1,"phase":"preparation","error":"E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790922476929-68727/preparation-stderr.log"}
+node:fs:561
+  return binding.open(
+                 ^
+
+Error: EEXIST: file already exists, open '/Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round2/social-File-url.log'
+    at Object.openSync (node:fs:561:18)
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round2/run.mjs:14:67 {
+  errno: -17,
+  code: 'EEXIST',
+  syscall: 'open',
+  path: '/Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round2/social-File-url.log'
+}
+
+Node.js v24.18.0
+{"starter":"social","label":"missing-runtime","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922480768,"durationMs":3841,"status":0,"signal":null,"bundleHash":"adb0943a2972036bad5acabb23d914dfbc7795a4b50d4d30f7078916dc0b6191","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790922484388-69211/smoke-ios-run.json","receiptExit":1,"phase":"environment","error":"E_WITNESS_PLATFORM: native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)","environmentCondition":"missing-runtime"}
+{"starter":"social","label":"opt-out","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790922484637,"durationMs":3681,"status":0,"signal":null,"bundleHash":"2f188ef998975131a9353611644f5419b6f4c64958335029be03c0bff9d40a0e"}

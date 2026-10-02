@@ -1,0 +1,19 @@
+{
+  "starter": "plain",
+  "label": "recovery-prime",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790919537696,
+  "durationMs": 4778,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "200c4d2ea136debee1f35c4466e5a52dd3d947cc1ec6657e1bab6c3ab961bfbf",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790919541323-64418/smoke-ios-run.json",
+  "receiptExit": 1,
+  "phase": "preparation",
+  "error": "E_WITNESS_PROCESS: another witness holds the --udid lease; leaving it untouched"
+}

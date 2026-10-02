@@ -1,0 +1,37 @@
+{
+  "starter": "plain",
+  "label": "shadow-second",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790918814988,
+  "durationMs": 105327,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "69782ee8f4983d348d4e627bcca2573edd35e2e76ae1e60065ccd8d232f567bc",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790918818014-34484/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "b5f663b11ff9b320887481ba5c1b530369747d54f312f18426675aa8c8b8fed5"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 102151,
+  "loadedHash": "69782ee8f4983d348d4e627bcca2573edd35e2e76ae1e60065ccd8d232f567bc",
+  "metroResources": [],
+  "nativeMarker": "shadow-second",
+  "cacheMiss": "native-cache miss: effective changed; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

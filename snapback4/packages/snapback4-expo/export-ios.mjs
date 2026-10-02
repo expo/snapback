@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // @ref LLP 3000.030#15 — exact export, explicit environment skips, bounded evidence.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -15,6 +14,7 @@ export function skipReason(platform, env) {
 const environmentConditions = new Set(['simulator-list', 'missing-runtime', 'missing-device-type', 'simulator-create', 'simulator-boot']);
 export function smokeResult(status, receipt) {
   if (status === 0) return { status: 0, message: 'native smoke passed' };
+  if (receipt?.environmentCondition === 'simulator-create' && /^E_WITNESS_TIMEOUT:/.test(receipt.error)) return { status: status || 1, message: 'native smoke failed' };
   if (receipt?.phase === 'environment' && environmentConditions.has(receipt.environmentCondition) &&
       /^(E_WITNESS_PLATFORM|E_WITNESS_SIMULATOR|E_WITNESS_TIMEOUT):/.test(receipt.error)) {
     return { status: 0, message: `native smoke skipped: ${receipt.error}` };
@@ -40,37 +40,12 @@ export function runChild(command, args, options = {}) {
     });
   });
 }
-const receipts = new Set(['smoke-ios-run.json', 'smoke-ios-receipts.jsonl', 'proof.json', 'build.json', 'installed.json', 'preparation-failure.json', 'native-base.json']);
-export function retainEvidence(root, completed) {
-  fs.writeFileSync(path.join(completed, 'finished.json'), JSON.stringify({ finishedAt: Date.now() }));
-  const runs = fs.readdirSync(root, { withFileTypes: true }).filter(d => d.isDirectory() && /^\d+-\d+$/.test(d.name))
-    .map(d => path.join(root, d.name)).filter(dir => {
-      if (fs.existsSync(path.join(dir, 'finished.json'))) return true;
-      // Pre-retention wrappers also wrote run.json only after success/failure.
-      try { const r = JSON.parse(fs.readFileSync(path.join(dir, 'smoke-ios-run.json'))); return Number.isInteger(r.exitStatus) && !!(r.endedAt || r.finishedAt); }
-      catch { return false; }
-    })
-    .sort((a, b) => Number(path.basename(b).split('-')[0]) - Number(path.basename(a).split('-')[0]));
-  for (const dir of runs.slice(5)) {
-    if (fs.existsSync(path.join(dir, 'retention.json'))) continue;
-    const removed = [], retained = [];
-    for (const name of fs.readdirSync(dir)) {
-      if (name === 'finished.json') continue;
-      const file = path.join(dir, name);
-      if (name.endsWith('.gz') && receipts.has(name.slice(0, -3)) && fs.lstatSync(file).isFile()) {
-        // Resume an interrupted prune without deleting already-kept receipts.
-        retained.push(name); continue;
-      }
-      if (receipts.has(name) && fs.lstatSync(file).isFile()) {
-        const temporary = file + `.gz.${process.pid}.tmp`;
-        fs.writeFileSync(temporary, gzipSync(fs.readFileSync(file)));
-        fs.renameSync(temporary, file + '.gz');
-        retained.push(name + '.gz');
-      } else removed.push(name);
-      fs.rmSync(file, { recursive: true, force: true });
-    }
-    fs.writeFileSync(path.join(dir, 'retention.json'), JSON.stringify({ retained, removed }, null, 2));
-  }
+// OS-locked pruning/recovery lives beside the driver's ownership records.
+// Failure here is maintenance work, never a change to a completed smoke result.
+export function retainEvidence(root, completed, binary = 'snapback4') {
+  const result = spawnSync(binary, ['witness', 'export-cleanup', root, ...(completed ? [completed] : [])], { encoding: 'utf8', timeout: 120_000 });
+  if (result.status !== 0) console.error(`native smoke evidence cleanup deferred: ${result.stderr || result.error?.message || result.status}`);
+  return result.status === 0;
 }
 export async function main() {
   const req = createRequire(path.resolve('package.json'));
@@ -82,7 +57,7 @@ export async function main() {
   const artifacts = path.join(root, `${Date.now()}-${process.pid}`);
   const receiptPath = path.join(artifacts, 'smoke-ios-run.json');
   fs.mkdirSync(artifacts, { recursive: true });
-  const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', 'dist', '--artifacts', artifacts]);
+  const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', 'dist', '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
   let receipt;
   try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
   const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);

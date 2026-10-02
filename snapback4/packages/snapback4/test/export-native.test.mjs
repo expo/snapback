@@ -6,11 +6,22 @@ import path from 'node:path';
 import { nativeFingerprint } from '../../../crates/snapback4/src/verbs/witness/export-cache.mjs';
 import { skipReason, smokeResult } from '../../snapback4-expo/export-ios.mjs';
 
+function mockExpo(root) {
+  const put = (file, text) => { const p = path.join(root, 'node_modules', file); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); };
+  put('expo/package.json', '{"name":"expo"}');
+  put('@expo/config-plugins/package.json', '{"name":"@expo/config-plugins","main":"index.js"}');
+  put('@expo/config-plugins/index.js', 'exports.compileModsAsync=async config=>config');
+  put('@expo/config-plugins/build/plugins/withMod.js', 'exports.withMod=exports.withBaseMod=config=>config');
+  put('@expo/prebuild-config/index.js', 'exports.getPrebuildConfigAsync=async root=>({exp:JSON.parse(require("fs").readFileSync(require("path").join(root,"app.json"))).expo})');
+}
+const binary = new URL('../../../target/debug/snapback4', import.meta.url).pathname;
+
 test('native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-export-key-'));
   try {
     const put = (p, data = 'first') => { fs.mkdirSync(path.dirname(path.join(root, p)), { recursive: true }); fs.writeFileSync(path.join(root, p), data); };
     put('package.json', JSON.stringify({ dependencies: { 'snapback4-expo': '0.4.10', snapback4: '0.4.10' } }));
+    mockExpo(root);
     put('package-lock.json'); put('app.json', JSON.stringify({ expo: { plugins: [] } })); put('src/App.tsx');
     put('node_modules/plugin/index.js'); put('node_modules/native/ios/module.swift');
     for (const name of ['snapback4', 'snapback4-expo']) put(`node_modules/${name}/package.json`, '{"version":"0.4.10"}');
@@ -148,48 +159,16 @@ test('negative header topology follows SDK root aliases', async () => {
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test('audited resolved plugin bytes exclude JS; same-name forks and nonregistry installs bind it', async () => {
-  const { auditedPlugins } = await import('../../../crates/snapback4/src/verbs/witness/plugin-audit.mjs');
-  const audit = JSON.parse(fs.readFileSync(new URL('../../../crates/snapback4/src/verbs/witness/plugin-audit.json', import.meta.url)));
-  const workspace = new URL('../../../', import.meta.url).pathname;
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-plugin-audit-')));
-  try {
-    for (const file of audit['expo-status-bar'][0].files) {
-      const dest = path.join(root, 'node_modules', file); fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.copyFileSync(path.join(workspace, 'node_modules', file), dest);
-    }
-    const version = audit['expo-status-bar'][0].version;
-    const manifest = { dependencies: { 'expo-status-bar': version } };
-    const put = (file, value) => fs.writeFileSync(path.join(root, file), typeof value === 'string' ? value : JSON.stringify(value));
-    put('package.json', manifest);
-    put('package-lock.json', { packages: { 'node_modules/expo-status-bar': { version, resolved: `https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-${version}.tgz` } } });
-    put('app.json', { expo: { plugins: ['expo-status-bar'] } });
-    fs.mkdirSync(path.join(root, 'src')); put('src/native-mode.js', 'first');
-    assert.equal(auditedPlugins(root, manifest, ['expo-status-bar']), true);
-    const key = () => nativeFingerprint(root, {}, 'adapter').hash;
-    const before = key(); put('src/native-mode.js', 'second'); assert.equal(key(), before);
-    const entry = 'node_modules/expo-status-bar/app.plugin.js', original = fs.readFileSync(path.join(root, entry));
-    put(entry, `module.exports = config => { config.ios ??= {}; config.ios.infoPlist ??= {}; config.ios.infoPlist.NXNativeMode = require('fs').readFileSync('src/native-mode.js','utf8'); return config; };`);
-    assert.equal(auditedPlugins(root, manifest, ['expo-status-bar']), false);
-    const fork = key(); put('src/native-mode.js', 'third'); assert.notEqual(key(), fork);
-    fs.writeFileSync(path.join(root, entry), original);
-    for (const spec of ['git+https://example.com/fork.git', 'file:../fork', 'npm:fork@57.0.1', 'latest', '99.0.0']) {
-      put('package.json', { dependencies: { 'expo-status-bar': spec } });
-      if (spec === '99.0.0') put('node_modules/expo-status-bar/package.json', { name: 'expo-status-bar', version: spec });
-      const a = key(); put('src/native-mode.js', spec); assert.notEqual(key(), a, spec);
-    }
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
-});
-
 test('config file references bind excluded source bytes and refuse external paths', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-config-file-'));
   try {
     fs.writeFileSync(path.join(root, 'package.json'), '{}');
+    mockExpo(root);
     fs.mkdirSync(path.join(root, 'src')); fs.writeFileSync(path.join(root, 'src/native.js'), 'first');
     const config = value => fs.writeFileSync(path.join(root, 'app.json'), JSON.stringify({ expo: { ios: { googleServicesFile: value } } }));
     config('src/native.js'); const before = nativeFingerprint(root, {}, '').hash;
     fs.writeFileSync(path.join(root, 'src/native.js'), 'second'); assert.notEqual(nativeFingerprint(root, {}, '').hash, before);
-    for (const value of ['/tmp/external.plist', '../external.plist', 'file:///tmp/external.plist', 'src/link/../native.js']) {
+    for (const value of ['/tmp/external.plist', '../external.plist', 'file:///tmp/external.plist', 'FILE:///tmp/external.plist', 'File:///tmp/external.plist', 'src/link/../native.js']) {
       config(value); assert.throws(() => nativeFingerprint(root, {}, ''), /out-of-tree config paths/);
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -204,7 +183,7 @@ test('retention keeps five completed runs, compresses older receipts and leaves 
       fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), '{"exitStatus":1}');
       fs.writeFileSync(path.join(dir, 'smoke-ios-screen.mp4'), 'video');
       if (i === 1) fs.writeFileSync(path.join(dir, 'proof.json.gz'), 'already archived before interruption');
-      if (i !== 2) retainEvidence(root, dir);
+      if (i !== 2) retainEvidence(root, dir, binary);
     }
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-run.json.gz')), true);
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-screen.mp4')), false);

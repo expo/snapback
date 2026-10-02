@@ -1,0 +1,39 @@
+{
+  "@expo/config": [
+    "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d"
+  ],
+  "@expo/config-plugins": [
+    "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7"
+  ],
+  "@expo/prebuild-config": [
+    "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321"
+  ],
+  "expo-dev-client": [
+    "41ada0086497c7690cdaa1522427d92f6fb96f7f2fb20e2a8498b701a1480bc4"
+  ],
+  "expo-dev-launcher": [
+    "ce29bcc9d1e3ab7f57fdf1be1902d6b7a9f31b84c6f6fcfb587be6445f0ad396"
+  ],
+  "expo-file-system": [
+    "6428cf39756ecc83b64d6088aea70dad388234373a177b75f07b6cbb06765be8"
+  ],
+  "expo-image-picker": [
+    "171f7a51358cd66b3beba8b7ff0e6dbaff124de8df6b27e27f64ab5a56b19b37"
+  ],
+  "expo-router": [
+    "dd20bc94425e9e4754ecb03772b629c9e24873e1d1f40e87fbe16743b91e4455"
+  ],
+  "expo-secure-store": [
+    "ed2d49d0d1a070be7bcc9ff02eba07141c67588af9d7781506b27ae6e68f2f63"
+  ],
+  "expo-sqlite": [
+    "84a007b39372a1df621ca86e46ac47086481955cd653f780ced5565086fddd06"
+  ],
+  "snapback4-expo": [
+    "5f83fdccf6f2dfe725536569286b563d6a52b3655710617562346efb365b280d"
+  ],
+  "_dependencySnapshots": [
+    "827720b0e1417f0fa04a2309a69237a0b9ae654c94b15da30383d61c8fe68c06",
+    "af886e79185d1f8603332cfd9973713f0fcfb94995a134ad16c2b97bf5d4453e"
+  ]
+}

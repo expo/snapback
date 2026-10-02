@@ -52,6 +52,9 @@ if a[0] == 'list':
         if mode.startswith('auto-create'):
             devices[0]['state'] = 'Shutdown'
             devices += [{'udid': 'unavailable', 'name': 'snapback4-smoke-unavailable', 'state': 'Booted', 'isAvailable': False}]
+        if mode == 'normal' and (root / 'bootstatus-waiting').exists():
+            record = json.loads((Path(os.environ['XDG_STATE_HOME']) / 'snapback4/witness/simulators' / (udid + '.json')).read_text())
+            devices[0]['name'] = record['name']
         devices += [{'udid': 'someone-else', 'name': 'mini-verify-iphone', 'state': 'Booted', 'isAvailable': True},
                     {'udid': 'near-prefix', 'name': 'other-snapback4-smoke-not-ours', 'state': 'Booted', 'isAvailable': True}]
         groups = {runtime: devices}
@@ -68,13 +71,27 @@ elif a[0] == 'create':
         (state / (udid + '.json')).write_text('collision after successful create')
     if mode == 'auto-create-interrupt':
         os.kill(os.getppid(), signal.SIGINT)
-    print(udid)
+    print(udid, flush=True)
+    if mode == 'auto-create-printed-fails': sys.exit(1)
+    if mode == 'auto-create-printed-timeout':
+        while True: signal.pause()
+    if mode == 'auto-create-group-interrupt':
+        # Model terminal Ctrl-C sent to the driver's whole group. create has
+        # its own group, and must survive to print its ownership identity.
+        os.killpg(os.getpgid(os.getppid()), signal.SIGINT)
+        time.sleep(0.15)
+        (root / 'create-survived-group-interrupt').write_text(udid)
 elif a[0] == 'delete':
     assert a[1] == udid
     if mode == 'auto-create-delete-fails': sys.exit(1)
     (root / 'deleted-simulator').write_text(udid)
 elif a[0] in ['boot', 'bootstatus']:
     assert a[1] == udid
+    if mode == 'auto-create-race' and a[0] == 'bootstatus':
+        (root / 'bootstatus-waiting').write_text(udid)
+        end = time.time() + 20
+        while not (root / 'release-bootstatus').exists() and time.time() < end: time.sleep(0.02)
+        sys.exit(1)
     if mode == 'auto-create-' + a[0] + '-fails':
         sys.exit(1)
 elif a[0] == 'getenv':

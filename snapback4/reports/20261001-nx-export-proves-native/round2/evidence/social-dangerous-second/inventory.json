@@ -1,0 +1,347 @@
+[
+  {
+    "name": "before-install-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "before-install-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "build-settings.log",
+    "sha256": "c081b25f78a51b2e048782886ed09e46965a466d4b015737ce4c813b10b836c2",
+    "bytes": 105302
+  },
+  {
+    "name": "build.json",
+    "sha256": "68899bdca165b9c38f313ff731106de7fd5e18c44cca9ff37ffd93ade24fccd9",
+    "bytes": 58422664
+  },
+  {
+    "name": "cache-miss.json",
+    "sha256": "e1b2030d13467d961eeabc8e7dd6591e21e042a61c6e3d22f861880d9c32b99b",
+    "bytes": 46
+  },
+  {
+    "name": "check-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "check-stdout.log",
+    "sha256": "f7a262c5bb14aeab2656f55e41b764085169a23ed0af6e0da2362894d23b182d",
+    "bytes": 2513
+  },
+  {
+    "name": "export-copy-base.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "export-developer.log",
+    "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+    "bytes": 93
+  },
+  {
+    "name": "export-pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "bytes": 7
+  },
+  {
+    "name": "export-ruby-version.log",
+    "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+    "bytes": 72
+  },
+  {
+    "name": "export-sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "bytes": 7
+  },
+  {
+    "name": "export-sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+    "bytes": 117
+  },
+  {
+    "name": "export-sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "bytes": 5
+  },
+  {
+    "name": "export-tool-ld.log",
+    "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+    "bytes": 90
+  },
+  {
+    "name": "export-tool-swift-frontend.log",
+    "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+    "bytes": 102
+  },
+  {
+    "name": "export-tool-swiftc.log",
+    "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+    "bytes": 94
+  },
+  {
+    "name": "export-xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "bytes": 33
+  },
+  {
+    "name": "fingerprint-after.log",
+    "sha256": "c0698f315834bafaada34ebae6d95581e0347ea81291edf028ddadba79366e3a",
+    "bytes": 25233
+  },
+  {
+    "name": "fingerprint-before.log",
+    "sha256": "c0698f315834bafaada34ebae6d95581e0347ea81291edf028ddadba79366e3a",
+    "bytes": 25233
+  },
+  {
+    "name": "finished.json",
+    "sha256": "09e6dac76ccca401af35ccfafae695eef7edec311f9879f8564e93855c8ae066",
+    "bytes": 28
+  },
+  {
+    "name": "hermes-version.log",
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "bytes": 232
+  },
+  {
+    "name": "installed.json",
+    "sha256": "fcbca5efe452518cd6adacfe93c6475b24954f4bccd232b1506a676de9b64f90",
+    "bytes": 25844
+  },
+  {
+    "name": "live.json",
+    "sha256": "b868a9359ece21b05a881c4e61d9f2d56a388103cd8f49b9c267baa1551857cc",
+    "bytes": 894
+  },
+  {
+    "name": "native-base.json",
+    "sha256": "cacbad620840287893012f96ba92f0449a975b55c65f9162b053ee5cd9bf2714",
+    "bytes": 64590264
+  },
+  {
+    "name": "native-closure.json",
+    "sha256": "e3dd65ed5905b796589d4145ef7248dd8b95d1acdbef1f74ec93449a6ba544d9",
+    "bytes": 5317439
+  },
+  {
+    "name": "native-mods.json",
+    "sha256": "50a96b58ec4eb975a13ddd70b17b52de6dadde6f3d06c1cf51e4050587ae77f0",
+    "bytes": 1098
+  },
+  {
+    "name": "plist-23.log",
+    "sha256": "0a1b60dcdb5148a8120aa26b7c3af069301be4ea01b4569932d61e9926540036",
+    "bytes": 22287
+  },
+  {
+    "name": "plist-25.log",
+    "sha256": "404ed117fdd6dec7b23e693cfd74d4c580aea780a711f2cc76b84fcf9e95b214",
+    "bytes": 2273363
+  },
+  {
+    "name": "plist-29.log",
+    "sha256": "19a9b9cd6868fc939714636c5cb6b36c22fe11f287ea972c3a0b4aec3e90ba9c",
+    "bytes": 2309
+  },
+  {
+    "name": "pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "bytes": 7
+  },
+  {
+    "name": "pods.log",
+    "sha256": "16c63ee1f8eefbae2028864fb436698c1db427a3ca2f0fb9387d6c46b228caf6",
+    "bytes": 16844
+  },
+  {
+    "name": "prebuild.log",
+    "sha256": "0a16cfcc425270741603d8ad89f3697550575b829c057ff089f2a33e03e4fe41",
+    "bytes": 204
+  },
+  {
+    "name": "preparation-phases.json",
+    "sha256": "0f723269d8e19126f22159a62adf7d30b57380a49fdc59535fb7ac01e84baf7b",
+    "bytes": 24058
+  },
+  {
+    "name": "preparation-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "preparation-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "preserve-app.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "proof.json",
+    "sha256": "3e2ce967e02621d4d463581e844eea1ce59a5293b4f6c92997ee20d9cc954611",
+    "bytes": 76806
+  },
+  {
+    "name": "public-config.log",
+    "sha256": "a26ca9547271c9a8bf5f50b85fb40fd7901a91715d9afce02a90f3b363c496c4",
+    "bytes": 463
+  },
+  {
+    "name": "resolved-native.json",
+    "sha256": "cdd0bb4a0ea3d3569a904d2573d44a92e8c3d2353d72f4dfd864390914dcec48",
+    "bytes": 15388990
+  },
+  {
+    "name": "runtime.log",
+    "sha256": "57748e15633f9b9874da1773b8224fdf7975ead698be7c537423ce4bbf814663",
+    "bytes": 20033
+  },
+  {
+    "name": "schemes.log",
+    "sha256": "0897d1bdd06d68cea5aee4bccf597278a6b8ed41d5e9ad49962163b229831904",
+    "bytes": 3360
+  },
+  {
+    "name": "sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "bytes": 7
+  },
+  {
+    "name": "sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+    "bytes": 117
+  },
+  {
+    "name": "sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "bytes": 5
+  },
+  {
+    "name": "smoke-ios-backend-stdout.log",
+    "sha256": "f8008f6b69d78a3ecf6386407b27052506b72ee49aebbdb840d0aaf79d7fc7f2",
+    "bytes": 46
+  },
+  {
+    "name": "smoke-ios-backend.log",
+    "sha256": "1aa270b08aa60ec2ae476a4cbee4011910e7f9f2af2d8c4353b226c2df6946ed",
+    "bytes": 2020
+  },
+  {
+    "name": "smoke-ios-device.log",
+    "sha256": "9f149d4752c6593d545181e8c117ac82b32f1e1115a26a6998d45d730b217361",
+    "bytes": 9578150
+  },
+  {
+    "name": "smoke-ios-launch.log",
+    "sha256": "5550cbbfb306a45340d908c29857cb85fa7bf966c05745c07df23af95d3936f1",
+    "bytes": 84
+  },
+  {
+    "name": "smoke-ios-log-stderr.log",
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "bytes": 44
+  },
+  {
+    "name": "smoke-ios-receipts.jsonl",
+    "sha256": "63ded42b575482886315597d4561123f56ab394fb6a112519a02aaf0f855f49c",
+    "bytes": 6866
+  },
+  {
+    "name": "smoke-ios-run.json",
+    "sha256": "288f1ea54db1adf0bb24ebac666cb78060b31ce8062cf7fa9935a8424b6f6b09",
+    "bytes": 29873
+  },
+  {
+    "name": "smoke-ios-video.log",
+    "sha256": "37043c49bbb2da891689c3f5ef3922d66e8124b4fe7e6ae73d3d2542c5d427e9",
+    "bytes": 131
+  },
+  {
+    "name": "snapshot.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "source-inputs.json",
+    "sha256": "55a027618f7d288727148208c600b27b92b04f9213ca99d103d7651ffebae0db",
+    "bytes": 9152
+  },
+  {
+    "name": "target-settings-0.log",
+    "sha256": "358fb6da415706776e3eae26bf8452a3ce114ac5dfe37f08265a3b96cd1dd7b1",
+    "bytes": 209467
+  },
+  {
+    "name": "target-settings-1.log",
+    "sha256": "03e9e75c5e192d26e9e6e2d1095f4f7dc08870cbc06394c2c39003c642c3805f",
+    "bytes": 6030348
+  },
+  {
+    "name": "verify-collection-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-collection-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-install-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-install-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-offline-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-offline-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-prime-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-prime-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-restart-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-restart-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "xcode-build.log",
+    "sha256": "ae5eede5e1a982ff40d3a93db208e5e9fa84d329755e0129a4ca60fc34090ece",
+    "bytes": 2803194
+  },
+  {
+    "name": "xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "bytes": 33
+  }
+]

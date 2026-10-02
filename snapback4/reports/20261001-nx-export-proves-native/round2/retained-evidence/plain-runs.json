@@ -1,0 +1,2486 @@
+[
+  {
+    "run": "1790918404285-24874",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790918814074
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42177957,
+        "sha256": "9dd233e34d270d7c94a1648e82aebc929aa9afdb1515bdf792f20379d895928a",
+        "archive": "evidence/plain-shadow-first/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "5004a941d81237250e4b03a5c5724845f959f95ac10490a9e34a71becf75611a",
+        "archive": "evidence/plain-shadow-first/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "bf38ed8ae3b711317c24b2c6915f392f256b723d36ffb5039cc13ce07519e99e",
+        "archive": "evidence/plain-shadow-first/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 960,
+        "sha256": "72d748a25cf14b2ca8cda8031b4fbc50f29a1b0efde4d3a675bcd2f47cf88426",
+        "archive": "evidence/plain-shadow-first/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47988293,
+        "sha256": "11facfbb8e94e391e10bb32c1565e08a485ae10777cc7fb450d355fc5e7b628b",
+        "archive": "evidence/plain-shadow-first/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55047,
+        "sha256": "1311ef091e9cb969dc3f9dce066102dbb1b4eca1fb8963af3a78a69da51ebf1c",
+        "archive": "evidence/plain-shadow-first/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1875,
+        "sha256": "cc2997176d425e94a1e998d8fe7d88077b7bb68f2fe5c7b210c444dad2b1eefb",
+        "archive": "retained-evidence/plain/1790918404285-24874/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "3a1b9de2a93819e5ca288c86370c764e7d3bcc32a957c289207cc5614706ab3d",
+        "archive": "evidence/plain-shadow-first/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17544,
+        "sha256": "3adc6e5ba26c6817fe73fd0d476729664dcc819518d3665d058893d18c9efbaa",
+        "archive": "evidence/plain-shadow-first/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790918818014-34484",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790918920301
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42179460,
+        "sha256": "897f1edafde96e62742f1f7a81ce6fdc8b9a645807933fd12709223c04b71cae",
+        "archive": "evidence/plain-shadow-second/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "ae0a1424bfa36fb032c8c05a8e38ee6d84b5019ba2ee247c16b05e55c54797a8",
+        "archive": "evidence/plain-shadow-second/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "ca17e7a5646a538d9f9639960df45c8e3a17cfa660ec79fdf04237aa234705ae",
+        "archive": "evidence/plain-shadow-second/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 894,
+        "sha256": "abc7d839a759328eafcf78fa512da4a18964591b46b65eaa0cb37bfc9ebc0b0e",
+        "archive": "evidence/plain-shadow-second/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47989797,
+        "sha256": "9f31d14076bdb8c49ea3939d0220f710f60e29161cec034e5524e633eabec10f",
+        "archive": "evidence/plain-shadow-second/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55047,
+        "sha256": "e0f60aae7b5b9ddb70e155f42eaf69c853be0d532bea291105539374f1b54cf9",
+        "archive": "evidence/plain-shadow-second/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1823,
+        "sha256": "f5154224212cf21b5589bc05a04d07596a24998014153f49d50b4197bb85df5e",
+        "archive": "retained-evidence/plain/1790918818014-34484/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "400d78207e749a0a7b17557ffc26c10062914075037274611261d85df92f8520",
+        "archive": "evidence/plain-shadow-second/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17524,
+        "sha256": "9e78c0dc6da7fb34dd9c9b2c5bdb86a34b009d4051dfd1b76e542dfc917a87cd",
+        "archive": "evidence/plain-shadow-second/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790918924156-39360",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919033301
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42177355,
+        "sha256": "0612c7aec007eca8bad25f8acfb2ccd0bfe3774b17cc6f8d18b7b2d1a12fc6b0",
+        "archive": "evidence/plain-auto-first/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "63bb623b6f6ce2180278450a4b3f754653a7517398b0e01b9c2c922e7ddb5782",
+        "archive": "evidence/plain-auto-first/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "96cecfe2be16cfe7759fc16ba84adafa51fb6e06bfe8f9c5b95ed20aa14385bd",
+        "archive": "evidence/plain-auto-first/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "6eecf34825d78417ef45147ea0e0272bd4a7964f914128a5492ac90aaa21599d",
+        "archive": "evidence/plain-auto-first/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47988157,
+        "sha256": "fc5bcf71060edd1b17981ecf06e5028df501f0d3a26f27818bb805edb90cbf26",
+        "archive": "evidence/plain-auto-first/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55043,
+        "sha256": "7d88c89a8508ef9711fb9719f6fa16439d12cc523735a9a4892adea462a6108d",
+        "archive": "evidence/plain-auto-first/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1823,
+        "sha256": "f5154224212cf21b5589bc05a04d07596a24998014153f49d50b4197bb85df5e",
+        "archive": "retained-evidence/plain/1790918818014-34484/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "3930aa1774bd1895b2fb3caa05f449c923d5f1327687419a94f3ac7a1481bd37",
+        "archive": "evidence/plain-auto-first/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17524,
+        "sha256": "6dc0dfb14c7f0dba6022079b0dac3a51087522893f091cf820ad3b1fbc83026c",
+        "archive": "evidence/plain-auto-first/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919037143-43179",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919152371
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42177362,
+        "sha256": "66199133fb2b0f6531c0f4e0faee53a2537d930f9920d47dfd9fcd7133da3b60",
+        "archive": "evidence/plain-auto-second/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "814d7f7f1fe2476a1bb6ee916c03fa4ba8f247e92cfe159c5f04d601a1b2ceb7",
+        "archive": "evidence/plain-auto-second/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "28c8207dbf14a1858f60f3a3374b56a9fffbdefc51d3cc25f6bd4d36ff141637",
+        "archive": "evidence/plain-auto-second/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "a3dad5f9cd080c5ea394edd0ca5391e1a3397d5362cf2278b217bdf9ed2cfed2",
+        "archive": "evidence/plain-auto-second/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47988163,
+        "sha256": "963e9ea28650e535d794fdf92403d50b11af0da2df503d71f05b9a03fe9e93c8",
+        "archive": "evidence/plain-auto-second/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55046,
+        "sha256": "db0549f3b83de944336cb2966272e34763385c60c8cf30b87c984f1dee5ce81c",
+        "archive": "evidence/plain-auto-second/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1823,
+        "sha256": "f5154224212cf21b5589bc05a04d07596a24998014153f49d50b4197bb85df5e",
+        "archive": "retained-evidence/plain/1790918818014-34484/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "960eafcb09dc7b508d3b6d916b73736b1786342c8bd4d42dc19f9eb0d5fd1cf9",
+        "archive": "evidence/plain-auto-second/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17524,
+        "sha256": "b6d668d6a1a9b4791754ba4c02e33a1b66375c5b6aefaba6f8b82dfb73994044",
+        "archive": "evidence/plain-auto-second/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919156362-48703",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919259657
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42182968,
+        "sha256": "f44f2aba4014c8ace5df15c57d2b932f463f6408dfe8ba46845f7c76a9293729",
+        "archive": "evidence/plain-dangerous-first/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "da0cf6b61d834a4880e8724f6f4dd5e9e672eda4f106be7feaf067f17f35d49e",
+        "archive": "evidence/plain-dangerous-first/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "867edd860d04d984fee3c5749e984eb5879211ce798f246173a9f1b5f72bd6b7",
+        "archive": "evidence/plain-dangerous-first/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "ec9721d17bdfbffe50e191fbb37b623524d266786a3c2f6b0deaebd97071ed76",
+        "archive": "evidence/plain-dangerous-first/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47993770,
+        "sha256": "278067a65ad7b85d3caa08061f0d1cba46b6f972f5788f7e64438719d8b75205",
+        "archive": "evidence/plain-dangerous-first/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55008,
+        "sha256": "7da8f140a4234c4016e862b7c4605a7436e7f6d4a1d545014c57e6d7a9ca6e21",
+        "archive": "evidence/plain-dangerous-first/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1823,
+        "sha256": "f5154224212cf21b5589bc05a04d07596a24998014153f49d50b4197bb85df5e",
+        "archive": "retained-evidence/plain/1790918818014-34484/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "4f94e1a03ca4ea063a715a74c89dbc2f2bacfd8e21e857282a004053a33ce58a",
+        "archive": "evidence/plain-dangerous-first/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17524,
+        "sha256": "6ef2de1f32f6e3ee73e08059108e028a16e65957da12cea7569e04e234869591",
+        "archive": "evidence/plain-dangerous-first/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919263664-53009",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919372019
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42182967,
+        "sha256": "579f2dfe789b985332935554cd96fe5b94142d37b7ad616e05755bb7c95a00e5",
+        "archive": "evidence/plain-dangerous-second/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "0e5bcdae53ef32829eb02fa8fad144addfd9c3ea598ae726ff076833d985d39e",
+        "archive": "evidence/plain-dangerous-second/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "0eba65c32b1613c1317ea08c74e036899d61336ebf1d6b4979ae1e947097726e",
+        "archive": "evidence/plain-dangerous-second/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "e12faff90065922ee7efdffef6224a1a87da936681b4dd429b064f0152f3cab2",
+        "archive": "evidence/plain-dangerous-second/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47993769,
+        "sha256": "e5797cbc83cc1036f427219b3fa9cfb9bda81f3edea14188e58df29385053b3e",
+        "archive": "evidence/plain-dangerous-second/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55008,
+        "sha256": "30026976516ee221f39bcb35a2e1031e48bc5995ec1552c878ff5c2c5fa490b5",
+        "archive": "evidence/plain-dangerous-second/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1823,
+        "sha256": "f5154224212cf21b5589bc05a04d07596a24998014153f49d50b4197bb85df5e",
+        "archive": "retained-evidence/plain/1790918818014-34484/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "9716246945d87abbf2640bf8c22243a2635ae844d94aa2cd45bccd1603dbf8fc",
+        "archive": "evidence/plain-dangerous-second/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17524,
+        "sha256": "16c79298275f1b90e5f239494be330f47504ccaaffbd2804ad5af97053acc43e",
+        "archive": "evidence/plain-dangerous-second/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919541323-64418",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919541814
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "2ded3f1c1d71065768ed9b1fde9d7a30cb07926792fef3893c1e3a363f889e0e",
+        "archive": "retained-evidence/plain/1790919541323-64418/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 143,
+        "sha256": "5161e2dc3651340ec905514c0935f7dddf341be87b753f144511caab2c4ac7b1",
+        "archive": "retained-evidence/plain/1790919541323-64418/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 86,
+        "sha256": "e56b0d0b24d5b5b64d5d02778781265a6e0858048b8d398e0f65747c7060234c",
+        "archive": "retained-evidence/plain/1790919541323-64418/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 333,
+        "sha256": "7e26646d8e1374aaa0077f47458ac3ee07da7b47026d504f017ec3d679d4229b",
+        "archive": "retained-evidence/plain/1790919541323-64418/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919583963-66735",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919806915
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42183174,
+        "sha256": "a26c7b8d83631b1a27ca6f2e76035f9c514350b567fc888ad36466be72275974",
+        "archive": "evidence/plain-recovery-prime/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "3ad9edd6ae40cc9b1c7633005736ffe6c2eb6999a02204e6e325cccf119e3aa2",
+        "archive": "evidence/plain-recovery-prime/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "e3e48ffcc1a94a98cec6b83e7f1a440a68e65e426e01390439824d7b97edc134",
+        "archive": "evidence/plain-recovery-prime/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 975,
+        "sha256": "9ed93d63e6528e9f04da90590b76851651f38db9f7c9a13d727803a77915df19",
+        "archive": "evidence/plain-recovery-prime/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47998276,
+        "sha256": "895e7a4b8dc0d2b49fc00807ab90d0f59f1fe7cbbdba5146afd26f0c3b11969a",
+        "archive": "evidence/plain-recovery-prime/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55009,
+        "sha256": "434c44e58524a13d837be7b74dc87e562d4c251819ea3c81fefe0d71c8a9c7db",
+        "archive": "evidence/plain-recovery-prime/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1875,
+        "sha256": "cc2997176d425e94a1e998d8fe7d88077b7bb68f2fe5c7b210c444dad2b1eefb",
+        "archive": "retained-evidence/plain/1790918404285-24874/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "64dfe321c923175add24e8b883586ed490a611880e90ce6d3abdaef1926ac360",
+        "archive": "evidence/plain-recovery-prime/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17565,
+        "sha256": "1c2bf049906d86e7a25a5f4640532c0be3c14c034521f19a56dff286effec7ef",
+        "archive": "evidence/plain-recovery-prime/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919811759-78536",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790919832961,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37132,
+        "sha256": "d2b4649bda987d7d422bc93c5f6df5b9d8a73d9bc4da3bc9b4b542842e4f6f28",
+        "archive": "retained-evidence/plain/1790919811759-78536/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "e21bedb3b5a691321003cbc8bfccabe1dc5c6738110f9f26e7c908b8f06b7a02",
+        "archive": "retained-evidence/plain/1790919811759-78536/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "eaa8df9b846593f5d292980fc992cea2c0e2584929ce26beb13555172503e1d9",
+        "archive": "retained-evidence/plain/1790919811759-78536/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 913,
+        "sha256": "a2fbad008d1debbfc0464e86f139f2567be60bdbe7ebcb4c7510d4b0639c6342",
+        "archive": "retained-evidence/plain/1790919811759-78536/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55002,
+        "sha256": "e2e88b325427cf9e9b6ae628fc73cf5df99f5b842bfa4e6cad0095237c83ef55",
+        "archive": "retained-evidence/plain/1790919811759-78536/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1216,
+        "sha256": "62e51999986ce5b8dfcde93cf3ec04c739cf9436a7fa176a4a9a4956dbbe7ec5",
+        "archive": "retained-evidence/plain/1790919811759-78536/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 4145,
+        "sha256": "3cb34ff47663f21b50e94be97d39f946b0df5c46528c83debc1873fb60cac791",
+        "archive": "retained-evidence/plain/1790919811759-78536/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 14604,
+        "sha256": "0a3f17391791ae1eb4602df88c4472fa406fdfe002942c3849f311e043bd09f2",
+        "archive": "retained-evidence/plain/1790919811759-78536/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919827526-80380",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919891301
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37136,
+        "sha256": "174107419564c489d2e588664a14b838be9c9c3ef69ef4fde6a11c883c8aecf0",
+        "archive": "evidence/plain-recover-wrapper/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "21a662bea586bd6e21156f50e32eb3180e5a445dfe361b5e7c8c2fa533080fe6",
+        "archive": "evidence/plain-recover-wrapper/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "38ec8cb2187e174faa72635f8cb5253647c9e9e1b58c140f12ccaeceb26d2e36",
+        "archive": "evidence/plain-recover-wrapper/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 978,
+        "sha256": "2c88f60d8e1f6e4d677e5e87e7fb510e3b3dc7a01f024776dc48775eb2f3c6f2",
+        "archive": "evidence/plain-recover-wrapper/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55004,
+        "sha256": "860a39fea69622c6ab19aa0773343c9a7c2229b02facf1ee2f2a530ebe4050ca",
+        "archive": "evidence/plain-recover-wrapper/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1372,
+        "sha256": "bc25e55d5daf5eee80d024d97f2721d121adeff8c3e172f888546b35b3dd6bad",
+        "archive": "retained-evidence/plain/1790919827526-80380/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "35904e775a92b7e3df1a00035e738fd4f242a300572eb2907d546477cab0d33c",
+        "archive": "evidence/plain-recover-wrapper/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17563,
+        "sha256": "61efe25aa00ba1118ad2eb666dbe0b29a61f571b849a7ee7f04a8cfb92ea200b",
+        "archive": "evidence/plain-recover-wrapper/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919896950-84706",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790919923632,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37136,
+        "sha256": "667a932ec71e3b5e9b5fb1a8d5a72baee6a2f6a59e6665a70a59669d4e3f364c",
+        "archive": "retained-evidence/plain/1790919896950-84706/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "5f474c7734f58426c7192af45711fd19c379caa938870a6219b525b5f6e5da95",
+        "archive": "retained-evidence/plain/1790919896950-84706/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "486f9152866f3758de2a16a61a0e964de31c58b45bf673b404cc7adb20206bb9",
+        "archive": "retained-evidence/plain/1790919896950-84706/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 913,
+        "sha256": "8ac0178976c1480c644e89ebe8496d8045087f4eeb24986c4a49dc1fd16323f3",
+        "archive": "retained-evidence/plain/1790919896950-84706/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55004,
+        "sha256": "48b26aa95d9ab20cbd29f9c955eb2a88f27f3716c79443a6747cb5b2e3261c57",
+        "archive": "retained-evidence/plain/1790919896950-84706/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1022,
+        "sha256": "4fdc0bce4baade9bf362ecd3e9ddb28267be78dfd9d90be3375edee6328f679c",
+        "archive": "retained-evidence/plain/1790919896950-84706/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790919919267-86088",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790919982031
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37138,
+        "sha256": "15b52ac96dc90c4d07ad37f183dd3f26cb65af4a52c09fcdd03af086768f719f",
+        "archive": "evidence/plain-recover-driver/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "7d808f70466ac5024509f9036066099c7c4753e9892ff24e36d58085a5cabb01",
+        "archive": "evidence/plain-recover-driver/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "109429ebaaf7e88a830941e15bc15b2b769a2bd0ced796f697f9167e38b1d88b",
+        "archive": "evidence/plain-recover-driver/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 978,
+        "sha256": "c6e61db2bbbd35366ba6dfc4228ac6741df885632a364f8fcd69d015228d265f",
+        "archive": "evidence/plain-recover-driver/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55004,
+        "sha256": "82c3e7366968538d1892584a1e862fa2befcfa5408bd75ce62a2a350d1e7f04d",
+        "archive": "evidence/plain-recover-driver/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1372,
+        "sha256": "bc25e55d5daf5eee80d024d97f2721d121adeff8c3e172f888546b35b3dd6bad",
+        "archive": "retained-evidence/plain/1790919827526-80380/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "7af7915ae0aa17f57a4eb83d5225c77f63af3de06d7765453aec63016c1534cf",
+        "archive": "evidence/plain-recover-driver/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17563,
+        "sha256": "02c5aeca6a6d0fbd5fea146a9b16d84dcdf00de2689ae2e4dd4b4efeb162fcf1",
+        "archive": "evidence/plain-recover-driver/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790921655262-33281",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790921910292
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42177067,
+        "sha256": "18463c3038ff6f6b052859cc07cd0cb0aeceb363e3cd5e8e4235d35304c9d6f5",
+        "archive": "evidence/plain-cold/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "fb6d227bc4238e659d8ac27f7e28fd1ebb3d574ce4bfba11b65a370984d1ea13",
+        "archive": "evidence/plain-cold/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "14c6ec2b551e24715587fb82c1cd253bf78adbac8cf2469a14eea01b06688c6c",
+        "archive": "evidence/plain-cold/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "71dc21deb4c5bb20e5facef83f9a3eb7cd1c9fa9da92c21ed6b905b4edc149e5",
+        "archive": "evidence/plain-cold/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47987869,
+        "sha256": "de4953b1a9c5f8530f9dbdd1aaf828252d84534133c0dc14b3ba8830dd8c8c04",
+        "archive": "evidence/plain-cold/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55009,
+        "sha256": "af2d580e4275d7a33f3f49f728755e923e2243b5a2c0b44ac111258bb7e33172",
+        "archive": "evidence/plain-cold/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1823,
+        "sha256": "f5154224212cf21b5589bc05a04d07596a24998014153f49d50b4197bb85df5e",
+        "archive": "retained-evidence/plain/1790918818014-34484/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6166,
+        "sha256": "786dad9d0447eebcbcb62fe2b26206cacb6ea36cf44ac834dae3855e6145ce9a",
+        "archive": "evidence/plain-cold/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17528,
+        "sha256": "6509d23aaa7dc4d3826f46afb1011fbfdf1bcdd22f02695f1a5df0fdd851b311",
+        "archive": "evidence/plain-cold/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790921914421-39666",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790921929915
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37127,
+        "sha256": "b24e0dbc189341dd1304341ecf10cf4fe1d921ccbd35dbf9815c5b9b2d8d2de8",
+        "archive": "evidence/plain-warm1/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "020d40b3c24393376b821884a8148dbc579f9e4f860a582aaf1c924a46818c55",
+        "archive": "evidence/plain-warm1/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "6d6637c5efae38a835a0dd3610eddf44fd83d85b7d428f3db935d22b1d3dffce",
+        "archive": "evidence/plain-warm1/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "6f1bf55dfc7104828a19fe923c42a7544b0dda3a132641997277152012d1c8a6",
+        "archive": "evidence/plain-warm1/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55002,
+        "sha256": "f4318fa3f887c754e6b942dcceee427c8fa4969a38af3df78175bbaeb38232f1",
+        "archive": "evidence/plain-warm1/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1320,
+        "sha256": "fb04677d8881095934c483433330be165a9b851bfbceed4d41e1eccd1a2e4a1d",
+        "archive": "retained-evidence/plain/1790921914421-39666/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6168,
+        "sha256": "5f996bfbdc719244fc0942aecd40ef859746bd28ff601ae1f6a6a1f140aae732",
+        "archive": "evidence/plain-warm1/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17530,
+        "sha256": "b901a813841c67e7eceb4c422b8f1b239da56a6e358ecf343d5264702cd2ad46",
+        "archive": "evidence/plain-warm1/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790921932877-41291",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790921948439
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37127,
+        "sha256": "36d274f7929a36efd4e09c9bef0193495c5dd43e4ec1934d94fb332cd46440c1",
+        "archive": "evidence/plain-warm2/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "2ea77f39da73d66d02eb31f2220147977863ca8c39eff8375e4891eebd7967b5",
+        "archive": "evidence/plain-warm2/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "d33c54314717689f6080cf6c71ea41561ead799ef498dac375bf7a10476c778c",
+        "archive": "evidence/plain-warm2/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 894,
+        "sha256": "2f020acd8c44a63dd00d15ed5941e560f499a88a4c24aaa8bd96fab1d6bdda20",
+        "archive": "evidence/plain-warm2/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55002,
+        "sha256": "3c94aae12c9dfe354980727913ac9946e98e4fd9eea9ca48b67e01ad2db8574c",
+        "archive": "evidence/plain-warm2/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1320,
+        "sha256": "fb04677d8881095934c483433330be165a9b851bfbceed4d41e1eccd1a2e4a1d",
+        "archive": "retained-evidence/plain/1790921914421-39666/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6168,
+        "sha256": "89a5fa546f75ad1a33c98871937955d463b84b031d501e14f5eacfe57e3f807d",
+        "archive": "evidence/plain-warm2/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17530,
+        "sha256": "d8d99b27477aeedf5e52d6cf32540cb22975c367df6eb0e29fd9b8f9d946df7f",
+        "archive": "evidence/plain-warm2/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790921951443-42971",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790921966728
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37126,
+        "sha256": "ec3bf70fea4c8b84109c803c62abbd9c09dd4e3b5d5205b5214f176b383b595e",
+        "archive": "evidence/plain-warm3/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "f16b8a5d5e5fc20462ea8fe5824a18c6f3979671164d8144a43d3f552f24cd4e",
+        "archive": "evidence/plain-warm3/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "f27eeb209f14ba00d4ae42723247f3dead07108c4bd8fac289517d9ed2f322b4",
+        "archive": "evidence/plain-warm3/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 895,
+        "sha256": "3ecf694d11630b46c8d2157d8fb6a15d364948aafa1d9c4fbf7d662072de7338",
+        "archive": "evidence/plain-warm3/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55002,
+        "sha256": "0917d476a6daaa155b292a1f6ba5c02f0f2892ab7bd6112f4f864e8b83ff31ca",
+        "archive": "evidence/plain-warm3/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1320,
+        "sha256": "fb04677d8881095934c483433330be165a9b851bfbceed4d41e1eccd1a2e4a1d",
+        "archive": "retained-evidence/plain/1790921914421-39666/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6168,
+        "sha256": "ee67dafc55acf5918b61bdf72d632df16408d7506c80bdf23b187d333136b7ec",
+        "archive": "evidence/plain-warm3/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17530,
+        "sha256": "5050f04e6f5b9785e6da2a2e7fea93ae3294c6b2f8dd6df334831823c468ff12",
+        "archive": "evidence/plain-warm3/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790921969762-44531",
+    "compressed": true,
+    "finished": {
+      "finishedAt": 1790921984560
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37131,
+        "sha256": "69447c2ffbb898e40a20ef86058635c32a81509a354154f35e18d272e6a1d7cc",
+        "archive": "evidence/plain-warm4/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "b7d7ef4d5b6f197e1ce6f74ac0cffd76fb4f45aeb6284829bc69f820ed4100c9",
+        "archive": "evidence/plain-warm4/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "b60f6e22a2e76e5225481e879a1a259efe601a168f0bc64fc58c2a4a9e21182f",
+        "archive": "evidence/plain-warm4/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 894,
+        "sha256": "ce35c0645e7bfcc3ef471eb081913261b72049437987022b46a051a03df3e4c4",
+        "archive": "evidence/plain-warm4/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55002,
+        "sha256": "e6560e5525619581072a7f580cd96e07d454510d8931cc6c5e0e4ab33d084103",
+        "archive": "evidence/plain-warm4/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1320,
+        "sha256": "fb04677d8881095934c483433330be165a9b851bfbceed4d41e1eccd1a2e4a1d",
+        "archive": "retained-evidence/plain/1790921914421-39666/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6168,
+        "sha256": "3561389813c8e8f025db602a926b1950cdb6685d135a2a99c212e1a9015e1d67",
+        "archive": "evidence/plain-warm4/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17530,
+        "sha256": "adfb8b2e684cc642b144e5f401c1848251ad4cdc7c3b57eb41385fe6991dbcdd",
+        "archive": "evidence/plain-warm4/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790921987599-46123",
+    "compressed": false,
+    "finished": {
+      "finishedAt": 1790922002736
+    },
+    "files": [
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37126,
+        "sha256": "4770ace7418829c8cc0df516472dd7222097e7d0a69d078d7280dfeb5cc39467",
+        "archive": "evidence/plain-warm5/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "192fe424bafa955b11780633ab0241c78f7cff9d439d6d6730239039e5e2e8f7",
+        "archive": "evidence/plain-warm4/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 4927,
+        "sha256": "e93ef6140ce168a0896b258fcf02a9879e22727c09aad059d60d92dc475529f2",
+        "archive": "retained-evidence/plain/1790921987599-46123/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17271,
+        "sha256": "bdf8531c7642506c07fade0b059df40e89528d3d25673cce18a2cfe8dacfe159",
+        "archive": "retained-evidence/plain/1790921987599-46123/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-FILE-url/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-FILE-url/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-FILE-url/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-FILE-url/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-FILE-url/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-FILE-url/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-FILE-url/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-FILE-url/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-FILE-url/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-FILE-url/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "83fc1146319bf689eabf5b0acfcc2d492f9b3b09653819ecf3d89af0d3f0b1a7",
+        "archive": "evidence/plain-warm5/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790921987599-46123/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "6fe4dbd4be2f206df868099bb87f0bb18f10b89d7541d791bc3bc19a903f252c",
+        "archive": "evidence/plain-warm5/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 895,
+        "sha256": "56e389d52424f1592877d9e250d30be246f30b69598dfba237ce4bb035d7768c",
+        "archive": "evidence/plain-warm5/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1274,
+        "sha256": "d58c35451d059be40afc09615a478762023cc4b3b750c92ab6b6d4b4a192db7c",
+        "archive": "evidence/plain-FILE-url/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790921987599-46123/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "f158a79a2b86d61db9e29d672dc558c7cac2133b67052d6221832a3916d3decc",
+        "archive": "evidence/plain-warm5/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21615,
+        "sha256": "9070e6a12741d74a735958119de7fc2dc21221ec042ad1986b06b76a56d5ab0b",
+        "archive": "retained-evidence/plain/1790921987599-46123/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55002,
+        "sha256": "6f545c6db5e95f56f332276c0d0c2a2086cb02ecafee87428fd83270522ee6e2",
+        "archive": "evidence/plain-warm5/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 46,
+        "sha256": "46a685d1d4e1482fe076807e5e0fa562f670cd7e6bd1e42f8f4b1892127c418f",
+        "archive": "evidence/plain-warm5/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 1770,
+        "sha256": "cb2d2a5839c83200e0cab2ac2e457f4034fac051ac56b48adb1850a1b17dee3a",
+        "archive": "evidence/plain-warm5/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 8069345,
+        "sha256": "9d879f130e5b8991aeb8b709e6399ca6135372524495f2c3379849474e455dc6",
+        "archive": "evidence/plain-warm5/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 78,
+        "sha256": "245d4a405b4db6d9a4e5b8f0a2beeaae0e13a4a39cc28a191005adc27d8fafac",
+        "archive": "evidence/plain-warm5/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/social-recover-wrapper/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-offline.png",
+        "bytes": 48950,
+        "sha256": "99ff1f94c8a57afb800cd7c9d6594a86d7478a105c26a2abc9b8866bb542c66d",
+        "archive": "retained-evidence/plain/1790921987599-46123/smoke-ios-offline.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 48693,
+        "sha256": "cb26a97a7a91adb45590e84b988478bfe49083e52747f19ffddb3be4edcc0c12",
+        "archive": "retained-evidence/plain/1790921987599-46123/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 6168,
+        "sha256": "4fc1f17289bf85b7caf04e4fdae07af1ba1853a3ba71bfb5648569ac6777b089",
+        "archive": "evidence/plain-warm5/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-restart.png",
+        "bytes": 48920,
+        "sha256": "ad40d1905b4d38c7b03d7b670e0973e4c8b5b82b7fa38bfa3cc3744e3e5ab343",
+        "archive": "retained-evidence/plain/1790921987599-46123/smoke-ios-restart.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 17530,
+        "sha256": "c7154a29ce3b0282aa027760eca02896712f66e3b73fb09315ed3957e65dca59",
+        "archive": "evidence/plain-warm5/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 4066425,
+        "sha256": "7c61cd4e6d69d036077fc57422eabca7199806a5d9d08ad351955eaf5b22160b",
+        "archive": "retained-evidence/plain/1790921987599-46123/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "37043c49bbb2da891689c3f5ef3922d66e8124b4fe7e6ae73d3d2542c5d427e9",
+        "archive": "evidence/social-startup-throw/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790921987599-46123/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790922429602-65796",
+    "compressed": false,
+    "finished": {
+      "finishedAt": 1790922441300
+    },
+    "files": [
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37126,
+        "sha256": "5ee77e4a82c9f15cd2fc398852d62d69e6046f3975ef67d1bb76cd809c63f09f",
+        "archive": "evidence/plain-startup-throw/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "41c8de746a4100d6e6896509f00374d41d94c2f69b77e11e4287b60172aa87aa",
+        "archive": "evidence/plain-startup-throw/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 4927,
+        "sha256": "e93ef6140ce168a0896b258fcf02a9879e22727c09aad059d60d92dc475529f2",
+        "archive": "retained-evidence/plain/1790921987599-46123/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17271,
+        "sha256": "bdf8531c7642506c07fade0b059df40e89528d3d25673cce18a2cfe8dacfe159",
+        "archive": "retained-evidence/plain/1790921987599-46123/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-FILE-url/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-FILE-url/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-FILE-url/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-FILE-url/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-FILE-url/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-FILE-url/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-FILE-url/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-FILE-url/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-FILE-url/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-FILE-url/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "34a017dce2961a2589a50c7398512c72d97f51c431d6364f4be68808eac27f10",
+        "archive": "evidence/plain-startup-throw/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790921987599-46123/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "c2aea33f7eef218f9f69e4fbd82af6c6fadb25cdf2097103c02e0e3f9fb5de94",
+        "archive": "evidence/plain-startup-throw/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 895,
+        "sha256": "5e74a854c7a4f89ad2609c2c591a28becbfbfa898e9c800c74f3adae3025be6d",
+        "archive": "evidence/plain-startup-throw/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1274,
+        "sha256": "d58c35451d059be40afc09615a478762023cc4b3b750c92ab6b6d4b4a192db7c",
+        "archive": "evidence/plain-FILE-url/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790921987599-46123/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "bd7b561da08b91f9a9aefe4a3ec7b551c63737c39d488047fd5920a476ee06c2",
+        "archive": "evidence/plain-startup-throw/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21615,
+        "sha256": "9070e6a12741d74a735958119de7fc2dc21221ec042ad1986b06b76a56d5ab0b",
+        "archive": "retained-evidence/plain/1790921987599-46123/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55002,
+        "sha256": "0186cf2533518856f5051d336b7a3c72de7b145f3e8ead86e6811c2f5d3ab8c7",
+        "archive": "evidence/plain-startup-throw/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 23,
+        "sha256": "82825a134bb718fddae11b09f5f6812df59fba49acee80e5fafeaadd4a4d67c1",
+        "archive": "evidence/plain-startup-throw/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 885,
+        "sha256": "9ab3f74292b75c2ac344bccddb6bfc47824464381b34b6dd542b19e5458c3372",
+        "archive": "evidence/plain-startup-throw/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 1945395,
+        "sha256": "42aff5c6607eae0011690ee9f70ae06f75154378b43de2ab3ec7c483df9158ec",
+        "archive": "evidence/plain-startup-throw/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 26,
+        "sha256": "c7b93444b541117e8e61c772b26a5e0d9ded1c85f2c35d461b1071e93dfa5945",
+        "archive": "evidence/plain-startup-throw/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/social-recover-wrapper/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 26442,
+        "sha256": "b306e8730ec25b18d667f78cf37345abc3271e99aecf67e7506786aa208012f9",
+        "archive": "retained-evidence/plain/1790922429602-65796/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 1538,
+        "sha256": "2ea4f630f1c608a6162656646e532ab65ff5fb3f435b8da979c5d035f96c6e1c",
+        "archive": "evidence/plain-startup-throw/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 10549,
+        "sha256": "67cd415e34d028caef9791b5fbcbc24ca79c1374fcfd138fc6414eab41bb4e7c",
+        "archive": "evidence/plain-startup-throw/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 938301,
+        "sha256": "a3c28bdf454b164c934b3d6a56fc2c22079561a452d4ba1a1bf3159dc544858e",
+        "archive": "retained-evidence/plain/1790922429602-65796/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "37043c49bbb2da891689c3f5ef3922d66e8124b4fe7e6ae73d3d2542c5d427e9",
+        "archive": "evidence/social-startup-throw/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790921987599-46123/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790922444078-66892",
+    "compressed": false,
+    "finished": {
+      "finishedAt": 1790922447089
+    },
+    "files": [
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "93f51a7c314134fc98bfe0e634852de259e79aad65eae0860130ae1d64446e6f",
+        "archive": "evidence/plain-FILE-url/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 4927,
+        "sha256": "e93ef6140ce168a0896b258fcf02a9879e22727c09aad059d60d92dc475529f2",
+        "archive": "retained-evidence/plain/1790921987599-46123/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17271,
+        "sha256": "bdf8531c7642506c07fade0b059df40e89528d3d25673cce18a2cfe8dacfe159",
+        "archive": "retained-evidence/plain/1790921987599-46123/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-FILE-url/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-FILE-url/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-FILE-url/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-FILE-url/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-FILE-url/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-FILE-url/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-FILE-url/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-FILE-url/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-FILE-url/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-FILE-url/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "937efd8e720c304caa3c5e36a837b6f236c9ad6c4823e3540987da5921d5db6e",
+        "archive": "evidence/plain-FILE-url/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 396,
+        "sha256": "40cdbf3acbc5288bb32a32858d503ba106cc02cc66ac83427539401b0ab37d41",
+        "archive": "evidence/plain-FILE-url/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1274,
+        "sha256": "d58c35451d059be40afc09615a478762023cc4b3b750c92ab6b6d4b4a192db7c",
+        "archive": "evidence/plain-FILE-url/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790921987599-46123/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-failure.json",
+        "bytes": 4632,
+        "sha256": "4e26695f08adc436cfb6fa692207bc4c984da1163efad6fc9ec66996ecb2676d",
+        "archive": "evidence/plain-FILE-url/preparation-failure.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4104,
+        "sha256": "e5a92556e0e2f5d6232a935df506d2138ded25f88112f2b7ccc28888610ea360",
+        "archive": "evidence/plain-FILE-url/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 144,
+        "sha256": "82f4c5d1ddc75f0b7ebcbca2945b52573a6b5e500bbd9120e7622d35be2e1c3e",
+        "archive": "evidence/plain-FILE-url/preparation-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21615,
+        "sha256": "9070e6a12741d74a735958119de7fc2dc21221ec042ad1986b06b76a56d5ab0b",
+        "archive": "retained-evidence/plain/1790921987599-46123/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 821,
+        "sha256": "1d5cddce06407de5f9380789188ff7665e57068a51331a3139fc1681e7cc9c62",
+        "archive": "evidence/plain-FILE-url/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790922450020-67358",
+    "compressed": false,
+    "finished": {
+      "finishedAt": 1790922451096
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "cd9ac4ecc533ed3737cbdfc313ffd2178f79a23a5d8b2b62869b3750008301be",
+        "archive": "evidence/plain-missing-runtime/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 142,
+        "sha256": "b7346df75436e7e9c345c334383c6da26e005d64fc2a3877ea0f138006b32415",
+        "archive": "evidence/plain-missing-runtime/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 504,
+        "sha256": "53a368144de434d22b7ea4a0b99e2d9d7bc58c30129728a51aa20428ad2009b5",
+        "archive": "evidence/plain-missing-runtime/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790923067576-74587",
+    "compressed": false,
+    "finished": {
+      "finishedAt": 1790923073684
+    },
+    "files": [
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 493,
+        "sha256": "80f276cc0327e1118a0dd03fe7c9d93394b3231bff4575b9da36ac8c6808db02",
+        "archive": "evidence/plain-mixedcase-url/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 4927,
+        "sha256": "e93ef6140ce168a0896b258fcf02a9879e22727c09aad059d60d92dc475529f2",
+        "archive": "retained-evidence/plain/1790921987599-46123/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17271,
+        "sha256": "bdf8531c7642506c07fade0b059df40e89528d3d25673cce18a2cfe8dacfe159",
+        "archive": "retained-evidence/plain/1790921987599-46123/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-FILE-url/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-FILE-url/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-FILE-url/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-FILE-url/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-FILE-url/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-FILE-url/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-FILE-url/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-FILE-url/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-FILE-url/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-FILE-url/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 28,
+        "sha256": "b668fff98f706aa1c9030e921af7e8b564a7cbd8fef940a9e4293fb4e8085d21",
+        "archive": "evidence/plain-mixedcase-url/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 396,
+        "sha256": "63abe72e091b467f8ea26105fad57011f600216836170e03c07269950880d1ec",
+        "archive": "evidence/plain-mixedcase-url/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1274,
+        "sha256": "d58c35451d059be40afc09615a478762023cc4b3b750c92ab6b6d4b4a192db7c",
+        "archive": "evidence/plain-FILE-url/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790921987599-46123/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790921987599-46123/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-failure.json",
+        "bytes": 4641,
+        "sha256": "00f8473fc1acd1b3a0fdb22b9da08cbbf79b32266dd42eabac31232a9f50211e",
+        "archive": "evidence/plain-mixedcase-url/preparation-failure.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4112,
+        "sha256": "8cdc6bc195ccd4e38b1f14e8ada99c4d8c1076e60cec24485e42a843079c4492",
+        "archive": "evidence/plain-mixedcase-url/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 144,
+        "sha256": "82f4c5d1ddc75f0b7ebcbca2945b52573a6b5e500bbd9120e7622d35be2e1c3e",
+        "archive": "evidence/plain-FILE-url/preparation-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21615,
+        "sha256": "9070e6a12741d74a735958119de7fc2dc21221ec042ad1986b06b76a56d5ab0b",
+        "archive": "retained-evidence/plain/1790921987599-46123/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-FILE-url/preparation-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 821,
+        "sha256": "8f162236250b525788466ee326914392a667ab575edf2c1e57192920d2f86cde",
+        "archive": "evidence/plain-mixedcase-url/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  }
+]

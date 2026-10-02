@@ -1,0 +1,13 @@
+{
+  "starter": "plain",
+  "before": {
+    "sha256": "827720b0e1417f0fa04a2309a69237a0b9ae654c94b15da30383d61c8fe68c06",
+    "audited": true
+  },
+  "changed": {
+    "sha256": "45f82664aadfa6f736956d52efb58551328c66fce1717b2fb19d4d918f42143a",
+    "audited": false
+  },
+  "retainedApplicationJs": true,
+  "restoredKey": "de26f20ba4d9431bed980d15f2ccc33349a511e4d6e13c4c3259195f913280a1"
+}

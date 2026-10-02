@@ -12,14 +12,14 @@ npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --
 ```
 
 For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm medians, 164–232 s cold on this mini).
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18.4/24.4 s warm medians, 259/291 s cold on this mini).
 Both starters provide these scripts. Unavailable hosts skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
 
 The build route chooses a free backend port and writes fresh artifacts under
 `artifacts/native-smoke/<timestamp>`. Reuse requires an available booted device, the smoke prefix, and a creation record
 in `$XDG_STATE_HOME/snapback4/witness/simulators` (default `~/.local/state/`). Records and their directory must be user-owned, not symlinks or writable by others.
 Otherwise it creates a current iPhone; unsafe records are ignored with one warning.
-Newest iOS runtime wins. Device identity is recorded before boot; names alone prove no ownership. `--udid` chooses an explicit booted
+Newest iOS runtime wins. Creation holds a device lease through boot; only boot-complete records permit reuse. Names alone prove no ownership. `--udid` chooses an explicit booted
 device; `--port` and `--artifacts` override defaults. Shared-host lanes can set
 `SNAPBACK4_SMOKE_DEVICE_PREFIX=sb4-ns-` to isolate selection and creation.
 The socket stays owned through backend startup. Devices remain for warm runs; delete their recorded UDIDs when finished.
@@ -136,9 +136,9 @@ SIGINT/SIGTERM wait for bounded cleanup and return 130/143. Project/simulator le
 After a JS edit, repeat `npm run export:ios`: matching native inputs reuse a private
 Release app, replacing its bundle/assets with the exact export. Dependencies and
 lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
-bound; only audited registry plugin bytes exclude JS. Out-of-tree config files refuse. The app reports the selected file's SHA-256 on
+bound with evaluated Expo prebuild config; unknown file-writing mods retain JS. Out-of-tree config files refuse. The app reports the selected file's SHA-256 on
 all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
-`export:ios` removes temporary app copies, keeps five runs’ full evidence and compresses older receipts; asset removals match fresh builds. `native:smoke` always builds.
+`export:ios` recovers abandoned owned runs, removes temporary app copies and keeps five full plus twenty compressed runs; asset removals match fresh builds. `native:smoke` always builds.
 A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
 
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;

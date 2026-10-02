@@ -1,0 +1,15 @@
+{
+  "starter": "plain",
+  "label": "opt-out",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790922451161,
+  "durationMs": 2795,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "03765d33c9355ab37c731fadf696b1b2bf7969397cb78df0f0f5c09e25e9f95f"
+}

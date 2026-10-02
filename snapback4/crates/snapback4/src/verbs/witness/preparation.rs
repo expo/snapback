@@ -74,6 +74,7 @@ fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
         .stdout(output(&options.artifacts.join(format!("{label}-stdout.log")))?)
         .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?);
     let mut child = PreparationProcess { child: cmd.spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?, cleaned: false };
+    recovery::child(options, "preparation", child.child.id())?;
     let end = Instant::now() + Duration::from_secs(900);
     let mut announced = false;
     let result = loop {
@@ -116,6 +117,7 @@ pub(super) fn check_project(options: &Options) -> Result<Vec<File>> {
         .stdout(output(&options.artifacts.join("check-stdout.log"))?)
         .stderr(output(&options.artifacts.join("check-stderr.log"))?);
     let mut child = PreparationProcess { child: command.spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?, cleaned: false };
+    recovery::child(options, "preparation", child.child.id())?;
     let end = Instant::now() + Duration::from_secs(900);
     loop {
         if let Some(status) = child.status()? {
@@ -138,7 +140,7 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     fs::write(&helper, include_str!("prepare.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("payload.mjs"), include_str!("payload.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("native-inputs.mjs"), include_str!("native-inputs.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs")), ("export-cache.mjs", include_str!("export-cache.mjs")), ("plugin-audit.mjs", include_str!("plugin-audit.mjs")), ("plugin-audit.json", include_str!("plugin-audit.json"))] {
+    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs")), ("export-cache.mjs", include_str!("export-cache.mjs")), ("effective-config.mjs", include_str!("effective-config.mjs")), ("native-mods.json", include_str!("native-mods.json"))] {
         fs::write(options.artifacts.join(name), contents).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     }
     let origin = format!("http://127.0.0.1:{}", options.port);

@@ -1,0 +1,13 @@
+{
+  "starter": "social",
+  "before": {
+    "sha256": "af886e79185d1f8603332cfd9973713f0fcfb94995a134ad16c2b97bf5d4453e",
+    "audited": true
+  },
+  "changed": {
+    "sha256": "c6f85810916f26de47e9352f5d21191317221232e08b4a2f9b210eea6e39aab4",
+    "audited": false
+  },
+  "retainedApplicationJs": true,
+  "restoredKey": "2608c25f343811a7bbcc1f57f751ee1ca966ddba7d403d577438d64a2666c01c"
+}

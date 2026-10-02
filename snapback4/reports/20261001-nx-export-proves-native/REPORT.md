@@ -481,3 +481,255 @@ from the measured source manifest. The suite
 runner refuses to overwrite its log and records one invocation and its PID.
 Nothing is pushed or published. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## Round 2 — effective native configuration and crash recovery (2026-10-01)
+
+Round-1 input was `5d5604a7f5`: Astra **NOT READY**, Grok **READY WITH CHANGES**.
+Their accepted resource/config-reference, progress, completed-run retention and
+18.041 / 23.663 s measurements remain historical evidence above. This round
+replaces the plugin implementation-import audit and addresses the six lifecycle,
+retention and URL findings. Nothing is pushed or published.
+
+### Effective configuration and unobserved native writers
+
+The key now contains the actual iOS result of Expo 57.0.22's
+`getPrebuildConfigAsync`, followed by `compileModsAsync` introspection: full
+serializable evaluated config plus iOS mod results. Expo resolves explicit,
+auto-applied and legacy plugins, including project-relative shadows. Every
+fingerprint uses a fresh Node child with the native preparation environment.
+The pinned `@expo/fingerprint` 0.20.13 remains cold-build provenance; its installed
+config loader uses `expo/config.getConfig` without prebuild defaults or deferred
+mod evaluation, so it does not alone answer this round's question.
+
+The static `require()` walk and `plugin-audit` files are deleted. Registered
+native-file writers use a separate, narrow audited allowlist: actual runtime
+registration paths, complete shipped package-tree digests, and the complete
+installed dependency snapshots of the audited starters. The last check reuses
+the existing inventory and closes changed external helpers without a static
+import walk. Unknown
+registrations, changed package bytes and untracked `config.mods` assignments keep
+application JS and the sanitized environment in the key. This includes unknown
+introspective callbacks, since a callback can write files outside its mod result.
+The evaluated output still binds in every case. This is a bounded starter
+adapter, not a plugin sandbox or a promise to support arbitrary native projects.
+
+[The native-mod audit](round2/native-mod-audit.md) names each non-introspective
+stock writer and its inputs. Both stock starters have no unknown registrations;
+plain and social therefore retain the JS-only reuse path. Expo's default icon
+and Xcode writers, the Snapback scene AppDelegate writer, dev-launcher's fixed
+Release plist cleanup, and social Router's fixed Podfile flag are audited.
+Changed or unknown writers deliberately pay a native rebuild on every JS edit.
+
+### Lifecycle and retention changes
+
+- Creation runs in its own process group. Success, nonzero exit and timeout all
+  preserve stdout; a printed UUID is recorded and rolled back before reporting.
+  Create timeouts fail, never skip. Ctrl-C reaches the driver while creation can
+  finish reporting its identity. Failed exclusive ownership writes remove their
+  partial file.
+- The UDID lease is acquired before publishing a creation record and held
+  through boot, execution and cleanup. `ready: false` records cannot be reused;
+  only successful bootstatus makes them ready. Explicit and automatic selection
+  take the same lease, and reuse rechecks the record under it. Rollback holds the
+  lease through deletion. The simulator-home lease remains in force.
+- Each export holds a run lease and persists driver, wrapper, app and child PID
+  **and process start time**. Next-run recovery checks liveness and birth time,
+  acquires the leases, stops only recorded matching processes, shuts down a
+  matching tool-owned device, and removes app copies, xcresult and temporaries.
+  A dead wrapper's live driver first gets a chance to clean up. A reused PID
+  neither keeps the old run alive nor authorizes signaling a new process.
+  Legacy incomplete directories without a birth record cannot authorize process
+  or device cleanup; this round does not infer ownership from a filename.
+- One kernel lock serializes recovery/pruning, including temporary compression
+  files. Five completed runs keep full evidence, twenty more keep compressed
+  receipts, and older completed directories are removed. The active native
+  producer receipt is copied alongside the current base in the bounded native cache.
+  Pruning errors warn without changing an export's smoke result.
+- Every capitalization of the `file` URL scheme refuses out-of-tree config.
+
+The shared simulator-driver controls run against two fake-simctl processes on
+this mini; the installed Expo, crash-recovery and negative controls run through
+each starter. Raw commands, logs, process identities and compressed native
+receipts live under [round2/](round2/).
+
+### Final measurements on this mini
+
+| Starter | Cold command | Five warm commands, in order | Warm median |
+|---|---:|---|---:|
+| plain | 258.715 s | 18.416, 18.458, 18.206, 17.762, 18.667 s | **18.416 s** |
+| social | 291.288 s | 24.367, 24.935, 23.591, 24.894, 24.302 s | **24.367 s** |
+
+Both medians meet **≤25 s**, and all ten individual warm samples are below 25 s.
+Every warm run is a cache hit, loads a distinct exact export hash, and passes
+prime/offline/restart. These are complete `npm run export:ios` wall times,
+including export, preparation, native proof and wrapper retention; evidence
+archiving after command completion is outside the timer.
+
+The cohort ran serially after the complete suite, production compilation and
+native controls had drained. Cold deletes that starter's `.snapback4-witness`
+(native base, snapshot, Pods and DerivedData); npm dependencies and shared
+Metro/system caches were already present. The normal recorded simulator was
+already booted. The unused recovery simulator was shut down under both leases
+before this cohort. No system settings or unrelated processes were changed.
+No sample was dropped or retried.
+
+Fresh-process effective-config evaluation, measured separately with one untimed
+warm-up and five samples, has a **177.471 ms plain / 222.479 ms social** median
+per evaluation (`*-effective-cost.json`). This includes resolving Expo, running
+prebuild config and introspection, and checking registered package trees. The
+whole command figures above include the complete dependency-snapshot audit and
+all invocations; the microbenchmark is not presented as total command overhead.
+The dependency audit reuses the required inventory rather than rereading it on
+the stock warm path. Neither stock starter falls back to retaining application JS.
+Changing an external image-utils helper revokes the audit in both starters,
+retains JS, and restoring its bytes restores the exact key.
+
+`final-source.json` binds the measured executable and adapter/driver/wrapper
+sources. Installed plugin controls began with the earlier round-2 executable
+(`controls-source.json`, with its adapter saved in `control-adapter-source/`).
+Subsequent hardening removes the generic-helper filename exemption, requires
+explicit boot-ready records and valid printed UUIDs, and binds the native-writer
+audits to the whole dependency snapshot. Focused tests exercise that final
+hardening. `final-structural.json` rechecks both real starter shadows and both
+auto plugins using the final adapter: dependency audits remain valid and
+application source is excluded, yet evaluated native values and keys change.
+The final cohort and social recovery use the final executable. Metric prose in
+the guide/report/LLP is updated after measurement; measured witness/adapter and
+wrapper bytes remain unchanged.
+
+### Installed plugin controls
+
+| Starter | Control | First run | After source edit | Result |
+|---|---|---:|---:|---|
+| plain | shadow | 416.881 s | 105.327 s | miss; shadow-second |
+| plain | auto | 112.133 s | 118.159 s | miss; auto-second |
+| plain | dangerous | 106.365 s | 112.050 s | miss; JS retained |
+| social | shadow | 394.915 s | 253.461 s | miss; shadow-second |
+| social | auto | 160.203 s | 157.870 s | miss; auto-second |
+| social | dangerous | 160.023 s | 157.371 s | miss; JS retained |
+
+Both source-reading controls changed the installed `NXNativeMode` Info.plist value, and all twelve runs passed prime/offline/restart with the exact exported HBC hash. Their second pure-plugin runs miss because **effective configuration changed**. The dangerous-mod second runs miss on `src/native-mode.js`; they do not pretend that introspection evaluated the dangerous callback. These are functional native-build controls, run alongside suite work, not the final stock timing cohort. The initial plain run also fetched Hermes archives. All first and second durations remain in the record.
+
+
+### Verification and every failure
+
+The complete `scripts/test.sh` ran **once**, with pinned Node 24.18.0 and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Its exact summary is:
+
+```
+== 1 failure(s) in 3501 s
+   client tests
+```
+
+**Baseline client/oracle failure, observed under contention:**
+`mixed evidence schedule wasm: 300 independent histories`, at
+`packages/snapback4/test/mixed-evidence-oracle.test.mjs:42:41`, hit its existing
+1,800,000 ms guard (reported duration 1,800,125.009 ms). The process-host case
+passed all 300 histories in 185.856 s. The wasm backend stopped at the guard,
+but its Node worker retained open handles. After retaining the failure and
+verifying PID 57834, its parent and start time, the lane sent SIGTERM to that
+exact owned worker so the canonical script could finish collecting results and
+run its final models. This is recorded in `suite-timeout-cleanup.json`; no test,
+seed count or guard was changed, and the original run was not retried into green.
+The client pool reports **5,759 pass / 0 fail / 1 cancelled / 5 fixture skips**;
+the timed-out cancellation makes the client step fail. All **79/79** final model
+tests pass. There are no other complete-suite failures; the previously ticketed
+delivery-fault injection flake did not recur.
+
+The client/oracle and its generation/notification helpers match round-1 base
+`5d5604a7f5` byte-for-byte (`baseline-client-inputs.json`). Round 1 passed this
+wasm oracle in 165.328 s. Earlier client work overlapped native control builds;
+that scheduling is ours and may have exposed the existing race. The exact cause
+is unresolved. [The new filesystem follow-up](../../../issues/20261001-snapback4-mixed-evidence-wasm-timeout.md)
+keeps the timeout and asks for a pending-operation diagnosis and complete timeout
+teardown, with all 300 histories and assertions retained. The isolated unchanged
+wasm-case log is `round2/oracle-isolated.log`; its result is recorded below.
+
+Affected checks: JavaScript **72/72**, final export/config/pruning checks
+**12/12**, witness Rust units **17/17**, canonical witness integration
+**53/53**, and the whole guide **110/110**. The latest UUID/boot hardening also
+passes its focused create controls **3/3** and boot controls **2/2**.
+The structural tests use Expo's real resolver and introspected deferred plist
+mods; they cover helper filenames and direct untracked `config.mods` assignments.
+Four concurrent pruners over 35 completed fixtures keep exactly five full and
+twenty compressed runs, with no ENOENT. A forced cleanup-command failure keeps a
+successful smoke result successful. Partial ownership writes remove their file;
+reused-PID and held-lease recovery controls preserve live owners.
+
+Wasm: **2,014,420 B raw / 604,666 B gzip**, **559 B below** the unchanged
+**605,225 B** cap. No engine, contract, delivery-fault test, seed count or wasm
+budget is changed by this lane.
+
+[Every development failure](round2/development-failures.md) is retained and
+classified separately: the first shadow fixture used the wrong Expo plugin
+shape; one recovery setup attempt used the wrong prefix and was correctly
+refused by the active device lease; early command/path/scaffold invocation
+errors were ours. All corrected affected controls pass. Expected negative
+controls retain their failures as evidence rather than successful native proofs.
+
+The isolated unchanged wasm oracle then passed **300/300 histories** in
+**176.905 s**, with its original 1,800 s guard and no concurrent native builds.
+This supports treating the complete-suite red as an existing timing/cleanup
+failure; it does not identify the race or make the original suite green.
+
+
+### Control outcomes, custody and reproduction
+
+Both starters pass startup-throw classification (exit 1, cache hit, prime fails),
+uppercase `FILE://` and mixed-case `File://` refusal (exit 1,
+`E_WITNESS_NATIVE_COMPAT`), missing-runtime skip (wrapper 0 with an environment
+receipt whose native exit is 1), and explicit opt-out (wrapper 0, no native
+receipt). The mixed-case installed controls use `mixedcase-url` filenames after
+fixing the Mac case-alias harness failure; their final logs/JSON are separate
+from the retained original uppercase runs. Neither failure is relabeled a
+successful native proof. All final config controls confirm output-driven misses
+while source remains excluded in the audited stock dependency environment.
+
+The two-process boot race, create timeout/failure after a printed UUID, and
+process-group Ctrl-C during create are shared Rust driver controls before the
+starter build stage. They verify the pending record cannot be leased/reused by
+B, deletion waits for custody, every printed creation identity is rolled back,
+and create timeout/cancellation never becomes an environment skip. Installed
+SIGKILL controls run twice per starter: wrapper-only death, then simultaneous
+wrapper/driver death to bypass Rust Drop. All four next runs recover, remove
+bulk files, stop recorded app/backend/child processes, shut down the old owned
+device and pass smoke. PID-reuse and active-lease regressions are separate unit
+controls, not assumptions made from the real process runs.
+
+Retention over the real workload leaves **22 plain / 21 social** completed runs:
+**five full runs each**, **17 / 16 compressed sets**, **zero temporary app copies**
+and **zero private preparation directories**. All **338 receipt files** and the
+remaining full evidence are archived with byte verification; indexes reuse
+already captured files by SHA-256 instead of duplicating them. The independent
+35-run/four-pruner control crosses the cap and proves **5 full + 20 compressed**.
+See `round2/retained-evidence/summary.json` and its per-starter indexes.
+
+All **six real simulators created and recorded by this round** are absent after
+cleanup. `round2/cleanup.json` records exact IDs, ownership hashes, held leases
+and every scoped command; `precohort-shutdown.json` records the earlier shutdown
+of the unused recovery device. No unowned simulator, including
+`mini-verify-iphone`, was targeted. No system settings were changed. Only owned
+PIDs were stopped, including the explicitly documented timed-out suite worker.
+
+To reproduce, copy the harness into a fresh report directory and update its
+report constant; saved evidence deliberately refuses overwrite. From
+`snapback4/`, scaffold/install/check both candidates, overlay
+local package/client/wasm/XCFramework inputs with the retained round-0 setup
+script, and build the packaged production CLI policy. Freeze the candidate
+executable (`NX_BIN`) before controls. `plugin-controls.mjs` performs twelve
+real native runs; `recovery-controls.mjs` uses a disjoint owned simulator prefix;
+`cohort.mjs` deletes each native cache and records one cold plus five distinct
+warm exports. `effective-cost.mjs`, `dependency-control.mjs`,
+`final-structural.mjs`, `negative-controls.mjs` and the separately retained
+`mixedcase-controls.mjs` cover the final rule and refusal paths. The control
+runner refuses existing result/log names, preserving every first attempt.
+The full-suite runner opens its log exclusively and records exactly one
+invocation; `oracle-isolated.py` is a named single-case follow-up, not another
+complete suite. `archive.py` verifies retained bytes before `cleanup.py` removes
+exact recorded devices. Generated `target/nx` candidates/native workspaces are
+removed after archival; ordinary compiler/dependency caches remain.
+
+LLP 3000.030 §15 and the guide describe the resulting rule and measured cost;
+one journal entry records this round. Nothing is pushed or published. The local
+commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

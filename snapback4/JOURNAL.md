@@ -81536,3 +81536,59 @@ remain. Report, every failure, measurements and reproduction:
 reports/20261001-nx-export-proves-native/REPORT.md (round 1).
 Nothing pushed or published. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-01 — NX round 2: evaluated native config, leased boot and crash recovery
+
+Replaced the static plugin require/import walk with Expo 57's real prebuild
+configuration plus introspected iOS mod results in the native key. Explicit,
+auto-applied and legacy plugins resolve through Expo, including project-relative
+shadows. Unknown native-file writers retain application JS; audited registrations
+bind their package trees and the complete installed starter dependency snapshots
+so an external helper change revokes that audit. Both stock starters remain on
+the JS-only reuse path. LLP 3000.030 §15 and the guide are updated.
+
+Simulator creation holds its UDID lease through boot and cleanup; pending records
+cannot be reused. Isolated create processes preserve printed UUIDs on failure,
+timeout and Ctrl-C and roll back before reporting. Create timeouts cannot skip;
+failed ownership writes remove their partial file. Export runs persist process
+birth identities and leases, recover abandoned app/backend/device custody, and
+remove bulk evidence. One kernel lock serializes pruning, which cannot turn
+smoke success into export failure. Retention is five full plus twenty compressed
+runs; the current native producer receipt is kept alongside its cache. FILE/File
+schemes refuse out-of-tree config.
+
+Final Apartment mini cold: plain 258.715 s / social 291.288 s. Five-run complete
+command warm medians: **18.416 s / 24.367 s**, both below 25 s; all ten samples
+pass and remain below 25 s. Fresh-process config evaluation medians are
+177.471 / 222.479 ms per call. All twelve installed plugin controls pass;
+unknown dangerous-mod JS edits rebuild in 112.050 / 157.371 s in that functional
+cohort. Both starters pass wrapper/driver SIGKILL recovery, startup throw,
+FILE/File refusal, missing runtime and opt-out. Shared driver controls cover
+boot contention, printed-UUID create failure/timeout and process-group Ctrl-C;
+concurrent pruning, partial writes, PID reuse and held leases pass.
+
+Affected JS 72/72; final export/config/pruning 12/12; Rust witness units 17/17;
+canonical witness integration 53/53; final guide 110/110; ref-check has zero
+errors/unchecked refs. The complete scripts/test.sh ran exactly once:
+`== 1 failure(s) in 3501 s` (`client tests`). The unchanged 300-history wasm
+mixed-evidence oracle hit its 1,800 s guard and retained its worker; only that
+verified owned PID was terminated after the reported timeout so the suite could
+finish. Client pool: 5759 pass / 1 cancelled / 5 fixture skips; final models
+79/79. The unchanged wasm case then passes 300/300 in isolation in 176.905 s.
+The original red remains, with an open filesystem follow-up; its exact trigger
+is unresolved and earlier native-build overlap may have exposed it. The known
+delivery-fault injection flake did not recur. All development/harness failures,
+including the case-insensitive FILE/File evidence-name collision, are retained
+and corrected in the report. No assertions, seed counts or hang guards changed.
+Wasm stays 2,014,420 B raw / 604,666 B gzip, 559 B below the unchanged 605,225 B cap.
+
+Archived and byte-verified all 338 retained receipts plus remaining full evidence
+(22 plain / 21 social runs; five full each; no per-run temporary apps/directories).
+All six tool-created simulators are deleted under custody; no unowned simulator
+or system setting was touched. Generated target/nx projects are removed after
+archival; ordinary build/dependency caches remain. Report and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 2). New follow-up:
+issues/20261001-snapback4-mixed-evidence-wasm-timeout.md.
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

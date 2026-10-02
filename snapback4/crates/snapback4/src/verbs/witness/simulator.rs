@@ -21,7 +21,13 @@ fn list(kind: &str, timeout: Duration, preparation: &mut Value) -> Result<Value>
     serde_json::from_str(&output).map_err(|_| error("E_WITNESS_SIMULATOR", "simctl returned invalid JSON"))
 }
 
-fn delete_created(udid: &str, preparation: &mut Value) -> Result<()> {
+pub(super) fn created_udid(text: &str) -> Option<&str> {
+    text.lines().map(str::trim).rev().find(|line| line.len() == 36 && line.bytes().enumerate().all(|(i, b)| {
+        if [8, 13, 18, 23].contains(&i) { b == b'-' } else { b.is_ascii_hexdigit() }
+    }))
+}
+
+fn delete_created(udid: &str, _lease: &File, preparation: &mut Value) -> Result<()> {
     // Cancellation must not cancel rollback. Restore the flag for the caller.
     let was_interrupted = INTERRUPTED.swap(false, Ordering::Relaxed);
     let result = simctl(&["delete", udid], Duration::from_secs(10));
@@ -34,7 +40,7 @@ fn version(text: &str) -> Vec<u32> {
     text.split(['.', '-']).map(|p| p.parse().unwrap_or(0)).collect()
 }
 
-fn owners() -> Result<PathBuf> {
+pub(super) fn owners() -> Result<PathBuf> {
     let root = std::env::var_os("XDG_STATE_HOME").map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
         .filter(|p| p.is_absolute())
@@ -73,24 +79,25 @@ fn device_type<'a>(types: &'a [Value], supported: Option<&[Value]>) -> Option<&'
         .max_by_key(|(order, _)| *order).map(|(_, kind)| kind)
 }
 
-pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value> {
+pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<(Value, File)> {
     let runtimes = list("runtimes", options.timeout, preparation)?;
     let mut available: Vec<_> = runtimes["runtimes"].as_array().into_iter().flatten()
         .filter(|r| r["isAvailable"] == true && r["identifier"].as_str().is_some_and(|id| id.starts_with("com.apple.CoreSimulator.SimRuntime.iOS-"))).collect();
     if available.is_empty() { return environment(Err(error("E_WITNESS_PLATFORM", SETUP)), preparation, "missing-runtime"); }
     available.sort_by_key(|r| std::cmp::Reverse(version(r["version"].as_str().unwrap_or_default())));
     let devices = list("devices", options.timeout, preparation)?;
+    let mut owners = ownership::Records::open(owners()?);
     if let Some(id) = &options.udid {
         let (udid, runtime) = device(&devices, Some(id))?;
         if !available.iter().any(|r| r["identifier"] == runtime) { return Err(error("E_WITNESS_SIMULATOR", "the requested device's iOS runtime is unavailable")); }
         let d = devices["devices"][&runtime].as_array().unwrap().iter().find(|d| d["udid"] == udid).unwrap();
-        return Ok(remember(preparation, json!({ "udid": udid, "name": d["name"], "runtime": runtime, "selection": "explicit" })));
+        let lease = owners.lease(&udid)?;
+        return Ok((remember(preparation, json!({ "udid": udid, "name": d["name"], "runtime": runtime, "selection": "explicit" })), lease));
     }
     // A shared-host lane may opt into its own namespace. No unrelated device is
     // booted, installed, shut down or deleted by automatic selection.
     let prefix = std::env::var("SNAPBACK4_SMOKE_DEVICE_PREFIX").unwrap_or_else(|_| "snapback4-smoke-".into());
     if !name(&prefix) || !prefix.ends_with('-') { return Err(error("E_WITNESS_INPUT", "SNAPBACK4_SMOKE_DEVICE_PREFIX must be a nonempty name ending in '-'")); }
-    let mut owners = ownership::Records::open(owners()?);
     for runtime in &available {
         let runtime = runtime["identifier"].as_str().unwrap();
         for d in devices["devices"][runtime].as_array().into_iter().flatten() {
@@ -99,8 +106,13 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value
             if d["state"] == "Booted" && d["isAvailable"] == true
                 && d["name"].as_str().is_some_and(|n| n.starts_with(&prefix))
                 && owned["udid"] == udid && owned["name"] == d["name"]
-                && owned["runtime"] == runtime && owned["prefix"] == prefix {
-                return Ok(remember(preparation, json!({ "udid": udid, "name": d["name"], "runtime": runtime, "selection": "reused", "prefix": prefix })));
+                && owned["runtime"] == runtime && owned["prefix"] == prefix && owned["ready"] == true {
+                let lease = owners.lease(udid)?;
+                // Re-read under the lease: boot/rollback may have changed the
+                // creation record after the simulator list was sampled.
+                let current = owners.read(udid);
+                if current != owned || current["ready"] != true { continue; }
+                return Ok((remember(preparation, json!({ "udid": udid, "name": d["name"], "runtime": runtime, "selection": "reused", "prefix": prefix })), lease));
             }
         }
     }
@@ -112,23 +124,71 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value
     owners.prepare()?;
     let name = format!("{prefix}{}-{}", now(), std::process::id());
     let runtime = runtime["identifier"].as_str().unwrap();
-    let udid = environment(simctl(&["create", &name, kind["identifier"].as_str().unwrap(), runtime], options.timeout), preparation, "simulator-create")?;
-    if !super::name(&udid) { return Err(error("E_WITNESS_SIMULATOR", "simctl create returned no device identifier")); }
-    // Record structured cleanup identity before any fallible persistence/boot step.
-    let selected = remember(preparation, json!({ "udid": udid, "name": name, "runtime": runtime, "selection": "created", "prefix": prefix }));
+    recovery::simulator(options, &json!({ "name": name, "runtime": runtime, "prefix": prefix, "selection": "created", "ready": false }))?;
+    let (printed, created) = create(&["create", &name, kind["identifier"].as_str().unwrap(), runtime], options);
+    let udid = created_udid(&printed).unwrap_or_default().to_string();
+    if udid.is_empty() {
+        // A timeout is never an environment skip, even without an identifier.
+        created?;
+        return Err(error("E_WITNESS_SIMULATOR", "simctl create returned no device identifier"));
+    }
+    let lease = owners.lease(&udid)?;
+    let mut selected = remember(preparation, json!({ "udid": udid, "name": name, "runtime": runtime, "selection": "created", "prefix": prefix, "ready": false }));
+    if let Err(problem) = recovery::simulator(options, &selected) {
+        delete_created(&udid, &lease, preparation)?; return Err(problem);
+    }
     if let Err(problem) = owners.write(&udid, &selected) {
-        delete_created(&udid, preparation)?;
+        delete_created(&udid, &lease, preparation)?;
         return Err(problem);
     }
     eprintln!("witness: created simulator {name} ({udid}), runtime {runtime}");
-    let boot = interrupted().and_then(|_| simctl(&["boot", &udid], options.timeout))
+    let boot = created.and_then(|_| interrupted()).and_then(|_| simctl(&["boot", &udid], options.timeout))
         .and_then(|_| simctl(&["bootstatus", &udid, "-b"], options.timeout));
     if let Err(problem) = boot {
-        // A device created during a failed selection has no future reuse value.
-        // Delete only this invocation's identity, including on cancellation.
-        delete_created(&udid, preparation)?;
+        delete_created(&udid, &lease, preparation)?;
         owners.remove(&udid)?;
+        // Only boot environment errors can skip. Create timeout/failure with a
+        // printed identity and cancellation are failures, after rollback.
+        if problem.contains("simctl create") { return Err(problem); }
         return environment(Err(problem), preparation, "simulator-boot");
     }
-    Ok(selected)
+    selected["ready"] = json!(true);
+    if let Err(problem) = owners.ready(&udid, &selected) {
+        delete_created(&udid, &lease, preparation)?;
+        owners.remove(&udid)?;
+        return Err(problem);
+    }
+    remember(preparation, selected.clone());
+    Ok((selected, lease))
+}
+
+// Creation is isolated from the terminal process group. Always collect its
+// output, including after nonzero exit, timeout and cancellation, before rollback.
+fn create(args: &[&str], options: &Options) -> (String, Result<()>) {
+    use std::os::unix::process::CommandExt;
+    let stdout = options.artifacts.join("simulator-create.stdout");
+    let result = (|| -> Result<()> {
+        let mut command = Command::new("xcrun");
+        command.arg("simctl").args(args).process_group(0).stdin(Stdio::null())
+            .stdout(File::create(&stdout).map_err(|e| error("E_WITNESS_ARTIFACT", e))?)
+            .stderr(output(&options.artifacts.join("simulator-create.stderr"))?);
+        let mut child = Owned::spawn(&mut command)?;
+        recovery::child(options, "create", child.0.id())?;
+        let end = Instant::now() + options.timeout;
+        loop {
+            if let Some(status) = child.status()? {
+                if !status.success() { return Err(error("E_WITNESS_SIMULATOR", "simctl create failed; rolling back any printed device identifier")); }
+                return Ok(());
+            }
+            if Instant::now() >= end {
+                // Own this child's group, not the terminal's. Keep its leader
+                // unreaped until the signal has been sent.
+                unsafe { libc::kill(-(child.0.id() as i32), libc::SIGKILL); }
+                let _ = child.0.wait();
+                return Err(error("E_WITNESS_TIMEOUT", "simctl create timed out; rolling back any printed device identifier"));
+            }
+            sleep(Duration::from_millis(50));
+        }
+    })();
+    (fs::read_to_string(stdout).unwrap_or_default(), result)
 }

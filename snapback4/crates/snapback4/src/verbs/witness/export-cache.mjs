@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { auditedPlugins } from './plugin-audit.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { hash, inventory, readJSON, hbc, nativeFiles, differences, fail, seal } from './payload.mjs';
 
@@ -12,13 +13,19 @@ export function nativeFingerprint(project, toolchain, adapter, nativeEnvironment
   // can exclude application JS. Existing native projects/codegen are conservative.
   const manifest = readJSON(path.join(project, 'package.json'));
   const config = fs.existsSync(path.join(project, 'app.json')) ? readJSON(path.join(project, 'app.json')) : {};
-  const customPlugin = !auditedPlugins(project, manifest, config.expo?.plugins ?? []);
   const references = configFiles(project, config);
-  const dynamic = customPlugin || fs.readdirSync(project).some(n => /^app\.config\./.test(n))
+  const child = spawnSync(process.execPath, [fileURLToPath(new URL('./effective-config.mjs', import.meta.url)), project], {
+    cwd: project, env: Object.keys(nativeEnvironment).length ? nativeEnvironment : process.env, encoding: 'utf8', timeout: 30_000, maxBuffer: 16 * 1024 * 1024,
+  });
+  const line = child.stdout?.split('\n').findLast(line => line.startsWith('SNAPBACK4_EFFECTIVE_CONFIG='));
+  if (child.status !== 0 || !line) fail('E_WITNESS_NATIVE_COMPAT', 'cannot evaluate effective Expo prebuild config; use installed-app mode');
+  const effective = JSON.parse(line.slice('SNAPBACK4_EFFECTIVE_CONFIG='.length));
+  references.push(...configFiles(project, effective.config), ...configFiles(project, effective.modResults));
+  let dynamic = effective.retainApplicationJs || fs.readdirSync(project).some(n => /^app\.config\./.test(n))
     || fs.existsSync(path.join(project, 'ios')) || manifest.codegenConfig
     || fs.existsSync(path.join(project, 'modules'))
     || fs.readdirSync(project).some(n => /^react-native\.config\./.test(n));
-  const inputs = inventory(project, p => {
+  const collect = () => inventory(project, p => {
     const parts = p.split('/');
     if (excluded.has(parts[0])) return true;
     if (parts[0] === 'ios' && (parts[1] === 'build' || parts.includes('xcuserdata'))) return true;
@@ -27,11 +34,24 @@ export function nativeFingerprint(project, toolchain, adapter, nativeEnvironment
     if (!dynamic && /\.[cm]?[jt]sx?$/.test(p) && (['app', 'src'].includes(parts[0]) || /^(App|index)\.[jt]sx?$/.test(p))) return true;
     return false;
   });
+  let inputs = collect();
+  // A known writer can call any installed helper while its mod executes. Bind
+  // the audited starter dependency snapshot, without guessing an import graph
+  // or walking dependency bytes twice on the stock warm path.
+  if (effective.mods.length) {
+    const digest = hash(JSON.stringify(inputs.files.filter(row => row.path === 'node_modules' || row.path.startsWith('node_modules/'))));
+    const audited = readJSON(fileURLToPath(new URL('./native-mods.json', import.meta.url)))._dependencySnapshots.includes(digest);
+    effective.dependencyAudit = { sha256: digest, audited };
+    if (!audited) {
+      effective.retainApplicationJs = true;
+      if (!dynamic) { dynamic = true; inputs = collect(); }
+    }
+  }
   // Custom plugins/native projects can consume the driver's generated origin
   // or TMPDIR in native configuration. Preserve the whole sanitized environment
   // for those shapes; the bounded static starter plugins have no such inputs.
   const environment = dynamic ? nativeEnvironment : null;
-  return { format: 1, hash: hash(JSON.stringify({ inputs: inputs.sha256, references, toolchain, adapter, ...(dynamic ? { environment } : {}) })), inputs, references, toolchain, adapter, environment };
+  return { format: 1, hash: hash(JSON.stringify({ inputs: inputs.sha256, references, effective, toolchain, adapter, ...(dynamic ? { environment } : {}) })), inputs, references, effective, toolchain, adapter, environment };
 }
 // A static config can name a file outside the snapshot or an otherwise excluded
 // JS file. Refuse external paths; bind every existing in-tree file it names.
@@ -39,9 +59,9 @@ export function configFiles(project, config) {
   const root = fs.realpathSync(project), files = [];
   function visit(value) {
     if (typeof value === 'string') {
-      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) && !value.startsWith('file:')) return;
+      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) && !/^file:/i.test(value)) return;
       const file = path.resolve(root, value);
-      if (value.startsWith('file:') || value.split(/[\\/]/).includes('..') || path.win32.isAbsolute(value) || !file.startsWith(root + path.sep)) {
+      if (/^file:/i.test(value) || value.split(/[\\/]/).includes('..') || path.win32.isAbsolute(value) || !file.startsWith(root + path.sep)) {
         fail('E_WITNESS_NATIVE_COMPAT', 'out-of-tree config paths are not supported by export caching; copy the file into the project or use installed-app mode');
       }
       if (fs.existsSync(file) && fs.statSync(file).isFile()) {
@@ -59,7 +79,7 @@ export function cacheMissReason(cache, fingerprint) {
     const before = readJSON(file).exportFingerprint;
     const changed = differences(before.inputs.files, fingerprint.inputs.files)[0];
     if (changed) return `input changed: ${changed.path}`;
-    for (const field of ['references', 'adapter', 'toolchain', 'environment']) {
+    for (const field of ['references', 'effective', 'adapter', 'toolchain', 'environment']) {
       if (JSON.stringify(before[field]) !== JSON.stringify(fingerprint[field])) return `${field} changed`;
     }
   } catch {}
@@ -220,7 +240,9 @@ export function saveBase(cache, base, fingerprint, artifacts) {
     lookupTopology: lookupTopology([path.join(cache, 'DerivedData'), fingerprint.toolchain.sdkPath, path.resolve(path.dirname(fingerprint.toolchain.developer), '../lib/clang')]),
     generatedNative: generatedInventory(cache) };
   const receipt = path.join(artifacts, 'native-base.json'); seal(receipt, record);
-  record.nativeReceipt = { path: receipt, sha256: hash(fs.readFileSync(receipt)) };
+  const pinnedReceipt = path.join(cache, 'native-producer.json');
+  fs.rmSync(pinnedReceipt, { force: true }); fs.copyFileSync(receipt, pinnedReceipt);
+  record.nativeReceipt = { path: pinnedReceipt, sha256: hash(fs.readFileSync(pinnedReceipt)) };
   const file = path.join(cache, 'export-base.json'); fs.rmSync(file, { force: true }); seal(file, record);
   return record;
 }
