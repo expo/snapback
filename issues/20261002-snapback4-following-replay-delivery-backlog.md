@@ -47,3 +47,10 @@ This is a shared host, not an exclusive idle-host qualification. The
 retains queue observations, query latency and the same starting-store custody.
 Changing priority trades query tails against drain time; it leaves the replay
 backlog product finding open.
+
+## Lane FD (2026-10-02, shelved)
+
+Lane FD tried to raise delivery throughput on branch `sb4-intent/fd-following-delivery`; its reports are on that branch under `snapback4/reports/20261002-fd-following-delivery/`.
+- **Round 0 (19ed7f0dec)** batched copies, follower pages and index writes, giving 1.26–1.48× the production fixture's copies per second. About 63% of the remaining per-copy cost is the durable FULL commit, because the cooperative slice forces a commit roughly every 24 copies.
+- **Round 1 (8f38c7a324)** let a delivery transaction run until other engine work queued. It reached only 1.27× idle and regressed writer p95 to 41 ms idle and 70 ms loaded. It did, however, keep zero pending Following work at every calibration checkpoint, while main and lane CT reproduced the backlog.
+- **Shelved:** neither round met the 3× gate. A future design needs delivery that keeps up during a replay without long, writer-blocking transactions, for example group commit with request writes, or delivery off the writer path.

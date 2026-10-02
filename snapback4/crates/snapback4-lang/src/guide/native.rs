@@ -79,7 +79,8 @@ ceilings usually bind first. A native invocation is indivisible: the server's
 250 µs contended / 2 ms quiet cooperative slice cannot preempt it. Return
 `Next::Again` frequently to keep requests responsive. The host admits at most
 one invocation per slice, meters its fuel and host operations, and paces the
-next slice using the elapsed time; this is not a wall-clock deadline.
+next slice by its consumed thread CPU time (wall time if sampling fails);
+this is not a wall-clock deadline.
 Native reads get 200,000,000 fuel units. Each instance
 bounds its memory and table within the existing heap allowance; bridge buffers,
 answers and logs also have byte bounds. A queued native job binds the exact wasm
