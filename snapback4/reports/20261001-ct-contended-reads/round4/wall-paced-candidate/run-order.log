@@ -1,0 +1,18 @@
+2026-10-02T06:34:41Z mixed-split-0
+2026-10-02T06:36:56Z mixed-split-0 exit=0
+2026-10-02T06:36:56Z mixed-paced-0
+2026-10-02T06:39:12Z mixed-paced-0 exit=0
+2026-10-02T06:39:12Z mixed-paced-0.5
+2026-10-02T06:41:28Z mixed-paced-0.5 exit=0
+2026-10-02T06:41:28Z mixed-split-0.5
+2026-10-02T06:43:45Z mixed-split-0.5 exit=0
+2026-10-02T06:43:45Z mixed-split-1
+2026-10-02T06:46:03Z mixed-split-1 exit=0
+2026-10-02T06:46:03Z mixed-paced-1
+2026-10-02T06:48:21Z mixed-paced-1 exit=0
+2026-10-02T06:48:21Z mixed-paced-1.5
+2026-10-02T06:50:43Z mixed-paced-1.5 exit=0
+2026-10-02T06:50:43Z mixed-split-1.5
+2026-10-02T06:53:04Z mixed-split-1.5 exit=0
+2026-10-02T06:53:04Z mixed-following-paced
+2026-10-02T07:23:24Z candidate intentionally stopped; 144-process Following cell incomplete; no real-backlog trials started

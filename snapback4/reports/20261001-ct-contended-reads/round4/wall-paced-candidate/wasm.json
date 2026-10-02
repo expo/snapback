@@ -1,0 +1,8 @@
+{
+  "rawBytes": 2015329,
+  "gzipBytes": 605002,
+  "budget": 605225,
+  "sha256": "a773f0de489b1d0d662294f186d61acfcfa0d406f52513bad373646be7bdfade",
+  "sourceDependencyFile": "snapback4/target/wasm32-unknown-unknown/wasm/snapback4_device.d",
+  "rebuiltAfterScopedCargoClean": true
+}

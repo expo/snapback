@@ -21,6 +21,8 @@ pub struct FairMutex<T, C: Clock = SystemClock> {
     queue: Mutex<Queue>,
     available: Condvar,
     value: Mutex<T>,
+    #[cfg(test)]
+    background_pause: Mutex<Option<(bool, std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>>,
 }
 
 impl<T> FairMutex<T> {
@@ -37,7 +39,7 @@ impl<T> FairMutex<T> {
 }
 impl<T, C: Clock> FairMutex<T, C> {
     fn with_clock(value: T, clock: C) -> Self {
-        Self { clock, engine_timing: true, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
+        Self { clock, engine_timing: true, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value), #[cfg(test)] background_pause: Mutex::new(None) }
     }
     fn background_wait(&self, queue: &Queue, started: Instant) -> Option<Duration> {
         // An existing queue is sustained contention: join its tail now.
@@ -56,7 +58,14 @@ impl<T, C: Clock> FairMutex<T, C> {
     /// maintenance takes a ticket even under continuous traffic; later arrivals
     /// cannot starve it. No engine lock is held during the deferral.
     pub fn background(&self) -> FairGuard<'_, T, C> {
-        recover(self.admit(true), || self.clear_poison())
+        #[cfg(test)]
+        let pause = self.background_pause.lock().unwrap().take();
+        #[cfg(test)]
+        if let Some((false, entered, resume)) = &pause { entered.send(()).unwrap(); resume.recv().unwrap(); }
+        let guard = recover(self.admit(true), || self.clear_poison());
+        #[cfg(test)]
+        if let Some((true, entered, resume)) = pause { entered.send(()).unwrap(); resume.recv().unwrap(); }
+        guard
     }
     fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T, C>> {
         let trace_start = super::trace::begin();
@@ -86,7 +95,18 @@ impl<T, C: Clock> FairMutex<T, C> {
             Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended, _timing: timing })),
         }
     }
+    pub fn has_waiters(&self) -> bool {
+        let queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
+        queue.next.wrapping_sub(queue.serving) > 1
+    }
     pub fn clear_poison(&self) { self.value.clear_poison(); }
+    #[cfg(test)]
+    pub(super) fn pause_next_background(&self, holding: bool) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+        let (entered, observed) = std::sync::mpsc::channel();
+        let (release, resume) = std::sync::mpsc::channel();
+        *self.background_pause.lock().unwrap() = Some((holding, entered, resume));
+        (observed, release)
+    }
     #[cfg(test)]
     pub(super) fn waiting(&self) -> u64 {
         let queue = self.queue.lock().unwrap();

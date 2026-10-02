@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-10-02 (§7: CT round 3, ordinary timing work and aged bulk progress); 2026-10-02 (§7: CT round 2, partial-exit refusal, scoped QoS evidence and maintenance-aware qualification); 2026-10-02 (§7: CT round 1, intake/child QoS, inline comparison and mixed qualification); 2026-09-30 (§7: idle HTTP leases and one proven reused-socket retry, KA round 0); 2026-09-30 (§7: independent witness watchdog, expiry wakeup oracle and aggregate model guards, SL round 1); 2026-09-30 (§7: independent process-diagnostic records in loaded tests); 2026-09-29 (§7: publication-suite semantics under host contention); 2026-09-29 (§7: AV round 3 preserves completed asset bytes across same-principal rotation); 2026-09-29 (§7: CPU-aware publication suite and Cargo test warm-up, Lane MT); 2026-09-28 (§7: FU round 5, overload scope restored; refresh custody deferred); 2026-09-28 (§7: FU round 4, shared rotation custody and visible polling refusals); 2026-09-28 (§7: FU round 3, startup refresh outcome and malformed ephemeral replies); 2026-09-28 (§7: FU round 2, complete client refusal and ambiguous-retry audit); 2026-09-28 (§7: FU round 1, overload accounting and safe reporting/retries); 2026-09-28 (§7: HTTP overload diagnostics, Lane FU); 2026-09-28 (§7: explicit sync observes a round begun after its call); 2026-09-26 (§7: 0.4.4, what calibration #21's builder still wrote and what calibration #22 charged); 2026-09-26 (§7: release only the matching asset home; restore scalar receipts); 2026-09-26 (§7: bounded asset lists share scalar placement and declared ledger allowances); 2026-09-26 (§7: 0.4.3, receipts in one query and presence that stays current); 2026-09-25 (§7: 0.4.2 merged into the LLP 3000.015 baseline under one authorization law); 2026-09-25 (§7: 0.4.2, what calibration #20 and the comparatives found); 2026-09-25 (§7: restored authorization walk bound, LLP 3000.015); 2026-09-24 (§7: 0.4.1, what calibration #19 found); 2026-09-24 (§7: a row whose lifetime ended by its own commit's end is retired in it); 2026-09-24 (§7: Quarry states intent implemented); 2026-09-23 (§7: Quarry states intent, LLP 3000.013); 2026-09-23 (§7: logical expiry revokes only a grant once held live); 2026-09-23 (§7: a row or a grant born and undone inside one commit logs nothing); 2026-09-22 (§7: author-commissioned research on derived data after calibration #16, LLP 3000.012, with its two proposals placed under their owners, LLP 3000.007.003 and LLP 3000.009.000); 2026-09-22 (§7: author-commissioned diary synthesis, six proposal pairs and review/implementation/publication/benchmark sequence); 2026-09-18 (§7: S6's option 2 written down as S6a–c in LLP 3000.002, not commissioned); 2026-09-18 (§7: the author's four diet rulings landed — S3 guarded NFC-only, the budget ratchet, the target retired with S6 deferred, `since` on composed reads); 2026-09-17 (§7: author-requested common-application-shapes Draft in LLP 3000.007.002); 2026-09-17 (§7: S4a measured at −34,781 B gzip and stopped by the plan's rule; the diet's open decisions gathered for the author); 2026-09-17 (§7: S1b landed — serde's content reader out of the web device, the suite census that refuses what selects it; five Grok review records corrected); 2026-09-17 (§7: the diet's reachability rung landed with the web admission trust boundary stated; one `untagged` attribute on `main` measured at 33,460 B gzip and a repair lane commissioned); 2026-09-17 (§7: the device diet's first rungs landed; S2 measured and shelved; the ladder restated to end near 300,000 B gzip); 2026-09-17 (§7: retained-read composition landed; a program-only generation losing left history found and ticketed); 2026-09-17 (§7: five author-requested review proposals in covering LLPs); 2026-09-17 (§7: the device diet and retained-read composition plans rewritten from measurements and commissioned); 2026-09-16 (§7: author-requested planning for the device diet and mixed retained reads); 2026-09-16 (§7: W8c adoption health and default dev meters); 2026-09-15 (§7: LLP 3000.009's panel and disposition; increments A1–A3 and C1 on the doing-list); 2026-09-15 (§7: LLP 3000.009 accepted in direction — the brief, both deployment targets, the panel and implementation); 2026-09-15 (§7: LLP 3000.009 rewritten after a directional review); 2026-09-15 (§7: author-commissioned Draft general-purpose backend architecture); 2026-09-15 (§7: author-commissioned Postgres evaluation prototype); 2026-09-15 (§7: signal-line framing; the full 0.2.10 cell and qualified SQL recommendation); 2026-09-14 (§7: .008 panel and delegated residual program); 2026-09-14 (§7: borrowed sync replies, bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-10-02 (CT round 4: ordinary-priority engine holders, gate-free admission, paced bulk and recount budgets); 2026-10-02 (§7: CT round 3, ordinary timing work and aged bulk progress); 2026-10-02 (§7: CT round 2, partial-exit refusal, scoped QoS evidence and maintenance-aware qualification); 2026-10-02 (§7: CT round 1, intake/child QoS, inline comparison and mixed qualification); 2026-09-30 (§7: idle HTTP leases and one proven reused-socket retry, KA round 0); 2026-09-30 (§7: independent witness watchdog, expiry wakeup oracle and aggregate model guards, SL round 1); 2026-09-30 (§7: independent process-diagnostic records in loaded tests); 2026-09-29 (§7: publication-suite semantics under host contention); 2026-09-29 (§7: AV round 3 preserves completed asset bytes across same-principal rotation); 2026-09-29 (§7: CPU-aware publication suite and Cargo test warm-up, Lane MT); 2026-09-28 (§7: FU round 5, overload scope restored; refresh custody deferred); 2026-09-28 (§7: FU round 4, shared rotation custody and visible polling refusals); 2026-09-28 (§7: FU round 3, startup refresh outcome and malformed ephemeral replies); 2026-09-28 (§7: FU round 2, complete client refusal and ambiguous-retry audit); 2026-09-28 (§7: FU round 1, overload accounting and safe reporting/retries); 2026-09-28 (§7: HTTP overload diagnostics, Lane FU); 2026-09-28 (§7: explicit sync observes a round begun after its call); 2026-09-26 (§7: 0.4.4, what calibration #21's builder still wrote and what calibration #22 charged); 2026-09-26 (§7: release only the matching asset home; restore scalar receipts); 2026-09-26 (§7: bounded asset lists share scalar placement and declared ledger allowances); 2026-09-26 (§7: 0.4.3, receipts in one query and presence that stays current); 2026-09-25 (§7: 0.4.2 merged into the LLP 3000.015 baseline under one authorization law); 2026-09-25 (§7: 0.4.2, what calibration #20 and the comparatives found); 2026-09-25 (§7: restored authorization walk bound, LLP 3000.015); 2026-09-24 (§7: 0.4.1, what calibration #19 found); 2026-09-24 (§7: a row whose lifetime ended by its own commit's end is retired in it); 2026-09-24 (§7: Quarry states intent implemented); 2026-09-23 (§7: Quarry states intent, LLP 3000.013); 2026-09-23 (§7: logical expiry revokes only a grant once held live); 2026-09-23 (§7: a row or a grant born and undone inside one commit logs nothing); 2026-09-22 (§7: author-commissioned research on derived data after calibration #16, LLP 3000.012, with its two proposals placed under their owners, LLP 3000.007.003 and LLP 3000.009.000); 2026-09-22 (§7: author-commissioned diary synthesis, six proposal pairs and review/implementation/publication/benchmark sequence); 2026-09-18 (§7: S6's option 2 written down as S6a–c in LLP 3000.002, not commissioned); 2026-09-18 (§7: the author's four diet rulings landed — S3 guarded NFC-only, the budget ratchet, the target retired with S6 deferred, `since` on composed reads); 2026-09-17 (§7: author-requested common-application-shapes Draft in LLP 3000.007.002); 2026-09-17 (§7: S4a measured at −34,781 B gzip and stopped by the plan's rule; the diet's open decisions gathered for the author); 2026-09-17 (§7: S1b landed — serde's content reader out of the web device, the suite census that refuses what selects it; five Grok review records corrected); 2026-09-17 (§7: the diet's reachability rung landed with the web admission trust boundary stated; one `untagged` attribute on `main` measured at 33,460 B gzip and a repair lane commissioned); 2026-09-17 (§7: the device diet's first rungs landed; S2 measured and shelved; the ladder restated to end near 300,000 B gzip); 2026-09-17 (§7: retained-read composition landed; a program-only generation losing left history found and ticketed); 2026-09-17 (§7: five author-requested review proposals in covering LLPs); 2026-09-17 (§7: the device diet and retained-read composition plans rewritten from measurements and commissioned); 2026-09-16 (§7: author-requested planning for the device diet and mixed retained reads); 2026-09-16 (§7: W8c adoption health and default dev meters); 2026-09-15 (§7: LLP 3000.009's panel and disposition; increments A1–A3 and C1 on the doing-list); 2026-09-15 (§7: LLP 3000.009 accepted in direction — the brief, both deployment targets, the panel and implementation); 2026-09-15 (§7: LLP 3000.009 rewritten after a directional review); 2026-09-15 (§7: author-commissioned Draft general-purpose backend architecture); 2026-09-15 (§7: author-commissioned Postgres evaluation prototype); 2026-09-15 (§7: signal-line framing; the full 0.2.10 cell and qualified SQL recommendation); 2026-09-14 (§7: .008 panel and delegated residual program); 2026-09-14 (§7: borrowed sync replies, bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), [LLP 3000.006](./3000.006-explicit-data-residency-and-server-execution.rfc.md) (explicit online-only data, execution classification and synced projections), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) (relaxed Quarry and explicit residency: the language's constraints re-derived under the meter), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -1786,48 +1786,70 @@ A later setter failure never establishes or replaces the startup readback, and
 demoted to utility. Linux's dispatcher and parsers retain inherited priority;
 request creators are never niced down.
 
-**2026-10-02 — CT round 3, operator ruling.** Split maintenance by what it
-protects. An ordinary thread (Darwin default QoS; Linux inherited nice) performs
-ephemeral expiry, physical expiry reclamation, schedule boundary bookkeeping,
-action/effect lease recovery and deadline enforcement, and stale-asset expiry.
-Schedules admit one boundary transaction at a time. Existing expiry/lease/asset
-count and cooperative time limits remain; each slice releases the engine.
-The ordinary sweep cadence remains one second, leases/deadlines every fifth
-tick and assets every sixtieth; ephemeral sweeping and age checks wake every
-100 ms. Claim/settlement paths still enforce their own deadlines and leases.
+**2026-10-02 — CT round 4, operator ruling (supersedes round 3).** No
+thread that takes the maintenance gate, engine or writer is deliberately demoted.
+Both maintenance threads, the source watcher and the worker supervisor use
+Darwin default QoS / Linux inherited nice. Request/intake priority is unchanged.
+Only helpers without engine/writer custody and separate Node/watchdog processes
+retain utility/nice-5 demotion. Failed Linux `setpriority` calls are logged and
+counted separately as `niceFailures`, with per-class errno/time records in
+`doctor`; the watchdog carries its failure to the owning server's counters.
 
-A second thread uses Darwin utility / Linux nice at least 5 for durable Following
-delivery, row-view recounts and jobs. It cycles **one delivery slice, one recount
-slice, one job slice**, releasing both engine and maintenance gates between them.
-Both threads use the same FIFO engine admission and 250 µs contended / 2 ms quiet
-cooperative budgets from LLP 3000.013 §4. No transaction, durability, reader
-custody, admission, request pool, or worker-exec rule changes. There is no separate
-compaction runner in this loop; store commit/checkpoint work remains atomic with
-its caller rather than being moved to a second writer.
+The ordinary thread retains ephemeral expiry, physical reclamation, one atomic
+schedule boundary per admission, action/effect lease recovery and deadlines,
+and stale-asset sweeping. Cadences remain 100 ms ephemeral/age checks, one-second
+ordinary ticks, fifth-tick leases/deadlines and sixtieth-tick assets. Claims and
+settlements still enforce deadlines themselves. Bulk rotates one delivery,
+one recount and one job slice. **Kind selection and clock-drain exclusion are
+checked after engine admission.** A bulk eligibility precheck releases the gate
+before admission and is checked again afterward. No maintenance gate spans a wait
+for the engine or chunk execution. The engine serializes reading the bulk kind,
+committing its slice and advancing the cursor; the brief gate protects only
+coordination state. Thus an engine-free stalled bulk admission cannot prevent
+an ordinary expiry slice from running. Actual exclusive engine ownership still
+blocks other engine work until release; no scheduler can execute two writers
+through that lock simultaneously.
 
-The shared bulk cursor reserves progress: after **one second without a completed
-bulk turn**, the next ordinary age check executes that next bulk slice itself.
-Age is checked after every ordinary engine slice as well as on the 100 ms loop,
-so a large schedule set cannot suppress promotion. Any three bulk turns visit
-all three kinds, even with the lower-priority thread entirely unscheduled.
-Without lower-priority service, the scheduling bound is one turn per 1 s age
-threshold plus up to 100 ms polling delay, and each kind within three such turns;
-add OS scheduling, FIFO work already ahead, the currently executing atomic
-row/commit, filesystem delays, or an in-flight synchronous development-clock drain. This is an algorithmic service bound, **not a
-hard wall-clock deadline** on a general-purpose OS. Errors/parked work require
-repair and do not acquire a completion guarantee. Progress does not require
-privileged nice restoration or a Darwin QoS raise on the utility thread.
-This reserves service per bulk kind; existing selection among views/jobs is
-unchanged, with no per-item completion bound under unbounded new arrivals.
+The round-3 engine contention signal (queued/recent requests) selects a 250 µs
+cooperative budget; quiet work gets 2 ms. The host also samples one-minute OS
+load against available logical CPUs, cached for 100 ms, because detached reads
+do not take engine tickets. That signal includes other tenants and lags bursts.
+Recounts now check time after each complete source candidate and preserve the
+cursor/total in the same transaction, including the expiring source's two ranges.
+Delivery and Quarry jobs retain their row boundaries. Native jobs cannot split
+inside their transaction/guest ABI: at most one invocation runs per slice, with
+2,000,000,000 fuel, 1,000,000 host steps, 16,384 examined rows, 8,192 writes,
+16 MiB heap and 1 MiB output. Native `Again` supplies the next durable boundary.
+These are deterministic resource bounds, **not a wall-clock promise** for native
+execution, one Quarry iteration, setup, storage commit or filesystem I/O.
 
-One FIFO maintenance gate serializes individual bulk/ordinary slices and the
-whole synchronous development-clock drain. Waiting ordinary work or an advance
-precedes the bulk thread's next slice. Within a bulk cycle delivery commits before
-recount, then jobs; urgent work may run between them. A recount does **not** require
-all Following delivery to be complete: its engine-owned cursor/basis and delta
-handling observe later committed writes and restart where required. The prior
-500-delivery-chunk phase did not imply global queue completion either.
-Synchronous development-clock work preserves its existing full-drain ordering.
+Between contended slices the bulk worker sleeps with no shared lock for seven
+times the consumed thread CPU (including atomic overruns), capped at 100 ms.
+There is no minimum pause that would overcharge cheap or empty turns. The CPU
+clock excludes time already spent descheduled; a failed sample conservatively
+falls back to wall time. Chunk deadlines still use wall time. This targets
+one-eighth CPU duty for ordinary short slices; the cap and indivisible work
+preclude a universal duty ceiling. The pause also applies if engine waiters
+arrived during a quiet slice. Request commits do not cancel it. Quiet work has
+no added pause; an entirely empty three-kind cycle waits up to 100 ms for work.
+After one second without a completed bulk turn, ordinary maintenance runs the
+next kind itself, checking every 100 ms and after each ordinary engine slice.
+Nominal minimum eligibility is **one turn per 1 s plus up to 100 ms polling,
+every kind within three turns**, plus OS scheduling, already admitted FIFO work,
+atomic row/commit/I/O delays or a synchronous clock drain. This reserves service
+opportunities rather than a hard completion deadline. A finite healthy backlog
+drains; parked/failing work needs repair and unbounded arrivals still have no
+per-item bound. No priority restoration is needed.
+
+Delivery still commits before recount within each cycle. Recounts use their
+durable basis/delta rules and need not wait for the entire delivery queue.
+Clock callers serialize with each other through a separate lock; under the
+engine they mark a drain and extend leases atomically with the clock change.
+Periodic engine slices check that mark after admission and defer while the
+request performs its original synchronous full-drain order. An unwind guard
+clears the mark even after a request panic; durable cursor/restart and shutdown
+semantics remain. The coordination gate never spans that drain. No durability,
+admission, request-pool, read-custody or resource ceiling changes.
 
 Round 2's ordinary-all policy had read p95 0.506 versus 0.415 ms demoted at 48 busy
 processes and 3.425 versus 2.163 ms at 96; it improved at 144. Every corrected
@@ -1859,7 +1881,31 @@ combined fixture also passes at every load, draining 1,000 fan-out tasks in
 52.438/80.313/277.007/428.446 s at 0/48/96/144. These retain the bulk throughput
 cost and the product backlog finding; there is no midpoint-pass claim.
 
-Other background threads use utility on Darwin and
+Round 4 replaces the demoted lock holder with paced ordinary work. All twelve
+mixed cells pass (2,117,919 reads, 72/72 abandoned claims, no unexpected lease
+changes); the paced 1,000-task combined fixture drains in
+143.037/220.737/693.048/1,177.746 s at 0/48/96/144 busy. Its read p95 during drain
+is 0.751/1.348/3.041/5.318 ms during the 125-second read window. The small-fixture
+comparison does not establish a consistent win: paced p95 at 144 is 3.633 ms
+versus split 0.917 ms. Ordinary timing obligations still satisfy the fixture.
+
+Sixteen fresh real-backlog trials restore the same 6,507-task checkpoint and
+agree with round 3 on all eight settled answers. At 96 busy, paced pooled p95
+beats ordinary-all on all eight queries and split on three; five are 0.8–3.8%
+slower than split. Following-500 is 8.865 ms paced versus 9.609 split and
+10.473 ordinary. Paced drains in 819.789/551.717 s versus split's
+140.144/147.438 s: a substantial 3.7–5.9× throughput cost. At zero owned busy,
+paced's two drain times are 712.475/32.443 s as shared-host load changes; lower
+pooled p95 on all eight queries is not a quiet-host guarantee. Longer drains
+contribute more probe cohorts and intermediate feed states. The
+[round-4 record](../snapback4/reports/20261001-ct-contended-reads/REPORT.md#round-4--ordinary-lock-holders-and-paced-bulk-2026-10-02)
+retains ranks, per-trial times, shared-host observations, the rejected wall-time
+pacing candidate and final-source qualification. The lock-inversion regression
+now starts the actual bulk thread and stalls it inside engine admission; a real
+ordinary expiry completes with bulk still stopped and the engine free. Stopping
+an exclusive engine owner still prevents concurrent engine execution.
+
+Output-only helper threads use utility on Darwin and
 lower their own Linux nice value to at least 5, without privileges. The supervised Node exec now uses Darwin
 `posix_spawnattr_set_qos_class_np` with a utility task clamp, explicit stdin/
 stdout/stderr actions and the existing separate child process group. Setting

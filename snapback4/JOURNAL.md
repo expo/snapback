@@ -81666,3 +81666,66 @@ ratchet by 224 B. Main was inspected/tested in isolation, not merged. LLP 3000
 retains tables, commands, samples, queue histories, failures and custody.
 Generated projects/stores remain ignored local artifacts. Commit locally with
 the requested Astra trailer; push and publish nothing.
+
+
+## 2026-10-02 — CT round 4: ordinary lock holders and paced bulk
+
+Round 3's independent reviews found the same shared-gate priority inversion.
+All lifecycle-managed engine/writer holders now run at ordinary priority,
+including bulk, the source watcher and worker supervisor. The short maintenance
+gate never spans engine admission or chunk execution. Selection, commit and
+cursor advance serialize through engine ownership; delivery still precedes
+recount, schedule admission stays separately atomic, and synchronous clock
+advancement retains atomic lease extension with a separate caller mutex and
+unwind-safe exclusion. Node/watchdog demotion remains. Linux nice refusals are
+counted for doctor, including the watchdog's startup refusal via its handshake.
+
+Bulk uses 250 µs contended / 2 ms quiet cooperative slices. Recounts now stop
+between complete candidates, including expiring-source ranges. Native calls
+remain one indivisible fuel/meter-bounded invocation per slice, with the exact
+exception and unchanged bounds in the guide. Between contended slices the
+worker pauses outside shared locks for seven times consumed thread CPU, capped
+at 100 ms, with no minimum pause. The existing request signal and a cached
+host-load hint select contention. After one second without a completed bulk
+turn, ordinary maintenance supplies the next; three turns cover every kind,
+plus 100 ms polling per turn and explicit OS/FIFO/atomic/I/O/clock-drain delays.
+This reserves finite-backlog service opportunities, not a hard wall deadline.
+
+The real-thread regression pauses bulk inside engine.background with the engine
+free and completes ordinary expiry before resuming it. A second pause while
+bulk owns the engine proves the gate stays free and ordinary admission queues;
+it completes after engine release. Existing ordering, shutdown, clock, restart
+and panic coverage passes. The rejected wall-time pacing candidate remains in
+its own archive: it overcharged descheduling and cheap turns, and its unfinished
+144-process cell is explicitly incomplete. No candidate sample enters final ranks.
+
+All 28 final timing runs pass. Twelve mixed cells retain 2,117,919 reads and
+72/72 abandoned claims with no unexpected lease changes. Paced combined drains
+of 1,000 Following tasks take 143.037/220.737/693.048/1,177.746 seconds at
+0/48/96/144 busy. Sixteen real-backlog trials restore identical DB/WAL bytes and
+6,507 tasks; all eight settled answer hashes agree with round 3. At 96 busy,
+paced pooled Following-500 p95 is 8.865 ms versus split 9.609 and ordinary
+10.473. Paced beats ordinary p95 on all eight endpoints and split on three;
+five are 0.8–3.8% slower than split. Drain costs 819.789/551.717 seconds versus
+split's 140.144/147.438. At zero owned busy, paced drains in 712.475/32.443
+seconds amid large shared-host variation. No universal latency or quiet-Mac win
+is claimed; slower drains contribute more probe cohorts and intermediate states.
+
+The final-source full suite ran once after timing and reports exactly
+`== 0 failure(s) in 1417 s`: all Rust targets/doctests, fixture/guide/typechecks,
+5,742 client tests (10 skipped) and 79 models pass. Affected server tests pass
+234 with four ignores, guide 110, KA/transport 61, and doctor controls two.
+The known follow fault-injection case passes in this run without a retry.
+The earlier rejected source's separate full suite had two failed categories;
+all environmental cached-wasm mismatches, baseline fault-injection failures and
+our corrected development errors remain enumerated in the report ledger. Our
+archiver also unlinked the running final-suite log; its original open inode was
+recovered in full and followed through exit, without restarting any test.
+
+Final wasm is 2,015,329 B raw / 605,002 B gzip, 223 B below the unchanged 605,225 B
+ratchet. Source and all measured binaries retain their recorded hashes; all
+measurement tables reproduce byte for byte. LLP 3000 §7 and LLP 3000.013 state
+the revised policy. The [round-4 report](./reports/20261001-ct-contended-reads/REPORT.md#round-4--ordinary-lock-holders-and-paced-bulk-2026-10-02)
+retains every trial, failure, command and custody record. The Apartment mini
+timing remains with the operator. Local commit with the requested Astra trailer;
+nothing pushed or published.

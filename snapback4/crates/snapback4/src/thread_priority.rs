@@ -10,11 +10,12 @@ pub(crate) struct Failure { count: usize, last_errno: i32, last_at_ms: u64 }
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Diagnostics {
     qos_failures: usize,
+    nice_failures: usize,
     failures: BTreeMap<&'static str, Failure>,
     startup_readback: &'static str,
 }
 static DIAGNOSTICS: Mutex<Diagnostics> = Mutex::new(Diagnostics {
-    qos_failures: 0, failures: BTreeMap::new(), startup_readback: "not performed",
+    qos_failures: 0, nice_failures: 0, failures: BTreeMap::new(), startup_readback: "not performed",
 });
 pub(crate) fn diagnostics() -> Diagnostics {
     DIAGNOSTICS.lock().unwrap_or_else(|e| e.into_inner()).clone()
@@ -23,6 +24,9 @@ impl Diagnostics {
     #[cfg(any(test, target_os = "macos"))]
     fn failure(&mut self, class: &'static str, error: i32, at: u64) {
         self.qos_failures += 1;
+        self.record_failure(class, error, at);
+    }
+    fn record_failure(&mut self, class: &'static str, error: i32, at: u64) {
         let entry = self.failures.entry(class).or_insert(Failure { count: 0, last_errno: 0, last_at_ms: 0 });
         entry.count += 1;
         entry.last_errno = error;
@@ -83,8 +87,34 @@ pub(crate) fn background() {
     #[cfg(target_os = "linux")]
     unsafe {
         let current = libc::getpriority(libc::PRIO_PROCESS, 0);
-        if current < 5 { libc::setpriority(libc::PRIO_PROCESS, 0, 5); }
+        if current < 5 {
+            let result = libc::setpriority(libc::PRIO_PROCESS, 0, 5);
+            if result != 0 { record_nice_failure("background-nice", std::io::Error::last_os_error().raw_os_error().unwrap_or(libc::EINVAL)); }
+        }
     }
+}
+#[cfg(target_os = "linux")]
+pub(crate) fn record_nice_failure(class: &'static str, error: i32) {
+    let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+    let mut state = DIAGNOSTICS.lock().unwrap_or_else(|e| e.into_inner());
+    state.nice_failures += 1;
+    state.record_failure(class, error, at);
+    drop(state);
+    snapback4_core::diagnostic!("snapback4: setpriority nice 5 failed (thread class {class}, errno {error}, at unix ms {at}); inspect doctor host.scheduling: {}", std::io::Error::from_raw_os_error(error));
+}
+// The watchdog is a separate process; carry its Linux setter refusal in the
+// private PID handshake so the owning server's doctor can count it too.
+pub(crate) fn child_nice_error() -> i32 {
+    diagnostics().failures.get("background-nice").map_or(0, |f| f.last_errno)
+}
+pub(crate) fn worker_started(line: &str) -> Option<u32> {
+    let mut words = line.split_whitespace();
+    let pid = words.next()?.parse().ok()?;
+    #[cfg(target_os = "linux")]
+    if let Some(error) = words.next().and_then(|v| v.parse::<i32>().ok()).filter(|e| *e != 0) {
+        record_nice_failure("worker-nice", error);
+    }
+    Some(pid)
 }
 pub(crate) fn dispatcher() {
     // Keep Linux's thread-creation parent unchanged: otherwise its children
@@ -103,7 +133,7 @@ pub(crate) fn current_qos() -> u32 {
 mod tests {
     #[test]
     fn later_failures_preserve_startup_evidence_and_identify_each_class() {
-        let mut state = super::Diagnostics { qos_failures: 0, failures: Default::default(), startup_readback: "passed: default or higher" };
+        let mut state = super::Diagnostics { qos_failures: 0, nice_failures: 0, failures: Default::default(), startup_readback: "passed: default or higher" };
         state.failure("maintenance", libc::EINVAL, 1234);
         state.failure("background", libc::EPERM, 2345);
         state.failure("maintenance", libc::EINVAL, 3456);
@@ -113,6 +143,31 @@ mod tests {
         assert_eq!(wire["failures"]["maintenance"]["count"], 2);
         assert_eq!(wire["failures"]["maintenance"]["lastAtMs"], 3456);
         assert_eq!(wire["failures"]["background"]["lastErrno"], libc::EPERM);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_setpriority_failure_is_counted_without_replacing_startup_readback() {
+        let before = super::diagnostics();
+        // Invalid selector guarantees a real setter failure without changing
+        // this test thread or requiring any scheduling privilege.
+        assert_eq!(unsafe { libc::setpriority(u32::MAX, 0, 5) }, -1);
+        super::record_nice_failure("background-nice", std::io::Error::last_os_error().raw_os_error().unwrap());
+        let wire = serde_json::to_value(super::diagnostics()).unwrap();
+        assert!(wire["niceFailures"].as_u64().unwrap() > before.nice_failures as u64);
+        assert_eq!(wire["startupReadback"], before.startup_readback);
+        assert_eq!(wire["failures"]["background-nice"]["lastErrno"], libc::EINVAL);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn watchdog_nice_failure_reaches_the_owning_host() {
+        let before = super::diagnostics().nice_failures;
+        assert_eq!(super::worker_started(&format!("123 {}\n", libc::EPERM)), Some(123));
+        assert_eq!(super::worker_started("456 0\n"), Some(456));
+        let wire = serde_json::to_value(super::diagnostics()).unwrap();
+        assert!(wire["niceFailures"].as_u64().unwrap() > before as u64);
+        assert_eq!(wire["failures"]["worker-nice"]["lastErrno"], libc::EPERM);
     }
 
     #[test]

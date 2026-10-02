@@ -340,7 +340,7 @@ impl DevWorker {
                 use std::io::BufRead;
                 let mut stdout = std::io::BufReader::new(child.stdout.take().expect("piped stdout"));
                 let mut pid = String::new();
-                self.worker_pid = stdout.read_line(&mut pid).ok().and_then(|_| pid.trim().parse().ok());
+                self.worker_pid = stdout.read_line(&mut pid).ok().and_then(|_| crate::thread_priority::worker_started(&pid));
                 environment::pipe(stdout, redact.clone(), self.name.as_deref().unwrap_or("worker").to_owned());
                 environment::pipe(child.stderr.take().expect("piped stderr"), redact, self.name.as_deref().unwrap_or("worker").to_owned());
                 snapback4_core::diagnostic!("snapback4 worker: {} (pid {})", self.source.display(), self.worker_pid.unwrap_or(0)); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running");

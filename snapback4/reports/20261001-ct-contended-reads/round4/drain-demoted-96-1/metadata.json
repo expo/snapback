@@ -1,0 +1,386 @@
+{
+  "started": "2026-10-02T09:03:46.208Z",
+  "host": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "cpu": "AMD EPYC 9454 48-Core Processor",
+  "cores": 96,
+  "busy": 96,
+  "binary": "/home/ccheever/sb4-intent/lane-ct/snapback4/target/ct-round3/demoted",
+  "binarySha256": "5c0463758a274791468df7531dd784de78ffd17b29efcd2d1a1c34abd3f75713",
+  "client": "0.4.10",
+  "actions": 88143,
+  "initial": {
+    "at": 1790931824904,
+    "tables": [
+      {
+        "name": "followingWork",
+        "kind": "timeline",
+        "states": [
+          {
+            "state": "done",
+            "n": 18121
+          },
+          {
+            "state": "pending",
+            "n": 6507
+          }
+        ],
+        "pending": 6507
+      },
+      {
+        "name": "$recount:unread",
+        "kind": "recount",
+        "states": [],
+        "pending": 0
+      }
+    ],
+    "jobs": [],
+    "lastCommit": {
+      "seq": 142592,
+      "at": 1790911257512,
+      "program": "following:delivery"
+    },
+    "pending": 6507
+  },
+  "pristineStoreSha256": "8da6bb2e00ac715c6707f36f908eb9c2d4561e32431a718faaac626cd2237d25",
+  "pristineStoreFiles": {
+    "store.sqlite": {
+      "bytes": 1151639552,
+      "sha256": "8da6bb2e00ac715c6707f36f908eb9c2d4561e32431a718faaac626cd2237d25"
+    },
+    "store.sqlite-wal": {
+      "bytes": 56122672,
+      "sha256": "eb801ad6feeb557171b2e1a6b6c0347dce0bc9b9262b7c6cb26ea350cac2c722"
+    }
+  },
+  "spawnAt": 1790931830964,
+  "readyAt": 1790931831130,
+  "hostStart": {
+    "load": [
+      93.85,
+      102.08,
+      119.62
+    ],
+    "affinity": "Cpus_allowed_list:\t0-95",
+    "cpuCounters": [
+      "cpu  987207512 3186968 216262409 30336512058 15771391 0 514235 0 0 0",
+      "cpu0 11572558 26640 2367404 311152176 156893 0 41907 0 0 0",
+      "cpu1 10874266 38555 2406976 314748021 177117 0 9766 0 0 0",
+      "cpu2 10586946 32894 2358148 315442738 176906 0 9412 0 0 0",
+      "cpu3 10584603 26095 2339549 315563386 173202 0 8723 0 0 0",
+      "cpu4 10383828 39371 2316765 315791265 172071 0 8339 0 0 0",
+      "cpu5 10500731 38047 2324131 315685067 176332 0 11803 0 0 0",
+      "cpu6 15463016 58210 2867147 310117045 199814 0 8222 0 0 0",
+      "cpu7 11458530 41268 2538199 314496902 182751 0 8312 0 0 0",
+      "cpu8 10541696 35280 2386952 315576874 174343 0 6701 0 0 0",
+      "cpu9 10325164 36306 2340099 315851183 171533 0 7856 0 0 0",
+      "cpu10 9996235 37918 2296329 316229120 168762 0 5972 0 0 0",
+      "cpu11 9932451 42148 2283860 316320759 163841 0 7192 0 0 0",
+      "cpu12 14273198 48027 2720314 311516792 181845 0 7938 0 0 0",
+      "cpu13 10843252 40745 2437383 315251117 177360 0 7591 0 0 0",
+      "cpu14 10124087 34908 2314714 316109124 174177 0 7691 0 0 0",
+      "cpu15 9936304 30068 2283676 316333425 172423 0 9110 0 0 0",
+      "cpu16 9543608 29300 2219289 316810647 164974 0 5955 0 0 0",
+      "cpu17 9603279 32474 2202281 316774954 159968 0 6319 0 0 0",
+      "cpu18 12864701 39939 2594192 313065165 171794 0 7472 0 0 0",
+      "cpu19 10149655 38799 2380811 315961683 171861 0 10301 0 0 0",
+      "cpu20 9492165 29131 2253915 316822513 165437 0 5996 0 0 0",
+      "cpu21 9505299 25398 2241925 316819950 164554 0 8025 0 0 0",
+      "cpu22 9499493 26519 2213248 316872658 161038 0 6362 0 0 0",
+      "cpu23 9602281 32540 2227280 316718182 158165 0 21104 0 0 0",
+      "cpu24 12944198 37888 2521862 313113705 169269 0 4167 0 0 0",
+      "cpu25 10206085 33745 2329343 316046848 167010 0 3887 0 0 0",
+      "cpu26 9560735 26408 2221477 316821651 164499 0 3868 0 0 0",
+      "cpu27 9440328 28163 2178535 316998713 155183 0 3813 0 0 0",
+      "cpu28 9375628 25095 2164598 317082443 160788 0 3837 0 0 0",
+      "cpu29 9515909 28269 2164542 316944996 155408 0 3745 0 0 0",
+      "cpu30 12250909 39279 2456043 313872676 167846 0 3731 0 0 0",
+      "cpu31 9876594 20658 2254899 316476271 163648 0 3788 0 0 0",
+      "cpu32 9449275 20524 2199335 316968404 157549 0 3948 0 0 0",
+      "cpu33 9437513 28533 2170772 317009673 154861 0 3850 0 0 0",
+      "cpu34 9358703 22346 2159495 317118439 147427 0 3868 0 0 0",
+      "cpu35 9411022 23858 2147699 317074828 151643 0 3832 0 0 0",
+      "cpu36 12190618 31835 2441658 313958963 162821 0 4043 0 0 0",
+      "cpu37 10147334 32566 2308431 316138772 165044 0 3822 0 0 0",
+      "cpu38 9459505 34129 2196190 316944148 162363 0 4111 0 0 0",
+      "cpu39 9292833 34536 2165924 317155990 158201 0 3973 0 0 0",
+      "cpu40 8534926 29247 2177573 317879181 158240 0 3878 0 0 0",
+      "cpu41 8606657 39604 2177039 317824651 158000 0 3743 0 0 0",
+      "cpu42 11093101 38435 2432640 315055480 165574 0 3906 0 0 0",
+      "cpu43 9205470 34519 2280519 317097635 168345 0 3885 0 0 0",
+      "cpu44 8656552 25702 2205186 317745124 164134 0 3768 0 0 0",
+      "cpu45 8517040 18656 2171820 317928691 164663 0 3909 0 0 0",
+      "cpu46 8511219 16967 2152490 317966575 158286 0 3690 0 0 0",
+      "cpu47 8592115 28978 2159218 317867174 160608 0 3742 0 0 0",
+      "cpu48 9374935 49887 2326045 316834581 167405 0 3912 0 0 0",
+      "cpu49 8273779 18398 2261725 318055971 172179 0 3797 0 0 0",
+      "cpu50 7905995 22327 2202182 318485124 172845 0 3847 0 0 0",
+      "cpu51 7799770 42794 2179403 318601560 169758 0 3776 0 0 0",
+      "cpu52 7761058 19705 2156175 318688378 174738 0 3651 0 0 0",
+      "cpu53 7668232 18730 2141148 318796025 173758 0 3610 0 0 0",
+      "cpu54 8504979 19792 2255523 317815247 168904 0 3767 0 0 0",
+      "cpu55 8048061 23796 2220473 318308713 168846 0 3562 0 0 0",
+      "cpu56 7868883 32729 2186344 318521166 161967 0 3657 0 0 0",
+      "cpu57 7809043 42569 2154449 318601402 167558 0 3511 0 0 0",
+      "cpu58 7834531 29254 2160006 318592079 157787 0 3712 0 0 0",
+      "cpu59 7983836 20217 2145524 318433870 187384 0 3580 0 0 0",
+      "cpu60 8658508 23405 2257950 317684535 164768 0 3730 0 0 0",
+      "cpu61 8288362 25102 2202278 318105550 170994 0 3647 0 0 0",
+      "cpu62 8047289 30087 2182691 318366306 167654 0 3661 0 0 0",
+      "cpu63 7994541 38285 2164385 318433913 163857 0 3853 0 0 0",
+      "cpu64 8246682 41913 2192603 318148136 168465 0 3990 0 0 0",
+      "cpu65 8392616 32338 2186449 318016933 164213 0 3988 0 0 0",
+      "cpu66 8698420 34588 2244437 317653219 162278 0 3725 0 0 0",
+      "cpu67 8558278 14633 2249730 317798919 162304 0 3643 0 0 0",
+      "cpu68 8232615 28334 2193098 318172436 164996 0 3608 0 0 0",
+      "cpu69 8267167 43866 2202909 318122277 159750 0 3723 0 0 0",
+      "cpu70 8351468 45984 2214271 318019816 160608 0 3681 0 0 0",
+      "cpu71 8362027 22539 2211035 318034734 162496 0 3748 0 0 0",
+      "cpu72 8766678 36544 2219338 317619400 159117 0 3690 0 0 0",
+      "cpu73 8495872 25187 2190610 317935215 163758 0 3682 0 0 0",
+      "cpu74 8409961 41708 2195628 317994686 162025 0 3628 0 0 0",
+      "cpu75 8411773 29802 2177089 318033843 158563 0 3648 0 0 0",
+      "cpu76 8420928 36625 2176358 318020443 158220 0 3629 0 0 0",
+      "cpu77 8422531 39011 2187512 318002999 157962 0 3676 0 0 0",
+      "cpu78 8815745 28011 2206936 317593400 159188 0 3841 0 0 0",
+      "cpu79 8546621 52573 2198625 317842093 160864 0 3821 0 0 0",
+      "cpu80 13614305 52182 2231804 312745828 156708 0 4184 0 0 0",
+      "cpu81 13558234 38032 2207201 312848399 151852 0 4167 0 0 0",
+      "cpu82 13561509 46686 2210364 312831987 150311 0 3936 0 0 0",
+      "cpu83 13716677 42109 2225734 312670647 149928 0 4058 0 0 0",
+      "cpu84 13888791 52837 2222664 312480456 163187 0 3959 0 0 0",
+      "cpu85 13680192 42361 2197166 312728050 160556 0 4054 0 0 0",
+      "cpu86 14818830 27665 2156994 311656717 154103 0 4016 0 0 0",
+      "cpu87 14758051 25246 2179173 311696340 154714 0 4098 0 0 0",
+      "cpu88 14781719 32600 2155653 311680745 160780 0 4087 0 0 0",
+      "cpu89 14834961 25662 2141298 311660724 150311 0 4036 0 0 0",
+      "cpu90 15153671 29056 2202820 311266298 158745 0 3996 0 0 0",
+      "cpu91 14963931 19728 2208908 311443595 162702 0 4097 0 0 0",
+      "cpu92 14806018 40369 2197877 311610243 154256 0 3877 0 0 0",
+      "cpu93 14830670 48049 2170753 311605981 158015 0 3974 0 0 0",
+      "cpu94 14762535 56753 2177989 311656693 154802 0 3882 0 0 0",
+      "cpu95 14964577 36339 2181170 311474565 156592 0 3908 0 0 0"
+    ],
+    "busiest": [
+      " 133105  500 ps",
+      " 132267  103 MainThread",
+      " 132296  103 MainThread",
+      " 132311  103 MainThread",
+      " 132460  103 MainThread",
+      " 132506  103 MainThread",
+      " 132539  103 MainThread",
+      " 131388  102 MainThread"
+    ],
+    "processes": " 130474 2236664 47.0 MainThread\n 131168  130474  101 MainThread\n 131196  130474  100 MainThread\n 131207  130474  100 MainThread\n 131218  130474  101 MainThread\n 131230  130474  100 MainThread\n 131240  130474 97.5 MainThread\n 131251  130474  100 MainThread\n 131262  130474  101 MainThread\n 131276  130474  101 MainThread\n 131287  130474  100 MainThread\n 131298  130474  100 MainThread\n 131309  130474  101 MainThread\n 131319  130474  101 MainThread\n 131329  130474 97.8 MainThread\n 131341  130474  101 MainThread\n 131350  130474  101 MainThread\n 131363  130474 98.9 MainThread\n 131376  130474  100 MainThread\n 131388  130474  101 MainThread\n 131401  130474  101 MainThread\n 131414  130474 97.1 MainThread\n 131428  130474  101 MainThread\n 131438  130474 98.4 MainThread\n 131454  130474  100 MainThread\n 131465  130474  101 MainThread\n 131475  130474  100 MainThread\n 131509  130474  101 MainThread\n 131521  130474  101 MainThread\n 131536  130474  101 MainThread\n 131547  130474  101 MainThread\n 131559  130474  100 MainThread\n 131569  130474 96.2 MainThread\n 131581  130474  101 MainThread\n 131593  130474  101 MainThread\n 131605  130474  101 MainThread\n 131619  130474 99.7 MainThread\n 131635  130474  100 MainThread\n 131651  130474  101 MainThread\n 131678  130474  101 MainThread\n 131715  130474 98.7 MainThread\n 131730  130474  101 MainThread\n 131744  130474  101 MainThread\n 131757  130474  101 MainThread\n 131772  130474  101 MainThread\n 131787  130474  101 MainThread\n 131805  130474 94.4 MainThread\n 131819  130474  101 MainThread\n 131832  130474  101 MainThread\n 131846  130474 88.3 MainThread\n 131861  130474  101 MainThread\n 131875  130474 80.8 MainThread\n 131889  130474  101 MainThread\n 131904  130474 99.7 MainThread\n 131920  130474  102 MainThread\n 131934  130474  100 MainThread\n 131948  130474  102 MainThread\n 131961  130474  101 MainThread\n 131976  130474  100 MainThread\n 131990  130474  101 MainThread\n 132006  130474  102 MainThread\n 132021  130474  100 MainThread\n 132037  130474  102 MainThread\n 132052  130474  101 MainThread\n 132068  130474  102 MainThread\n 132084  130474 96.4 MainThread\n 132099  130474 99.4 MainThread\n 132116  130474  100 MainThread\n 132128  130474  101 MainThread\n 132144  130474 97.5 MainThread\n 132156  130474  100 MainThread\n 132171  130474  102 MainThread\n 132184  130474 95.0 MainThread\n 132199  130474  101 MainThread\n 132212  130474  101 MainThread\n 132227  130474  101 MainThread\n 132241  130474  100 MainThread\n 132254  130474  101 MainThread\n 132267  130474  100 MainThread\n 132283  130474  102 MainThread\n 132296  130474  102 MainThread\n 132311  130474  102 MainThread\n 132325  130474  102 MainThread\n 132338  130474  101 MainThread\n 132357  130474 77.8 MainThread\n 132407  130474 85.3 MainThread\n 132429  130474 98.9 MainThread\n 132444  130474  101 MainThread\n 132460  130474  103 MainThread\n 132475  130474 99.6 MainThread\n 132491  130474 99.2 MainThread\n 132506  130474  103 MainThread\n 132521  130474 94.9 MainThread\n 132539  130474  103 MainThread\n 132550  130474  101 MainThread\n 132566  130474 94.3 MainThread\n 132583  130474 83.4 MainThread\n 133057  130474 38.8 demoted\n",
+    "threads": [
+      {
+        "tid": 133057,
+        "sched": "demoted (133057, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290757019.041160\nse.vruntime                                  :       4677985.466219\nse.sum_exec_runtime                          :            51.198435\nse.nr_migrations                             :                    0\nnr_switches                                  :                   32\nnr_voluntary_switches                        :                    7\nnr_involuntary_switches                      :                   25\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                   32\nse.avg.runnable_sum                          :                30045\nse.avg.util_sum                              :                25636\nse.avg.load_avg                              :                    0\nse.avg.runnable_avg                          :                    0\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290731508797440\nse.avg.util_est                              :                  258\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   80\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133072,
+        "sched": "diagnostics (133072, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290756644.223911\nse.vruntime                                  :       4677647.038674\nse.sum_exec_runtime                          :             0.232487\nse.nr_migrations                             :                    1\nnr_switches                                  :                   13\nnr_voluntary_switches                        :                   13\nnr_involuntary_switches                      :                    0\nse.load.weight                               :               343040\nse.avg.load_sum                              :                31669\nse.avg.runnable_sum                          :               418702\nse.avg.util_sum                              :               229766\nse.avg.load_avg                              :                  224\nse.avg.runnable_avg                          :                    7\nse.avg.util_avg                              :                    3\nse.avg.last_update_time                      :     3290731133979648\nse.avg.util_est                              :                    2\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133074,
+        "sched": "demoted (133074, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290756716.092426\nse.vruntime                                  :       4677703.440844\nse.sum_exec_runtime                          :             0.202904\nse.nr_migrations                             :                    1\nnr_switches                                  :                    2\nnr_voluntary_switches                        :                    2\nnr_involuntary_switches                      :                    0\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 7374\nse.avg.runnable_sum                          :               151284\nse.avg.util_sum                              :               104448\nse.avg.load_avg                              :                  159\nse.avg.runnable_avg                          :                    1\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290731205849088\nse.avg.util_est                              :                    0\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133078,
+        "sched": "dev-refusals (133078, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290756643.902328\nse.vruntime                                  :       4890025.734111\nse.sum_exec_runtime                          :             0.064336\nse.nr_migrations                             :                    0\nnr_switches                                  :                    1\nnr_voluntary_switches                        :                    1\nnr_involuntary_switches                      :                    0\nse.load.weight                               :               343040\nse.avg.load_sum                              :                47673\nse.avg.runnable_sum                          :               155088\nse.avg.util_sum                              :               112080\nse.avg.load_avg                              :                  335\nse.avg.runnable_avg                          :                    1\nse.avg.util_avg                              :                    1\nse.avg.last_update_time                      :     3290732964015104\nse.avg.util_est                              :                    1\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133080,
+        "sched": "maintenance (133080, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290757057.293386\nse.vruntime                                  :       4773057.513363\nse.sum_exec_runtime                          :           104.425392\nse.nr_migrations                             :                    6\nnr_switches                                  :                  107\nnr_voluntary_switches                        :                   60\nnr_involuntary_switches                      :                   47\nse.load.weight                               :               343040\nse.avg.load_sum                              :                46969\nse.avg.runnable_sum                          :             48129353\nse.avg.util_sum                              :             13345990\nse.avg.load_avg                              :                  332\nse.avg.runnable_avg                          :                 1017\nse.avg.util_avg                              :                  282\nse.avg.last_update_time                      :     3290732102765568\nse.avg.util_est                              :                  302\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   49\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133081,
+        "sched": "worker (133081, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290757045.658866\nse.vruntime                                  :       4773041.016926\nse.sum_exec_runtime                          :             0.166500\nse.nr_migrations                             :                    0\nnr_switches                                  :                    5\nnr_voluntary_switches                        :                    5\nnr_involuntary_switches                      :                    0\nse.load.weight                               :               343040\nse.avg.load_sum                              :                   25\nse.avg.runnable_sum                          :                14355\nse.avg.util_sum                              :                14100\nse.avg.load_avg                              :                    0\nse.avg.runnable_avg                          :                    0\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290732091130880\nse.avg.util_est                              :                    5\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133096,
+        "sched": "demoted (133096, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290756719.507942\nse.vruntime                                  :       4801148.902084\nse.sum_exec_runtime                          :             0.156194\nse.nr_migrations                             :                    2\nnr_switches                                  :                    3\nnr_voluntary_switches                        :                    3\nnr_involuntary_switches                      :                    0\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                46054\nse.avg.runnable_sum                          :              1873466\nse.avg.util_sum                              :               729386\nse.avg.load_avg                              :                  989\nse.avg.runnable_avg                          :                   39\nse.avg.util_avg                              :                   15\nse.avg.last_update_time                      :     3290736966440960\nse.avg.util_est                              :                   13\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133098,
+        "sched": "request (133098, #threads: 8)\n-------------------------------------------------------------------\nse.exec_start                                :    3290756719.516385\nse.vruntime                                  :       4801149.571341\nse.sum_exec_runtime                          :             0.210026\nse.nr_migrations                             :                    0\nnr_switches                                  :                    2\nnr_voluntary_switches                        :                    1\nnr_involuntary_switches                      :                    1\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                47693\nse.avg.runnable_sum                          :              1431392\nse.avg.util_sum                              :               963424\nse.avg.load_avg                              :                 1024\nse.avg.runnable_avg                          :                   16\nse.avg.util_avg                              :                   16\nse.avg.last_update_time                      :     3290736966450176\nse.avg.util_est                              :                   16\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   60\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      }
+    ],
+    "samplingErrors": []
+  },
+  "probeStartedAt": 1790931831940,
+  "hostEnd": {
+    "load": [
+      102.13,
+      102.29,
+      117.15
+    ],
+    "affinity": "Cpus_allowed_list:\t0-95",
+    "cpuCounters": [
+      "cpu  988584909 3188464 216279872 30336515639 15771448 0 514461 0 0 0",
+      "cpu0 11586837 26666 2367649 311152209 156893 0 41909 0 0 0",
+      "cpu1 10888545 38569 2407206 314748078 177117 0 9768 0 0 0",
+      "cpu2 10601207 32905 2358406 315442791 176906 0 9413 0 0 0",
+      "cpu3 10598913 26109 2339734 315563458 173203 0 8725 0 0 0",
+      "cpu4 10398009 39391 2317098 315791310 172073 0 8340 0 0 0",
+      "cpu5 10515147 38054 2324257 315685102 176333 0 11805 0 0 0",
+      "cpu6 15477221 58221 2867458 310117100 199815 0 8225 0 0 0",
+      "cpu7 11472815 41286 2538426 314496956 182752 0 8314 0 0 0",
+      "cpu8 10556022 35290 2387146 315576923 174344 0 6705 0 0 0",
+      "cpu9 10339593 36313 2340205 315851216 171533 0 7867 0 0 0",
+      "cpu10 10010541 37925 2296554 316229166 168763 0 5975 0 0 0",
+      "cpu11 9946862 42156 2283997 316320786 163841 0 7195 0 0 0",
+      "cpu12 14287429 48068 2720578 311516833 181846 0 7942 0 0 0",
+      "cpu13 10857354 40788 2437758 315251172 177361 0 7596 0 0 0",
+      "cpu14 10138268 34939 2314998 316109203 174178 0 7697 0 0 0",
+      "cpu15 9950557 30093 2283960 316333444 172424 0 9113 0 0 0",
+      "cpu16 9557816 29347 2219573 316810684 164975 0 5961 0 0 0",
+      "cpu17 9617479 32517 2202540 316775025 159969 0 6325 0 0 0",
+      "cpu18 12878992 39947 2594416 313065224 171794 0 7474 0 0 0",
+      "cpu19 10163929 38817 2381052 315961733 171861 0 10303 0 0 0",
+      "cpu20 9506444 29163 2254135 316822560 165438 0 6000 0 0 0",
+      "cpu21 9519793 25401 2242010 316819953 164554 0 8030 0 0 0",
+      "cpu22 9513853 26535 2213420 316872692 161039 0 6364 0 0 0",
+      "cpu23 9616620 32560 2227471 316718213 158166 0 21109 0 0 0",
+      "cpu24 12958520 37899 2522075 313113743 169270 0 4168 0 0 0",
+      "cpu25 10220387 33752 2329563 316046902 167010 0 3889 0 0 0",
+      "cpu26 9575077 26415 2221680 316821683 164500 0 3869 0 0 0",
+      "cpu27 9454620 28183 2178751 316998768 155184 0 3815 0 0 0",
+      "cpu28 9389948 25103 2164773 317082521 160789 0 3839 0 0 0",
+      "cpu29 9530210 28289 2164728 316945070 155409 0 3748 0 0 0",
+      "cpu30 12265244 39294 2456251 313872703 167847 0 3732 0 0 0",
+      "cpu31 9890815 20674 2255133 316476381 163650 0 3790 0 0 0",
+      "cpu32 9463588 20551 2199527 316968452 157550 0 3951 0 0 0",
+      "cpu33 9451905 28549 2170912 317009708 154861 0 3853 0 0 0",
+      "cpu34 9373089 22359 2159648 317118471 147427 0 3870 0 0 0",
+      "cpu35 9425427 23879 2147841 317074843 151644 0 3835 0 0 0",
+      "cpu36 12204986 31840 2441850 313958984 162821 0 4044 0 0 0",
+      "cpu37 10161656 32576 2308633 316138819 165045 0 3824 0 0 0",
+      "cpu38 9473792 34144 2196411 316944206 162364 0 4113 0 0 0",
+      "cpu39 9307066 34543 2166217 317156038 158202 0 3975 0 0 0",
+      "cpu40 8549283 29253 2177722 317879251 158241 0 3880 0 0 0",
+      "cpu41 8621015 39612 2177210 317824697 158000 0 3745 0 0 0",
+      "cpu42 11107387 38460 2432880 315055511 165575 0 3909 0 0 0",
+      "cpu43 9219656 34536 2280811 317097719 168346 0 3887 0 0 0",
+      "cpu44 8670774 25724 2205465 317745180 164136 0 3771 0 0 0",
+      "cpu45 8531289 18679 2172085 317928735 164663 0 3910 0 0 0",
+      "cpu46 8525435 17005 2152761 317966626 158288 0 3694 0 0 0",
+      "cpu47 8606454 28996 2159432 317867185 160608 0 3744 0 0 0",
+      "cpu48 9389306 49900 2326196 316834628 167405 0 3913 0 0 0",
+      "cpu49 8288057 18411 2261968 318056017 172180 0 3799 0 0 0",
+      "cpu50 7920468 22339 2202269 318485137 172846 0 3849 0 0 0",
+      "cpu51 7814268 42796 2179472 318601579 169758 0 3776 0 0 0",
+      "cpu52 7775455 19719 2156326 318688400 174739 0 3652 0 0 0",
+      "cpu53 7682652 18739 2141285 318796047 173758 0 3611 0 0 0",
+      "cpu54 8519376 19795 2255680 317815276 168904 0 3767 0 0 0",
+      "cpu55 8062434 23807 2220648 318308738 168846 0 3563 0 0 0",
+      "cpu56 7883198 32734 2186576 318521199 161968 0 3657 0 0 0",
+      "cpu57 7823494 42580 2154546 318601429 167558 0 3514 0 0 0",
+      "cpu58 7848972 29268 2160112 318592104 157787 0 3713 0 0 0",
+      "cpu59 7998301 20224 2145610 318433898 187385 0 3581 0 0 0",
+      "cpu60 8672821 23442 2258143 317684570 164769 0 3735 0 0 0",
+      "cpu61 8302581 25131 2202577 318105584 170995 0 3650 0 0 0",
+      "cpu62 8061565 30118 2182922 318366346 167654 0 3666 0 0 0",
+      "cpu63 8008803 38304 2164624 318433975 163857 0 3855 0 0 0",
+      "cpu64 8261007 41948 2192788 318148174 168465 0 3992 0 0 0",
+      "cpu65 8406881 32374 2186684 318016974 164214 0 3992 0 0 0",
+      "cpu66 8712815 34598 2244563 317653270 162279 0 3727 0 0 0",
+      "cpu67 8572677 14637 2249877 317798954 162305 0 3645 0 0 0",
+      "cpu68 8247036 28344 2193225 318172462 164997 0 3610 0 0 0",
+      "cpu69 8281574 43879 2203042 318122310 159751 0 3723 0 0 0",
+      "cpu70 8365887 46001 2214400 318019836 160609 0 3682 0 0 0",
+      "cpu71 8376392 22550 2211183 318034790 162496 0 3751 0 0 0",
+      "cpu72 8781134 36552 2219445 317619414 159117 0 3691 0 0 0",
+      "cpu73 8510351 25188 2190697 317935234 163758 0 3684 0 0 0",
+      "cpu74 8424369 41713 2195780 317994706 162025 0 3629 0 0 0",
+      "cpu75 8426294 29807 2177143 318033851 158563 0 3650 0 0 0",
+      "cpu76 8435418 36630 2176436 318020457 158220 0 3629 0 0 0",
+      "cpu77 8436952 39035 2187640 318003012 157963 0 3678 0 0 0",
+      "cpu78 8830179 28023 2207057 317593418 159189 0 3842 0 0 0",
+      "cpu79 8561070 52583 2198733 317842111 160864 0 3823 0 0 0",
+      "cpu80 13628675 52206 2231979 312745844 156709 0 4186 0 0 0",
+      "cpu81 13572645 38050 2207343 312848412 151853 0 4168 0 0 0",
+      "cpu82 13575786 46706 2210617 312832015 150313 0 3938 0 0 0",
+      "cpu83 13731072 42123 2225871 312670683 149928 0 4061 0 0 0",
+      "cpu84 13903301 52841 2222725 312480469 163187 0 3960 0 0 0",
+      "cpu85 13694545 42374 2197334 312728098 160557 0 4056 0 0 0",
+      "cpu86 14833299 27666 2157096 311656732 154103 0 4017 0 0 0",
+      "cpu87 14772534 25247 2179253 311696362 154714 0 4099 0 0 0",
+      "cpu88 14796126 32606 2155801 311680770 160781 0 4088 0 0 0",
+      "cpu89 14849400 25668 2141412 311660750 150311 0 4038 0 0 0",
+      "cpu90 15168088 29072 2202941 311266327 158746 0 3998 0 0 0",
+      "cpu91 14978265 19750 2209084 311443646 162703 0 4098 0 0 0",
+      "cpu92 14820498 40385 2197960 311610250 154256 0 3878 0 0 0",
+      "cpu93 14845070 48062 2170901 311606003 158016 0 3976 0 0 0",
+      "cpu94 14776950 56766 2178119 311656717 154802 0 3886 0 0 0",
+      "cpu95 14978956 36353 2181344 311474582 156592 0 3911 0 0 0"
+    ],
+    "busiest": [
+      " 174320  250 ps",
+      " 154606  100 rustc",
+      " 132311 98.4 MainThread",
+      " 132254 97.3 MainThread",
+      " 132539 97.3 MainThread",
+      " 131454 97.2 MainThread",
+      " 132283 97.0 MainThread",
+      " 131298 96.8 MainThread"
+    ],
+    "processes": " 130474 2236664 56.1 MainThread\n 131168  130474 96.5 MainThread\n 131196  130474 95.9 MainThread\n 131207  130474 96.0 MainThread\n 131218  130474 95.2 MainThread\n 131230  130474 96.6 MainThread\n 131240  130474 94.6 MainThread\n 131251  130474 96.5 MainThread\n 131262  130474 95.4 MainThread\n 131276  130474 96.2 MainThread\n 131287  130474 94.5 MainThread\n 131298  130474 96.7 MainThread\n 131309  130474 95.8 MainThread\n 131319  130474 95.3 MainThread\n 131329  130474 94.7 MainThread\n 131341  130474 94.1 MainThread\n 131350  130474 95.9 MainThread\n 131363  130474 96.0 MainThread\n 131376  130474 96.4 MainThread\n 131388  130474 96.8 MainThread\n 131401  130474 95.5 MainThread\n 131414  130474 96.3 MainThread\n 131428  130474 95.7 MainThread\n 131438  130474 96.3 MainThread\n 131454  130474 97.2 MainThread\n 131465  130474 94.0 MainThread\n 131475  130474 96.2 MainThread\n 131509  130474 95.0 MainThread\n 131521  130474 95.2 MainThread\n 131536  130474 95.9 MainThread\n 131547  130474 96.0 MainThread\n 131559  130474 96.4 MainThread\n 131569  130474 95.3 MainThread\n 131581  130474 95.6 MainThread\n 131593  130474 95.6 MainThread\n 131605  130474 95.6 MainThread\n 131619  130474 95.0 MainThread\n 131635  130474 95.8 MainThread\n 131651  130474 94.9 MainThread\n 131678  130474 96.3 MainThread\n 131715  130474 95.0 MainThread\n 131730  130474 95.5 MainThread\n 131744  130474 96.7 MainThread\n 131757  130474 95.7 MainThread\n 131772  130474 95.5 MainThread\n 131787  130474 96.8 MainThread\n 131805  130474 94.8 MainThread\n 131819  130474 96.1 MainThread\n 131832  130474 94.0 MainThread\n 131846  130474 94.7 MainThread\n 131861  130474 94.2 MainThread\n 131875  130474 94.2 MainThread\n 131889  130474 95.8 MainThread\n 131904  130474 95.1 MainThread\n 131920  130474 94.0 MainThread\n 131934  130474 95.9 MainThread\n 131948  130474 95.1 MainThread\n 131961  130474 96.4 MainThread\n 131976  130474 95.8 MainThread\n 131990  130474 94.5 MainThread\n 132006  130474 95.5 MainThread\n 132021  130474 95.7 MainThread\n 132037  130474 95.8 MainThread\n 132052  130474 95.7 MainThread\n 132068  130474 95.1 MainThread\n 132084  130474 94.0 MainThread\n 132099  130474 95.2 MainThread\n 132116  130474 95.9 MainThread\n 132128  130474 96.8 MainThread\n 132144  130474 95.8 MainThread\n 132156  130474 96.1 MainThread\n 132171  130474 94.9 MainThread\n 132184  130474 94.7 MainThread\n 132199  130474 93.0 MainThread\n 132212  130474 96.3 MainThread\n 132227  130474 95.7 MainThread\n 132241  130474 94.7 MainThread\n 132254  130474 97.3 MainThread\n 132267  130474 93.9 MainThread\n 132283  130474 97.0 MainThread\n 132296  130474 94.2 MainThread\n 132311  130474 98.4 MainThread\n 132325  130474 96.2 MainThread\n 132338  130474 95.1 MainThread\n 132357  130474 95.2 MainThread\n 132407  130474 93.7 MainThread\n 132429  130474 93.5 MainThread\n 132444  130474 94.6 MainThread\n 132460  130474 96.1 MainThread\n 132475  130474 94.2 MainThread\n 132491  130474 94.8 MainThread\n 132506  130474 94.9 MainThread\n 132521  130474 95.8 MainThread\n 132539  130474 97.2 MainThread\n 132550  130474 95.4 MainThread\n 132566  130474 95.9 MainThread\n 132583  130474 96.2 MainThread\n 133057  130474 85.9 demoted\n",
+    "threads": [
+      {
+        "tid": 133057,
+        "sched": "demoted (133057, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902830.439788\nse.vruntime                                  :       4688248.431055\nse.sum_exec_runtime                          :           699.699089\nse.nr_migrations                             :                 2930\nnr_switches                                  :                69283\nnr_voluntary_switches                        :                67949\nnr_involuntary_switches                      :                 1334\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 8894\nse.avg.runnable_sum                          :              9108778\nse.avg.util_sum                              :                12288\nse.avg.load_avg                              :                  191\nse.avg.runnable_avg                          :                  191\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290878204274688\nse.avg.util_est                              :                    7\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   60\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133072,
+        "sched": "diagnostics (133072, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290756644.223911\nse.vruntime                                  :       4677647.038674\nse.sum_exec_runtime                          :             0.232487\nse.nr_migrations                             :                    1\nnr_switches                                  :                   13\nnr_voluntary_switches                        :                   13\nnr_involuntary_switches                      :                    0\nse.load.weight                               :               343040\nse.avg.load_sum                              :                31669\nse.avg.runnable_sum                          :               418702\nse.avg.util_sum                              :               229766\nse.avg.load_avg                              :                  224\nse.avg.runnable_avg                          :                    7\nse.avg.util_avg                              :                    3\nse.avg.last_update_time                      :     3290731133979648\nse.avg.util_est                              :                    2\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   60\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133074,
+        "sched": "demoted (133074, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290757793.469616\nse.vruntime                                  :       4658655.187197\nse.sum_exec_runtime                          :             0.492810\nse.nr_migrations                             :                    3\nnr_switches                                  :                    5\nnr_voluntary_switches                        :                    5\nnr_involuntary_switches                      :                    0\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                  102\nse.avg.runnable_sum                          :               103424\nse.avg.util_sum                              :               103424\nse.avg.load_avg                              :                    0\nse.avg.runnable_avg                          :                    0\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290731796822016\nse.avg.util_est                              :                    0\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   49\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133078,
+        "sched": "dev-refusals (133078, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902667.818788\nse.vruntime                                  :       5032757.834477\nse.sum_exec_runtime                          :             2.409571\nse.nr_migrations                             :                    0\nnr_switches                                  :                  147\nnr_voluntary_switches                        :                  147\nnr_involuntary_switches                      :                    0\nse.load.weight                               :               343040\nse.avg.load_sum                              :                   15\nse.avg.runnable_sum                          :                15360\nse.avg.util_sum                              :                15360\nse.avg.load_avg                              :                    0\nse.avg.runnable_avg                          :                    0\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290878987931648\nse.avg.util_est                              :                    1\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133080,
+        "sched": "maintenance (133080, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902854.102029\nse.vruntime                                  :       5033924.918994\nse.sum_exec_runtime                          :         41769.219312\nse.nr_migrations                             :                 3543\nnr_switches                                  :                43653\nnr_voluntary_switches                        :                29171\nnr_involuntary_switches                      :                14482\nse.load.weight                               :               343040\nse.avg.load_sum                              :                10984\nse.avg.runnable_sum                          :             11251126\nse.avg.util_sum                              :               320977\nse.avg.load_avg                              :                   76\nse.avg.runnable_avg                          :                  234\nse.avg.util_avg                              :                    3\nse.avg.last_update_time                      :     3290877444896768\nse.avg.util_est                              :                  732\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133081,
+        "sched": "worker (133081, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902876.436807\nse.vruntime                                  :       5031981.744221\nse.sum_exec_runtime                          :            18.498082\nse.nr_migrations                             :                   10\nnr_switches                                  :                 1471\nnr_voluntary_switches                        :                 1460\nnr_involuntary_switches                      :                   11\nse.load.weight                               :               343040\nse.avg.load_sum                              :                   24\nse.avg.runnable_sum                          :                25345\nse.avg.util_sum                              :                25345\nse.avg.load_avg                              :                    0\nse.avg.runnable_avg                          :                    0\nse.avg.util_avg                              :                    0\nse.avg.last_update_time                      :     3290878421430272\nse.avg.util_est                              :                    5\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  125\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133098,
+        "sched": "request (133098, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902613.797457\nse.vruntime                                  :       4801101.190877\nse.sum_exec_runtime                          :         22105.860236\nse.nr_migrations                             :                 1704\nnr_switches                                  :                20926\nnr_voluntary_switches                        :                12391\nnr_involuntary_switches                      :                 8535\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 7117\nse.avg.runnable_sum                          :              7320753\nse.avg.util_sum                              :              6555705\nse.avg.load_avg                              :                  147\nse.avg.runnable_avg                          :                  148\nse.avg.util_avg                              :                  132\nse.avg.last_update_time                      :     3290867624777728\nse.avg.util_est                              :                  269\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133194,
+        "sched": "demoted (133194, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902620.288498\nse.vruntime                                  :       5033752.770536\nse.sum_exec_runtime                          :           847.643830\nse.nr_migrations                             :                 3618\nnr_switches                                  :                60597\nnr_voluntary_switches                        :                35145\nnr_involuntary_switches                      :                25452\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 9260\nse.avg.runnable_sum                          :              9483782\nse.avg.util_sum                              :               353226\nse.avg.load_avg                              :                  199\nse.avg.runnable_avg                          :                  199\nse.avg.util_avg                              :                    7\nse.avg.last_update_time                      :     3290877211083776\nse.avg.util_est                              :                   13\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133196,
+        "sched": "request (133196, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290758629.077346\nse.vruntime                                  :       4663896.184337\nse.sum_exec_runtime                          :            81.253512\nse.nr_migrations                             :                    4\nnr_switches                                  :                   56\nnr_voluntary_switches                        :                   34\nnr_involuntary_switches                      :                   22\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 1313\nse.avg.runnable_sum                          :              1345385\nse.avg.util_sum                              :              1299580\nse.avg.load_avg                              :                   25\nse.avg.runnable_avg                          :                   25\nse.avg.util_avg                              :                   24\nse.avg.last_update_time                      :     3290735859652608\nse.avg.util_est                              :                   96\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133230,
+        "sched": "demoted (133230, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902621.090512\nse.vruntime                                  :       4688039.362966\nse.sum_exec_runtime                          :           845.620862\nse.nr_migrations                             :                 3783\nnr_switches                                  :                60940\nnr_voluntary_switches                        :                35148\nnr_involuntary_switches                      :                25792\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                10478\nse.avg.runnable_sum                          :             10777141\nse.avg.util_sum                              :               383112\nse.avg.load_avg                              :                  228\nse.avg.runnable_avg                          :                  229\nse.avg.util_avg                              :                    8\nse.avg.last_update_time                      :     3290877994925056\nse.avg.util_est                              :                   13\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 133298,
+        "sched": "request (133298, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902621.082220\nse.vruntime                                  :       4688039.706047\nse.sum_exec_runtime                          :         21933.486349\nse.nr_migrations                             :                 1632\nnr_switches                                  :                20953\nnr_voluntary_switches                        :                12256\nnr_involuntary_switches                      :                 8697\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 9813\nse.avg.runnable_sum                          :             10051367\nse.avg.util_sum                              :              6255563\nse.avg.load_avg                              :                  214\nse.avg.runnable_avg                          :                  214\nse.avg.util_avg                              :                  133\nse.avg.last_update_time                      :     3290877994916864\nse.avg.util_est                              :                  304\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   50\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 134394,
+        "sched": "request (134394, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902615.057368\nse.vruntime                                  :       5033750.326791\nse.sum_exec_runtime                          :         21027.349339\nse.nr_migrations                             :                 1653\nnr_switches                                  :                19639\nnr_voluntary_switches                        :                11611\nnr_involuntary_switches                      :                 8028\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 8483\nse.avg.runnable_sum                          :              8687213\nse.avg.util_sum                              :              6382865\nse.avg.load_avg                              :                  172\nse.avg.runnable_avg                          :                  172\nse.avg.util_avg                              :                  123\nse.avg.last_update_time                      :     3290877205852160\nse.avg.util_est                              :                  262\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   49\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      },
+      {
+        "tid": 142114,
+        "sched": "request (142114, #threads: 13)\n-------------------------------------------------------------------\nse.exec_start                                :    3290902620.327267\nse.vruntime                                  :       5033753.363864\nse.sum_exec_runtime                          :         16348.127144\nse.nr_migrations                             :                 1292\nnr_switches                                  :                15355\nnr_voluntary_switches                        :                 9094\nnr_involuntary_switches                      :                 6261\nse.load.weight                               :              1048576\nse.avg.load_sum                              :                 7242\nse.avg.runnable_sum                          :              7416656\nse.avg.util_sum                              :              6103061\nse.avg.load_avg                              :                  146\nse.avg.runnable_avg                          :                  146\nse.avg.util_avg                              :                  129\nse.avg.last_update_time                      :     3290877211122688\nse.avg.util_est                              :                  261\nuclamp.min                                   :                    0\nuclamp.max                                   :                 1024\neffective uclamp.min                         :                    0\neffective uclamp.max                         :                 1024\npolicy                                       :                    0\nprio                                         :                  120\nse.slice                                     :              2800000\nclock-delta                                  :                   51\nmm->numa_scan_seq                            :                    0\nnuma_pages_migrated                          :                    0\nnuma_preferred_nid                           :                   -1\ntotal_numa_faults                            :                    0\ncurrent_node=0, numa_group_id=0\nnuma_faults node=0 task_private=0 task_shared=0 group_private=0 group_shared=0\n"
+      }
+    ],
+    "samplingErrors": []
+  },
+  "finished": "2026-10-02T09:06:18.869Z"
+}

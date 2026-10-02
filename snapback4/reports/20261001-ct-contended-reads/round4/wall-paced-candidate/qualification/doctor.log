@@ -1,0 +1,7 @@
+  scheduling  0 QoS / 2 nice setter failures; HTTP startup readback passed: default or higher; inspect host stderr
+  scheduling  background-nice: 1 failed setters; last errno 22 at Unix ms 123456
+  scheduling  worker-nice: 1 failed setters; last errno 1 at Unix ms 234567
+  scheduling  0 QoS / 2 nice setter failures; HTTP startup readback not performed; inspect host stderr
+  scheduling  background-nice: 1 failed setters; last errno 22 at Unix ms 123456
+  scheduling  worker-nice: 1 failed setters; last errno 1 at Unix ms 234567
+doctor nice-only failure/readback controls: 2 passed

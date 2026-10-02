@@ -145,8 +145,7 @@ pub(crate) fn run(verb: &str, body: impl FnOnce() -> Result<(), String>) -> i32 
 
 pub(crate) fn background(name: &'static str, body: impl FnOnce() + Send + 'static) -> Result<std::thread::JoinHandle<()>, String> {
     std::thread::Builder::new().name(name.into()).spawn(move || {
-        if name == "maintenance" { crate::thread_priority::maintenance(); }
-        else { crate::thread_priority::background(); }
+        crate::thread_priority::maintenance();
         struct Exit(&'static str);
         impl Drop for Exit {
             fn drop(&mut self) {

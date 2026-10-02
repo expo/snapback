@@ -763,9 +763,9 @@ pub fn doctor(options: &Options) -> i32 {
         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
     };
     if let Some(host) = &host {
-        if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) > 0 {
+        if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) + host["scheduling"]["niceFailures"].as_u64().unwrap_or(0) > 0 {
             ok = false;
-            lines.push(format!("scheduling  {} QoS setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));
+            lines.push(format!("scheduling  {} QoS / {} nice setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["niceFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));
             if let Some(classes) = host["scheduling"]["failures"].as_object() {
                 for (class, failure) in classes {
                     lines.push(format!("scheduling  {class}: {} failed setters; last errno {} at Unix ms {}", failure["count"], failure["lastErrno"], failure["lastAtMs"]));

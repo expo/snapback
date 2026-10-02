@@ -68,7 +68,7 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
     // Consume this PID before forwarding any worker output. Public status and
     // restart controls refer to the Node child, never the watchdog itself.
     use std::io::Write;
-    let handshake = writeln!(std::io::stdout(), "{group}").and_then(|_| std::io::stdout().flush());
+    let handshake = writeln!(std::io::stdout(), "{group} {}", crate::thread_priority::child_nice_error()).and_then(|_| std::io::stdout().flush());
     if handshake.is_err() {
         unsafe { libc::kill(-group, libc::SIGKILL); }
         let _ = child.wait(); return 1;

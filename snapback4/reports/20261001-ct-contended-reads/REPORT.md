@@ -935,3 +935,211 @@ logs are retained under `round3/`. Prepared databases, credentials and generated
 projects remain ignored local artifacts. The ordinary/demoted control binaries
 match round 2's recorded hashes and differ only by its retained demotion patch;
 “round 0” denotes that priority policy while preserving round-2 fixes.
+
+## Round 4 — ordinary lock holders and paced bulk (2026-10-02)
+
+Round 3's Astra P1 and Grok High identify the same priority inversion: a
+utility/nice-5 bulk thread retained the maintenance gate while waiting for the
+engine and while running its chunk. The operator's new rule supersedes that
+policy. Every lifecycle-managed server thread that can take the gate, engine
+or writer now uses ordinary priority, including bulk, the source watcher and
+the worker supervisor. Node/watchdog processes and output-only helpers retain
+their demotion. No privileged Linux priority restoration is attempted.
+
+The short maintenance gate orders kinds and clock state; **it never spans
+engine admission or a bulk chunk**. Engine ownership serializes each kind's
+selection, commit and cursor advance. Delivery still precedes recount; ordinary
+leases, expiry, schedules and deadlines can interleave. Separate atomic schedule
+admission remains crash-safe. Clock callers serialize with each other using a
+separate mutex, atomically extend leases with the clock shift, and preserve the
+synchronous full-drain order. An unwind guard restores background eligibility.
+The [technical record](./round4/TECHNICAL.md) gives the ordering argument,
+cooperative limits and regression boundaries.
+
+### Pacing, progress and the stall regression
+
+The worker uses 250 µs under contention and 2 ms otherwise. It retains round 3's
+engine queued/recent-request signal and adds a cached one-minute host-load hint
+for detached readers: contended when load reaches available logical CPU count,
+sampled at most every 100 ms. After a contended slice, or one with waiting engine
+requests, it pauses outside all shared locks for seven times consumed
+thread CPU time, capped at 100 ms. There is no minimum pause that overcharges
+cheap or empty turns. Descheduled/asleep time is excluded; a failed CPU-clock
+sample conservatively falls back to wall time. Chunk deadlines still use wall
+time. This targets 1/8 CPU duty for short slices; atomic overruns and the pause
+cap prevent a universal duty-cycle guarantee.
+
+Ordinary maintenance supplies the next bulk turn after one second without a
+completed turn, checking on its 100 ms loop and after each ordinary engine
+slice. The **minimum service opportunity is one turn per 1 s plus up to 100 ms
+polling; all three bulk kinds are visited within three such opportunities**.
+FIFO work already ahead, OS scheduling, atomic work, I/O and an explicit clock
+drain add delay. This is a finite-healthy-backlog progress guarantee, not a hard
+wall-clock deadline under a stopped lock owner or stalled filesystem, and it
+does not introduce per-view fairness under unbounded new arrivals.
+
+Recounts now check elapsed time between complete candidates, including filtered
+rows and across both expiring-source ranges, then commit the cursor and total
+together. One candidate always advances even at zero budget. Native calls cannot
+be split across transactions by the host: `Next::Again(state)` is their durable
+yield. Each slice runs at most one invocation, bounded by the unchanged two
+billion instruction fuel and job meter (one million host steps, 16,384 examined
+rows/index entries, 8,192 rule probes/writes, 16 MiB heap and 1 MiB output).
+Those resource limits **do not promise 250 µs or 2 ms native wall time**. The guide
+states the exception; continuation and write-refusal/rollback regressions pass.
+Pacing charges the CPU consumed by the overrun, subject to the 100 ms pause cap.
+
+Both new stall tests start a real named bulk thread and pause it inside
+`engine.background()`. Before admission, ordinary expiry completes while bulk
+remains stopped. After exclusive engine ownership, the gate stays free and the
+ordinary slice reaches the engine FIFO, completing after release. The latter
+cannot execute concurrently through the exclusive engine; it proves that gate
+custody no longer adds a dependency on the bulk thread being scheduled. The
+production executable contains neither the test hook nor a scheduler switch.
+
+Linux snapshots from the existing observer show maintenance/bulk at nice 0/0
+for paced and 0/5 for split. Linux `setpriority` refusals now increment
+`niceFailures` with class, errno and time; `doctor` reports either nice or Darwin
+QoS setter failure. The separate watchdog reports its refusal through the
+private PID handshake so the server can count it. Tests exercise a real failed
+syscall, watchdog propagation and the actual doctor executable. Darwin runtime
+timing remains for the operator's Apartment mini rerun.
+
+### Measurements
+
+All 28 final measurement runs exited 0. The unchanged round-3 methods retain
+the 96-CPU host, 125-second mixed read windows, published 0.4.10 client,
+23-call cohorts with the first three excluded, and independent SQLite queue
+observation. No lane build or test overlapped timing. Other tenants remained
+active; zero owned busy processes does not mean a quiet host. Exact binaries
+and source hashes are in `round4/custody.json`.
+
+The full mixed outcomes in `round4/MIXED.md` reproduce lease recovery, expiry,
+schedule admission/execution, retries and deadlines. Eight small split/paced
+cells retain 1,460,558 reads; four paced Following cells retain 657,361.
+All 72 abandoned claims were observed, no lease changed unexpectedly, and
+every explicit clock extension was exactly 1,000 ms. No consistent small-
+fixture latency win is established: at 144 busy, paced p95 was 3.633 ms
+versus split 0.917 ms. Small-fixture controls remain in round 3.
+
+| Busy | Small split / paced read p95 ms | Paced with 1,000 Following tasks: read p95 during drain ms | Following drain s |
+|---:|---:|---:|---:|
+| 0 | 0.716 / 0.716 | 0.751 | 143.037 |
+| 48 | 1.983 / 1.481 | 1.348 | 220.737 |
+| 96 | 3.326 / 3.354 | 3.041 | 693.048 |
+| 144 | 0.917 / 3.633 | 5.318 | 1177.746 |
+
+Synthetic busy processes remained alive throughout the combined drain tail;
+reads ended after 125 seconds. All expected schedule boundaries completed,
+including twenty in the 144-process cell. This table is not a claim about
+read latency after its read window.
+
+The real 6,507-task checkpoint has sixteen fresh restorations: two trials of
+each design at 0/96 busy, reversing design order. All DB/WAL manifests and
+all eight settled answer hashes agree with round 3. The 952,200 raw probe
+samples and full ranks, counts and poll brackets in `round4/DRAIN.md` remain.
+Pooled **during-drain read p95**, in milliseconds:
+
+| Busy | Endpoint | Demoted | Ordinary | Split | Paced | Paced vs split |
+|---:|---|---:|---:|---:|---:|---:|
+| 0 | following500 | 7.408 | 7.246 | 7.248 | 5.606 | -22.7% |
+| 0 | following5 | 7.010 | 7.117 | 6.656 | 5.376 | -19.2% |
+| 0 | celebrityFollowing | 7.196 | 6.937 | 6.719 | 5.718 | -14.9% |
+| 0 | globalSearch | 8.779 | 8.999 | 8.754 | 7.903 | -9.7% |
+| 0 | insights | 1.583 | 1.506 | 1.494 | 1.409 | -5.7% |
+| 0 | trending | 3.385 | 3.717 | 3.711 | 2.901 | -21.8% |
+| 0 | busyPage1 | 2.415 | 2.337 | 2.763 | 2.161 | -21.8% |
+| 0 | busyPage50 | 2.707 | 2.619 | 2.562 | 2.008 | -21.6% |
+| 96 | following500 | 9.334 | 10.473 | 9.609 | 8.865 | -7.7% |
+| 96 | following5 | 8.342 | 9.644 | 8.463 | 8.533 | +0.8% |
+| 96 | celebrityFollowing | 8.161 | 10.325 | 8.308 | 8.574 | +3.2% |
+| 96 | globalSearch | 10.285 | 12.386 | 10.674 | 11.081 | +3.8% |
+| 96 | insights | 3.358 | 3.959 | 3.491 | 3.558 | +1.9% |
+| 96 | trending | 5.042 | 5.419 | 5.026 | 5.144 | +2.4% |
+| 96 | busyPage1 | 4.324 | 4.755 | 4.383 | 4.283 | -2.3% |
+| 96 | busyPage50 | 4.450 | 4.878 | 4.532 | 4.234 | -6.6% |
+
+Drain completion includes startup; two trials are shown separately:
+
+| Busy | Design | Trial 1 s | Trial 2 s |
+|---:|---|---:|---:|
+| 0 | demoted | 62.368 | 30.391 |
+| 0 | ordinary | 67.676 | 30.449 |
+| 0 | split | 78.045 | 31.151 |
+| 0 | paced | 712.475 | 32.443 |
+| 96 | demoted | 145.906 | 113.714 |
+| 96 | ordinary | 78.507 | 70.319 |
+| 96 | split | 140.144 | 147.438 |
+| 96 | paced | 819.789 | 551.717 |
+
+At 96 busy, paced beats ordinary-all p95 on all eight endpoints and split on
+three, with five split regressions of 0.8–3.8%. Following-500 improves 7.7%
+against split, but drain costs 3.7–5.9 times as long. This is a substantial
+throughput tradeoff, not a universal read improvement. At zero owned busy,
+paced pooled p95 is lower on all eight endpoints, but its first trial takes
+712.475 seconds and its second 32.443. Their host load averages start/end at
+144.45/156.61 and 94.35/56.65 respectively. The load-triggered pacing policy
+and shared-host variation preclude a quiet-host or causal-isolation claim.
+Longer drains also contribute more cohorts and observe intermediate feed
+states longer, so pooled ranks weight samples, not trials.
+
+Two disclosed supplemental read-only SQLite snapshots checked long-running
+cells (144-process mixed: 307 pending, 5.976 ms; first paced zero-busy real
+drain: 425 pending, 76.403 ms). They are retained separately and never used
+as latency samples or drain endpoints; their possible interference with
+nearby probes is not erased. Darwin timing remains the operator’s work.
+
+### Qualification, wasm and failures
+
+| Check | Final result |
+|---|---|
+| Affected server target | 234 passed, 0 failed, 4 ignored |
+| Language row views / schedules / Following | 32 / 6 / 17 passed |
+| Core row views | 28 passed |
+| Clock / latency / lifecycle / replay | 19 / 12 / 26 / 15 passed |
+| Native suite / explicit write-bound rollback | 11 passed, 1 ignored / 1 passed |
+| Whole guide | 110 passed |
+| KA/transport, seven files | 61 passed |
+| Doctor executable nice-only controls | 2 passed |
+| Root reference check | 525 LLP docs, 10,074 refs, 0 errors, 0 unchecked |
+
+The sole complete-suite invocation on the **final CPU-paced source** reports
+exactly **`== 0 failure(s) in 1417 s`**, exit 0. All Rust targets and doctests,
+fixture tests, guide/docs/typechecks, **5,742 client tests** (10 skipped), and
+**79 client models** pass. The known follow fault-injection case passes in this
+run; no matrix or complete-suite retry selected a green result. This shared-host
+elapsed time does not qualify the 60-second budget. The final source and all
+four measured executables still match their pre-measurement custody hashes.
+
+The suite rebuilds wasm at **2,015,329 B raw / 605,002 B gzip**, **223 B below**
+the unchanged **605,225 B** ratchet. Its dependency record names this lane, with
+no archived-main paths; the exact digest is in [wasm evidence](./round4/wasm.json).
+The final suite has **no test failures** to classify. The log-archiving race was
+ours and recovered completely from the still-open output inode without
+restarting tests; the initial fragment matches the recovered log's prefix.
+Earlier candidate failures remain classified below and in the linked ledger.
+
+The initial wall-time pacing candidate is retained in
+[its own archive](./round4/wall-paced-candidate/README.md). At 144 busy processes,
+a read-only check found 694 of 1,000 tasks still pending roughly fourteen minutes
+into the drain. Passive scheduler counters showed that pacing charged OS
+descheduling as work, then paused again; its 1 ms floor also overcharged cheap
+or empty turns. The cell was intentionally stopped and is **incomplete**, not
+a passed result or a completed drain. CPU-time charging and removal of the
+minimum pause correct that cost before final qualification. No rejected-candidate
+sample enters the final tables.
+
+That superseded source had one complete-suite invocation, reporting exactly
+`== 2 failure(s) in 1561 s`: `wasm build` and `client tests`. The archived-main
+Cargo cache contamination caused an oversized wasm and 24 reply-shape failures;
+a scoped artifact repair cleared them. The known site-48 missed-fault assertion
+remained. Every failing name and the two corrected development errors are in
+[the complete failure ledger](./round4/FAILURES.md), with links to the archived
+logs. The final source received its own single full-suite invocation after
+timing (two complete invocations total across the two different sources). There is no repeated-until-green matrix policy.
+
+[Custody](./round4/custody.json), [commands](./round4/inputs/README.md), raw samples,
+queue observations, table reproduction, failure logs and wasm evidence are
+retained in `round4/`. Prepared stores and generated project credentials stay
+under ignored local targets. LLP 3000 §7 and LLP 3000.013 state the current host
+policy. The local commit carries the requested Astra trailer; nothing is pushed or published.

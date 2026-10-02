@@ -233,6 +233,12 @@ impl Engine {
 
     /// Yield between complete Quarry iterations. A native call remains one
     /// fuel- and meter-bounded atomic invocation, as does one Quarry iteration.
+    /// The guest ABI only yields on `again`: at most one native invocation is
+    /// admitted per slice, with 2,000,000,000 fuel, 1,000,000 host steps, 16,384
+    /// examined rows and 8,192 writes (Ceilings::job). It cannot be suspended
+    /// across a commit without losing its transaction. The duration is therefore
+    /// cooperative, not a wall-clock bound on a native call or one row/commit.
+    /// The host charges the full overrun to its between-slice pacing pause.
     pub fn run_job_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<JobRun>, RuntimeError> {
         let started = std::time::Instant::now();
         let presence = self.presence.clone();
