@@ -1,0 +1,28 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ public authority checks read epoch and session in one fresh locked transaction (777.531658ms)
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1420.394864ms)
+  ✔ a failed logout cannot commit after abort (1276.744973ms)
+  ✔ a failed logout cannot commit after quota (1173.360277ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (745.79977ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (2003.08002ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.427244ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (399.761263ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (1210.229404ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (1099.654032ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (1219.170513ms)
+  ✔ a committed session reopens with actually full localStorage and no separate epoch key (1670.935466ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (1373.969866ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (883.393766ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (1146.869485ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (1117.72195ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (18470.581449ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ {"fullStorageReopen":true,"filledCharacters":5241830,"mutationCode":"E_ADMISSION"}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18560.356768

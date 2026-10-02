@@ -1,0 +1,20 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 16.15s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+thread 'engine::row_views::batch::tests::busy_group_stream_certification_bounds_storage_requests' (451284) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:566:5:
+one bounded head probe plus 32-row source pages; got 10002 storage requests
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::batch::tests::busy_group_stream_certification_bounds_storage_requests ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::batch::tests::busy_group_stream_certification_bounds_storage_requests
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.41s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

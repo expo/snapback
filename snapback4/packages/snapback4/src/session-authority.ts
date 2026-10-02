@@ -5,6 +5,7 @@ type Mirror = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type Authority = {
   source: string;
   read(key: string): Promise<string | null>;
+  readScope(key: string): Promise<{ marker: string | null; raw: string | null }>;
   reconcileEpoch(key: string): Promise<void>;
 };
 // Function identity survives `{ ...localStorageSessionStore() }`.
@@ -83,6 +84,23 @@ export function indexedDbSessionStore(mirror: () => Mirror, namespace: string | 
   };
   authorities.set(store.get, {
     source: `indexeddb-v1:${namespace ?? ""}`, read: store.get,
+    // @ref LLP 3000.013#6 — read both fences in one fresh transaction under
+    // the caller's session lock; neither mirror nor a previous check is authority.
+    async readScope(key) {
+      let db: IDBDatabase | undefined;
+      try {
+        db = await open();
+        const tx = db.transaction(records, "readonly"), committed = done(tx), store = tx.objectStore(records);
+        const epochKey = key + ".epoch", marker = store.get([namespace!, epochKey]), raw = store.get([namespace!, key]);
+        await committed;
+        const result = { marker: (marker.result ?? null) as string | null, raw: (raw.result ?? null) as string | null };
+        for (const [name, value] of [[epochKey, result.marker], [key, result.raw]] as const) {
+          try { updateMirror(name, value); } catch { /* Authority survives a failed mirror repair. */ }
+        }
+        return result;
+      } catch (error) { throw failed(error); }
+      finally { db?.close(); }
+    },
     async reconcileEpoch(key) {
       // Only at scope opening, under the session lock: preserve the legacy
       // epoch high-water mark before read repairs the mirror. Never import

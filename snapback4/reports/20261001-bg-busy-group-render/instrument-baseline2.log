@@ -1,0 +1,30 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+error[E0616]: field `rebuilt_source_rows` of struct `runner::Runner` is private
+  --> crates/snapback4-core/src/partition/counts.rs:30:34
+   |
+30 |             let bg_before=reader.rebuilt_source_rows;
+   |                                  ^^^^^^^^^^^^^^^^^^^ private field
+
+error[E0616]: field `rebuilt_source_rows` of struct `runner::Runner` is private
+  --> crates/snapback4-core/src/partition/counts.rs:34:107
+   |
+34 | ...   eprintln!("BG_COUNTS {:.3} {:.3} {} {}",at,bg_start.elapsed().as_secs_f64()*1000.0,reader.rebuilt_source_rows-bg_before,rows.l...
+   |                                                                                                 ^^^^^^^^^^^^^^^^^^^ private field
+
+For more information about this error, try `rustc --explain E0616`.
+error: could not compile `snapback4-core` (lib) due to 2 previous errors
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/instrument-server.py", line 30, in <module>
+    subprocess.run(['cargo','build','-p','snapback4'],cwd=root,env={**os.environ,'LIBSQLITE3_FLAGS':'-USQLITE_ENABLE_MEMORY_MANAGEMENT'},check=True)
+  File "/usr/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['cargo', 'build', '-p', 'snapback4']' returned non-zero exit status 101.

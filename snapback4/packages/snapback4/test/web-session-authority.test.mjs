@@ -137,6 +137,53 @@ window.capture = () => {
     await page.waitForURL('**/?' + suffix); await page.waitForFunction(() => !!window.boot);
   };
 
+  await t.test('public authority checks read epoch and session in one fresh locked transaction', async () => {
+    const session = await fresh();
+    await page.evaluate(options => boot(options), { url, session });
+    await page.waitForFunction(() => window.pollHeld);
+    const evidence = await page.evaluate(async () => {
+      await app.client.sync(); await app.client.residency();
+      const transaction = IDBDatabase.prototype.transaction, reads = [];
+      IDBDatabase.prototype.transaction = function (...args) {
+        const tx = transaction.apply(this, args);
+        if (this.name === 'snapback4-session-authority' && args[1] === 'readonly') {
+          const entry = { started: lockDepth }; reads.push(entry);
+          tx.addEventListener('complete', () => entry.completed = lockDepth);
+        }
+        return tx;
+      };
+      try { await app.client.residency(); }
+      finally { IDBDatabase.prototype.transaction = transaction; }
+      await app.close(); return reads;
+    });
+    assert.equal(evidence.length, 2, 'the before/after checks each read one fresh authority snapshot');
+    assert.ok(evidence.every(read => read.started > 0 && read.completed > 0), JSON.stringify(evidence));
+  });
+
+  await t.test('an aborted authority snapshot refuses publication after successful get requests', async () => {
+    const session = await fresh();
+    await page.evaluate(options => boot(options), { url, session });
+    await page.waitForFunction(() => window.pollHeld);
+    const evidence = await page.evaluate(async () => {
+      await app.client.sync();
+      const get = IDBObjectStore.prototype.get; let aborted = 0;
+      IDBObjectStore.prototype.get = function (...args) {
+        const request = get.apply(this, args), tx = this.transaction;
+        if (tx.db.name === 'snapback4-session-authority' && tx.mode === 'readonly') {
+          request.addEventListener('success', () => { if (!aborted) { aborted = lockDepth; tx.abort(); } });
+        }
+        return request;
+      };
+      let read;
+      try { read = await app.client.query({ kind: 'query', name: 'total' }, {}); }
+      finally { IDBObjectStore.prototype.get = get; }
+      await app.close(); return { read, aborted };
+    });
+    assert.ok(evidence.aborted > 0);
+    assert.equal(evidence.read.denied?.code, 'E_CLIENT');
+    assert.equal('data' in evidence.read, false);
+  });
+
   await t.test('a peer logout commits before the next lock holder and refuses a click captured from a stale mirror', async () => {
     const session = await fresh(), before = await total(session);
     await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'notes', row: { id: 'private', owner: session.principal, body: 'private observation' } }]) });

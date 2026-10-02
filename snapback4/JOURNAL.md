@@ -81441,3 +81441,45 @@ the new file passes 4/4 with the publication cache; the original file fails the
 same three cases in the same tree (control); with the variable unset the fence
 downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
 changed.
+## 2026-10-02 — BG round 0: busy-group live propagation
+
+Reproduced the calibration's 50-member/10,000-message conversation on eb1000
+with three real Chromium wasm devices, the mounted 20-row history/decorations,
+500-row acquisition and live delivery/seen reporting. Fifty sends per comparison
+reach both remote viewers. Same-clock commit, notification, sync, apply, query,
+publication and React traces locate the main development-profile cost in live
+unread certification: about 1.9 seconds of a 2.2-second path.
+
+Stream certification now reuses the existing caller-reserved 32-row decoder
+pages, preserving the bounded small-range probe, one-row finite-heap fallback,
+row/field authority and current live-basis proof (LLP 3000.015 §3). App authority
+reads epoch and session together in one fresh locked IndexedDB transaction,
+awaits completion and applies the same fences and mirror repair (LLP 3000.013 §6).
+No result cache, wire change, higher ceiling, PQ scheduling change or RL deadline
+renewal. PR/PRL authority and publication policies remain intact.
+
+Shipping-profile dev-server send-to-slower-viewer median/p95/max improves from
+587.1/753.0/877.3 to 305.1/469.6/541.4 ms in the final 50-send qualification,
+which captures all 150 active-member notifications and passes p95 <500 ms.
+An earlier complete fix run measured 302.5/370.5/398.0; across both, 100 sends
+have p95 398.0 ms. The unoptimized Cargo build improves from p95 2281.6 to
+991.5 ms and remains above 500 ms. LL's 20 repetitions of eight wasm flows have
+no timeouts; p95s stay below 107 ms, with the per-flow increases retained in the
+report rather than a claim that every number improved.
+
+Main fails the 400-scan work bound with 10,002 scans and the public authority
+check bound with six transactions instead of two. Thirty affected Rust tests,
+630 affected client tests and the whole guide (110 tests) pass. The full suite
+ran once: `== 1 failure(s) in 1574 s`. Its only failure was ours: the changed
+authority awaits needed census classification. Updated those two fingerprints
+and their reachability rationale; the unchanged delivery sites/recipes then
+pass all 321 affected fault-matrix cases. All other full-suite stages passed,
+including 79 serial model cases. Baseline failures 0, environmental failures 0;
+no unresolved failures. The complete failed run is retained.
+
+Wasm is unchanged and byte-identical to the rebuilt base: 2,015,329 B raw /
+605,001 B gzip under the unchanged 605,225 B ratchet (224 B inherited local
+headroom). No byte increase or budget raise was needed. Report, qualification
+scripts, stage tables, input checksums, negative controls and retained traces:
+reports/20261001-bg-busy-group-render/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

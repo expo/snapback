@@ -39,7 +39,6 @@ impl Runner<'_> {
 
     fn certify_batch(&mut self, m: &Maintain, rows: &[Value], _probe_small: bool) -> Result<Vec<Option<Value>>, RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
-        let source = &self.schema.tables[&m.source];
         self.read_tables.insert(k.table.clone());
         self.read_tables.insert(m.source.clone());
         self.meter.heap(crate::rows::word_heap::slots::<Option<Value>>(rows.len()))?;
@@ -72,17 +71,10 @@ impl Runner<'_> {
                 }
             }
             let group = &mut members[..group_len];
-            #[cfg(feature = "sqlite")]
             if !_probe_small {
                 self.certify_acquisition_group(m, &parent, group)?;
             } else {
-                let bytes = crate::rows::disclosed::decode_reservation(source);
-                self.disclosed_scratch(bytes, &[(MeterKind::Examined, group_len as u64), (MeterKind::Steps, group_len as u64)], |runner, _| runner.certify_group(m, &parent, group))?;
-            }
-            #[cfg(not(feature = "sqlite"))]
-            {
-                let bytes = crate::rows::disclosed::decode_reservation(source);
-                self.disclosed_scratch(bytes, &[(MeterKind::Examined, group_len as u64), (MeterKind::Steps, group_len as u64)], |runner, _| runner.certify_group(m, &parent, group))?;
+                self.certify_group(m, &parent, group)?;
             }
             self.meter.require_uncapped()?;
             for (position, member, total) in members.drain(..group_len) {
@@ -93,13 +85,17 @@ impl Runner<'_> {
     }
 
     fn certify_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)]) -> Result<(), RuntimeError> {
-        self.certify_group_mode(m, parent, members, true, 1)
+        self.certify_bounded_group(m, parent, members, true)
     }
 
-    // @ref LLP 3000.015#3 — choose and reserve the page on the caller ledger,
-    // before certification replaces it with an unbounded prepaid meter.
-    #[cfg(feature = "sqlite")]
     fn certify_acquisition_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)]) -> Result<(), RuntimeError> {
+        self.certify_bounded_group(m, parent, members, false)
+    }
+
+    // @ref LLP 3000.015#3 — stream and acquisition certification share bounded
+    // decoder pages; reserve against the caller before entering prepaid work.
+    #[cfg(feature = "sqlite")]
+    fn certify_bounded_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool) -> Result<(), RuntimeError> {
         let source = &self.schema.tables[&m.source];
         let decoder = crate::rows::disclosed::decode_reservation(source);
         let scratch = self.rule_scratch(&source.rules.read);
@@ -119,7 +115,7 @@ impl Runner<'_> {
             // Nested public witnesses must see the reservation as occupied too.
             self.caller_heap_ceiling = Some((limit, self.meter.used.heap_bytes));
             self.prepaid_scan(&[(MeterKind::Examined, members.len() as u64), (MeterKind::Steps, members.len() as u64)], false,
-                |runner, _| runner.certify_group_mode(m, parent, members, false, page))
+                |runner, _| runner.certify_group_mode(m, parent, members, probe_small, page))
         })();
         self.caller_heap_ceiling = caller;
         self.meter.ceilings.heap_bytes = internal.0;
@@ -145,6 +141,7 @@ impl Runner<'_> {
         let prefix = std::slice::from_ref(parent);
         self.meter.heap(crate::rows::word_heap::key_decode(source.indexes[&index].components.len() + 1,
             crate::rows::MAX_INDEX_KEY_BYTES).saturating_mul(2))?;
+        let predicate_steps = k.predicate.steps() * 2 + 4;
         for mut bounds in [Bounds { lte: Some(Value::Null), ..Default::default() },
             Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Default::default() }] {
             loop {
@@ -171,11 +168,13 @@ impl Runner<'_> {
                     let row = row.into_value();
                     self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1);
                     bounds.after = crate::key::decode(&key).map(|v| v.into_iter().skip(1).collect());
+                    let live = !self.expired(source, &row);
+                    let mut contributed = false;
                     for (_, member, total) in &mut *members {
-                        self.meter.step(k.predicate.steps() * 2 + 4)?;
-                        if !self.expired(source, &row) && k.matches(&row, member) {
+                        self.meter.step(predicate_steps)?;
+                        if live && k.matches(&row, member) {
                             *total += 1;
-                            self.note_expiry(source, &row);
+                            if !contributed { self.note_expiry(source, &row); contributed = true; }
                         }
                     }
                     }

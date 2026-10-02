@@ -1,0 +1,5 @@
+953a4bf89bccf3e4ce93aaa8f8a4a6f5e0a97189c340d3cb1494c9a727d6d1c9  crates/snapback4-core/src/engine/row_views/batch.rs
+cb1afbc86bc71a50a1b07610c787fba429fa34e42735fca8890073200cef23ad  crates/snapback4-core/src/engine/row_views/batch/tests.rs
+ee5f91cfd7192d71a14a701ff291ef3f7c6d499f16ad3bf14531fcb859fd682d  packages/snapback4/src/app.ts
+40c01ce30977e3a4a686d94e4d580ec56e5aa698dee800110ad286e90bcc3041  packages/snapback4/src/session-authority.ts
+770fb2c8fba3376036dce6648dbba7f68bfd9c2fe21e51553ebef7b45345197d  packages/snapback4/test/web-session-authority.test.mjs

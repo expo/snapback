@@ -1,0 +1,68 @@
+opening viewer 0
+0 BG app ready
+0 BG sync start
+0 BG sync end
+opened viewer 0
+opening viewer 1
+1 BG app ready
+1 BG sync start
+1 BG sync end
+opened viewer 1
+opening viewer 2
+2 BG app ready
+2 BG sync start
+2 BG sync end
+opened viewer 2
+12:20:16 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+12:20:16 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+12:20:16 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+{"run":0,"commit":126.174072265625,"render":[2183.300048828125,2127.900146484375]}
+{"run":1,"commit":283.830078125,"render":[2286.800048828125,2284.60009765625]}
+{"run":2,"commit":210.83203125,"render":[2193.2998046875,2249.5]}
+{"run":3,"commit":212.730224609375,"render":[2237,2243.300048828125]}
+{"run":4,"commit":207.367919921875,"render":[2211.2998046875,2202]}
+{"run":5,"commit":184.761962890625,"render":[2184.5,2155]}
+{"run":6,"commit":158.912109375,"render":[2178.89990234375,2178.89990234375]}
+{"run":7,"commit":201.427978515625,"render":[2222.300048828125,2235.5]}
+{"run":8,"commit":153.887939453125,"render":[2188.89990234375,2188.89990234375]}
+{"run":9,"commit":170.948974609375,"render":[2159.5,2217.599853515625]}
+{"run":10,"commit":178.714111328125,"render":[2188.7001953125,2242.300048828125]}
+{"run":11,"commit":157.51904296875,"render":[2147.5,2174.5]}
+{"run":12,"commit":179.98486328125,"render":[2190.099853515625,2185.7998046875]}
+{"run":13,"commit":194.3740234375,"render":[2212.5,2222.7998046875]}
+{"run":14,"commit":184.48388671875,"render":[2184.699951171875,2157.2998046875]}
+{"run":15,"commit":179.618896484375,"render":[2188,2190.599853515625]}
+{"run":16,"commit":225.093017578125,"render":[2265.39990234375,2230.599853515625]}
+{"run":17,"commit":169.6611328125,"render":[2168.5,2196.2001953125]}
+{"run":18,"commit":174.6630859375,"render":[2184.800048828125,2213.900146484375]}
+{"run":19,"commit":212.05810546875,"render":[2238.300048828125,2214.199951171875]}
+{"run":20,"commit":202.123046875,"render":[2233,2241.199951171875]}
+{"run":21,"commit":148.90087890625,"render":[2174.5,2159.89990234375]}
+{"run":22,"commit":192.6240234375,"render":[2221.10009765625,2221.300048828125]}
+{"run":23,"commit":153.89208984375,"render":[2107.900146484375,2163]}
+{"run":24,"commit":145.072021484375,"render":[2116.5,2147.10009765625]}
+{"run":25,"commit":175.991943359375,"render":[2222.5,2226.199951171875]}
+{"run":26,"commit":192.237060546875,"render":[2236.39990234375,2269.89990234375]}
+{"run":27,"commit":184.717041015625,"render":[2218.099853515625,2183.699951171875]}
+{"run":28,"commit":169.716064453125,"render":[2203.39990234375,2214.10009765625]}
+{"run":29,"commit":137.69189453125,"render":[2160.699951171875,2118]}
+{"run":30,"commit":174.85205078125,"render":[2175.39990234375,2214.7998046875]}
+{"run":31,"commit":264.733154296875,"render":[2302,2295.300048828125]}
+{"run":32,"commit":167.087158203125,"render":[2188.300048828125,2208]}
+{"run":33,"commit":190.050048828125,"render":[2223.099853515625,2223.39990234375]}
+{"run":34,"commit":214.22802734375,"render":[2250.89990234375,2220.39990234375]}
+{"run":35,"commit":141.39599609375,"render":[2194.699951171875,2155.60009765625]}
+{"run":36,"commit":121.758056640625,"render":[2114.89990234375,2195.89990234375]}
+{"run":37,"commit":183.026123046875,"render":[2162.60009765625,2199.2001953125]}
+{"run":38,"commit":198.24609375,"render":[2268.300048828125,2233]}
+{"run":39,"commit":196.528076171875,"render":[2247.699951171875,2237]}
+{"run":40,"commit":252.43505859375,"render":[2264.400146484375,2273]}
+{"run":41,"commit":212.857177734375,"render":[2231,2281.60009765625]}
+{"run":42,"commit":153.85009765625,"render":[2199.300048828125,2141.5]}
+{"run":43,"commit":209.641845703125,"render":[2219.2998046875,2210.699951171875]}
+{"run":44,"commit":150.612060546875,"render":[2152.2001953125,2262.900146484375]}
+{"run":45,"commit":137.97900390625,"render":[2167.10009765625,2202.400146484375]}
+{"run":46,"commit":188.528076171875,"render":[2201.60009765625,2230.800048828125]}
+{"run":47,"commit":180.48291015625,"render":[2195.199951171875,2194.89990234375]}
+{"run":48,"commit":217.10205078125,"render":[2241.099853515625,2219.699951171875]}
+{"run":49,"commit":127.693115234375,"render":[2140.800048828125,2162.800048828125]}

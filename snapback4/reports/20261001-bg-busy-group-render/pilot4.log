@@ -1,0 +1,35 @@
+opening viewer 0
+0 BG app ready
+0 BG sync start
+0 BG sync end
+opened viewer 0
+opening viewer 1
+1 BG app ready
+1 BG sync start
+1 BG sync end
+opened viewer 1
+opening viewer 2
+2 BG app ready
+2 BG sync start
+2 BG sync end
+opened viewer 2
+12:19:20 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+node:internal/deps/undici/undici:16416
+      Error.captureStackTrace(err);
+            ^
+
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:16416:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/measure.mjs:86:21 {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:46571
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 46571
+  }
+}
+
+Node.js v24.13.1

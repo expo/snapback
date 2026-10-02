@@ -332,9 +332,13 @@ export function createApp(options: AppOptions): App {
     };
     async function authorized(): Promise<boolean> {
       const valid = await persist(() => storeLock(sessionKey(url), async () => {
-        if (!scope.valid || await readEpoch() !== epoch) return false;
-        if (preparing || !authority) return true;
-        const raw = await authority.read(sessionKey(url));
+        if (!scope.valid) return false;
+        if (preparing || !authority) return await readEpoch() === epoch;
+        const { marker, raw } = await authority.readScope(sessionKey(url));
+        const stored = sessionEpoch(raw) ?? "0", legacy = marker ?? "0";
+        const current = BigInt(legacy) > BigInt(stored) ? legacy : stored;
+        observeEpoch(current);
+        if (!scope.valid || current !== epoch) return false;
         if (!raw || logoutEpoch(raw) !== null) return false;
         try { return JSON.parse(raw)?.principal === scope.session.principal; } catch { return false; }
       }));

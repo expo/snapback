@@ -41,7 +41,7 @@
   },
   "app.ts": {
     "count": 74,
-    "sha256": "917d4fe36203d763eb6c32b4b98caa7faed4872ff6ce78904ae318e60eb1569b"
+    "sha256": "61b789bdc55c42bff9b4920b415199af14d40939412ae9089d06cef3f9097885"
   },
   "asset-download.ts": {
     "count": 9,
@@ -348,8 +348,8 @@
     "sha256": "8cf239976c3ea04d0420956220e473d322e704db2a0a1c971665ce51bab5f297"
   },
   "session-authority.ts": {
-    "count": 8,
-    "sha256": "be4925d40c7bfade37e486991c06919a5829702b2180b93e32c6586f6e8a9268"
+    "count": 10,
+    "sha256": "ce9b51a4b54dd5b465c2a96214ca5992e0bb411d61457a1a1b9d55314ea792d3"
   },
   "sha256.ts": {
     "count": 0,
