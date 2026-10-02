@@ -75,7 +75,7 @@ pub struct Shared {
     wake: Mutex<ephemeral::Wake>,
     polls: Condvar,
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
-    maintenance: Mutex<()>,
+    maintenance: FairMutex<maintenance::State>,
     pub engine: FairMutex<Engine>,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
@@ -322,7 +322,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
-        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: FairMutex::gate(maintenance::State::default()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] request_work: Mutex::new(None),
@@ -368,6 +368,10 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     {
         let shared = shared.clone();
         background.push(("maintenance", crate::lifecycle::background("maintenance", move || maintain(shared))?));
+    }
+    {
+        let shared = shared.clone();
+        background.push(("bulk-maintenance", crate::lifecycle::background("bulk-maintenance", move || maintenance::bulk(shared))?));
     }
     if dev { snapback4_core::diagnostic!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
     let worker = crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;

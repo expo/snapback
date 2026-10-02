@@ -109,21 +109,23 @@ export async function runMixed(argv) {
  const port=Number(option('--port','49377')), url='http://127.0.0.1:'+port;
  const seconds=Number(option('--seconds','125')), cores=availableParallelism();
  const deadlineOnly=argv.includes('--deadline-only');
+ const followingBacklog=argv.includes('--following-backlog');
+ const followingSource=followingBacklog?readFileSync(new URL('../crates/snapback4-lang/tests/fixtures/timeline-v2.q',import.meta.url),'utf8')+'\nquery writer():\n  return viewer\nmutation backlog():\n  for n in range(0, 100):\n    insert posts { authorId: viewer, parentId: null, at: now }\n  return true\n':'';
  const levels=option('--levels','0,0.5,1,1.5').split(',').map(Number);
  assert(seconds>=65 && levels.every(v=>[0,.5,1,1.5].includes(v)),'mixed cells need at least 65 seconds and valid levels');
  await mkdir(out,{recursive:true});
- const metadata={host:hostname(),platform:platform(),node:process.version,cpu:cpus()[0].model,cores,binary,binarySha256:createHash('sha256').update(readFileSync(binary)).digest('hex'),seconds,levels,deadlineOnly,started:new Date().toISOString()};
+ const metadata={host:hostname(),platform:platform(),node:process.version,cpu:cpus()[0].model,cores,binary,binarySha256:createHash('sha256').update(readFileSync(binary)).digest('hex'),seconds,levels,deadlineOnly,followingBacklog,started:new Date().toISOString()};
  await writeFile(join(out,'metadata.json'),JSON.stringify(metadata,null,2),{flag:'wx'});
  const owned=new Set();
  const track=p=>{owned.add(p);p.once('exit',()=>owned.delete(p));return p};
  async function stop(p){if(p.exitCode!==null||p.signalCode!==null)return;const done=once(p,'exit');p.kill('SIGTERM');const timer=setTimeout(()=>p.kill('SIGKILL'),10000);try{await done}finally{clearTimeout(timer)}}
  for(const [signal,code] of [['SIGINT',130],['SIGTERM',143]])process.once(signal,()=>{void Promise.all([...owned].map(stop)).finally(()=>process.exit(code))});
  const results=[];
- async function post(path,body){const r=await fetch(url+path,{method:'POST',headers:{'Content-Type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify(body)});const j=await r.json();assert(!j.denied,JSON.stringify(j));return j}
+ async function post(path,body,actor='alice'){const r=await fetch(url+path,{method:'POST',headers:{'Content-Type':'application/json','x-snapback-persona':actor},body:JSON.stringify(body)});const j=await r.json();assert(!j.denied,JSON.stringify(j));return j}
  try {for(const level of levels){
   const dir=join(out,'level-'+level), project=join(dir,'project');
   await mkdir(join(project,'snapback/workers'),{recursive:true});
-  await writeFile(join(project,'snapback/schema.q'),schema);
+  await writeFile(join(project,'snapback/schema.q'),followingBacklog?schema.replace('use personas alice','use personas alice, '+Array.from({length:100},(_,n)=>'f'+n).join(', '))+'\n'+followingSource:schema);
   await writeFile(join(project,'snapback/workers/worker.mjs'),worker);
   const logPath=join(dir,'server.log'),fd=openSync(logPath,'w');
   const server=track(spawn(binary,['dev','--no-watch','--port',String(port)],{cwd:project,stdio:['ignore',fd,fd]}));closeSync(fd);
@@ -137,6 +139,15 @@ export async function runMixed(argv) {
    await post('/m/init',{args:{},id:'init'});
    db=new DatabaseSync(join(project,'.snapback4/store.sqlite'),{readOnly:true});
    db.exec('PRAGMA busy_timeout=1000');
+   let followingNum;
+   if(followingBacklog){
+    const author=(await post('/q/writer',{args:{}})).data;
+    for(let n=0;n<100;n++)await post('/m/follow',{args:{actor:author},id:'follow-'+n},'f'+n);
+    followingNum=db.prepare("SELECT num FROM _catalog WHERE name='feedWork'").get().num;
+   }
+   const itemsNum=followingBacklog?db.prepare("SELECT num FROM _catalog WHERE name='items'").get().num:null;
+   const liveItems=()=>new Set((followingBacklog?db.prepare('SELECT id FROM r WHERE t=?').all(itemsNum):db.prepare('SELECT id FROM r').all()).map(r=>r.id));
+   const deliveryCount=()=>followingBacklog?db.prepare("SELECT count(*) n FROM r WHERE t=? AND json_extract(data,'$.Row.status.String') != 'done'").get(followingNum).n:0;
    for(let i=0;i<Math.round(cores*level);i++){
     const p=track(spawn(process.execPath,['-e','process.stdout.write("ready\\n"); let x=1; for(;;) {for(let i=0;i<1000000;i++) x=Math.imul(x,1664525)+1013904223|0;}'],{stdio:['ignore','pipe','inherit']}));children.push(p);
     await Promise.race([once(p.stdout,'data'),once(p,'error').then(([e])=>{throw e}),once(p,'exit').then(()=>{throw Error('busy child exited')})]);
@@ -184,10 +195,18 @@ export async function runMixed(argv) {
    const offset=1000,started=Date.now(),until=started+seconds*1000;
    const startLoad=loadavg();let nextAdd=started,nextAbandon=started,serial=0,reading=true,readError;
    const reader=(async()=>{while(reading){const t=performance.now();try{const r=await post('/q/read',{args:{}});assert('data'in r);raw.push({kind:'read',at:Date.now(),ms:performance.now()-t});}catch(e){readError=e;break}}})();
-   let backlogMax=0;
+   let backlogMax=0;const following={enabled:followingBacklog,samples:[],max:0};
    try {
     // Emit only after the lease-extension probe; the real clock must expire it.
     await post('/m/deadline',{args:{},id:'deadline-'+level});
+    if(followingBacklog){
+     following.started=Date.now();
+     // Ten ordinary 100-event mutations, each below the writer's row ceiling.
+     // These are real timeline work records; no direct queue injection.
+     for(let n=0;n<10;n++)await post('/m/backlog',{args:{},id:'backlog-'+n});
+     following.enqueued=Date.now();following.pendingAfterEnqueue=deliveryCount();
+     assert(following.pendingAfterEnqueue>0,'following backlog drained before observation');
+    }
     while(Date.now()<until){
     if(Date.now()>=nextAdd){
      const r=await post('/m/add',{args:{n:serial},id:'add-'+serial++});
@@ -196,10 +215,14 @@ export async function runMixed(argv) {
     }
     if(Date.now()>=nextAbandon && Date.now()<until-15000){await post('/m/abandon',{args:{},id:'abandon-'+nextAbandon});deliberatelyAbandoned++;nextAbandon+=20000;}
     const at=Date.now()+offset;
-    const live=new Set(db.prepare('SELECT id FROM r').all().map(r=>r.id));
+    const live=liveItems();
     for(const row of rows.values())if(row.reclaimed===undefined&&!live.has(row.id)){row.reclaimed=at;row.delay=at-row.expires}
     const backlog=db.prepare("SELECT count(*) n FROM _outbox WHERE state IN ('queued','running')").get().n;backlogMax=Math.max(backlogMax,backlog);
     raw.push({kind:'backlog',at,n:backlog});
+    if(followingBacklog){
+     const n=deliveryCount(),observed=Date.now();following.samples.push({at:observed,n});following.max=Math.max(following.max,n);
+     if(n===0&&following.finished===undefined)following.finished=observed;
+    }
     for(const row of db.prepare("SELECT id,state,effect,attempts,lease_until FROM _outbox").all()){
      const key=row.id+':'+row.attempts;
      if(row.state==='running'){
@@ -215,13 +238,27 @@ export async function runMixed(argv) {
     await sleep(50);
    }}finally{reading=false;await reader}if(readError)throw readError;
    // Keep contention alive while the final emitted work and expiry drain.
-   await sleep(4000);
-   const end=Date.now()+offset,live=new Set(db.prepare('SELECT id FROM r').all().map(r=>r.id));
+   if(followingBacklog){
+    const minEnd=Date.now()+4000,maxEnd=Date.now()+30*60*1000;
+    do{
+     const n=deliveryCount(),at=Date.now();following.samples.push({at,n,finalDrain:true});
+     if(n===0&&following.finished===undefined)following.finished=at;
+     assert(at<maxEnd,'Following backlog failed to drain');
+     if(n===0&&at>=minEnd)break;
+     await sleep(50);
+    }while(true);
+   }else await sleep(4000);
+   const end=Date.now()+offset,live=liveItems();
    for(const row of rows.values())if(row.reclaimed===undefined&&!live.has(row.id)){row.reclaimed=end;row.delay=end-row.expires;row.finalDrain=true}
+   if(followingBacklog){
+    assert.equal(deliveryCount(),0,'Following delivery backlog did not drain within the mixed window');
+    assert(following.finished!==undefined,'missing observed Following drain boundary');
+    following.drainMs=following.finished-following.enqueued;
+   }
    const jobs=db.prepare('SELECT name,args,state,created_at,updated_at,error FROM _jobs').all().map(r=>({...r,args:JSON.parse(r.args)}));
    const effects=db.prepare('SELECT id,effect,state,attempts,at,settled_at,deadline,error_code,lease_until FROM _outbox').all();
    const events=(await readFile(logPath,'utf8')).split('\n').filter(l=>l.includes('CT_EVENT ')).map(l=>JSON.parse(l.slice(l.indexOf('CT_EVENT ')+9)));
-   const cell={level,busy:children.length,started,finished:Date.now(),offset,startLoad,endLoad:loadavg(),hostStart,hostEnd:hostSample([process.pid,server.pid,...children.map(p=>p.pid)]),backlogMax,extension:{before:leaseBefore.lease_until,after:leaseAfter.lease_until,advancedMs:advance.advancedMs},jobs,effects,leaseRecovery:[...abandoned.values()],expiry:[...rows.values()],events,raw};
+   const cell={level,busy:children.length,started,finished:Date.now(),offset,startLoad,endLoad:loadavg(),hostStart,hostEnd:hostSample([process.pid,server.pid,...children.map(p=>p.pid)]),backlogMax,following,extension:{before:leaseBefore.lease_until,after:leaseAfter.lease_until,advancedMs:advance.advancedMs},jobs,effects,leaseRecovery:[...abandoned.values()],expiry:[...rows.values()],events,raw};
    await writeFile(join(dir,'samples.json'),JSON.stringify(cell));
    assert(children.every(p=>p.exitCode===null&&p.signalCode===null),'busy child died');
    assertLeaseObservations({raw,effects,events,abandoned,deliberatelyAbandoned});
@@ -243,7 +280,7 @@ export async function runMixed(argv) {
    const readMs=raw.filter(r=>r.kind==='read').map(r=>r.ms).sort((a,b)=>a-b);
    const readLatency={p50:readMs[Math.ceil(readMs.length*.5)-1],p95:readMs[Math.ceil(readMs.length*.95)-1]};
    const maintenanceCommits=db.prepare("SELECT kind,program,count(*) n FROM _commits WHERE at BETWEEN ? AND ? AND kind != 'mutation' GROUP BY kind,program").all(started+offset,until+offset);
-   const summary={level,busy:children.length,reads:readMs.length,readLatency,maintenanceCommits,deliberatelyAbandoned,observedAbandoned:abandoned.size,backlogMax,jobs:jobSummary,expectedBoundaries:expected,effects:effects.length,retries:effects.reduce((n,e)=>n+Math.max(0,e.attempts-1),0),deadlineOutcomes:effects.filter(e=>e.error_code).map(e=>e.error_code),leaseRecovery:[...abandoned.values()],unexpectedLeaseChanges:raw.filter(r=>r.kind==='leaseChange').length,extensionMs:1000,expiryMaxMs:Math.max(...[...rows.values()].filter(r=>!r.finalDrain).map(r=>r.delay))};
+   const summary={level,busy:children.length,reads:readMs.length,readLatency,maintenanceCommits,deliberatelyAbandoned,observedAbandoned:abandoned.size,backlogMax,following,jobs:jobSummary,expectedBoundaries:expected,effects:effects.length,retries:effects.reduce((n,e)=>n+Math.max(0,e.attempts-1),0),deadlineOutcomes:effects.filter(e=>e.error_code).map(e=>e.error_code),leaseRecovery:[...abandoned.values()],unexpectedLeaseChanges:raw.filter(r=>r.kind==='leaseChange').length,extensionMs:1000,expiryMaxMs:Math.max(...[...rows.values()].filter(r=>!r.finalDrain).map(r=>r.delay))};
    results.push(summary);console.log(JSON.stringify(summary));
   }finally{db?.close();await stop(server);await Promise.all(children.map(stop))}
  }}finally{await Promise.all([...owned].map(stop));await writeFile(join(out,'summary.json'),JSON.stringify(results,null,2))}

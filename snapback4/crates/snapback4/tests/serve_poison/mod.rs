@@ -23,7 +23,7 @@ fn a_request_after_engine_poison_still_serves() {
         personas: true,
         hold_effects: false,
         hold_schedules: false,
-        clock: clock.clone(), maintenance: Mutex::new(()),
+        clock: clock.clone(), maintenance: FairMutex::gate(maintenance::State::default()),
         entropy: Mutex::new(1),
         presence: Arc::new(Live::new(clock)),
         asset_transfers: AssetTransfers::default(),

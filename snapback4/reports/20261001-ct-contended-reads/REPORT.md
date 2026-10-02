@@ -731,3 +731,207 @@ patch. The baseline is rebuilt from unmodified 9845a1f013; the ordinary and
 demoted candidates differ only by that patch, with the same production profile
 and SQLite policy. The full suite runs after this lane's owned synthetic load
 has stopped. Other tenants are neither stopped nor controlled.
+
+## Round 3 — maintenance split by protected obligation (2026-10-02)
+
+Implemented the operator's split on **32e111fff0**, retaining all round-2 fixes.
+Timing-critical maintenance runs at ordinary priority; Following delivery,
+row-view recounts and jobs run at utility/nice 5 with aged ordinary service.
+The product delivery-backlog finding is an [open issue](../../../issues/20261002-snapback4-following-replay-delivery-backlog.md),
+not a throughput fix in this lane. Nothing is pushed or published.
+
+### Policy, progress and ordering
+
+Two maintenance threads share the existing engine FIFO and cooperative budgets:
+250 µs under contention, 2 ms otherwise, ending between atomic work units.
+The ordinary thread handles ephemeral expiry, physical row expiry, schedule
+boundaries, action/effect lease recovery and deadlines, and stale-asset sweeps.
+Each schedule now has its own atomic admission/transaction. Existing one-second,
+fifth-tick lease and sixtieth-tick asset cadences remain. Claims and settlements
+still enforce deadlines themselves.
+
+The bulk thread rotates one delivery slice, one recount slice, one job slice.
+A shared FIFO coordination gate releases between slices and admits a waiting
+ordinary slice or development-clock advance before the next bulk slice. Delivery
+commits before recount within a cycle; urgent work may interleave. A recount does
+not depend on globally empty delivery: its existing durable basis/cursor and delta
+rules observe later writes. Development-clock advancement keeps its original
+synchronous full-drain ordering, lease extension and request QoS.
+
+After one second without a bulk turn, the next ordinary age check runs the next
+bulk slice itself. Checks run on the 100 ms loop and after every ordinary engine
+slice. Thus three aged turns visit every bulk kind even when the low-priority
+thread never runs. Nominal eligibility is **one turn per 1 s plus up to 100 ms
+polling, every kind within three turns**, plus OS scheduling, FIFO work already
+ahead, atomic work/commit/filesystem delays or an in-flight development-clock
+drain. This is a bounded service opportunity, **not a hard 3.3-second completion
+promise**. Parked/failing work still requires repair. No privileged nice restore
+or utility-thread QoS raise is used.
+
+The [technical record](./round3/TECHNICAL.md) states all classes, ordering,
+progress limits and measurement boundaries. LLP 3000 §7 records the policy;
+LLP 3000.013 distinguishes the new host from its historical single-thread run.
+
+### Measurements
+
+The unchanged corrected mixed fixture passes all twelve 125-second cells:
+**2,424,961 successful reads, 72/72 abandoned claims observed, zero unexpected
+lease changes**, exact 1,000 ms development-clock lease extension, and all
+schedule/expiry/retry/deadline assertions. Read p50 / p95, milliseconds:
+
+| Busy processes | Demoted-all | Ordinary-all | Split | Split vs demoted p95 | Split vs ordinary p95 |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 0.592 / 0.718 | 0.617 / 0.726 | 0.618 / 0.726 | +1.1% | −0.1% |
+| 48 | 0.357 / 0.467 | 0.352 / 0.476 | 0.355 / 0.471 | +0.9% | −1.0% |
+| 96 | 0.495 / 1.151 | 0.500 / 2.655 | 0.497 / 1.232 | +7.1% | −53.6% |
+| 144 | 0.538 / 4.287 | 0.540 / 4.268 | 0.519 / 4.188 | −2.3% | −1.9% |
+
+Split's largest observed maintenance-only lease recovery delays were 2.742,
+1.490, 4.927 and 1.695 seconds at 0/48/96/144; physical expiry reclamation maxima
+were 1.060, 1.035, 1.721 and 1.062 seconds. These maxima include sweep phase and
+observation delay. The 48-process round-2 gap did not recur at the same magnitude;
+the 96-process split retained most of demotion's observed read benefit. The
+single-cell-per-design comparison on a shared host does not isolate causality.
+All control and split maintenance outcomes are in [the mixed tables](./round3/MIXED.md).
+
+The separate split-only combined fixture adds 100 followers and 1,000 actual
+delivery tasks. All four cells pass: **726,752 reads, 24/24 abandoned claims
+observed, zero unexpected lease changes**, exact lease extension, 508 effects
+and 106 retries per cell, and the deliberately slow effect ends with
+`E_EFFECT_DEADLINE` each time. All scheduled jobs finish without missing or
+duplicating a boundary. Maximum schedule admission delay is 1.087 seconds;
+maximum job elapsed time is 20 ms.
+
+| Busy | Read p50 / p95 ms | Lease recovery max s | Expiry reclamation max s | 1,000-task drain s |
+|---:|---:|---:|---:|---:|
+| 0 | 0.493 / 0.739 | 4.758 | 1.096 | 52.438 |
+| 48 | 0.361 / 0.531 | 3.931 | 1.123 | 80.313 |
+| 96 | 0.481 / 3.361 | 5.293 | 1.139 | 277.007 |
+| 144 | 0.543 / 5.582 | 5.239 | 1.375 | 428.446 |
+
+Delivery progresses under sustained load, but its throughput drops substantially.
+The read window is 125 seconds; drain observation and busy processes continue
+through the tail, so the longer drain times include a period after reads stop.
+These tasks have 100-follower fan-out and are not a throughput-equivalent sample
+of the actual calibration backlog. [Mixed tables and raw records](./round3/MIXED.md)
+retain every schedule delay, job time, deadline outcome and queue observation.
+
+All twelve real-backlog trials pass, retaining **323,472 sampled answers**.
+All initial database/WAL manifests and 6,507-task counts agree, and all eight
+settled endpoint hashes agree across designs, loads and repetitions. Pooled
+nearest-rank p50 / p95 during drain (sample count in parentheses):
+
+| Busy | Endpoint | Demoted p50 / p95 ms (n) | Ordinary p50 / p95 ms (n) | Split p50 / p95 ms (n) |
+|---:|---|---:|---:|---:|
+| 0 | following500 | 2.801 / 5.040 (2860) | 2.617 / 4.937 (3103) | 2.744 / 4.825 (3260) |
+| 0 | following5 | 2.656 / 4.733 (2860) | 2.477 / 4.156 (3080) | 2.598 / 4.749 (3260) |
+| 0 | celebrityFollowing | 2.647 / 4.619 (2860) | 2.460 / 3.875 (3080) | 2.592 / 4.401 (3260) |
+| 0 | globalSearch | 3.514 / 3.900 (2852) | 3.380 / 3.937 (3080) | 3.497 / 4.106 (3260) |
+| 0 | insights | 0.860 / 1.086 (2840) | 0.834 / 1.070 (3080) | 0.844 / 1.126 (3242) |
+| 0 | trending | 1.357 / 1.828 (2840) | 1.316 / 1.830 (3080) | 1.327 / 1.768 (3240) |
+| 0 | busyPage1 | 1.130 / 1.765 (2826) | 1.090 / 1.474 (3080) | 1.100 / 1.553 (3236) |
+| 0 | busyPage50 | 1.145 / 1.942 (2820) | 1.104 / 1.885 (3080) | 1.102 / 1.877 (3220) |
+| 96 | following500 | 3.683 / 11.132 (12480) | 4.533 / 12.897 (4580) | 3.567 / 9.738 (8725) |
+| 96 | following5 | 3.459 / 10.203 (12480) | 3.803 / 11.717 (4580) | 3.359 / 9.582 (8710) |
+| 96 | celebrityFollowing | 3.415 / 10.237 (12468) | 3.938 / 11.112 (4580) | 3.319 / 9.220 (8700) |
+| 96 | globalSearch | 5.488 / 12.750 (12448) | 6.973 / 14.763 (4580) | 5.009 / 11.399 (8700) |
+| 96 | insights | 0.867 / 3.941 (12440) | 0.909 / 4.228 (4580) | 0.868 / 3.925 (8700) |
+| 96 | trending | 1.582 / 5.527 (12440) | 1.801 / 6.115 (4576) | 1.579 / 5.353 (8700) |
+| 96 | busyPage1 | 1.216 / 4.819 (12440) | 1.346 / 4.988 (4560) | 1.211 / 4.622 (8700) |
+| 96 | busyPage50 | 1.235 / 4.873 (12440) | 1.382 / 5.088 (4545) | 1.234 / 4.721 (8700) |
+
+| Busy | Design | Drain trial 1 s | Drain trial 2 s |
+|---:|---|---:|---:|
+| 0 | Demoted-all | 29.291 | 34.135 |
+| 0 | Ordinary-all | 31.302 | 34.258 |
+| 0 | Split | 32.577 | 37.699 |
+| 96 | Demoted-all | 260.588 | 185.044 |
+| 96 | Ordinary-all | 87.176 | 100.813 |
+| 96 | Split | 124.531 | 167.005 |
+
+At 96 busy processes, split's pooled p95 is below ordinary-all on all eight
+queries (7.2–24.5%) and below demoted-all on all eight (0.4–12.5%). Following-500
+is 9.738 ms versus 12.897 ordinary and 11.132 demoted. Split drains more slowly
+than ordinary-all but faster than demoted-all in both repetitions. Idle is a
+trade-off: split drains more slowly and has higher p95 than ordinary-all on
+five of eight queries, by up to 14.3%. This does not establish an idle win.
+
+Completion times include server startup. The final positive-to-empty observation
+intervals are 145–251 ms. Pooling weights samples, so longer drains contribute
+more cohorts and see intermediate feed states for longer. Per-trial/per-cohort
+ranks, queue histories, answer digests and host load are in [the drain record](./round3/DRAIN.md).
+Other tenants' Rust builds and tests appear in the captures; zero busy processes
+means zero **owned synthetic** workers, not an exclusive quiet host. Reversed
+order reduces one ordering bias but does not isolate scheduling causality.
+Neither these runs nor the small fixture certify a calibration midpoint pass.
+
+
+The calibration qualification restores the identical stopped 88,143-action,
+50%-scale store before every trial, including its committed WAL. It holds
+**6,507 pending deliveries** (6,551 observed before shutdown). Two trials per
+design/load reverse the order at 0 and 96 busy processes. The published 0.4.10
+client runs all eight builder queries in repeated 23-call cohorts, excluding the
+first three calls of each cohort from ranks. A separate worker observes backlog;
+SQL polling does not block the probe client's event loop. There is no settlement
+wait before probes. All successful raw samples and answer digests are retained.
+During-drain Following answers can change; after drain, the queues must stay
+empty and the commit head stable for one second before final hashes are captured.
+
+### Qualification and failures
+
+| Check | Final result |
+|---|---|
+| Affected serving binary | 228 passed, 0 failed, 4 ignored |
+| Schedule boundary/restart/slicing | 6 passed |
+| Row-view / Following engine cases | 31 / 17 passed |
+| Whole guide | 110 passed |
+| KA/transport, seven files | 61 passed |
+| Harness observation/lease negative controls | 3 passed |
+| Post-correction clock / latency / lifecycle / replay | 19 / 12 / 24 / 15 passed |
+| Fault matrix rerun on CT | 321 passed |
+| Current-main fault matrix, isolated rebuilt client/wasm | 321 passed |
+| Final LLP reference check | 525 documents, 10,072 refs, 0 errors / unchecked |
+
+The sole `scripts/test.sh` invocation reports exactly
+**`== 2 failure(s) in 1411 s`** (exit 1), listing `cargo test` and `client tests`.
+All 79 model tests passed. Client tests reported 5,741 passed, one failed and ten
+conditional skips. Every failure is retained in the
+[failure ledger](./round3/FAILURES.md); the suite is not rerun.
+
+- **Ours, corrected:** `clock_maintenance_retry_open_is_wait_not_engine` failed
+  in the already-compiled server target (226 passed, one failed, four ignored).
+  The coordination gate had inherited engine timing: wait 151.268 ms plus
+  engine 1.743 ms exceeded total 152.079 ms. Code review found the same defect
+  during the suite. `FairMutex::gate` now records only coordination, and the
+  existing failure plus a new inter-slice regression pass in the final affected
+  run. The measured production binary was rebuilt after this fix. The separate
+  70-test clock/latency/lifecycle/replay run also passes.
+- **Environmental/transient test harness; exact scheduling cause unresolved:**
+  `47 transient: local.ts:850 follow` failed because its classified await did
+  not experience the injected fault. This mocked-transport wasm fixture never
+  starts a server. Its whole-file rerun passes 321/321. On current main
+  **738d45830c9d51c9c92f65180c56cbecb2f2b068**, archived without source changes
+  and with its own rebuilt client/wasm, both the isolated site and all 321
+  matrix cases pass. No baseline product failure is claimed. The remaining
+  reachability investigation is [ticketed](../../../issues/20261002-snapback4-follow-fault-injection-reachability.md).
+
+Development failures include the corrected private-field access, an omitted
+file-descriptor limit (all 20 resulting failed cases listed in the ledger), a
+wrong Cargo target name, and two corrected measurement problems. Queue polling
+now runs outside the probe client's event loop; the optional mixed Following
+observer continues through its final drain tail. The first full-main matrix
+attempt's 120-second outer guard was too short; the 240-second-guard invocation
+finished naturally in 140.235 seconds. These are classified individually and
+are not used to claim baseline product failures.
+
+Wasm remains **2,015,329 B raw / 605,001 B gzip**, below the unchanged
+**605,225 B** ratchet by **224 B**. No budget increase. This shared-host suite
+elapsed time does not qualify the repository's 60-second budget. No round-3
+Mac runtime/performance or calibration midpoint-pass claim is made.
+
+[Custody](./round3/custody.json), [commands](./round3/inputs/README.md), raw samples,
+queue observations, per-cell summaries, source/binary digests and qualification
+logs are retained under `round3/`. Prepared databases, credentials and generated
+projects remain ignored local artifacts. The ordinary/demoted control binaries
+match round 2's recorded hashes and differ only by its retained demotion patch;
+“round 0” denotes that priority policy while preserving round-2 fixes.

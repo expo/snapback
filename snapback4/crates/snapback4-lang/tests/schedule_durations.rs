@@ -117,3 +117,20 @@ fn first_seen_before_eight_fires_at_eight_across_reopen() {
     drop(e);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn sliced_schedules_keep_independent_boundaries_and_coalesce_once() {
+    let b = compile(&[("schema.q".into(), format!("{}schedule second every 1m: tick\n", source("1m")))]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    assert!(e.fire_schedule_at(0, 0).unwrap().is_empty());
+    assert!(e.fire_schedule_at(0, 1).unwrap().is_empty());
+    assert_eq!(e.fire_schedule_at(60_000, 0).unwrap(), ["s"]);
+    assert_eq!(e.jobs(10).unwrap().len(), 1, "one slice must not fire the other schedule");
+    assert!(e.fire_schedule_at(60_000, 0).unwrap().is_empty());
+    assert_eq!(e.fire_schedule_at(120_000, 1).unwrap(), ["second"]);
+    assert_eq!(e.jobs(10).unwrap().len(), 2, "missed boundaries coalesce");
+    assert!(e.fire_schedule_at(120_000, 99).unwrap().is_empty(), "adoption can shorten the schedule set between slices");
+    assert_eq!(e.fire_schedules(120_000).unwrap(), ["s"]);
+    assert!(e.fire_schedules(120_000).unwrap().is_empty());
+}

@@ -133,7 +133,7 @@ impl Host {
             personas: dev,
             hold_effects: false,
             hold_schedules: false,
-            clock, maintenance: Mutex::new(()),
+            clock, maintenance: FairMutex::gate(maintenance::State::default()),
             entropy: Mutex::new(1),
             presence,
             asset_transfers: AssetTransfers::default(),

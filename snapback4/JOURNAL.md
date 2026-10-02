@@ -81602,3 +81602,67 @@ Mac captures and qualification logs in the
 [round-2 report](./reports/20261001-ct-contended-reads/REPORT.md#round-2--queued-exits-faithful-qualification-and-mac-findings-2026-10-02).
 The operator's quiet-Mac measurement and idle-cost decision remain pending.
 Commit locally with the requested Astra trailer; push and publish nothing.
+
+
+## 2026-10-02 — CT round 3: timed maintenance and protected bulk progress
+
+Implemented the operator's split on round 2's 32e111fff0. Ordinary maintenance
+handles lease recovery/deadlines, expiry, schedule admission and stale assets;
+a utility/nice-5 thread rotates delivery, recount and job slices. Schedules now
+admit one atomic boundary at a time. Both threads share FIFO maintenance and
+engine gates. Delivery commits before recount in each bulk cycle, with urgent
+work allowed between slices; recounts retain their durable basis/delta rules.
+Development-clock advancement preserves its synchronous full-drain order and
+lease extension. The running Linux process confirms maintenance/request nice 0
+and bulk nice 5; there is no new Darwin runtime claim.
+
+After one second without a bulk turn, ordinary maintenance executes the next
+turn itself. The 100 ms loop and per-slice checks visit every kind in three aged
+turns even when the lower-priority thread never runs. The nominal 3.3-second
+service opportunity adds OS scheduling, FIFO, atomic commit/filesystem and clock
+drain delays; it is neither a wall-clock completion deadline nor new per-view
+fair queuing. Regressions cover actual queued-job completion without the bulk
+thread and a waiting ordinary gate acquisition preceding the next bulk slice.
+
+All twelve corrected small mixed cells pass at 0/48/96/144 busy processes:
+2,424,961 reads, 72/72 abandoned claims observed, zero unexpected lease changes,
+exact clock extension, schedules, expiry, retries and deadline outcomes. Split
+p95 is 0.726/0.471/1.232/4.188 ms. At 96 it is 53.6% below ordinary-all and 7.1%
+above demoted-all. The separate split fixture with 1,000 real Following tasks
+also passes all four loads: 726,752 reads, 24/24 abandoned claims, zero lease
+changes, and drain times 52.438/80.313/277.007/428.446 seconds. The longer tails
+remain under synthetic CPU load after the 125-second read window ends.
+
+The real 50%-scale replay leaves 6,507 deliveries in its stopped store. Twelve
+fresh restorations, including committed WAL, retain 323,472 builder-probe samples
+and agree on all eight settled answers. At 96 processes, split's pooled p95 is
+lower than both controls on all eight queries: Following-500 is 9.738 ms versus
+12.897 ordinary and 11.132 demoted. Split drains in 124.531/167.005 seconds,
+between ordinary's 87.176/100.813 and demoted's 260.588/185.044. Idle split drain
+is slower (32.577/37.699 seconds), and p95 loses to ordinary on five of eight
+queries. Other tenants' builds/tests and substantial between-trial variation
+remain visible; no causal isolation, quiet-Mac win or calibration midpoint-pass
+claim. The delivery latency product finding is an open filesystem ticket;
+this lane does not optimize the delivery algorithm.
+
+Affected serving tests pass 228/0 with four ignores; schedules 6/0, row-view/
+Following 31/17, guide 110/0, KA/transport 61/0, harness controls 3/0, and final
+clock/latency/lifecycle/replay integration 70/0. The sole complete suite reports
+exactly `== 2 failure(s) in 1411 s`, listing cargo and client tests. Ours:
+the new coordination gate inherited engine timing, exposed by
+`clock_maintenance_retry_open_is_wait_not_engine`; corrected with a coordination-only
+gate and verified before rebuilding the measured binary. Environmental/transient
+harness, exact cause unresolved: `47 transient: local.ts:850 follow` missed its
+injected fault. Both CT and isolated current main
+738d45830c9d51c9c92f65180c56cbecb2f2b068 pass all 321 matrix cases on rerun;
+no baseline product failure is claimed, and the reachability follow-up is ticketed.
+All 79 models passed. Every development failure and its classification remains
+in the report ledger; the complete suite was not rerun.
+
+Wasm remains 2,015,329 B raw / 605,001 B gzip, below the unchanged 605,225 B
+ratchet by 224 B. Main was inspected/tested in isolation, not merged. LLP 3000
+§7 and LLP 3000.013 record the policy and historical distinction. The
+[round-3 report](./reports/20261001-ct-contended-reads/REPORT.md#round-3--maintenance-split-by-protected-obligation-2026-10-02)
+retains tables, commands, samples, queue histories, failures and custody.
+Generated projects/stores remain ignored local artifacts. Commit locally with
+the requested Astra trailer; push and publish nothing.

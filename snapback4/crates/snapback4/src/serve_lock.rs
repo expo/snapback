@@ -17,6 +17,7 @@ struct Queue { next: u64, serving: u64, last_request: Option<Instant> }
 /// maintenance either; every holder does one bounded operation before release.
 pub struct FairMutex<T, C: Clock = SystemClock> {
     clock: C,
+    engine_timing: bool,
     queue: Mutex<Queue>,
     available: Condvar,
     value: Mutex<T>,
@@ -26,10 +27,17 @@ impl<T> FairMutex<T> {
     pub fn new(value: T) -> Self {
         Self::with_clock(value, SystemClock)
     }
+    /// FIFO coordination alone owns no engine/reader and must not create an
+    /// engine span around clock drains, filesystem work or nested admissions.
+    pub fn gate(value: T) -> Self {
+        let mut gate = Self::new(value);
+        gate.engine_timing = false;
+        gate
+    }
 }
 impl<T, C: Clock> FairMutex<T, C> {
     fn with_clock(value: T, clock: C) -> Self {
-        Self { clock, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
+        Self { clock, engine_timing: true, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
     }
     fn background_wait(&self, queue: &Queue, started: Instant) -> Option<Duration> {
         // An existing queue is sustained contention: join its tail now.
@@ -68,9 +76,11 @@ impl<T, C: Clock> FairMutex<T, C> {
         drop(queue);
         let value = self.value.lock();
         // @ref LLP 3000.019#3.7 — clock advances run maintenance inside the request sample too.
-        super::trace::waited(trace_start, "engine");
-        super::latency::waited(started);
-        let timing = super::latency::EngineSpan::new();
+        super::trace::waited(trace_start, if self.engine_timing { "engine" } else { "mutex" });
+        let timing = self.engine_timing.then(|| {
+            super::latency::waited(started);
+            super::latency::EngineSpan::new()
+        });
         match value {
             Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended, _timing: timing }),
             Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended, _timing: timing })),
@@ -88,7 +98,7 @@ impl<T, C: Clock> FairMutex<T, C> {
     pub fn queued(&self) -> u64 { let q = self.queue.lock().unwrap(); q.next.wrapping_sub(q.serving) }
 }
 
-pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool, _timing: super::latency::EngineSpan }
+pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool, _timing: Option<super::latency::EngineSpan> }
 impl<T, C: Clock> FairGuard<'_, T, C> {
     pub fn contended(&self) -> bool { self.contended }
 }
