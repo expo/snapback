@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'n
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { setImmediate as tick } from 'node:timers/promises';
-import { census, instrument, packageRoot, awaitBoundary } from './delivery-fault-instrument.mjs';
+import { census, instrument, packageRoot, awaitBoundary, sharedAwaits, followSync, followRetry } from './delivery-fault-instrument.mjs';
 import { recipe, fixtureIndex, required, absorbs } from './delivery-fault-recipes.mjs';
 import { fixture, until, ok, original } from './delivery-fault-fixture.mjs';
 const directory = mkdtempSync(join(packageRoot, '.rg-matrix-'));
@@ -13,6 +13,7 @@ instrument(directory);
 symlinkSync(join(packageRoot, 'node_modules'), join(directory, 'node_modules'), 'dir');
 const stack = new AsyncLocalStorage();
 let target, alias, direct = false, enabled = false, failures = 0, budget = Infinity;
+let competing = false, competingStarts = 0, quiesced = 0, owned = 0;
 const seen = new Set(), failed = new Set();
 const error = new Error('RG injected await failure');
 function fault() {
@@ -21,7 +22,30 @@ function fault() {
 globalThis.__rgAwait = (id, body) => stack.run([...(stack.getStore() ?? []), id], async () => {
   if (enabled) seen.add(id);
   if(direct && id === target) fault();
-  try { return await body(); } catch (e) { if (e === error) failed.add(id); throw e; }
+  const operation = enabled && (id === target || (target === followRetry && id === followSync)) && sharedAwaits.get(id);
+  const pending = operation === 'sync' ? () => globalThis.__rgClient.syncing : () => globalThis.__rgNativePending();
+  if (operation) {
+    if (competing) {
+      // Astra's reproducer: the classified await would join this exact promise,
+      // whose I/O has no target in its async context. Keep it in every retry.
+      const other = stack.run([], () => operation === 'sync' ? globalThis.__rgClient.syncOnce() : globalThis.__rgClient.installNative());
+      assert.equal(other, pending(), 'the competing call owns the shared promise');
+      void other.catch(() => {});
+      competingStarts++;
+    }
+    // Only scheduling changes. Do not throw at this await or replace its body:
+    // its real sync/install must encounter the existing host/transport fault.
+    // Recheck after every completion: another caller may have reserved work.
+    while (pending()) { quiesced++; try { await pending(); } catch {} }
+  }
+  try {
+    const work = body();
+    if (operation) {
+      assert.equal(work, pending(), 'the classified call owns the next real operation');
+      owned++;
+    }
+    return await work;
+  } catch (e) { if (e === error) failed.add(id); throw e; }
 });
 globalThis.__rgIO = async body => { fault(); return body(); };
 globalThis.__rgIterate = async function* (id, iterable) {
@@ -45,10 +69,17 @@ test('every delivery await is explicitly classified',()=>{
   assert.deepEqual(awaitBoundary(), JSON.parse(readFileSync(new URL('./delivery-await-boundary.json',import.meta.url),'utf8')), 'new or changed await needs delivery reachability classification, including outside existing helper scopes');
   assert.deepEqual(sites.map((s,index)=>({index,id:s.id,recipe:recipe(index),classification:required.has(fixtureIndex(index))?'required':'optional',absorbs:absorbs.has(fixtureIndex(index))})),classified,'new or changed awaited delivery site needs a classification and fault recipe');
 });
-for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [process.env.RG_MATRIX_MODE] : ['transient', 'persistent'])) {
-  test(`${sites.indexOf(site)} ${mode}: ${site.file}:${site.line} ${site.owner}`, async t => {
+const cases = selected.map(site => ({site, competing: false}));
+// Run the complete delivery/recovery/FIFO assertions against the adversarial
+// schedule too, including the nonrejecting follow timer's failed-sync input.
+cases.push(...selected.filter(site => sharedAwaits.has(site.id) || site.id === followRetry).map(site => ({site, competing: true})));
+for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [process.env.RG_MATRIX_MODE] : ['transient', 'persistent'])) {
+  const {site} = entry;
+  test(`${entry.competing ? 'competing sync/install: ' : ''}${sites.indexOf(site)} ${mode}: ${site.file}:${site.line} ${site.owner}`, async t => {
     enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear();
+    competing = entry.competing; competingStarts = quiesced = owned = 0;
     const index = fixtureIndex(sites.indexOf(site)), scenario = recipe(sites.indexOf(site));
+    const syncFollow = target === followSync || target === followRetry;
     if (scenario === 'closing') {
       direct = false; alias = undefined;
       const f = await fixture(t, 1, {createLocalClient, webDevice, beforeCall() { fault(); }});
@@ -192,7 +223,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     if (scenario === 'follow') {
       if([37,38].includes(index)) api.setOffline();
       if(index === 39) { api.setIdentity(false); run(()=>api.waitForChange()); }
-      run(()=>f.changed(11));
+      if (!syncFollow) run(()=>f.changed(11));
     }
     if (scenario === 'replay') run(()=>api.replayOnOpen());
     if (scenario === 'lookup') for(const id of [...queueIds,'missing']) run(()=>f.client.write(id));
@@ -207,6 +238,19 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
       await drain(30);
     }
     release(); f.beforeCall(undefined);
+    if (syncFollow) {
+      // A prior long poll can have been invalidated by a write before changed()
+      // resolves it. Drive the live follow loop to the sync boundary before
+      // starting the eight retry epochs; immediate-turn counts are not a
+      // witness that a real-time poll callback has resumed under CPU load.
+      await until(async () => {
+        if (seen.has(followSync)) return true;
+        if (f.changesWaiting) await f.changed(11);
+        await drain();
+        t.mock.timers.tick(1000);
+        return false;
+      });
+    }
     await drain(100);
     const initialPosts = f.sends.length;
     if(index === 132) assert.equal((await f.client.pendingWrites()).find(w=>w.id===queueIds[1])?.state,'held','failed hold metadata retains the retryable head reason');
@@ -220,7 +264,8 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     if (scenario === 'follow') {
       if([37,38].includes(index)) api.setOffline();
       if(index === 39) { api.setIdentity(false); run(()=>api.waitForChange()); }
-      run(()=>f.changed(11));
+      if (syncFollow) { if (f.changesWaiting) await f.changed(11); }
+      else run(()=>f.changed(11));
     }
       if (scenario === 'search') run(()=>f.client.query({kind:'query',name:'matrixQuery'},{q:'coffee',c:null}));
       if (scenario === 'replay') run(()=>api.replayOnOpen());
@@ -260,13 +305,18 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     }
     assert.equal(f.sends.length,sentBeforeCollection,'caller collection never reposts');
     assert.equal(notices.length,3,'caller collection never emits another terminal outcome');
-    results.push({index:sites.indexOf(site), id:site.id, mode, recipe:scenario, classification:required.has(index)?'required':'optional', absorbed:absorbs.has(index), retryDelays, injected, initialPosts, postedUnderFault, postedAfterRecovery:f.sends.length, reached:seen.has(site.id), rejected:failed.has(site.id)});
+    results.push({index:sites.indexOf(site), id:site.id, mode, competing, competingStarts, quiesced, owned, recipe:scenario, classification:required.has(index)?'required':'optional', absorbed:absorbs.has(index), retryDelays, injected, initialPosts, postedUnderFault, postedAfterRecovery:f.sends.length, reached:seen.has(site.id), rejected:failed.has(site.id)});
     assert.ok(injected > 0, 'the classified await must actually experience an injected fault');
     assert.ok(seen.has(site.id), 'the classified await must be reached after arming its fault');
+    if (competing) {
+      assert.ok(competingStarts > 0, 'the competing operation actually started');
+      assert.ok(quiesced >= competingStarts, 'every competing operation was drained');
+      assert.ok(owned >= competingStarts, 'the target started its own operation after each competitor');
+    }
   });
 }
 test.after(() => {
   enabled = false;
   if (process.env.RG_MATRIX_OUTPUT) writeFileSync(process.env.RG_MATRIX_OUTPUT, JSON.stringify(results, null, 2)+'\n');
-  rmSync(directory, {recursive:true,force:true}); delete globalThis.__rgIO; delete globalThis.__rgAwait; delete globalThis.__rgIterate; delete globalThis.__rgClient; delete globalThis.__rgExit;
+  rmSync(directory, {recursive:true,force:true}); delete globalThis.__rgIO; delete globalThis.__rgAwait; delete globalThis.__rgIterate; delete globalThis.__rgClient; delete globalThis.__rgExit; delete globalThis.__rgNativePending;
 });
