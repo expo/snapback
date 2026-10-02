@@ -555,3 +555,28 @@ test('linker records require products and refuse external frameworks including m
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+// @ref LLP 3000.030#13 — the reference chat's npm layout must prepare the same pinned scene app.
+test('Expo dSYM phases admit hoisted and nested npm layouts but reject custom scripts', async () => {
+  const { auditNativeProject } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scene-dsym-')));
+  const dir = path.join(root, 'ios/Pods'), cache = path.join(root, 'private');
+  try {
+    fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(cache);
+    const fixture = fs.readFileSync(new URL('./fixtures/expo-font-dsym-script.txt', import.meta.url), 'utf8');
+    const graph = { rootObject: 'project', objects: { project: { isa: 'PBXProject' },
+      target: { isa: 'PBXNativeTarget', name: 'Pod', buildPhases: ['phase'] },
+      phase: { isa: 'PBXShellScriptBuildPhase', shellPath: '/bin/sh', name: 'Resolve dSYM' } } };
+    const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
+    const audit = () => auditNativeProject(graph, dir, [{ target: 'Pod', buildSettings: settings }], root, cache, [], 'App');
+    for (const [module, pkg] of [['ExpoFont', 'expo-font'], ['ExpoFileSystem', 'expo-file-system']]) {
+      const script = fixture.replaceAll('ExpoFont', module).replaceAll('expo-font', pkg);
+      for (const source of [script, script.replaceAll('expo/node_modules/', '')]) {
+        graph.objects.phase.shellScript = source;
+        assert.equal(audit().phases.length, 1);
+        graph.objects.phase.shellScript += '\ncat /external/file\n';
+        assert.throws(audit, /unsupported native script/);
+      }
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
