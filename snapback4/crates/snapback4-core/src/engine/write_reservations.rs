@@ -4,9 +4,11 @@ use super::runner::Runner;
 use crate::{error::{MeterKind, RuntimeError}, schema::reservations::{self, Price}};
 impl Runner<'_> {
     pub(super) fn source_price(&self, source: &str, phase: usize) -> Result<Price, RuntimeError> {
-        let plan = if self.device { self.schema.write_reservation(source) }
-            else { reservations::reservation(self.schema, source) };
-        plan.map(|p| p.prices[phase]).ok_or_else(|| RuntimeError::Prediction(
+        let plan = self.schema.write_reservation(source);
+        #[cfg(feature = "sqlite")]
+        let plan = if self.device { plan } else { reservations::reservation(self.schema, source) };
+        let plan = plan.filter(|p| phase != reservations::VIEW_READ || p.view_read.is_some());
+        plan.map(|p| p.price(phase)).ok_or_else(|| RuntimeError::Prediction(
             format!("{source} has no complete source-write reservation; adopt the current backend")))
     }
     pub(super) fn charge_price(&mut self, price: Price) -> Result<(), RuntimeError> {

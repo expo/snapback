@@ -65,7 +65,7 @@ fn declaration_classification_facts_and_emission() {
     );
     assert_eq!(
         b.schema.required_capabilities(),
-        ["ephemeral".into()].into()
+        ["ephemeral".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into()
     );
     let wire = serde_json::to_string(&b.schema).unwrap();
     assert_eq!(

@@ -15,6 +15,8 @@ use std::fmt;
 
 pub mod columns;
 pub mod reservations;
+#[cfg(feature = "sqlite")]
+pub mod effect_prices;
 pub mod through;
 pub mod ephemeral;
 mod work;
@@ -117,6 +119,9 @@ pub struct Execution {
     /// Infallible effect-payload work omitted by the device, at original statement paths.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prediction_skips: Vec<String>,
+    /// Complete bounded prices for omitted effect-only statements.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub effect_reservations: BTreeMap<String, reservations::Price>,
     /// Server reads that feed effects exclusively; these do not require device coverage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effect_payload_reads: Vec<ResidencySite>,

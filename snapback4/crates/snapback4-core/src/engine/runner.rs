@@ -182,6 +182,9 @@ pub struct Runner<'a> {
     /// delivered rows are trusted; provisional images need current read
     /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
+    pub(super) query_program: bool,
+    /// Prediction deduplicates keys within this attempt, never in the server ledger.
+    pub(super) effect_once_keys: BTreeSet<String>,
     pub(crate) event_free: bool,
     #[cfg(feature = "sqlite")]
     pub(super) column_rebuild: bool,
@@ -214,6 +217,8 @@ pub struct Runner<'a> {
     pub(crate) evaluating_write_condition: bool,
     prediction_guards: BTreeSet<String>,
     pub(super) prediction_skips: BTreeSet<String>,
+    effect_reservations: BTreeMap<String, crate::schema::reservations::Price>,
+    effect_prepaid: bool,
     pub(super) discard_effects: bool,
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
@@ -328,6 +333,8 @@ impl<'a> Runner<'a> {
             timeline_pending: false,
             word_cut_at: None,
             device: false,
+            query_program: false,
+            effect_once_keys: BTreeSet::new(),
             event_free: false,
             #[cfg(feature = "sqlite")]
             column_rebuild: false,
@@ -351,6 +358,8 @@ impl<'a> Runner<'a> {
             evaluating_write_condition: false,
             prediction_guards: BTreeSet::new(),
             prediction_skips: BTreeSet::new(),
+            effect_reservations: BTreeMap::new(),
+            effect_prepaid: false,
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -375,9 +384,17 @@ impl<'a> Runner<'a> {
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
+        self.query_program = program.kind == ProgramKind::Query;
         self.prediction_skips = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && program.kind == ProgramKind::Mutation && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_skips.iter().cloned().collect()).unwrap_or_default();
+        if let Some(fact) = self.schema.operations.get(&program.name).filter(|f| program.kind == ProgramKind::Mutation && f.predicts.as_deref() == Some("eligible")) {
+            self.effect_reservations = fact.effect_reservations.clone();
+            #[cfg(feature = "sqlite")]
+            if !self.device {
+                self.effect_reservations = crate::schema::effect_prices::prices(self.schema, program, &fact.prediction_skips).unwrap_or_default();
+            }
+        }
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap or maintained-value cut cannot invent a scalar/shape or a
         // continuation. Keep the internal null placeholder and private meter
@@ -424,16 +441,33 @@ impl<'a> Runner<'a> {
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
             let (previous, capped, component_return) = self.begin_component(index);
+            let site = format!("{prefix}:{}", index + 1);
+            let price = (!self.effect_prepaid).then(|| self.effect_reservations.get(&site).copied()).flatten();
+            if let Some(price) = price {
+                self.meter.at(&site);
+                self.reservation_deferred |= self.device;
+                self.charge_price(price)?;
+            }
+            let prepaid = price.filter(|_| !self.device && !matches!(statement, Stmt::Emit { .. })).map(|_| {
+                self.effect_prepaid = true;
+                self.enter_prepaid(false)
+            });
             let result = (|| {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
             // @ref LLP 3000.013#12.3 — infallible effect-payload reads and their
             // exclusive bindings are server work, including in an untaken arm.
-            if self.prediction_skips.contains(&site) { return Ok(Flow::Next); }
+            if self.prediction_skips.contains(&site) {
+                if price.is_none() && !self.effect_prepaid {
+                    return Err(RuntimeError::Prediction("omitted effect work has no complete reservation; adopt the current backend".into()));
+                }
+                if let Stmt::Emit { effect, once, .. } = statement { self.effect_once(effect, once.as_ref())?; }
+                return Ok(Flow::Next);
+            }
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
             self.meter.at(&site);
-            self.meter.step(1)?;
+            if price.is_none() { self.meter.step(1)?; }
             let flow = match statement {
                 Stmt::Const { name, value } => {
                     let value = self.binding_expr(value)?;
@@ -586,23 +620,22 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Emit { effect, payload, once } => {
-                    let payload = self.expr(payload)?;
+                    let payload = if price.is_some() {
+                        let state = self.enter_prepaid(false);
+                        let value = self.expr(payload);
+                        self.leave_prepaid(state, value.as_ref().err());
+                        value?
+                    } else { self.expr(payload)? };
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
-                    let key = once.as_ref().map(|key| self.expr(key)).transpose()?;
-                    if let Some(key) = &key { key.as_array()?; }
-                    // @ref LLP 3000.013#5.3 — the permanent key is in the same transaction, including replay suppression.
-                    if !self.discard_effects && !self.device && let Some(key) = key {
-                        self.meter.step(1)?;
-                        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.clone()), key]));
-                        self.meter.heap(encoded.len() as u64)?;
-                        if !self.tx.effect_once(effect, &encoded)? { return Ok(Flow::Next); }
-                        self.meter.charge(MeterKind::RowsWritten, 1)?;
-                        self.rows_written += 1;
-                    }
-                    // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
-                    let presence = self.emission_presence()?;
+                    if !self.effect_once(effect, once.as_ref())? { return Ok(Flow::Next); }
+                    let presence = if price.is_some() {
+                        let state = self.enter_prepaid(false);
+                        let value = self.emission_presence();
+                        self.leave_prepaid(state, value.as_ref().err());
+                        value?
+                    } else { self.emission_presence()? };
                     if !self.discard_effects {
                         let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
                         self.outbox.push((id, effect.clone(), payload, presence));
@@ -641,6 +674,10 @@ impl<'a> Runner<'a> {
             };
             Ok(flow)
             })();
+            if let Some(state) = prepaid {
+                self.leave_prepaid(state, result.as_ref().err());
+                self.effect_prepaid = false;
+            }
             self.end_component(previous, capped);
             let flow = result?;
             if !matches!(flow, Flow::Next) {
@@ -648,6 +685,25 @@ impl<'a> Runner<'a> {
             }
         }
         Ok(Flow::Next)
+    }
+
+    // @ref LLP 3000.013#5.3 — runtime key charges are identical on both
+    // hosts; only the authoritative host claims durable keys.
+    fn effect_once(&mut self, effect: &str, once: Option<&Expr>) -> Result<bool, RuntimeError> {
+        let Some(expr) = once else { return Ok(true); };
+        let key = self.expr(expr)?;
+        key.as_array()?;
+        self.reservation_deferred |= self.device;
+        self.meter.step(1)?;
+        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.into()), key]));
+        self.meter.heap(encoded.len() as u64)?;
+        let inserted = if self.device || self.discard_effects { self.effect_once_keys.insert(encoded) }
+            else { self.tx.effect_once(effect, &encoded)? };
+        if inserted {
+            self.meter.charge(MeterKind::RowsWritten, 1)?;
+            self.rows_written += 1;
+        }
+        Ok(inserted)
     }
 
     fn binding_expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
@@ -659,7 +715,7 @@ impl<'a> Runner<'a> {
         #[cfg(feature = "server-search")]
         if matches!(charged, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }))
             && let Expr::Merge(merge) = expression
-            && !self.device && crate::search_plan::eligible(self.schema, merge) {
+            && !self.device && self.query_program && crate::search_plan::eligible(self.schema, merge) {
             return Err(self.opening_error(merge, self.compact_memberships, true));
         }
         charged?;

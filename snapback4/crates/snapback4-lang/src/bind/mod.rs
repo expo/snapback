@@ -143,7 +143,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     routes::bind(&catalog, &mut schema, &mut diagnostics);
     if diagnostics.is_empty() { intent_search::provision(&mut catalog, &mut schema, &programs); }
     // Planner-added indexes participate in the same final source prices.
-    schema.prepare_write_reservations();
+    schema.export_write_reservations();
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
     let mut receipt_notes = Vec::new();
     schema.operations = programs.iter().map(|bound| {

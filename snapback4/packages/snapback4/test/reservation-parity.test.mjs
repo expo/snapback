@@ -12,7 +12,7 @@ import { memoryPersistence, webDevice } from '../dist/web.js';
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
 initSync({ module: wasm });
 const root = new URL('../../../crates/snapback4-lang/tests/fixtures/', import.meta.url);
-const cases = JSON.parse(readFileSync(new URL('rp-reservation-cases.json', root), 'utf8'));
+const cases = ['rp-reservation-cases.json', 'rp-runtime-reservation-cases.json'].flatMap(name => JSON.parse(readFileSync(new URL(name, root), 'utf8')));
 const now = 4_000_000_000_000;
 const entry = (op, args, seq = 1) => ({ id: `rp-r3-${seq}`, seq, op, args, viewer: 'alice', now, new_ids: [], predicted: [], predictable: true });
 const call = (device, request) => JSON.parse(device.call(JSON.stringify(request)));
@@ -60,7 +60,7 @@ mutation title(conversation: conversations):
   const legacy = structuredClone(current);
   delete legacy.schema.source_reservations;
   for (const table of Object.values(legacy.schema.tables)) for (const c of table.constraints) {
-    if (c.Capabilities) c.Capabilities = c.Capabilities.filter(name => !['receipt-derived-prediction-v1', 'source-write-reservations-v1'].includes(name));
+    if (c.Capabilities) c.Capabilities = c.Capabilities.filter(name => !['receipt-derived-prediction-v1', 'source-write-reservations-v1', 'source-write-reservations-v2'].includes(name));
   }
   const kept = JSON.parse(readFileSync(new URL('rp-predecessor/memory.json', root), 'utf8'));
   kept.push({ s: 'm', k: 'device:backend', v: JSON.stringify(legacy) });
@@ -82,4 +82,48 @@ mutation title(conversation: conversations):
     assert.equal(history.data.filter(row => row.pending).length, 0);
     assert.equal(ok(await core.call({ op: 'queued' })).length, 4);
   } finally { await core.close(); }
+});
+
+test('wasm predicts new explicit-zero and old provably-zero source prices', { timeout: hangBudget(10) }, async t => {
+  const backend = await backendFor(t, `table items:
+  body: text <=20
+  public
+  insert <- allow
+  sync public
+mutation post():
+  insert items { body: 'offline' }
+`);
+  const plan = backend.schema.source_reservations.items;
+  assert.deepEqual(plan.prices, Array.from({ length: 8 }, () => Array(7).fill(0)));
+  assert.deepEqual(plan.birth, Array(7).fill(0));
+  for (const legacy of [false, true]) {
+    const b = structuredClone(backend);
+    if (legacy) {
+      delete b.schema.source_reservations;
+      for (const table of Object.values(b.schema.tables)) table.constraints = table.constraints.filter(c => !c.Capabilities);
+    }
+    const device = new WebDevice(JSON.stringify(b), '[]');
+    try {
+      ok(call(device, { op: 'apply', first: true, page: { snapshot: true, generation: b.generation, events: [], watermark: 0, more: false } }));
+      const q = ok(call(device, { op: 'admit', entry: entry('post', {}) }));
+      assert.equal(q.predictable, true, JSON.stringify(q));
+      assert.equal(q.predicted.length, 1);
+    } finally { device.free(); }
+  }
+});
+
+// A kept compiler may have proved the slice before payload prices existed.
+test('wasm queues legacy omitted effects without their complete price', { timeout: hangBudget(10) }, async t => {
+  const c = cases.find(c => c.label === 'r4-hidden-payload-1');
+  const backend = await backendFor(t, c.source);
+  delete backend.schema.operations.burst.effect_reservations;
+  const device = new WebDevice(JSON.stringify(backend), '[]');
+  try {
+    c.pages.forEach((page, i) => ok(call(device, { op: 'apply', first: i === 0, page })));
+    const q = ok(call(device, { op: 'admit', entry: entry('burst', {}) }));
+    assert.equal(q.predictable, false);
+    assert.deepEqual(q.predicted, []);
+    assert.equal(ok(call(device, { op: 'queued' })).length, 1);
+    assert.deepEqual(ok(call(device, { op: 'query', name: 'rows', args: {}, viewer: 'alice', now })).data, []);
+  } finally { device.free(); }
 });

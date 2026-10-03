@@ -4,7 +4,22 @@ use snapback4_core::error::RuntimeError;
 use snapback4_device::device::Backend;
 
 #[derive(Clone, Debug)]
-struct Case { label: String, source: String, receipts: bool, writes: usize }
+struct Case { label: String, source: String, receipts: bool, writes: usize,
+    seeds: Vec<(String,Value)>, keys: Vec<Value> }
+#[path = "prediction_round4.rs"]
+mod round4;
+impl Case {
+    fn values(&self) -> Vec<(&str,Value)> {
+        let mut values = if self.receipts {vec![("conversation",id("c"))]}else{vec![]};
+        if !self.keys.is_empty() { values.push(("keys",Value::Array(self.keys.clone()))); }
+        values
+    }
+    fn args(&self) -> serde_json::Value {
+        let mut args = if self.receipts {json!({"conversation":"c"})}else{json!({})};
+        if !self.keys.is_empty() {args["keys"]=json!(self.keys.iter().map(|v|v.as_str().unwrap()).collect::<Vec<_>>());}
+        args
+    }
+}
 fn plain() -> String { r#"
 table rooms:
   public
@@ -50,18 +65,27 @@ fn make(label: String, receipts: bool, private: usize, sum: bool, public: usize,
         src += &format!("\nmutation burst():\n  for n in range(0, {burst}):\n    insert notes {{ room: 'c', shelf: 's', mark: 0, shots: null }}\n");
         if notes != 0 { src += &format!("  for n in range(0, {notes}):\n    insert rooms {{}}\n"); }
     }
-    Case { label, source: src, receipts, writes: burst+notes }
+    Case { label, source: src, receipts, writes: burst+notes, seeds: vec![], keys: vec![] }
 }
 fn setup(case: &Case) -> (Engine, Backend) {
     let compiled = snapback4_lang::compile(&[("schema.q".into(),case.source.clone())]);
     assert!(compiled.diagnostics.is_empty(),"{}: {:?}\n{}",case.label,compiled.diagnostics,case.source);
-    let (mut e, mut b) = compile(&case.source);
+    assert_receipt_notes(&compiled);
+    let mut e=Engine::memory(compiled.schema.clone(),compiled.programs.iter().map(|p|p.program.clone())).unwrap();
+    let mut b=Backend {generation:e.generation(),schema:compiled.schema,programs:compiled.programs.into_iter().map(|p|p.program).collect()};
+    let decoded: Backend=snapback4_core::json_codec::from_text(&serde_json::to_string(&b).unwrap()).unwrap();
+    assert_eq!(serde_json::to_value(&b).unwrap(),serde_json::to_value(decoded).unwrap());
     if case.receipts { seed(&mut e); }
-    else { e.seed_at([
+    else if e.schema().tables.contains_key("rooms") { e.seed_at([
         ("rooms".into(),object([("id",id("c"))])),
         ("readers".into(),object([("id",id("a")),("room",id("c")),("watermark",Value::Int(-1))])),
     ],NOW).unwrap(); }
-    e.seed_at([("shelves".into(),object([("id",id("s"))]))],NOW).unwrap();
+    if e.schema().tables.contains_key("shelves") {e.seed_at([("shelves".into(),object([("id",id("s"))]))],NOW).unwrap();}
+    e.seed_at(case.seeds.clone(),NOW).unwrap();
+    if b.programs.iter().any(|p|p.name=="registerReservation") {
+        let out=e.mutate("registerReservation",None,ctx("alice",&[],NOW).with_ids(["fixture-profile".into()])).unwrap();
+        assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");
+    }
     for name in b.schema.tables.keys() {
         assert_eq!(b.schema.write_reservation(name),snapback4_core::schema::reservations::reservation(e.schema(),name),"{}: {name}",case.label);
     }
@@ -72,26 +96,25 @@ fn run<H: Host>(host: &mut H, case: &Case, must_queue: bool) -> (bool,bool) {
     let (mut e,b)=setup(case);
     let mut d=host.open(&case.label,Some(b)).unwrap();
     publish(&mut e,&mut d,"alice");
-    let args=if case.receipts {json!({"conversation":"c"})} else {json!({})};
+    let args=case.args();
+    let before: Vec<_> = e.schema().tables.keys().map(|t|(t.clone(),d.store().raw_rows(t))).collect();
     let admission=d.admit(request("burst",args,1));
     let predictable=admission.as_ref().is_ok_and(|q| q.predictable);
-    let values=if case.receipts {vec![("conversation",id("c"))]} else {vec![]};
+    let values=case.values();
     let outcome=e.mutate("burst",None,ctx("alice",&values,NOW)).unwrap();
     let success=matches!(outcome.state,WriteState::Sent {..});
     assert!(!predictable || success,"{}: predicted/server refusal {outcome:?}\n{}",case.label,case.source);
     if !predictable && success { assert!(admission.is_ok(),"{}: a conservative refusal must retain custody: {admission:?}",case.label); }
+    if !predictable { for (table,rows) in before {assert_eq!(d.store().raw_rows(&table),rows,"{}: rollback {table}",case.label);} }
     if must_queue {
         let q=admission.as_ref().unwrap();
         assert!(!q.predictable && q.predicted.is_empty(),"{}: {q:?}\n{}",case.label,case.source);
         assert_eq!(d.queued().unwrap().len(),1);
-        for table in if case.receipts {vec!["messages","notes"]}else{vec!["notes"]} {
-            assert!(d.store().raw_rows(table).is_empty(),"{}: partial provisional {table} rows survived rollback",case.label);
-        }
         assert!(!success && format!("{outcome:?}").contains("E_BOUND"),"{}: {outcome:?}",case.label);
     }
     if let Err(error)=&admission { assert!(matches!(error,RuntimeError::Bound {..}),"{}: {error:?}",case.label); }
     if predictable { assert!(admission.as_ref().unwrap().predicted.len()>=case.writes); }
-    eprintln!("RP differential {} predicted={predictable} server={success} rows={}",case.label,outcome.metered.rows_written);
+    eprintln!("RP differential {} predicted={predictable} server={success} meter={:?}",case.label,outcome.metered);
     (predictable,success)
 }
 fn concrete() -> Vec<Case> { vec![
@@ -124,11 +147,14 @@ fn generated() -> Vec<Case> {
 }
 fn differential<H: Host>(host: &mut H) {
     let mut predicted=0;let mut conservative=0;let mut refused=0;
-    for c in generated() {
+    let mut cases=generated();
+    cases.extend(round4::generated());
+    let total=cases.len();
+    for c in cases {
         let (p,s)=run(host,&c,false);predicted+=usize::from(p);conservative+=usize::from(!p&&s);refused+=usize::from(!s);
     }
     assert!(predicted>0 && conservative>0 && refused>0);
-    eprintln!("RP DIFFERENTIAL seed=525020261003 cases=256 predicted={predicted} conservative={conservative} server_refused={refused}");
+    eprintln!("RP DIFFERENTIAL seed=525020261003 cases={total} predicted={predicted} conservative={conservative} server_refused={refused}");
 }
 both!(reservation_differential_memory,reservation_differential_sqlite,differential);
 
@@ -145,9 +171,9 @@ fn reservation_wasm_corpus_matches_engine() {
         let pages = snapshot_pages(&mut e,"alice",1000);
         let mut d = Device::open_store(snapback4_device::memory::MemoryStore::new(),Some(b)).unwrap();
         for (i,p) in pages.iter().enumerate() { d.apply(p,i==0).unwrap(); }
-        let args=if c.receipts {json!({"conversation":"c"})}else{json!({})};
+        let args=c.args();
         let q=d.admit(request("burst",args.clone(),1));
-        let values=if c.receipts {vec![("conversation",id("c"))]}else{vec![]};
+        let values=c.values();
         let outcome=e.mutate("burst",None,ctx("alice",&values,NOW)).unwrap();
         let committed=matches!(outcome.state,WriteState::Sent {..});
         let predicted=q.as_ref().is_ok_and(|q|q.predictable);

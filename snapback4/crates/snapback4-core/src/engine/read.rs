@@ -947,7 +947,7 @@ impl<'r> Runner<'r> {
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
         #[cfg(feature = "server-search")]
-        let prepaid_head = !self.device && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
+        let prepaid_head = !self.device && self.query_program && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
         // @ref LLP 3000.027#2 — a declared cursorless query needs no overflow row;
         // cursor positions, ordered merges, lane discovery and horizons still do.
         let stop_at_bound = !aborting && !scan.opaque_cursor && scan.merge_site.is_none() && word.is_none()
@@ -1300,7 +1300,7 @@ impl<'r> Runner<'r> {
     pub(super) fn merge(&mut self, merge: &Merge, charge: impl FnOnce(&mut Self, &[Value]) -> Result<(), RuntimeError>) -> Result<Vec<Value>, RuntimeError> {
         let expiry = self.next_expiry.scope();
         #[cfg(feature = "server-search")]
-        if !self.device && crate::search_plan::eligible(self.schema, merge) {
+        if !self.device && self.query_program && crate::search_plan::eligible(self.schema, merge) {
             let rows = self.merge_memberships(merge, charge)?;
             expiry.emit();
             return Ok(rows);

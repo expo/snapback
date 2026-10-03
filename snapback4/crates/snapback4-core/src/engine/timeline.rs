@@ -96,7 +96,7 @@ impl Runner<'_> {
                     let event = object([("id", Value::Id(id.clone())), ("postId", Value::Id(id)),
                         ("actorId", Value::Id(actor.clone())), ("authorId", Value::Id(actor)),
                         ("repost", Value::Bool(false)), ("at", field(new, &t.posts[2])?)]);
-                    if !self.device || t.fully_synced(self.schema, false) { self.insert(&t.table("Posts"), event.clone().timeline_input(&TimelineInput(())))?; }
+                    self.timeline_event_insert(t, false, &event)?;
                     self.timeline_deliver(t, &event)?;
                 } else if let Some(old) = old {
                     let was_removed = !t.posts[3].is_empty() && field(old, &t.posts[3])? == Value::Bool(true);
@@ -130,7 +130,7 @@ impl Runner<'_> {
                     let event = object([("id", Value::Id(id)), ("postId", field(&post, "id")?),
                         ("actorId", Value::Id(actor)), ("authorId", field(&post, &t.posts[1])?),
                         ("repost", Value::Bool(true)), ("at", field(row, &t.reposts[3])?)]);
-                    if !self.device || t.fully_synced(self.schema, true) { self.insert(&t.table("Posts"), event.clone().timeline_input(&TimelineInput(())))?; }
+                    self.timeline_event_insert(t, true, &event)?;
                     self.timeline_deliver(t, &event)?;
                 }
                 (Some(row), None) => {
@@ -178,22 +178,53 @@ impl Runner<'_> {
 
     // @ref LLP 3000.016#2.1 — own copies are predicted locally; background
     // delivery/purge work is server-owned even when a device changes a source.
-    #[cfg(not(feature = "sqlite"))]
-    fn timeline_enqueue(&mut self, _t: &Timeline, _kind: &str, _actor: Value, _reader: Value, _event: Value, _epoch: Value, _remaining: usize, _cursor: Option<Vec<u8>>) -> Result<(), RuntimeError> { Ok(()) }
-
-    #[cfg(feature = "sqlite")]
     fn timeline_enqueue(&mut self, t: &Timeline, kind: &str, actor: Value, reader: Value, event: Value, epoch: Value, remaining: usize, cursor: Option<Vec<u8>>) -> Result<(), RuntimeError> {
-        if self.device { return Ok(()); }
         let key = [Value::String(kind.into()), actor.clone(), reader.clone(), event.clone(), epoch.clone()];
         let id = Value::Id(crate::schema::timeline::owned_id(&t.name, "Work", &key));
         let viewer = if reader == Value::Null { actor.clone() } else { reader.clone() };
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
             ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
-        self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table("Work")]))?;
-        // Resetting an existing natural-key task is safe and costs the same one
-        // write as insertion. No task existence is disclosed to the application.
-        self.upsert(&t.table("Work"), &id, row.timeline_input(&TimelineInput(())))
+        let table = t.table("Work");
+        let bytes = crate::value::canonical_json(&row).len() as u64;
+        self.timeline_hidden_write(&table, Some(bytes), |runner|
+            runner.upsert(&table, &id, row.timeline_input(&TimelineInput(()))))
+    }
+
+    // @ref LLP 3000.016#2.1 — server-owned work has a shared fixed allowance;
+    // devices pay it without creating Work rows or partial event history.
+    fn timeline_hidden_write(&mut self, table: &str, supplied_bytes: Option<u64>, work: impl FnOnce(&mut Self) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+        let definition = &self.schema.tables[table];
+        let image = super::write_target::row_copy_ceiling(definition);
+        // Owned schemas contain scalar fields and plain indexes. This allowance
+        // covers resolution, insert/update/delete, constraints, row copies and
+        // one partition event. Maintenance retains its complete source price.
+        let indexes = definition.indexes.len() as u64;
+        let mut price = [128, indexes * 4 + 4, 4, 1, image.saturating_mul(64), supplied_bytes.unwrap_or(image).saturating_mul(2).saturating_add(512), 0];
+        for phase in 0..=crate::schema::reservations::BIRTH {
+            for (total, n) in price.iter_mut().zip(self.source_price(table, phase)?) { *total = total.saturating_add(n); }
+        }
+        self.reservation_deferred |= self.device;
+        self.charge_price(price)?;
+        let result = if self.device { Ok(()) } else {
+            let state = self.enter_prepaid(false);
+            let result = work(self);
+            self.leave_prepaid(state, result.as_ref().err());
+            result
+        };
+        // Internal rows are not retained in the caller's expression environment.
+        // Keep their fixed peak but reuse the scratch across source writes.
+        self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(price[4]);
+        result
+    }
+
+    fn timeline_event_insert(&mut self, t: &Timeline, repost: bool, event: &Value) -> Result<(), RuntimeError> {
+        let table = t.table("Posts");
+        if t.fully_synced(self.schema, repost) {
+            self.insert(&table, event.clone().timeline_input(&TimelineInput(())))
+        } else {
+            self.timeline_hidden_write(&table, Some(crate::value::canonical_json(event).len() as u64), |runner| runner.insert(&table, event.clone().timeline_input(&TimelineInput(()))))
+        }
     }
 
     fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
@@ -231,9 +262,16 @@ impl Runner<'_> {
         // whole mutation. Evaluation errors still abort the prediction.
         if self.device && !self.evaluate_read_rule(&t.table(suffix), &row)? { return Ok(TimelineInsert::Skipped); }
         self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table(suffix)]))?;
-        #[cfg(feature = "sqlite")]
-        if suffix == "Feed" && !self.device
-            && self.timeline_get(&t.table(suffix), "byReaderEvent", key.to_vec())?.is_some() { return Ok(TimelineInsert::Skipped); }
+        if suffix == "Feed" {
+            // The private duplicate probe is a fixed point-read allowance, even
+            // when a provisional event has no acquired Feed key on the device.
+            let bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&t.table(suffix)]) * 8;
+            let duplicate = self.disclosed_scratch(bytes, &[(crate::MeterKind::Examined, 1), (crate::MeterKind::Steps, 8)], |runner, _| {
+                if runner.device { Ok(false) }
+                else { Ok(runner.timeline_get(&t.table(suffix), "byReaderEvent", key.to_vec())?.is_some()) }
+            })?;
+            if duplicate { return Ok(TimelineInsert::Skipped); }
+        }
         self.insert(&t.table(suffix), row.timeline_input(&TimelineInput(())))?;
         Ok(TimelineInsert::Written)
     }

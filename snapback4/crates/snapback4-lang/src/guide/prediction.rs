@@ -166,12 +166,12 @@ the acquired horizon.
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays
 eligible: the server decides the effects at commit. An infallible point read
 used only by an effect payload is **server-only, feeds an effect** in `why`.
-The device skips that read and its exclusive local bindings; the read is
-authorized and charged on the server only. Nullable fields, `??` and infallible
-text or arithmetic expressions can feed the payload through local bindings.
-This includes `sha256(text)` and `join(list, separator)` when their arguments
-are infallible; their work is still metered on the server.
-No hoisting is needed, even when the table is online only:
+The device skips that read and its exclusive local bindings; both hosts reserve
+declared work before server evaluation with ordinary authorization. Nullable
+fields, `??`, `sha256` and `join` need known bounds. Live counts keep read residency.
+A once-key stays in the prediction body and pays its runtime allocation charge,
+even when its payload is skipped. Online-only key sources stay server-only.
+No hoisting is needed for an ordinary emit from an online-only table:
 
 ```quarry
 effect notify

@@ -79,7 +79,9 @@ impl Runner<'_> {
         self.timeline_aggregate_fence(t, repost)?;
         self.timeline_tombstone(t, id.clone(), actor.clone())?;
         self.timeline_enqueue(t, "purge", actor, Value::Null, id.clone(), Value::Null, 0, None)?;
-        if !self.device || t.fully_synced(self.schema, repost) { self.delete(&t.table("Posts"), id.as_str()?)?; }
+        let table = t.table("Posts");
+        if t.fully_synced(self.schema, repost) { self.delete(&table, id.as_str()?)?; }
+        else { self.timeline_hidden_write(&table, None, |runner| runner.delete(&table, id.as_str()?))?; }
         Ok(())
     }
 

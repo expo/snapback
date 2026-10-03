@@ -201,10 +201,11 @@ impl Runner<'_> {
             let key = (parent.clone(), id.clone());
             let previous = if let Some(value) = values.get(&key) {
                 *value
-            } else if self.device {
-                self.authorized_scan(&[], |runner, allowance| runner.device_work(|runner| runner.sequence_floor(allowance, parent, &id)))?
             } else {
-                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, allowance| runner.tx.sequence_value(allowance, parent, &id))?
+                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, allowance| {
+                    if runner.device { runner.device_work(|runner| runner.sequence_floor(allowance, parent, &id)) }
+                    else { runner.tx.sequence_value(allowance, parent, &id) }
+                })?
             };
             let next = if previous >= crate::value::I53_MAX {
                 if self.device {
@@ -258,9 +259,6 @@ impl Runner<'_> {
 
     /// Called only after if-absent collisions and constraints have passed.
     pub(super) fn commit_sequences(&mut self, name: &str, row: &Value) -> Result<(), RuntimeError> {
-        if self.device {
-            return Ok(());
-        }
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         for (column, reference) in &table.sequences {
             let ColumnType::Ref { table: parent } = &table.columns[reference] else {
@@ -268,7 +266,7 @@ impl Runner<'_> {
             };
             let id = row.field(reference)?.as_str()?;
             self.meter.charge(MeterKind::IndexEntries, 1)?;
-            self.tx.set_sequence(parent, id, row.field(column)?.as_int()?)?;
+            if !self.device { self.tx.set_sequence(parent, id, row.field(column)?.as_int()?)?; }
         }
         Ok(())
     }

@@ -28,7 +28,7 @@ fn infallible_effect_payload_reads_are_server_only_with_source_sites() {
         assert_eq!(fact.predicts.as_deref(), Some("eligible"), "{body}\n{why}");
         assert_eq!(fact.effect_payload_reads.len(), 1, "{body}\n{why}");
         assert!(fact.sites.iter().all(|site| site.table != "profiles"), "{why}");
-        assert!(why.contains("server-only, feeds an effect") && why.contains("schema.q:") && why.contains("charged on the server only"), "{why}");
+        assert!(why.contains("server-only, feeds an effect") && why.contains("schema.q:") && why.contains("both hosts reserve its declared work"), "{why}");
         assert!(!fact.prediction_skips.is_empty());
     }
 }

@@ -13,11 +13,27 @@ pub const ROW_MEMBER: usize = 4;
 pub const ALLOCATION: usize = 5;
 pub const COUNTER: usize = 6;
 pub const CAPTURE: usize = 7;
+pub const BIRTH: usize = 8;
+pub const VIEW_READ: usize = 9;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WriteReservation {
     pub prices: [Price; 8],
+    /// v2 adds owner initialization; absence identifies a legacy v1 plan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub birth: Option<Price>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_read: Option<Price>,
     /// Data-dependent skipped work cannot be admitted from a fixed price.
     pub server_only: bool,
+}
+impl WriteReservation {
+    pub fn price(&self, phase: usize) -> Price {
+        if phase == BIRTH { self.birth.unwrap_or_default() } else if phase == VIEW_READ { self.view_read.unwrap_or_default() } else { self.prices[phase] }
+    }
+    #[cfg(feature = "sqlite")]
+    fn is_zero(&self) -> bool {
+        self.prices == [[0; 7]; 8] && self.birth.unwrap_or_default() == [0; 7] && !self.server_only
+    }
 }
 fn add(to: &mut Price, price: Price) {
     for (to, price) in to.iter_mut().zip(price) { *to = to.saturating_add(price); }
@@ -46,6 +62,7 @@ pub fn capture_price(schema: &Schema, table: &Table) -> Price {
      row_copy_ceiling(parent)*2+row_copy_ceiling(table), 0,
      crate::engine::rules::rule_probes(&parent.rules.read)+crate::engine::rules::rule_probes(&table.rules.insert)]
 }
+#[cfg(feature = "sqlite")]
 fn row_price(schema: &Schema, m: &Maintain, recipients: u64) -> Price {
     let k = m.row_key.as_ref().unwrap();
     let target = &schema.tables[&m.target];
@@ -57,9 +74,27 @@ fn row_price(schema: &Schema, m: &Maintain, recipients: u64) -> Price {
      recipients.saturating_mul(image.saturating_mul(2)), 0]
 }
 /// Missing references mean an unadmitted schema, never a zero price.
+#[cfg(feature = "sqlite")]
 pub fn reservation(schema: &Schema, source: &str) -> Option<WriteReservation> {
     let table = schema.table(source)?;
     let mut plan = WriteReservation::default();
+    let mut birth = [0; 7];
+    for m in schema.maintains.iter().filter(|m| m.private.as_ref().is_some_and(|owner| owner.table == source)) {
+        birth[2] += 1;
+        birth[4] += row_copy_ceiling(schema.table(&m.target)?);
+    }
+    if birth[2] != 0 { birth[4] += row_copy_ceiling(table); }
+    plan.birth = Some(birth);
+    if let Some(m) = schema.maintain_for(source).filter(|m| m.row_key.is_some()) {
+        let live = m.row_count_needs_live_basis(schema);
+        let bytes = if live {
+            let certificate = [m.target.clone(), format!("$basis:{}", m.target)].iter()
+                .map(|name| schema.table(name).map(crate::rows::disclosed::decode_reservation)).collect::<Option<Vec<_>>>()?.into_iter().sum::<u64>();
+            certificate.max(crate::rows::disclosed::decode_reservation(schema.table(&m.source)?))
+        } else { crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4 };
+        plan.view_read = Some([u64::from(live),0,1,0,bytes,0,0]);
+    }
+
     plan.prices[ASSETS] = asset_price(table);
     let mut public = 0;
     for m in &schema.maintains {
@@ -122,21 +157,46 @@ pub fn simple_counter(schema: &Schema, f: &ReceiptFamily) -> bool {
 
 impl Schema {
     pub fn prepare_write_reservations(&mut self) {
+        #[cfg(feature = "sqlite")]
+        self.prepare_native_reservations();
+    }
+    #[cfg(feature = "sqlite")]
+    fn prepare_native_reservations(&mut self) {
         // Projected columns have no derivation; retain their compiler's complete
         // plan. Full schemas always rebuild, so a forged price is not authority.
         if self.validate_column_owners().is_err() { return; }
+        let had_prices = !self.source_reservations.is_empty();
         self.source_reservations = self.tables.keys().filter_map(|source|
             reservation(self, source).map(|price| (source.clone(), price))).collect();
-        // Zero-only schemas retain their legacy bytes. With no hidden formula,
-        // an absent map has an exact, reconstructible zero price for every source.
-        if self.source_reservations.values().all(|p| *p == WriteReservation::default()) {
+        // Preserve old zero-only store bytes. Fresh compiler output uses
+        // export_write_reservations and explicitly retains its zero prices.
+        if !had_prices && self.source_reservations.values().all(WriteReservation::is_zero) {
             self.source_reservations.clear();
         }
     }
+    /// Fresh compiler output always declares complete prices, including zero.
+    #[cfg(feature = "sqlite")]
+    pub fn export_write_reservations(&mut self) {
+        self.source_reservations = self.tables.keys().filter_map(|source|
+            reservation(self, source).map(|price| (source.clone(), price))).collect();
+    }
     pub fn write_reservation(&self, source: &str) -> Option<WriteReservation> {
-        self.source_reservations.get(source).cloned().or_else(|| {
-            self.validate_column_owners().is_ok().then(|| reservation(self, source)).flatten()
-        })
+        let table = self.table(source)?;
+        if let Some(plan) = self.source_reservations.get(source) {
+            // v1 has no owner-birth price. Do not silently interpret it as zero.
+            if plan.birth.is_none() && !table.maintained.is_empty() { return None; }
+            return Some(plan.clone());
+        }
+        // A legacy representation may prove *zero*, but a device never rebuilds
+        // prices from formulas. Missing private formulas prevent that proof for
+        // any source. Ordinary unrelated legacy writers remain available.
+        let zero = self.tables.values().all(|t| t.maintained.is_empty())
+            && table.through.is_none()
+            && table.columns.values().all(|kind| slots(kind, false) == 0)
+            && !self.receipts.iter().any(|f| f.messages == source)
+            && !self.maintains.iter().any(|m| m.source == source
+                || m.row_key.as_ref().is_some_and(|k| k.table == source));
+        zero.then(|| WriteReservation { birth: Some([0;7]), ..WriteReservation::default() })
     }
     pub fn prediction_reservation_refusal(&self, program: &crate::ir::Program) -> Option<&'static str> {
         for (source, kind) in crate::ir::write_tables(program) {

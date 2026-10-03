@@ -2,8 +2,6 @@
 // @ref LLP 3000.007.001#3.2 — never probe parent authority or resurrect expired rows.
 use super::runner::Runner;
 #[cfg(feature = "sqlite")]
-use super::write_target::row_copy_ceiling;
-#[cfg(feature = "sqlite")]
 use super::write::Origin;
 use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
 #[cfg(feature = "sqlite")]
@@ -43,23 +41,22 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007.001#3.2 — devices preserve synchronized column values;
     // only the server reads private totals or performs their mirrored writes.
-    #[cfg(not(feature = "sqlite"))]
-    pub(super) fn birth_columns(&mut self, _name: &str, row: Value) -> Result<Value,RuntimeError> { Ok(row) }
-
-    #[cfg(feature = "sqlite")]
+    #[allow(unused_mut)] // The server fills the private values; the device only charges.
     pub(super) fn birth_columns(&mut self, name: &str, mut row: Value) -> Result<Value,RuntimeError> {
+        let price = self.source_price(name, crate::schema::reservations::BIRTH)?;
+        self.reservation_deferred |= self.device && price[2] != 0;
+        self.charge_price(price)?;
         if self.device { return Ok(row); }
+        #[cfg(feature = "sqlite")]
+        {
         let declarations: Vec<_> = self.schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|o|o.table == name)).cloned().collect();
         if declarations.is_empty() { return Ok(row); }
         let id = row.field("id")?.clone();
-        // A fixed ceiling includes cloning an existing private image and stamping the parent.
-        self.meter.heap(row_copy_ceiling(&self.schema.tables[name]))?;
         for m in declarations {
-            self.meter.charge(MeterKind::Examined,1)?;
-            self.meter.heap(row_copy_ceiling(&self.schema.tables[&m.target]))?;
             let total = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &m.target,&maintained_id(&[id.clone()])))?
                 .and_then(|r|r.field("value").ok().cloned()).unwrap_or(Value::Int(0));
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(m.private.as_ref().unwrap().column.clone(),total); }
+        }
         }
         Ok(row)
     }

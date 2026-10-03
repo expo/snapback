@@ -118,7 +118,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn prefetch(&self, requests: &[PrefetchRequest]) { self.raw.prefetch(requests) }
 }
 
-struct PrepaidState {
+pub(super) struct PrepaidState {
     mark: crate::meter::MeterMark,
     ceilings: Ceilings,
     cut: Cut,
@@ -213,7 +213,7 @@ impl Runner<'_> {
     // Kept out of the generic closure wrapper: every protected access shares
     // the same scope transition instead of instantiating its restoration code.
     #[inline(never)]
-    fn enter_prepaid(&mut self, physical: bool) -> PrepaidState {
+    pub(super) fn enter_prepaid(&mut self, physical: bool) -> PrepaidState {
         let nested = self.caller_heap_ceiling.is_some();
         self.caller_heap_ceiling.get_or_insert((self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes));
         PrepaidState {
@@ -226,7 +226,7 @@ impl Runner<'_> {
     }
 
     #[inline(never)]
-    fn leave_prepaid(&mut self, state: PrepaidState, error: Option<&RuntimeError>) {
+    pub(super) fn leave_prepaid(&mut self, state: PrepaidState, error: Option<&RuntimeError>) {
         self.tx.authorizing.set(state.authorizing);
         self.meter.restore(state.mark);
         self.meter.ceilings = state.ceilings;

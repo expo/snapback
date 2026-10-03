@@ -48,6 +48,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
     ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),
     // @ref LLP 3000.022#14.3 — older devices must not execute newly eligible
     // writes using their receipt-derived maintenance path.
@@ -135,8 +136,10 @@ impl<'de> Deserialize<'de> for Schema {
             && required.remove("receipt-derived-prediction-v1");
         // The price carrier can be absent in an old projection. Missing prices
         // are fenced per program, rather than bricking a kept store.
-        if declared.contains("source-write-reservations-v1") { required.insert("source-write-reservations-v1".into()); }
-        else { required.remove("source-write-reservations-v1"); }
+        for cap in ["source-write-reservations-v1", "source-write-reservations-v2"] {
+            if declared.contains(cap) { required.insert(cap.into()); }
+            else { required.remove(cap); }
+        }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain

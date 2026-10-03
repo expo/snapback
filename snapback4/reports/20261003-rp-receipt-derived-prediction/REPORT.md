@@ -780,3 +780,252 @@ Only processes started by this session were signaled. The commit includes the
 requested co-author trailer. Nothing is pushed or published. No wasm, gzip,
 video or new file over 256 KB is added; the existing JOURNAL receives the
 requested append.
+
+## Round 4 — 2026-10-04
+
+The four review counterexamples now queue without provisional rows on memory,
+SQLite and wasm. All four meter omissions **predated RP**: they also occur in
+ordinary oversized mutations without receipts. The audit additionally reproduced
+pre-existing gaps in omitted effect payloads, Following work rows, and the
+already-ticketed six-byte presence conjunction reservation. Those are fixed here
+without removing the existing small offline predictions. Runtime ceilings are
+unchanged. No existing test was dropped; the ignored conjunction regression is
+now enabled.
+
+### Shared execution charges and representation
+
+`birth_columns` pays an exported owner-birth phase before the host split. Each
+maintained owner column pays its examined row and declared private image; one
+owner-image copy is also charged. Sequence allocation pays one index entry per
+uncached counter within the row; commit pays one per declared sequence column,
+independently of whether the host stores the counter or computes a provisional
+suffix. Parent deletion prepays
+three examined rows, three steps and three declared child images per child table.
+Only the server touches the authoritative counters and child probes.
+
+`effect_once` is one runtime charge function. It evaluates the actual key on both
+hosts, charges one step and its canonical encoded heap, and charges one written
+row for a newly seen key. Devices keep an attempt-local set, never durable keys.
+A server key from an earlier transaction can make prediction more conservative;
+a bound then retains custody with no row. This also works when the payload is a
+server-only read: the key and its dependencies remain in the interpreter.
+
+For eligible mutations, the compiler and server share a native-only calculation
+for bounded omitted effect statements. Programs already classified server-only
+retain their ordinary effect-payload fees. The public schema carries only opaque prices. Both hosts pay
+before the server executes the payload in a restoring scope. Declared value
+bounds, total expression work, simple point reads and presence bookkeeping are
+included. Unpriceable payloads keep their original reads and ordinary residency:
+expiring/row-keyed/read-through maintained values, authorization probe graphs,
+unknown value bounds and growing loop-carried values are not erased. Ordinary
+non-expiring aggregate point reads remain supported. Legacy omitted statements
+without a complete price queue. This replaces LLP 3000.013's explicit old
+server-only meter exception, rather than keeping that exception in a receipt
+mutation. The allowance uses declared maxima, so eligible payload
+slices can reach a server ceiling earlier than their old actual-value charges,
+including when stored text is short. This is a deliberate admission change on
+both hosts, not a claim of preserving every earlier committing resource budget.
+Programs already classified server-only retain their ordinary effect-payload fees.
+
+Following Work upserts and omitted partial-event inserts/deletes now have a
+shared owned-row reservation, including their source maintenance prices. Scratch
+is reused between writes, preserving its peak; output is bounded from supplied
+images when available. The Feed duplicate probe has one shared reservation.
+Neither private Work rows nor partial event history is created on a device.
+Fully held event rows and own copies retain their ordinary write path. The
+257-post counterexample now reaches the same 1,025-row refusal, while one-post
+controls still predict. The named existing Following/slot tests remain intact.
+
+New schemas always export complete source prices, **including all-zero plans**.
+The whole `reservation()` calculator and effect bound analysis are absent from
+the wasm build. A missing legacy plan may use a cheap structural proof of zero;
+otherwise its writer queues. The v2 capability includes the owner-birth and
+maintained-read prices. V1 owner writers with no birth price queue. Kept backends,
+queued sends, outboxes and delivery debt still use the earlier authentic upgrade
+fixtures; no migration erases them. The explicit-zero wasm control and its
+unstamped, provably-zero predecessor both predict.
+
+### Interpreter audit
+
+Scope: `engine/` and its shared helpers, `schema/reservations.rs`, partition
+accounting, the device admission path, plus server-feature and wasm-only branches.
+The audit searched `device`, `holds_assets`, feature gates and meter/reservation
+calls, then traced callers so a skipped physical operation was not confused with
+a skipped logical charge. `S/I/E/W/H/O/P` below mean steps, index entries,
+examined rows, written rows, heap, output and rule probes. A zero in a price is
+intentional; hidden actual work cannot add a later logical charge outside its
+restoring reservation. Administrative work and query-only paths are called out
+explicitly.
+
+| Host-dependent branch / shared entry | Logical admission and disposition |
+| --- | --- |
+| `runner::Emit` / `effect_once`: durable `_effect_keys` insert and replay/discard arm | **Fixed R4.** Common runtime S=1, H=encoded key, W=1 for a new key; attempt-local device dedup; server alone claims durable keys. Ordinary emits have W=0. |
+| `runner::statements`: `prediction_skips`, including exclusive bindings/coalescing and an emit with `once` | **Fixed R4.** Native shared bound analysis exports S/E/H/P prices; device pays before skipping, server pays before restoring payload scope. Key evaluation stays outside that scope. Missing price queues. Unpriceable work keeps ordinary reads/residency. |
+| `prediction::charge_untaken` and `presence` guard/dependency propagation | Ordinary expression/guard fees remain shared; device also evaluates safe untaken work. **Fixed R4:** saved binding slot now charges `64 + name.len()` heap, closing the existing six-byte conjunction deficit. Presence metadata and branch ownership remain unchanged. |
+| `presence::needed_setups`, `mark_bindings`, absent-value projection | Server-only proof/selection bookkeeping adds no separate logical fee. `plan_guards`, actual expressions, guard copies and emission copies are metered; untaken-arm coverage remains conservative. Non-effect presence decisions retain the compiler fence. |
+| `columns::birth_columns` | **Fixed R4.** BIRTH price charges E=number of owned columns and H=private images plus owner image on both hosts. Only server fetches values. Private formulas stay off devices. |
+| `columns::reserve_columns`, private `mirror_column`, rebuild flag | R3 COLUMNS price is shared for every source, receipts or not. Private source/target/owner S/I/E/W/H are prepaid. Mirror work cannot add caller charges. Rebuild/import is administrative. |
+| `reserve_assets`, `asset_columns::{with_asset_facts, asset_columns}` / `holds_assets` | Shared ASSETS phase charges each declared list slot: S=8, E=4, W=2, H=16,384, including null/empty/nested/optional cells. Scalar asset lookup/ledger work adds no skipped caller charge. Ledger ownership and availability remain authoritative. |
+| `reserve_maintains`, public non-row aggregate `charge_maintain` | Shared AGGREGATES price covers deferred receipt-derived and online-only targets. Ordinary synced deltas execute on both hosts. Server fixed reservation and device fixed reservation use the same plan; known ordinary server inserts can cost less actual work. |
+| `maintain_row_views`: online-only or receipt-derived target early exit | R3 ROW_SOURCE/ROW_MEMBER prices precede both exits: full fanout, both old/new groups, predicate steps, indexes, rows, copies and output. No receipt predicate is evaluated on the device. |
+| `row_views::{source_delta, member_delta, rebuild_member}`: member authority, source scan, `$basis`/work updates, recount publication, batch optimization | All are inside their row-view fixed allowance. Recipient-cap admission still runs over ordinary keys. Unknown device coverage or incomplete certification queues. Server batch optimization changes physical work inside that allowance. |
+| `row_views::live_row_view_inner`, live count certificate reuse | **Fixed R4.** Mutation reads use a shared VIEW_READ allowance (E=1, S=1 and declared source/certificate scratch); server certificate/scan and bounded device recount run inside it. Incomplete device recount queues. Query certificate/cache versus local range evaluation retains its query cut contract. |
+| `row_views::live_row_view_inner`, non-live private work-key probe | **Fixed R4.** Mutation devices pay the same E=1 and four index-key scratch blocks before using the settled image. Server-only pending work access is prepaid. Pending answers remain unavailable to a mutation. |
+| `live_aggregate_inner` / `backlog_aggregate` | **Fixed R4.** Server backlog shortcut is query-only (including aborting native query calls). Mutation reads use the shared source scan/evaluation path, including expiry. Receipt-derived pending snapshots still cannot be mutation inputs (RY fence). |
+| `sequences::{sequence_fields, commit_sequences}` | **Fixed R4.** One I per uncached counter allocation within the row and one I per sequence-column commit on both hosts. Device suffix/coverage work uses its separate bounded allowance; no counter is stored on a device. |
+| `sequences` authorization, read-result/provisional selection checks | Common authority/rule reservations precede counter use. Ordinal-based selections, dependent constraints and provisional sequence reads queue through existing fences. Coverage uncertainty cannot authorize a guessed counter. |
+| `receipts::receipt_insert_fields` allocation | Shared ALLOCATION price S/I/E=51, before device provisional suffix work or server member allocation. RY ordinal-read/whole-row/loop/builtin fences are unchanged. |
+| `receipts::receipt_row_changed` counter replacement | Shared COUNTER price: W=1, S=2, declared counter-image H plus scope slots. Only server replaces it. Extra authority, sequence, capture, index, constraint, maintain or timeline hooks make the source server-only. |
+| Receipt reports, membership changes, runs, compaction and builtins | Mutations that read clause-owned/derived state or invoke these operations remain `predicts: never`; there is no device path that silently omits their work. Import/rebuild are separate administrative operations. |
+| `through::{reserve_capture,capture_insert}` and parent read/capture | Common CAPTURE phase charges S/E/H/P before reading the parent. Device current-parent proof is extra physical work; unheld/retained evidence queues. Captured values still share ordinary authorization. |
+| `through::refuse_live_children` | **Fixed R4.** Common E=3C, S=3C, H=three images per child table. Device current-child check runs under its separate work allowance after prepay; server probes live and physical children. |
+| `through::physical_children`, parent expiration and staged cascade activation | Physical-child fee is already common (E=C, S=C, declared H). Activation is server-only and cannot run as an ordinary predicting write. No authored unbounded cascade is admitted. |
+| `recorded::capture_*`, live-target and retained-target branches | Ordinary point-read/capture fees are common before host-specific coverage proof. Unknown target queues. Recorded activation is server-only. |
+| `write::{insert,update,delete,upsert,insert_if_absent}` and alternate `write_target` resolution | Common source phases, rule room, target scratch, unique/cap checks, immutable/final-exists checks, indexes and output execute on both hosts. Device absence/coverage proof is additional bounded work; unresolved/online targets queue. Read-through insert-if-absent is explicitly refused for prediction. |
+| `write` expired predecessors and cap groups | Devices cannot rely on an expired predecessor or missing group. Their proof runs separately; the complete logical reservation remains shared. No device-only skip removes a cap charge. |
+| `field_authority`, private field omission and disclosure | Common declared scratch and rule reservations apply before private access. Undisclosed mutations/ownership changes without complete evidence queue. Projection changes the lawful payload, not private reservation prices. |
+| `row_changed`, `charge_source_indexes`, word/contribution index changes | Common source index/step fees execute before host log selection, including word-token fanout. Server/private index maintenance is already prepaid by its source phase. |
+| `partition::account_row_change<LOG>` / `event_free` | LOG selects persistent events, not ordinary S/I/E/W/H/O/P admission. Audience and field-delivery allowances are shared. Raw born-row/grant bookkeeping is explicitly unmetered engine bookkeeping on both logical contracts. |
+| `timeline_enqueue` Work upsert; partial `Posts` birth/removal | **Fixed R4.** Shared owned-row S/I/E/W/H/O plus complete source phases; server physical writes execute inside the restoring reservation; device pays only. Internal H is reusable scratch. |
+| `timeline_insert` Feed duplicate probe and foreign-copy branch | **Fixed R4.** Duplicate probe prepays E=1, S=8 and declared row scratch on both hosts. Predictable mapped inserts are owner-authorized; foreign delivery belongs to server jobs/edge work. Own visible Feed insert still uses the shared writer. |
+| Timeline follow/unfollow/refollow, activation, backlog delivery/purge | Existing compiler/runtime `never` fence for edge transitions. Administrative adoption and background chunks have their own server admission. Retained/missing event evidence queues. |
+| `read::{merge,streaming extrema}`, `authorized_member` trusted search path | **Fixed R4.** Membership/head search optimizations are restricted to query operation kind; a mutation uses the shared merge/read path. Trusted member pricing is reached by that query-only plan. Word expansion itself retains the common ledger. |
+| `read` delivered-rule trust, parent pinning, public/private page selection | Prepaid full rule/tree charges remain even when delivered evidence avoids witnesses. Horizon, retained and unknown branches affect readiness/coverage and may queue; they do not replace rule admission. |
+| `authorized_point::{scan_authorized, authorized_point}` public/trusted fast paths | Common examined/probe admission; typed disclosure controls retained H. Private decodes use fixed restoring scratch. Server public fast paths do less work; devices may spend more or queue. |
+| `witness` expiry index-head shortcut, aggregate/sequence witness coverage | Runs within the common authorization reservation. Device witness scans consume the separate physical allowance and cannot decide logical success from exhaustion. Unknown witnesses queue. |
+| `authorized_scan::{prepaid_scan, authorized_scratch}`, `device_work_active` | Logical allowance is charged before the restoring scope. Device-only coverage uses a separate finite meter and maps exhaustion to uncertainty. A nested scope cannot reset the physical allowance. |
+| `expiry`, query invalidations, `retire_expired_births` | Ordinary expiry checks are common. Commit-end retirement runs on a separate unbounded bookkeeping meter after the mutation's logical record; it cannot introduce an E_BOUND admission charge skipped by prediction. Sweeps/rebuilds are not predicting mutations. |
+| `components`, delivery-origin collection, search decoration and pending query work | Query-only paths (query kind or declaration guard), outside predicted mutation admission. Decoration preserves the caller meter. Query answer completeness/expiry differences remain intentional. |
+| Job viewer scopes, native jobs/actions, ephemeral renewals, import/activation | Server-only operations or administrative entry points. Device mutations cannot silently enter them: static classification/runtime refusal applies. Native device queries are read-only. |
+| Schema/argument validation and prefetch/storage representation feature gates | Server validation establishes the admitted backend; wasm consumes it. No logical meter call is hidden by these gates. Prefetch and physical SQL/memory adapters preserve the same logical writer/interpreter fees. |
+
+The presence ticket is moved to `issues/closed/`. Its original both-store
+boundary assertions are enabled unchanged. One meter golden rises by the six
+previously uncharged bytes (3,857 → 3,863); all other fields and admission checks
+are retained. This is not a new receipt-specific exception.
+
+### Differential and boundary evidence
+
+The original 256-case seed is unchanged (`0x525020261003`). Round 4 adds 64
+cases using `0x52500420261003`, for **320 cases per store**. The added families
+include parent deletes, ordinary updates/deletes with maintenance, owner births,
+sequence/index fanout, ordinary emits, distinct/duplicate once keys, bounded
+private payload reads, and full/partial Following events. Multiple-source and
+receipt/no-receipt coverage remains. Each failing assertion prints seed, case,
+full schema and server result. No-prediction assertions compare every table
+against the acquired pre-admission state, so they also check rollback of earlier
+writes and deletions.
+
+The affected reservation group (both-store differential, concrete cases and
+server-verified corpora) took **20.71 seconds**.
+Each store reports **113 predicted-and-committed / 8 conservative queues that
+commit / 199 server refusals**. Thus conservative queuing is 8/320 cases (2.5%),
+or 8/121 committing cases (6.61%). This is finite seeded evidence, not an
+exhaustive proof over arbitrary programs or changing authoritative state.
+
+| Concrete boundary | Device result (both stores and wasm) | Server result |
+| --- | --- | --- |
+| Receipt send + 600 owners × 20 maintained columns | queues, no rows | E_BOUND at 8,198 examined; complete owner-birth prepay crosses 8,192 as a group |
+| Receipt send + 740 sequenced rows × 17 secondary indexes | queues, no rows | E_BOUND at 16,385 index entries |
+| Receipt send + 160 deletes × 20 empty child tables | queues, no rows | E_BOUND at 8,239 examined |
+| 1,024 distinct once keys, no source writes | predicts | commits, 1,024 written rows |
+| 1,025 distinct once keys, no source writes | queues | E_BOUND at 1,025 written rows |
+| 1,024 / 1,025 ordinary emits without once | predicts | commits, zero written rows |
+| 1,025 repeats of one key | predicts | commits, one written row |
+| Receipt send + distinct once-key burst | queues, no history row | E_BOUND at 1,025 written rows |
+| 600 private-profile SHA-256 payloads + an ordinary insert | queues, no row | E_BOUND in shared bounded payload allowance |
+| 257 full / partial Following posts | queues, no source or derived rows | E_BOUND at 1,025 written rows |
+| One private payload / one full or partial Following post | predicts | commits |
+
+The wasm corpus contains these controls and review shapes and is re-executed by
+the real Rust server engine during the suite. It stores source, actual acquired
+pages and the observed admission results, not manually invented server verdicts.
+The client tests compile each source again and exercise wasm admission. Separate
+native tests first claim 1,025 durable keys across two committing transactions,
+then show conservative device queuing while the server's all-duplicate burst
+commits with zero new rows. Missing legacy payload prices queue on wasm too.
+
+### Verification and size
+
+Affected evidence includes eight Round 4 native boundary/compatibility tests,
+eight language effect-slice tests, all 22 presence tests (zero ignores), 43
+Following/event-slot/unread-range tests, 81 authority tests, 35 read-through
+review tests, the unchanged authoring census and 112 guide tests. The client
+reservation/upgrade checks pass; the asset/avatar follow-up passes all 18 tests. The first complete run exposed compatibility regressions in the guide, query
+shortcuts, current client fixtures and payload pricing. Its corpus comparison
+also caught random ids in the new Following setup; that setup now supplies a
+fixed id. These failures are corrected before the final qualification below.
+No failing admission assertion was removed.
+
+Same eb1000 host and pinned toolchain, measured with the build script's gzip
+command and filename:
+
+| Artifact | Raw bytes | gzip bytes |
+| --- | ---: | ---: |
+| Retained unmodified a8c20c40e9 base, remeasured | 2,048,676 | 617,327 |
+| Round 3 | 2,096,970 | 633,309 |
+| Four requested gaps + native-only calculator, before wider audit fixes | 2,088,977 | 630,344 |
+| Round 4 | 2,107,138 | 636,469 |
+
+Keeping the full calculator out of wasm saves space, while explicit zero plans
+retain ordinary new-schema prediction. The final wider audit costs **3,160 B
+more than Round 3**, or **19,142 B (3.10%) over base**. Relative to the isolated
+four-gap build, the payload/read prices and Following/presence fixes add 6,125 B.
+These are whole-artifact measurements, not independent function attribution.
+The budget is **636,599 B**, Linux plus the file's recorded upper macOS offset
+of 130 B, with no additional discretionary margin. No Mac was used.
+
+Wasm SHA-256: `a64e6c175828c5f4205f984ca0836df408a6c2a03739845ca7c03b9a9203443b`.
+Base SHA-256: `1fd8cd3fdef29bc5038a642e10ba0eb22df841b44ca704d1f0d2d4f5decf0e74`.
+
+The current chat client fixture now carries compiler-equivalent complete prices;
+its programs are byte-for-byte unchanged. A Rust test verifies that its schema
+matches the native export. Authentic predecessor upgrade fixtures remain frozen.
+The old event-slot wasm test separately refuses the full current backend and a
+candidate with only reservation metadata removed, so the event-slot capability
+itself must still reject installation, adoption and persisted reopen. New
+capability-set expectations add v1/v2 without removing the old fence assertions.
+The authoring census remains unchanged. The guide's existing 368-line limit holds.
+
+A subsequent full run passed all behavior tests but caught one direct JSON
+serializer call in the new native calculator through two codec-census assertions
+(`== 1 failure(s) in 1467 s`, client stage). It now uses the existing codec funnel;
+all 26 census tests pass unchanged. The final full run was repeated after that fix.
+The wrapper produces identical JSON bytes, reservation prices and wasm output.
+
+### Final qualification
+
+On eb1000, with the final implementation and fixtures frozen:
+
+```text
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+== 0 failure(s) in 1470 s
+```
+
+Exit 0. Rust: **4,820 passed**, 33 existing ignores; doctests: **17 passed**.
+Client pool: **6,088 passed**, 11 existing skips; serial models: **79 passed**;
+fixture wrappers: **9 passed**. All **207 receipt tests**, every RY escape,
+authentic upgrades, group/expiry cases, the extended differential and both
+server-verified wasm corpora passed. The native stage took 521 seconds, the
+client pool 592 seconds and the serial models 302 seconds. Build, wasm budget,
+release guard, docs budget, package and app typechecks also passed.
+
+All **1,703 qualification inputs** stayed unchanged throughout this final run.
+The regenerated wasm is byte-identical to the measured artifact above. Reference
+validation passes (527 LLPs, 10,298 references, zero errors/unchecked references),
+as does `git diff --check`. **No failure needs an unmodified-main exception.**
+Earlier introduced failures are recorded above; none is waived in this result.
+
+Evidence retained locally, summarized here instead of committing oversized logs:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `/tmp/rp-r4-full-qualified.log` | `e69aac3d82374eaf4a6deb0c1e3c144cffaba1a38acdcc853a52e7421dc543a2` |
+| `/tmp/rp-r4-source-qualified.sha256` | `5f2f6e8a42245d44f921bbb8678a3e15858d4787f1dccd93bf39222bb3fe7296` |
+| `/tmp/rp-r4-reservations-final3.log` | `fe3960ed231c7052dbb55c9e480775fde876dcdb12b31aa9af074458cf412629` |
+| `/tmp/rp-r4-codec-final.log` | `58ce55d6c183f2eb252a2b376650fea0d98a58e102369426b2cb9bf5962feea7` |
+
+The new corpus is 74,893 bytes. No new file over 256 KB, wasm artifact, gzip or
+video is committed; the existing journal receives the requested append. Work
+stayed on eb1000. No Apartment mini, office M1 or M5 was used, and nothing is
+pushed or published.

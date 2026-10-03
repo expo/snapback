@@ -822,6 +822,21 @@ impl Runner<'_> {
             return Ok(Some(row));
         }
         if m.row_count_needs_live_basis(self.schema) {
+            if !self.query_program && self.meter.cut == crate::meter::Cut::Abort {
+                let price = self.source_price(&m.target, crate::schema::reservations::VIEW_READ)?;
+                self.reservation_deferred |= self.device;
+                let (n, complete) = self.disclosed_scratch(price[4], &[(MeterKind::Examined,price[2]),(MeterKind::Steps,price[0])], |runner,_| {
+                    #[cfg(feature = "sqlite")]
+                    if !runner.device {
+                        if let Some(n) = runner.certified_view_count(m, &member)? { return Ok((n,true)); }
+                        let (n, complete, _) = runner.live_basis_scan(m,&member,None,usize::MAX)?;
+                        return Ok((n,complete));
+                    }
+                    runner.device_live_count(m,&member)
+                })?;
+                if !complete { self.pending_view_read()?; }
+                return Ok(Some(self.view_image(m,&member,n,!complete)?));
+            }
             #[cfg(feature = "sqlite")]
             if !self.device {
                 let limit = self.caller_heap_ceiling.map_or(self.meter.ceilings.heap_bytes, |(limit, _)| limit);
@@ -842,6 +857,10 @@ impl Runner<'_> {
             let (total, complete) = self.device_live_count(m, &member)?;
             if !complete { self.pending_view_read()?; }
             return Ok(Some(self.view_image(m, &member, total, !complete)?));
+        }
+        if self.device && !self.query_program && self.meter.cut == crate::meter::Cut::Abort {
+            let price = self.source_price(&m.target, crate::schema::reservations::VIEW_READ)?;
+            self.disclosed_scratch(price[4], &[(MeterKind::Examined,price[2])], |_,_| Ok(()))?;
         }
         #[cfg(feature = "sqlite")]
         if !self.device {

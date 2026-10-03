@@ -52,7 +52,7 @@ struct Slice {
 pub(super) fn plan(schema: &Schema, program: &Program) -> Vec<String> {
     if program.kind != ProgramKind::Mutation { return Vec::new(); }
     // A sum over expiring rows can overflow after a cancelling row expires.
-    // That is a semantic refusal, not the accepted server-only meter delta.
+    // A fixed shared resource allowance cannot erase that semantic refusal.
     let fallible_reads = schema.maintains.iter().filter(|view| matches!(view.kind, MaintainKind::Sum { .. })
         && schema.tables[&view.source].is_expiring()).map(|view| view.target.clone()).collect();
     let mut slice = Slice { fallible_reads, ..Slice::default() };
@@ -114,7 +114,8 @@ impl Slice {
                 Stmt::Emit { payload, once, .. } => {
                     let mut facts = Facts::default();
                     facts.expr(payload, &self.fallible_reads);
-                    if let Some(key) = once { facts.expr(key, &self.fallible_reads); }
+                    // Payload-only slicing never erases a once-key dependency.
+                    if let Some(key) = once { self.sink(key); }
                     self.emits.push((path, facts));
                 }
                 Stmt::If { condition, then_body, else_body } => {

@@ -89,7 +89,7 @@ impl Runner<'_> {
         );
         self.read_tables.insert(maintain.source.clone());
         #[cfg(feature = "sqlite")]
-        if !self.device && self.schema.tables[&maintain.source].is_expiring() {
+        if !self.device && self.query_program && self.schema.tables[&maintain.source].is_expiring() {
             return self.backlog_aggregate(maintain, row);
         }
         let source = &self.schema.tables[&maintain.source];
