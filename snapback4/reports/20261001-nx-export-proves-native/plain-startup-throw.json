@@ -1,0 +1,28 @@
+{
+  "starter": "plain",
+  "label": "startup-throw",
+  "startedAt": 1790899306795,
+  "durationMs": 13683,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "b8d966dc886b63d25e5f8819a2d14b36d489ef5502a414325e84f68ae26354cb"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 1,
+  "error": "E_WITNESS_STEP: app step failed; check --segment and see receipts and device log",
+  "segments": {
+    "offline": "not-run",
+    "prime": "failed",
+    "restart": "not-run"
+  },
+  "nativeDurationMs": 10572,
+  "loadedHash": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4"
+}

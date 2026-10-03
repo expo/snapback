@@ -1,0 +1,441 @@
+{
+  "starter": "plain",
+  "label": "prime",
+  "startedAt": 1790958037580,
+  "durationMs": 135929,
+  "status": 0,
+  "signal": null,
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790958037743-80238/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "43504029a51f16a349f0267dacd4fd68d78df8ea75de6841c754c6225619e944"
+      }
+    },
+    "hit": false
+  },
+  "exitStatus": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "2491fa11dab87c30b0434b558a595c594690611bf4dfbc64121d5d582eafbf86",
+  "exportHash": "2491fa11dab87c30b0434b558a595c594690611bf4dfbc64121d5d582eafbf86",
+  "publicationProofHash": "3e58aa548ee22583f76b4b08be0c5ca0282f683ac96222a4120b20b342aaa484",
+  "proofHash": "3e58aa548ee22583f76b4b08be0c5ca0282f683ac96222a4120b20b342aaa484",
+  "publishedFiles": 8,
+  "evidence": [
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/before-install-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "8ff5dd3d565bdf8d8aed84bb7b65d84a52fca8d167fc2e2a61a2eb86de9f34ca",
+      "bytes": 11614,
+      "path": "round4/evidence/plain-prime/build-settings.log.gz"
+    },
+    {
+      "sha256": "5a94fe576d482c3ee0824295031efc4836272d7157dea03938cfdff86c8d148d",
+      "bytes": 6037894,
+      "path": "round4/evidence/plain-prime/build.json.gz"
+    },
+    {
+      "sha256": "95e66ec173cd3f6d840ac5c4b88a1555787ae9e2f2eaaf335d1741c19c6ecdce",
+      "bytes": 87,
+      "path": "round4/evidence/plain-prime/cache-miss.json.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/check-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/check-stderr.log.gz"
+    },
+    {
+      "sha256": "8de2a2e69177c17ed39a336367638276685c9cb4eb599ccb00030ccd3ff30821",
+      "bytes": 339,
+      "path": "round4/evidence/plain-prime/check-stdout.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94,
+      "path": "round4/evidence/plain-prime/export-developer.log.gz"
+    },
+    {
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27,
+      "path": "round4/evidence/plain-prime/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92,
+      "path": "round4/evidence/plain-prime/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27,
+      "path": "round4/evidence/plain-prime/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106,
+      "path": "round4/evidence/plain-prime/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25,
+      "path": "round4/evidence/plain-prime/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92,
+      "path": "round4/evidence/plain-prime/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102,
+      "path": "round4/evidence/plain-prime/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95,
+      "path": "round4/evidence/plain-prime/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53,
+      "path": "round4/evidence/plain-prime/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "c91786f5153583516880f0cd34e70032dd08c9d80ba9614c23f59a4ba49e0c2c",
+      "bytes": 4501,
+      "path": "round4/evidence/plain-prime/fingerprint-after.log.gz"
+    },
+    {
+      "sha256": "c91786f5153583516880f0cd34e70032dd08c9d80ba9614c23f59a4ba49e0c2c",
+      "bytes": 4501,
+      "path": "round4/evidence/plain-prime/fingerprint-before.log.gz"
+    },
+    {
+      "sha256": "0a97a16c7293c275a4d77b77c48e68f378e76b728c138940831feef78ac7b611",
+      "bytes": 76,
+      "path": "round4/evidence/plain-prime/finished.json.gz"
+    },
+    {
+      "sha256": "59953af9073f86f5efd4a198d3552f367a461413c8f68fdabc14a919dca4118b",
+      "bytes": 198,
+      "path": "round4/evidence/plain-prime/hermes-version.log.gz"
+    },
+    {
+      "sha256": "3930d50e9e0772a9f25d5e8fa6263dd7fe1e26de6c837973677633ae60deb38c",
+      "bytes": 3591,
+      "path": "round4/evidence/plain-prime/installed.json.gz"
+    },
+    {
+      "sha256": "73ccd3bedc2878eb4be4d394d3f94d31a1fe11e96d9293713d959e143210588c",
+      "bytes": 505,
+      "path": "round4/evidence/plain-prime/live.json.gz"
+    },
+    {
+      "sha256": "176c6ec382e7b1be45cdc94d276af96d94a5f45c4a18fa275f968590bde79c8d",
+      "bytes": 6624497,
+      "path": "round4/evidence/plain-prime/native-base.json.gz"
+    },
+    {
+      "sha256": "27d74bb5fb9e8d726c8172e0ea190175cbfb43626cb7b595d63305da40b8819c",
+      "bytes": 215086,
+      "path": "round4/evidence/plain-prime/native-closure.json.gz"
+    },
+    {
+      "sha256": "0ac68d5d3f6789ce7b9588da1ece7258c10812add10e398812314341c57fcb0d",
+      "bytes": 881,
+      "path": "round4/evidence/plain-prime/native-mods.json.gz"
+    },
+    {
+      "sha256": "f266d3bf7e87860f0aadff9735b8d070d5cada402a38a857d95f690d31150115",
+      "bytes": 5664,
+      "path": "round4/evidence/plain-prime/plist-23.log.gz"
+    },
+    {
+      "sha256": "15dd6b5fe65a57564c9489ecea807aea47e6411c8f3bd14235d559c4c08ee573",
+      "bytes": 224603,
+      "path": "round4/evidence/plain-prime/plist-25.log.gz"
+    },
+    {
+      "sha256": "76c70b968ebf0380bf2796c74b101d3281db2ee05fc786eea8e17fd813c359a1",
+      "bytes": 928,
+      "path": "round4/evidence/plain-prime/plist-29.log.gz"
+    },
+    {
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27,
+      "path": "round4/evidence/plain-prime/pod-version.log.gz"
+    },
+    {
+      "sha256": "8320e69173214d3f23194980c91b64d195295e6bbb87fd438c49f1a2fafc74a0",
+      "bytes": 2206,
+      "path": "round4/evidence/plain-prime/pods.log.gz"
+    },
+    {
+      "sha256": "d93e5041159a08b8927f0e437826a4d2250feaf1013409c501ad57f1fc604b80",
+      "bytes": 152,
+      "path": "round4/evidence/plain-prime/prebuild.log.gz"
+    },
+    {
+      "sha256": "127057b5b2177d50044fc51c251cff497b932e225482ca1ff367b14feffe0715",
+      "bytes": 3251,
+      "path": "round4/evidence/plain-prime/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/preparation-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/preserve-app.log.gz"
+    },
+    {
+      "sha256": "f8e36c8ea41dd057a28406efa295cf9308b7dc86b9eb62a07e516ba8f7c58004",
+      "bytes": 7696,
+      "path": "round4/evidence/plain-prime/proof.json.gz"
+    },
+    {
+      "sha256": "338efe770a79b460ebe97ec2a0195f3fd693e53eb70fee7ad0ded85e14edbe9b",
+      "bytes": 251,
+      "path": "round4/evidence/plain-prime/public-config.log.gz"
+    },
+    {
+      "sha256": "2dc031c995b459c00630791f494a316ef326c34f830c5b324a9e42950405f746",
+      "bytes": 544,
+      "path": "round4/evidence/plain-prime/publication.json.gz"
+    },
+    {
+      "sha256": "a14d358c23ae4c165808921a6d93c949c4933cd858fbfe1ea0dcba67043326f2",
+      "bytes": 1729049,
+      "path": "round4/evidence/plain-prime/resolved-native.json.gz"
+    },
+    {
+      "sha256": "de33e525eaac9d8b716912d8124ca730b255acd295a3852357dc42e665a2a527",
+      "bytes": 1216,
+      "path": "round4/evidence/plain-prime/runtime.log.gz"
+    },
+    {
+      "sha256": "58c7af6d86ea66701a15ff9c9937c5a7764779a890c218407559b896bb84a370",
+      "bytes": 844,
+      "path": "round4/evidence/plain-prime/schemes.log.gz"
+    },
+    {
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27,
+      "path": "round4/evidence/plain-prime/sdk-build.log.gz"
+    },
+    {
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106,
+      "path": "round4/evidence/plain-prime/sdk-path.log.gz"
+    },
+    {
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25,
+      "path": "round4/evidence/plain-prime/sdk-version.log.gz"
+    },
+    {
+      "sha256": "811fd98cc56cc11388ed8d6d68eea73f8e522cff6cc041e9dfff2ede376ef058",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "e5a7f7307f2366218caa26dd552a636045780daa9fdd23afe08097fa62efc482",
+      "bytes": 511,
+      "path": "round4/evidence/plain-prime/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "c0354f288c3c629c90637466f33314d27b4e4114f1673c30f27db6d0343ab7a9",
+      "bytes": 332263,
+      "path": "round4/evidence/plain-prime/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "dddcacad3280c4b0e47ff170c21ba6527ee385490373c554f4df8766fd5f02e3",
+      "bytes": 58,
+      "path": "round4/evidence/plain-prime/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64,
+      "path": "round4/evidence/plain-prime/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "1d51a1606893e311176b8d3bede5d42f41d6fe49dc073c47dc50ecc3ce4a4a37",
+      "bytes": 30032,
+      "path": "round4/evidence/plain-prime/smoke-ios-offline.png.gz"
+    },
+    {
+      "sha256": "808734a6a93263685b37fbc2b2cb0283947602ed73e7723d045278247953fed0",
+      "bytes": 29946,
+      "path": "round4/evidence/plain-prime/smoke-ios-prime.png.gz"
+    },
+    {
+      "sha256": "aa5b40ba63818b5a28d69ec0b7b345342689f9ae7a86ba5fafbd5b90aae4ab91",
+      "bytes": 1247,
+      "path": "round4/evidence/plain-prime/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "808734a6a93263685b37fbc2b2cb0283947602ed73e7723d045278247953fed0",
+      "bytes": 29946,
+      "path": "round4/evidence/plain-prime/smoke-ios-restart.png.gz"
+    },
+    {
+      "sha256": "4077cf2f04576b531745bbab739081e6e19e76520e0a618788b85b42d4d58938",
+      "bytes": 3191,
+      "path": "round4/evidence/plain-prime/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "c000cfb561f33d8eff9d3ca5bbb72cf62e2cd37fa5d8c1e3eb625e2c74e95a56",
+      "bytes": 3299459,
+      "path": "round4/evidence/plain-prime/smoke-ios-screen.mp4.gz"
+    },
+    {
+      "sha256": "d910ac807c01b035bd086d48971476e0c0d48ff0f4ff467df8e5e00295062698",
+      "bytes": 138,
+      "path": "round4/evidence/plain-prime/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/snapshot.log.gz"
+    },
+    {
+      "sha256": "ac64b510f266a4342a646f79d578d9e4bce7fc5ad71f0157c13a20a651738ed7",
+      "bytes": 1446,
+      "path": "round4/evidence/plain-prime/source-inputs.json.gz"
+    },
+    {
+      "sha256": "7dbe61c45f1f1238de9ecac4951347374f19a78e140170b372681de4dd891a5d",
+      "bytes": 22035,
+      "path": "round4/evidence/plain-prime/target-settings-0.log.gz"
+    },
+    {
+      "sha256": "88f6bea53a070c61e491ed075fdcd35a72ea7431e157ebf4ddafa99cb2b3385a",
+      "bytes": 800887,
+      "path": "round4/evidence/plain-prime/target-settings-1.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/plain-prime/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/plain-prime/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "ed4afa6eade6e4921c09edb7011026a303849c1cd911435515f06c58908023dd",
+      "bytes": 368841,
+      "path": "round4/evidence/plain-prime/xcode-build.log.gz"
+    },
+    {
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53,
+      "path": "round4/evidence/plain-prime/xcode-version.log.gz"
+    }
+  ]
+}

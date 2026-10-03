@@ -1,0 +1,428 @@
+{
+  "count": 24,
+  "quietDefinition": "load1 <= 6 immediately before and immediately after; all contended samples retained separately",
+  "summaries": [
+    {
+      "starter": "plain",
+      "revision": "r4",
+      "scope": "initial",
+      "n": 6,
+      "medianMs": 18346.118499999997,
+      "nativeMedianMs": 15111.5,
+      "outsideMedianMs": 3234.6185,
+      "rangeMs": [
+        16072.29,
+        21638.584
+      ],
+      "nativePreparationMedianMs": 6353.0,
+      "nativeLifecycleMedianMs": 8757.0,
+      "beforeNativeMedianMs": 3061.5,
+      "afterNativeMedianMs": 175.0,
+      "nativeEndToPublicationMedianMs": 44.5,
+      "segmentsMedianMs": {
+        "prime": 2361.0,
+        "offline": 2453.5,
+        "restart": 2504.5
+      },
+      "distinctBundles": 6,
+      "load1Range": [
+        4.59033203125,
+        5.93359375
+      ],
+      "totalMedianSamples": [
+        "sample6",
+        "sample1"
+      ],
+      "nativeAtTotalMedianMs": 15111.5,
+      "outsideAtTotalMedianMs": 3234.6185,
+      "contendedCount": 2
+    },
+    {
+      "starter": "plain",
+      "revision": "r4",
+      "scope": "quiet-control",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "plain",
+      "revision": "r4",
+      "scope": "quiet-control-valid",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "plain",
+      "revision": "r5",
+      "scope": "initial",
+      "n": 6,
+      "medianMs": 18335.015,
+      "nativeMedianMs": 14663.5,
+      "outsideMedianMs": 3282.2105,
+      "rangeMs": [
+        16016.213,
+        19567.975
+      ],
+      "nativePreparationMedianMs": 6256.5,
+      "nativeLifecycleMedianMs": 8697.0,
+      "beforeNativeMedianMs": 3086.5,
+      "afterNativeMedianMs": 200.0,
+      "nativeEndToPublicationMedianMs": 64.0,
+      "segmentsMedianMs": {
+        "prime": 2228.0,
+        "offline": 2466.0,
+        "restart": 2482.0
+      },
+      "distinctBundles": 6,
+      "load1Range": [
+        4.98193359375,
+        5.98681640625
+      ],
+      "totalMedianSamples": [
+        "sample1",
+        "sample4"
+      ],
+      "nativeAtTotalMedianMs": 14663.5,
+      "outsideAtTotalMedianMs": 3671.5150000000003,
+      "contendedCount": 0
+    },
+    {
+      "starter": "plain",
+      "revision": "r5",
+      "scope": "quiet-control",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "plain",
+      "revision": "r5",
+      "scope": "quiet-control-valid",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "social",
+      "revision": "r4",
+      "scope": "initial",
+      "n": 6,
+      "medianMs": 27786.379,
+      "nativeMedianMs": 22907.0,
+      "outsideMedianMs": 4484.5425,
+      "rangeMs": [
+        25097.54,
+        29788.803
+      ],
+      "nativePreparationMedianMs": 9931.5,
+      "nativeLifecycleMedianMs": 12829.5,
+      "beforeNativeMedianMs": 4211.5,
+      "afterNativeMedianMs": 217.5,
+      "nativeEndToPublicationMedianMs": 55.5,
+      "segmentsMedianMs": {
+        "prime": 3849.5,
+        "offline": 3799.5,
+        "restart": 3858.0
+      },
+      "distinctBundles": 6,
+      "load1Range": [
+        5.10888671875,
+        5.99560546875
+      ],
+      "totalMedianSamples": [
+        "sample4",
+        "sample2"
+      ],
+      "nativeAtTotalMedianMs": 22907,
+      "outsideAtTotalMedianMs": 4879.379,
+      "contendedCount": 3
+    },
+    {
+      "starter": "social",
+      "revision": "r4",
+      "scope": "quiet-control",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "social",
+      "revision": "r4",
+      "scope": "quiet-control-valid",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "social",
+      "revision": "r5",
+      "scope": "initial",
+      "n": 6,
+      "medianMs": 26716.053,
+      "nativeMedianMs": 22416.0,
+      "outsideMedianMs": 4488.321,
+      "rangeMs": [
+        24738.165,
+        35998.186
+      ],
+      "nativePreparationMedianMs": 9400.5,
+      "nativeLifecycleMedianMs": 12918.0,
+      "beforeNativeMedianMs": 4279.0,
+      "afterNativeMedianMs": 268.5,
+      "nativeEndToPublicationMedianMs": 81.5,
+      "segmentsMedianMs": {
+        "prime": 3967.5,
+        "offline": 3818.0,
+        "restart": 3773.0
+      },
+      "distinctBundles": 6,
+      "load1Range": [
+        5.0830078125,
+        5.8603515625
+      ],
+      "totalMedianSamples": [
+        "sample2",
+        "sample5"
+      ],
+      "nativeAtTotalMedianMs": 22416,
+      "outsideAtTotalMedianMs": 4300.053,
+      "contendedCount": 3
+    },
+    {
+      "starter": "social",
+      "revision": "r5",
+      "scope": "quiet-control",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    },
+    {
+      "starter": "social",
+      "revision": "r5",
+      "scope": "quiet-control-valid",
+      "n": 0,
+      "medianMs": null,
+      "nativeMedianMs": null,
+      "outsideMedianMs": null,
+      "rangeMs": [
+        0,
+        0
+      ],
+      "nativePreparationMedianMs": null,
+      "nativeLifecycleMedianMs": null,
+      "beforeNativeMedianMs": null,
+      "afterNativeMedianMs": null,
+      "nativeEndToPublicationMedianMs": null,
+      "segmentsMedianMs": {
+        "prime": null,
+        "offline": null,
+        "restart": null
+      },
+      "distinctBundles": 0,
+      "load1Range": [
+        0,
+        0
+      ],
+      "totalMedianSamples": [],
+      "nativeAtTotalMedianMs": null,
+      "outsideAtTotalMedianMs": null,
+      "contendedCount": 0
+    }
+  ],
+  "sequence": [
+    "r4-plain-sample1",
+    "r5-plain-sample1",
+    "r5-plain-sample2",
+    "r4-plain-sample2",
+    "r4-social-sample1",
+    "r5-social-sample1",
+    "r5-social-sample2",
+    "r4-social-sample2",
+    "r4-social-sample3",
+    "r5-social-sample3",
+    "r5-social-sample4",
+    "r4-social-sample4",
+    "r4-plain-sample3",
+    "r5-plain-sample3",
+    "r5-plain-sample4",
+    "r4-plain-sample4",
+    "r4-plain-sample5",
+    "r5-plain-sample5",
+    "r5-plain-sample6",
+    "r4-plain-sample6",
+    "r4-social-sample5",
+    "r5-social-sample5",
+    "r5-social-sample6",
+    "r4-social-sample6"
+  ]
+}

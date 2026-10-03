@@ -1,0 +1,93 @@
+{
+  "baseCommit": "bfe1d7d722f7e3346bef4aa48b2f2ffde3ab8b4b",
+  "files": [
+    {
+      "path": "crates/snapback4/src/verbs/witness/plugin-audit.json",
+      "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+      "bytes": 341713
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-closure.mjs",
+      "sha256": "79d98f1ae08659b2c1a0e6fcb388f11adcc6517bc123c210c94a1c58e378c46b",
+      "bytes": 23375
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-scripts.mjs",
+      "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+      "bytes": 8789
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/protocol.rs",
+      "sha256": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4",
+      "bytes": 11147
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/plugin-audit.mjs",
+      "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+      "bytes": 2723
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/acquire.rs",
+      "sha256": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+      "bytes": 1400
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/ownership.rs",
+      "sha256": "2da6335f93c0e1ad2bb2d9acfc437e119482fcb12151a9129103e99fafb827fe",
+      "bytes": 5182
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/payload.mjs",
+      "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+      "bytes": 3859
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/smoke.rs",
+      "sha256": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+      "bytes": 19874
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/export-cache.mjs",
+      "sha256": "ef879408a76f247ca94f16a816d2c6d99f6e9f645e290a8f4de71e22a19a3ed2",
+      "bytes": 15651
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/preparation.rs",
+      "sha256": "5dc0826c5e14da051471cd5c31c204a9bb0a3c7e278ccd045f22c1b7ce86d54a",
+      "bytes": 20582
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-inputs.mjs",
+      "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+      "bytes": 11211
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/simulator.rs",
+      "sha256": "ae101bffe151e6c820157564d2959ea156bb2979ecd4e1b51f687ebc481a483e",
+      "bytes": 8328
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/prepare.mjs",
+      "sha256": "6df38e70095cad641aa37a0b1bf6e29abe4b81284b9f58bf10a8654f6f8ec953",
+      "bytes": 21538
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness.rs",
+      "sha256": "128cda00d13321c3914171222439f3e4f8ad7cf703b06915253df4d6e765c66b",
+      "bytes": 40099
+    },
+    {
+      "path": "packages/snapback4-expo/export-ios.mjs",
+      "sha256": "f5e053a2b69e54b54baecd19598b30995b137346dda67e15bdb99ce51d988102",
+      "bytes": 5176
+    },
+    {
+      "path": "target/production/snapback4",
+      "sha256": "4a80894898db581ada622427bc4ec3ee33c613fa5bc7ef1c0721ba06092aca19",
+      "bytes": 15070480
+    }
+  ],
+  "node": "v24.18.0",
+  "host": "MacMini-Apt101-M5-A",
+  "platform": "macOS-27.0-arm64-arm-64bit"
+}

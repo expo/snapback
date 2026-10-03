@@ -1,0 +1,13 @@
+{
+  "plugin": "expo-secure-store",
+  "spec": "git+file:///Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social-plugin-fork",
+  "installed": {
+    "version": "57.0.4",
+    "resolved": "git+file:///Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social-plugin-fork#1e6f8f9b7a4ced475cf94ec1ee628d10d0d9abe4",
+    "license": "MIT",
+    "peerDependencies": {
+      "expo": "*"
+    }
+  },
+  "source": "const fs=require('fs');const path=require('path');const original=require('./plugin/build/withSecureStore');module.exports=(config,props)=>{config=(original.default||original)(config,props);config.ios??={};config.ios.infoPlist??={};config.ios.infoPlist.NXNativeMode=fs.readFileSync(path.join(config._internal.projectRoot,'src/native-mode.js'),'utf8');return config;};\n"
+}

@@ -1,0 +1,34 @@
+{
+  "host": "expo-build-450a (expose-builder-nothing)",
+  "sourceFiles": [
+    {
+      "path": "crates/snapback4/src/verbs/witness/recorded_process.rs",
+      "sha256": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3"
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/publication.rs",
+      "sha256": "0b67eeb919b2a707fc2d15b41b1213a3148cd59dc0e688613ad8c2ed281e68a9"
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "1ee551ab9bf9bcd5c66a52cf2b8d22b6d4286cc18a13ded4d75ccc6ac724e28f"
+    },
+    {
+      "path": "packages/snapback4/bin/snapback4.js",
+      "sha256": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075"
+    },
+    {
+      "path": "packages/snapback4-expo/export-ios.mjs",
+      "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa"
+    },
+    {
+      "path": "packages/snapback4/test/export-failure.test.mjs",
+      "sha256": "eddfa26ab2c6ae08f446ffdd4ecfea2013c624ed5f1a9e4c342c90327d400825"
+    },
+    {
+      "path": "packages/snapback4/test/publication-interposer.c",
+      "sha256": "ebc5da401428a1985e7a21b2e0fa78eecea76a555b6f9c78fa2a2f8c1eff5aa6"
+    }
+  ],
+  "notes": "Final Linux witness units 27/27 and integration 13/13 include the late group snapshot custody guard. Final installed-shim/publication JS controls 6/6 include environment skips. No iOS execution on Linux."
+}

@@ -1,0 +1,275 @@
+{
+  "stagedFileCount": 66,
+  "totalBlobBytes": 7632964,
+  "limitBytes": 15000000,
+  "underLimit": true,
+  "newRawFilesOver256KB": [],
+  "forbiddenCompressedOrVideoFiles": [],
+  "files": [
+    {
+      "path": "issues/20261002-snapback4-nx-round5-social-warm-timing.md",
+      "bytes": 2941
+    },
+    {
+      "path": "llp/3000.030-native-proof-in-minutes.rfc.md",
+      "bytes": 131075
+    },
+    {
+      "path": "snapback4/JOURNAL.md",
+      "bytes": 5105735
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "bytes": 25831
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/EVIDENCE-ARCHIVE.tsv",
+      "bytes": 1475187
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/REPORT.md",
+      "bytes": 97475
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/SETUP.md",
+      "bytes": 4545
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/builds-initial-stale-output.json",
+      "bytes": 1833
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/builds.json",
+      "bytes": 1833
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/check-audit.mjs",
+      "bytes": 1237
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/cleanup.json",
+      "bytes": 46468
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/cleanup.py",
+      "bytes": 2996
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/contention-during-cohort.json",
+      "bytes": 2350
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/context.json",
+      "bytes": 1492
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/correct-r5.py",
+      "bytes": 1724
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/dependency-audit.json",
+      "bytes": 1287
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/finish-builds.py",
+      "bytes": 2534
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/host-during-wait.json",
+      "bytes": 2411
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/host.json",
+      "bytes": 318
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/initial-timings.json",
+      "bytes": 745
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/measure.py",
+      "bytes": 7081
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/package-trees.json",
+      "bytes": 1567
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/packages-archive.json",
+      "bytes": 1047
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/prepare.py",
+      "bytes": 1982
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-prime-fresh.json",
+      "bytes": 27098
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-prime.json",
+      "bytes": 17697
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-sample1.json",
+      "bytes": 18906
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-sample2.json",
+      "bytes": 20020
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-sample3.json",
+      "bytes": 19538
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-sample4.json",
+      "bytes": 19753
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-sample5.json",
+      "bytes": 19619
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-sample6.json",
+      "bytes": 19539
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-plain-warmup.json",
+      "bytes": 20613
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-prime-fresh.json",
+      "bytes": 25222
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-sample1.json",
+      "bytes": 19803
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-sample2.json",
+      "bytes": 20719
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-sample3.json",
+      "bytes": 20717
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-sample4.json",
+      "bytes": 19192
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-sample5.json",
+      "bytes": 20429
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-sample6.json",
+      "bytes": 19445
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r4-social-warmup.json",
+      "bytes": 20154
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-prime-fresh.json",
+      "bytes": 25688
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-sample1.json",
+      "bytes": 19653
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-sample2.json",
+      "bytes": 20232
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-sample3.json",
+      "bytes": 19753
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-sample4.json",
+      "bytes": 19290
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-sample5.json",
+      "bytes": 19270
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-sample6.json",
+      "bytes": 19529
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-plain-warmup.json",
+      "bytes": 19629
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-prime-fresh.json",
+      "bytes": 26235
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-sample1.json",
+      "bytes": 19589
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-sample2.json",
+      "bytes": 19559
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-sample3.json",
+      "bytes": 19891
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-sample4.json",
+      "bytes": 19837
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-sample5.json",
+      "bytes": 19588
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-sample6.json",
+      "bytes": 19334
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/r5-social-warmup.json",
+      "bytes": 20102
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/raw-archive.json",
+      "bytes": 8299
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/retention.json",
+      "bytes": 1612
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/source-identities.json",
+      "bytes": 539
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/staged-size.json",
+      "bytes": 8738
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/stale-package-archive.json",
+      "bytes": 265
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/summarize.py",
+      "bytes": 4266
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/timings.json",
+      "bytes": 10394
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/validation.json",
+      "bytes": 1103
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round5b/waiting-summary.json",
+      "bytes": 411
+    }
+  ],
+  "note": "Counts entire staged blobs, including existing JOURNAL and archive manifest, and this audit file. No product code changes."
+}

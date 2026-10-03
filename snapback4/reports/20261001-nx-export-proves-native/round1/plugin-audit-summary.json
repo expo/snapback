@@ -1,0 +1,98 @@
+{
+  "expo-router": [
+    {
+      "spec": "expo-router/app.plugin.js",
+      "entry": "expo-router/app.plugin.js",
+      "version": "57.0.23",
+      "sha256": "2e5b0bdda5a0a683f1cb0020535e7f6157dda8218375dee9387016c4e6ff6d39",
+      "fileCount": 691
+    },
+    {
+      "spec": "expo-router/app.plugin.js",
+      "entry": "expo-router/app.plugin.js",
+      "version": "57.0.24",
+      "sha256": "a0a8976f57ad878ac0ca24f37f79450ec3bd99f65e3cfcf6673a5826fca4247e",
+      "fileCount": 691
+    }
+  ],
+  "expo-sqlite": [
+    {
+      "spec": "expo-sqlite/app.plugin.js",
+      "entry": "expo-sqlite/app.plugin.js",
+      "version": "57.0.3",
+      "sha256": "db85e43acdcc3ed067300af86a2bb61779c38eac56db95f7f4ee4f474e044857",
+      "fileCount": 686
+    },
+    {
+      "spec": "expo-sqlite/app.plugin.js",
+      "entry": "expo-sqlite/app.plugin.js",
+      "version": "57.0.3",
+      "sha256": "6d10f80d263f4de6f22ea6d35de3fba2f30984018f45d8b135ea282fd144f87d",
+      "fileCount": 686
+    }
+  ],
+  "expo-secure-store": [
+    {
+      "spec": "expo-secure-store/app.plugin.js",
+      "entry": "expo-secure-store/app.plugin.js",
+      "version": "57.0.4",
+      "sha256": "05546467b37cc5f4a1ece3e686dfbf9537d69ce7a4a9321a2e0530695d81b32d",
+      "fileCount": 686
+    },
+    {
+      "spec": "expo-secure-store/app.plugin.js",
+      "entry": "expo-secure-store/app.plugin.js",
+      "version": "57.0.4",
+      "sha256": "940db777a3b02f175950b31dea94095a9c131a768c6b90a3c13261e7bddff8c7",
+      "fileCount": 686
+    }
+  ],
+  "expo-status-bar": [
+    {
+      "spec": "expo-status-bar/app.plugin.js",
+      "entry": "expo-status-bar/app.plugin.js",
+      "version": "57.0.1",
+      "sha256": "491549f94aa8c72dd9eb4a61dfc0cf6ec5f6683aa8bcd06d74c6a29c5ad2a95c",
+      "fileCount": 686
+    },
+    {
+      "spec": "expo-status-bar/app.plugin.js",
+      "entry": "expo-status-bar/app.plugin.js",
+      "version": "57.0.1",
+      "sha256": "90ff160fdb987297b5bb0d7b977182b5df331881106ca4c67d530d79e23873e7",
+      "fileCount": 686
+    }
+  ],
+  "expo-image-picker": [
+    {
+      "spec": "expo-image-picker/app.plugin.js",
+      "entry": "expo-image-picker/app.plugin.js",
+      "version": "57.0.20",
+      "sha256": "e524ad63a3cc630e6af6dd049769ae003a3edd3519f0f78f3ffa561c7319eb34",
+      "fileCount": 686
+    },
+    {
+      "spec": "expo-image-picker/app.plugin.js",
+      "entry": "expo-image-picker/app.plugin.js",
+      "version": "57.0.20",
+      "sha256": "a4819114ee0db12feb8a5582582db5e2d86a2ab3e085bbfd87a9ab8fd9a3ebe7",
+      "fileCount": 686
+    }
+  ],
+  "snapback4-expo/plugin": [
+    {
+      "spec": "snapback4-expo/plugin",
+      "entry": "snapback4-expo/plugin.cjs",
+      "version": "0.4.10",
+      "sha256": "8a55865658adc1ef8c2ccca4bdaa09a1cbf63db098c5827019c7f835042ffde1",
+      "fileCount": 685
+    },
+    {
+      "spec": "snapback4-expo/plugin",
+      "entry": "snapback4-expo/plugin.cjs",
+      "version": "0.4.10",
+      "sha256": "7719f03f084869afe5114afbfa26dfd8011631c3e403508ad07433b2c8323f93",
+      "fileCount": 685
+    }
+  ]
+}

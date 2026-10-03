@@ -1,0 +1,21 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 4.27s
+     Running tests/witness.rs (target/debug/deps/witness-7a40c661994c7d64)
+
+running 3 tests
+test driver::export_create_partial_output_rolls_back_on_failure_timeout_and_group_interrupt ... ok
+test driver::export_classifies_only_native_environment_setup_as_skippable ... ok
+test driver::export_selection_interrupt_and_ownership_failures_are_not_skips ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 4.23s
+

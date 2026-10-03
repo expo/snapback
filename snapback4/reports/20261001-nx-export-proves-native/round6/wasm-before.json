@@ -1,0 +1,8 @@
+{
+  "sha256": "c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c",
+  "rawBytes": 2014420,
+  "gzipBytesPythonNoFilename": 604641,
+  "gzipBytesCanonical": 604666,
+  "capBytes": 605225,
+  "note": "Canonical gzip includes the file-name header, matching scripts/build-wasm.sh; Python gzip without a filename is recorded separately."
+}

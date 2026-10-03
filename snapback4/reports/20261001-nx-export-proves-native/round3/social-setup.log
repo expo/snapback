@@ -1,0 +1,35 @@
+init: wrote 35 files in /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social — Expo: native when available, online in Expo Go — next: `snapback4 check`, then `snapback4 dev`; see README.md
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: expo-modules-core@57.0.20
+npm warn Found: react-native-worklets@0.13.0
+npm warn node_modules/react-native-worklets
+npm warn   peerOptional react-native-worklets@"*" from @expo/ui@57.0.21
+npm warn   node_modules/@expo/ui
+npm warn     @expo/ui@"^57.0.21" from expo-router@57.0.24
+npm warn     node_modules/expo-router
+npm warn   1 more (react-native-reanimated)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional react-native-worklets@"^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0" from expo-modules-core@57.0.20
+npm warn node_modules/expo-modules-core
+npm warn   expo-modules-core@"~57.0.18" from expo@57.0.22
+npm warn   node_modules/expo
+npm warn
+npm warn Conflicting peer dependency: react-native-worklets@0.10.4
+npm warn node_modules/react-native-worklets
+npm warn   peerOptional react-native-worklets@"^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0" from expo-modules-core@57.0.20
+npm warn   node_modules/expo-modules-core
+npm warn     expo-modules-core@"~57.0.18" from expo@57.0.22
+npm warn     node_modules/expo
+npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+
+added 589 packages in 49s
+check: ok — 17 tables (15 synced), 31 operations, no problems, 6 notes, 26.1 ms
+note: schema.q:215:1 — N_EPHEMERAL_SERVER: typingIn runs on the server because it reads an ephemeral table
+note: schema.q:222:1 — N_NEVER_COMPLETE: query search: when the search text folds to no words, the page over messages[..] by read or declaration on likes (at, id) at schema.q:192:3 or read or declaration on messages (at, id) at schema.q:223:10 or read or declaration on posts (at, id) at schema.q:147:3 or read or declaration on reposts (at, id) at schema.q:169:3 is never `complete` — the read rule `exists members[.conversation, viewer]` reads .conversation, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+note: schema.q:220:10 — N_SYNC_ORDER: query searchChat `messages[conversation = conversation] matching q last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown
+note: schema.q:223:10 — N_SYNC_ORDER: query search `messages matching q last 20 by .at after c` reads messages by .at, .id, newest first (index [at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown
+note: programs.search.0 — N_SEARCH_WORDS: word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work
+note: programs.search.0 — N_SEARCH_OPEN: opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation
+8 mutations never predict: compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation

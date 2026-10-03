@@ -1,0 +1,34 @@
+
+> snapback4-expo-starter@0.0.1 export:ios
+> snapback4-export-ios
+
+Starting Metro Bundler
+
+iOS Bundled 1995ms index.js (728 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-7ef558658a2886f44506fb4944767e03.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-3b1180d96b5b74eee199db118d161d1b.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/round9/plain/artifacts/native-smoke/1791002862321-76103/export
+witness: using simulator sb4-nx-r9-1790999661144-93718 (5A05F370-7D40-4251-AE94-E174F5E4C69A), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+native-cache miss: input changed: App.tsx; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off.
+witness: backend-ready
+witness: recording-started
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: waiting-offline-done
+witness: offline-done
+witness: smoke-sync-barrier
+witness: backend-ready
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+native smoke passed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/round9/plain/artifacts/native-smoke/1791002862321-76103/smoke-ios-run.json

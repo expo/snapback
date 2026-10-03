@@ -1,0 +1,34 @@
+== cargo build
+-- ok: cargo build (1 s)
+== wasm build
+-- ok: wasm build (20 s)
+== docs budget
+-- ok: docs budget (3 s)
+== release guard
+-- ok: release guard (2 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (1 s)
+== cargo test
+-- ok: cargo test (829 s)
+== chat app typecheck
+-- ok: chat app typecheck (0 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- ok: fixture wrapper tests (10 s)
+== client tests
+-- ok: client tests (1178 s)
+== client models
+-- ok: client models (217 s)
+== 0 failure(s) in 2253 s
+
+Client pool: 5772 total; 5767 passed; 0 failed; 5 existing skips.
+Final client models: 79 passed; 0 failed.
+Witness integration: 53 passed. CLI unit target: 232 passed; 4 existing ignored.
+Guide: 110 passed.
+Invocations: 1. Exit status: 0. The pre-main-fix delivery-fault follow flake did not reproduce.
+Raw log archived as round6/full-suite.log.gz; see EVIDENCE-ARCHIVE.tsv.

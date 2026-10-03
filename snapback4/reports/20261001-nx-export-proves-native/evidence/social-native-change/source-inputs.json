@@ -1,0 +1,331 @@
+{
+  "sha256": "7902a98f74a7622377eebc3382b336442cec89896b2eea0f745c8f28e3b8cdc5",
+  "bytes": 422133,
+  "files": [
+    {
+      "path": ".gitignore",
+      "mode": 420,
+      "type": "file",
+      "bytes": 88,
+      "sha256": "a16bddccd708151c692df7bb2a44e37f69a4bcc1c7fd81b749435221bc750e94"
+    },
+    {
+      "path": "README.md",
+      "mode": 420,
+      "type": "file",
+      "bytes": 7939,
+      "sha256": "1d03a8d5c9c02db0a54656de7c4fe0bcda434f50fb737164b53ee4863c2fcc8c"
+    },
+    {
+      "path": "app",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "app/(tabs)",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "app/(tabs)/_layout.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 333,
+      "sha256": "dcea5a35ad356666004a96c74580cbc5d6d29ac10d3b1e820d8474de02659247"
+    },
+    {
+      "path": "app/(tabs)/chats.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 43,
+      "sha256": "d7d47d6232ddb6766de6a93634a10d83fa78d5b25013f68ddc490be0fe9aff78"
+    },
+    {
+      "path": "app/(tabs)/index.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 42,
+      "sha256": "357505c367d029ee479d1d7628650ae4df61ad7290aebb7b90d00259e04c18f5"
+    },
+    {
+      "path": "app/(tabs)/profile.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 45,
+      "sha256": "ae157b62076775caa258800d1000dc3a3442f68eaf6cbcb79cbfc8ddf3cbbd0a"
+    },
+    {
+      "path": "app/(tabs)/search.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 44,
+      "sha256": "4313f7561607f7ae08d54fd023edf194f3cec9777160b001f2333498e841b713"
+    },
+    {
+      "path": "app/_layout.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1998,
+      "sha256": "db5b7bd6acf10b3a4adfe79005339319013079d65e2e51497fff8d7b943f61cd"
+    },
+    {
+      "path": "app/conversation",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "app/conversation/[id].tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 3269,
+      "sha256": "1af3979d9dfe9a510d9df344c9d15a001f2558e8d1ceb0cde55b8df719e01c23"
+    },
+    {
+      "path": "app/dm",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "app/dm/[other].tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 227,
+      "sha256": "146f2b0ff01e50f1d394356caca77bb950786df583581f5c521c2a920222cca7"
+    },
+    {
+      "path": "app/search-chat",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "app/search-chat/[id].tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 233,
+      "sha256": "a0dbc32682babe13351d52421a5373eaf8df8642b3a9820a56f53679858c7bfc"
+    },
+    {
+      "path": "app.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 531,
+      "sha256": "add86c94b4443edbc675c5bd9e38e2782e13584acd55e761a7381a97b309dd8f"
+    },
+    {
+      "path": "babel.config.js",
+      "mode": 420,
+      "type": "file",
+      "bytes": 101,
+      "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+    },
+    {
+      "path": "metro-wasm-transformer.cjs",
+      "mode": 420,
+      "type": "file",
+      "bytes": 579,
+      "sha256": "79924fe3d076765a6e032da1018159f478cea6a570016be78f4ddd6e66a30b30"
+    },
+    {
+      "path": "metro.config.js",
+      "mode": 420,
+      "type": "file",
+      "bytes": 543,
+      "sha256": "f19c0ab4c2eaff2f7f80e17a0617ce87658e8d410df714da6ac1cfc74d43ec42"
+    },
+    {
+      "path": "package-lock.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 295710,
+      "sha256": "bf7aa5496b078cecf01e0639e54e83f42f8d8ce49c3635f2ae09675ce742929a"
+    },
+    {
+      "path": "package.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1170,
+      "sha256": "c6a1b6c9aef21204589092f7902b3a9379fe918e21219ed0cb655e206fc9eb9c"
+    },
+    {
+      "path": "snapback",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "snapback/generated",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "snapback/generated/api.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 18825,
+      "sha256": "0d91d5351536ba319f3035b70af1441c88d398ad5d6e57308c509e9d7d2f1c3a"
+    },
+    {
+      "path": "snapback/generated/package.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 18,
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    },
+    {
+      "path": "snapback/generated/residency.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 41481,
+      "sha256": "ef8f4f94d4eae68a7d5f4a7bcec99bd408cf72b42a447f9b6dcd6c5ee2187ae8"
+    },
+    {
+      "path": "snapback/generated/server.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 850,
+      "sha256": "dcd5ef919dac1db6a2c279a5e329dc9eb256b19fa3f06312d777d99a78c8a045"
+    },
+    {
+      "path": "snapback/schema.q",
+      "mode": 420,
+      "type": "file",
+      "bytes": 8092,
+      "sha256": "5c4fde00e7b6f80d3b2624fba4c3902232d9c672f257d15556df8d0faa5ea0d5"
+    },
+    {
+      "path": "snapback/workers",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "snapback/workers/notifications.mjs",
+      "mode": 420,
+      "type": "file",
+      "bytes": 850,
+      "sha256": "666ae52244c7a6d309144c4545055235a3dbbac526d674571cdde01bb4d7f9f6"
+    },
+    {
+      "path": "src",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "src/Chats.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1626,
+      "sha256": "68e328c933a24dc908ade52e06b1a6d777831683b29f0afcc9a23ca58bf77ec7"
+    },
+    {
+      "path": "src/Conversation.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 13700,
+      "sha256": "d8b48a8e05140e56963cd9e203861e9eef6f7bbdffc3e528220e8d21861b177c"
+    },
+    {
+      "path": "src/Direct.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 3218,
+      "sha256": "e429abaa9fc489450b5d9d5989a4f4d08857178aa901c8e0f9a4a2adbb59574e"
+    },
+    {
+      "path": "src/Feed.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2247,
+      "sha256": "6b5a22d8b1147da5032de4abf67fc859e188fc78e8eb71a6764ad275ef74d6b3"
+    },
+    {
+      "path": "src/Profile.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2787,
+      "sha256": "74a8304c45f115a605093a31e1bdc3ef02f5a18d6d8fa9882a3616edae3c8895"
+    },
+    {
+      "path": "src/Search.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1717,
+      "sha256": "c6c91e17897b1e1f7bef8f07bf43dce50c0222f0cec7a3868c3aa209013db924"
+    },
+    {
+      "path": "src/client.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1146,
+      "sha256": "e193e604f550f919f45856879aaee5030a973ddf2a52ba89084844c048c45c81"
+    },
+    {
+      "path": "src/intent-store.native.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 369,
+      "sha256": "4ab5bdeeeb3de3d3d86ea02deaf3ed68cd4592578260fe1df63981d26bebe850"
+    },
+    {
+      "path": "src/intent-store.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 126,
+      "sha256": "d88eadf6a0d477ba2b4b0beac3277fc9ffa5f86d9ec7a70bead1267c366442d4"
+    },
+    {
+      "path": "src/intent-store.web.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 334,
+      "sha256": "8d17c1ac81c3925767581a5d39962e9c7652ffb97e9efc16f139a1c3d9a8098e"
+    },
+    {
+      "path": "src/intents.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 4225,
+      "sha256": "a8d3715199231847f7bad27ef34d04b39df9e1504ea59ad261dba249bac55a61"
+    },
+    {
+      "path": "src/native-smoke.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 509,
+      "sha256": "6ac63dacf346165280593ccdcdde8a28607b7ad9d6369482794aa754bffabe3c"
+    },
+    {
+      "path": "src/ui.tsx",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1274,
+      "sha256": "9d798eeec79e6e7fdc376eb40281a7c1853c53a01762b1f29ac620b701e32655"
+    },
+    {
+      "path": "src/useOnceMedia.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1653,
+      "sha256": "5fb984a22c8964ca68f899026974558709c10d2b200d8750e14e63edf1fa3cf0"
+    },
+    {
+      "path": "src/useOnlineArm.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1396,
+      "sha256": "e9587fae916e217acf9203b4c9917fcfd5757410a7373157d27152bcd532d25b"
+    },
+    {
+      "path": "src/useTyping.ts",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2453,
+      "sha256": "101b4641b7c78097bca41956b193c0bdc7082d2c2bc68ca8ea6f59acdf9c4f35"
+    },
+    {
+      "path": "tsconfig.json",
+      "mode": 420,
+      "type": "file",
+      "bytes": 342,
+      "sha256": "74cf907a378070717739de2c5400767a78441c37b7a3359d11f00a46f7929a75"
+    }
+  ]
+}

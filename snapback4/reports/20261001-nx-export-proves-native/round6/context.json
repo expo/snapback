@@ -1,0 +1,19 @@
+{
+  "startedAt": 1790985896.75827,
+  "branch": "sb4-np/nx-export-proves-native-slim",
+  "base": "ac15813e7fbb89dc3d6fb8959150d0e96fe8e0d5",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "host": "MacMini-Apt101-M5-A",
+  "load": [
+    6.3486328125,
+    7.10693359375,
+    11.671875
+  ],
+  "linuxScratch": "/tmp/sb4-nx-r6.yhcFoC",
+  "reviewReadInFull": "ccheever@100.65.137.99:~/sb4-intent/reviews/nx-r5.astra.md",
+  "simulatorsTouched": [],
+  "ambientNodeInSnapback4": "v26.9.0",
+  "canonicalSuiteNode": "v24.18.0",
+  "standaloneRustNode": "v26.9.0",
+  "pinnedJsRerun": true
+}

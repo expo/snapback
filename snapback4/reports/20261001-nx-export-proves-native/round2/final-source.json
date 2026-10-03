@@ -1,0 +1,23 @@
+{
+  "base": "5d5604a7f525141c26b8891e86a1711b9257124a",
+  "sha256": {
+    "target/nx/final-cli": "a2204c5c5af17f225f77a39401f9cd3cafced6eca76c5a1d4ffad2a2d1bf668f",
+    "crates/snapback4/src/verbs/witness.rs": "1f40d66c7caac6ff3c7a092345e36bfac6effe0b92fa5e2a5322dcee55735e43",
+    "packages/snapback4-expo/export-ios.mjs": "9110ee8e4dd7ecbbfc92d53c71e918ee77e08211d15fdde91b54d7d12c25b138",
+    "crates/snapback4/src/verbs/witness/acquire.rs": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+    "crates/snapback4/src/verbs/witness/effective-config.mjs": "e93ef6140ce168a0896b258fcf02a9879e22727c09aad059d60d92dc475529f2",
+    "crates/snapback4/src/verbs/witness/export-cache.mjs": "bdf8531c7642506c07fade0b059df40e89528d3d25673cce18a2cfe8dacfe159",
+    "crates/snapback4/src/verbs/witness/native-closure.mjs": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+    "crates/snapback4/src/verbs/witness/native-inputs.mjs": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+    "crates/snapback4/src/verbs/witness/native-mods.json": "d58c35451d059be40afc09615a478762023cc4b3b750c92ab6b6d4b4a192db7c",
+    "crates/snapback4/src/verbs/witness/native-scripts.mjs": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+    "crates/snapback4/src/verbs/witness/ownership.rs": "164a448ab56eb584b924c81c923558d0b43e3d5e85205f85b9caf7c275e9d364",
+    "crates/snapback4/src/verbs/witness/payload.mjs": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+    "crates/snapback4/src/verbs/witness/preparation.rs": "fca11d3d648339f2484525c1c91d1597148a773e412fb52218f202afecdf430c",
+    "crates/snapback4/src/verbs/witness/prepare.mjs": "9070e6a12741d74a735958119de7fc2dc21221ec042ad1986b06b76a56d5ab0b",
+    "crates/snapback4/src/verbs/witness/protocol.rs": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4",
+    "crates/snapback4/src/verbs/witness/recovery.rs": "015245836144c7793b85b5b8af805b20745258dba347c37680701003fb64fa9a",
+    "crates/snapback4/src/verbs/witness/simulator.rs": "4f0dd23b875f040f190e7fed5b113c17fe94f30501ead6139bd66150b8f977d9",
+    "crates/snapback4/src/verbs/witness/smoke.rs": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33"
+  }
+}

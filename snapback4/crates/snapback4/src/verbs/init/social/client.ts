@@ -1,3 +1,4 @@
+import { smokeOrigin } from "snapback4-expo/witness";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
@@ -7,7 +8,7 @@ import { webDevice } from "snapback4/web";
 import { withIntentStorage } from "./intents";
 import { intentStorage } from "./intent-store";
 
-export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
+export const url = smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
 export const tier = Platform.OS === "web" ? "web replica" : nativeAvailable() ? "native replica" : "online (Expo Go)";
 const nativeStore = withIntentStorage({
   get: (key: string) => SecureStore.getItemAsync(key),

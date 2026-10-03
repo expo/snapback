@@ -1,0 +1,9 @@
+{
+  "crates/snapback4/src/verbs/witness.rs": "2c7b3d100d809b58381b2098d627920303dbe7722dfa5a507aa86f1c218e8f3f",
+  "crates/snapback4/src/verbs/witness/prepare.mjs": "31a19dfc0335f83d80707327e00710e7724a4a3bbd47f3e1cc0577b13112166d",
+  "crates/snapback4/src/verbs/witness/export-cache.mjs": "8f63607b3be466effb6c4f1ef7d20926f9112e0753e617603ad3ba6a9640c03a",
+  "crates/snapback4/src/verbs/witness/preparation.rs": "24f8a5b834a703eb19298acc04ac767520a96cadbf1a63ee6c48a85f5e04fe7b",
+  "packages/snapback4-expo/export-ios.mjs": "d817e3ed4b74d524c247dfa6323fbb35b5097aded2e123e984d4b93e06d9f74d",
+  "packages/snapback4-expo/src/witness.ts": "ac2958c34f9eb325dd1da4ecbb610b85cb801c16f0f71115c597e38171349e57",
+  "target/production/snapback4": "2c8bd71a9d276c69130b85999deef5cd1b1747bfadbfc603eb8da2ad31f31391"
+}

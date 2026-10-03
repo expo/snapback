@@ -1,0 +1,286 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Bundle/Application/3FFDE054-5B91-4F68-9125-8D18A80F1ED8/export.app",
+  "artifacts": {
+    "backend-stdout.log": {
+      "bytes": 23,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-backend-stdout.log",
+      "sha256": "4e9984dcc63ae5ca35570126de698b5921c002b0bd9c2edf0e26f2b0835bf375"
+    },
+    "backend.log": {
+      "bytes": 885,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-backend.log",
+      "sha256": "7dc4b24660be2cf3475753a18b97f2d9d1d8672e97eb891ce26308b03a79f701"
+    },
+    "device.log": {
+      "bytes": 1943262,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-device.log",
+      "sha256": "8a9bfbce6433abbb9a7828e10f15519d2870d1b99cb2194cd65cbfab6d4ab0fe"
+    },
+    "launch.log": {
+      "bytes": 26,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-launch.log",
+      "sha256": "5115b803e739b1b43121bcd1efe9e3cb9357ace926f8db7a6b68821032fb45e9"
+    },
+    "log-stderr.log": {
+      "bytes": 44,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-log-stderr.log",
+      "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523"
+    },
+    "prime.png": {
+      "bytes": 26668,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-prime.png",
+      "sha256": "57913beb02f8923247e65ca75dc36f0fd842c0713f92e0040dcd95d04e06fc24"
+    },
+    "receipts.jsonl": {
+      "bytes": 1535,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-receipts.jsonl",
+      "sha256": "fedf99fce42cc575890f826437620cf14086be347946ffb562c2e947fbd82a6d"
+    },
+    "screen.mp4": {
+      "bytes": 963944,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-screen.mp4",
+      "sha256": "c2511d7a2a1614e3baa409e27531f1aa48ef7517321c5e94f45ce81f99d34ba1"
+    },
+    "video.log": {
+      "bytes": 131,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-video.log",
+      "sha256": "a2fbe67be582278407f16d8e46cf2cf2a8e86b3153f0f1580ff42112e1d64290"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/production/snapback4",
+      "dev",
+      "--port",
+      "60377",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "origin": "http://127.0.0.1:60377",
+    "port": 60377,
+    "store": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.10",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Data/Application/07340062-A756-4280-ABD4-52427BEA1A81",
+  "durationMs": 10572,
+  "endedAt": 1790899320469,
+  "error": "E_WITNESS_STEP: app step failed; check --segment and see receipts and device log",
+  "events": [
+    {
+      "at": 1790899317004,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790899317223,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790899317955,
+      "pid": 64421,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790899317955,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790899319820,
+      "pid": 64421,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790899319936,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790899320048,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 1,
+  "exported": {
+    "assets": [
+      {
+        "path": "main.jsbundle",
+        "sha256": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4"
+      },
+      {
+        "path": "_expo/static/js/ios/index-d6227e4ad944b1c94342a3909222fb0d.hbc",
+        "sha256": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4"
+      },
+      {
+        "path": "_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc",
+        "sha256": "8f0a685c3c1360d0909b67a2d81765c2dcdfa8e386a392b383c0b55b536317fa"
+      }
+    ],
+    "inventory": {
+      "bytes": 2821560,
+      "files": [
+        {
+          "mode": 493,
+          "path": "_expo",
+          "type": "directory"
+        },
+        {
+          "mode": 493,
+          "path": "_expo/static",
+          "type": "directory"
+        },
+        {
+          "mode": 493,
+          "path": "_expo/static/js",
+          "type": "directory"
+        },
+        {
+          "mode": 493,
+          "path": "_expo/static/js/ios",
+          "type": "directory"
+        },
+        {
+          "bytes": 2610203,
+          "mode": 420,
+          "path": "_expo/static/js/ios/index-d6227e4ad944b1c94342a3909222fb0d.hbc",
+          "sha256": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4",
+          "type": "file"
+        },
+        {
+          "bytes": 211213,
+          "mode": 420,
+          "path": "_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc",
+          "sha256": "8f0a685c3c1360d0909b67a2d81765c2dcdfa8e386a392b383c0b55b536317fa",
+          "type": "file"
+        },
+        {
+          "bytes": 2,
+          "mode": 420,
+          "path": "assetmap.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "type": "file"
+        },
+        {
+          "bytes": 142,
+          "mode": 420,
+          "path": "metadata.json",
+          "sha256": "52c2ac85a03aa7dea232dda217fee6493b19457d4c80f9f121d9a02e40d2fdf1",
+          "type": "file"
+        }
+      ],
+      "sha256": "1dd9dbc5a20fcc3144968d9b7476b9c2dc0eb18b26bba7b23af8293b1b4cf915"
+    },
+    "javascript": {
+      "bytes": 2610203,
+      "sha256": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4",
+      "version": 98
+    },
+    "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist"
+  },
+  "installed": {
+    "executable": {
+      "bytes": 5898304,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Bundle/Application/3FFDE054-5B91-4F68-9125-8D18A80F1ED8/export.app/Snapback4chat",
+      "sha256": "c6fbcdf33989496e3622c84aa5b876d4c1bb1e2e48e9a3d100592c6fbbdab06d"
+    },
+    "javascript": {
+      "bytes": 2610203,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Bundle/Application/3FFDE054-5B91-4F68-9125-8D18A80F1ED8/export.app/main.jsbundle",
+      "sha256": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4"
+    }
+  },
+  "invokedAt": 1790899309897,
+  "mode": "smoke",
+  "nativeCache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "b8d966dc886b63d25e5f8819a2d14b36d489ef5502a414325e84f68ae26354cb"
+      }
+    },
+    "hit": true
+  },
+  "outputs": [
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-run.json",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-screen.mp4",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-receipts.jsonl",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-device.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-video.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-launch.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-backend.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-backend-stdout.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-log-stderr.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-prime.png",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-offline.png",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-restart.png"
+  ],
+  "prime": true,
+  "proof": {
+    "bytes": 57102,
+    "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/proof.json",
+    "sha256": "f735a9152b8320ecc38ebbac20617fbc636a27ebf46c5c8e96ff241538e62644"
+  },
+  "proofKind": "application-export",
+  "queryFacts": {
+    "inbox": {
+      "held": false,
+      "runs": "device"
+    }
+  },
+  "queryGeneration": 1,
+  "relaunch": false,
+  "reservation": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-reserved",
+  "run": "1790899316557-63357",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "segment": "smoke",
+  "segments": {
+    "offline": {
+      "status": "not-run"
+    },
+    "prime": {
+      "durationMs": 2597,
+      "endedAt": 1790899319820,
+      "error": "E_WITNESS_STEP: app step failed; check --segment and see receipts and device log",
+      "receipt": {
+        "errors": [
+          {
+            "fatal": true,
+            "message": "NX_STARTUP_THROW"
+          }
+        ],
+        "pass": false,
+        "segment": "prime"
+      },
+      "receipts": [
+        {
+          "errors": [
+            {
+              "fatal": true,
+              "message": "NX_STARTUP_THROW"
+            }
+          ],
+          "pass": false,
+          "segment": "prime"
+        }
+      ],
+      "startedAt": 1790899317223,
+      "status": "failed"
+    },
+    "restart": {
+      "status": "not-run"
+    }
+  },
+  "simulator": {
+    "name": "sb4-nx-1790894904995-92367",
+    "prefix": "sb4-nx-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "reused",
+    "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+  },
+  "startedAt": 1790899316557,
+  "timestampUnit": "unix-ms",
+  "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+}

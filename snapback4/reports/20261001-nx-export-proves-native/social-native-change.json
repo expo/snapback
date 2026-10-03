@@ -1,0 +1,28 @@
+{
+  "starter": "social",
+  "label": "native-change",
+  "startedAt": 1790898763977,
+  "durationMs": 160679,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "ecf176d0b6aa91527cd5a049bc4fdf375dcb6c4197ae02bfa4650cba2c498786",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898767702-35672/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "5f30d2cf9d95dca5a9a4604112f7bba14099e1f667884a69203faf954dec6d21"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 156914,
+  "loadedHash": "ecf176d0b6aa91527cd5a049bc4fdf375dcb6c4197ae02bfa4650cba2c498786"
+}

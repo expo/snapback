@@ -1,0 +1,553 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Bundle/Application/87C713A8-4F3E-42C5-AD67-56F131E49EEB/export.app",
+  "artifacts": {
+    "backend-stdout.log": {
+      "bytes": 46,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-backend-stdout.log",
+      "sha256": "2b766325581881a1cf652d3f01df8a9550029628929fb616d6c52c614b1db0fe"
+    },
+    "backend.log": {
+      "bytes": 1770,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-backend.log",
+      "sha256": "1ccee4dd4142c2866935530085344a1b6e28aad01061b1ed649332fa6e59baaf"
+    },
+    "device.log": {
+      "bytes": 7911113,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-device.log",
+      "sha256": "eaa3ffb42fb84714d620921b779861036ad1566dc0238ab11b6de183c6b5de94"
+    },
+    "launch.log": {
+      "bytes": 78,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-launch.log",
+      "sha256": "389c63eb5fd272311ef09afb800574ece39eff5e1f8d90b784008eb31b1993c9"
+    },
+    "log-stderr.log": {
+      "bytes": 44,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-log-stderr.log",
+      "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523"
+    },
+    "offline.png": {
+      "bytes": 49688,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-offline.png",
+      "sha256": "df65cae403460e5fc5b2692e2a52ec54bb2312f96f6c888c260140664a983346"
+    },
+    "prime.png": {
+      "bytes": 49432,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-prime.png",
+      "sha256": "c59a7b6dbd0a14ed9312ceec580902113421ed40f4f0ed09722106f327829c9e"
+    },
+    "receipts.jsonl": {
+      "bytes": 6168,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-receipts.jsonl",
+      "sha256": "2e9d6b97b6cc8b6d04c4570dcd7c33c83fe34d3b46a1a064046bad41faf527d0"
+    },
+    "restart.png": {
+      "bytes": 49432,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-restart.png",
+      "sha256": "c59a7b6dbd0a14ed9312ceec580902113421ed40f4f0ed09722106f327829c9e"
+    },
+    "screen.mp4": {
+      "bytes": 4249869,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-screen.mp4",
+      "sha256": "dc6c5e47681810ce099f44bc66594f7b956d3ea9067548e17ad4a77e13d1e9d5"
+    },
+    "video.log": {
+      "bytes": 131,
+      "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-video.log",
+      "sha256": "a2fbe67be582278407f16d8e46cf2cf2a8e86b3153f0f1580ff42112e1d64290"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/production/snapback4",
+      "dev",
+      "--port",
+      "60337",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "origin": "http://127.0.0.1:60337",
+    "port": 60337,
+    "store": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.10",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Data/Application/133C14E8-CF41-4F77-8DD9-5DCCCA87361F",
+  "durationMs": 94753,
+  "endedAt": 1790899306715,
+  "error": null,
+  "events": [
+    {
+      "at": 1790899297830,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790899298079,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790899298810,
+      "pid": 62249,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790899298810,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790899299551,
+      "step": "primed"
+    },
+    {
+      "at": 1790899300640,
+      "pid": 62249,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790899300807,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790899301555,
+      "pid": 62624,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790899301555,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790899302307,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790899303401,
+      "pid": 62624,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790899303410,
+      "step": "smoke-sync-barrier"
+    },
+    {
+      "at": 1790899303531,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790899304257,
+      "pid": 62975,
+      "step": "restart-launched"
+    },
+    {
+      "at": 1790899304257,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790899305019,
+      "step": "done"
+    },
+    {
+      "at": 1790899306165,
+      "pid": 62975,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790899306282,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790899306395,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "exported": {
+    "assets": [
+      {
+        "path": "main.jsbundle",
+        "sha256": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f"
+      },
+      {
+        "path": "_expo/static/js/ios/index-34c83d8aaa77fac0d796caa2d7620d20.hbc",
+        "sha256": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f"
+      },
+      {
+        "path": "_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc",
+        "sha256": "ce1dd1f519b755ab9c6e0fd33730fc1d2bcc75bc530084ba3da857ea6a53d04a"
+      }
+    ],
+    "inventory": {
+      "bytes": 2821554,
+      "files": [
+        {
+          "mode": 493,
+          "path": "_expo",
+          "type": "directory"
+        },
+        {
+          "mode": 493,
+          "path": "_expo/static",
+          "type": "directory"
+        },
+        {
+          "mode": 493,
+          "path": "_expo/static/js",
+          "type": "directory"
+        },
+        {
+          "mode": 493,
+          "path": "_expo/static/js/ios",
+          "type": "directory"
+        },
+        {
+          "bytes": 2610196,
+          "mode": 420,
+          "path": "_expo/static/js/ios/index-34c83d8aaa77fac0d796caa2d7620d20.hbc",
+          "sha256": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f",
+          "type": "file"
+        },
+        {
+          "bytes": 211214,
+          "mode": 420,
+          "path": "_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc",
+          "sha256": "ce1dd1f519b755ab9c6e0fd33730fc1d2bcc75bc530084ba3da857ea6a53d04a",
+          "type": "file"
+        },
+        {
+          "bytes": 2,
+          "mode": 420,
+          "path": "assetmap.json",
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "type": "file"
+        },
+        {
+          "bytes": 142,
+          "mode": 420,
+          "path": "metadata.json",
+          "sha256": "5b678cd9ce22ed3026e4f14e20fef1c84f01fe847e81bb6999b88da54a8a21a8",
+          "type": "file"
+        }
+      ],
+      "sha256": "d170d1d67879551af736a9758a829c349c1409c472973656237f56c2d3760485"
+    },
+    "javascript": {
+      "bytes": 2610196,
+      "sha256": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f",
+      "version": 98
+    },
+    "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist"
+  },
+  "installed": {
+    "executable": {
+      "bytes": 5898304,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Bundle/Application/87C713A8-4F3E-42C5-AD67-56F131E49EEB/export.app/Snapback4chat",
+      "sha256": "c6fbcdf33989496e3622c84aa5b876d4c1bb1e2e48e9a3d100592c6fbbdab06d"
+    },
+    "javascript": {
+      "bytes": 2610196,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/40F37BC8-7B71-497A-BFDE-022928C5B98C/data/Containers/Bundle/Application/87C713A8-4F3E-42C5-AD67-56F131E49EEB/export.app/main.jsbundle",
+      "sha256": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f"
+    }
+  },
+  "invokedAt": 1790899211962,
+  "mode": "smoke",
+  "nativeCache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "b8d966dc886b63d25e5f8819a2d14b36d489ef5502a414325e84f68ae26354cb"
+      }
+    },
+    "hit": false
+  },
+  "outputs": [
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-run.json",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-screen.mp4",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-receipts.jsonl",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-device.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-video.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-launch.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-backend.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-backend-stdout.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-log-stderr.log",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-prime.png",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-offline.png",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-restart.png"
+  ],
+  "prime": true,
+  "proof": {
+    "bytes": 57105,
+    "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/proof.json",
+    "sha256": "c5a71ca2e23815a4089b593d736fb63d187dfe74ae66c891a79ffed484cb1cfc"
+  },
+  "proofKind": "application-export",
+  "queryFacts": {
+    "inbox": {
+      "held": false,
+      "runs": "device"
+    }
+  },
+  "queryGeneration": 1,
+  "relaunch": false,
+  "reservation": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-reserved",
+  "run": "1790899297379-59386",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "segment": "smoke",
+  "segments": {
+    "offline": {
+      "durationMs": 2593,
+      "endedAt": 1790899303401,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "durationMs": 156,
+        "endedAt": 1790899302092,
+        "errors": [],
+        "generation": 1,
+        "link": "offline",
+        "origin": "http://127.0.0.1:60337",
+        "pass": true,
+        "queries": [
+          {
+            "classification": "device-answerable",
+            "complete": true,
+            "count": 0,
+            "cut": null,
+            "fresh": false,
+            "name": "inbox",
+            "state": "ready"
+          }
+        ],
+        "queryFacts": {
+          "inbox": {
+            "held": false,
+            "runs": "device"
+          }
+        },
+        "queryGeneration": 1,
+        "rows": {
+          "conversations": 0,
+          "memberships": 0,
+          "messageCounts": 0,
+          "messages": 0,
+          "profiles": 0
+        },
+        "segment": "offline",
+        "startedAt": 1790899301936,
+        "storeId": "3896538fb4d9ffd9653cd0d72bf964e9",
+        "viewer": "guest:01M3WYN8XDT0E4ZQFDWPJG95ZW",
+        "watermark": 25
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "durationMs": 156,
+          "endedAt": 1790899302092,
+          "errors": [],
+          "generation": 1,
+          "link": "offline",
+          "origin": "http://127.0.0.1:60337",
+          "pass": true,
+          "queries": [
+            {
+              "classification": "device-answerable",
+              "complete": true,
+              "count": 0,
+              "cut": null,
+              "fresh": false,
+              "name": "inbox",
+              "state": "ready"
+            }
+          ],
+          "queryFacts": {
+            "inbox": {
+              "held": false,
+              "runs": "device"
+            }
+          },
+          "queryGeneration": 1,
+          "rows": {
+            "conversations": 0,
+            "memberships": 0,
+            "messageCounts": 0,
+            "messages": 0,
+            "profiles": 0
+          },
+          "segment": "offline",
+          "startedAt": 1790899301936,
+          "storeId": "3896538fb4d9ffd9653cd0d72bf964e9",
+          "viewer": "guest:01M3WYN8XDT0E4ZQFDWPJG95ZW",
+          "watermark": 25
+        }
+      ],
+      "startedAt": 1790899300808,
+      "status": "passed"
+    },
+    "prime": {
+      "durationMs": 2561,
+      "endedAt": 1790899300640,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "durationMs": 204,
+        "endedAt": 1790899299411,
+        "errors": [],
+        "generation": 1,
+        "link": "online",
+        "origin": "http://127.0.0.1:60337",
+        "pass": true,
+        "queries": [],
+        "queryFacts": {
+          "inbox": {
+            "held": false,
+            "runs": "device"
+          }
+        },
+        "queryGeneration": 1,
+        "rows": {
+          "conversations": 0,
+          "memberships": 0,
+          "messageCounts": 0,
+          "messages": 0,
+          "profiles": 0
+        },
+        "segment": "prime",
+        "startedAt": 1790899299207,
+        "storeId": "3896538fb4d9ffd9653cd0d72bf964e9",
+        "viewer": "guest:01M3WYN8XDT0E4ZQFDWPJG95ZW",
+        "watermark": 25
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "durationMs": 204,
+          "endedAt": 1790899299411,
+          "errors": [],
+          "generation": 1,
+          "link": "online",
+          "origin": "http://127.0.0.1:60337",
+          "pass": true,
+          "queries": [],
+          "queryFacts": {
+            "inbox": {
+              "held": false,
+              "runs": "device"
+            }
+          },
+          "queryGeneration": 1,
+          "rows": {
+            "conversations": 0,
+            "memberships": 0,
+            "messageCounts": 0,
+            "messages": 0,
+            "profiles": 0
+          },
+          "segment": "prime",
+          "startedAt": 1790899299207,
+          "storeId": "3896538fb4d9ffd9653cd0d72bf964e9",
+          "viewer": "guest:01M3WYN8XDT0E4ZQFDWPJG95ZW",
+          "watermark": 25
+        }
+      ],
+      "startedAt": 1790899298079,
+      "status": "passed"
+    },
+    "restart": {
+      "durationMs": 2634,
+      "endedAt": 1790899306165,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "barrierSeq": 26,
+        "durationMs": 163,
+        "endedAt": 1790899304776,
+        "errors": [],
+        "generation": 1,
+        "link": "online",
+        "origin": "http://127.0.0.1:60337",
+        "pass": true,
+        "queries": [],
+        "queryFacts": {
+          "inbox": {
+            "held": false,
+            "runs": "device"
+          }
+        },
+        "queryGeneration": 1,
+        "rows": {
+          "conversations": 0,
+          "memberships": 0,
+          "messageCounts": 0,
+          "messages": 0,
+          "profiles": 0
+        },
+        "segment": "restart",
+        "startedAt": 1790899304613,
+        "storeId": "3896538fb4d9ffd9653cd0d72bf964e9",
+        "viewer": "guest:01M3WYN8XDT0E4ZQFDWPJG95ZW",
+        "watermark": 26
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "barrierSeq": 26,
+          "durationMs": 163,
+          "endedAt": 1790899304776,
+          "errors": [],
+          "generation": 1,
+          "link": "online",
+          "origin": "http://127.0.0.1:60337",
+          "pass": true,
+          "queries": [],
+          "queryFacts": {
+            "inbox": {
+              "held": false,
+              "runs": "device"
+            }
+          },
+          "queryGeneration": 1,
+          "rows": {
+            "conversations": 0,
+            "memberships": 0,
+            "messageCounts": 0,
+            "messages": 0,
+            "profiles": 0
+          },
+          "segment": "restart",
+          "startedAt": 1790899304613,
+          "storeId": "3896538fb4d9ffd9653cd0d72bf964e9",
+          "viewer": "guest:01M3WYN8XDT0E4ZQFDWPJG95ZW",
+          "watermark": 26
+        }
+      ],
+      "startedAt": 1790899303531,
+      "status": "passed"
+    }
+  },
+  "simulator": {
+    "name": "sb4-nx-1790894904995-92367",
+    "prefix": "sb4-nx-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "reused",
+    "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+  },
+  "startedAt": 1790899297379,
+  "syncBarrier": {
+    "applicationWrites": 0,
+    "at": 1790899303410,
+    "seq": 26
+  },
+  "timestampUnit": "unix-ms",
+  "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+}

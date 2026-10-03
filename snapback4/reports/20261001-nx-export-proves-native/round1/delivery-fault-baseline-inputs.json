@@ -1,0 +1,44 @@
+[
+  {
+    "path": "packages/snapback4/src/local.ts",
+    "baseline": "91d7d65a553ab4093aef268cb101e25fcd82443c29e71d553e2016a2a69a6346",
+    "current": "91d7d65a553ab4093aef268cb101e25fcd82443c29e71d553e2016a2a69a6346",
+    "equal": true
+  },
+  {
+    "path": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "baseline": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+    "current": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+    "equal": true
+  },
+  {
+    "path": "packages/snapback4/test/delivery-fault-instrument.mjs",
+    "baseline": "883ff5c80df8d71b60bff6222f1d383814b900a8883d59c0034282c9fba85177",
+    "current": "883ff5c80df8d71b60bff6222f1d383814b900a8883d59c0034282c9fba85177",
+    "equal": true
+  },
+  {
+    "path": "packages/snapback4/test/delivery-fault-sites.json",
+    "baseline": "3b97f6ad80282e965a78c39460cf546ed3f9dafe520f3297c306435952bb8ad6",
+    "current": "3b97f6ad80282e965a78c39460cf546ed3f9dafe520f3297c306435952bb8ad6",
+    "equal": true
+  },
+  {
+    "path": "packages/snapback4/test/delivery-fault-recipes.mjs",
+    "baseline": "2660366037686f3a071b4d6f7077f0ae35f82070c0b557ce7117f92abb51e7ae",
+    "current": "2660366037686f3a071b4d6f7077f0ae35f82070c0b557ce7117f92abb51e7ae",
+    "equal": true
+  },
+  {
+    "path": "packages/snapback4/test/delivery-fault-fixture.mjs",
+    "baseline": "f406dbbb8f6ae93b03d22cefd30167d83531b99bfdcec7c02675df590222e773",
+    "current": "f406dbbb8f6ae93b03d22cefd30167d83531b99bfdcec7c02675df590222e773",
+    "equal": true
+  },
+  {
+    "path": "packages/snapback4/test/delivery-await-boundary.json",
+    "baseline": "7603f18cddb4a19551c5d6b43c1c259eb37a85eb6fd42cb5efae21a0b9aec328",
+    "current": "7603f18cddb4a19551c5d6b43c1c259eb37a85eb6fd42cb5efae21a0b9aec328",
+    "equal": true
+  }
+]

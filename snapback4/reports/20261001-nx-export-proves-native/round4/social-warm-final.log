@@ -1,0 +1,49 @@
+
+> snapback4-social-starter@0.0.1 export:ios
+> snapback4-export-ios
+
+Starting Metro Bundler
+
+| (node:98755) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 2986ms node_modules/expo-router/entry.js (1262 modules)
+Creating asset map
+
+› Assets (23):
+node_modules/expo-router/assets/arrow_down.png (9.5KB)
+node_modules/expo-router/assets/error.png (469B)
+node_modules/expo-router/assets/file.png (138B)
+node_modules/expo-router/assets/forward.png (188B)
+node_modules/expo-router/assets/pkg.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.png (4 variations | 566B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.png (3 variations | 582B)
+node_modules/expo-router/assets/sitemap.png (465B)
+node_modules/expo-router/assets/unmatched.png (4.8KB)
+
+› ios bundles (2):
+_expo/static/js/ios/entry-da2ed1f199a55abf87aba9819e642f77.hbc (3.6MB)
+_expo/static/js/ios/web-worker-entry-544fb818b5934e456ff1045cd158fbb8.hbc (211KB)
+
+› Files (2):
+assetmap.json (9KB)
+metadata.json (1.6KB)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790958686016-98752/export
+witness: using simulator sb4-nx-r4-1790958041713-80250 (905940BD-8BAE-4C0B-87CB-57D36AA37845), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+witness: backend-ready
+witness: recording-started
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: waiting-offline-done
+witness: offline-done
+witness: smoke-sync-barrier
+witness: backend-ready
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+native smoke passed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790958686016-98752/smoke-ios-run.json

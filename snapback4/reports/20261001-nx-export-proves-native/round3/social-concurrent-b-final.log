@@ -1,0 +1,32 @@
+Starting Metro Bundler
+
+| (node:75391) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 3262ms node_modules/expo-router/entry.js (1262 modules)
+Creating asset map
+
+› Assets (23):
+node_modules/expo-router/assets/arrow_down.png (9.5KB)
+node_modules/expo-router/assets/error.png (469B)
+node_modules/expo-router/assets/file.png (138B)
+node_modules/expo-router/assets/forward.png (188B)
+node_modules/expo-router/assets/pkg.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.png (4 variations | 566B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.png (3 variations | 582B)
+node_modules/expo-router/assets/sitemap.png (465B)
+node_modules/expo-router/assets/unmatched.png (4.8KB)
+
+› ios bundles (2):
+_expo/static/js/ios/entry-d0467585618a1114a599214ebb2fa48c.hbc (3.6MB)
+_expo/static/js/ios/web-worker-entry-544fb818b5934e456ff1045cd158fbb8.hbc (211KB)
+
+› Files (2):
+assetmap.json (9KB)
+metadata.json (1.6KB)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790949754289-75382/export
+E_WITNESS_PROCESS: another witness holds the --udid lease; leaving it untouched; see snapback4 guide witness
+native smoke failed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790949754289-75382/smoke-ios-run.json

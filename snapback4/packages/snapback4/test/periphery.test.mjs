@@ -554,6 +554,7 @@ test("Expo starter selects web, native and online app devices with explicit sess
       if (name === "snapback4/app") return { createApp: value => { options = value; return value; } };
       if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };
       if (name === "snapback4/web") return { webDevice: () => webDevice };
+      if (name === "snapback4-expo/witness") return { smokeOrigin: fallback => fallback };
       if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice };
       return {};
     } };
@@ -568,7 +569,17 @@ test("Expo starter selects web, native and online app devices with explicit sess
 
 for (const pkg of ["snapback4", "snapback4-expo"]) test(`${pkg} README uses the qualified starter smoke measurements`, () => {
   const readme = read(join(root, "packages", pkg, "README.md"));
-  for (const fact of ["NS round 0 cohort (2026-09-30)", "221.7 s cold", "83.5 s warm median (3 runs)", "186.2 s", "Apartment M5 Pro mini", "18 cores/64 GiB", "Xcode/iOS 27", "3.61–61.41", "3.21–7.22", "14.62–47.52", "Guidance, not a promise"])
+  for (const fact of ["npm run export:ios", "also proves the app runs on iOS", "about 18 s for the plain starter", "27 s for the social one", "cold runs 175–230 s", "npm run native:smoke", "SNAPBACK4_NATIVE_SMOKE=off", "Apartment M5 Pro mini", "18 cores/64 GiB", "Xcode/iOS 27"])
     assert.ok(readme.includes(fact), `${pkg}: missing ${fact}`);
   assert.ok(!readme.includes("159.841") && !readme.includes("six minutes"));
+});
+
+
+test("smoke origin preserves ordinary/remote app configuration and accepts only simulator loopback", () => {
+  const compiled = ts.transpileModule(read(join(root, "packages/snapback4-expo/src/witness.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  for (const [launch, expected] of [[null, "https://app.example"], [{ smoke: false, origin: "http://127.0.0.1:1234" }, "https://app.example"], [{ smoke: true, origin: "https://other.example" }, "https://app.example"], [{ smoke: true, origin: "http://127.0.0.1:1234" }, "http://127.0.0.1:1234"]]) {
+    const context = { exports: {}, require: name => name === "expo-modules-core" ? { requireOptionalNativeModule: () => launch && ({ witnessLaunch: JSON.stringify(launch) }) } : {} };
+    vm.runInNewContext(compiled, context);
+    assert.equal(context.exports.smokeOrigin("https://app.example"), expected);
+  }
 });

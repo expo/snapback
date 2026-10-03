@@ -1,0 +1,11 @@
+{
+  "path": "round7/full-suite.log.gz",
+  "sha256": "940e4baa7cf0058474bfc340ea1f3696214eea62b2b25417127339ee2af8bf4f",
+  "bytes": 167060,
+  "rawSha256": "4f98ce60998957fedd000ba47f370d1b6a76c35d68fd6c0eca2e5593ef8671f3",
+  "rawBytes": 924358,
+  "readBackVerified": true,
+  "summary": "== 0 failure(s) in 2419 s",
+  "exitStatus": 0,
+  "invocations": 1
+}

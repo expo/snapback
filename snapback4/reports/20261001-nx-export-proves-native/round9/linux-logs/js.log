@@ -1,0 +1,142 @@
+✔ installed CLI shim preserves each forwarded child termination signal (171.150948ms)
+✖ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (164.46711ms)
+✖ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (0.761061ms)
+✖ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (0.256625ms)
+✖ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (20.164554ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (1721.936421ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.381382ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (123.158686ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (13.975467ms)
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (247.942847ms)
+✔ negative header topology follows SDK root aliases (0.984675ms)
+✔ config file references bind excluded source bytes and refuse external paths (74.849768ms)
+✖ retention keeps five completed runs, compresses older receipts and leaves active runs alone (14.334275ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (424.445266ms)
+﹣ react-native.config.mjs refuses through the real static preparation adapter (0.198237ms) # SKIP
+✖ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (37.940708ms)
+✖ publication refuses changed inventory and a changed proof; no success receipt (3.551103ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 9
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 314509.867043
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-failure.test.mjs:36:1
+✖ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (164.46711ms)
+  AssertionError [ERR_ASSERTION]: missingError: export lease failed
+      at acquireExportLease (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4-expo/export-ios.mjs:86:54)
+      at main (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4-expo/export-ios.mjs:102:17)
+      at file:///tmp/sb4-wrapper-fault-bkpd3o/[eval1]:1:201
+
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4/test/export-failure.test.mjs:76:14)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /export output publication failed: .*publication.json/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/export-native-round2.test.mjs:15:1
+✖ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (0.761061ms)
+  Error: ENOENT: no such file or directory, mkdtemp '/tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/nx-effective-test-XXXXXX'
+      at Object.mkdtempSync (node:fs:3036:18)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4/test/export-native-round2.test.mjs:16:19)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'mkdtemp',
+    path: '/tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/nx-effective-test-XXXXXX'
+  }
+
+test at packages/snapback4/test/export-native-round2.test.mjs:60:1
+✖ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (0.256625ms)
+  Error: ENOENT: no such file or directory, mkdtemp '/tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/nx-round3-test-XXXXXX'
+      at Object.mkdtempSync (node:fs:3036:18)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4/test/export-native-round2.test.mjs:61:19)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'mkdtemp',
+    path: '/tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/nx-round3-test-XXXXXX'
+  }
+
+test at packages/snapback4/test/export-native-round2.test.mjs:93:1
+✖ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (20.164554ms)
+  Error: spawn /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+      at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+      at onErrorNT (node:internal/child_process:484:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'spawn /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4',
+    path: '/tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4',
+    spawnargs: [ 'witness', 'export-cleanup', '/tmp/sb4-prune-r2-0Y39DC' ]
+  }
+
+test at packages/snapback4/test/export-native.test.mjs:178:1
+✖ retention keeps five completed runs, compresses older receipts and leaves active runs alone (14.334275ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4/test/export-native.test.mjs:189:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/export-publication.test.mjs:31:1
+✖ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (37.940708ms)
+  Error: snapback4: no binary for linux-x64. Packages exist for darwin-arm64 and linux-x64; elsewhere, build with `cargo build --release -p snapback4` and set SNAPBACK4_BIN.
+
+      at acquireExportLease (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4-expo/export-ios.mjs:86:54)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4/test/export-publication.test.mjs:37:13)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+
+test at packages/snapback4/test/export-publication.test.mjs:56:1
+✖ publication refuses changed inventory and a changed proof; no success receipt (3.551103ms)
+  Error: spawnSync /tmp/sb4-nx-r9.O0cNyk/merged/snapback4/target/debug/snapback4 ENOENT
+      at acquireExportLease (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4-expo/export-ios.mjs:86:54)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r9.O0cNyk/merged/snapback4/packages/snapback4/test/export-publication.test.mjs:58:60)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

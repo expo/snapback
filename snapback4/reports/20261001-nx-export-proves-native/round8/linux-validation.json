@@ -1,0 +1,13 @@
+{
+  "sourceFilesVerified": 2359,
+  "mismatches": [],
+  "kernel": "6.8.0-138-generic",
+  "logs": {
+    "logs/build-final.log": "c4baff270d875c61ccf0bd06800646856478bc36c4ebf96e14426094463a7f69",
+    "logs/rust-integration.log": "e4406996564ac4474b0b47c6e1e0beb213f09bdfc3e078ad8eed6ff382e4a9c7",
+    "logs/install.log": "12a864f4878ef3027d059b09dce733b9db28fd2464b68217ea803e2503f15fa4",
+    "logs/build.log": "8f738435d62aec2385d5bdcd8d6f525e07d10af536a9201afe2cc2eca08e9527",
+    "logs/js-export-shim.log": "c2a869003e756e41dbaa2bc645ba6b0ee2be4752365e1f2d8c4f3b242e7eb343",
+    "logs/rust-units.log": "87d5b8e14dc1df0bf189d7a5bc2b91e52461f4cedfa167bf722c2fa452f0ea05"
+  }
+}

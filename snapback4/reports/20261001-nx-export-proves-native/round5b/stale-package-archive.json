@@ -1,0 +1,6 @@
+{
+  "sha256": "a6c0b7697c75dc018a255fd8b1787ca09f0ecff510eb11e5c3f29a647cb038f9",
+  "bytes": 7057733,
+  "path": "round5b/packages/r5-initial-stale-output/snapback4-darwin-arm64-0.4.10.tgz",
+  "recoveredFrom": "npm content cache; SHA-256 matched initial manifest"
+}

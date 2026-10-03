@@ -1,0 +1,18 @@
+Starting Metro Bundler
+
+iOS Bundled 3172ms index.js (725 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-a022886e16e3960bc055accb84842ada.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: dist
+witness: using simulator sb4-nx-recovery-r2-1790919834418-80697 (9000EC5E-4C07-43F2-8A20-EA88CD690B78), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+witness: backend-ready
+witness: recording-started
+witness: waiting-primed

@@ -1,0 +1,19 @@
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (24.655125ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.162083ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (98.075375ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (17.058458ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (91.953625ms)
+✔ negative header topology follows SDK root aliases (1.089584ms)
+✔ audited resolved plugin bytes exclude JS; same-name forks and nonregistry installs bind it (850.889042ms)
+✔ config file references bind excluded source bytes and refuse external paths (4.706375ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (5.59775ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (401.071083ms)
+✔ react-native.config.mjs refuses through the real static preparation adapter (32.034625ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1568.065834

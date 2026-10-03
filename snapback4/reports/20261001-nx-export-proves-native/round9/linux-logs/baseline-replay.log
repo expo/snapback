@@ -1,0 +1,21 @@
+   Compiling snapback4-device v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-device)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 30.59s
+     Running tests/replay.rs (/tmp/sb4-nx-r9.O0cNyk/target/debug/deps/replay-6b4cd690df3ee726)
+
+running 1 test
+store: /tmp/sb4-replay-1014973-w7c-banner-None/.snapback4/store.sqlite
+store: temporary — discarded on exit
+store: temporary — discarded on exit
+test w7c_dev_banner_names_the_store_and_stdout_is_readiness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.08s

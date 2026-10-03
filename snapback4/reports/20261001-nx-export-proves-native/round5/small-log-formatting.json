@@ -1,0 +1,75 @@
+{
+  "transformation": "Only trailing whitespace and extra final blank lines removed from committed small logs; all original bytes archived. Test outcomes and content unchanged.",
+  "files": [
+    {
+      "committed": "round5/js-failure-development.log",
+      "rawArchivePath": "round5/raw-small-logs/js-failure-development.log.gz",
+      "rawBytes": 1888,
+      "rawSha256": "743627fe2535108008b9500983221285a466deb9caca30eeb4277a441544ca0c",
+      "archiveSha256": "42dd464e1c27912e3213e13e1c2c21af721519ec0df03ad2613905d69dc6accc"
+    },
+    {
+      "committed": "round5/linux-integration-anchor-final.log",
+      "rawArchivePath": "round5/raw-small-logs/linux-integration-anchor-final.log.gz",
+      "rawBytes": 2055,
+      "rawSha256": "1c323e18a7c57566b0b4d5c5b64ce7bd5eeebe9314f33b2f2429342ebe0679e4",
+      "archiveSha256": "a77cfa2c9e7038be4ec0f441ceb739597af2ec582068b20234750515982a0f5e"
+    },
+    {
+      "committed": "round5/linux-integration.log",
+      "rawArchivePath": "round5/raw-small-logs/linux-integration.log.gz",
+      "rawBytes": 2056,
+      "rawSha256": "ad2f8e48068fb347fd46dc08937c111a5753f73681588b26b860c50f9c6d518a",
+      "archiveSha256": "5ee06e0981421ea3cf2675a9598a8d27433f2effa17ce595eee939562e2f8549"
+    },
+    {
+      "committed": "round5/linux-witness-anchor-final.log",
+      "rawArchivePath": "round5/raw-small-logs/linux-witness-anchor-final.log.gz",
+      "rawBytes": 4074,
+      "rawSha256": "9524bd3f03713ebc7750b05284f97af06fd6dd55dc4a42d790c5795a99229e77",
+      "archiveSha256": "0745ea33830f5b0dba527016585e182a0f30fc9ba9e634f5f4a6c80ab9dcf247"
+    },
+    {
+      "committed": "round5/linux-witness-final.log",
+      "rawArchivePath": "round5/raw-small-logs/linux-witness-final.log.gz",
+      "rawBytes": 3965,
+      "rawSha256": "1cfdb61d62aeaa8c73c078733d6245abe19c10decbf5695d51aca647bf27dd7c",
+      "archiveSha256": "93d8a4feb56f5efca5307e0e0ea17171f90a83d0cc2bf5d77357ade17a27b04f"
+    },
+    {
+      "committed": "round5/rust-integration-anchor-final.log",
+      "rawArchivePath": "round5/raw-small-logs/rust-integration-anchor-final.log.gz",
+      "rawBytes": 4444,
+      "rawSha256": "36be9d3fdd1023ec0dabdbeaba1ed6a1619c5f5abc9ecb8681cb24cce1a7231e",
+      "archiveSha256": "c056560b08be3f65861d04388f788af36fdfa3ed498d8106218ef8229d743564"
+    },
+    {
+      "committed": "round5/rust-integration.log",
+      "rawArchivePath": "round5/raw-small-logs/rust-integration.log.gz",
+      "rawBytes": 4549,
+      "rawSha256": "b7ab31d66518c6a2ffde60a76d88c673976036133e1d90ac3ae8e6952b868005",
+      "archiveSha256": "8c1876d5c6659e7edbef6cbb19e44fa3bb10469581bae28f91dc1b007cc3f77f"
+    },
+    {
+      "committed": "round5/rust-witness-anchor-final.log",
+      "rawArchivePath": "round5/raw-small-logs/rust-witness-anchor-final.log.gz",
+      "rawBytes": 3506,
+      "rawSha256": "bc0556e73a2353f473fdf14cc4448b6830f3050a409533247a03e71fa21466d0",
+      "archiveSha256": "88ef6a89420c7c95847bbb6fe71a4ae0a46b1177db9accb30af936a6cfc888d9"
+    },
+    {
+      "committed": "round5/rust-witness-development.log",
+      "rawArchivePath": "round5/raw-small-logs/rust-witness-development.log.gz",
+      "rawBytes": 3406,
+      "rawSha256": "27a4fcb794ce748e6bf72dba387ed803e66a70c828468dc7c3dbae9b765909e6",
+      "archiveSha256": "70ec719dcd0b3387a922c9c8b2a375a8fc4d74b43aee978253da2f0a3183429d"
+    },
+    {
+      "committed": "round5/rust-witness-serialized.log",
+      "rawArchivePath": "round5/raw-small-logs/rust-witness-serialized.log.gz",
+      "rawBytes": 3305,
+      "rawSha256": "812ed397bbbfd4303adb7cdb32f02023a4a05ae7730fc81b6b512700457d1a9d",
+      "archiveSha256": "636206593cf7dab4f819ba9823c7bfda2740c52b1efea1149b05e0a090d5f42c"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "base": "e1adc01ddc1066f0f4846657b8471b61288e9c58",
+  "candidate": "adbabda71ecd7eb2027be18212d40ba1164caf6e",
+  "root": "/Users/ccheever/sb4-np/lane-nx",
+  "work": "/Users/ccheever/sb4-np/nx-r5b",
+  "constraints": [
+    "No product code changes",
+    "No pushes or registry publication",
+    "Never target mini-verify-iphone",
+    "LLP 3000.030 section 15 proof/retention limits",
+    "Raw gz/mp4/>256KB outside git; staged blobs under 15MB"
+  ],
+  "measurement": "ABBA repeated three times, six samples per revision per starter; four independently warmed paths; load and top CPU before every sample",
+  "setupErrors": [
+    "First source archive request included nonexistent snapback4/benches and failed before extraction/build; removed that path and retried.",
+    "Round-4 source subset omitted include_str app templates; compile failed. Added unchanged committed apps and benchmark fixtures before retry.",
+    "Shared Cargo target output retained round-4 executable after round-5 reported up to date. SHA equality detected before timed samples; forced cargo clean -p snapback4 --profile production then rebuilt round 5. Primers are preparation, never cohort samples.",
+    "First round-4 plain primer failed: copied DerivedData contained a SwiftShims PCM bound to the old absolute module-cache path. Retained failed receipt and xcode log; removed copied DerivedData, snapshot and native base only in four new project copies before fresh priming. Original projects untouched."
+  ]
+}

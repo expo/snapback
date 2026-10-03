@@ -1,0 +1,8 @@
+{
+  "sourceFilesVerified": 2359,
+  "mismatches": [],
+  "logs": {
+    "build.log": "e822e8cc0c1fd3bdab38a115c035cd29e4ab907b06052e29038aad48b939d484",
+    "rust-units.log": "b61cf6a1c263ed9a31a526a7be636f11defd89ed886bac004edf026ad921933d"
+  }
+}

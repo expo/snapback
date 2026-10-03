@@ -1,0 +1,20 @@
+{
+  "category": "client tests",
+  "failures": [
+    "\u2716 published 0.2.33 capability fence: timeline-v2 (1426.967959ms)",
+    "\u2716 published 0.2.33 capability fence: recorded-attribution (794.1735ms)",
+    "\u2716 published 0.2.33 capability fence: maintained-column (755.36575ms)",
+    "\u2716 failing tests:",
+    "\u2716 published 0.2.33 capability fence: timeline-v2 (1426.967959ms)",
+    "\u2716 published 0.2.33 capability fence: recorded-attribution (794.1735ms)",
+    "\u2716 published 0.2.33 capability fence: maintained-column (755.36575ms)"
+  ],
+  "summary": [
+    "\u2139 tests 5969",
+    "\u2139 pass 5961",
+    "\u2139 fail 3",
+    "\u2139 cancelled 0",
+    "\u2139 skipped 5",
+    "\u2139 duration_ms 1181221.66325"
+  ]
+}

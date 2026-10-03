@@ -1,0 +1,14 @@
+{
+  "stagedBlobBytesBeforeAudit": 6461954,
+  "stagedFilesBeforeAudit": 58,
+  "newFiles": 48,
+  "newBlobBytes": 174921,
+  "largestNewFile": {
+    "path": "snapback4/reports/20261001-nx-export-proves-native/round4/social-prime-final.json",
+    "bytes": 16690
+  },
+  "roundBlobBudgetBytes": 15000000,
+  "newFileLimitBytes": 262144,
+  "forbiddenNewEvidence": [],
+  "passed": true
+}

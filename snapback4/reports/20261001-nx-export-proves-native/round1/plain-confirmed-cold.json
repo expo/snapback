@@ -1,0 +1,54 @@
+{
+  "starter": "plain",
+  "label": "confirmed-cold",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790910700683,
+  "durationMs": 164037,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "2285ff17182763713f447a08ce3e1df583da7205e1bcd2331b536ef92a0201e9",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910703482-14598/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "09e2c48febbe1cb1ab39ba73c88b439f2cbec2f1fbe7021685bdfc733faec8cb"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 160677,
+  "loadedHash": "2285ff17182763713f447a08ce3e1df583da7205e1bcd2331b536ef92a0201e9",
+  "metroResources": [
+    {
+      "path": "assets",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/src",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/src/retired.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 68,
+      "sha256": "c054eec0ca71070d8406b12c9e0b1745c861d337f4818c5fe8334e1b4c0dc425"
+    }
+  ],
+  "cacheMiss": "native-cache miss: no cached Release app; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

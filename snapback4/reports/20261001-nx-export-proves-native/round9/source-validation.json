@@ -1,0 +1,10 @@
+{
+  "canonicalTrackedInputCount": 1818,
+  "changedSinceCanonicalStart": [],
+  "wasmBudgetByteIdenticalToFetchedMain": true,
+  "guide": {
+    "clientWords": 1200,
+    "clientLines": 106,
+    "witnessLines": 399
+  }
+}

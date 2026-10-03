@@ -1,0 +1,35 @@
+✔ installed CLI shim preserves each forwarded child termination signal (1081.34425ms)
+✖ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (6178.937291ms)
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (3313.024083ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (429.634833ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (299.011834ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (365.953833ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7468.979417
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/export-failure.test.mjs:36:1
+✖ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (6178.937291ms)
+  AssertionError [ERR_ASSERTION]: beforenative smoke passed; receipt: /private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-wrapper-fault-saHaFS/artifacts/native-smoke/1790964418184-6022/smoke-ios-run.json
+
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/export-failure.test.mjs:72:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

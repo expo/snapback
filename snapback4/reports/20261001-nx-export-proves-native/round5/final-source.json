@@ -1,0 +1,106 @@
+{
+  "baseCommit": "e1adc01ddc1066f0f4846657b8471b61288e9c58",
+  "files": [
+    {
+      "path": "snapback4/packages/snapback4/bin/snapback4.js",
+      "bytes": 2167,
+      "sha256": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075"
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "bytes": 8357,
+      "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "bytes": 41156,
+      "sha256": "affc60cd1bc9e0ac4c71234b224743e3c04e67e93f9f8f9b1c70c8c316ae8978"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "bytes": 24681,
+      "sha256": "1ee551ab9bf9bcd5c66a52cf2b8d22b6d4286cc18a13ded4d75ccc6ac724e28f"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recorded_process.rs",
+      "bytes": 7812,
+      "sha256": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "bytes": 17672,
+      "sha256": "0b67eeb919b2a707fc2d15b41b1213a3148cd59dc0e688613ad8c2ed281e68a9"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/native-mods.json",
+      "bytes": 1902,
+      "sha256": "f918f557db79ee66e8fbb4a5013e411f00f31b13bd2a55c2435787b60ce2de31"
+    },
+    {
+      "path": "snapback4/target/production/snapback4",
+      "bytes": 14823120,
+      "sha256": "3b2cb92f0fb07c8c5b568a022d947bef8ad88ae8a06aa5314c0bfbe1164dd685"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "bytes": 25801,
+      "sha256": "991e7ee042c1aa87e57aeab6ce3fc6d97aef3f7068947f5186b88dfa3eb1d653"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-failure.test.mjs",
+      "bytes": 8229,
+      "sha256": "eddfa26ab2c6ae08f446ffdd4ecfea2013c624ed5f1a9e4c342c90327d400825"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/publication-interposer.c",
+      "bytes": 1677,
+      "sha256": "ebc5da401428a1985e7a21b2e0fa78eecea76a555b6f9c78fa2a2f8c1eff5aa6"
+    }
+  ],
+  "note": "Final source differs from measured runtime in the abandoned-group leader recheck only; the production binary is the measurement binary. The late guard has separate final Darwin/Linux affected checks; canonical Rust predates it. Guide timing text and additional skip test cases are also identified separately.",
+  "measuredFiles": [
+    {
+      "path": "snapback4/packages/snapback4/bin/snapback4.js",
+      "bytes": 2167,
+      "sha256": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075"
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "bytes": 8357,
+      "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "bytes": 41156,
+      "sha256": "affc60cd1bc9e0ac4c71234b224743e3c04e67e93f9f8f9b1c70c8c316ae8978"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "bytes": 23641,
+      "sha256": "2095c678fa8529b2ca145392d17c366c2d84528550ed54f9ac0a36d86ed66731"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recorded_process.rs",
+      "bytes": 7812,
+      "sha256": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "bytes": 17672,
+      "sha256": "0b67eeb919b2a707fc2d15b41b1213a3148cd59dc0e688613ad8c2ed281e68a9"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/native-mods.json",
+      "bytes": 1902,
+      "sha256": "f918f557db79ee66e8fbb4a5013e411f00f31b13bd2a55c2435787b60ce2de31"
+    },
+    {
+      "path": "snapback4/target/production/snapback4",
+      "bytes": 14823120,
+      "sha256": "3b2cb92f0fb07c8c5b568a022d947bef8ad88ae8a06aa5314c0bfbe1164dd685"
+    }
+  ],
+  "lateRuntimeDelta": [
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs"
+  ]
+}

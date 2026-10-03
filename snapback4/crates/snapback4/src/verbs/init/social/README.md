@@ -21,15 +21,14 @@ is at least once: provider idempotency covers a crash after the call but before
 the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
 contains the complete provider example. There is no separate worker launcher.
 
-At every milestone, run `npm run export:ios` for the Hermes export;
-on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
-The smoke builds and installs the Release app, chooses its own simulator and free
-port, and writes `artifacts/native-smoke/<timestamp>`. It proves local store
-acquisition, cold offline reopen and reconnect. The starter uses normal guest
-sign-in during smoke if no account is restored. An empty partition proves only
-lifecycle; pending write replay and application assertions need the deeper
-scenario in `snapback4 guide witness`. Xcode/runtime installation is a prerequisite;
-the first build takes longer. Hermes export alone proves no native execution.
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
+`npm run native:smoke` always runs the full Release build. Automatic smoke reuses
+only a matching native app, installs the exact exported bundle, chooses its own
+simulator/free port, and writes `artifacts/native-smoke/<timestamp>`. Unavailable
+hosts print a skip; app/SDK failures fail the command. `SNAPBACK4_NATIVE_SMOKE=off`
+opts out. It proves acquisition, cold offline reopen and reconnect; an empty
+partition proves lifecycle only. Pending write replay and application assertions
+need `snapback4 guide witness`. Guest sign-in is the starter's normal auth flow.
 
 Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
 uses the wasm replica; a development/production native build uses

@@ -1,0 +1,24 @@
+{
+  "exactSummary": "== 1 failure(s) in 2287 s",
+  "reportedFailureLines": [
+    {
+      "line": 1092,
+      "text": "-- FAIL rust target: snapback4-lang::guide (5.1 s)"
+    },
+    {
+      "line": 1544,
+      "text": "-- FAIL: cargo test (823 s)"
+    }
+  ],
+  "classification": [
+    {
+      "scope": "cargo test / snapback4-lang::guide",
+      "test": "client::native_smoke_is_the_milestone_path_with_honest_limits",
+      "classification": "introduced documentation-budget regression, fixed",
+      "cause": "Witness guide grew from 399 to 407 lines.",
+      "fix": "Compacted the new paragraph; guide is 399 lines. No budget or guard changed.",
+      "verification": "cargo test -p snapback4-lang --test guide: 110 passed, 0 failed",
+      "fullSuiteRerun": false
+    }
+  ]
+}

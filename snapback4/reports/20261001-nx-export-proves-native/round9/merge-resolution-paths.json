@@ -1,0 +1,23 @@
+{
+  "novelStagedPathsBeforeRound9Evidence": [
+    "issues/closed/20261002-snapback4-cli-shim-signal-exit-zero.md",
+    "llp/3000.030-native-proof-in-minutes.rfc.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4-lang/src/guide/client.md",
+    "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "snapback4/crates/snapback4-lang/tests/guide/client.rs",
+    "snapback4/crates/snapback4/src/main.rs",
+    "snapback4/crates/snapback4/src/verbs/init.rs",
+    "snapback4/crates/snapback4/src/verbs/init/social/README.md",
+    "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "snapback4/crates/snapback4/tests/fixtures/witness-simctl.py",
+    "snapback4/crates/snapback4/tests/init.rs",
+    "snapback4/crates/snapback4/tests/witness.rs",
+    "snapback4/packages/snapback4-expo/README.md",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/packages/snapback4/README.md",
+    "snapback4/packages/snapback4/test/periphery.test.mjs",
+    "snapback4/packages/snapback4/test/witness-preparation.test.mjs"
+  ],
+  "inheritedEvidencePolicy": "Main and lane history are retained unchanged. Size/content checks for this merge distinguish those existing blobs from authored merge resolutions and new round-9 evidence."
+}

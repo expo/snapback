@@ -82,6 +82,7 @@ child.spawnSync = (exe, args, options) => {
   } else if (exe.endsWith('/hermesc')) stdout = 'HBC bytecode version: 98';
   else if (args[1] === 'config') stdout = '{}';
   else if (args[1] === 'prebuild') {
+    if (options.env.EXPO_IMAGE_UTILS_NO_SHARP !== '1') throw Error('native image toolchain must match fingerprint: global sharp disabled');
     if (!fs.existsSync(path.join(options.cwd, 'ios'))) fs.cpSync(path.join(root, 'generated-template'), path.join(options.cwd, 'ios'), { recursive: true, verbatimSymlinks: true });
   }
  else throw Error('unexpected fixture command ' + JSON.stringify([exe, args, options.cwd]));

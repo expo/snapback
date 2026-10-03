@@ -6,8 +6,14 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
-    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
-    "./witness": { "types": "./src/witness.ts", "default": "./src/witness.ts" },
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./witness": {
+      "types": "./src/witness.ts",
+      "default": "./src/witness.ts"
+    },
     "./plugin": "./plugin.cjs",
     "./package.json": "./package.json"
   },
@@ -16,7 +22,8 @@
     "src",
     "ios",
     "expo-module.config.json",
-    "README.md"
+    "README.md",
+    "export-ios.mjs"
   ],
   "peerDependencies": {
     "expo": "*",
@@ -25,5 +32,8 @@
   "devDependencies": {
     "expo-modules-core": "*",
     "typescript": "5.9.3"
+  },
+  "bin": {
+    "snapback4-export-ios": "export-ios.mjs"
   }
 }

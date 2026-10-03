@@ -1,0 +1,22 @@
+✔ generated Expo storage keeps a!b and a~b write custody separate (82.176667ms)
+✔ generated Expo storage keeps a*b and a'b write custody separate (40.854042ms)
+✔ generated Expo storage keeps a(b and a)b write custody separate (37.349625ms)
+✔ generated Expo storage keeps user:01ABC and user_3A01ABC write custody separate (35.059875ms)
+✔ generated Expo storage keeps ab and 慢 write custody separate (36.530333ms)
+✔ generated SecureStore separates formerly colliding backend session keys (43.071584ms)
+✔ recovery refuses an intent with a foreign recorded owner even at the correct safe key (20.862917ms)
+✔ recovery quarantines a valid same-principal journal transplanted from another backend (40.817875ms)
+✔ damaged journal { is preserved without blocking restore or login (1.743334ms)
+✔ damaged journal null is preserved without blocking restore or login (1.648125ms)
+✔ damaged journal {"pending":[],"receipts" is preserved without blocking restore or login (1.338583ms)
+✔ damaged journal {"owner":"alice","backen is preserved without blocking restore or login (1.392167ms)
+✔ unavailable quarantine preserves the original bytes and blocks writes, not sign-in (0.878875ms)
+✔ quarantine naming failure also preserves bytes without refusing sign-in (7.878417ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 515.344042

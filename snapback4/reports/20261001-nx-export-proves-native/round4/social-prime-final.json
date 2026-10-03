@@ -1,0 +1,441 @@
+{
+  "starter": "social",
+  "label": "prime-final",
+  "startedAt": 1790958545130,
+  "durationMs": 139918,
+  "status": 0,
+  "signal": null,
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790958545256-94686/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "913fec08ecb969c7b48c1d27095fca37b656898f43270297a5574b669a3d2aef"
+      }
+    },
+    "hit": false
+  },
+  "exitStatus": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "a9f4d7b06adb2062147d4c9c1b1dc9f93259af41ff46c4c8339c3a561e15d366",
+  "exportHash": "a9f4d7b06adb2062147d4c9c1b1dc9f93259af41ff46c4c8339c3a561e15d366",
+  "publicationProofHash": "f615d2795656595d046d10b1b805250156082ca8044bf7bbfacd7bfccd1310c2",
+  "proofHash": "f615d2795656595d046d10b1b805250156082ca8044bf7bbfacd7bfccd1310c2",
+  "publishedFiles": 32,
+  "evidence": [
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/before-install-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "199ab9931af6d10c880eba488159dbd5e7ac7886d48f284055eda16f42546793",
+      "bytes": 12733,
+      "path": "round4/evidence/social-prime-final/build-settings.log.gz"
+    },
+    {
+      "sha256": "25c18a66242afec8c509b013de77d6e743c406d04bcce61375eaff8812c96d2b",
+      "bytes": 8516058,
+      "path": "round4/evidence/social-prime-final/build.json.gz"
+    },
+    {
+      "sha256": "95e66ec173cd3f6d840ac5c4b88a1555787ae9e2f2eaaf335d1741c19c6ecdce",
+      "bytes": 87,
+      "path": "round4/evidence/social-prime-final/cache-miss.json.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/check-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/check-stderr.log.gz"
+    },
+    {
+      "sha256": "08e01b439526e4f7b2875d9c516d6a7b4b5d3b9c0d8de260c27edeac725164d4",
+      "bytes": 1004,
+      "path": "round4/evidence/social-prime-final/check-stdout.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94,
+      "path": "round4/evidence/social-prime-final/export-developer.log.gz"
+    },
+    {
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27,
+      "path": "round4/evidence/social-prime-final/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92,
+      "path": "round4/evidence/social-prime-final/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27,
+      "path": "round4/evidence/social-prime-final/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106,
+      "path": "round4/evidence/social-prime-final/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25,
+      "path": "round4/evidence/social-prime-final/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92,
+      "path": "round4/evidence/social-prime-final/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102,
+      "path": "round4/evidence/social-prime-final/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95,
+      "path": "round4/evidence/social-prime-final/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53,
+      "path": "round4/evidence/social-prime-final/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "311f1d371f17ffa7bbd5774f14390403e129d7cb711fb6454ef4f35623b0547b",
+      "bytes": 5503,
+      "path": "round4/evidence/social-prime-final/fingerprint-after.log.gz"
+    },
+    {
+      "sha256": "311f1d371f17ffa7bbd5774f14390403e129d7cb711fb6454ef4f35623b0547b",
+      "bytes": 5503,
+      "path": "round4/evidence/social-prime-final/fingerprint-before.log.gz"
+    },
+    {
+      "sha256": "f71459140aabeee7853aa59a2a1e38c5a48f55100fe3d00afae3c34faf9f0bcd",
+      "bytes": 76,
+      "path": "round4/evidence/social-prime-final/finished.json.gz"
+    },
+    {
+      "sha256": "59953af9073f86f5efd4a198d3552f367a461413c8f68fdabc14a919dca4118b",
+      "bytes": 198,
+      "path": "round4/evidence/social-prime-final/hermes-version.log.gz"
+    },
+    {
+      "sha256": "4a9514a0816c6c6d8b1570423a457ef7a9e45717029e5c874818a713d862ba51",
+      "bytes": 4662,
+      "path": "round4/evidence/social-prime-final/installed.json.gz"
+    },
+    {
+      "sha256": "e87925d55029e56be3f5856112ce81cdc0118476b0bca41a51713b5e359c51d0",
+      "bytes": 488,
+      "path": "round4/evidence/social-prime-final/live.json.gz"
+    },
+    {
+      "sha256": "3a44955c93565de06bff2ce0392722fe9bbe69dbbc6d05af1cb82e102ff1f4ab",
+      "bytes": 9122214,
+      "path": "round4/evidence/social-prime-final/native-base.json.gz"
+    },
+    {
+      "sha256": "0ed7640ea075e508f6cad89357a85bb5e18f45563693fc6041db55dab991c8bf",
+      "bytes": 402690,
+      "path": "round4/evidence/social-prime-final/native-closure.json.gz"
+    },
+    {
+      "sha256": "0ac68d5d3f6789ce7b9588da1ece7258c10812add10e398812314341c57fcb0d",
+      "bytes": 881,
+      "path": "round4/evidence/social-prime-final/native-mods.json.gz"
+    },
+    {
+      "sha256": "e3ec7fe1bd8eafc0d85a465b9e8b22aecb3d73d586042e2eb1681b5412d093da",
+      "bytes": 5676,
+      "path": "round4/evidence/social-prime-final/plist-23.log.gz"
+    },
+    {
+      "sha256": "cf405d15110ee57aa5f2e0da69f4066c1c5f2ec913c4c58af7e36c89e5da1dda",
+      "bytes": 299054,
+      "path": "round4/evidence/social-prime-final/plist-25.log.gz"
+    },
+    {
+      "sha256": "e6e23cb3f38525466fd6964bdce78b8828cee52bca405a063ccceab7cb1819e4",
+      "bytes": 980,
+      "path": "round4/evidence/social-prime-final/plist-29.log.gz"
+    },
+    {
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27,
+      "path": "round4/evidence/social-prime-final/pod-version.log.gz"
+    },
+    {
+      "sha256": "5ad975d423c367d2be100bf1a660bbc1d16e04f60ef8f2c979aa1131357d6678",
+      "bytes": 2841,
+      "path": "round4/evidence/social-prime-final/pods.log.gz"
+    },
+    {
+      "sha256": "d93e5041159a08b8927f0e437826a4d2250feaf1013409c501ad57f1fc604b80",
+      "bytes": 152,
+      "path": "round4/evidence/social-prime-final/prebuild.log.gz"
+    },
+    {
+      "sha256": "d65cf6142ea54fba6b8994c22b99dbf64e068e2da89a38515d31da2b416f7a15",
+      "bytes": 3239,
+      "path": "round4/evidence/social-prime-final/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/preparation-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/preserve-app.log.gz"
+    },
+    {
+      "sha256": "c9332bf0f0b40fb0f59c91374c6714a9344253c1b81ae539d90f14ee969107d6",
+      "bytes": 12239,
+      "path": "round4/evidence/social-prime-final/proof.json.gz"
+    },
+    {
+      "sha256": "55902d8a161b46e203448fc431c4281d2c592698b9273d833b7f01142e76c7fe",
+      "bytes": 284,
+      "path": "round4/evidence/social-prime-final/public-config.log.gz"
+    },
+    {
+      "sha256": "0c935dba6b93a6822bffc8950ef1749b816664401568d3bed2698c9d07189341",
+      "bytes": 1953,
+      "path": "round4/evidence/social-prime-final/publication.json.gz"
+    },
+    {
+      "sha256": "74b5f60b011903d88e3e151bfbc003616565ebdac5819b68bca640093fbe0b83",
+      "bytes": 2310511,
+      "path": "round4/evidence/social-prime-final/resolved-native.json.gz"
+    },
+    {
+      "sha256": "64ad013cf18f27358a725af950c0da47edc2183cb624729b986f620b1b70ba9c",
+      "bytes": 1216,
+      "path": "round4/evidence/social-prime-final/runtime.log.gz"
+    },
+    {
+      "sha256": "16c9a18d0fd8505ff8913da1c4524fa2ed71d9900767957606976622062bf1cf",
+      "bytes": 939,
+      "path": "round4/evidence/social-prime-final/schemes.log.gz"
+    },
+    {
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27,
+      "path": "round4/evidence/social-prime-final/sdk-build.log.gz"
+    },
+    {
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106,
+      "path": "round4/evidence/social-prime-final/sdk-path.log.gz"
+    },
+    {
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25,
+      "path": "round4/evidence/social-prime-final/sdk-version.log.gz"
+    },
+    {
+      "sha256": "25c00eac38f43917db70d8b5bee3d8faa3b8cee186a89c7615ed3d5fff41eef7",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "36fc5d8f2c5ec3fb24be93e5875a9e76b15c61af7f9b8b0484cf4a9c423674e0",
+      "bytes": 545,
+      "path": "round4/evidence/social-prime-final/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "99985fce98807a66a58352a9bcaad410d89f82466d7ee6c14e22d5b20e193cd0",
+      "bytes": 384352,
+      "path": "round4/evidence/social-prime-final/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "8f7912f988fe17ced44a37220bcc39b5669ab9c2034190a76b8547e34a314f4e",
+      "bytes": 61,
+      "path": "round4/evidence/social-prime-final/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64,
+      "path": "round4/evidence/social-prime-final/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "1b25ba455d9f3a5d8bcc634038898669a24e2c7d0de2e4322e8b4d728c8f44c8",
+      "bytes": 29904,
+      "path": "round4/evidence/social-prime-final/smoke-ios-offline.png.gz"
+    },
+    {
+      "sha256": "1b25ba455d9f3a5d8bcc634038898669a24e2c7d0de2e4322e8b4d728c8f44c8",
+      "bytes": 29904,
+      "path": "round4/evidence/social-prime-final/smoke-ios-prime.png.gz"
+    },
+    {
+      "sha256": "f56597d7ce9009f531986561e611e24190dbbe423e21a7683c5be4fa1a6e2262",
+      "bytes": 1331,
+      "path": "round4/evidence/social-prime-final/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "1b25ba455d9f3a5d8bcc634038898669a24e2c7d0de2e4322e8b4d728c8f44c8",
+      "bytes": 29904,
+      "path": "round4/evidence/social-prime-final/smoke-ios-restart.png.gz"
+    },
+    {
+      "sha256": "950f5ea950462110ef2a5ac574ac876d5a37d13a8000edf6ecbeb95f823fe9e9",
+      "bytes": 5157,
+      "path": "round4/evidence/social-prime-final/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "0d3e7f2406daef2e1664b4eae7a2fa29dce49dc9492d6afcb2937d64f5671e97",
+      "bytes": 4480142,
+      "path": "round4/evidence/social-prime-final/smoke-ios-screen.mp4.gz"
+    },
+    {
+      "sha256": "d910ac807c01b035bd086d48971476e0c0d48ff0f4ff467df8e5e00295062698",
+      "bytes": 138,
+      "path": "round4/evidence/social-prime-final/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/snapshot.log.gz"
+    },
+    {
+      "sha256": "f57cbb012c1489d080135dd5f38e81a0753fac17b769d4b239a7869ee9743bbd",
+      "bytes": 2300,
+      "path": "round4/evidence/social-prime-final/source-inputs.json.gz"
+    },
+    {
+      "sha256": "e2499fadd921a26ec356fe225d7f8f203f8b99fd432984ef338dea8b91d889b1",
+      "bytes": 24330,
+      "path": "round4/evidence/social-prime-final/target-settings-0.log.gz"
+    },
+    {
+      "sha256": "2c9b1b85cea2bab19758d5f0ce414415b6485c21ed9edd4be8876daf9e339563",
+      "bytes": 907970,
+      "path": "round4/evidence/social-prime-final/target-settings-1.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "f2c5b6543c71f4d3fc8e8ce69978c5b2b1667eee602f34894c42678731efacff",
+      "bytes": 46,
+      "path": "round4/evidence/social-prime-final/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20,
+      "path": "round4/evidence/social-prime-final/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "d616ea98eb3136a9663131f2af6415345e6e311b454415145da7c7d088e4fe20",
+      "bytes": 487376,
+      "path": "round4/evidence/social-prime-final/xcode-build.log.gz"
+    },
+    {
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53,
+      "path": "round4/evidence/social-prime-final/xcode-version.log.gz"
+    }
+  ]
+}

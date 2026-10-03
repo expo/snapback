@@ -1,0 +1,13 @@
+{
+  "starter": "plain",
+  "label": "missing-runtime",
+  "startedAt": 1790896166200,
+  "durationMs": 3146,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "50a8680506d59cf33a276ab8e175e6f11694c7ac1262f4a85ff5ae3354f21c93",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790896169079-47667/smoke-ios-run.json",
+  "receiptExit": 1,
+  "phase": "environment",
+  "error": "E_WITNESS_PLATFORM: native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)"
+}

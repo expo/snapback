@@ -1,0 +1,37 @@
+node:fs:561
+  return binding.open(
+                 ^
+
+Error: ENOENT: no such file or directory, open '/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist/metadata.json'
+    at Object.openSync (node:fs:561:18)
+    at Object.readFileSync (node:fs:445:35)
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round1/run.mjs:20:32
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist/metadata.json'
+}
+
+Node.js v24.18.0
+node:fs:561
+  return binding.open(
+                 ^
+
+Error: ENOENT: no such file or directory, open '/Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round1/plain-cold.json'
+    at Object.openSync (node:fs:561:18)
+    at Object.readFileSync (node:fs:445:35)
+    at run (file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round1/warm.mjs:9:137)
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round1/warm.mjs:10:59
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round1/plain-cold.json'
+}
+
+Node.js v24.18.0

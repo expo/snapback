@@ -1,0 +1,24 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4)
+warning: variable does not need to be mutable
+  --> crates/snapback4/src/verbs/witness/preparation.rs:38:13
+   |
+38 |         let mut child = Command::new("node").arg(runner).arg(&result).arg(command).args(args)
+   |             ----^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (bin "snapback4") generated 1 warning (run `cargo fix --bin "snapback4" -p snapback4` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized] target(s) in 3.83s

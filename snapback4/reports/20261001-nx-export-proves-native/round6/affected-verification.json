@@ -1,0 +1,92 @@
+{
+  "checks": [
+    {
+      "host": "mini",
+      "log": "rust-witness-mini.log",
+      "sha256": "b0ed4232503474906608ae778a31f048972f37182691aeb62f273ffed3e3b788",
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 207,
+      "seconds": 2.85,
+      "originalSha256": "b63655e9979f0601163f42ab21a292795c175002679411be7f1fa7528b51b2fa",
+      "originalArchive": "round6/rust-witness-mini.log.gz"
+    },
+    {
+      "host": "mini",
+      "log": "rust-integration-mini.log",
+      "sha256": "2076f6a7a262c041e05f2aa65a88177c519c8380170ccc64a083d85f6ee050ba",
+      "result": "ok",
+      "passed": 53,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0,
+      "seconds": 132.32,
+      "originalSha256": "dc26454dadb4d25fd1f8b79250c2791e216e30ab21fef4438cb43e347f25dd54",
+      "originalArchive": "round6/rust-integration-mini.log.gz"
+    },
+    {
+      "host": "linux",
+      "log": "linux-logs/rust-witness-linux.log",
+      "sha256": "ff4f8e1de2654b68ea328f86e0472809106fd15076e6a1e4b2fef66b66d2e6f0",
+      "result": "ok",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 207,
+      "seconds": 10.61,
+      "originalSha256": "0f96d042f475facea564d6cdde33f12cf07d7dcc67f3f49bf25ef6af566ebd17",
+      "originalArchive": "round6/linux-logs/rust-witness-linux.log.gz"
+    },
+    {
+      "host": "linux",
+      "log": "linux-logs/rust-integration-linux.log",
+      "sha256": "a08de92511ee0b22453fc86d6db191aeba4129c6bff4518c463d0229e7611f61",
+      "result": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0,
+      "seconds": 0.14,
+      "originalSha256": "26539a98a449ea150e7327da717dc397a5471419eb71ed68ad25e93dc0883f89",
+      "originalArchive": "round6/linux-logs/rust-integration-linux.log.gz"
+    },
+    {
+      "host": "mini-node24",
+      "log": "js-export-shim-mini-node24.log",
+      "sha256": "3a0dca60e6a8ae6dc9b3a361a78e9ada59a330c9881736a05832fafa9998e4e3",
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "skipped": 0
+    },
+    {
+      "host": "linux",
+      "log": "linux-logs/js-export-shim-linux-installed.log",
+      "sha256": "9f4139be9222577a04a0825d6fbc1bee080947ced46c57e52ce9d1fdd7db61d2",
+      "tests": 19,
+      "pass": 18,
+      "fail": 0,
+      "skipped": 1
+    }
+  ],
+  "linuxCleanup": {
+    "scratch": "/tmp/sb4-nx-r6.yhcFoC",
+    "deleted": true,
+    "host": "expose-builder-pixel"
+  },
+  "canonicalSuite": {
+    "summary": "== 0 failure(s) in 2253 s",
+    "exitStatus": 0,
+    "invocations": 1,
+    "clientPass": 5767,
+    "clientFail": 0,
+    "clientSkip": 5,
+    "modelsPass": 79,
+    "guidePass": 110,
+    "witnessIntegrationPass": 53,
+    "cliUnitsPass": 232,
+    "cliUnitsIgnored": 4
+  }
+}

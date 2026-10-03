@@ -1,0 +1,25 @@
+{
+  "host": "expose-builder-pixel",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "node": "v24.13.1",
+  "logs": {
+    "rust-witness-linux-setup-failure.log": "fddb4e266c8473629335e8f61214369e21418a94ede2245d0b4d353c294c411d",
+    "js-export-shim-linux.log": "b960ef7347965b589b1cca531ac87e086631e2f48f183a0f5fd0e3b53b74d1eb",
+    "js-export-shim-linux-installed.log": "9f4139be9222577a04a0825d6fbc1bee080947ced46c57e52ce9d1fdd7db61d2",
+    "bun-install-linux.log": "9ac7a4fdc02de62a52d9e2eb05d68ac11f98fb12733cfc26dda5b1dd3c309ceb",
+    "rust-integration-linux.log": "26539a98a449ea150e7327da717dc397a5471419eb71ed68ad25e93dc0883f89",
+    "status.txt": "1105f686fe0898c24d61fae2a303a2fca99df0869bcec04bfd25a36c81bd92fb",
+    "rust-witness-linux.log": "0f96d042f475facea564d6cdde33f12cf07d7dcc67f3f49bf25ef6af566ebd17"
+  },
+  "files": {
+    "snapback4/crates/snapback4/src/verbs/witness/simulator.rs": "fa6c31eb87fb530af12216e651b814a286a05271d1bcb4aa9dcf69fc99095136",
+    "snapback4/crates/snapback4/src/verbs/witness/recorded_process.rs": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3",
+    "snapback4/crates/snapback4/src/verbs/witness/protocol.rs": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4",
+    "snapback4/crates/snapback4/src/verbs/witness/smoke.rs": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "74b9a17601e6d845be46dc3f32bf64a52af9d1f9686f71b957feb645bbc8b1be",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "9825d43253a40c0c4496995e0c802baa59f9c99390d77777d32a6537078ca618",
+    "snapback4/crates/snapback4/src/verbs/witness/ownership.rs": "164a448ab56eb584b924c81c923558d0b43e3d5e85205f85b9caf7c275e9d364",
+    "snapback4/crates/snapback4/src/verbs/witness/publication.rs": "d75ebdfc8be443598589d390479374566012007e9e8134afb49cf38298e29bf6",
+    "snapback4/crates/snapback4/src/verbs/witness/acquire.rs": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202"
+  }
+}

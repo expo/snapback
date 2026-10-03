@@ -1,0 +1,8 @@
+init: wrote 19 files in /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain — Expo: native when available, online in Expo Go — next: `snapback4 check`, then `snapback4 dev`; see README.md
+npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+
+added 507 packages in 41s
+check: ok — 6 tables (5 synced), 11 operations, no problems, 1 note, 71.9 ms
+note: schema.q:76:1 — N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue
+1 mutations never predict: markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation

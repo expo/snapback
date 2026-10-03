@@ -1,0 +1,49 @@
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded aead v0.5.2
+  Downloaded wasmi_core v2.0.0
+  Downloaded chacha20 v0.9.1
+  Downloaded wasmparser v0.228.0
+  Downloaded wasmi v2.0.0
+  Downloaded inout v0.1.4
+  Downloaded httpdate v1.0.3
+  Downloaded opaque-debug v0.3.1
+  Downloaded ascii v1.1.0
+  Downloaded wasmi_ir v2.0.0
+  Downloaded poly1305 v0.8.0
+  Downloaded universal-hash v0.5.1
+  Downloaded string-interner v0.19.0
+  Downloaded spin v0.9.9
+  Downloaded unicode-normalization v0.1.25
+  Downloaded wasmi_collections v2.0.0
+  Downloaded hmac v0.12.1
+  Downloaded chunked_transfer v1.5.0
+  Downloaded chacha20poly1305 v0.10.1
+  Downloaded cipher v0.4.4
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling cpufeatures v0.2.17
+   Compiling shlex v2.0.1
+   Compiling libm v0.2.16
+   Compiling find-msvc-tools v0.1.12
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.34
+   Compiling serde_core v1.0.229
+   Compiling cfg-if v1.0.4
+   Compiling cc v1.4.5
+   Compiling libc v0.2.189
+error: linker `cc` not found
+  |
+  = note: No such file or directory (os error 2)
+
+   Compiling bitflags v2.13.2
+error: could not compile `quote` (build script) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `proc-macro2` (build script) due to 1 previous error
+error: could not compile `libm` (build script) due to 1 previous error
+error: could not compile `serde_core` (build script) due to 1 previous error
+error: could not compile `libc` (build script) due to 1 previous error

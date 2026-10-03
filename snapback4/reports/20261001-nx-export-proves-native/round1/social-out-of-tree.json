@@ -1,0 +1,19 @@
+{
+  "starter": "social",
+  "label": "out-of-tree",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790910189506,
+  "durationMs": 7172,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "ed8891f23c3099102bc096ee36590fc7df5382e2b509e2e1a5b586115868d51f",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790910193088-3243/smoke-ios-run.json",
+  "receiptExit": 1,
+  "phase": "preparation",
+  "error": "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790910193088-3243/preparation-stderr.log"
+}

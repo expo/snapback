@@ -1,0 +1,86 @@
+[
+  {
+    "starter": "plain",
+    "digest": "a6b16c6dd9e8cb4130f2f48627bc5992d7d2097a59c799f10ecd006faa75cf63",
+    "plugin": "e084ea56e7d1fd99b9fd93f8f7327432fc4631824328b9772cd3ae9e97deb6ac",
+    "delta": [
+      {
+        "path": "snapback4/bin/snapback4.js",
+        "before": {
+          "path": "snapback4/bin/snapback4.js",
+          "mode": 493,
+          "type": "file",
+          "bytes": 1210,
+          "sha256": "40870635d4d33f28439e2bc8679afd0d99793904b36f81a504898f7ad468fe68"
+        },
+        "after": {
+          "path": "snapback4/bin/snapback4.js",
+          "mode": 511,
+          "type": "file",
+          "bytes": 1613,
+          "sha256": "aaa4f85b9d33b23db92e10e2fd9cf02b9eb82424b9cd43118cd27567dc99ee0b"
+        }
+      },
+      {
+        "path": "snapback4-expo/export-ios.mjs",
+        "before": {
+          "path": "snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 4995,
+          "sha256": "cd6af2fe8ae70758d4e92cc3a618cdc03133cf909698333eabbb525e406e67ab"
+        },
+        "after": {
+          "path": "snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 5978,
+          "sha256": "6fcd2fd6539f1044684164ae61c444225f3a641f7870d87548c873cb5c671a90"
+        }
+      }
+    ],
+    "reason": "Only the export wrapper and CLI descriptor forwarding changed; neither is a config plugin or native image writer."
+  },
+  {
+    "starter": "social",
+    "digest": "5e284a7e5559ab940f8723a733e148f920d47408106f7060e057d8b7681f2a52",
+    "plugin": "e084ea56e7d1fd99b9fd93f8f7327432fc4631824328b9772cd3ae9e97deb6ac",
+    "delta": [
+      {
+        "path": "snapback4/bin/snapback4.js",
+        "before": {
+          "path": "snapback4/bin/snapback4.js",
+          "mode": 493,
+          "type": "file",
+          "bytes": 1210,
+          "sha256": "40870635d4d33f28439e2bc8679afd0d99793904b36f81a504898f7ad468fe68"
+        },
+        "after": {
+          "path": "snapback4/bin/snapback4.js",
+          "mode": 511,
+          "type": "file",
+          "bytes": 1613,
+          "sha256": "aaa4f85b9d33b23db92e10e2fd9cf02b9eb82424b9cd43118cd27567dc99ee0b"
+        }
+      },
+      {
+        "path": "snapback4-expo/export-ios.mjs",
+        "before": {
+          "path": "snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 4995,
+          "sha256": "cd6af2fe8ae70758d4e92cc3a618cdc03133cf909698333eabbb525e406e67ab"
+        },
+        "after": {
+          "path": "snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 5978,
+          "sha256": "6fcd2fd6539f1044684164ae61c444225f3a641f7870d87548c873cb5c671a90"
+        }
+      }
+    ],
+    "reason": "Only the export wrapper and CLI descriptor forwarding changed; neither is a config plugin or native image writer."
+  }
+]

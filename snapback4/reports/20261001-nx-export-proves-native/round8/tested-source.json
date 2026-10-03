@@ -1,0 +1,9 @@
+{
+  "snapback4/crates/snapback4-lang/src/guide/witness.md": "85559f4b23f6f0662ec06a92b67e50fb8149463b7f4c5b124e29de1a2460e075",
+  "snapback4/crates/snapback4/src/main.rs": "abe10bb3485b843ddaa8613c55c276f79f458ca090d855db3699dff753c2e826",
+  "snapback4/crates/snapback4/src/verbs/witness.rs": "f40c025e6027b3e7f90961bf35ebac77309b2c84767c77c67dc80af33004fc7c",
+  "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "1b44dc5bb1952ee924648709ddcbfcc0aae2b829ea90343223f63ec610650352",
+  "snapback4/crates/snapback4/src/verbs/witness/process_group.rs": "82204cfb873f7f6e1b7ceb0b8fc08c118071e98ac73aaae82c5ea24f15fbb587",
+  "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "7565206b0df154572ee8c3e2abf942decdd26932d332d1578d2effad0acae24e",
+  "snapback4/crates/snapback4/tests/witness.rs": "f99ca85e1ff21db4c4303b0d4046c945cfe139d7abfe52778e0b4b93d7992689"
+}

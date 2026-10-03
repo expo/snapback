@@ -1,0 +1,39 @@
+{
+  "base": "9b7dc784049646a83d4a951f69c37bd326e9b781",
+  "localScratch": "/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-nx-r8-qn5gaifo",
+  "linuxScratch": "/tmp/sb4-nx-r8.2Of3jA",
+  "files": 2359,
+  "sourceSha256": "12a00a76a31c40a562a607bb2240f35ad442615779a5debcebbdf2447eb804aa",
+  "initialSourceArchive": {
+    "path": "round8/source-initial.tar.gz",
+    "sha256": "12a00a76a31c40a562a607bb2240f35ad442615779a5debcebbdf2447eb804aa",
+    "bytes": 9219376
+  },
+  "finalSourceArchive": {
+    "path": "round8/source-final.tar.gz",
+    "sha256": "dc345a17d383aa80b82896d8ea5bc2f2441bfb053bbe83937f3dbc842b3b55d9",
+    "bytes": 9219426
+  },
+  "finalSourceManifest": {
+    "path": "round8/source-manifest-final.json.gz",
+    "sha256": "4412db8ef9f86e3b399d4cb5098464573daf73c03d9747ef54af9db62dfa096b",
+    "bytes": 114132
+  },
+  "overlayAfterInitialTransfer": [
+    "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+    "snapback4/crates/snapback4/tests/witness.rs"
+  ],
+  "testOnlyScopeFollowup": {
+    "linuxScratch": "/tmp/sb4-nx-r8-final.DZuddG",
+    "sourceArchive": {
+      "path": "round8/source-private-root.tar.gz",
+      "sha256": "39dab8e27d230c08a3eb0b667b4a90f069be4217d644d1ec3afbc5e658885aa6",
+      "bytes": 9220101
+    },
+    "sourceManifest": {
+      "path": "round8/source-manifest-private-root.json.gz",
+      "sha256": "5618ea2055fc9b4a58dcf0f260fa2ff912a95ff0455e8c4495c8fbcf296bef4b",
+      "bytes": 114135
+    }
+  }
+}

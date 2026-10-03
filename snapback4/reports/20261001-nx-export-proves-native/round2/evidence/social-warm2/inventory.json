@@ -1,0 +1,212 @@
+[
+  {
+    "name": "before-install-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "before-install-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "build.json",
+    "sha256": "1e0627d7ff0a10384fd12b7cb0a0c85e42102f3ba0aded504d1cd137596ad617",
+    "bytes": 58600
+  },
+  {
+    "name": "check-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "check-stdout.log",
+    "sha256": "e8125797644a24800f8e65e066ec5557da19b29341b428b16192fb245d116f5f",
+    "bytes": 2513
+  },
+  {
+    "name": "export-copy-base.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "export-developer.log",
+    "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+    "bytes": 93
+  },
+  {
+    "name": "export-pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "bytes": 7
+  },
+  {
+    "name": "export-ruby-version.log",
+    "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+    "bytes": 72
+  },
+  {
+    "name": "export-sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "bytes": 7
+  },
+  {
+    "name": "export-sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+    "bytes": 117
+  },
+  {
+    "name": "export-sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "bytes": 5
+  },
+  {
+    "name": "export-tool-ld.log",
+    "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+    "bytes": 90
+  },
+  {
+    "name": "export-tool-swift-frontend.log",
+    "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+    "bytes": 102
+  },
+  {
+    "name": "export-tool-swiftc.log",
+    "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+    "bytes": 94
+  },
+  {
+    "name": "export-xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "bytes": 33
+  },
+  {
+    "name": "finished.json",
+    "sha256": "c76dfb6c15f8cba513fc66d814cc2bba481503e9ee9a8db326808a01386235d3",
+    "bytes": 28
+  },
+  {
+    "name": "installed.json",
+    "sha256": "6c9f75f564e88451fabbe4bda1fccc82ba67d15421ab12d5190e940ff3a193f1",
+    "bytes": 25844
+  },
+  {
+    "name": "live.json",
+    "sha256": "ad3e782bd32b4b323654858b798989aff7696e1a3e0a6242bf16327326082cf3",
+    "bytes": 897
+  },
+  {
+    "name": "native-mods.json",
+    "sha256": "d58c35451d059be40afc09615a478762023cc4b3b750c92ab6b6d4b4a192db7c",
+    "bytes": 1274
+  },
+  {
+    "name": "preparation-phases.json",
+    "sha256": "5c892e07631c533abfa57399b89ac157ac2fda3e4ca3bcf24f7d7ccba796a016",
+    "bytes": 4717
+  },
+  {
+    "name": "preparation-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "preparation-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "proof.json",
+    "sha256": "0d04328a5840c1575c6539d54f58d6cdae455cca5bb041d1ab8159e3a59690c1",
+    "bytes": 76802
+  },
+  {
+    "name": "smoke-ios-backend-stdout.log",
+    "sha256": "7a239ec617aa23e03b3fa0cfe43a238314583cb28e7be0de1537dfcfae63d6ef",
+    "bytes": 46
+  },
+  {
+    "name": "smoke-ios-backend.log",
+    "sha256": "ed27037d8bae4620ed84c266ccfbbe48b091c81237a1b36bc2f5e9d03e631efd",
+    "bytes": 2020
+  },
+  {
+    "name": "smoke-ios-device.log",
+    "sha256": "32256075afc87149f6ffd93f8b9ef1c2dea35b960ee262739b6f846d2bf14ce8",
+    "bytes": 9742140
+  },
+  {
+    "name": "smoke-ios-launch.log",
+    "sha256": "99d66bb461b12b61e43c69d29aadc0c9f232c548fdd1f7621e183c0d8f7915a3",
+    "bytes": 84
+  },
+  {
+    "name": "smoke-ios-log-stderr.log",
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "bytes": 44
+  },
+  {
+    "name": "smoke-ios-receipts.jsonl",
+    "sha256": "1527e0a29a1f76a98f989cf1281bb87270ac42fb661831de56c76fe36c25f47a",
+    "bytes": 6873
+  },
+  {
+    "name": "smoke-ios-run.json",
+    "sha256": "98234a0e1c1b984b6850c9abe4c5debcc7c11649d6735b71906de9b930e4a09a",
+    "bytes": 29905
+  },
+  {
+    "name": "smoke-ios-video.log",
+    "sha256": "37043c49bbb2da891689c3f5ef3922d66e8124b4fe7e6ae73d3d2542c5d427e9",
+    "bytes": 131
+  },
+  {
+    "name": "verify-collection-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-collection-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-install-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-install-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-offline-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-offline-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-prime-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-prime-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-restart-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "verify-restart-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+]

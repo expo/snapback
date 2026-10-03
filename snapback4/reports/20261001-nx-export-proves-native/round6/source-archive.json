@@ -1,0 +1,21 @@
+{
+  "archive": "/Users/ccheever/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs",
+  "entries": [
+    {
+      "path": "round6/source/source.tar.gz",
+      "sha256": "e2cddf0bdf8cb79a9229f790e0eede6a6c6c8a93d24b11ab92f074971aedf149",
+      "bytes": 18197525
+    },
+    {
+      "path": "round6/source/fixtures.tar",
+      "sha256": "dd1fe782964359e6ba733300875f08fa751cee3c131f13c7699dd051f702821a",
+      "bytes": 30720
+    },
+    {
+      "path": "round6/source/resolver.tar",
+      "sha256": "1bfc5794bc18039b8766708ea611face2b0625b20a578994bfcebdb732416e43",
+      "bytes": 10240
+    }
+  ],
+  "readBackVerified": true
+}

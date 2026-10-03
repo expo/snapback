@@ -1,0 +1,11 @@
+{
+  "atMs": 1790981321862,
+  "host": "MacMini-Apt101-M5-A",
+  "hardware": "machdep.cpu.brand_string: Apple M5 Pro\nhw.logicalcpu: 18\nhw.memsize: 68719476736",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+  "load": [
+    67.896484375,
+    123.8330078125,
+    90.728515625
+  ]
+}

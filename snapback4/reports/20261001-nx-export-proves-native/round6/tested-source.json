@@ -1,0 +1,6 @@
+{
+  "snapback4/crates/snapback4-lang/src/guide/witness.md": "6847054c6bcda7874794f6e35dd66e491e55a518dd84cf9174da88f3ac9483a5",
+  "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "9825d43253a40c0c4496995e0c802baa59f9c99390d77777d32a6537078ca618",
+  "snapback4/crates/snapback4/src/verbs/witness/publication.rs": "d75ebdfc8be443598589d390479374566012007e9e8134afb49cf38298e29bf6",
+  "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "74b9a17601e6d845be46dc3f32bf64a52af9d1f9686f71b957feb645bbc8b1be"
+}

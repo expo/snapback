@@ -1,0 +1,18 @@
+{
+  "plain": {
+    "runs": 43,
+    "fullEvidenceRuns": 5,
+    "temporaryDirectories": 0,
+    "perRunApps": 0,
+    "originalEvidenceBytes": 375949876,
+    "retainedReceiptFiles": 206
+  },
+  "social": {
+    "runs": 35,
+    "fullEvidenceRuns": 5,
+    "temporaryDirectories": 0,
+    "perRunApps": 0,
+    "originalEvidenceBytes": 427398586,
+    "retainedReceiptFiles": 164
+  }
+}

@@ -1,0 +1,34 @@
+✖ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (546.970209ms)
+native smoke evidence cleanup deferred: spawnSync /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-prune-r2-avoYIa/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (197.434542ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 829.363375
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-native-round2.test.mjs:15:1
+✖ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (546.970209ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'first'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/export-native-round2.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'first',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

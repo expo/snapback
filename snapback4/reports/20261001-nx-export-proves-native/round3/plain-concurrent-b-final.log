@@ -1,0 +1,18 @@
+Starting Metro Bundler
+
+| (node:63132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 2662ms index.js (725 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-b8bbab315d69c24c2871b76943f781b4.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790949454629-63131/export
+E_WITNESS_PROCESS: another witness holds the --udid lease; leaving it untouched; see snapback4 guide witness
+native smoke failed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790949454629-63131/smoke-ios-run.json

@@ -1,0 +1,20 @@
+{
+  "trees": [
+    {
+      "revision": "e1adc01ddc",
+      "trackedTreeSha256": "daa4442da5f9b634dd2e49f25177d4df2ddef036bc82facab3abac85f41a3b69",
+      "trackedFiles": 1747
+    },
+    {
+      "revision": "adbabda71e",
+      "trackedTreeSha256": "c8beab4c2d5587bc508cdb7408415fc2ddd297a548e5e1af68fc215f6328044c",
+      "trackedFiles": 1750
+    }
+  ],
+  "productDiffBeforeMeasurement": "",
+  "toolchain": {
+    "node": "v24.18.0",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "xcode": "Xcode 27.0\nBuild version 27A266a"
+  }
+}

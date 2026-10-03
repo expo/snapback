@@ -1,0 +1,44 @@
+== cargo build
+-- ok: cargo build (9 s)
+== wasm build
+-- ok: wasm build (19 s)
+== docs budget
+-- ok: docs budget (24 s)
+== release guard
+-- ok: release guard (1 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- rust target: snapback4-lang::guide (3.7 s): test result: ok. 110 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.35s
+-- rust target: snapback4::snapback4 (40.2 s): test result: ok. 235 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 39.83s
+-- rust target: snapback4::witness (514.2 s): test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 514.03s
+-- ok: cargo test (1039 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (5 s)
+-- available CPUs: 18; client file concurrency: 6
+== client tests
+-- client test files: 283; concurrency: 6
+ℹ tests 5772
+ℹ pass 5767
+ℹ fail 0
+ℹ skipped 5
+-- ok: client tests (1156 s)
+== client models
+ℹ tests 79
+ℹ pass 79
+ℹ fail 0
+ℹ skipped 0
+-- ok: client models (169 s)
+== 0 failure(s) in 2419 s

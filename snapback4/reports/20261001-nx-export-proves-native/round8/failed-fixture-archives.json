@@ -1,0 +1,22 @@
+[
+  {
+    "path": "round8/failed-fixtures/sb4-dead-anchor-79858.tar.gz",
+    "sha256": "8a41c9c5201c290ec0ac7fce9b98db28285ccda5bd5082885516bac39a24570d",
+    "bytes": 519
+  },
+  {
+    "path": "round8/failed-fixtures/sb4-dead-anchor-87771.tar.gz",
+    "sha256": "e7c9414496f0de8a1301652bb1edad36f2769b85d85a3f505dddb09a83498a0c",
+    "bytes": 528
+  },
+  {
+    "path": "round8/failed-fixtures/sb4-stalled-resolver-93680-Some(9).tar.gz",
+    "sha256": "5c649917fe26486cb5c87ef3776480529d815d3235ec176ce48225453d4700ef",
+    "bytes": 916
+  },
+  {
+    "path": "round8/failed-fixtures/sb4-stalled-resolver-98956-Some(2).tar.gz",
+    "sha256": "a9f379e66a6898670d1d1f849f906197c44a6feb9cf79e6a78b826ed9f1a47a4",
+    "bytes": 930
+  }
+]

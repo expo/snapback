@@ -70,17 +70,66 @@ impl Records {
         }
         Ok(())
     }
+    pub(super) fn remove(&self, udid: &str) -> Result<()> {
+        let directory = self.directory.as_ref().unwrap();
+        let name = CString::new(format!("{udid}.json")).unwrap();
+        if unsafe { libc::unlinkat(directory.as_raw_fd(), name.as_ptr(), 0) } != 0 {
+            return Err(error("E_WITNESS_SIMULATOR", std::io::Error::last_os_error()));
+        }
+        Ok(())
+    }
+    pub(super) fn lease(&mut self, udid: &str) -> Result<File> {
+        self.prepare()?;
+        let file = self.file(&format!("{udid}.lease"), libc::O_RDWR | libc::O_CREAT)
+            .map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
+        if !file.metadata().is_ok_and(|m| m.is_file() && trusted(&m, unsafe { libc::geteuid() })) {
+            return Err(error("E_WITNESS_SIMULATOR", "unsafe simulator lease"));
+        }
+        file.try_lock().map_err(|_| error("E_WITNESS_PROCESS", "another witness holds the --udid lease; leaving it untouched"))?;
+        Ok(file)
+    }
+    pub(super) fn ready(&self, udid: &str, selected: &Value) -> Result<()> {
+        let mut file = self.file(udid, libc::O_WRONLY | libc::O_TRUNC).map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
+        file.write_all(&serde_json::to_vec(selected).unwrap()).and_then(|_| file.sync_all()).map_err(|e| error("E_WITNESS_SIMULATOR", e))
+    }
     pub(super) fn write(&self, udid: &str, selected: &Value) -> Result<()> {
         let mut file = self.file(udid, libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL)
             .map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
-        file.write_all(&serde_json::to_vec(selected).unwrap()).and_then(|_| file.sync_all())
-            .map_err(|e| error("E_WITNESS_SIMULATOR", e))
+        if let Err(e) = file.write_all(&serde_json::to_vec(selected).unwrap()).and_then(|_| file.sync_all()) {
+            // Only unlink the file this exclusive create made; a pre-existing
+            // collision never enters this branch.
+            self.remove(udid)?;
+            return Err(error("E_WITNESS_SIMULATOR", e));
+        }
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn partial_ownership_write_is_removed() {
+        const CHILD: &str = "SNAPBACK4_TEST_PARTIAL_OWNER";
+        if std::env::var_os(CHILD).is_none() {
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "verbs::witness::ownership::tests::partial_ownership_write_is_removed", "--nocapture"])
+                .env(CHILD, "1").output().unwrap();
+            assert!(output.status.success(), "{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("sb4-partial-owner-{}", std::process::id()));
+        let mut records = Records::open(root.clone()); records.prepare().unwrap();
+        unsafe {
+            libc::signal(libc::SIGXFSZ, libc::SIG_IGN);
+            let limit = libc::rlimit { rlim_cur: 128, rlim_max: 128 };
+            assert_eq!(libc::setrlimit(libc::RLIMIT_FSIZE, &limit), 0);
+        }
+        assert!(records.write("new-device", &json!({ "payload": "x".repeat(4096) })).is_err());
+        assert!(!root.join("new-device.json").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn ownership_predicate_requires_the_current_uid() {
         // Cargo's executable can be group-writable on a shared build host.

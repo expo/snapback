@@ -1,0 +1,14 @@
+✔ installed CLI shim preserves each forwarded child termination signal (155.374583ms)
+✔ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (4128.193502ms)
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (127.532812ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (83.413253ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (60.427623ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (116.34588ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4334.598842

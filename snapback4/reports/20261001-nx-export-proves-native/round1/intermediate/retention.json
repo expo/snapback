@@ -1,0 +1,2925 @@
+{
+  "reason": "development cohort only; retain summaries, run/proof receipts and phase records",
+  "removed": [
+    {
+      "path": "evidence/plain-asset-removed/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-asset-removed/finished.json.gz",
+      "sha256": "8c26a16377d6dabd797369c1f5e7563f81db883cce2cf7a7a1dce39ae0aaa498",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-asset-removed/build.json.gz",
+      "sha256": "0a5582044585e1edcc972a8ee973360fcdfd8d27855f077718f40b69a8f9efc1",
+      "bytes": 6612383
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-backend.log.gz",
+      "sha256": "bfc9f17c7f16d2a8d2d9c42c12078982849d7e24e734e31c69b02228a6c8fc2d",
+      "bytes": 511
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-launch.log.gz",
+      "sha256": "b5d8730f65c29892ad8b072f1dac10d8530a5a7a94081c7fb85e0dbcef109824",
+      "bytes": 59
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-receipts.jsonl.gz",
+      "sha256": "f478733178a696cb268538dabbd017fbf5b72ea8dbad79dcb0762f2ca9a4fa16",
+      "bytes": 1250
+    },
+    {
+      "path": "evidence/plain-asset-removed/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-device.log.gz",
+      "sha256": "f414986cd4332d74193685ac2d51203d07130f388992fc7710694051c7813c7e",
+      "bytes": 312825
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-asset-removed/smoke-ios-backend-stdout.log.gz",
+      "sha256": "6349700377cd1d28f5f1a0a95e8990ab1f7e6ee855a51488e32883df0a8952c5",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-asset-removed/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-asset-removed/check-stdout.log.gz",
+      "sha256": "5613d33c631b19e18b0d83db3dcfd9640e97d7c1726f305f50c2576ebc94046f",
+      "bytes": 339
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-asset-removed/installed.json.gz",
+      "sha256": "f3ede733548a2227562177bbbec51e5b22e58a59b7da34b4b88b3e008d223914",
+      "bytes": 3713
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-asset-removed/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-asset-removed/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-warm2/finished.json.gz",
+      "sha256": "35be905e2b74d1ad9473078b533adcacdd43f766390c35241dd0e5fc1fd5df99",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-warm2/build.json.gz",
+      "sha256": "0efbfce5939113fd96356f18d332249a0c498abd3b9e281b8e2d5be123ded386",
+      "bytes": 6612548
+    },
+    {
+      "path": "evidence/plain-warm2/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-backend.log.gz",
+      "sha256": "b983e9d3e731b874bb897ee79fc613d59ff1b608a0f5e184f658985b505cd123",
+      "bytes": 508
+    },
+    {
+      "path": "evidence/plain-warm2/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-launch.log.gz",
+      "sha256": "a02fe90c520659281adf6c95b7ce890d066df480cedea17f5abf959d9ecf39c3",
+      "bytes": 59
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-receipts.jsonl.gz",
+      "sha256": "31979f6a5d7b6d048666678117748be8a88d36ee6d36fad5b70b02a88d6492fb",
+      "bytes": 1244
+    },
+    {
+      "path": "evidence/plain-warm2/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-device.log.gz",
+      "sha256": "be1f9492da9207212aac6cadbefdcf90f55bf071dbde4b9954dbda1a542dc403",
+      "bytes": 319929
+    },
+    {
+      "path": "evidence/plain-warm2/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-warm2/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-warm2/smoke-ios-backend-stdout.log.gz",
+      "sha256": "61c8e41b739121e465eea787cc9721eee1963ed6b8be19c83d778be302753ed1",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-warm2/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-warm2/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-warm2/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm2/check-stdout.log.gz",
+      "sha256": "826ed4e391e5b42fb57ca0f4c00ff4cdcf95933e8a3ea686bfc6a082e61aa67c",
+      "bytes": 339
+    },
+    {
+      "path": "evidence/plain-warm2/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm2/installed.json.gz",
+      "sha256": "1a15b7db3978e37ed24951fa468e20827eaad485dca934e478c090616e5b3e73",
+      "bytes": 3779
+    },
+    {
+      "path": "evidence/plain-warm2/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm2/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm2/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm2/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-warm5/finished.json.gz",
+      "sha256": "4fe05984a20c0cc82a0413cb877428239589f30cc4ff2e3a16133554d04516ac",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-warm5/build.json.gz",
+      "sha256": "2ebca96b1e8515043393628f34e18882724ba6a0caef5599e205d1a8b838089d",
+      "bytes": 6612547
+    },
+    {
+      "path": "evidence/plain-warm5/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-backend.log.gz",
+      "sha256": "2bac442ad8c40b21f58e45607dbd9b8e6735c80d24c1ec0f01f4c737d918c1f9",
+      "bytes": 509
+    },
+    {
+      "path": "evidence/plain-warm5/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-launch.log.gz",
+      "sha256": "e60da526a1231987287ec8d5cf08bce282475b5001afe1d4d4cf915af8fdcd3e",
+      "bytes": 58
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-receipts.jsonl.gz",
+      "sha256": "b9269867586952e2fcbca576ae7ca579359d1df5fb1404ae045f88e9597f5dd5",
+      "bytes": 1242
+    },
+    {
+      "path": "evidence/plain-warm5/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-device.log.gz",
+      "sha256": "48b1779b224d44a2d4523f6a315ee1841c7dc6855d147ff831a6da35d0783719",
+      "bytes": 320708
+    },
+    {
+      "path": "evidence/plain-warm5/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-warm5/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-warm5/smoke-ios-backend-stdout.log.gz",
+      "sha256": "43b99a7ee85c9c7f0d4d2e3e903a451c1b4143ec404bffd0b92a597da6baab0d",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-warm5/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-warm5/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-warm5/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm5/check-stdout.log.gz",
+      "sha256": "530b95ef994d98b18b848b8003bdf74230bd77fe9097543c6c327fc8f284b621",
+      "bytes": 339
+    },
+    {
+      "path": "evidence/plain-warm5/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm5/installed.json.gz",
+      "sha256": "1174cd03bd33e366df75330ffc2b8a785c1c7dd012465a263d32117d2c915fb0",
+      "bytes": 3780
+    },
+    {
+      "path": "evidence/plain-warm5/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm5/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm5/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm5/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/build-settings.log.gz",
+      "sha256": "93143612ea831249377b001979291cf8d4135f2ef2cebe26ee0af709429c7476",
+      "bytes": 11612
+    },
+    {
+      "path": "evidence/plain-cold/sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-cold/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-cold/finished.json.gz",
+      "sha256": "deeacbc6ab5379625c094e3f4826948c624791b407b9ad1b464b0795e9586149",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-cold/build.json.gz",
+      "sha256": "30b7d212999c13d26ced41b7b99957a0127053d34ecaeb0fcce2d19531813a4e",
+      "bytes": 6033307
+    },
+    {
+      "path": "evidence/plain-cold/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/source-inputs.json.gz",
+      "sha256": "f3f9706aa786400b0a831e357403364edae6527f16cc58280e986fe4fcde5b5e",
+      "bytes": 1496
+    },
+    {
+      "path": "evidence/plain-cold/prebuild.log.gz",
+      "sha256": "8b8235ed51d16159f5fa762280a1d7a8908cc04b33720e61c44dcf13f291f3c7",
+      "bytes": 134
+    },
+    {
+      "path": "evidence/plain-cold/sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-cold/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/cache-miss.json.gz",
+      "sha256": "d37c325307e2291ef637848589c8c06c9bac9567d307f16e2947321a2c7aab19",
+      "bytes": 54
+    },
+    {
+      "path": "evidence/plain-cold/xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-cold/resolved-native.json.gz",
+      "sha256": "3f9e9c98e279cbe5c176d289b90142ca41f73606221752bab873faef15bb0b76",
+      "bytes": 1728777
+    },
+    {
+      "path": "evidence/plain-cold/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-backend.log.gz",
+      "sha256": "8e5dddb930c396e164f6b8bc7679429c1dec3fc785ebb64cbb4466391c966578",
+      "bytes": 511
+    },
+    {
+      "path": "evidence/plain-cold/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/target-settings-0.log.gz",
+      "sha256": "fdfd93199a57b8d79d9093a3ba6fb84348f4a5797d209a5d253aceb8d595bfb8",
+      "bytes": 22032
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-cold/runtime.log.gz",
+      "sha256": "7060bb5d3417e2a4e0cfe1a76f81ac490a03442e0668b2201ed736e3db20ca25",
+      "bytes": 1265
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-launch.log.gz",
+      "sha256": "2ce0a056a5efbc3bf88b4596fbf573c5ebccc70aad9f4b584c2e88480db80e6b",
+      "bytes": 59
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-receipts.jsonl.gz",
+      "sha256": "fc1b0236e4650780243c186a4728421d93912df2eb3ea28661e99b031c0bb3bb",
+      "bytes": 1244
+    },
+    {
+      "path": "evidence/plain-cold/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-device.log.gz",
+      "sha256": "d7c2691bf0fa34ac1eef87d97305d59d04717fed429890f348ed701402d78a6d",
+      "bytes": 320910
+    },
+    {
+      "path": "evidence/plain-cold/native-closure.json.gz",
+      "sha256": "a337cbf9126a6bb4d00a2be2b6b9f7af1cc41a83e270961df06687347cda3b8d",
+      "bytes": 214956
+    },
+    {
+      "path": "evidence/plain-cold/pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-cold/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-cold/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/fingerprint-after.log.gz",
+      "sha256": "c91786f5153583516880f0cd34e70032dd08c9d80ba9614c23f59a4ba49e0c2c",
+      "bytes": 4501
+    },
+    {
+      "path": "evidence/plain-cold/preserve-app.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-cold/smoke-ios-backend-stdout.log.gz",
+      "sha256": "6526e8a476dc27d5aeade932e8af9c55ba491f1660a7a340537b92cadbfe7eb7",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-cold/sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-cold/xcode-build.log.gz",
+      "sha256": "8864a490d3edabff03da9caf09d27467ca3c105dbee16edb07872b15e9d97aac",
+      "bytes": 505830
+    },
+    {
+      "path": "evidence/plain-cold/pods.log.gz",
+      "sha256": "dd6ec2f14597cc80eb9e752622d3ee55265383d11467793a0a925c131f31383b",
+      "bytes": 4530
+    },
+    {
+      "path": "evidence/plain-cold/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/public-config.log.gz",
+      "sha256": "338efe770a79b460ebe97ec2a0195f3fd693e53eb70fee7ad0ded85e14edbe9b",
+      "bytes": 251
+    },
+    {
+      "path": "evidence/plain-cold/plist-23.log.gz",
+      "sha256": "0621b9d596c77548ecf069570af9b66cab074a6133e7657094c58d0356a7e56d",
+      "bytes": 5669
+    },
+    {
+      "path": "evidence/plain-cold/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-cold/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-cold/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/target-settings-1.log.gz",
+      "sha256": "d29f4ee36847d56c26b79d235c3e7a76a2b0b1c360a934a63d29d70e8fe62926",
+      "bytes": 800775
+    },
+    {
+      "path": "evidence/plain-cold/schemes.log.gz",
+      "sha256": "58c7af6d86ea66701a15ff9c9937c5a7764779a890c218407559b896bb84a370",
+      "bytes": 844
+    },
+    {
+      "path": "evidence/plain-cold/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-cold/check-stdout.log.gz",
+      "sha256": "3874792c8d53342a6f49b60d0866287e2bd2752e27639d584f1fd2a481b69363",
+      "bytes": 339
+    },
+    {
+      "path": "evidence/plain-cold/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-cold/fingerprint-before.log.gz",
+      "sha256": "c91786f5153583516880f0cd34e70032dd08c9d80ba9614c23f59a4ba49e0c2c",
+      "bytes": 4501
+    },
+    {
+      "path": "evidence/plain-cold/installed.json.gz",
+      "sha256": "16187383dd3ace393c9f876f06aaa17f0c856e3d2e35835ae0edc73be26e3f62",
+      "bytes": 3781
+    },
+    {
+      "path": "evidence/plain-cold/snapshot.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/plist-29.log.gz",
+      "sha256": "2e7079384960fd9e3aa35e01adca01b4f3084a53934f665082a7d47905f29926",
+      "bytes": 928
+    },
+    {
+      "path": "evidence/plain-cold/plist-25.log.gz",
+      "sha256": "15dd6b5fe65a57564c9489ecea807aea47e6411c8f3bd14235d559c4c08ee573",
+      "bytes": 224603
+    },
+    {
+      "path": "evidence/plain-cold/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-cold/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-cold/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-cold/hermes-version.log.gz",
+      "sha256": "59953af9073f86f5efd4a198d3552f367a461413c8f68fdabc14a919dca4118b",
+      "bytes": 198
+    },
+    {
+      "path": "evidence/plain-cold/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-warm4/finished.json.gz",
+      "sha256": "1deea47aba8a77656864775df343375b5350e55c915807112c6c8500f88f3306",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-warm4/build.json.gz",
+      "sha256": "fabe7865279610ed9b37af3faf2876635468d93977b6e421a62e33ae62e59336",
+      "bytes": 6612538
+    },
+    {
+      "path": "evidence/plain-warm4/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-backend.log.gz",
+      "sha256": "cbb53874d3df5a1eef7300f40f306e2a7d97693b3d1504b96e7619e3fcac98bd",
+      "bytes": 508
+    },
+    {
+      "path": "evidence/plain-warm4/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-launch.log.gz",
+      "sha256": "12d65d91d0af397f865a16d76592e0069b03f7b55f53c9d0c9965ea640d51802",
+      "bytes": 59
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-receipts.jsonl.gz",
+      "sha256": "8b100ce30269735381b17b0b749612f7748e5287aabcfc4652d7a23ea3abc205",
+      "bytes": 1249
+    },
+    {
+      "path": "evidence/plain-warm4/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-device.log.gz",
+      "sha256": "72bf92c5f998e3923dd0a849bae1e8e5dc9e228efe905a16a194d343496b0771",
+      "bytes": 320965
+    },
+    {
+      "path": "evidence/plain-warm4/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-warm4/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-warm4/smoke-ios-backend-stdout.log.gz",
+      "sha256": "8e0458881a2ac73959dcf3c9bc4ad3c522455183d19c61145c48c49f605d90c3",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-warm4/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-warm4/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-warm4/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm4/check-stdout.log.gz",
+      "sha256": "13dbe2a7ac9f384252143847fdb509327c2363ac30e936be070e46a9dda5f253",
+      "bytes": 338
+    },
+    {
+      "path": "evidence/plain-warm4/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm4/installed.json.gz",
+      "sha256": "5246d4211b561ce6e645395a37fc5c4adbf7241efd0d2d1c2d38b6be4899e462",
+      "bytes": 3778
+    },
+    {
+      "path": "evidence/plain-warm4/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm4/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm4/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm4/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-warm3/finished.json.gz",
+      "sha256": "c15b52d3de8d8752ebb358720b36248e1c332f7fb1c4ff1ae11192895351baed",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-warm3/build.json.gz",
+      "sha256": "b77a850c14b777e108b3bc63f6876f5dc529e34d0106f76917202d19bf06af2a",
+      "bytes": 6612542
+    },
+    {
+      "path": "evidence/plain-warm3/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-backend.log.gz",
+      "sha256": "4ee98f2f686dd475a81dd9e9a69622280d9b6745844d9e3944d965efc2ab61d9",
+      "bytes": 511
+    },
+    {
+      "path": "evidence/plain-warm3/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-launch.log.gz",
+      "sha256": "598023f5107266a981a89bb6195f1bbdb2661b33d873225cdca493cdf0c072fb",
+      "bytes": 58
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-receipts.jsonl.gz",
+      "sha256": "e4ea3c7851d96ad9ba09bc723535ef58245fd823c589de78e01fdc5b7b8370cc",
+      "bytes": 1251
+    },
+    {
+      "path": "evidence/plain-warm3/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-device.log.gz",
+      "sha256": "f8dcb9f3982ae85e63c62c5c554f9866b8f9324ee03caadced9165d52208eea8",
+      "bytes": 320233
+    },
+    {
+      "path": "evidence/plain-warm3/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-warm3/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-warm3/smoke-ios-backend-stdout.log.gz",
+      "sha256": "624c4aa0a966766e15a7bb03f9360501e3ab4870a691a637d1db7af34b0bd279",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-warm3/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-warm3/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-warm3/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm3/check-stdout.log.gz",
+      "sha256": "12291bf3ebfa8b895194e697462824a5a345111abd18edec8da38810142e8046",
+      "bytes": 339
+    },
+    {
+      "path": "evidence/plain-warm3/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm3/installed.json.gz",
+      "sha256": "e2d013588e556f292ef036756cac7d24af96a6c2bd3e328ca32bbbebf671fea7",
+      "bytes": 3779
+    },
+    {
+      "path": "evidence/plain-warm3/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm3/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm3/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm3/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-warm3/finished.json.gz",
+      "sha256": "24bd99f6eabede8830b3adbc6230beeed9ef4592cbe72e95e0e41264671fe9ab",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-warm3/build.json.gz",
+      "sha256": "b265354005ee135583cbcf6c0bfca0e01de22e2892a2850768525c1eabc4626d",
+      "bytes": 9110033
+    },
+    {
+      "path": "evidence/social-warm3/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-backend.log.gz",
+      "sha256": "907364c994c9b2095589dfd686f146c3ad13acc6c5b7461bcaa7658706559bf5",
+      "bytes": 553
+    },
+    {
+      "path": "evidence/social-warm3/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-launch.log.gz",
+      "sha256": "ea8da12681b7bc64ec08d58462fb363ef8a8d11ede20347b319d40412ff3d9e4",
+      "bytes": 61
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-receipts.jsonl.gz",
+      "sha256": "10c2586162f184d9ea47db8bf85213387f0a1841f86060a8fcefe257eac6ca10",
+      "bytes": 1320
+    },
+    {
+      "path": "evidence/social-warm3/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-device.log.gz",
+      "sha256": "cb2efe715e8b7601faf2801a6c500d9bdfb2991f28886a6f1c7997a9ef6e5528",
+      "bytes": 373559
+    },
+    {
+      "path": "evidence/social-warm3/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-warm3/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-warm3/smoke-ios-backend-stdout.log.gz",
+      "sha256": "132c3c71a5f7fabad3187de79d55be1f8b03721a0db89b063ee27caed496a3af",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-warm3/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-warm3/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-warm3/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm3/check-stdout.log.gz",
+      "sha256": "a672e845ef3871d1ee5367e79a38b5153c445b15758bdce3c9668a6acc7d363a",
+      "bytes": 1003
+    },
+    {
+      "path": "evidence/social-warm3/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm3/installed.json.gz",
+      "sha256": "f6dbd760313bb2d5dd5194e24527f7642cfd65363dc4a3fd70710fa42e9becae",
+      "bytes": 4841
+    },
+    {
+      "path": "evidence/social-warm3/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm3/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm3/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm3/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-warm4/finished.json.gz",
+      "sha256": "ed4133bb847ffb70cb2dcb11a7f51e4b44f935c0e6ebf0fdb293d38aa80faaa9",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-warm4/build.json.gz",
+      "sha256": "222783d5205fc4939099b4532378f22569c0f1b3f4c778927ee66dac75aa7cb2",
+      "bytes": 9110054
+    },
+    {
+      "path": "evidence/social-warm4/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-backend.log.gz",
+      "sha256": "dc064e4f3656e50064353fde2f8b11184d6dea332a56c9fa951ac3f54220cbd2",
+      "bytes": 553
+    },
+    {
+      "path": "evidence/social-warm4/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-launch.log.gz",
+      "sha256": "e3593d0dae63af8f6933ec7cdaf2432cd2f9b7a126063ad97960acbf4eb32a87",
+      "bytes": 61
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-receipts.jsonl.gz",
+      "sha256": "8f416ce17a3cf547f5e503957e58974b5b94e9d4e44ad5a2e8e936640868ab02",
+      "bytes": 1328
+    },
+    {
+      "path": "evidence/social-warm4/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-device.log.gz",
+      "sha256": "aade26b64c573c6bd329b8986719d91014c9946568dd680692f044242bac5131",
+      "bytes": 381324
+    },
+    {
+      "path": "evidence/social-warm4/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-warm4/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-warm4/smoke-ios-backend-stdout.log.gz",
+      "sha256": "c800814723bc131b10463334cb05ed74c2e259a77a35ed74eb58b45b3b992720",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-warm4/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-warm4/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-warm4/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm4/check-stdout.log.gz",
+      "sha256": "9324e456c830a8c49711d2d7ff398b5a1ec9809defa0a5e4044bbc49f67b937d",
+      "bytes": 1004
+    },
+    {
+      "path": "evidence/social-warm4/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm4/installed.json.gz",
+      "sha256": "cc37e0d4193fbf1c91e3db23e1203dba4e765286220ef0867fc17524fac04efc",
+      "bytes": 4843
+    },
+    {
+      "path": "evidence/social-warm4/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm4/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm4/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm4/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-warm5/finished.json.gz",
+      "sha256": "f7377c8a2087dec2164efdea038845e767afdb4e16b7c5db803b3f2b1baa4f36",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-warm5/build.json.gz",
+      "sha256": "a595d341304e75f5851a8a6117246c248c97ad625b23fdd55ce978de2596acb9",
+      "bytes": 9110042
+    },
+    {
+      "path": "evidence/social-warm5/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-backend.log.gz",
+      "sha256": "31f9f76f179eacc65615e2943bfacadcbfa44b904d3e5ed6555abebffc724cea",
+      "bytes": 544
+    },
+    {
+      "path": "evidence/social-warm5/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-launch.log.gz",
+      "sha256": "3d5d20da87a9d18cd92deaf52c282133fe524a48a753c1f71f01a3483321c1fd",
+      "bytes": 61
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-receipts.jsonl.gz",
+      "sha256": "784d2a13130f3349e6480236ccd2f22dbf1662ff3ee9f3e3de0205509d557ad4",
+      "bytes": 1330
+    },
+    {
+      "path": "evidence/social-warm5/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-device.log.gz",
+      "sha256": "21374f78a9d9bc1a215f854483b3881cce73b04faa3bfb99f786a56306e7b9de",
+      "bytes": 374076
+    },
+    {
+      "path": "evidence/social-warm5/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-warm5/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-warm5/smoke-ios-backend-stdout.log.gz",
+      "sha256": "f59726dd740061cbd8da3e793be3826f016a5fbdcc847822e38369b2c304d9fa",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-warm5/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-warm5/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-warm5/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm5/check-stdout.log.gz",
+      "sha256": "48cac5f102559959481fb6274b10d35498dc03683f3f36fec3b1bb44a44e5ab8",
+      "bytes": 1003
+    },
+    {
+      "path": "evidence/social-warm5/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm5/installed.json.gz",
+      "sha256": "86f3a86ab697011fbecdb7197c8608c63de50283638c60011c1851e831c27a9d",
+      "bytes": 4841
+    },
+    {
+      "path": "evidence/social-warm5/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm5/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm5/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm5/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-warm2/finished.json.gz",
+      "sha256": "0d02d698d01aa199050d3b1d1888bfe034a3a0915761658b3ea53ad4def782cc",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-warm2/build.json.gz",
+      "sha256": "f84677e85e39283e6480db700756cc974ee7eb98dbd0845cd8f03ac1cd500cb0",
+      "bytes": 9110052
+    },
+    {
+      "path": "evidence/social-warm2/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-backend.log.gz",
+      "sha256": "74f52b5d73b91e2ef48862164d6e646c6a58c565d374e07c62ff36c1c8f5c9fd",
+      "bytes": 545
+    },
+    {
+      "path": "evidence/social-warm2/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-launch.log.gz",
+      "sha256": "a8081aff313bcaa7b36cc8dd3582b9592865f0f6fe96997589e439de5bb0ea98",
+      "bytes": 61
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-receipts.jsonl.gz",
+      "sha256": "04b6683080184bd6e5cf7b69a44509fa5b83f07a0c5bfb457579b7bb9da7b03e",
+      "bytes": 1316
+    },
+    {
+      "path": "evidence/social-warm2/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-device.log.gz",
+      "sha256": "eaebd538f6681dba7c6e4fa39ca8c9d29a9df1d25707292048e9d1ad3029f5e8",
+      "bytes": 382026
+    },
+    {
+      "path": "evidence/social-warm2/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-warm2/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-warm2/smoke-ios-backend-stdout.log.gz",
+      "sha256": "dc183398ca394776a1d90aee8c6e7935eb4b8691a04fde71f1b949459200033d",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-warm2/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-warm2/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-warm2/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm2/check-stdout.log.gz",
+      "sha256": "353f76aef1122dfc5f84e8538a902202b7ab8a49f8dc5e239145c94fb97d7d2c",
+      "bytes": 1003
+    },
+    {
+      "path": "evidence/social-warm2/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm2/installed.json.gz",
+      "sha256": "b0a24c3dae88102d306fc0c4ad8c9769f7c709013dfba21a6904df52b9bd5823",
+      "bytes": 4843
+    },
+    {
+      "path": "evidence/social-warm2/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm2/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm2/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm2/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/build-settings.log.gz",
+      "sha256": "b63177ed714396b0a3142151d6260fbd1cd5929b26222bd96df5394e5d285660",
+      "bytes": 12731
+    },
+    {
+      "path": "evidence/social-cold/sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-cold/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-cold/finished.json.gz",
+      "sha256": "b0ddbfe4c8336c0e6d11726c2b12fb5dc9cde50fd3ae249f733cdccdb4ed724d",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-cold/build.json.gz",
+      "sha256": "b3fc6d21158927401a4cd839f010af2c99b77aacc9d1d317e5a1cbf4db87d3c1",
+      "bytes": 8509902
+    },
+    {
+      "path": "evidence/social-cold/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/source-inputs.json.gz",
+      "sha256": "b75fc7123ab2232d3692565ccf6b3bc7d97ab7b12865fc7934ddd9498d17717e",
+      "bytes": 2353
+    },
+    {
+      "path": "evidence/social-cold/prebuild.log.gz",
+      "sha256": "8b8235ed51d16159f5fa762280a1d7a8908cc04b33720e61c44dcf13f291f3c7",
+      "bytes": 134
+    },
+    {
+      "path": "evidence/social-cold/sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-cold/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/cache-miss.json.gz",
+      "sha256": "d37c325307e2291ef637848589c8c06c9bac9567d307f16e2947321a2c7aab19",
+      "bytes": 54
+    },
+    {
+      "path": "evidence/social-cold/xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-cold/resolved-native.json.gz",
+      "sha256": "484fc8922438d749ca30f77bd51c6f092075b68a9d5e953a56b194304a217766",
+      "bytes": 2310243
+    },
+    {
+      "path": "evidence/social-cold/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-backend.log.gz",
+      "sha256": "98ba0bd4fc4a0d918290bb73bc9a983d51cec4a496835225e11cb340e82262a4",
+      "bytes": 601
+    },
+    {
+      "path": "evidence/social-cold/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/target-settings-0.log.gz",
+      "sha256": "079cd1bf831122b80f6cddda38a992cac98a0fabea24bd77fdea5f0ca2c2dea5",
+      "bytes": 24327
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-cold/runtime.log.gz",
+      "sha256": "bc3f72177d88117bf307877cd5c86609769ae948ff2206d2f571579de2fae0a1",
+      "bytes": 1266
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-launch.log.gz",
+      "sha256": "bd03f28ef18feb22f29725b754bd6ecfab8f86c2690b6e0fb05951987a658ab3",
+      "bytes": 60
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-receipts.jsonl.gz",
+      "sha256": "efc516f762d58899f92d63d7d541bb83d132bcd0d9e83a26ac74873bfa3fe10d",
+      "bytes": 1321
+    },
+    {
+      "path": "evidence/social-cold/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-device.log.gz",
+      "sha256": "08e64d7b958834eb6b52efec49d6094afe08ded28b035ff8f78fa4e405a19554",
+      "bytes": 384086
+    },
+    {
+      "path": "evidence/social-cold/native-closure.json.gz",
+      "sha256": "440e0605c6eb526be4c97e90e9ce6f04bde7b9f678cf751611659367be3e733c",
+      "bytes": 402505
+    },
+    {
+      "path": "evidence/social-cold/pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-cold/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-cold/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/fingerprint-after.log.gz",
+      "sha256": "311f1d371f17ffa7bbd5774f14390403e129d7cb711fb6454ef4f35623b0547b",
+      "bytes": 5503
+    },
+    {
+      "path": "evidence/social-cold/preserve-app.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-cold/smoke-ios-backend-stdout.log.gz",
+      "sha256": "c9b0523603b92ddf00d953244057949de337906ca3129956e60b5aad70c5b401",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-cold/sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-cold/xcode-build.log.gz",
+      "sha256": "e2bb499f32d2663505f3f6deaaaa6e66bc4799d27ca86d613fcb2476c60b4ef0",
+      "bytes": 679161
+    },
+    {
+      "path": "evidence/social-cold/pods.log.gz",
+      "sha256": "3b50478016001bb2506cbe62609f88bf4888c812569d6ec0279b42fdf89c83e2",
+      "bytes": 4991
+    },
+    {
+      "path": "evidence/social-cold/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/public-config.log.gz",
+      "sha256": "55902d8a161b46e203448fc431c4281d2c592698b9273d833b7f01142e76c7fe",
+      "bytes": 284
+    },
+    {
+      "path": "evidence/social-cold/plist-23.log.gz",
+      "sha256": "cfdca4215063c74b0075486ec255bcc353dddb169f2f4c9bd87c70352d1f41f7",
+      "bytes": 5674
+    },
+    {
+      "path": "evidence/social-cold/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-cold/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-cold/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/target-settings-1.log.gz",
+      "sha256": "493e4bad4d1f391303f7b598f9ac71ae6df7d378c151d4b136870b0e591cd2a4",
+      "bytes": 907837
+    },
+    {
+      "path": "evidence/social-cold/schemes.log.gz",
+      "sha256": "16c9a18d0fd8505ff8913da1c4524fa2ed71d9900767957606976622062bf1cf",
+      "bytes": 939
+    },
+    {
+      "path": "evidence/social-cold/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-cold/check-stdout.log.gz",
+      "sha256": "0703d05a2ecbe95430bf010d59e0e8773a211c53d7299d71cbea1a66f23944e1",
+      "bytes": 1003
+    },
+    {
+      "path": "evidence/social-cold/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-cold/fingerprint-before.log.gz",
+      "sha256": "311f1d371f17ffa7bbd5774f14390403e129d7cb711fb6454ef4f35623b0547b",
+      "bytes": 5503
+    },
+    {
+      "path": "evidence/social-cold/installed.json.gz",
+      "sha256": "df52f429516e5e4889a2887a911279b6a79661275bbf5631169bee3297a032f2",
+      "bytes": 4848
+    },
+    {
+      "path": "evidence/social-cold/snapshot.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/plist-29.log.gz",
+      "sha256": "9794b01ffa4beef993fd5bab5aa62ebf80c40c818f01280644140b0621e6c967",
+      "bytes": 980
+    },
+    {
+      "path": "evidence/social-cold/plist-25.log.gz",
+      "sha256": "cf405d15110ee57aa5f2e0da69f4066c1c5f2ec913c4c58af7e36c89e5da1dda",
+      "bytes": 299054
+    },
+    {
+      "path": "evidence/social-cold/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-cold/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-cold/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-cold/hermes-version.log.gz",
+      "sha256": "59953af9073f86f5efd4a198d3552f367a461413c8f68fdabc14a919dca4118b",
+      "bytes": 198
+    },
+    {
+      "path": "evidence/social-cold/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/plain-warm1/finished.json.gz",
+      "sha256": "b0ee5cf2a890b780e8cf371fed62f03ed74b015f767ca5235e312f1d0a34250d",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/plain-warm1/build.json.gz",
+      "sha256": "dc950be697c8be44ebfa11aac336dd1c7a7eb99b811b03e05473281a92671a7b",
+      "bytes": 6612538
+    },
+    {
+      "path": "evidence/plain-warm1/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-backend.log.gz",
+      "sha256": "b978a53b71572d05e39abbfd0a0457c13a55ab61aed9fcfea69bbc185e02e9f3",
+      "bytes": 511
+    },
+    {
+      "path": "evidence/plain-warm1/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-launch.log.gz",
+      "sha256": "5eb75949ff76e5e09b800689d36ca0487f4e92a721b1debc685725c5af28f75f",
+      "bytes": 58
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-receipts.jsonl.gz",
+      "sha256": "37b9845b82b11ed0eda90536233ec75969b6c6b1d66116c6e385da148145e032",
+      "bytes": 1247
+    },
+    {
+      "path": "evidence/plain-warm1/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-device.log.gz",
+      "sha256": "42292effa8d7f604bebe0e3dd66b50586789fd8447214633f94702b2460cb860",
+      "bytes": 322198
+    },
+    {
+      "path": "evidence/plain-warm1/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/plain-warm1/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/plain-warm1/smoke-ios-backend-stdout.log.gz",
+      "sha256": "05a2a93c21f3ca356555f51b30a02a17f3349a2c3e647c13658fffea8b5f7203",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/plain-warm1/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/plain-warm1/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/plain-warm1/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm1/check-stdout.log.gz",
+      "sha256": "c12863322fbde167241d837b7d5575af3710851a6530aaffcff43ca572d20660",
+      "bytes": 339
+    },
+    {
+      "path": "evidence/plain-warm1/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm1/installed.json.gz",
+      "sha256": "a30d072897e38c7f75a4e8d45e37c75ed59a69c8585afec8c6712ff03c5e3838",
+      "bytes": 3777
+    },
+    {
+      "path": "evidence/plain-warm1/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/plain-warm1/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/plain-warm1/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/plain-warm1/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-warm1/finished.json.gz",
+      "sha256": "c2dfbd33508540cd046695bf057f64861ce7bfa6a7a462cc039bc0177d1fa804",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-warm1/build.json.gz",
+      "sha256": "f65a2fc7d973a7a0c5e1c44b18434233873309f59f7c96fb5f1979c9562cc426",
+      "bytes": 9110044
+    },
+    {
+      "path": "evidence/social-warm1/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-backend.log.gz",
+      "sha256": "b456bf640db5897b77fe6465fcf394b83ef4839f02cc0580a15ee10cec417491",
+      "bytes": 544
+    },
+    {
+      "path": "evidence/social-warm1/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-launch.log.gz",
+      "sha256": "4e481351484e3f134d3ef6feb400c58abf1c0f01162365d6039eb3bbdb7e1b93",
+      "bytes": 61
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-receipts.jsonl.gz",
+      "sha256": "ab2ac70ead87c3277fbe8ea3fa2e7edeb178e352c0e48c31c6b93c54fb8f4865",
+      "bytes": 1334
+    },
+    {
+      "path": "evidence/social-warm1/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-device.log.gz",
+      "sha256": "dea9ed00402cd71c934f6a358a823409ad3421c94bdd5b57b539832f73f5fc92",
+      "bytes": 380836
+    },
+    {
+      "path": "evidence/social-warm1/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-warm1/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-warm1/smoke-ios-backend-stdout.log.gz",
+      "sha256": "37fe9d4038b8b88985fcd516b4209b075e76d62633eb3d856e590fd23bbacff4",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-warm1/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-warm1/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-warm1/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm1/check-stdout.log.gz",
+      "sha256": "7afd5e9a0de4351a380a138e0c92d60a2d97ac6dd37add1a01c4ad39a9242010",
+      "bytes": 1003
+    },
+    {
+      "path": "evidence/social-warm1/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm1/installed.json.gz",
+      "sha256": "4fd16a6254f8094bdfa47fc55ec022ac6a2fa70295b89fcdf1474cf2eaf8540e",
+      "bytes": 4841
+    },
+    {
+      "path": "evidence/social-warm1/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-warm1/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-warm1/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-warm1/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/preparation-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/check-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/before-install-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-xcode-version.log.gz",
+      "sha256": "c833e203c111a31a8dcb699f2d557b4453df1a03b186eae2ec52cd7c112bcd9a",
+      "bytes": 53
+    },
+    {
+      "path": "evidence/social-asset-removed/finished.json.gz",
+      "sha256": "d8ed785d1d437d511dcacab7512b2cc0e33d0cd5fc5d031725bf27c671965579",
+      "bytes": 48
+    },
+    {
+      "path": "evidence/social-asset-removed/build.json.gz",
+      "sha256": "347df402542b86076c065d66a6e18de2964e31842eed8ad69fa9ffb191ba1537",
+      "bytes": 9109894
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-offline-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-prime-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-developer.log.gz",
+      "sha256": "d76f03f7086a9d6986f3409237f35c4ae4b92a157822b82ad54f753c469e4958",
+      "bytes": 94
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-backend.log.gz",
+      "sha256": "c5e69530fc83cd0817d085403923d3db3643c2b8164901b851ffddea1db01132",
+      "bytes": 547
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-restart-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-log-stderr.log.gz",
+      "sha256": "806db635957cae2ae6f57e64a2a0e6d9c32f8f6018afc595d3e3c5fa9b0af5a9",
+      "bytes": 64
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-launch.log.gz",
+      "sha256": "7f27424521ef820eeb2cc15e961da811c4cdc9e7c1a43f42ae6e18215e84e48e",
+      "bytes": 60
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-receipts.jsonl.gz",
+      "sha256": "769b579ce5b38890c00fa1ebb1103e4533bf6bf611c820035de17324ca5a1817",
+      "bytes": 1326
+    },
+    {
+      "path": "evidence/social-asset-removed/plugin-audit.json.gz",
+      "sha256": "e20c70f06fb1e4b28040c683ab15a29e3f2ae78ba5db4e15cfa3192065dbf8ec",
+      "bytes": 9210
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-device.log.gz",
+      "sha256": "ba359f7b925885cf217b8b24fb82d3894dc57b62948e0dc09a065f7d75dc795d",
+      "bytes": 373213
+    },
+    {
+      "path": "evidence/social-asset-removed/export-tool-swiftc.log.gz",
+      "sha256": "1e7c2317990d2ca1657f3bee6bd5013c7eb57cc1452ef425cdf4fcb344cda40f",
+      "bytes": 95
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-collection-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-sdk-path.log.gz",
+      "sha256": "1f7ffb39c925687a6b4e26008ce6e7934b7efa1ba2b4019d9579a0de64a3be2e",
+      "bytes": 106
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-video.log.gz",
+      "sha256": "f90160db4f3f12649c33308bfaf3c0dc88c36a31948e15229805c27753a9af59",
+      "bytes": 138
+    },
+    {
+      "path": "evidence/social-asset-removed/smoke-ios-backend-stdout.log.gz",
+      "sha256": "fdcbed7f1f588bb49b54168b89e9bc92fb80f09f80136cd9c93b5aca9d497da5",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-collection-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-copy-base.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-sdk-version.log.gz",
+      "sha256": "3c7a91124d68450edc15f2b0a20484ab762fab231d38eadc3eb764376124a55c",
+      "bytes": 25
+    },
+    {
+      "path": "evidence/social-asset-removed/export-tool-swift-frontend.log.gz",
+      "sha256": "00fac9d77e02bf561c4804f33d9000ec4cb71dd3c44bfd610d980648d426315b",
+      "bytes": 102
+    },
+    {
+      "path": "evidence/social-asset-removed/before-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/preparation-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-install-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-sdk-build.log.gz",
+      "sha256": "19a86415f2ab6b3b93d7b43cb274667725d0b5c68d8508a7fdadb9c614fd761c",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-asset-removed/check-stdout.log.gz",
+      "sha256": "0512b86c53a81a886df4fc8c462bbaeff3e235fcf44f3f43090221b0edce5127",
+      "bytes": 1003
+    },
+    {
+      "path": "evidence/social-asset-removed/export-ruby-version.log.gz",
+      "sha256": "7dc7f94b2d21d1064f6093dc4e21db80485c1146a4dbd5892cd5168df09eaa31",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-asset-removed/installed.json.gz",
+      "sha256": "9b18bebb7baa4e14eebee950f2caa1e4a57cc0f3dd2aa40cfb347b99d4b8d565",
+      "bytes": 4784
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-restart-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-offline-stderr.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    },
+    {
+      "path": "evidence/social-asset-removed/export-tool-ld.log.gz",
+      "sha256": "84ef15cf39ae7a428a4c0461a2e08329423509a9e6226418b550d865112f62ee",
+      "bytes": 92
+    },
+    {
+      "path": "evidence/social-asset-removed/export-pod-version.log.gz",
+      "sha256": "5ae7cc9e9646adac5c8edfe3bd29f86e78f2e8d9e61912736393a06225c7e6d4",
+      "bytes": 27
+    },
+    {
+      "path": "evidence/social-asset-removed/verify-prime-stdout.log.gz",
+      "sha256": "abfbb86f9f5ddfbd9fc1a72c43ab384702ce8bae86b60f3324748485e235e61e",
+      "bytes": 20
+    }
+  ]
+}

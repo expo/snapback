@@ -1,0 +1,54 @@
+{
+  "@expo/config": [
+    "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d"
+  ],
+  "@expo/config-plugins": [
+    "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7"
+  ],
+  "@expo/prebuild-config": [
+    "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321"
+  ],
+  "expo-dev-client": [
+    "41ada0086497c7690cdaa1522427d92f6fb96f7f2fb20e2a8498b701a1480bc4"
+  ],
+  "expo-dev-launcher": [
+    "ce29bcc9d1e3ab7f57fdf1be1902d6b7a9f31b84c6f6fcfb587be6445f0ad396"
+  ],
+  "expo-file-system": [
+    "6428cf39756ecc83b64d6088aea70dad388234373a177b75f07b6cbb06765be8"
+  ],
+  "expo-image-picker": [
+    "171f7a51358cd66b3beba8b7ff0e6dbaff124de8df6b27e27f64ab5a56b19b37"
+  ],
+  "expo-router": [
+    "dd20bc94425e9e4754ecb03772b629c9e24873e1d1f40e87fbe16743b91e4455"
+  ],
+  "expo-secure-store": [
+    "ed2d49d0d1a070be7bcc9ff02eba07141c67588af9d7781506b27ae6e68f2f63"
+  ],
+  "expo-sqlite": [
+    "84a007b39372a1df621ca86e46ac47086481955cd653f780ced5565086fddd06"
+  ],
+  "snapback4-expo": [
+    "4d116e1feb7f0bd9cbb80eaeb24ea65b793382eabf016f77b20e3f401dc613ce",
+    "e084ea56e7d1fd99b9fd93f8f7327432fc4631824328b9772cd3ae9e97deb6ac",
+    "e13b089809580b2ae0ab4b1b73a84b8cbfd54607e7a2f2bae04f95acb92f9202",
+    "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880"
+  ],
+  "_dependencySnapshots": [
+    "37df8c6640c986afaef8c3befb5196717a53d3f72f225e1c689641dcb7e2067d",
+    "ad7fd540019309f374b5abcb6132c5d9751baee61cf26e77b2acbfe926864e3a",
+    "a6b16c6dd9e8cb4130f2f48627bc5992d7d2097a59c799f10ecd006faa75cf63",
+    "5e284a7e5559ab940f8723a733e148f920d47408106f7060e057d8b7681f2a52",
+    "17665670b5be78050c1a161a014a1f3f2f9f5eb873b70a72615088484885f859",
+    "158df3df0212e391f88c6b1d1951c485074de296921cbf020fb0d9fbca43008a",
+    "bbc47944fe65bc071b1af1ae81c6ab85bf7044e0ef7362ae7022b7d258247040",
+    "433329043c48175e2c0003a7ea354b18eab15afaf31a162211e6e41bb5e38a50"
+  ],
+  "expo-status-bar": [
+    "e43ff0742ef0d315c03ba7e4e5c68c4ef6d1090bf33a81565205c66c54f60180"
+  ],
+  "expo-dev-menu": [
+    "4751eb9e24307cb1740d978b5ca350cf649e3b55106f1102557ee4bd55f309f1"
+  ]
+}

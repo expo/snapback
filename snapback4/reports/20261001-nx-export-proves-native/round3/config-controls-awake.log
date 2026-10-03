@@ -1,0 +1,57 @@
+{"starter":"plain","label":"ios-context-second-retry2","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790948473414,"durationMs":91963,"status":0,"signal":null,"bundleHash":"36d1188695aeaa07d25e1c85247f1faf3eaf74c9aae3e07f7362d89576d27969","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948473516-32319/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"dded83dab7dbf82c8441d5971dc51acde6221ea1b5b80cf9cb56080589ef022f"}},"hit":false},"proofKind":"application-export","receiptExit":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"nativeDurationMs":88948,"loadedHash":"36d1188695aeaa07d25e1c85247f1faf3eaf74c9aae3e07f7362d89576d27969","metroResources":0,"nativeMarker":"second","cacheMiss":"native-cache miss: input changed: src/native-mode.js; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."}
+{"starter":"plain","label":"remote-icon","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790948566933,"durationMs":5303,"status":1,"signal":null,"bundleHash":null,"receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948567038-35329/smoke-ios-run.json","receiptExit":1,"phase":"preparation","error":"E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948567038-35329/preparation-stderr.log"}
+{"starter":"social","label":"ios-context-first","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790948580017,"durationMs":215977,"status":0,"signal":null,"bundleHash":"84826cb6548de21817ccc1769fbf1710399eeeff80ffd55e67c14807c2c6be2c","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948580335-35774/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"ebc600cfdb045421014e3cc36e7223b37477d509cf6f7ed9ec2f61e10999ea20"}},"hit":false},"proofKind":"application-export","receiptExit":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"nativeDurationMs":210029,"loadedHash":"84826cb6548de21817ccc1769fbf1710399eeeff80ffd55e67c14807c2c6be2c","metroResources":26,"nativeMarker":"first","cacheMiss":"native-cache miss: no cached Release app; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."}
+{"starter":"social","label":"ios-context-second","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790948796885,"durationMs":136382,"status":0,"signal":null,"bundleHash":"686763e99cd2ab021427b91e554a8eba38e92dee79c0bf4d70d49de3218a5777","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948797056-41628/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"fd2d76ca667f6ce90e18e2d241038599e12559251ec92391952ef92e42e37e51"}},"hit":false},"proofKind":"application-export","receiptExit":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"nativeDurationMs":132376,"loadedHash":"686763e99cd2ab021427b91e554a8eba38e92dee79c0bf4d70d49de3218a5777","metroResources":26,"nativeMarker":"second","cacheMiss":"native-cache miss: input changed: src/native-mode.js; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."}
+{"starter":"social","label":"remote-icon","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790948935736,"durationMs":8018,"status":1,"signal":null,"bundleHash":null,"receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948935865-45321/smoke-ios-run.json","receiptExit":1,"phase":"preparation","error":"E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948935865-45321/preparation-stderr.log"}
+[
+  {
+    starter: 'plain',
+    reference: './x.js',
+    first: '22c502d00057c97f8f3ec2d6524fd4ef725c8f5c3b99515ddb447727b07ecb00',
+    second: '34f6ccbb6620691939ce882f39db5e5f9d08b3460ecf74b9a1a5b861d399c892',
+    conservativePlugins: [ 'x.js' ],
+    retainsJs: true,
+    evaluatedNativeModeAbsent: true
+  },
+  {
+    starter: 'plain',
+    reference: 'plugins/x.js',
+    first: '4fc30c6cdd347766637157c931c9e968d28d9e37882a918b8d74eb4afdf55ad5',
+    second: '3d216626b5cb6cf89e3788bdccee1ccccf6175b6a7a542ecc4c0c250d7ccb529',
+    conservativePlugins: [ 'plugins/x.js' ],
+    retainsJs: true,
+    evaluatedNativeModeAbsent: true
+  },
+  { starter: 'plain', lateUnobserved: [ 'late' ], retainsJs: true },
+  {
+    starter: 'plain',
+    remoteIcon: 'refused',
+    phase: 'preparation',
+    error: "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948567038-35329/preparation-stderr.log"
+  },
+  {
+    starter: 'social',
+    reference: './x.js',
+    first: 'e944abc0169753a1a06df1fc361dbdac8ee522254af02ad1e58869f6afa732c7',
+    second: 'ab6773d8fdc9dae7d80e6854d07814d34e759c52b5b164a52af341ca0b397af5',
+    conservativePlugins: [ 'x.js' ],
+    retainsJs: true,
+    evaluatedNativeModeAbsent: true
+  },
+  {
+    starter: 'social',
+    reference: 'plugins/x.js',
+    first: '1b357a0c0e08fb13d1c9e3eecd016949e423718ef6186c57f91689e48860deec',
+    second: '246241d05bddaf2f552df6786269708c26e4a527649c840da0ed98b17972d698',
+    conservativePlugins: [ 'plugins/x.js' ],
+    retainsJs: true,
+    evaluatedNativeModeAbsent: true
+  },
+  { starter: 'social', lateUnobserved: [ 'late' ], retainsJs: true },
+  {
+    starter: 'social',
+    remoteIcon: 'refused',
+    phase: 'preparation',
+    error: "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948935865-45321/preparation-stderr.log"
+  }
+]

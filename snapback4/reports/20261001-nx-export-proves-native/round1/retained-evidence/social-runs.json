@@ -1,0 +1,4212 @@
+[
+  {
+    "run": "1790906956194-74566",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790906956194-74566/build.json.gz",
+        "sha256": "5ae9a1c10157d60cca03c5f8c7cdfba64868f29bececd21f8b494e279b2911aa",
+        "bytes": 58322671,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790906956194-74566/finished.json.gz",
+        "sha256": "6458542bab82e13cf6905a13e23b9ab3329e7c3e3299714d738bdd9f56cc5245",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790906956194-74566/installed.json.gz",
+        "sha256": "39c9fba35ca6857dd8ba8fb2151011f4a94569892e18555288a12c5bca3ad539",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-cold/proof.json.gz",
+        "sha256": "aeea16705e48f8bea66354f589723ce0319c2ecbbb283cf6b888d63cfb101fcf",
+        "bytes": 79176,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906193216-44521/retention.json.gz",
+        "sha256": "9adaf1d20357f28328b423f7fa1b0c480d94faecdd9becc46c63208e90790f38",
+        "bytes": 2198,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790906956194-74566/smoke-ios-receipts.jsonl.gz",
+        "sha256": "7b319405f52345f1c7dab66ef7828cf278efcd4139e0582b0876fce98b04c6fc",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-cold/smoke-ios-run.json.gz",
+        "sha256": "2b6cbfe904b806d0348a3ab5052b082c92db185638cf0577728d4c3960cae9c0",
+        "bytes": 30486,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907191886-81242",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790907191886-81242/build.json.gz",
+        "sha256": "7a2dd6166049944099da472a61f812eb050654da3abc805161d38b3e6d428968",
+        "bytes": 64452563,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907191886-81242/finished.json.gz",
+        "sha256": "d378c8ad6dc8f2cb17468d4e43540523dde215e44702b61c24da33162b654876",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790907191886-81242/installed.json.gz",
+        "sha256": "dc31cbbd715ec1444c68d0b69bdc190a7be68d3ed37b2acef9ae9db319bef16f",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-warm1/proof.json.gz",
+        "sha256": "ce0f9c74c3bb522c48865cbe9255a9fa07a64b6d7dd97edfd67f1cef66204ab3",
+        "bytes": 79174,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790907191886-81242/smoke-ios-receipts.jsonl.gz",
+        "sha256": "504386260eaaac5004016ee46f8cb6c15963aa1da9529ca3dedb8cbf03333eb9",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-warm1/smoke-ios-run.json.gz",
+        "sha256": "41d03ba49f3b2916a84235396bee765db11dd5669130f33ddff0a10972218b19",
+        "bytes": 30477,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907217094-82983",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790907217094-82983/build.json.gz",
+        "sha256": "c97062578d609fc5ca67880ff8d1c719452894749eaf3c847eb7a67c714437b3",
+        "bytes": 64452570,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907217094-82983/finished.json.gz",
+        "sha256": "614a754d0d5ed0f9cfe8bae3c28b530b2cd1f5516221fbaf6f575df2c2ee023a",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790907217094-82983/installed.json.gz",
+        "sha256": "d6bd7fc2879512b60124be996d5f86cf5abaadd65c2a1956d1ac033cf4984e05",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-warm2/proof.json.gz",
+        "sha256": "ab89e7e354918cb101e69c390cc31ee267d95756daef453f916f8bfb0eca87cb",
+        "bytes": 79174,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790907217094-82983/smoke-ios-receipts.jsonl.gz",
+        "sha256": "4731172ea2fc1903b37a78339a83db8cbf00a8ee717299423258e38d060b41a8",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-warm2/smoke-ios-run.json.gz",
+        "sha256": "38b360438b709d0bbb853363a902dcdb43294c3cce21e67ac0584017e9c7e13f",
+        "bytes": 30477,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907242583-84718",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790907242583-84718/build.json.gz",
+        "sha256": "5211d1013dac6d1f0bb13f8a4a3bac562cd1a7cddedd3178de913b9c1e67b1dd",
+        "bytes": 64452563,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907242583-84718/finished.json.gz",
+        "sha256": "ac63366523cdaebeac44a2ad8f4238ab71db3b584620aa4894904c3063d7ec87",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790907242583-84718/installed.json.gz",
+        "sha256": "19189f72151df8c3e18ad8a5aa9fedcb0085cfa631bf908df49d663c7602d90d",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-warm3/proof.json.gz",
+        "sha256": "78471b9e4ebf6db0fd296cf37e350df636da2bc9d6aa21d2f2499455440bec0c",
+        "bytes": 79174,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790907242583-84718/smoke-ios-receipts.jsonl.gz",
+        "sha256": "24f35faff365243badf5787a642bc810133dbb06c87a5d51561a83988108ea9f",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-warm3/smoke-ios-run.json.gz",
+        "sha256": "cfc5ee96b697170305359c83fc2f0462e83e5c8989e74bef7fa081579d5e0246",
+        "bytes": 30477,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907267989-86817",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790907267989-86817/build.json.gz",
+        "sha256": "8cd2936732b907a9766202e7a682bf10c7a4648022c0c2a0e4ad93139d24f320",
+        "bytes": 64452563,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907267989-86817/finished.json.gz",
+        "sha256": "58d89f7ac338a0c5c403f10ced93e6505a01ad5f0eec1479a43d097289e96b6a",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790907267989-86817/installed.json.gz",
+        "sha256": "0b78ecb7360cadc5ff29b9e20e4079042179b84fddbaae17280075ccbec67bb1",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-warm4/proof.json.gz",
+        "sha256": "eef8e32a52a298f84007c6d22c748fa877e3746991cc9a3b26d96ace31bb95b8",
+        "bytes": 79174,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790907267989-86817/smoke-ios-receipts.jsonl.gz",
+        "sha256": "3ea6aa2d6e878296f83385e489e236026b94f14e2cdd97677820071774455864",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-warm4/smoke-ios-run.json.gz",
+        "sha256": "9701e0509ec089ecac9550a52ca1264afe3fb11d1f170e24d703a311f20ae10e",
+        "bytes": 30477,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907292727-88595",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790907292727-88595/build.json.gz",
+        "sha256": "365acc2b372060469350d0eef60a08a8df0747910f17c6450b30395b2ead73e6",
+        "bytes": 64452563,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907292727-88595/finished.json.gz",
+        "sha256": "93519cdabc1b8846e3713e7bc81a58554a0833152345c8e251fdd6f2152644dc",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790907292727-88595/installed.json.gz",
+        "sha256": "8400fc0f50f8000ce06b93ca51ff48517cef4804a35b569f67d847646a7166c0",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-warm5/proof.json.gz",
+        "sha256": "6b524c4d59fa6d508ac40de2e03bfaeebec1bb66c1ecad9b7738596f148b5315",
+        "bytes": 79174,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790907292727-88595/smoke-ios-receipts.jsonl.gz",
+        "sha256": "bc022c2130573a1cf3fcd5834d8ca092cd51dba7971c24afaa6e037956f00464",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-warm5/smoke-ios-run.json.gz",
+        "sha256": "3f362a3c8285baefef89ffabe97a540facaa0b04ca7fdeabf4f3b55165c83dd0",
+        "bytes": 30477,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907317650-90376",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790907317650-90376/build.json.gz",
+        "sha256": "4ce7fb22e7690c790a26be3302b286fe18ff6283a87edc7099e6e35e2e1d3c73",
+        "bytes": 64451565,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907317650-90376/finished.json.gz",
+        "sha256": "c85106517ccf06e9e2fe387e6486acb65f7df8b921679e08a0171e0cdc44eee6",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790907317650-90376/installed.json.gz",
+        "sha256": "2c470a8d97662149a9b05eb064d4f264b6da08621270fa0717542fc972221bd4",
+        "bytes": 26450,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "intermediate/evidence/social-asset-removed/proof.json.gz",
+        "sha256": "93b792d26f3c8f6b4b2d722f808f8b2bfe0bd8ea53609d2ea7467a8e558d3f04",
+        "bytes": 78152,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "retained-evidence/social/1790907317650-90376/smoke-ios-receipts.jsonl.gz",
+        "sha256": "6f4145eae1202c78d81be2cae95cf2a9a3b3cd33de57f2fa3ad1c41fa1568b8b",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "intermediate/evidence/social-asset-removed/smoke-ios-run.json.gz",
+        "sha256": "8ff0bc926312557b400f85e1cb6970e8010ede18d7c56cbeff4625fb59dacd2a",
+        "bytes": 30092,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907419135-93850",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790907419135-93850/finished.json.gz",
+        "sha256": "c1f2b50c77702d31589d21d78f8c5a5b3980b4c81afafd1bc37adda17e66d05f",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907722982-9439/retention.json.gz",
+        "sha256": "e4465b2e2cea70ca207bbac44a92695e95129e34895203999b1fc50224093a92",
+        "bytes": 96,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "retained-evidence/social/1790907419135-93850/smoke-ios-run.json.gz",
+        "sha256": "a42c6a40ba0fd849bd7515df691b408d464986399f6236a96fc6dfd64010c33c",
+        "bytes": 721,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907678324-8572",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-cold/build.json.gz",
+        "sha256": "c732049eb5e6907611f79b4b938bb773691a1fdb791cd715426ff0e145543366",
+        "bytes": 58322605,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-cold/finished.json.gz",
+        "sha256": "fa03a51706ef6681953c58024471edaccf01b99fcad0ba5f9cde94abfb1ad287",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-cold/installed.json.gz",
+        "sha256": "8167a17abd2c3b428396adf77b1d235d3be8d4ec007eb6c1feb7a99bcd1132b1",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "pre-resource-fix/evidence/social-cold/native-base.json.gz",
+        "sha256": "82fc6b20d7f88d6e7f02affa643b8f48403226f4f631cc00ed979acc74b52b14",
+        "bytes": 64488286,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-cold/proof.json.gz",
+        "sha256": "dee7d9481db04a79b4add90395278e33b83006264afeebcdba93e9f1ee754d98",
+        "bytes": 79415,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-cold/smoke-ios-receipts.jsonl.gz",
+        "sha256": "daa90557edcb8604d2a2d57809c34a375e25c569ad3307e9f26e6ed4f08040aa",
+        "bytes": 6866,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-cold/smoke-ios-run.json.gz",
+        "sha256": "c5565df58d1408f740df7ef326521f7015b98a18b9f53f908d172975de33019b",
+        "bytes": 30453,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907913334-16142",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm1/build.json.gz",
+        "sha256": "b2005b16a8223ab61de3b0c9769cd7751e5f8c031ecf1f6ae08419c23a0a55fd",
+        "bytes": 61132,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-warm1/finished.json.gz",
+        "sha256": "4fd95d88b0b4ec12c84d90c2f32e5cb1f9f8079f2ea49abaa81fb005a6c67bbd",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm1/installed.json.gz",
+        "sha256": "47d5ca22a2b7df861f9d2534af16c19234090f84e493526861326b67363d3e0b",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm1/proof.json.gz",
+        "sha256": "3d6260aa2a06962dae780060b4c39ce4a4d0e08bea42740c1ce76c4802a5821e",
+        "bytes": 79411,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-warm1/smoke-ios-receipts.jsonl.gz",
+        "sha256": "8ac33e6ae8bd6a3d8a33c0d2e14fb5a33b28f48920023c12eafd984f038ad38c",
+        "bytes": 6869,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm1/smoke-ios-run.json.gz",
+        "sha256": "b53dad19d6eed22ca72b3ea67173d6282f59386734a7d094615f97ddc91b2806",
+        "bytes": 30477,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907936924-17923",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm2/build.json.gz",
+        "sha256": "ca0a7be843b97920735f2bdd9229239c149458018b64d48af20630ec4daf77a2",
+        "bytes": 61132,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-warm2/finished.json.gz",
+        "sha256": "0f813ec074828725940eeb1de662b2881cbb92a9fa7411b851defd81ba36df6d",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm2/installed.json.gz",
+        "sha256": "5950182f7828285eadcc70da82ee92dfbb0cefe643c854c8969583610125888c",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm2/proof.json.gz",
+        "sha256": "4959fd0e84ffa95e6ed8e66eb5c313389864d79380e1f20dc64025bac11268af",
+        "bytes": 79411,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-warm2/smoke-ios-receipts.jsonl.gz",
+        "sha256": "e8d1386a87b893d893c7be910d24dcf13b3bffb6993ff3e1618ce971e08e0518",
+        "bytes": 6871,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm2/smoke-ios-run.json.gz",
+        "sha256": "953b85c4c6c52399cae85db872393e10905cb6e7b01c6832735ca70d20443d67",
+        "bytes": 30482,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907960407-19644",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm3/build.json.gz",
+        "sha256": "1d435afe414240e2a9d834b5926b1a820f540e9f9a00008ffdcedaca671a0713",
+        "bytes": 61131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-warm3/finished.json.gz",
+        "sha256": "d10f47cad7e7b0292f15f665b1ffccae789d8d12130ac1ce0fce74c30ac300fe",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm3/installed.json.gz",
+        "sha256": "062e39c3007a186c8becbf0a5ec3ddf237b623783da186815cd2ccc0305ddea7",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm3/proof.json.gz",
+        "sha256": "b8e957215dc388e1d806cf349d6098827c48b351212f4052ac4f309f48cca11e",
+        "bytes": 79411,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-warm3/smoke-ios-receipts.jsonl.gz",
+        "sha256": "5b31a2d0ea900d49f22a719c34cdbab32805c3f8502002f484c11b37b6fe135b",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm3/smoke-ios-run.json.gz",
+        "sha256": "42072cc67b22e86bf89868a418937dbbaa444fd5422278588757ac1fb58487d0",
+        "bytes": 30486,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790907984438-21397",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm4/build.json.gz",
+        "sha256": "a81861e31271a5d99100a8e1e1d276b30e84877773bcb2b82a4b0c72ccdcef46",
+        "bytes": 61132,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-warm4/finished.json.gz",
+        "sha256": "552ecec6e736cdb71803a02bf2f88a4e6a5222ca91316215fdf24b9015ac3cc4",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm4/installed.json.gz",
+        "sha256": "f94f4d679a6d3ee711533badd79c4d51e5e5695998e6277d8ad00e9dbeab508a",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm4/proof.json.gz",
+        "sha256": "4a20594bf654e2105c5ffebfd81b3c34ac2b601cfcfce6a1b35871ae653abf99",
+        "bytes": 79411,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-warm4/smoke-ios-receipts.jsonl.gz",
+        "sha256": "3a3dc869f51071896ea3c5263ed01a4340ab2f083b1323d9c74b5ef1eca8d4a5",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm4/smoke-ios-run.json.gz",
+        "sha256": "dce0540b0e85b10182ecac22f1b20092cb9b58a7085674f3f2cf4c38e4a9d994",
+        "bytes": 30486,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790908007435-23119",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm5/build.json.gz",
+        "sha256": "fc75e5461b84ba236ae1bcf46e8087c70a594239aa168543b71ea44b8396c022",
+        "bytes": 61131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-warm5/finished.json.gz",
+        "sha256": "8afd0f9dc3732757990d379630aa9425f04b926cb339c6406c9afd0457159665",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm5/installed.json.gz",
+        "sha256": "cb66cef143c5fc85aa9a1802ccdbc63a395c0ad6f6237869e245ad73ffd1c011",
+        "bytes": 26732,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm5/proof.json.gz",
+        "sha256": "1b0bf8343bddbfd52e523bc504ca533c457495063e9b672e83da7670a80e8c94",
+        "bytes": 79411,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-warm5/smoke-ios-receipts.jsonl.gz",
+        "sha256": "fa79415af1debafc06c8994ebdeec16eca1a2284f0d392979393e2ac98cbdd7f",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-warm5/smoke-ios-run.json.gz",
+        "sha256": "fb23b97bcf8f277999e67f218c331c04162528957e3c6817a73fa135fe468555",
+        "bytes": 30486,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790908032553-24868",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "pre-resource-fix/evidence/social-asset-removed/build.json.gz",
+        "sha256": "c5b46df4261dcfd1a0fd8af8296a622c17c836a03dd75b249cf8df3b277d3f58",
+        "bytes": 60134,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "pre-resource-fix/evidence/social-asset-removed/finished.json.gz",
+        "sha256": "81ff6efe7b28fb1e7823e1776535da9baa22608e6162a4a0f569dba23f9ef519",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "pre-resource-fix/evidence/social-asset-removed/installed.json.gz",
+        "sha256": "ea6f04fcf1ddce82db0114c8a64af697d503ec3bef858329141ac616e3d78124",
+        "bytes": 26450,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "pre-resource-fix/evidence/social-asset-removed/proof.json.gz",
+        "sha256": "3a1f285c6ee6752ee4b4ba2e5f6c7b6198926cae96071da6792a35f8fbc1689e",
+        "bytes": 78390,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "pre-resource-fix/evidence/social-asset-removed/smoke-ios-receipts.jsonl.gz",
+        "sha256": "0816489af1ccacc7c3166422da5cc53ecf65fe4cb750b735f96acbd3eff064f6",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "pre-resource-fix/evidence/social-asset-removed/smoke-ios-run.json.gz",
+        "sha256": "175e1187679a04712520e15bd6eb6ea10fd5236542f62de1e97b6103cb4c393a",
+        "bytes": 30101,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790909418448-69603",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-asset-present/build.json.gz",
+        "sha256": "aaf5e08eaf6d6c376d6ac52d851ca3a177322825814094db0f74ad14445c65f0",
+        "bytes": 58322920,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-asset-present/finished.json.gz",
+        "sha256": "1c85e878359c8419c2d35d850af5d479a346b597546217ec96c62210fba88d7f",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-asset-present/installed.json.gz",
+        "sha256": "722d8b587fba425be8f8686418591fbc5fef67878b0f490654aed6f07079308a",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "evidence/social-asset-present/native-base.json.gz",
+        "sha256": "975df483fc717ec97f592e04abdb3ed6a1e9d5d6144bb4ef882fa92d4ce421ca",
+        "bytes": 64490113,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-asset-present/proof.json.gz",
+        "sha256": "264e610e1ace8b7025e2b9825d66b05a24b3bb3b2797b13e916e37b07211c4dc",
+        "bytes": 77850,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-asset-present/smoke-ios-receipts.jsonl.gz",
+        "sha256": "95c31cdd5b3435b3b9c2bb327790b3acda3ef71158895484c6606486753a3fcb",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-asset-present/smoke-ios-run.json.gz",
+        "sha256": "5d5c6ea9e49278707616d654976bd88b8d87803f2e944701cb330a6c428f04b1",
+        "bytes": 30293,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790909587556-75636",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-asset-removed/build.json.gz",
+        "sha256": "8d93a2f9ef593bb78666cdd82cdeb805fcc7549eec8a9b6bdf748d592c217855",
+        "bytes": 58621,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-asset-removed/finished.json.gz",
+        "sha256": "eedca4952ee00215cdf188a11fd84fdf8426220ffa4527e0ef48a3276e4f0f97",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-asset-removed/installed.json.gz",
+        "sha256": "15739e6246795e745f390a9e9c1c6e5fcb9cc0faf47165614169537257713797",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-asset-removed/proof.json.gz",
+        "sha256": "943cf59580bf413940c4f56c08b0d1a1a04b7bef1a340bc09e532279cdb8690b",
+        "bytes": 76822,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-asset-removed/smoke-ios-receipts.jsonl.gz",
+        "sha256": "af6a3574daba2822a97474f12a3cde7d33c2f0061d438864af870b180183eddb",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-asset-removed/smoke-ios-run.json.gz",
+        "sha256": "a57cae961525ee77b59eeeb2bc05ad7bd4e5b4fb0ccaa2405a0175a8096abaf4",
+        "bytes": 29906,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790909614050-78155",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-asset-fresh/build.json.gz",
+        "sha256": "6a35cadb40d2f085c10ebc54d565d4ffcac439f637b32322d7939b3f290d68a1",
+        "bytes": 58319292,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-asset-fresh/finished.json.gz",
+        "sha256": "287ab9e3dbc748925ad6ebf5dbcc4803c89cabb84ca85985420df593c017340b",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-asset-fresh/installed.json.gz",
+        "sha256": "87596ce12ae60a2feaa039534359113085e1a77a72a0b2d112f10b7ef77d4bd7",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "evidence/social-asset-fresh/native-base.json.gz",
+        "sha256": "b71057e93de979c1fa7512daa55d18855eac1b8198bbee69d276aebbc5cfc784",
+        "bytes": 64486870,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-asset-fresh/proof.json.gz",
+        "sha256": "4fa3c5a4d45446ba0f9636afafb4213c422c74f007f93286da0ec66f42b443e5",
+        "bytes": 76829,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-asset-fresh/smoke-ios-receipts.jsonl.gz",
+        "sha256": "1d306b959d48ea32f003a678cb6b5cf75dbc0ece69968c15de6704784c6da752",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-asset-fresh/smoke-ios-run.json.gz",
+        "sha256": "acc60181876a3d015afb40d0b013167b6c9620760cadcdbed916ece75f52c410",
+        "bytes": 29908,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790909882682-89368",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-plugin-fork-first/build.json.gz",
+        "sha256": "552aa2cecceab1a32d9fa93c2adb816852232690229b4ed8183ebcbf7e084495",
+        "bytes": 58334920,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-plugin-fork-first/finished.json.gz",
+        "sha256": "8942ccde66ecc179d5265d6944716128b56f45dc27773db2f5586eb7455070e3",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-plugin-fork-first/installed.json.gz",
+        "sha256": "34f2a91c3c208cd9f889e3498d7673d8d3a3b9ce974bfadef43e808337549183",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "evidence/social-plugin-fork-first/native-base.json.gz",
+        "sha256": "5f5cb9d9b4c51456399e7bacafe91463f98e0301ef241a37d006f98364472340",
+        "bytes": 64506841,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-plugin-fork-first/proof.json.gz",
+        "sha256": "adc9de488e7a0d33d3ab57df56214de2b8f11c34f154317d1a8c41a5ea3c34c3",
+        "bytes": 76860,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-plugin-fork-first/smoke-ios-receipts.jsonl.gz",
+        "sha256": "1031c267950c31bf4b8d49d030022136cfa91288154a54968cd3b298b616e722",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-plugin-fork-first/smoke-ios-run.json.gz",
+        "sha256": "31d5ed8374b8b27693ee7a56aedd5e1ab9097349a5cac92273c6ae48ced4a48d",
+        "bytes": 29908,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910050272-97807",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-plugin-fork-second/build.json.gz",
+        "sha256": "5b1d54f017c6d97689b42369c6157c57e6af3a976b06ae1c714cbf2cf6a5e552",
+        "bytes": 58339389,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-plugin-fork-second/finished.json.gz",
+        "sha256": "77a98032222b28c2219b321e22bc4174bf8ae1891e687c3a29e7cb5f60fb615f",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-plugin-fork-second/installed.json.gz",
+        "sha256": "a23d93f42eebf024fc0a18ab5873df10bde2f1b1a3436e4f700c6594582d2edd",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "evidence/social-plugin-fork-second/native-base.json.gz",
+        "sha256": "0058cc024fb2af41364ba17baa227c4569a8bd08354a0630f4089d9316105aff",
+        "bytes": 64511311,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-plugin-fork-second/proof.json.gz",
+        "sha256": "4a01fa4226222abd310d4ca6533c555c927633a879356ee5da8cf4dafd14637a",
+        "bytes": 76861,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-plugin-fork-second/smoke-ios-receipts.jsonl.gz",
+        "sha256": "7eb8fdabe7cae6749d471be76fe62bded3d4fb76a884e6f022cf894d1d74f75b",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-plugin-fork-second/smoke-ios-run.json.gz",
+        "sha256": "9ad42e75cdcca1884374216899aa04e7f6e845416775ae3dd3e0914c57d8346e",
+        "bytes": 29902,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910193088-3243",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-out-of-tree/finished.json.gz",
+        "sha256": "12bf8acf3aa6802761dba69fa63b80f36da791389b98a438c21c6e284e399812",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-failure.json.gz",
+        "archive": "evidence/social-out-of-tree/preparation-failure.json.gz",
+        "sha256": "8f5ddaef7d720b80f97876a1d94d1beeafb1711044aaa09e53f2a8ed8d7aa96b",
+        "bytes": 4641,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790909265712-62212/retention.json.gz",
+        "sha256": "1f3543d6206834a9711cbb71fcbcc346dcee61c531117c5d414d5ece7fe863e2",
+        "bytes": 758,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-out-of-tree/smoke-ios-run.json.gz",
+        "sha256": "71c4db869399e7e3ba81c2039d6cc492260d781e93fd479d673747d07c7c77c0",
+        "bytes": 821,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910200372-3653",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-out-of-tree-replaced/finished.json.gz",
+        "sha256": "e2f1346c08476dacc7aafe8b92faea9251617f055bfad70784966cdebfc9fdd7",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-failure.json.gz",
+        "archive": "evidence/social-out-of-tree-replaced/preparation-failure.json.gz",
+        "sha256": "dd74a63a53e879aa25719afe5f98fd7ea326f99a865f8a8c88d6fde7a4103a94",
+        "bytes": 4640,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790909265712-62212/retention.json.gz",
+        "sha256": "1f3543d6206834a9711cbb71fcbcc346dcee61c531117c5d414d5ece7fe863e2",
+        "bytes": 758,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-out-of-tree-replaced/smoke-ios-run.json.gz",
+        "sha256": "960e457b7984006779f002ffeb5e38fea23f84f5def0700285ee13cbeb1edd51",
+        "bytes": 821,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910206826-4063",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-restored/build.json.gz",
+        "sha256": "f367fc4b868a557dddcc93290c0409947c9bc29170b3e0534a1bfe69fde4ce17",
+        "bytes": 58331056,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-restored/finished.json.gz",
+        "sha256": "bddd49bb11cab13d486a3f78f92b03bdc09eec75d96b6f65d6ae79f5efdbafec",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-restored/installed.json.gz",
+        "sha256": "a2a5a96ea0179483bfdcafedc15ffde0fac1ad7fec98775d470827818b59d40c",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "evidence/social-restored/native-base.json.gz",
+        "sha256": "e6f0a729d2f5ad414f780f45c4a6838849604ed94ccdeb1bbc95d298be77ab48",
+        "bytes": 64502937,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-restored/proof.json.gz",
+        "sha256": "1fa111bcb9416505823e2239b363253d6c9bd4474c412471ab97702785a8a671",
+        "bytes": 76825,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-restored/smoke-ios-receipts.jsonl.gz",
+        "sha256": "a305276664389f66677b9c2c13e20aeb88888c525e730c4c4e1eb66b7b974899",
+        "bytes": 6870,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-restored/smoke-ios-run.json.gz",
+        "sha256": "8b56cd62ce9bf0e2f8cff368c3ba2edcf2e6c6904f667e040ed126b6fe4b1af4",
+        "bytes": 29876,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910349282-8195",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-startup-throw/build.json.gz",
+        "sha256": "32eb74ab3df096e3efb566f0d148417117812aef81e17019eb91c542fd99159c",
+        "bytes": 58618,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-startup-throw/finished.json.gz",
+        "sha256": "01d3afbe90eb46fde99bc986f0e675014b8c0d5a33b7749e138224d2488553f8",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-startup-throw/installed.json.gz",
+        "sha256": "5f53e38ad293aa645e4a4e9d9a05b7fb36ae51878e95c42a93f57da24c486230",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-startup-throw/proof.json.gz",
+        "sha256": "783a0bed55abb44ece908b7dc1ef122b6fe597f945c59ba6f123deed211fc877",
+        "bytes": 76818,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790909396295-68412/retention.json.gz",
+        "sha256": "97f420a1c11645aadd3f2d68339f7e0a9526246bc2a1a3aab451f1f0af4ddc18",
+        "bytes": 1397,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-startup-throw/smoke-ios-receipts.jsonl.gz",
+        "sha256": "edc61e395dc9c875cce5efb6c1c96b7879c665e38056f38317eba198229850c0",
+        "bytes": 2322,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-startup-throw/smoke-ios-run.json.gz",
+        "sha256": "cfde8c4adb70c7b3d6e05e6e02405d64bb82ee273805e3760f289ba62e39e971",
+        "bytes": 21607,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910365461-9247",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-missing-runtime/finished.json.gz",
+        "sha256": "956b24b7c2f85a9317b951822b6ace1461e85a67ac3fe3118dcf65b79161e684",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907722982-9439/retention.json.gz",
+        "sha256": "e4465b2e2cea70ca207bbac44a92695e95129e34895203999b1fc50224093a92",
+        "bytes": 96,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-missing-runtime/smoke-ios-run.json.gz",
+        "sha256": "cef709e07979237e100bed6b1187e5b6b9c4a015ea5148a0d9754df61899b899",
+        "bytes": 504,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910443969-10938",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790910443969-10938/finished.json.gz",
+        "sha256": "477ddaa339753a1e834beb77385558b08851b53e5c2f37f7c832fb64aa3f1f5f",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907722982-9439/retention.json.gz",
+        "sha256": "e4465b2e2cea70ca207bbac44a92695e95129e34895203999b1fc50224093a92",
+        "bytes": 96,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "retained-evidence/social/1790910443969-10938/smoke-ios-run.json.gz",
+        "sha256": "3a5a765777098c1aed54b02748d20dfa971b0f08c2e0d4c3fded0cb4d9100a64",
+        "bytes": 721,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790910448911-11094",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "retained-evidence/social/1790910448911-11094/build.json.gz",
+        "sha256": "bfdd2509070f926ca616376e93671e58b098fd946b475555924b92e6c0ec5da4",
+        "bytes": 58622,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "retained-evidence/social/1790910448911-11094/finished.json.gz",
+        "sha256": "7b77204816ab017cc7fdb89102d512571af0a6d95d76077f5b1b1cfbefd9adb9",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "retained-evidence/social/1790910448911-11094/installed.json.gz",
+        "sha256": "7b8e74835b0b7a7784d62d158b808f2664e7c5aeb5beabfad242e173dcc73ea7",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "retained-evidence/social/1790910448911-11094/proof.json.gz",
+        "sha256": "19ce4717610de17ae244d53b721032516730e88481908dc553bcbe569d86836e",
+        "bytes": 76821,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/social/1790910448911-11094/retention.json.gz",
+        "sha256": "513d34a4120244d326526693a4400bbc691e4ce4a47aebb465a9b8df2ca1c27e",
+        "bytes": 1335,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "retained-evidence/social/1790910448911-11094/smoke-ios-run.json.gz",
+        "sha256": "21a7cbe97fa51fd7914d346eed7d45965602c9b97ede925f63a3606f703ee967",
+        "bytes": 19149,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911148866-32174",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-confirmed-cold/build.json.gz",
+        "sha256": "236963dd7ed5b1627027f310f1b754fc05a7e9f2904aa164908acc1a52769a21",
+        "bytes": 58321304,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-confirmed-cold/finished.json.gz",
+        "sha256": "219ddedd24d7764187c07629e36eb71ef1f038ddd22abdda4e611afae4e5db08",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-confirmed-cold/installed.json.gz",
+        "sha256": "e55df4253796841bcacee624249fc61cc42bafdb1a82647704b6392adcd419aa",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-base.json.gz",
+        "archive": "evidence/social-confirmed-cold/native-base.json.gz",
+        "sha256": "4d9364d0384fc1a120c09a0762b4534660beafcd861c7e18fa4f09ecb74830cc",
+        "bytes": 64488497,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-confirmed-cold/proof.json.gz",
+        "sha256": "12dd3facd78fc931c2727046bbfd566af1af25935038e6c62c9fbca3e1c85850",
+        "bytes": 77850,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790907400610-93060/retention.json.gz",
+        "sha256": "4565c20d22276c616c344c0cb120451a6575c5d805a089479abd47ff9134eeea",
+        "bytes": 2225,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-confirmed-cold/smoke-ios-receipts.jsonl.gz",
+        "sha256": "63fbac024cf459ead6f0188d036124f0f60f69ee55156fc2c1606cec688cc95b",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-confirmed-cold/smoke-ios-run.json.gz",
+        "sha256": "6b1d51418f1ead0ed4321be044b9e0447923bdd6b5bd9d77414765f55198a754",
+        "bytes": 30293,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911381824-39018",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-confirmed-warm1/build.json.gz",
+        "sha256": "279331a300e324d48fb249ece7d35ef5d0a02104e04b699fdaad2e9a8b7ea696",
+        "bytes": 59617,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-confirmed-warm1/finished.json.gz",
+        "sha256": "4b7bd87e77d67fcd179f2922de20cd48b01e40707a1bb9053dfaf0f4db568673",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-confirmed-warm1/installed.json.gz",
+        "sha256": "31a634985665b42c36edd3b33c5b440cd926f8afbb6e79d418134c046bbf0993",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-confirmed-warm1/proof.json.gz",
+        "sha256": "00733dc071f8b801891a3ad4c211e5a43c4908a3f08bf98e78174281098af843",
+        "bytes": 77843,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-confirmed-warm1/smoke-ios-receipts.jsonl.gz",
+        "sha256": "1dcd137b8946fcea09065dd1aa141ebdefa7c12dd27905425c5704265f3e1d7c",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-confirmed-warm1/smoke-ios-run.json.gz",
+        "sha256": "88090c6b7dffe8a6042cf56e94a6d96a2b0fe708d16618fc17d0b892e5df1e50",
+        "bytes": 30291,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911405780-40713",
+    "fullEvidence": false,
+    "files": [
+      {
+        "originalName": "build.json.gz",
+        "archive": "evidence/social-confirmed-warm2/build.json.gz",
+        "sha256": "8e84cbdbd2daa2cdc017f28be6a07c16491e235f88085b1c852e8ff8be14b4f6",
+        "bytes": 59618,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-confirmed-warm2/finished.json.gz",
+        "sha256": "51ae0988d54b50cfdb8479aa546d90c2722d5bc87ae45168179af7a1fc8a90b3",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json.gz",
+        "archive": "evidence/social-confirmed-warm2/installed.json.gz",
+        "sha256": "43648584a476d97c528c436eccc2577f4981f80f3e15c2df7c4a21358fb5df91",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json.gz",
+        "archive": "evidence/social-confirmed-warm2/proof.json.gz",
+        "sha256": "57e02613fe3dc656d7884dfc0e93383be593ea1f182413b4281e294592f4f9df",
+        "bytes": 77843,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "retention.json",
+        "archive": "retained-evidence/plain/1790906435868-50516/retention.json.gz",
+        "sha256": "e71f6698423f0caadf1f2734424c3f5bc4990bd2dc9ab02c6f54110405af0eb6",
+        "bytes": 1587,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl.gz",
+        "archive": "evidence/social-confirmed-warm2/smoke-ios-receipts.jsonl.gz",
+        "sha256": "595f0a8f17b1b491cadf7142ba77c0e6f9ac729fd4c5c8a954827681f7890849",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json.gz",
+        "archive": "evidence/social-confirmed-warm2/smoke-ios-run.json.gz",
+        "sha256": "665f86cd60eed9de91ef747a3fc9ef43bd35064823f55cae5927404d91d9ff95",
+        "bytes": 30291,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911429015-42449",
+    "fullEvidence": true,
+    "files": [
+      {
+        "originalName": "before-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "before-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "build.json",
+        "archive": "evidence/social-confirmed-warm3/build.json.gz",
+        "sha256": "07fa353b42c11ebcbcbce07e5210bd9f41accbde5690e33c32aa0a1f3e8236f1",
+        "bytes": 59617,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "check-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "check-stdout.log",
+        "archive": "evidence/social-confirmed-warm3/check-stdout.log.gz",
+        "sha256": "a8cca9750f9877cb3913011d58f489045d6fa8a2681bd7181169c8f62e0d5a07",
+        "bytes": 2513,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-cache.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/export-cache.mjs.gz",
+        "sha256": "e9c760e5a8a18cf13bf1554b9b1fb481d1db35789a77c0521ac5d88f89c8af3b",
+        "bytes": 15636,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-copy-base.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-developer.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-developer.log.gz",
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "bytes": 93,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-pod-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-pod-version.log.gz",
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-ruby-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-ruby-version.log.gz",
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "bytes": 72,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-build.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-build.log.gz",
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-path.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-path.log.gz",
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "bytes": 117,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-version.log.gz",
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "bytes": 5,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-ld.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-ld.log.gz",
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "bytes": 90,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swift-frontend.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swift-frontend.log.gz",
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "bytes": 102,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swiftc.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swiftc.log.gz",
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "bytes": 94,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-xcode-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-xcode-version.log.gz",
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "bytes": 33,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-confirmed-warm3/finished.json.gz",
+        "sha256": "3b3e19a0498fd3a317d48fbd07c1e4a1818e01e5cc3dd71c5dd09218902171eb",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "install-check.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/install-check.mjs.gz",
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "bytes": 223,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json",
+        "archive": "evidence/social-confirmed-warm3/installed.json.gz",
+        "sha256": "3bc409798273e61bf35875a0aa36a606bb9147c676cd84e75207fc3ec6e35886",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-closure.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-closure.mjs.gz",
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "bytes": 23846,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-inputs.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-inputs.mjs.gz",
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "bytes": 11211,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-scripts.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-scripts.mjs.gz",
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "bytes": 8789,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "payload.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/payload.mjs.gz",
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "bytes": 3859,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.json",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/plugin-audit.json.gz",
+        "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+        "bytes": 341713,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/plugin-audit.mjs.gz",
+        "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+        "bytes": 2723,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-phases.json",
+        "archive": "evidence/social-confirmed-warm3/preparation-phases.json.gz",
+        "sha256": "9380b2fbedb83a84eca1bb2bab88bdc6b41dd701c891644e6ebab22901bd235d",
+        "bytes": 4717,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "prepare.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/prepare.mjs.gz",
+        "sha256": "a1486f58369b2dd672ad4bb9b13ee60ffa08a57427f5f488752e941657947a80",
+        "bytes": 21612,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json",
+        "archive": "evidence/social-confirmed-warm3/proof.json.gz",
+        "sha256": "326ae3199b0f32ced1c369df9bfb6bbcba458280800b8f0c66cf632d31ca6c9a",
+        "bytes": 77843,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "smoke-ios-backend-stdout.log",
+        "archive": "evidence/social-confirmed-warm3/smoke-ios-backend-stdout.log.gz",
+        "sha256": "82b19d05a4e59873f705ada11da98df8ee5196049c10534d8b588e4c4e801044",
+        "bytes": 46,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-backend.log",
+        "archive": "evidence/social-confirmed-warm3/smoke-ios-backend.log.gz",
+        "sha256": "4877f5f18ce8e97376a27f784b8dd865eaf9e3333ff1b517db38410e88dc5f3e",
+        "bytes": 1937,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-device.log",
+        "archive": "evidence/social-confirmed-warm3/smoke-ios-device.log.gz",
+        "sha256": "0190e277d933bc71166da01e479db822810a2847edc9a9ba85e9d18b8ebdb13d",
+        "bytes": 9802218,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-launch.log",
+        "archive": "evidence/social-confirmed-warm3/smoke-ios-launch.log.gz",
+        "sha256": "aaca4442069ea5fa3d7244bfdfd9c6c909eeaf292004ae15e77985eb48609502",
+        "bytes": 84,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-log-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-log-stderr.log.gz",
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "bytes": 44,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-offline.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-prime.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-prime.png",
+        "sha256": "76504116a430973c078300c68b89d867b5e4203d361d1d7b8b0e539807a27065",
+        "bytes": 48801,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl",
+        "archive": "evidence/social-confirmed-warm3/smoke-ios-receipts.jsonl.gz",
+        "sha256": "d9f1b130c1e229a402a7032afc93898cdab203078ff54f3c5739de7d771f2a52",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-reserved",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-restart.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json",
+        "archive": "evidence/social-confirmed-warm3/smoke-ios-run.json.gz",
+        "sha256": "e0c9196b4971cc92ab27a981ca8e72f59c15f5a3d02cdde66ffd2bba525ac0de",
+        "bytes": 30291,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-screen.mp4",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-screen.mp4",
+        "sha256": "10dc027c4025ea0e9c82759af0fc0bcced4bee87e653602afbbad34afcfe3f6c",
+        "bytes": 4791995,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-video.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-video.log.gz",
+        "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954",
+        "bytes": 131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/verify.mjs.gz",
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "bytes": 167,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911452376-44202",
+    "fullEvidence": true,
+    "files": [
+      {
+        "originalName": "before-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "before-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "build.json",
+        "archive": "evidence/social-confirmed-warm4/build.json.gz",
+        "sha256": "248194f9bf8124a093fbd3142ae1572aa4d94e70a4ca08e180ec68a044c6d4cf",
+        "bytes": 59617,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "check-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "check-stdout.log",
+        "archive": "evidence/social-confirmed-warm4/check-stdout.log.gz",
+        "sha256": "0a37feaf9c8fa4e5fe0547ac2280bcd5a92282283353c0b634b9342076fb5b28",
+        "bytes": 2513,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-cache.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/export-cache.mjs.gz",
+        "sha256": "e9c760e5a8a18cf13bf1554b9b1fb481d1db35789a77c0521ac5d88f89c8af3b",
+        "bytes": 15636,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-copy-base.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-developer.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-developer.log.gz",
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "bytes": 93,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-pod-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-pod-version.log.gz",
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-ruby-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-ruby-version.log.gz",
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "bytes": 72,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-build.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-build.log.gz",
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-path.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-path.log.gz",
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "bytes": 117,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-version.log.gz",
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "bytes": 5,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-ld.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-ld.log.gz",
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "bytes": 90,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swift-frontend.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swift-frontend.log.gz",
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "bytes": 102,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swiftc.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swiftc.log.gz",
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "bytes": 94,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-xcode-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-xcode-version.log.gz",
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "bytes": 33,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-confirmed-warm4/finished.json.gz",
+        "sha256": "030b0a389344a9a32c47574791f6f46bc20a44bb8541a65069b69add5409b3cc",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "install-check.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/install-check.mjs.gz",
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "bytes": 223,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json",
+        "archive": "evidence/social-confirmed-warm4/installed.json.gz",
+        "sha256": "6c3408b05e1da3213ea8646f2f908cdb7d8c72616bb8afe569b3e28daab2611c",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-closure.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-closure.mjs.gz",
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "bytes": 23846,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-inputs.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-inputs.mjs.gz",
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "bytes": 11211,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-scripts.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-scripts.mjs.gz",
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "bytes": 8789,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "payload.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/payload.mjs.gz",
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "bytes": 3859,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.json",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/plugin-audit.json.gz",
+        "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+        "bytes": 341713,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/plugin-audit.mjs.gz",
+        "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+        "bytes": 2723,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-phases.json",
+        "archive": "evidence/social-confirmed-warm4/preparation-phases.json.gz",
+        "sha256": "5d8784a05cb4695ae08253ab7f291f35667fb6afa7eb5d019bb57bc66cfb7a3b",
+        "bytes": 4717,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "prepare.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/prepare.mjs.gz",
+        "sha256": "a1486f58369b2dd672ad4bb9b13ee60ffa08a57427f5f488752e941657947a80",
+        "bytes": 21612,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json",
+        "archive": "evidence/social-confirmed-warm4/proof.json.gz",
+        "sha256": "5d7d82a339272903adfa7196ed527b6617e303763482ad09c8af022f2182946a",
+        "bytes": 77843,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "smoke-ios-backend-stdout.log",
+        "archive": "evidence/social-confirmed-warm4/smoke-ios-backend-stdout.log.gz",
+        "sha256": "1b5f0f6d38a9157e728cff3872e5a24de193ecfffb09456996caf93bf1b46fd9",
+        "bytes": 46,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-backend.log",
+        "archive": "evidence/social-confirmed-warm4/smoke-ios-backend.log.gz",
+        "sha256": "e6559592a8bd4031f899aa41c408aa970091b999033c54f7060d919e9cf89788",
+        "bytes": 2020,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-device.log",
+        "archive": "evidence/social-confirmed-warm4/smoke-ios-device.log.gz",
+        "sha256": "c5906a7bd8240d0a05082cc87963c3d361b9071b7e17ba78da052aacfa5395ed",
+        "bytes": 9745388,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-launch.log",
+        "archive": "evidence/social-confirmed-warm4/smoke-ios-launch.log.gz",
+        "sha256": "f259f0915cb59634deb0b3b3fe5bead30922358039910535e681c60cf896663a",
+        "bytes": 84,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-log-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-log-stderr.log.gz",
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "bytes": 44,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-offline.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-prime.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl",
+        "archive": "evidence/social-confirmed-warm4/smoke-ios-receipts.jsonl.gz",
+        "sha256": "0148da467d6c015b74bba6530bfce44c34633d60e6f9acf1a2d7a58164532975",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-reserved",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-restart.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json",
+        "archive": "evidence/social-confirmed-warm4/smoke-ios-run.json.gz",
+        "sha256": "9a753771aa25f4ab42faa84e786473650826cf28d71eae6d5ed6c712238f446e",
+        "bytes": 30291,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-screen.mp4",
+        "archive": "retained-evidence/social/1790911452376-44202/smoke-ios-screen.mp4",
+        "sha256": "41c6a12c47f586340ee3db70a0e4a8bf39e4a9788d2a5840eb96a2eea35be825",
+        "bytes": 5072009,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-video.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-video.log.gz",
+        "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954",
+        "bytes": 131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/verify.mjs.gz",
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "bytes": 167,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911477470-46255",
+    "fullEvidence": true,
+    "files": [
+      {
+        "originalName": "before-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "before-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "build.json",
+        "archive": "evidence/social-confirmed-warm5/build.json.gz",
+        "sha256": "b5f21c7ec0056125e6d399171dbb176965e9705aefefdd805e11a6760be0858a",
+        "bytes": 59617,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "check-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "check-stdout.log",
+        "archive": "evidence/social-confirmed-warm3/check-stdout.log.gz",
+        "sha256": "a8cca9750f9877cb3913011d58f489045d6fa8a2681bd7181169c8f62e0d5a07",
+        "bytes": 2513,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-cache.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/export-cache.mjs.gz",
+        "sha256": "e9c760e5a8a18cf13bf1554b9b1fb481d1db35789a77c0521ac5d88f89c8af3b",
+        "bytes": 15636,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-copy-base.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-developer.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-developer.log.gz",
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "bytes": 93,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-pod-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-pod-version.log.gz",
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-ruby-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-ruby-version.log.gz",
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "bytes": 72,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-build.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-build.log.gz",
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-path.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-path.log.gz",
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "bytes": 117,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-version.log.gz",
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "bytes": 5,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-ld.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-ld.log.gz",
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "bytes": 90,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swift-frontend.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swift-frontend.log.gz",
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "bytes": 102,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swiftc.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swiftc.log.gz",
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "bytes": 94,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-xcode-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-xcode-version.log.gz",
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "bytes": 33,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-confirmed-warm5/finished.json.gz",
+        "sha256": "4a688c6a1b215d67f425e0dfedf023d5f61b92ed35ec828a8c97e7cf650e26ad",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "install-check.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/install-check.mjs.gz",
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "bytes": 223,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json",
+        "archive": "evidence/social-confirmed-warm5/installed.json.gz",
+        "sha256": "2aa491c2b287eaa0d663332a7a35323e309ac7126617e8606827f51e545beed7",
+        "bytes": 26126,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-closure.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-closure.mjs.gz",
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "bytes": 23846,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-inputs.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-inputs.mjs.gz",
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "bytes": 11211,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-scripts.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-scripts.mjs.gz",
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "bytes": 8789,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "payload.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/payload.mjs.gz",
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "bytes": 3859,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.json",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/plugin-audit.json.gz",
+        "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+        "bytes": 341713,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/plugin-audit.mjs.gz",
+        "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+        "bytes": 2723,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-phases.json",
+        "archive": "evidence/social-confirmed-warm5/preparation-phases.json.gz",
+        "sha256": "7d10a108df870a496da085434053e581d2697d25cae31bd5b9497aa3220633aa",
+        "bytes": 4717,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "prepare.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/prepare.mjs.gz",
+        "sha256": "a1486f58369b2dd672ad4bb9b13ee60ffa08a57427f5f488752e941657947a80",
+        "bytes": 21612,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json",
+        "archive": "evidence/social-confirmed-warm5/proof.json.gz",
+        "sha256": "d62c72e1482a73c241a73ba723ce669c9913372dc49e889c8ccfd62fc104af84",
+        "bytes": 77843,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "smoke-ios-backend-stdout.log",
+        "archive": "evidence/social-confirmed-warm5/smoke-ios-backend-stdout.log.gz",
+        "sha256": "d7dcd8b27e165fd67a7fd03d04b132bfe717b981bc8b1bd71d06aa71108b58db",
+        "bytes": 46,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-backend.log",
+        "archive": "evidence/social-confirmed-warm5/smoke-ios-backend.log.gz",
+        "sha256": "dbcc2eeee5dcabf70a4ee7e0cc9a539b684a8c7d9d12113e25f0ddc6e060e2f6",
+        "bytes": 2020,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-device.log",
+        "archive": "evidence/social-confirmed-warm5/smoke-ios-device.log.gz",
+        "sha256": "0bd7429bf9ca1fe9afec5dfa801d55b6d464e8649dafbe585315fdf1bef455d1",
+        "bytes": 9745980,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-launch.log",
+        "archive": "evidence/social-confirmed-warm5/smoke-ios-launch.log.gz",
+        "sha256": "1ea6614b5dc0c6af8f1d05eabf1338eb9fa555365d8aae4b057ad11a5c5f0d98",
+        "bytes": 84,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-log-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-log-stderr.log.gz",
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "bytes": 44,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-offline.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-prime.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl",
+        "archive": "evidence/social-confirmed-warm5/smoke-ios-receipts.jsonl.gz",
+        "sha256": "68e255ac11701c2b5c36b71a18583f357f7bc73ed9f2713f486d418029d38c72",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-reserved",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-restart.png",
+        "archive": "retained-evidence/social/1790911429015-42449/smoke-ios-offline.png",
+        "sha256": "684d740926074aa85189a8be30df1f64e788a48c69a9e154de18e86dfd337a6b",
+        "bytes": 48668,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json",
+        "archive": "evidence/social-confirmed-warm5/smoke-ios-run.json.gz",
+        "sha256": "755922381fc9f7f4730ec485f25c34ab33f93164049a3b6345995caa27785b1f",
+        "bytes": 30291,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-screen.mp4",
+        "archive": "retained-evidence/social/1790911477470-46255/smoke-ios-screen.mp4",
+        "sha256": "2140cc3dc7a26f0ade5bda7b7774cccf25f93cd349790a482f1a7e19c73c79db",
+        "bytes": 4976513,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-video.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-video.log.gz",
+        "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954",
+        "bytes": 131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/verify.mjs.gz",
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "bytes": 167,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911501321-48221",
+    "fullEvidence": true,
+    "files": [
+      {
+        "originalName": "before-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "before-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "build.json",
+        "archive": "evidence/social-final-asset-removed/build.json.gz",
+        "sha256": "aeee7eb6cd0078eba0b83ff3ed472fd90b1cd81cf85f09b28964eb78eff2ee45",
+        "bytes": 58620,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "check-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "check-stdout.log",
+        "archive": "pre-resource-fix/evidence/social-warm5/check-stdout.log.gz",
+        "sha256": "2ae4c3ca3136d4518a59b694def35e3259eb6ffe3a6cab463e047677208e947d",
+        "bytes": 2513,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-cache.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/export-cache.mjs.gz",
+        "sha256": "e9c760e5a8a18cf13bf1554b9b1fb481d1db35789a77c0521ac5d88f89c8af3b",
+        "bytes": 15636,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-copy-base.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-developer.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-developer.log.gz",
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "bytes": 93,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-pod-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-pod-version.log.gz",
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-ruby-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-ruby-version.log.gz",
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "bytes": 72,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-build.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-build.log.gz",
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-path.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-path.log.gz",
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "bytes": 117,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-version.log.gz",
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "bytes": 5,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-ld.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-ld.log.gz",
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "bytes": 90,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swift-frontend.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swift-frontend.log.gz",
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "bytes": 102,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swiftc.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swiftc.log.gz",
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "bytes": 94,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-xcode-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-xcode-version.log.gz",
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "bytes": 33,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-final-asset-removed/finished.json.gz",
+        "sha256": "a3e05a4d242c4cc0045b787fdba4a3012f10eb2bb519df7a7c37f4a385284bf7",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "install-check.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/install-check.mjs.gz",
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "bytes": 223,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json",
+        "archive": "evidence/social-final-asset-removed/installed.json.gz",
+        "sha256": "772858af26b2e25ad36002691045ddb57c76af271e0b7149f1e221dfb64253c7",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-closure.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-closure.mjs.gz",
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "bytes": 23846,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-inputs.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-inputs.mjs.gz",
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "bytes": 11211,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-scripts.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-scripts.mjs.gz",
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "bytes": 8789,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "payload.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/payload.mjs.gz",
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "bytes": 3859,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.json",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/plugin-audit.json.gz",
+        "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+        "bytes": 341713,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/plugin-audit.mjs.gz",
+        "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+        "bytes": 2723,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-phases.json",
+        "archive": "evidence/social-final-asset-removed/preparation-phases.json.gz",
+        "sha256": "1ac2635ae1856882f3c76fd84aa0cbeda8b199f593ad5b739427effb85526250",
+        "bytes": 4717,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "prepare.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/prepare.mjs.gz",
+        "sha256": "a1486f58369b2dd672ad4bb9b13ee60ffa08a57427f5f488752e941657947a80",
+        "bytes": 21612,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json",
+        "archive": "evidence/social-final-asset-removed/proof.json.gz",
+        "sha256": "180a4cf695fba762dceb7a634ab280e0874be185676ccd57a329f7a4cb9cb00f",
+        "bytes": 76822,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "smoke-ios-backend-stdout.log",
+        "archive": "evidence/social-final-asset-removed/smoke-ios-backend-stdout.log.gz",
+        "sha256": "f9e76e0328a90e7452f192a15e2eb5de32417ceca4c4324bdf4523d5c9e1a9a7",
+        "bytes": 46,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-backend.log",
+        "archive": "evidence/social-final-asset-removed/smoke-ios-backend.log.gz",
+        "sha256": "8719407c590d0fe5f35019c4f0b458bb6ad5f8b6cdd6ab5f47c3dbd7e13a419c",
+        "bytes": 2020,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-device.log",
+        "archive": "evidence/social-final-asset-removed/smoke-ios-device.log.gz",
+        "sha256": "933b82b230ae2a0167d6bf0cb0ea4be43f1201cb7171717594a5c7e3780c5237",
+        "bytes": 9949238,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-launch.log",
+        "archive": "evidence/social-final-asset-removed/smoke-ios-launch.log.gz",
+        "sha256": "f3b69814c040f2d24a0fca6aff5367bb2526c123f441a4a13b04b9034dc097b9",
+        "bytes": 84,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-log-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-log-stderr.log.gz",
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "bytes": 44,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-offline.png",
+        "archive": "retained-evidence/social/1790911501321-48221/smoke-ios-offline.png",
+        "sha256": "f0534f6558243e0bae48846c2f9beb2def02532104cd245952cf0497751c75ed",
+        "bytes": 48771,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-prime.png",
+        "archive": "retained-evidence/social/1790911501321-48221/smoke-ios-offline.png",
+        "sha256": "f0534f6558243e0bae48846c2f9beb2def02532104cd245952cf0497751c75ed",
+        "bytes": 48771,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl",
+        "archive": "evidence/social-final-asset-removed/smoke-ios-receipts.jsonl.gz",
+        "sha256": "f8f41150b603782488719d37c3b6d196df17a303368c31f16db686099b03c386",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-reserved",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-restart.png",
+        "archive": "retained-evidence/social/1790911501321-48221/smoke-ios-offline.png",
+        "sha256": "f0534f6558243e0bae48846c2f9beb2def02532104cd245952cf0497751c75ed",
+        "bytes": 48771,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json",
+        "archive": "evidence/social-final-asset-removed/smoke-ios-run.json.gz",
+        "sha256": "a273082834e189d8601ce0dfbf9012ae6767d4feb8790ae5a6934417d6483212",
+        "bytes": 29906,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-screen.mp4",
+        "archive": "retained-evidence/social/1790911501321-48221/smoke-ios-screen.mp4",
+        "sha256": "62bf3979c04d74322cdefe0a637541ac8fb6e4d3dc99963a53f19c5991c10f82",
+        "bytes": 4898889,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-video.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-video.log.gz",
+        "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954",
+        "bytes": 131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/verify.mjs.gz",
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "bytes": 167,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  },
+  {
+    "run": "1790911527877-50010",
+    "fullEvidence": true,
+    "files": [
+      {
+        "originalName": "before-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "before-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "build-settings.log",
+        "archive": "evidence/social-asset-fresh/build-settings.log.gz",
+        "sha256": "4f5254219609caf9e49c2b27a80002951b09742b06d9a932c88411efa3d86520",
+        "bytes": 104746,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "build.json",
+        "archive": "evidence/social-final-asset-fresh/build.json.gz",
+        "sha256": "8515d0d6c99aa07f2b94fd115c5ff090c9811cd77b93e828ce51241c32aa2ad3",
+        "bytes": 58319192,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "cache-miss.json",
+        "archive": "pre-resource-fix/evidence/plain-cold/cache-miss.json.gz",
+        "sha256": "13c5969d419afc951a6ae36ccaf8b62a486869b7326797137dd4147927122ab2",
+        "bytes": 34,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "check-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "check-stdout.log",
+        "archive": "evidence/social-final-asset-fresh/check-stdout.log.gz",
+        "sha256": "173c34ca107c2479d79b2a84b35377bcac26d4b6e68af9b8c7a3176a5d32d88a",
+        "bytes": 2513,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-cache.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/export-cache.mjs.gz",
+        "sha256": "e9c760e5a8a18cf13bf1554b9b1fb481d1db35789a77c0521ac5d88f89c8af3b",
+        "bytes": 15636,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-copy-base.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-developer.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-developer.log.gz",
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "bytes": 93,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-pod-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-pod-version.log.gz",
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-ruby-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-ruby-version.log.gz",
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "bytes": 72,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-build.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-build.log.gz",
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-path.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-path.log.gz",
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "bytes": 117,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-sdk-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-version.log.gz",
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "bytes": 5,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-ld.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-ld.log.gz",
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "bytes": 90,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swift-frontend.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swift-frontend.log.gz",
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "bytes": 102,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-tool-swiftc.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-tool-swiftc.log.gz",
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "bytes": 94,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "export-xcode-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-xcode-version.log.gz",
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "bytes": 33,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "fingerprint-after.log",
+        "archive": "pre-resource-fix/evidence/social-cold/fingerprint-after.log.gz",
+        "sha256": "c0698f315834bafaada34ebae6d95581e0347ea81291edf028ddadba79366e3a",
+        "bytes": 25233,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "fingerprint-before.log",
+        "archive": "pre-resource-fix/evidence/social-cold/fingerprint-after.log.gz",
+        "sha256": "c0698f315834bafaada34ebae6d95581e0347ea81291edf028ddadba79366e3a",
+        "bytes": 25233,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "finished.json",
+        "archive": "evidence/social-final-asset-fresh/finished.json.gz",
+        "sha256": "dcad475400259df82c7116a0933c1ac263f2680a9fd5564f0f2307eed0ee45be",
+        "bytes": 28,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "hermes-version.log",
+        "archive": "pre-resource-fix/evidence/plain-cold/hermes-version.log.gz",
+        "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+        "bytes": 232,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "install-check.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/install-check.mjs.gz",
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "bytes": 223,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "installed.json",
+        "archive": "evidence/social-final-asset-fresh/installed.json.gz",
+        "sha256": "9f146675ee6584c53ab0dc2f9cad8789bd8ca0c247322598f768c454c0f9453e",
+        "bytes": 25844,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-base.json",
+        "archive": "evidence/social-final-asset-fresh/native-base.json.gz",
+        "sha256": "6568835efb544ad75ba136cf782f15c800e377b6b05d1395c58e3c51e0503419",
+        "bytes": 64486770,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-closure.json",
+        "archive": "evidence/social-final-asset-fresh/native-closure.json.gz",
+        "sha256": "3f6f1e34bf017530ba84df0f192dbbcad951b8e7add4c4c9b8b71ffc2898de12",
+        "bytes": 5316375,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "native-closure.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-closure.mjs.gz",
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "bytes": 23846,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-inputs.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-inputs.mjs.gz",
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "bytes": 11211,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "native-scripts.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/native-scripts.mjs.gz",
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "bytes": 8789,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "payload.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/payload.mjs.gz",
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "bytes": 3859,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plist-23.log",
+        "archive": "evidence/social-final-asset-fresh/plist-23.log.gz",
+        "sha256": "87e9f5a22a281d5457c5443c5f6b14babd0c4e92c8c59975abdf4bf698cf0b6c",
+        "bytes": 22287,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plist-25.log",
+        "archive": "pre-resource-fix/evidence/social-cold/plist-25.log.gz",
+        "sha256": "404ed117fdd6dec7b23e693cfd74d4c580aea780a711f2cc76b84fcf9e95b214",
+        "bytes": 2273363,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plist-29.log",
+        "archive": "pre-resource-fix/evidence/social-cold/plist-29.log.gz",
+        "sha256": "19a9b9cd6868fc939714636c5cb6b36c22fe11f287ea972c3a0b4aec3e90ba9c",
+        "bytes": 2309,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.json",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/plugin-audit.json.gz",
+        "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+        "bytes": 341713,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "plugin-audit.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/plugin-audit.mjs.gz",
+        "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+        "bytes": 2723,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "pod-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-pod-version.log.gz",
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "pods.log",
+        "archive": "evidence/social-final-asset-fresh/pods.log.gz",
+        "sha256": "2e239105e9b92f63624ad9b7feb760478643701b2be8ee3c738e39ecae6cdfde",
+        "bytes": 30300,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "prebuild.log",
+        "archive": "pre-resource-fix/evidence/plain-cold/prebuild.log.gz",
+        "sha256": "760817c0abef0754ae42e2529d618519cf915fee2cdeec02b4741f131bac4111",
+        "bytes": 168,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-phases.json",
+        "archive": "evidence/social-final-asset-fresh/preparation-phases.json.gz",
+        "sha256": "6413eb8a6841531f765f67a761820f12220f2802f29bdea10f91db05f617d2f7",
+        "bytes": 24062,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preparation-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "prepare.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/prepare.mjs.gz",
+        "sha256": "a1486f58369b2dd672ad4bb9b13ee60ffa08a57427f5f488752e941657947a80",
+        "bytes": 21612,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "preserve-app.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "proof.json",
+        "archive": "evidence/social-final-asset-fresh/proof.json.gz",
+        "sha256": "4b6ec64c1139bc0752713f06ff193d6a3f66491bc4570a26975b6add61394927",
+        "bytes": 76829,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "public-config.log",
+        "archive": "pre-resource-fix/evidence/social-cold/public-config.log.gz",
+        "sha256": "a26ca9547271c9a8bf5f50b85fb40fd7901a91715d9afce02a90f3b363c496c4",
+        "bytes": 463,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "resolved-native.json",
+        "archive": "evidence/social-final-asset-fresh/resolved-native.json.gz",
+        "sha256": "2b1d28070fc07487402f93288b8ea49d212a8872f1ef519c206b76cd2c381641",
+        "bytes": 15388304,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "runtime.log",
+        "archive": "evidence/social-final-asset-fresh/runtime.log.gz",
+        "sha256": "b324d779049e7e0326507e3eb6ba36acce4c1b259e8c78bf2d05bc415537683b",
+        "bytes": 20033,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "schemes.log",
+        "archive": "pre-resource-fix/evidence/social-cold/schemes.log.gz",
+        "sha256": "0897d1bdd06d68cea5aee4bccf597278a6b8ed41d5e9ad49962163b229831904",
+        "bytes": 3360,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "sdk-build.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-build.log.gz",
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "bytes": 7,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "sdk-path.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-path.log.gz",
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "bytes": 117,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "sdk-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-sdk-version.log.gz",
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "bytes": 5,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-backend-stdout.log",
+        "archive": "evidence/social-final-asset-fresh/smoke-ios-backend-stdout.log.gz",
+        "sha256": "dbae9324238b5efc9c392611c8500ac141e6be35826c2b8b0b343f9a431d1bff",
+        "bytes": 46,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-backend.log",
+        "archive": "evidence/social-final-asset-fresh/smoke-ios-backend.log.gz",
+        "sha256": "841d29541d03c4ce077c258bb9e577621cc4d0b4c2bcaca7aea7dfbe55e60c1a",
+        "bytes": 2020,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-device.log",
+        "archive": "evidence/social-final-asset-fresh/smoke-ios-device.log.gz",
+        "sha256": "5ac0467ef0685af331b397611362827c70ce7d6bce197563b1ad57393f95d263",
+        "bytes": 9737932,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-launch.log",
+        "archive": "evidence/social-final-asset-fresh/smoke-ios-launch.log.gz",
+        "sha256": "47cf106dc99b7c5cd224be421ecd9ac35649909de8994322e25f445b1b43008d",
+        "bytes": 84,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-log-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-log-stderr.log.gz",
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "bytes": 44,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-offline.png",
+        "archive": "retained-evidence/social/1790911527877-50010/smoke-ios-offline.png",
+        "sha256": "1d23e2277fe7672a78d8249bf25741b1120676de0b862aaaf54c5a9830ffd2d3",
+        "bytes": 48547,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-prime.png",
+        "archive": "retained-evidence/social/1790911527877-50010/smoke-ios-offline.png",
+        "sha256": "1d23e2277fe7672a78d8249bf25741b1120676de0b862aaaf54c5a9830ffd2d3",
+        "bytes": 48547,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-receipts.jsonl",
+        "archive": "evidence/social-final-asset-fresh/smoke-ios-receipts.jsonl.gz",
+        "sha256": "8230e8ae8d8830a8de7665c7edb5a9adaab5e855e4c1c527bee6e92d8f0167bb",
+        "bytes": 6873,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-reserved",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-restart.png",
+        "archive": "retained-evidence/social/1790911527877-50010/smoke-ios-offline.png",
+        "sha256": "1d23e2277fe7672a78d8249bf25741b1120676de0b862aaaf54c5a9830ffd2d3",
+        "bytes": 48547,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-run.json",
+        "archive": "evidence/social-final-asset-fresh/smoke-ios-run.json.gz",
+        "sha256": "e7b0801ddd4660a53c622e9db2bc5da3ed313b1be98f2c560238f5526f1a7ae1",
+        "bytes": 29908,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-screen.mp4",
+        "archive": "retained-evidence/social/1790911527877-50010/smoke-ios-screen.mp4",
+        "sha256": "3bb3318430841acbfb6613a7a1c6eb0a87724f5a06732546b8c8dd522acc0e83",
+        "bytes": 5720229,
+        "compressed": false,
+        "originalMode": 420
+      },
+      {
+        "originalName": "smoke-ios-video.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/smoke-ios-video.log.gz",
+        "sha256": "8d8f65cb3891fc0ed113f834d5deef6bed05e6880e276012df82bec63da6b954",
+        "bytes": 131,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "snapshot.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "source-inputs.json",
+        "archive": "evidence/social-final-asset-fresh/source-inputs.json.gz",
+        "sha256": "31dc0be7be9d45e0308d2d2de904f3cb26ba1dcb856193508768f108e4b1453c",
+        "bytes": 9043,
+        "compressed": true,
+        "originalMode": 292
+      },
+      {
+        "originalName": "target-settings-0.log",
+        "archive": "evidence/social-asset-fresh/target-settings-0.log.gz",
+        "sha256": "51cfd045d90b592d2ce6bdf65accf41da87229fdc3571dea622c50af81f75762",
+        "bytes": 208355,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "target-settings-1.log",
+        "archive": "evidence/social-asset-fresh/target-settings-1.log.gz",
+        "sha256": "788e674245f22b1b0da2b4f6a41c15fc0b64af853ada6f40fefd5dd5fb238076",
+        "bytes": 5964184,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-collection-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-install-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-offline-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-prime-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stderr.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify-restart-stdout.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/before-install-stderr.log.gz",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "verify.mjs",
+        "archive": "retained-evidence/plain/1790910904504-22390/verify.mjs.gz",
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "bytes": 167,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "xcode-build.log",
+        "archive": "evidence/social-final-asset-fresh/xcode-build.log.gz",
+        "sha256": "40f6f8b3f6b3f187ca404b6c2215df96df68553e37e7acbccc0c0e91dc301582",
+        "bytes": 9552918,
+        "compressed": true,
+        "originalMode": 420
+      },
+      {
+        "originalName": "xcode-version.log",
+        "archive": "pre-resource-fix/evidence/plain-asset-removed/export-xcode-version.log.gz",
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "bytes": 33,
+        "compressed": true,
+        "originalMode": 420
+      }
+    ]
+  }
+]
