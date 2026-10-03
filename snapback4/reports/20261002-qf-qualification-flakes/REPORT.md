@@ -1384,3 +1384,176 @@ proc-stat tickets closed; the separate worker-refusal timing ticket open.
 The local merge commit lists all three conflicts and their resolutions and
 carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Neither the branch
 nor any package is pushed or published.
+
+
+## Round 6 — simplification
+
+Operator commission: read both final reviews in full, remove ancestry/token
+ownership, retain the file group's cleanup and watchdog, and restore Node's
+pass/fail semantics. Starting commit is Round 5's merge **808d173ee2** on
+`sb4-intent/qf-qualification-flakes`. Astra's verdict is **NOT READY** with
+three P1s and one P2; Grok's verdict is **READY**. This round follows the
+operator's narrower ownership boundary rather than extending escape detection.
+
+### Governing context and implementation
+
+The `llp-orient` scope is the test-file runner, its process and reporting
+helpers, focused regressions, AGENTS testing notes and LLP 3000's
+[publication suite under contention](../../../llp/3000-snapback4.explainer.md#publication-suite-under-contention).
+LLP 3000 is the Snapback 4 root; LLP 2000.000 supplies the design brief,
+`rules/RULES.md` the shared-machine rule and `snapback4/NOT-DOING.md` the fence.
+No authoring surface or product implementation changes. Hand-off: none.
+The operator's Round 6 ruling supersedes the prior escape-detection policy;
+AGENTS and the living LLP now describe the actual narrower behavior.
+
+- Each file starts in a fresh process group held by its keeper. Cleanup sends
+  one SIGKILL to that group while its ChildProcess handle still holds the
+  unreaped keeper. Emergency cleanup uses the same one-shot release. No PID
+  discovered by inspection can authorize a signal, and the group is never
+  signalled again after release.
+- Verification includes the keeper and all other living group members and
+  requires two consecutive empty inspections, 50 ms apart, within five seconds.
+  Observed leftover members fail as `TEST_FILE_LEAK`; already observed leaks
+  remain failures even if cleanup succeeds. Inspection failure remains
+  fail-closed, with the first error retained. Vanished members count as exited.
+- Ancestry inference, spawn interception/registries, environment tokens, Linux
+  environment reading and the Darwin environment helper are deleted. The native
+  escape fixture and escape/token regressions are deleted. The watchdog's
+  child-leak cases now use in-group children; product assertions are unchanged.
+- Reporter counts come from Node's complete `test:summary` event over IPC.
+  Passing requires exit status 0, independently reported `fail: 0` and
+  `cancelled: 0`, and no watchdog, leak or inspection failure. The failure handler
+  respects TODO and skip. A test-authored exit-code override or TAP-looking
+  console line cannot erase the reporter's failures.
+- Focused regressions compare the exact throwing `beforeExit` override fixture
+  and an expected TODO failure with `node --test`. A cancelled-test override
+  also stays failed. A stale parent-link injection leaves a separately launched
+  sibling alive, and attempting to signal through a reaped keeper is refused.
+  Existing in-group orphans, stale/vanished metadata, failed listings, progress,
+  stalled JS, console chatter and original replacement assertions remain covered.
+
+**Limitation:** processes that leave the file's group through `setsid`,
+`setpgid` or detached spawning are out of scope. They are not tracked, cleaned
+up or counted as leaks, regardless of their ancestry or environment. Fixtures
+creating such processes must manage their lifetimes. This deliberately removes
+the behavior behind Astra findings 1 and 2; it does not claim to fix arbitrary
+session escapes. The original flaky incidents were in-group.
+
+The progress watchdog is unchanged: each real subtest start/completion resets
+`max(15 minutes, largest single declared guard + max(60 seconds, 25%))`.
+Console output is not progress; there is no total-duration cap. The guard
+census covers **303 files with zero undercovered guards**.
+
+### Verification record
+
+Focused checks on final source pass **32/32 on eb1000 and 32/32 on the
+Apartment mini**, with zero skips, assertion failures or outer file refusals.
+The two files are `test-file-runner.test.mjs` and `replacement-fixture.test.mjs`:
+
+```sh
+node snapback4/scripts/run-client-tests.mjs 1 files \
+  snapback4/packages/snapback4/test/test-file-runner.test.mjs \
+  snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+The mini runs the same command in its task scratch with `LC_ALL=de_DE.UTF-8`
+and `SNAPBACK4_BIN` pointing to the published `snapback4-darwin-arm64@0.4.10`
+fixture binary, as in Round 5. Its ten copied source hashes match. This is
+runner and replacement-fixture portability evidence, not a current-release
+Mac product qualification. The mini used Node 24.18.0; eb1000 used 24.13.1.
+Only eb1000 and the Apartment mini were used. Both mini scratches were removed;
+`mini-cleanup.log` and `before-cancellation-mini-cleanup.log` retain receipts.
+No office M1 or publication M5 was contacted and no unrelated process was sent
+a terminating signal.
+
+The nine fixture-wrapper assertions also pass on the final runner. The first
+focused development attempt had one failing assertion: assigning exit status
+in the summary handler changed the fixture's observed status to 1, so it no
+longer demonstrated independent rejection of a cleared exit code. Moving exit
+status handling back to the TODO-aware failure event fixed that ordering.
+The retained green 31/31 checks preceded the additional cancellation regression;
+the final 32/32 checks supersede them.
+
+The cancellation audit found that Node reports `cancelled` separately from
+`fail`; the unamended runner could pass a cancelled test with a cleared status.
+The final independent cancellation check and regression were added during the
+full suite's Rust phase, before ordinary client execution, and then rechecked
+on both hosts. `cancellation-amendment.json` records the timing. The separate
+final fixture-wrapper run covers the only JavaScript category that had already
+executed. No Rust, product, guard, seed or original flaky-test assertion changed.
+
+The first stress attempt overlapped the suite's wasm regeneration: one target
+failed on a missing generated wasm import. It was stopped after 13 attempts per
+target; its 23 background aborts and one target abort are operator interruptions,
+not runner refusals. The second attempt had 35 successful target completions
+and no natural failures before it was stopped to bind the cancellation fix;
+its 23 background aborts and one target abort are also operator interruptions.
+`preparation-stress/` and `before-cancellation-stress/` retain every result,
+failure log and per-failure classification. Neither interrupted run substitutes
+for the complete final stress run.
+
+### Single eb1000 full suite
+
+The sole full-suite invocation ran **2026-10-03T05:56:32.992142+00:00–
+2026-10-03T06:20:44.828659+00:00**, exit **1**, from `snapback4/`:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Its exact summary is **`== 1 failure(s) in 1452 s`**. The only failed category
+is `cargo test`, containing exactly the four operator-designated UB baselines:
+
+- `snapback4-lang::prefix_reads::explicit_caps_stay_silent_and_predicting_short_pages_stay_refused`
+- `snapback4-lang::prefix_reads::prefix_reads_compile_without_notes_and_caps_follow_one_schema_number`
+- `snapback4-sim::membership_search::edges::calendar_repair_executes_the_same_offset_boundary_predicate`
+- `snapback4-sim::membership_search::refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches`
+
+The names and assertion signatures match Round 5's independent clean-main
+reproduction at `1b879881be`; they remain tracked by the existing
+[UB ticket](../../../issues/20261003-snapback4-shape-meter-note-breaks-prefix-and-membership-search-tests.md).
+No QF, environmental or runner-refusal failure occurred in the suite.
+All build, budget, package/app and JavaScript categories pass. Ordinary clients:
+**300/300 files, 6,026 passed, 11 existing skips**. Models: **79/79**.
+Fixture wrappers: **9/9**. Total JavaScript: **6,114 passed, zero failed or
+cancelled, 11 skipped across 303 file results**. The six removed Darwin-only
+skips belonged to the deleted escape-inspection regressions; no product skip
+was added or changed.
+
+`round6/full-suite.log.gz`, its SHA-256 in `full-suite-summary.json`, the
+per-file table and `full-suite-failure-classification.json` retain the full
+record. The final source manifest binds all 2,433 selected source paths;
+`source-amendments.json` records only the cancellation correction and its
+matching testing notes. Binary and wasm inputs are unchanged after build.
+
+### Final 24-file stress
+
+The final run started **2026-10-03T06:01:03.943Z** and drained at
+**2026-10-03T06:26:08.916Z**, exit **0**. From `snapback4/`:
+
+```sh
+node reports/20261002-qf-qualification-flakes/stress.mjs after \
+  reports/20261002-qf-qualification-flakes/round6/stress 200 both
+```
+
+The worker regression passes **200/200**, with its intended one test in every
+run. The observed-replacement regression passes **200/200**, with its intended
+two tests in every run. Every target completion has **23 background file slots
+active**, making the requested 24-file pool. All **1,429 background executions
+across 300 files pass**, with **zero assertion failures, cancellations or runner
+refusals**. All 1,829 results have exit status 0 and nonempty reporter counts.
+The full suite overlapped this final stress run after its build phase; no build
+inputs changed during the final stress qualification.
+
+`round6/stress/runs.jsonl.gz` retains every result; the summary, load timeline,
+`stress-target-summary.json` and independent `stress-stats.json` recount the
+claims. Earlier interrupted attempts are classified separately above.
+`final-integrity.json` confirms all 2,433 source hashes, ten mini source hashes
+and binary/wasm inputs still match. Both requested final reviews are retained
+verbatim as `input-final-astra.md` and `input-final-grok.md`; no new reviewer
+verdict is claimed for this revision.
+
+The affected documentation audit reconciles LLP 3000 and AGENTS with the new
+group-only contract while preserving every historical JOURNAL entry. Reference
+and whitespace checks accompany the local commit. The commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published.

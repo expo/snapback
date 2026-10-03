@@ -7,10 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runFile, fileStallTimeout, largestGuard } from '../../../scripts/run-client-tests.mjs';
-import { identity, live, processTable } from '../../../scripts/test-processes.mjs';
-import { createTokenInspector, TOKEN_KEY } from '../../../scripts/test-process-token.mjs';
+import { identity, live, processTable, signalGroup } from '../../../scripts/test-processes.mjs';
 
-for (const block of ['event loop', 'leaked handle']) test(`file watchdog diagnoses ${block} and reaps detached descendants`, { timeout: 20000 }, async t => {
+for (const block of ['event loop', 'leaked handle']) test(`file watchdog diagnoses ${block} and reaps group descendants`, { timeout: 20000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-file-watchdog-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'stuck.test.mjs'), pidFile = join(dir, 'pid');
@@ -19,7 +18,7 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {writeFileSync} from 'node:fs';
 test('stuck fixture', async () => {
-  const child = spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{});console.log('child ready');setInterval(()=>{},1000)"], {detached:true,stdio:['ignore','pipe','ignore']});
+  const child = spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{});console.log('child ready');setInterval(()=>{},1000)"], {stdio:['ignore','pipe','ignore']});
   await once(child.stdout,'data');
   writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
   await new Promise(resolve => process.stdout.write('FIXTURE_READY: ${block}\\n', resolve));
@@ -35,7 +34,7 @@ test('stuck fixture', async () => {
   if (block === 'leaked handle') assert.match(output, /original assertion failure/);
   const pid = Number(readFileSync(pidFile, 'utf8'));
   const current = identity(pid);
-  assert.equal(current && live(current) || false, false, 'detached child must be gone before the runner returns');
+  assert.equal(current && live(current) || false, false, 'group child must be gone before the runner returns');
 });
 
 test('file runner preserves test failures and continues to a following healthy file', async t => {
@@ -52,7 +51,58 @@ test('file runner preserves test failures and continues to a following healthy f
   assert.match(output, /kept failure/);
 });
 
-test('file exit cannot orphan an unreferenced detached child and report success', async t => {
+for (const todo of [false, true]) test(`Node failure semantics survive ${todo ? 'an expected TODO failure' : 'a beforeExit exit-code override'}`, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-result-semantics-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'failure.test.mjs');
+  writeFileSync(path, `import test from 'node:test';
+test('fails', {todo:${todo}}, () => { throw Error('failure'); });
+${todo ? '' : "process.on('beforeExit', () => { process.exitCode = 0; });"}`);
+  const native = spawnSync(process.execPath, ['--test', path], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(native.status, todo ? 0 : 1, native.stdout + native.stderr);
+  let output = '';
+  const result = await runFile(path, { onOutput: text => { output += text; } });
+  assert.equal(result.code, 0, output);
+  assert.equal(result.passed, todo, output);
+  assert.equal(result.counts.fail, todo ? 0 : 1, output);
+  assert.equal(result.counts.todo, todo ? 1 : 0, output);
+});
+
+test('a stale parent link cannot claim or signal a process outside the file group', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-group-only-'));
+  const sibling = spawn(process.execPath, ['-e', 'process.stdin.resume();console.log("ready")'], { stdio: ['pipe', 'pipe', 'ignore'] });
+  const exited = once(sibling, 'exit');
+  t.after(async () => {
+    sibling.stdin.end(); await exited;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  await once(sibling.stdout, 'data');
+  const path = join(dir, 'healthy.test.mjs');
+  writeFileSync(path, "import test from 'node:test';test('healthy',()=>{});");
+  let keeper;
+  const result = await runFile(path, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: () =>
+    processTable().map(row => row.pid === sibling.pid ? { ...row, parent: keeper.pid } : row) });
+  assert.equal(result.passed, true, JSON.stringify(result));
+  assert.ok(identity(sibling.pid)?.alive, 'runner left our separately launched sibling alone');
+  assert.throws(() => signalGroup(keeper), /keeper exited before cleanup/, 'reaped group IDs cannot authorize signals');
+});
+
+test('a cancelled test cannot pass by overriding its exit status', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-cancelled-result-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'cancelled.test.mjs');
+  writeFileSync(path, `import test from 'node:test';
+test('cancelled', {signal:AbortSignal.abort()}, () => {});
+process.on('beforeExit', () => { process.exitCode = 0; });`);
+  const native = spawnSync(process.execPath, ['--test', path], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(native.status, 1, native.stdout + native.stderr);
+  const result = await runFile(path, { onOutput: () => {} });
+  assert.equal(result.code, 0);
+  assert.equal(result.passed, false);
+  assert.equal(result.counts.cancelled, 1);
+});
+
+test('file exit cannot orphan an unreferenced group child and report success', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-file-orphan-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'leak.test.mjs'), pidFile = join(dir, 'pid');
@@ -61,7 +111,7 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {writeFileSync} from 'node:fs';
 test('leaked child', async () => {
-  const child = spawn(process.execPath, ['-e', "console.log('ready');setInterval(()=>{},1000)"], {detached:true,stdio:['ignore','pipe','ignore']});
+  const child = spawn(process.execPath, ['-e', "console.log('ready');setInterval(()=>{},1000)"], {stdio:['ignore','pipe','ignore']});
   await once(child.stdout,'data');
   writeFileSync(${JSON.stringify(pidFile)},String(child.pid));
   child.stdout.destroy(); child.unref();
@@ -154,157 +204,6 @@ test('stall bounds cover single guards with margin, including serial mode and se
   assert.equal(fileStallTimeout('ordinary.test.mjs'), 900000);
   for (const file of ['social-browser', 'retained-history', 'app-session-model'])
     assert.equal(fileStallTimeout(file + '.test.mjs', {SNAPBACK4_TEST_SERIAL_CLIENT_FILES:'1'}), fileStallTimeout(file + '.test.mjs', {}));
-});
-
-for (const shape of ['setsid', 'setpgid', 'setpgid with cleared token', 'detached Node helper']) test(`file custody reaps a ${shape} orphan after its parent exits`, {timeout:20000}, async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-token-escape-'));
-  const binary = join(dir, 'native-sleep'), pidFile = join(dir, 'pid'), path = join(dir, 'escape.test.mjs');
-  let orphan;
-  t.after(() => {
-    if (orphan && live(orphan)) process.kill(orphan.pid, 'SIGKILL');
-    rmSync(dir, {recursive:true,force:true});
-  });
-  const compiled = spawnSync('cc', [fileURLToPath(new URL('./helpers/process-escape.c', import.meta.url)), '-o', binary], {encoding:'utf8',timeout:10000});
-  assert.equal(compiled.status, 0, compiled.stderr);
-  const helper = `const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');
-const child=spawn(${JSON.stringify(binary)},['sleep'],{detached:true,stdio:'ignore'});
-writeFileSync(${JSON.stringify(pidFile)},String(child.pid));child.unref();`;
-  writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';
-import {existsSync,readFileSync} from 'node:fs';
-test('escape with inherited token',()=>{
-${shape === 'detached Node helper' ? `execFileSync(process.execPath,['-e',${JSON.stringify(helper)}]);` : `execFileSync(${JSON.stringify(binary)},[${JSON.stringify(shape.startsWith('setpgid') ? 'setpgid' : shape)},${JSON.stringify(pidFile)}]${shape.includes('cleared') ? ',{env:{PATH:process.env.PATH}}' : ''});`}
-const end=performance.now()+5000;while((!existsSync(${JSON.stringify(pidFile)})||!readFileSync(${JSON.stringify(pidFile)},'utf8').trim())&&performance.now()<end)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);
-});`);
-  let output = '', keeper;
-  const result = await runFile(path, {onStart: child => {keeper=child.pid},onOutput:text=>{output+=text},inspect:()=>{
-    if (!orphan && existsSync(pidFile)) orphan=identity(Number(readFileSync(pidFile,'utf8')));
-    return processTable();
-  }});
-  assert.ok(orphan?.alive, 'fixture was live before cleanup');
-  assert.notEqual(orphan.group, keeper, 'fixture escaped the keeper group');
-  assert.equal(result.passed, false, output);
-  assert.equal(result.reason, 'TEST_FILE_LEAK', output);
-  assert.match(output, /tokenOwned|sessionOwned/);
-  assert.equal(live(orphan), false, output);
-});
-
-test('token sweep distinguishes files and never signals a different inherited token', async t => {
-  const inspect = createTokenInspector();
-  const wanted = 'a'.repeat(64), different = 'b'.repeat(64);
-  const child = spawn(process.execPath, ['-e', 'console.log("ready");setInterval(()=>{},1000)'], {env:{...process.env,[TOKEN_KEY]:different},stdio:['ignore','pipe','ignore'],detached:true});
-  const record = identity(child.pid);
-  t.after(async()=>{if(live(record))child.kill('SIGKILL');await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve));});
-  await once(child.stdout,'data');
-  assert.deepEqual(inspect(wanted), []);
-  assert.ok(inspect(different).some(row=>row.pid===child.pid));
-  assert.equal(live(record), true);
-});
-
-test('token inspection mechanism errors cannot establish a passing cleanup', async t => {
-  const dir=mkdtempSync(join(tmpdir(),'sb4-token-failure-'));
-  t.after(()=>rmSync(dir,{recursive:true,force:true}));
-  const path=join(dir,'pass.test.mjs');writeFileSync(path,"import test from 'node:test';test('pass',()=>{});");
-  let output='',inspections=0;
-  const result=await runFile(path,{onOutput:text=>{output+=text},inspectToken:()=>{
-    inspections++;throw Error('TEST_PROCESS_INSPECTION: injected environment enumeration failure');
-  }});
-  assert.equal(result.passed,false,output);
-  assert.equal(result.reason,'TEST_PROCESS_INSPECTION',output);
-  assert.ok(inspections>=1);
-  assert.match(result.inspectionFailure,/injected environment enumeration failure/);
-});
-
-test('an unreadable candidate is diagnosed once without signaling or refusing a healthy file', async t => {
-  const dir=mkdtempSync(join(tmpdir(),'sb4-unreadable-token-'));
-  const path=join(dir,'pass.test.mjs');
-  writeFileSync(path,"import test from 'node:test';test('healthy',()=>{});");
-  let output='',child,record;
-  const inspectToken=createTokenInspector({onOutput:text=>{output+=text},read:path=>{
-    if(path===`/proc/${child.pid}/environ`)throw Object.assign(Error('injected denial'),{code:'EACCES'});
-    return readFileSync(path);
-  },run:(command,args,options)=>{
-    const result=spawnSync(command,args,options);
-    if(result.status===0)result.stdout=JSON.stringify(JSON.parse(result.stdout).map(row=>row.pid===child.pid
-      ? {pid:row.pid,session:row.session,match:false,unreadable:'sysctl errno 13'} : row));
-    return result;
-  }});
-  child=spawn(process.execPath,['-e','console.log("ready");setInterval(()=>{},1000)'],{detached:true,stdio:['ignore','pipe','ignore']});
-  const exited=once(child,'exit');
-  record=identity(child.pid);
-  t.after(async()=>{if(live(record))child.kill('SIGKILL');await exited;rmSync(dir,{recursive:true,force:true});});
-  await once(child.stdout,'data');
-  const result=await runFile(path,{inspectToken,onOutput:text=>{output+=text}});
-  assert.equal(result.passed,true,output);
-  assert.equal(result.inspectionFailure,undefined,output);
-  assert.equal(live(record),true,'unknown ownership never authorizes a signal');
-  const diagnostics=output.split('\n').filter(line=>line.startsWith('TEST_PROCESS_UNREADABLE:')&&line.includes(`"pid":${child.pid},`));
-  assert.equal(diagnostics.length,1,output);
-  const metadata=JSON.parse(diagnostics[0].slice('TEST_PROCESS_UNREADABLE: '.length).split('; not provably ours')[0]);
-  assert.match(metadata.executable,/node/);
-  assert.equal(metadata.start,processTable().find(row=>row.pid===child.pid).start);
-  t.diagnostic(diagnostics[0]);
-});
-
-for(const fault of ['exit','timeout','malformed','incomplete','invalid row','malformed kernel result']) test(`token reader mechanism ${fault} fails closed`, {skip:process.platform!=='darwin'}, () => {
-  const inspect=createTokenInspector({run:()=>fault==='exit'?{status:1}
-    :fault==='timeout'?{error:{code:'ETIMEDOUT'},status:null}
-    :{status:0,stdout:fault==='malformed'?'broken':fault==='incomplete'?'[]'
-      :JSON.stringify([fault==='invalid row'?{}:{pid:process.pid,match:false,error:'malformed KERN_PROCARGS2 result'}])},
-    inspect:(()=>{let initial=true;return()=>{if(initial){initial=false;return [];}return processTable().filter(row=>row.pid===process.pid);};})()});
-  assert.throws(()=>inspect('a'.repeat(64)),/TEST_PROCESS_INSPECTION/);
-});
-
-test('native environment inspection identifies readable tokens and diagnoses Darwin redaction', async t => {
-  let output='';
-  const inspect=createTokenInspector({onOutput:text=>{output+=text}}), token='c'.repeat(64);
-  const child=spawn('/bin/sleep',['600'],{env:{...process.env,[TOKEN_KEY]:token},stdio:'ignore',detached:true});
-  const exited=once(child,'exit');
-  t.after(async()=>{child.kill('SIGKILL');await exited;});
-  await once(child,'spawn');
-  const owned=inspect(token);
-  if(process.platform==='darwin') {
-    assert.equal(owned.some(row=>row.pid===child.pid),false);
-    assert.match(output,/TEST_PROCESS_UNREADABLE:.*sleep.*environment unavailable or empty/);
-    assert.ok(output.includes(`"pid":${child.pid},`));
-    assert.equal(live(identity(child.pid)),true);
-    t.diagnostic(output.trim());
-  } else {
-    assert.ok(owned.some(row=>row.pid===child.pid), 'readable token must identify the native process');
-    t.diagnostic('native environment token is visible');
-  }
-});
-
-test('a redacted native detached orphan is diagnosed and reaped by its fixture', async t => {
-  const dir=mkdtempSync(join(tmpdir(),'sb4-native-token-'));
-  const path=join(dir,'native.test.mjs'),pidFile=join(dir,'pid');
-  let orphan,output='';
-  t.after(()=>{if(orphan&&live(orphan))process.kill(orphan.pid,'SIGKILL');rmSync(dir,{recursive:true,force:true});});
-  const helper=`const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');
-const child=spawn('/bin/sleep',['600'],{detached:true,stdio:'ignore'});
-child.once('spawn',()=>{writeFileSync(${JSON.stringify(pidFile)},String(child.pid));child.unref()});`;
-  writeFileSync(path,`import test from 'node:test';import {execFileSync} from 'node:child_process';test('native orphan',()=>execFileSync(process.execPath,['-e',${JSON.stringify(helper)}]));`);
-  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:()=>{
-    if(!orphan&&existsSync(pidFile))orphan=identity(Number(readFileSync(pidFile,'utf8')));
-    return processTable();
-  }});
-  assert.ok(orphan?.alive);
-  if(process.platform==='darwin') {
-    assert.equal(result.passed,true,output);
-    assert.equal(result.inspectionFailure,undefined,output);
-    assert.equal(live(orphan),true,'runner must not signal an opaque orphan');
-    const diagnostics=output.split('\n').filter(line=>line.startsWith('TEST_PROCESS_UNREADABLE:')&&line.includes(`"pid":${orphan.pid},`));
-    assert.equal(diagnostics.length,1,output);
-    assert.match(diagnostics[0],/sleep.*"start":".+".*environment unavailable or empty/);
-    t.diagnostic(diagnostics[0]);
-    process.kill(orphan.pid,'SIGKILL');
-    const deadline=performance.now()+5000;
-    while(live(orphan)&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,25));
-    assert.equal(live(orphan),false,'fixture reaps its own recorded orphan');
-  } else {
-    assert.equal(result.passed,false,output);
-    assert.equal(result.reason,'TEST_FILE_LEAK',output);
-    assert.equal(live(orphan),false,output);
-  }
 });
 
 test('persistent inspection failure stays a failure and kills the owned group', async t => {
@@ -515,20 +414,6 @@ test('present PID with empty, truncated or missing stat still refuses', () => {
       error.message.includes('malformed /proc/') && error.message.includes(`"rawBase64":"${raw.toString('base64')}"`));
   }
   for(const code of ['ENOENT','ESRCH']) assert.throws(()=>identity(process.pid,{platform:'linux',read:()=>{throw Object.assign(Error(`first ${code}`),{code});}}),new RegExp(`first ${code}`));
-});
-
-for (const fault of ['ENOENT','ESRCH','EIO','malformed','unreadable']) test(`per-process environment ${fault}: gone is exited; present stays classified`, () => {
-  const row={pid:process.pid,parent:0,uid:process.getuid(),group:process.pid,session:process.pid,start:'test-start',alive:true,executable:'test'};
-  for(const present of [false,true]) {
-    let first=true,output='';
-    const inspector=createTokenInspector({inspect:()=>{if(first){first=false;return [];}return [row];},identify:()=>row,exists:()=>present,
-      onOutput:text=>{output+=text},read:()=>{throw Object.assign(Error('ENVIRONMENT_CONTENT_MUST_NOT_LEAK'),{code:fault==='unreadable'?'EACCES':fault});},
-      run:()=>({status:0,stdout:JSON.stringify([{pid:row.pid,match:false,...(fault==='ESRCH'||fault==='ENOENT'?{gone:true}:fault==='unreadable'?{session:row.session,unreadable:'sysctl errno 13'}:{error:fault==='malformed'?'malformed KERN_PROCARGS2 result':'sysctl errno 5'})}])})});
-    if(present&&fault!=='unreadable')assert.throws(()=>inspector('a'.repeat(64)),/TEST_PROCESS_INSPECTION/);
-    else assert.deepEqual(inspector('a'.repeat(64)),[]);
-    assert.equal(output.includes('TEST_PROCESS_UNREADABLE'),present&&fault==='unreadable');
-    assert.ok(!output.includes('ENVIRONMENT_CONTENT_MUST_NOT_LEAK'));
-  }
 });
 
 test('a completed file passes when its enumerated group member has exited', async t => {

@@ -84490,3 +84490,58 @@ all failure classifications. The reference check and QF whitespace delta pass;
 43 inherited whitespace-bearing evidence files match main exactly. The local
 merge commit lists every conflict and carries the requested GPT-6 Astra
 co-author trailer. Nothing is pushed or published.
+
+
+## 2026-10-03 — QF round 6: simplification
+
+Read both final reviews in full (Astra NOT READY, Grok READY) and implemented
+the operator's narrower ownership rule. Each test file keeps its own fresh
+process group until one whole-group SIGKILL through its still-held, unreaped
+keeper. Verification then only inspects, requiring two consecutive empty group
+checks including the keeper. No discovered PID authorizes a signal. Ancestry
+inference, spawn registries, environment tokens and the Darwin environment
+helper are removed, along with the escape regressions and native escape helper.
+Processes leaving the group through setsid, setpgid or detached spawning are
+explicitly out of scope and must be managed by their fixtures. AGENTS and
+LLP 3000 record that limitation and replace the previous escape policy.
+
+Node's independent reporter summary now determines failure and cancellation
+counts over IPC alongside the exit status. A beforeExit override cannot erase
+a failed or cancelled test; expected TODO failures keep node --test semantics.
+New regressions compare those results with native Node, retain a separately
+started sibling under a stale-parent injection, and refuse a signal through a
+reaped keeper. The watchdog, its diagnostics and guard formula are unchanged;
+failed listings remain fail-closed and vanished members remain exited. The
+303-file census finds no undercovered guard. No product assertion, guard,
+seed, sample or skip was weakened.
+
+Final focused checks pass 32/32 on eb1000 and 32/32 on the Apartment mini, with
+zero skips or outer runner refusals. The mini's ten source hashes match and
+both task scratches were removed. Its published 0.4.10 binary proves only
+replacement-fixture portability; this is not current-release Mac qualification.
+No other Mac was contacted and no unrelated process received a terminating
+signal. The final fixture-wrapper run passes 9/9.
+
+The single eb1000 scripts/test.sh run reports exactly
+`== 1 failure(s) in 1452 s`, exit 1. The sole failed category is cargo test:
+UB's two prefix_reads and two membership_search assertions, matching Round 5's
+clean-main baseline and the operator's classification. All build, budget,
+package/app and JavaScript categories pass. Ordinary clients: 300/300 files,
+6,026 passed and 11 existing skips; models 79/79; fixture wrappers 9/9.
+Introduced, environmental and runner-refusal suite failures are all zero.
+
+Final 24-file stress passes the worker and observed-replacement regressions
+200/200 each; every target completion has 23 background files active. All
+1,429 background executions across 300 files pass, with zero runner refusals
+or assertion failures. All 1,829 results have nonempty counts and status 0.
+The source, binary and wasm hashes stayed unchanged through final qualification.
+
+The [Round 6 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-6--simplification)
+retains all evidence and failure classifications. It separately records the
+first development reporter-ordering assertion, one preparation failure from
+stress overlapping wasm regeneration, the resulting operator aborts, and a
+second interruption to bind the cancellation correction. That correction
+preceded the full suite's client phase; final checks on both hosts and the
+fixture wrappers cover it. Reference/whitespace checks accompany the local
+commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing is pushed
+or published.

@@ -1,6 +1,6 @@
-// Process custody for the test-file runner, including detached browsers.
-import { readFileSync, appendFileSync } from 'node:fs';
-import { ChildProcess, spawnSync } from 'node:child_process';
+// Process-group custody for the test-file runner. Escapes are out of scope.
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
@@ -74,96 +74,38 @@ export const live = record => {
   const now = identity(record.pid);
   return !!now?.alive && now.start === record.start;
 };
-export function records(path) {
-  try { return readFileSync(path, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse); }
-  catch (error) { if (error.code === 'ENOENT') return []; throw error; }
-}
-
-// Runs in both the node:test launcher and its test child. Record immediately
-// after spawn, before user callbacks can unref or detach the child.
-const registry = process.env.SNAPBACK4_TEST_PROCESS_LOG;
-if (registry) {
-  const original = ChildProcess.prototype.spawn;
-  ChildProcess.prototype.spawn = function (options) {
-    const result = original.call(this, options);
-    if (this.pid) {
-      const record = identity(this.pid);
-      if (record) appendFileSync(registry, JSON.stringify({ ...record, detached: !!options.detached }) + '\n');
-    }
-    return result;
-  };
-}
-
-// The live keeper reserves the file's process group until whole-group cleanup.
-// Verification continues after that signal, including when the keeper is dead.
-// Reparenting (including shell double forks) cannot remove group membership.
-// Registered detached processes additionally seed ancestry discovery. The
-// separate inherited-token sweep covers descendants that leave this group.
-export function ownedProcesses(owned, keeper, inspect = processTable) {
-  const table = inspect(); // errors must propagate, even when no records exist
-  const known = new Map();
-  for (const row of owned) if (live(row)) known.set(row.pid, row);
-  for (const row of table) if (row.alive && keeper && row.group === keeper.pid && row.pid !== keeper.pid) {
-    const current = identity(row.pid);
-    // A vanished member is exited, not a leak. The unconditional group signal
-    // and two fresh snapshots still cover children absent from this old table.
-    if (current?.alive && current.group === keeper.pid) known.set(row.pid, current);
-  }
-  let added;
-  do {
-    added = false;
-    for (const row of table) if (row.alive && !known.has(row.pid) && known.has(row.parent)) {
+// @ref LLP 3000#publication-suite-under-contention — only the process group
+// created for this file is owned. Parent links and environments confer nothing.
+export function ownedProcesses(keeper, inspect = processTable, { includeKeeper = false } = {}) {
+  return inspect().filter(row => row.alive && row.group === keeper.pid && (includeKeeper || row.pid !== keeper.pid))
+    .flatMap(row => {
+      // A table is a snapshot: a vanished member has exited. Recheck group
+      // membership too, so a reused PID or a process that left is not a leak.
       const current = identity(row.pid);
-      if (current?.alive) { known.set(row.pid, current); added = true; }
-    }
-  } while (added);
-  known.delete(keeper?.pid);
-  return [...known.values()];
+      return current?.alive && current.group === keeper.pid ? [current] : [];
+    });
 }
 
-export async function cleanupProcesses(owned, { keeper, inspect = processTable, inspectToken = () => [] } = {}) {
-  const known = new Map(owned.map(row => [row.pid, row]));
-  const signalGroup = (mayBeGone = false) => {
-    // A new group leader with the same PID is not ours. The first signal is
-    // sent while our keeper is alive; later signals stay on that same group.
-    const now = identity(keeper.pid);
-    if (now && now.start !== keeper.start) throw inspectionError('file group identity changed');
-    try { process.kill(-keeper.pid, 'SIGKILL'); }
-    catch (error) {
-      if (error.code === 'ESRCH') return;
-      // Darwin can report EPERM for a now-empty group. Never ignore a denied
-      // first signal, or a denial while any live member still belongs to it.
-      if (mayBeGone && error.code === 'EPERM' && !processTable().some(row => row.group === keeper.pid && row.alive)) return;
-      throw error;
-    }
-  };
-  const signalDetached = () => {
-    for (const row of known.values()) if (!row.vanished && live(row)) {
-      try { process.kill(row.pid, 'SIGKILL'); }
-      catch (error) { if (error.code !== 'ESRCH') throw error; }
-    }
-  };
-  if (!keeper || !live(keeper)) throw inspectionError('file group keeper exited before cleanup');
-  // Signal the entire group BEFORE the first verification snapshot, even when
-  // the initial discovery saw nothing. Individual PID lists cannot close the
-  // fork/exit race. Zombies have no execution or resources to clean up.
-  signalGroup(); signalDetached();
+// The ChildProcess handle must still hold the group leader unreaped. Never
+// signal from an enumerated PID, or signal this group again after its release.
+export function signalGroup(child) {
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null)
+    throw inspectionError('file group keeper exited before cleanup');
+  try { process.kill(-child.pid, 'SIGKILL'); }
+  catch (error) { if (error.code !== 'ESRCH') throw error; }
+}
+
+export async function cleanupProcesses(keeper, { inspect = processTable, release = () => signalGroup(keeper) } = {}) {
+  release(); // unconditional, even when preliminary inspection found no leak
   const deadline = performance.now() + 5000;
+  const found = new Map();
   let empty = 0, remaining = [];
   do {
-    remaining = ownedProcesses([...known.values()], keeper, inspect);
-    try { remaining.push(...inspectToken().filter(row => row.pid !== keeper.pid)); }
-    catch (error) {
-      // A failed inspection must not strand already proven owners.
-      for (const row of error.owned ?? []) known.set(row.pid, row);
-      signalDetached();
-      throw error;
-    }
-    for (const row of remaining) known.set(row.pid, row);
-    if (remaining.length) {
-      empty = 0; signalGroup(true); signalDetached();
-    } else if (++empty === 2) return [...known.values()];
+    remaining = ownedProcesses(keeper, inspect, { includeKeeper: true });
+    for (const row of remaining) if (row.pid !== keeper.pid) found.set(row.pid, row);
+    if (remaining.length) empty = 0;
+    else if (++empty === 2) return [...found.values()];
     await sleep(50);
   } while (performance.now() < deadline);
-  throw new Error(`TEST_PROCESS_CLEANUP: no two consecutive empty snapshots: ${JSON.stringify(remaining)}`);
+  throw new Error(`TEST_FILE_LEAK: no two consecutive empty group inspections: ${JSON.stringify(remaining)}`);
 }

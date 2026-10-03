@@ -7,9 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { randomBytes } from 'node:crypto';
-import { identity, live, records, ownedProcesses, processTable, cleanupProcesses } from './test-processes.mjs';
-import { createTokenInspector, TOKEN_KEY } from './test-process-token.mjs';
+import { ownedProcesses, processTable, cleanupProcesses, signalGroup } from './test-processes.mjs';
 
 export const FILE_STALL_FLOOR_MS = 15 * 60_000;
 // Largest SINGLE declared test guard, not the sum of sequential guards.
@@ -49,9 +47,8 @@ export const fileStallTimeout = (file, env) => {
   const guard = largestGuard(file, env);
   return Math.max(FILE_STALL_FLOOR_MS, guard + Math.max(60_000, Math.ceil(guard * .25)));
 };
-const preload = fileURLToPath(new URL('./test-processes.mjs', import.meta.url));
 
-export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable, inspectToken = createTokenInspector({ onOutput }) } = {}) {
+export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable } = {}) {
   timeout ??= fileStallTimeout(file, { ...process.env, ...overrides });
   const { values } = parseArgs({ args: nodeArgs, options: {
     'test-name-pattern': { type: 'string', multiple: true },
@@ -61,19 +58,23 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   // the validated flags to Node as well as the public run() options.
   const testOptions = { testNamePatterns: values['test-name-pattern'], testSkipPatterns: values['test-skip-pattern'] };
   const temp = mkdtempSync(join(tmpdir(), 'sb4-test-file-'));
-  const registry = join(temp, 'processes.jsonl'), output = join(temp, 'output.log');
+  const output = join(temp, 'output.log');
   const fd = openSync(output, 'w');
-  const token = randomBytes(32).toString('hex');
-  const scanToken = () => inspectToken(token, keeper);
-  const env = { ...process.env, ...overrides, SNAPBACK4_TEST_PROCESS_LOG: registry, [TOKEN_KEY]: token };
+  const env = { ...process.env, ...overrides };
   delete env.NODE_TEST_CONTEXT;
   const started = performance.now();
   onOutput(`-- client file start: ${file}; stall bound ${timeout} ms\n`);
   const child = spawn(process.execPath, [fileURLToPath(new URL('./test-file-owner.mjs', import.meta.url)),
-    '--import', preload, ...nodeArgs, fileURLToPath(new URL('./test-progress-reporter.mjs', import.meta.url)), resolve(file), JSON.stringify(testOptions)], {
+    ...nodeArgs, fileURLToPath(new URL('./test-progress-reporter.mjs', import.meta.url)), resolve(file), JSON.stringify(testOptions)], {
     env, detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
-  let keeper, tail = '', reason, cleanup, spawnError, inspectionFailure, timer;
+  let tail = '', reason, cleanup, spawnError, inspectionFailure, timer, counts;
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    signalGroup(child);
+  };
   let lastProgress = started, progress = 'file startup', progressCount = 0;
   const capture = b => { writeSync(fd, b); tail = (tail + b).slice(-16384); };
   child.stdout.on('data', capture); child.stderr.on('data', capture);
@@ -86,6 +87,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
         clearTimeout(timer); timer = setTimeout(() => { void stop('TEST_FILE_HANG'); }, timeout);
         return;
       }
+      if (result.counts) { counts = result.counts; return; }
       if (result.error) spawnError = result.error;
       resolve(result);
     });
@@ -97,25 +99,13 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   const diagnose = error => {
     const diagnostic = String(error.stack ?? error);
     inspectionFailure ??= diagnostic;
-    reason ??= 'TEST_PROCESS_INSPECTION';
+    reason ??= diagnostic.includes('TEST_FILE_LEAK:') ? 'TEST_FILE_LEAK' : 'TEST_PROCESS_INSPECTION';
     onOutput(`${diagnostic}\n`);
   };
-  // An inspection failure never establishes cleanup. Best effort still kills
-  // the owned, unreaped keeper's entire group and individually known detaches.
+  // Fail closed, but still release the group if inspection itself broke.
+  // The same one-shot release prevents any signal after the keeper is reaped.
   const emergencyCleanup = () => {
-    if (child.pid && child.exitCode === null && child.signalCode === null) {
-      try { process.kill(-child.pid, 'SIGKILL'); }
-      catch (error) { if (error.code !== 'ESRCH') diagnose(error); }
-    }
-    let tagged = [];
-    try { tagged = scanToken(); }
-    catch (error) { tagged = error.owned ?? []; diagnose(error); }
-    try {
-      for (const row of [...records(registry), ...tagged]) {
-        try { if (live(row)) process.kill(row.pid, 'SIGKILL'); }
-        catch (error) { if (error.code !== 'ESRCH') diagnose(error); }
-      }
-    } catch (error) { diagnose(error); }
+    try { release(); } catch (error) { diagnose(error); }
   };
   const stop = why => {
     if (cleanup) return cleanup;
@@ -123,9 +113,9 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; stall bound ${timeout} ms; ${Math.round(performance.now() - lastProgress)} ms without progress; last progress ${progress}\nlast output:\n${tail}\n`);
     cleanup = (async () => {
       try {
-        const owned = ownedProcesses(records(registry), keeper, inspect);
+        const owned = ownedProcesses(child, inspect);
         onOutput(`owned processes: ${JSON.stringify(owned)}\n`);
-        await cleanupProcesses(owned, { keeper, inspect, inspectToken: scanToken });
+        await cleanupProcesses(child, { inspect, release });
       } catch (error) { diagnose(error); emergencyCleanup(); }
       finally { forcedClose({ code: null, signal: 'SIGKILL' }); }
     })();
@@ -133,8 +123,6 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   };
   const abort = () => { void stop('TEST_FILE_ABORT'); };
   try {
-    keeper = identity(child.pid);
-    if (!keeper) throw Error('TEST_PROCESS_INSPECTION: missing group keeper');
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
     timer = setTimeout(() => { void stop('TEST_FILE_HANG'); }, timeout);
@@ -144,16 +132,16 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     if (cleanup) await cleanup;
     else {
       try {
-        const remaining = ownedProcesses(records(registry), keeper, inspect);
+        const remaining = ownedProcesses(child, inspect);
         if (remaining.length) await stop('TEST_FILE_LEAK');
         else {
-          const found = await cleanupProcesses([], { keeper, inspect, inspectToken: scanToken });
+          const found = await cleanupProcesses(child, { inspect, release });
           if (found.length) {
             reason = 'TEST_FILE_LEAK';
             onOutput(`TEST_FILE_LEAK: ${file}; found during group cleanup: ${JSON.stringify(found)}\n`);
           }
         }
-      } catch (error) { diagnose(error); await stop('TEST_PROCESS_INSPECTION'); }
+      } catch (error) { diagnose(error); await stop(reason); }
     }
     // Pipes are inherited by helpers. Even failed inspection cannot wedge the
     // reporting path; failure remains recorded if EOF cannot be established.
@@ -168,9 +156,9 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     onOutput(text);
     if (spawnError) onOutput(String(spawnError) + '\n');
     const elapsed = Math.round(performance.now() - started);
-    const passed = result.code === 0 && !reason && !spawnError && !inspectionFailure;
-    const counts = Object.fromEntries(['tests', 'pass', 'fail', 'cancelled', 'skipped', 'todo'].map(key =>
-      [key, Number(text.match(new RegExp(`^# ${key} (\\d+)$`, 'm'))?.[1] ?? 0)]));
+    // The reporter sends Node's own summary over IPC. Neither a mutable exit
+    // code nor test-authored TAP-looking console output can erase failures.
+    const passed = result.code === 0 && counts?.fail === 0 && counts.cancelled === 0 && !reason && !spawnError && !inspectionFailure;
     onOutput(`-- client file ${passed ? 'ok' : 'FAIL'}: ${file} (${elapsed} ms)\n`);
     return { file, ...result, passed, reason, inspectionFailure, elapsed, counts, stallMs: timeout, progressCount, lastProgress: progress };
   } catch (error) {

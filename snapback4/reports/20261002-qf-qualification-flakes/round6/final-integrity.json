@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-03T06:28:26.731840+00:00",
+  "sourcePaths": 2433,
+  "sourceChanges": [],
+  "miniSourcePaths": 10,
+  "miniSourcesMatch": true,
+  "binaryAndWasmMatch": true,
+  "fullSuiteInvocations": 1,
+  "stressExit": 0
+}

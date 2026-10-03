@@ -1,0 +1,152 @@
+[
+  {
+    "label": "replacement-0",
+    "file": "web-admission-review.test.mjs",
+    "reason": null,
+    "classification": "preparation: stress overlapped wasm regeneration; missing generated import"
+  },
+  {
+    "label": "load-131",
+    "file": "mixed-evidence-oracle.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-127",
+    "file": "maintained-columns.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-115",
+    "file": "legacy-receipts.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-105",
+    "file": "keep-clock.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-102",
+    "file": "keep-app-model.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-90",
+    "file": "horizon-boundary.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-120",
+    "file": "live-propagation.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-51",
+    "file": "delivery-fault-matrix.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-143",
+    "file": "online-session.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "replacement-12",
+    "file": "web-admission-review.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-45",
+    "file": "decorated-search.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-37",
+    "file": "bounded-following.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-30",
+    "file": "asset-lists.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-27",
+    "file": "asset-avatars.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-145",
+    "file": "online-store-terminal.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-140",
+    "file": "one-shot.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-0",
+    "file": "acquisition.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-138",
+    "file": "one-shot-model.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-139",
+    "file": "one-shot-review.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-137",
+    "file": "one-shot-bounds.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-135",
+    "file": "navigation-model.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-144",
+    "file": "online-store-order.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-146",
+    "file": "online-terminal-entrypoints.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  },
+  {
+    "label": "load-147",
+    "file": "ordinary-history.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop after build-input race"
+  }
+]

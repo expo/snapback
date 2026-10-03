@@ -82,18 +82,15 @@ Gotchas you cannot derive from the code:
   Console output does not count as progress. Serial mode uses the same bounds.
   See `scripts/run-client-tests.mjs` and the QF round-2 guard census; update
   named work counts and recheck the census when declarations change. Every
-  file ends with a whole-group kill and two consecutive empty group/session
-  and inherited-token inspections. Tokens cover native session escapes;
-  same-session custody also catches a child that clears its token. Linux reads
-  `/proc` environments; macOS uses Python 3's ctypes with `KERN_PROCARGS2`.
-  Observed owned survivors fail the file. Failed per-process reads recheck
-  existence: vanished PIDs are exited; present malformed metadata refuses with
-  exact metadata bytes and the first error retained. Enumeration-mechanism
-  failures remain fail-closed (QF Round 4). An unreadable/redacted candidate environment produces one
-  PID/executable/start-time diagnostic per identity, without refusal or signal.
-  An escape that loses ancestry and leaves the owned session/group is undetected
-  if its environment is unreadable/redacted or it removed its token; on macOS
-  this includes restricted executables such as `/bin/sleep`. See QF Round 3.
+  file runs in its own process group, held by a keeper until cleanup. Cleanup
+  signals that group once through the unreaped child handle, then requires two
+  consecutive inspections (50 ms apart) with no living group member. Observed
+  leftovers fail as TEST_FILE_LEAK. Failed process listings remain fail-closed;
+  vanished members count as exited. Ancestry, sessions and environment tokens
+  never extend ownership. Processes that leave the group (setsid, setpgid or
+  detached spawns) are out of scope and are not tracked or signalled. A file
+  passes only with exit status 0 and Node's independent reporter failure count
+  0 with no cancellations; expected TODO failures retain node --test semantics. See QF Round 6.
   The M5 MacBook is the publication host; the office M1 is calibration-only.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:

@@ -1,0 +1,18 @@
+{
+  "llp/3000-snapback4.explainer.md": {
+    "before": "0794a0bc891947ff3dd26b7a8124ef7db4b795cfebc998c5f91532b67ec6d585",
+    "qualified": "685be6ef8e7ba08cab7a553f877c0b18395eb86ff5afd9b76adcce6127c300ab"
+  },
+  "snapback4/AGENTS.md": {
+    "before": "0361afe62de028802695f60cab4e5aeff7a40b689cc3701eb736a1809714971d",
+    "qualified": "0297794b6d836698cbe8b7e1174e9566b52c2a0653435a9f9049a145e5dcbb42"
+  },
+  "snapback4/packages/snapback4/test/test-file-runner.test.mjs": {
+    "before": "04e4705199318fb933f8b7b42d968854c7fa07a04c7cb66a2046fd5460614c00",
+    "qualified": "80c956d78be919dfad5d268951580264947a49c5fbde06b05998b062c1020c52"
+  },
+  "snapback4/scripts/run-client-tests.mjs": {
+    "before": "d6b9a3555e4503d811ab869bfd5fe3c45a2b9f00bb3a9b4f80d4835317676560",
+    "qualified": "d09d4d4b983035111d106825c6fe4ab20fe73bdada726dc18598838375a96c1d"
+  }
+}
