@@ -8,17 +8,17 @@ const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`
 // Inspect the complete table: unlike `ps -p`, an empty selection cannot be
 // confused with a failed command. C locale makes BSD lstart exactly 24 chars.
 export function processTable({ run = spawnSync } = {}) {
-  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat='], {
+  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
     encoding: 'utf8', timeout: 2000, maxBuffer: 16 * 1024 * 1024,
     env: { ...process.env, LC_ALL: 'C' },
   });
   if (result.error || result.status !== 0 || !result.stdout?.trim())
     throw inspectionError(`ps failed: ${result.error?.message ?? `status ${result.status}, signal ${result.signal}`}; ${result.stderr ?? ''}`);
   return result.stdout.trimEnd().split('\n').map(line => {
-    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.{24})\s+(\S+)\s*$/.exec(line);
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.{24})\s+(\S+)\s+(.+)$/.exec(line);
     if (!match) throw inspectionError(`malformed ps row: ${line}`);
-    const [, pid, parent, group, uid, start, state] = match;
-    return { pid: Number(pid), parent: Number(parent), group: Number(group), uid: Number(uid), start, alive: !state.startsWith('Z') };
+    const [, pid, parent, group, uid, start, state, executable] = match;
+    return { pid: Number(pid), parent: Number(parent), group: Number(group), uid: Number(uid), start, executable, alive: !state.startsWith('Z') };
   });
 }
 
@@ -120,7 +120,7 @@ export async function cleanupProcesses(owned, { keeper, inspect = processTable, 
     remaining = ownedProcesses([...known.values()], keeper, inspect);
     try { remaining.push(...inspectToken().filter(row => row.pid !== keeper.pid)); }
     catch (error) {
-      // A different unreadable candidate must not strand already proven owns.
+      // A failed inspection must not strand already proven owners.
       for (const row of error.owned ?? []) known.set(row.pid, row);
       signalDetached();
       throw error;

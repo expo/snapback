@@ -1,6 +1,6 @@
 // @ref LLP 3000#publication-suite-under-contention — inherited tokens retain
 // custody across native setsid/setpgid and intermediate-parent exit.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { identity, live, processTable } from './test-processes.mjs';
@@ -12,7 +12,7 @@ const helper = fileURLToPath(new URL('./test-process-environment.py', import.met
 // Capture BEFORE assigning the unpredictable token or launching its keeper.
 // These exact identities cannot be descendants of this file. This also avoids
 // asking for protected environments of preexisting sshd/systemd processes.
-export function createTokenInspector({ inspect = processTable, read = readFileSync, run = spawnSync } = {}) {
+export function createTokenInspector({ inspect = processTable, read = readFileSync, run = spawnSync, onOutput = text => process.stdout.write(text) } = {}) {
   const uid = process.getuid();
   const baseline = new Map();
   for (const row of inspect()) if (row.alive) {
@@ -20,6 +20,7 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
     if (current?.alive) baseline.set(row.pid, current);
   }
   const ancestors = new Set();
+  const reported = new Set();
   for (let pid = process.pid; pid && !ancestors.has(pid); pid = baseline.get(pid)?.parent) ancestors.add(pid);
   return (token, keeper) => {
     if (!/^[a-f0-9]{64}$/.test(token)) throw fail('invalid file ownership token');
@@ -41,7 +42,8 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
       // An unchanged pre-launch process outside our ancestor chain cannot
       // spawn or adopt our descendants. This excludes independent new SSH
       // sessions, but never PID 1 or an ancestral subreaper after reparenting.
-      if (current?.alive && baseline.get(row.pid)?.start !== current.start && !unrelated(current)) candidates.push(current);
+      if (current?.alive && baseline.get(row.pid)?.start !== current.start && !unrelated(current))
+        candidates.push({ ...current, executable: row.executable, startedAt: row.start });
     }
     const preexistingSession = session => {
       const before = baseline.get(session);
@@ -52,7 +54,21 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
     // have forked a replacement during the environment read.
     const matched = (row, proof = 'tokenOwned') => { owned.push({ ...row, [proof]: true, vanished: !live(row) }); };
     const unreadable = (row, detail) => {
-      if (live(row)) errors.push(`environment of PID ${row.pid}: ${detail}`);
+      const key = `${row.pid}:${row.start}`;
+      if (reported.has(key)) return;
+      reported.add(key);
+      // Shared-host candidates are not ours without positive ownership proof.
+      // Report once per identity, without exposing arguments or environment.
+      let executable = row.executable;
+      if (process.platform === 'linux') {
+        try { executable = readlinkSync(`/proc/${row.pid}/exe`); }
+        catch {
+          // Non-dumpable processes may hide exe as well as environ. Retain
+          // argv[0] if readable, otherwise ps's executable name; never arguments.
+          try { executable = readFileSync(`/proc/${row.pid}/cmdline`, 'utf8').split('\0')[0] || executable; } catch { /* ps metadata remains */ }
+        }
+      }
+      onOutput(`TEST_PROCESS_UNREADABLE: ${JSON.stringify({ pid: row.pid, executable, start: row.startedAt, reason: detail })}; not provably ours; skipped\n`);
     };
     if (process.platform === 'linux') {
       for (const row of candidates) {
@@ -62,7 +78,8 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
           const env = read(`/proc/${row.pid}/environ`);
           if (env.toString('utf8').split('\0').includes(`${TOKEN_KEY}=${token}`)) matched(row);
         } catch (error) {
-          if (!['ENOENT', 'ESRCH'].includes(error.code)) unreadable(row, error.code ?? 'read failed');
+          if (['EACCES', 'EPERM'].includes(error.code)) unreadable(row, error.code);
+          else if (!['ENOENT', 'ESRCH'].includes(error.code)) errors.push(`environment of PID ${row.pid}: ${error.code ?? 'read failed'}`);
         }
       }
     } else if (process.platform === 'darwin') {
@@ -81,12 +98,19 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
         const row = candidates[i], entry = entries[i];
         if (!entry || entry.pid !== row.pid || typeof entry.match !== 'boolean'
           || (entry.error !== undefined && (typeof entry.error !== 'string' || !entry.error))
-          || (!entry.error && (!Number.isInteger(entry.session) || entry.session < 1))) throw fail('invalid environment helper row');
+          || (entry.unreadable !== undefined && (typeof entry.unreadable !== 'string' || !entry.unreadable))
+          || (entry.gone !== undefined && entry.gone !== true)
+          || (!entry.error && !entry.gone && (!Number.isInteger(entry.session) || entry.session < 1))) throw fail('invalid environment helper row');
+        if (entry.error) { errors.push(`environment of PID ${row.pid}: ${entry.error}`); continue; }
+        if (entry.gone) {
+          if (live(row)) errors.push(`environment of live PID ${row.pid}: helper reported ESRCH`);
+          continue;
+        }
         // POSIX cannot join an existing session. Our keeper starts a new one;
         // a still-existing pre-launch session is therefore provably unrelated.
         if (entry.session === keeper?.pid && keeper) matched(row, 'sessionOwned');
         else if (preexistingSession(entry.session)) continue;
-        else if (entry.error) unreadable(row, entry.error);
+        else if (entry.unreadable) unreadable(row, entry.unreadable);
         else if (entry.match) matched(row);
       }
     } else throw fail(`environment inspection unsupported on ${process.platform}`);

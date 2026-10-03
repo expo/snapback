@@ -1,0 +1,74 @@
+[
+  {
+    "label": "load-207",
+    "file": "schema-capabilities.test.mjs",
+    "classification": "inspection-mechanism refusal; malformed stat cause unknown; retained fail-closed rule",
+    "trigger": "TEST_PROCESS_INSPECTION: cannot identify 4185250: TEST_PROCESS_INSPECTION: malformed /proc/4185250/stat",
+    "assertionFailures": 0,
+    "candidateEnvironmentRefusal": false,
+    "result": {
+      "label": "load-207",
+      "file": "schema-capabilities.test.mjs",
+      "code": 0,
+      "signal": null,
+      "passed": false,
+      "reason": "TEST_PROCESS_INSPECTION",
+      "inspectionFailure": "Error: TEST_PROCESS_INSPECTION: file group keeper exited before cleanup\n    at inspectionError (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:6:35)\n    at cleanupProcesses (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:112:39)\n    at file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:126:15\n    at stop (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:129:7)\n    at runFile (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:154:48)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async execute (file:///home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/stress.mjs:51:18)\n    at async file:///home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/stress.mjs:63:23",
+      "elapsed": 1856,
+      "counts": {
+        "tests": 5,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 4,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 10,
+      "lastProgress": "test:complete: RV publication allowance is confined to commit evidence",
+      "at": "2026-10-03T03:20:37.296Z",
+      "load": [
+        15.71,
+        11.57,
+        12.19
+      ],
+      "active": 23
+    }
+  },
+  {
+    "label": "load-753",
+    "file": "remembered-answers.test.mjs",
+    "classification": "inspection-mechanism refusal; malformed stat cause unknown; retained fail-closed rule",
+    "trigger": "TEST_PROCESS_INSPECTION: cannot identify 268164: TEST_PROCESS_INSPECTION: malformed /proc/268164/stat",
+    "assertionFailures": 0,
+    "candidateEnvironmentRefusal": false,
+    "result": {
+      "label": "load-753",
+      "file": "remembered-answers.test.mjs",
+      "code": 0,
+      "signal": null,
+      "passed": false,
+      "reason": "TEST_PROCESS_INSPECTION",
+      "inspectionFailure": "Error: TEST_PROCESS_INSPECTION: file group keeper exited before cleanup\n    at inspectionError (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:6:35)\n    at cleanupProcesses (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:112:39)\n    at file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:126:15\n    at stop (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:129:7)\n    at runFile (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:154:48)\n    at async execute (file:///home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/stress.mjs:51:18)\n    at async file:///home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/stress.mjs:63:23",
+      "elapsed": 1500,
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 42,
+      "lastProgress": "test:complete: displayed expiry fences old bodies while preserving unexpired memory and its cuts",
+      "at": "2026-10-03T03:28:24.855Z",
+      "load": [
+        21.8,
+        17.72,
+        14.99
+      ],
+      "active": 23
+    }
+  }
+]

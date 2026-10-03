@@ -86,9 +86,12 @@ Gotchas you cannot derive from the code:
   and inherited-token inspections. Tokens cover native session escapes;
   same-session custody also catches a child that clears its token. Linux reads
   `/proc` environments; macOS uses Python 3's ctypes with `KERN_PROCARGS2`.
-  Observed survivors fail the file. Unreadable/redacted candidate environments
-  fail closed; unknown ownership never authorizes a signal. See the QF Grok
-  follow-up for Darwin's restricted-executable redaction and cleanup limits.
+  Observed owned survivors fail the file. Inspection-mechanism failures remain
+  fail-closed. An unreadable/redacted candidate environment produces one
+  PID/executable/start-time diagnostic per identity, without refusal or signal.
+  An escape that loses ancestry and leaves the owned session/group is undetected
+  if its environment is unreadable/redacted or it removed its token; on macOS
+  this includes restricted executables such as `/bin/sleep`. See QF Round 3.
   The M5 MacBook is the publication host; the office M1 is calibration-only.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:

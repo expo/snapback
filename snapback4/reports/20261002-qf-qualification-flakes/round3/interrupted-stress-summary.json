@@ -1,0 +1,638 @@
+{
+  "classification": "operator-interrupted for publication resources; excluded from qualification",
+  "results": 282,
+  "completedTargets": {
+    "worker": 16,
+    "replacement": 15
+  },
+  "failedResults": 23,
+  "reasons": {
+    "TEST_FILE_ABORT": 23
+  },
+  "failures": [
+    {
+      "label": "load-233",
+      "file": "subscription-pressure-noop.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 18297,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 7,
+      "lastProgress": "test:dequeue: wasm: no-op empty sync replaces out-of-horizon answer with keep=false",
+      "at": "2026-10-03T00:31:12.613Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 23
+    },
+    {
+      "label": "load-196",
+      "file": "retained-history.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 41335,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 87,
+      "lastProgress": "test:dequeue: MQ speculative events process: retained history and independent held coverage",
+      "at": "2026-10-03T00:31:12.613Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 22
+    },
+    {
+      "label": "load-127",
+      "file": "navigation-model.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 84686,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 123,
+      "lastProgress": "test:dequeue: device close model: cancelled callers retain their ids across offline and online reopen",
+      "at": "2026-10-03T00:31:12.614Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 21
+    },
+    {
+      "label": "load-123",
+      "file": "mixed-evidence-oracle.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 86655,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 2250000,
+      "progressCount": 3,
+      "lastProgress": "test:dequeue: mixed evidence schedule process: 300 independent histories",
+      "at": "2026-10-03T00:31:12.615Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 20
+    },
+    {
+      "label": "load-99",
+      "file": "keep-clock.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 101843,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 15,
+      "lastProgress": "test:dequeue: wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+      "at": "2026-10-03T00:31:12.615Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 19
+    },
+    {
+      "label": "load-96",
+      "file": "keep-app-model.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 102625,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 11,
+      "lastProgress": "test:dequeue: createApp keep=undefined property: wasm, seed 445, 50ms authority",
+      "at": "2026-10-03T00:31:12.616Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 18
+    },
+    {
+      "label": "load-50",
+      "file": "delivery-fault-matrix.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 130332,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 670,
+      "lastProgress": "test:complete: joined follow sync propagates transport false and retries",
+      "at": "2026-10-03T00:31:12.617Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 17
+    },
+    {
+      "label": "load-0",
+      "file": "acquisition.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 144456,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 1650000,
+      "progressCount": 79,
+      "lastProgress": "test:dequeue: sequence by wasm: provisional cap group refusal queues for the server",
+      "at": "2026-10-03T00:31:12.617Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 16
+    },
+    {
+      "label": "load-214",
+      "file": "server-clock-wire.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 34316,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 13,
+      "lastProgress": "test:dequeue: a real held heartbeat poll learns clock advance from its final body",
+      "at": "2026-10-03T00:31:12.618Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 15
+    },
+    {
+      "label": "load-182",
+      "file": "readauth.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 47080,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 19,
+      "lastProgress": "test:dequeue: native-sqlite: grant filters every watched read",
+      "at": "2026-10-03T00:31:12.618Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 14
+    },
+    {
+      "label": "load-37",
+      "file": "bounded-following.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 135878,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 45,
+      "lastProgress": "test:dequeue: bounded Following native: unknown conditions preserve static and helper dependencies",
+      "at": "2026-10-03T00:31:12.619Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 13
+    },
+    {
+      "label": "load-239",
+      "file": "subscription-pressure-round2.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 13461,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 7,
+      "lastProgress": "test:dequeue: wasm: reuse closed handle after staged revocation, keep=undefined",
+      "at": "2026-10-03T00:31:12.619Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 12
+    },
+    {
+      "label": "load-250",
+      "file": "sync-scale.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 7477,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 1,
+      "lastProgress": "test:dequeue: live fallback receives consecutive sends and deletion while snapshot publication is blocked",
+      "at": "2026-10-03T00:31:12.620Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 11
+    },
+    {
+      "label": "load-249",
+      "file": "sync-overflow.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 7700,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 2710000,
+      "progressCount": 1,
+      "lastProgress": "test:dequeue: oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption",
+      "at": "2026-10-03T00:31:12.620Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 10
+    },
+    {
+      "label": "load-248",
+      "file": "sync-generation.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 7783,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 3,
+      "lastProgress": "test:dequeue: wasm: early generation adoption preserves unsent writes, known and lost acknowledgements",
+      "at": "2026-10-03T00:31:12.621Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 9
+    },
+    {
+      "label": "load-247",
+      "file": "sync-after-call.test.mjs",
+      "code": 0,
+      "signal": null,
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "inspectionFailure": "Error: TEST_PROCESS_INSPECTION: file group keeper exited before cleanup\n    at inspectionError (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:6:35)\n    at cleanupProcesses (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:112:39)\n    at file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:126:15\n    at stop (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:129:7)\n    at AbortSignal.abort (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:132:30)\n    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20)\n    at AbortSignal.dispatchEvent (node:internal/event_target:776:26)\n    at runAbort (node:internal/abort_controller:488:10)\n    at abortSignal (node:internal/abort_controller:459:3)\n    at AbortController.abort (node:internal/abort_controller:507:5)",
+      "elapsed": 7863,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 20,
+      "lastProgress": "test:complete: a failed older round cannot skip the explicit follow-up attempt",
+      "at": "2026-10-03T00:31:12.621Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 8
+    },
+    {
+      "label": "load-164",
+      "file": "presence-local.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 56823,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 45,
+      "lastProgress": "test:dequeue: process: a read retried after its store changed takes a new place in the order",
+      "at": "2026-10-03T00:31:12.621Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 7
+    },
+    {
+      "label": "load-240",
+      "file": "subscription-pressure-round3.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 12986,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 7,
+      "lastProgress": "test:dequeue: process: detached handle must respect notified cut before sync, mounted control=true",
+      "at": "2026-10-03T00:31:12.622Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 6
+    },
+    {
+      "label": "load-243",
+      "file": "subscription-pressure-sync-memory.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 10683,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 5,
+      "lastProgress": "test:dequeue: wasm: ownerless server memory is retired by recovery-after-lost-ack",
+      "at": "2026-10-03T00:31:12.622Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 5
+    },
+    {
+      "label": "load-141",
+      "file": "ordinary-search-oracle.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 76038,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 10740000,
+      "progressCount": 1,
+      "lastProgress": "test:dequeue: ordinary search generated oracle process: 300 seeds",
+      "at": "2026-10-03T00:31:12.623Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 4
+    },
+    {
+      "label": "load-216",
+      "file": "server-e2e.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 33327,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 13,
+      "lastProgress": "test:dequeue: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes",
+      "at": "2026-10-03T00:31:12.623Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 3
+    },
+    {
+      "label": "load-144",
+      "file": "overload.test.mjs",
+      "code": null,
+      "signal": "SIGKILL",
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "elapsed": 74899,
+      "counts": {
+        "tests": 0,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 175,
+      "lastProgress": "test:dequeue: online: public probe overload recovers an offline link without adopting identity",
+      "at": "2026-10-03T00:31:12.624Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 2
+    },
+    {
+      "label": "load-246",
+      "file": "supervised-workers.test.mjs",
+      "code": 0,
+      "signal": null,
+      "passed": false,
+      "reason": "TEST_FILE_ABORT",
+      "inspectionFailure": "Error: TEST_PROCESS_INSPECTION: file group keeper exited before cleanup\n    at inspectionError (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:6:35)\n    at cleanupProcesses (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/test-processes.mjs:112:39)\n    at file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:126:15\n    at stop (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:129:7)\n    at AbortSignal.abort (file:///home/ccheever/sb4-intent/lane-qf/snapback4/scripts/run-client-tests.mjs:132:30)\n    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:843:20)\n    at AbortSignal.dispatchEvent (node:internal/event_target:776:26)\n    at runAbort (node:internal/abort_controller:488:10)\n    at abortSignal (node:internal/abort_controller:459:3)\n    at AbortController.abort (node:internal/abort_controller:507:5)",
+      "elapsed": 9278,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 10,
+      "lastProgress": "test:complete: two standalone processes sharing a ledger perform one action, then replay after both exit",
+      "at": "2026-10-03T00:31:12.624Z",
+      "load": [
+        20.37,
+        17.87,
+        24.04
+      ],
+      "active": 1
+    }
+  ],
+  "fullSuiteStarted": false
+}

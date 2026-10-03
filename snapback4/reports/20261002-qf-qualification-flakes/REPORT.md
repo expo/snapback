@@ -1,6 +1,6 @@
 # QF — qualification flakes
 
-Status: initial Round 2 qualified; Grok follow-up has inspection refusals (see below). No push or publication.
+Status: Round 3 complete: full suite 0 failures; both targets 200/200; two stress-background mechanism refusals retained below. No push or publication.
 
 Round-0 baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
 `sb4-intent/qf-qualification-flakes`. Product sources match release `8e6246be14`;
@@ -806,7 +806,7 @@ signal a process based only on an unreadable environment.
 `refused-candidates-later-probe.json` records the later absence check.
 All **2,160 final source hashes and 18 qualification input digests** match after
 the suite. No executable input changed after the client phase began. The
-[open inspection-refusal ticket](../../../issues/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+[open inspection-refusal ticket](../../../issues/closed/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
 records the remaining work without weakening fail-closed behavior or claiming
 cleanup of opaque processes. The requested local commit includes the report,
 LLP/command-sheet updates and append-only journal entry; nothing is pushed or
@@ -826,3 +826,216 @@ expectations retained; the final combined mini wrapper refusal is recorded
 above. Preparation mistakes (a redundant directory prefix, a
 nonexistent optional tar path, a wrong npm package scope, and the remote shell's
 reserved `status` name) were ours and ran no failing product test.
+
+## Round 3 — shared-host token inspection (2026-10-03)
+
+Parent: `062fbc75ed`, above Round 2 at `11c5a70745`. This implements the
+operator's ruling for eb1000 and the Apartment mini, both shared hosts. The
+Grok follow-up's 13 file refusals remain historical introduced failures; they
+are not reclassified as baseline failures or erased by this round.
+
+### Policy and implementation
+
+An unreadable candidate environment is **not provably ours**. EACCES, EPERM and
+Darwin kernel redaction produce one `TEST_PROCESS_UNREADABLE` diagnostic per
+process identity per file, naming PID, executable and start time. Repeated
+cleanup snapshots do not repeat the same identity's diagnostic. The candidate
+is neither signalled nor a reason to refuse the file. Linux prefers the exe
+link, falls back to readable argv[0], then ps's executable name; diagnostics
+contain no environment values or remaining arguments. Darwin uses ps's
+executable metadata. The Linux development check caught `comm=MainThread` for
+Node; the executable lookup corrects that diagnostic without changing custody.
+
+**Inspection-mechanism failures remain fail-closed:** process enumeration and
+identity failures, ps/helper exit or timeout, empty or malformed process-table
+output, malformed/incomplete/invalid helper JSON, malformed KERN_PROCARGS2
+results and other reader failures still produce `TEST_PROCESS_INSPECTION`.
+A candidate which exits during Darwin inspection is represented separately as
+ESRCH, with its recorded identity checked before accepting that disappearance.
+Readable environments carrying this file's token remain positive ownership:
+cleanup kills those survivors and fails the file as `TEST_FILE_LEAK`.
+
+Whole-group cleanup, retained session custody, start-identity checks, two
+consecutive empty verification snapshots, the subtest-progress watchdog, every
+exact-bound assertion and all readable-environment escape regressions remain.
+No worker/replacement assertion, case count, model seed or product source was
+changed. Six additional Darwin helper-mechanism regressions cover exit,
+timeout, malformed JSON, incomplete output, invalid rows and malformed kernel
+results. A cross-platform permission-denial regression proves a healthy file
+passes, its opaque candidate stays alive, and repeated inspections emit exactly
+one diagnostic with the expected identity. The real Darwin `/bin/sleep`
+regression requires a passing file, no inspection refusal, one diagnostic and
+an untouched child; the fixture then reaps its own recorded child and verifies
+it is dead. Readable native token escapes still require automatic cleanup and
+`TEST_FILE_LEAK` on both platforms.
+
+**Residual limitation:** an escaped process (new session or group, lost
+ancestry) whose environment is unreadable or redacted, or which removed its
+token, is not detected once outside group/session custody. On macOS this
+includes restricted system executables such as `/bin/sleep`. A group change
+alone within the owned session remains covered, including a cleared-token
+child. Passing cleanup means no observed owned survivors, not proof that no
+opaque escaped process exists.
+
+The read-only `llp-orient` context is scoped to the runner and fixtures:
+LLP 3000#publication-suite-under-contention governs ownership, preserved
+assertions and progress; LLP 3000#publication-suite-on-small-hosts governs the
+shared file pool. The operator's newer ruling supersedes the former
+candidate-read-denial refusal. LLP 3000 and the testing notes in AGENTS.md now
+state that distinction and the residual limitation. No new LLP or authoring
+surface is introduced; the existing @ref targets still apply. Hand-off: none.
+
+### Verification and interruption
+
+Final focused Linux checks: **30 passed, zero failed/refused, six Darwin-only
+mechanism checks skipped**, 36 declared tests. Apartment mini: **36/36 passed,
+zero failed/refused/skipped**, under `LC_ALL=de_DE.UTF-8`, with matching source
+hashes. The mini exercised all mechanism refusals inside the regressions and
+both real redacted `/bin/sleep` shapes. Its outer runner also diagnosed eight
+opaque shared-host candidates without refusing the file. The fixture-only Mac
+checks used the same published 0.4.10 binary as previous rounds (SHA-256
+`b30b96dcb7e66abb4a13ba664d135c218d4d8383b2be45cbc294cbc0b90d8e44`), not a
+current-release Mac qualification. The recorded task scratch directory was
+removed after collecting `mini-tests.log`, exit status and source hashes;
+`mini-cleanup.log` is the receipt. No other Mac was contacted.
+
+The operator interrupted the first stress attempt to free eb1000's CPU and
+disk for publication qualification, stopped this session's processes and
+deleted this lane's target directory. No full suite had started. The retained
+partial batch has 282 results: 16 worker and 15 replacement target results,
+and 251 background results. Its 23 failed results are `TEST_FILE_ABORT` during
+the operator stop; the interrupted ps received SIGTERM and correctly failed
+inspection. This batch is excluded from qualification. Source verification on
+resume matched all 2,160 pre-pause hashes. The target was rebuilt cold; build
+and qualification binary hashes are recorded separately. The complete suite
+then precedes the restarted stress batch so all rebuilt artifacts are ready.
+
+Main's `2dfeb99875` independently landed the fixture fixes and `1bea1a149c`
+substituted a local nested-test helper because main lacked this runner. The
+comparison in `main-fixture-diff.patch.gz` confirms the only replacement-fixture
+difference is that helper and its imports. This lane retains the runner import
+and identical fixture assertions. At landing, resolve that file to this lane's
+version alongside the runner; do not retain both helpers. Main was not merged.
+
+Commands (Linux from `snapback4/`; complete logs and source custody in `round3/`):
+
+```bash
+node scripts/run-client-tests.mjs 1 files packages/snapback4/test/test-file-runner.test.mjs packages/snapback4/test/replacement-fixture.test.mjs
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT scripts/test.sh
+SNAPBACK4_QF_WORKER_BIN="$PWD/reports/20261002-qf-qualification-flakes/delayed-server.sh" node reports/20261002-qf-qualification-flakes/stress.mjs after /tmp/qf-r3-stress-final 200 both
+# Apartment mini, within /tmp/qf-r3.NhsBsH before removal:
+LC_ALL=de_DE.UTF-8 SNAPBACK4_BIN=/tmp/qf-r3.NhsBsH/package/snapback4 node snapback4/scripts/run-client-tests.mjs 1 files snapback4/packages/snapback4/test/test-file-runner.test.mjs snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+The development Linux focused run failed one new diagnostic assertion because
+ps returned `MainThread` instead of Node's executable. This was our diagnostic
+bug, fixed before final focused checks; its log is retained. A resumed driver
+preparation command referenced a removed `/tmp` helper and failed before any
+suite or stress invocation; it was rewritten locally. These are not qualifying
+passes or baseline product failures. Interrupted failures are separately
+classified above. The complete suite and final stress results follow below.
+
+### Complete suite
+
+The one full suite ran on eb1000 from **2026-10-03T02:52:11.006Z to
+03:18:44.117Z**, exit **0**, with the exact footer:
+
+```text
+== 0 failure(s) in 1593 s
+```
+
+All Rust targets (285 binaries, 998 executions), doctests, builds, budgets,
+release guard, app/package checks and fixture wrappers passed. Ordinary clients:
+**5,815 passed, zero failed, 16 skipped**; models **79/79**; fixture wrappers
+**9/9**. Across 286 file results, **5,903 passed, zero failed/cancelled/todo,
+16 skipped**. Compared with the Grok follow-up, only the runner's new cases
+change the counts: one additional Linux pass and six Darwin-only skips. The
+ten preexisting conditional skips are unchanged. Full-suite failures by
+classification: **ours 0, baseline 0, environmental 0; inspection refusals 0**.
+There are no failed files or categories to classify.
+
+**18 distinct unreadable host candidates were skipped**, each with one retained
+diagnostic line; all reported EACCES. The permission-denial regression adds
+one separately labelled, deliberately injected candidate (19 diagnostic lines
+total including that control). All 18 actual lines, naming PID, executable
+metadata and start time, are in
+[`round3/full-suite-unreadable.log`](./round3/full-suite-unreadable.log), with
+machine-readable rows in `full-suite-unreadable.json`. The injected control is
+in `full-suite-controlled-unreadable.log`. Examples copied verbatim:
+
+```text
+TEST_PROCESS_UNREADABLE: {"pid":3905193,"executable":"chrome","start":"Sat Oct  3 05:03:55 2026","reason":"EACCES"}; not provably ours; skipped
+TEST_PROCESS_UNREADABLE: {"pid":3909545,"executable":"snapback4","start":"Sat Oct  3 05:04:01 2026","reason":"EACCES"}; not provably ours; skipped
+```
+
+Executable paths/argv[0] were unavailable for these transient candidates at
+diagnostic time, so these rows retain ps's command name. Four rows say
+`MainThread`; that fallback is not a claim identifying their executable path
+or ownership. No candidate's provenance is inferred from its name or denial.
+Start fields retain the host's local C-locale ps representation. The complete
+compressed log, exact result, per-file counts, category outcomes and count
+deltas are retained as `full-suite*` artifacts.
+
+The cold standalone Cargo build produced a different executable hash; the
+suite's Cargo test phase reproduced the original qualified binary exactly:
+`41f1af67d2190465b68144df0524f9cc1ece7e086b75ff6fefefd77bdb574933`.
+`binary-rebuild.json` and the before/after input manifests record this normal
+build transition. No product or test source changed during qualification. The
+post-pause Linux focused check also passed 30 tests with six Darwin-only skips;
+its earlier pre-pause pass is retained separately.
+
+### Final stress and failure classification
+
+The restarted batch ran **2026-10-03T03:18:44.155Z–03:52:42.102Z**, after the
+full suite and with no source changes. Worker **200/200 passed**; observed
+replacement **200/200 passed**. Each worker target executed its one selected
+test; each replacement target executed two tests (the parent and selected
+observed-replacement case), with no empty filter. All 400 target completions
+recorded **23 active background files**. The controlled 100 ms clone3 delay
+wrapper remained on the worker target, as in the earlier rounds.
+
+| Target | Runs | File / assertion failures | Minimum / median / maximum |
+| --- | ---: | --- | --- |
+| Worker admission retry | 200 | 0 / 0 | 3,180 / 3,380.5 / 6,390 ms |
+| Observed replacement | 200 | 0 / 0 | 3,740 / 4,086 / 7,128 ms |
+
+The background completed **1,953 executions across all 283 ordinary files**,
+with **zero assertion failures and two file refusals**. All in-flight files
+finished normally before collection. The stress driver exits **1**, because
+it correctly includes background refusals in its status; this is not a wholly
+green stress batch, despite all requested target repetitions passing.
+
+| Execution | File | First failure | Test outcome | Classification |
+| --- | --- | --- | --- | --- |
+| `load-207` | `schema-capabilities.test.mjs` | malformed `/proc/4185250/stat` | 1 passed, 4 platform skips | Inspection-mechanism refusal; cause unknown |
+| `load-753` | `remembered-answers.test.mjs` | malformed `/proc/268164/stat` | 21 passed | Inspection-mechanism refusal; cause unknown |
+
+These are **not candidate-environment refusals**. The numeric stat parser and
+its fail-closed rule were unchanged in Round 3; the operator explicitly requires
+unparsable inspection output to refuse the file. The raw rejected snapshots
+were not captured, so no kernel-race, ownership, baseline-product or new-policy
+attribution is justified. Their subsequent `keeper exited before cleanup`
+messages are secondary to the initial failure after whole-group kill. The
+[separate proc-stat follow-up](../../../issues/20261003-snapback4-malformed-proc-stat-during-stress.md)
+requests the missing diagnostic evidence without weakening the guard.
+The resolved [token-permission ticket](../../../issues/closed/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+records the narrower permission-policy fix and the accepted escape limitation.
+
+`stress-stats.json`, `stress-{metadata,summary,runs,load}.*`, the driver result,
+`stress-failure-classification.json` and both `stress-load-*.log.gz` files retain
+every outcome. No failed attempt or background refusal is removed from the
+record. This is repetition evidence under shared-host file contention, not a
+controlled performance comparison or a claim that opaque escaped processes
+are detected.
+
+All 2,160 source hashes and all 18 final qualification input hashes match.
+The final reference/whitespace checks and journal-prefix check are recorded in
+`final-integrity.json`. The journal entry is appended, not rewritten. The local
+commit carries the requested Astra co-author trailer. Nothing is pushed or
+published, and main is not merged.
+
+The staged evidence check found whitespace in the development failure log and
+in a patch context line that the earlier unstaged check did not include. Both
+artifacts are retained byte-for-byte as gzip files; the local commit was
+amended after a complete staged whitespace check. No executable source changed
+and no verification result was discarded.

@@ -1,0 +1,42 @@
+{
+  "started": "2026-10-03T03:18:44.155Z",
+  "finished": "2026-10-03T03:52:42.102Z",
+  "concurrency": 24,
+  "targets": {
+    "worker": {
+      "runs": 200,
+      "fileFailures": 0,
+      "assertionFailures": 0,
+      "testCounts": [
+        1
+      ],
+      "activeBackgroundFiles": [
+        23
+      ],
+      "minMs": 3180,
+      "medianMs": 3380.5,
+      "maxMs": 6390
+    },
+    "replacement": {
+      "runs": 200,
+      "fileFailures": 0,
+      "assertionFailures": 0,
+      "testCounts": [
+        2
+      ],
+      "activeBackgroundFiles": [
+        23
+      ],
+      "minMs": 3740,
+      "medianMs": 4086.0,
+      "maxMs": 7128
+    }
+  },
+  "background": {
+    "runs": 1953,
+    "files": 283,
+    "failures": 2,
+    "assertionFailures": 0,
+    "emptyResults": []
+  }
+}

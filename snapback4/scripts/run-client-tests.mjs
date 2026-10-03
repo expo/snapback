@@ -50,7 +50,7 @@ export const fileStallTimeout = (file, env) => {
 };
 const preload = fileURLToPath(new URL('./test-processes.mjs', import.meta.url));
 
-export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable, inspectToken = createTokenInspector() } = {}) {
+export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable, inspectToken = createTokenInspector({ onOutput }) } = {}) {
   timeout ??= fileStallTimeout(file, { ...process.env, ...overrides });
   const { values } = parseArgs({ args: nodeArgs, options: {
     'test-name-pattern': { type: 'string', multiple: true },

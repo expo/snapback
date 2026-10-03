@@ -82876,3 +82876,67 @@ hashes and 18 input digests match. Development candidate-scope refusals, our
 Darwin empty-group EPERM defect and preparation mistakes remain separately
 classified. Reference/whitespace checks accompany the local commit with the
 requested Astra co-author trailer. Nothing pushed or published.
+
+## 2026-10-03 — QF round 3: shared-host token inspection
+
+Implemented the operator's distinction between inspection-mechanism failure
+and one opaque candidate. Enumeration, identity, ps/helper failure or timeout,
+and malformed output remain fail-closed. An EACCES/EPERM or Darwin-redacted
+environment is not provably ours: emit one PID/executable/start-time diagnostic
+per identity per file, without refusal or signal. Readable matching tokens
+still require cleanup and TEST_FILE_LEAK. Group/session cleanup, two stable
+empty snapshots, the progress watchdog, exact bounds and readable native escape
+regressions remain intact. No product source or original fixture assertion
+changed. LLP 3000 and AGENTS.md record the ruling.
+
+The residual limitation remains explicit: an escaped process (new session or
+group, lost ancestry) whose environment is unreadable/redacted, or which removed
+its token, is undetected outside group/session custody. On macOS this includes
+restricted executables such as /bin/sleep. The Darwin regression now requires
+no refusal, one diagnostic and no runner signal, then reaps its own recorded
+child. Cleared-token children in the owned session remain covered.
+
+Focused checks pass on Linux (30 passed, six Darwin-only skips) and the
+Apartment mini (36/36), without outer file refusals. The mini's eight opaque
+host candidates were diagnosed, as were the three controlled regression
+candidates. Sources match; the fixture-only mini binary is the same published
+0.4.10 pin, not a current-release Mac qualification. Task scratch was removed.
+No other Mac was contacted and no unrelated process was signalled.
+
+The single complete eb1000 suite reports exactly
+`== 0 failure(s) in 1593 s`, exit 0. All Rust/build/app/fixture categories pass;
+ordinary clients 5,815 passed with 16 skips (ten existing, six Darwin-only),
+models 79/79, fixture wrappers 9/9. Eighteen distinct unreadable host candidates
+were skipped with retained diagnostic lines, plus one deliberately denied
+regression candidate. Full-suite failures: ours 0, baseline 0, environmental 0;
+inspection refusals 0.
+
+Under restarted 24-file stress, worker and observed replacement each pass
+200/200; every target completion has 23 background files active. All 1,953
+background executions finish across 283 files, with zero assertion failures.
+Two background files refuse malformed /proc stat metadata, so the stress
+driver exits 1: schema-capabilities (load-207, PID 4185250) and remembered-answers
+(load-753, PID 268164). These are retained mechanism refusals, not the fixed
+candidate-permission refusal. Their underlying cause is unknown because the
+raw rejected stat snapshots were not retained. Preserve the guard and track
+that evidence gap in the [separate follow-up](../issues/20261003-snapback4-malformed-proc-stat-during-stress.md).
+The [token-permission ticket](../issues/closed/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+is resolved under the operator's ruling.
+
+The operator paused the first stress attempt for publication resources and
+deleted this lane's target. Its 23 aborts and the interrupted ps SIGTERM remain
+separately recorded; no full suite had started. After permission to resume,
+all source hashes matched and a cold rebuild preceded qualification. The
+suite's Cargo test phase reproduced the earlier qualified binary exactly.
+All 2,160 source and 18 final input hashes match. One development diagnostic
+assertion failed on MainThread metadata; executable lookup was corrected before
+focused qualification. No rejected result is represented as a pass.
+
+Main's two fixture commits were compared without merging them. This lane keeps
+the shared runner import; its fixture assertions match main's, and the report
+retains the exact local-helper-to-import landing resolution. The
+[Round 3 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-3--shared-host-token-inspection-2026-10-03)
+contains every run, failure classification, diagnostic and source manifest.
+Reference/whitespace checks accompany the local commit with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Nothing pushed or
+published.

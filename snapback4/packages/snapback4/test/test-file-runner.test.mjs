@@ -199,37 +199,81 @@ test('token sweep distinguishes files and never signals a different inherited to
   assert.equal(live(record), true);
 });
 
-test('token inspection errors cannot establish a passing cleanup', async t => {
+test('token inspection mechanism errors cannot establish a passing cleanup', async t => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-token-failure-'));
   t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const path=join(dir,'pass.test.mjs');writeFileSync(path,"import test from 'node:test';test('pass',()=>{});");
   let output='',inspections=0;
   const result=await runFile(path,{onOutput:text=>{output+=text},inspectToken:()=>{
-    inspections++;throw Error('TEST_PROCESS_INSPECTION: injected environment read failure');
+    inspections++;throw Error('TEST_PROCESS_INSPECTION: injected environment enumeration failure');
   }});
   assert.equal(result.passed,false,output);
   assert.equal(result.reason,'TEST_PROCESS_INSPECTION',output);
   assert.ok(inspections>=1);
-  assert.match(result.inspectionFailure,/injected environment read failure/);
+  assert.match(result.inspectionFailure,/injected environment enumeration failure/);
 });
 
-test('native environment inspection returns ownership or fails closed on kernel redaction', async t => {
-  const inspect=createTokenInspector(), token='c'.repeat(64);
+test('an unreadable candidate is diagnosed once without signaling or refusing a healthy file', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-unreadable-token-'));
+  const path=join(dir,'pass.test.mjs');
+  writeFileSync(path,"import test from 'node:test';test('healthy',()=>{});");
+  let output='',child,record;
+  const inspectToken=createTokenInspector({onOutput:text=>{output+=text},read:path=>{
+    if(path===`/proc/${child.pid}/environ`)throw Object.assign(Error('injected denial'),{code:'EACCES'});
+    return readFileSync(path);
+  },run:(command,args,options)=>{
+    const result=spawnSync(command,args,options);
+    if(result.status===0)result.stdout=JSON.stringify(JSON.parse(result.stdout).map(row=>row.pid===child.pid
+      ? {pid:row.pid,session:row.session,match:false,unreadable:'sysctl errno 13'} : row));
+    return result;
+  }});
+  child=spawn(process.execPath,['-e','console.log("ready");setInterval(()=>{},1000)'],{detached:true,stdio:['ignore','pipe','ignore']});
+  const exited=once(child,'exit');
+  record=identity(child.pid);
+  t.after(async()=>{if(live(record))child.kill('SIGKILL');await exited;rmSync(dir,{recursive:true,force:true});});
+  await once(child.stdout,'data');
+  const result=await runFile(path,{inspectToken,onOutput:text=>{output+=text}});
+  assert.equal(result.passed,true,output);
+  assert.equal(result.inspectionFailure,undefined,output);
+  assert.equal(live(record),true,'unknown ownership never authorizes a signal');
+  const diagnostics=output.split('\n').filter(line=>line.startsWith('TEST_PROCESS_UNREADABLE:')&&line.includes(`"pid":${child.pid},`));
+  assert.equal(diagnostics.length,1,output);
+  const metadata=JSON.parse(diagnostics[0].slice('TEST_PROCESS_UNREADABLE: '.length).split('; not provably ours')[0]);
+  assert.match(metadata.executable,/node/);
+  assert.equal(metadata.start,processTable().find(row=>row.pid===child.pid).start);
+  t.diagnostic(diagnostics[0]);
+});
+
+for(const fault of ['exit','timeout','malformed','incomplete','invalid row','malformed kernel result']) test(`token reader mechanism ${fault} fails closed`, {skip:process.platform!=='darwin'}, () => {
+  const inspect=createTokenInspector({run:()=>fault==='exit'?{status:1}
+    :fault==='timeout'?{error:{code:'ETIMEDOUT'},status:null}
+    :{status:0,stdout:fault==='malformed'?'broken':fault==='incomplete'?'[]'
+      :JSON.stringify([fault==='invalid row'?{}:{pid:process.pid,match:false,error:'malformed KERN_PROCARGS2 result'}])},
+    inspect:(()=>{let initial=true;return()=>{if(initial){initial=false;return [];}return processTable().filter(row=>row.pid===process.pid);};})()});
+  assert.throws(()=>inspect('a'.repeat(64)),/TEST_PROCESS_INSPECTION/);
+});
+
+test('native environment inspection identifies readable tokens and diagnoses Darwin redaction', async t => {
+  let output='';
+  const inspect=createTokenInspector({onOutput:text=>{output+=text}}), token='c'.repeat(64);
   const child=spawn('/bin/sleep',['600'],{env:{...process.env,[TOKEN_KEY]:token},stdio:'ignore',detached:true});
   const exited=once(child,'exit');
   t.after(async()=>{child.kill('SIGKILL');await exited;});
   await once(child,'spawn');
-  try {
-    assert.ok(inspect(token).some(row=>row.pid===child.pid), 'readable token must identify the native process');
+  const owned=inspect(token);
+  if(process.platform==='darwin') {
+    assert.equal(owned.some(row=>row.pid===child.pid),false);
+    assert.match(output,/TEST_PROCESS_UNREADABLE:.*sleep.*environment unavailable or empty/);
+    assert.ok(output.includes(`"pid":${child.pid},`));
+    assert.equal(live(identity(child.pid)),true);
+    t.diagnostic(output.trim());
+  } else {
+    assert.ok(owned.some(row=>row.pid===child.pid), 'readable token must identify the native process');
     t.diagnostic('native environment token is visible');
-  } catch(error) {
-    if(process.platform!=='darwin')throw error;
-    assert.match(error.message,/TEST_PROCESS_INSPECTION:.*environment unavailable or empty/);
-    t.diagnostic('kernel redacts native environment; inspection fails closed');
   }
 });
 
-test('a redacted native detached orphan cannot produce a passing file', async t => {
+test('a redacted native detached orphan is diagnosed and reaped by its fixture', async t => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-native-token-'));
   const path=join(dir,'native.test.mjs'),pidFile=join(dir,'pid');
   let orphan,output='';
@@ -242,12 +286,21 @@ child.once('spawn',()=>{writeFileSync(${JSON.stringify(pidFile)},String(child.pi
     if(!orphan&&existsSync(pidFile))orphan=identity(Number(readFileSync(pidFile,'utf8')));
     return processTable();
   }});
-  assert.equal(result.passed,false,output);
   assert.ok(orphan?.alive);
-  if(process.platform==='darwin'&&result.reason==='TEST_PROCESS_INSPECTION') {
-    assert.match(output,/environment unavailable or empty/);
-    t.diagnostic('native environment redacted: file refused; fixture reaps its own known orphan if needed');
+  if(process.platform==='darwin') {
+    assert.equal(result.passed,true,output);
+    assert.equal(result.inspectionFailure,undefined,output);
+    assert.equal(live(orphan),true,'runner must not signal an opaque orphan');
+    const diagnostics=output.split('\n').filter(line=>line.startsWith('TEST_PROCESS_UNREADABLE:')&&line.includes(`"pid":${orphan.pid},`));
+    assert.equal(diagnostics.length,1,output);
+    assert.match(diagnostics[0],/sleep.*"start":".+".*environment unavailable or empty/);
+    t.diagnostic(diagnostics[0]);
+    process.kill(orphan.pid,'SIGKILL');
+    const deadline=performance.now()+5000;
+    while(live(orphan)&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,25));
+    assert.equal(live(orphan),false,'fixture reaps its own recorded orphan');
   } else {
+    assert.equal(result.passed,false,output);
     assert.equal(result.reason,'TEST_FILE_LEAK',output);
     assert.equal(live(orphan),false,output);
   }

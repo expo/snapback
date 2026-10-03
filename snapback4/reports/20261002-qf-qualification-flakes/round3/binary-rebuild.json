@@ -1,0 +1,9 @@
+{
+  "oldQualifiedBinary": "41f1af67d2190465b68144df0524f9cc1ece7e086b75ff6fefefd77bdb574933",
+  "coldCargoBuildBinary": "f33e91bea17c809228d93db590f4b1b112967e1dbc588480aab8ad734a1c3cfb",
+  "afterSuiteCargoTestBinary": "41f1af67d2190465b68144df0524f9cc1ece7e086b75ff6fefefd77bdb574933",
+  "observedAt": "2026-10-03T03:04:38.581034+00:00",
+  "binaryModifiedAt": "2026-10-03T02:55:55.756158+00:00",
+  "sourceChanges": false,
+  "explanation": "Operator deleted target. Cold cargo build and the suite Cargo test phase rebuild the executable; final client/stress inputs bind the post-Cargo-test binary."
+}

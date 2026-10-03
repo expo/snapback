@@ -1,5 +1,6 @@
 """Darwin KERN_PROCARGS2: emit token matches, never environment contents."""
 import ctypes
+import errno
 import json
 import os
 import sys
@@ -17,13 +18,21 @@ for pid in request["pids"]:
     try:
         row["session"] = os.getsid(pid)
     except OSError as error:
+        if error.errno == errno.ESRCH:
+            row["gone"] = True
+            results.append(row)
+            continue
         row["error"] = "getsid errno " + str(error.errno)
         results.append(row)
         continue
     buf = ctypes.create_string_buffer(argmax.value + ctypes.sizeof(ctypes.c_int))
     size = ctypes.c_size_t(len(buf))
     if libc.sysctl((ctypes.c_int * 3)(1, 49, pid), 3, buf, ctypes.byref(size), None, 0):
-        row["error"] = "sysctl errno " + str(ctypes.get_errno())
+        code = ctypes.get_errno()
+        if code == errno.ESRCH:
+            row["gone"] = True
+        else:
+            row["unreadable" if code in (errno.EACCES, errno.EPERM) else "error"] = "sysctl errno " + str(code)
     else:
         try:
             data = buf.raw[:size.value]
@@ -37,9 +46,9 @@ for pid in request["pids"]:
                 offset = data.index(b"\0", offset) + 1
             env = data[offset:].split(b"\0")
             # Recent Darwin kernels can redact a restricted executable's env
-            # while returning success. Absence of any env is not proof of clean.
+            # while returning success. An opaque candidate is not provably ours.
             if not any(env):
-                row["error"] = "environment unavailable or empty"
+                row["unreadable"] = "environment unavailable or empty"
             else:
                 row["match"] = needle in env
         except (ValueError, IndexError):
