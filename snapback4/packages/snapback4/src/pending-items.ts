@@ -39,7 +39,7 @@ export function pendingItems<Row, M extends Mutation<any, any>>(intents: readonl
   const names = new Set(options.writes.map(op => op.name));
   return [
     ...options.rows.map(row => ({ kind: "row" as const, key: JSON.stringify(["row", options.rowKey(row)]), row })),
-    ...intents.filter(intent => names.has(intent.write.op) && options.scope(intent.write as PendingWrite<MutationArgs<M>>)
+    ...intents.filter(intent => intent.phase !== "evicted" && names.has(intent.write.op) && options.scope(intent.write as PendingWrite<MutationArgs<M>>)
       && !keys.has(options.intentKey(intent.write as PendingWrite<MutationArgs<M>>)))
       .map(intent => ({ ...intent, get phase() { return intent.phase; }, kind: "intent" as const, key: JSON.stringify(["intent", intent.write.id]) }) as PendingItem<Row, MutationArgs<M>>),
   ];
@@ -49,7 +49,13 @@ export function pendingItems<Row, M extends Mutation<any, any>>(intents: readonl
  * an admitted value. Returns its phase alongside the selected presentation. */
 export function pendingState<A, R, Value>(intents: readonly PendingIntent[], op: Mutation<A, R>, options: PendingStateOptions<A, Value>): { value: Value; intent: PendingIntent<A> | undefined } {
   let intent: PendingIntent<A> | undefined;
-  for (const item of intents) if (item.write.op === op.name && item.phase !== "saving" && item.phase !== "evicted" && options.scope(item.write as PendingWrite<A>)) intent = item as PendingIntent<A>;
+  for (const item of intents) {
+    if (item.write.op !== op.name || item.phase === "saving") continue;
+    // @ref LLP 3000.019#3.3.1 — an eviction is an ordering barrier, not
+    // permission to revive an older value. No payload remains to test scope.
+    if (item.phase === "evicted") intent = undefined;
+    else if (options.scope(item.write as PendingWrite<A>)) intent = item as PendingIntent<A>;
+  }
   return { value: intent ? options.value(intent.write.args) : options.current, intent };
 }
 
@@ -94,6 +100,9 @@ export class OnlineIntentPresentation {
   private pending = new Map<string, PendingWrite>();
   private outstanding = new Set<string>();
   private ordinals = new Map<string, number>();
+  // At most one barrier per operation, and only while an older owned entry
+  // could otherwise reappear. These writes contain no arguments or receipt.
+  private evicted = new Map<string, PendingIntent>();
   private nextOrdinal = 0;
   // Observed/evicted presentations stay retired while custody is outstanding,
   // including failed receipt saves. These markers carry no argument payload.
@@ -107,16 +116,27 @@ export class OnlineIntentPresentation {
     if (scope !== this.scope || scope == null) { this.scope = scope; this.clear(); }
     return scope != null;
   }
-  clear() { this.entries.clear(); this.pending.clear(); this.outstanding.clear(); this.ordinals.clear(); this.retired.clear(); this.nextOrdinal = 0; this.bytes = 0; }
+  clear() { this.entries.clear(); this.pending.clear(); this.outstanding.clear(); this.ordinals.clear(); this.evicted.clear(); this.retired.clear(); this.nextOrdinal = 0; this.bytes = 0; }
   private owns(write: PendingWrite) {
     return [...this.owners].some(select => { try { return select(write); } catch { return false; } });
   }
   private remove(id: string, evicted = false) {
     const entry = this.entries.get(id);
     if (!entry) return;
-    if (evicted) { entry.item.phase = "evicted"; if (this.outstanding.has(id)) this.retired.add(id); }
+    if (evicted) {
+      entry.item.phase = "evicted";
+      if (this.outstanding.has(id)) this.retired.add(id);
+      const { op } = entry.item.write, previous = this.evicted.get(op);
+      if (!previous || this.ordinals.get(previous.write.id)! < this.ordinals.get(id)!) {
+        this.evicted.set(op, { phase: "evicted", write: { id, op, args: undefined, state: "sent", predicted: [] } });
+        if (previous) this.forgetOrdinal(previous.write.id);
+      }
+    }
     this.bytes -= entry.bytes; this.entries.delete(id);
-    if (!this.outstanding.has(id)) this.ordinals.delete(id);
+    this.forgetOrdinal(id);
+  }
+  private forgetOrdinal(id: string) {
+    if (!this.outstanding.has(id) && !this.entries.has(id) && ![...this.evicted.values()].some(item => item.write.id === id)) this.ordinals.delete(id);
   }
   retain = (select: (write: PendingWrite) => boolean) => {
     this.owners.add(select);
@@ -125,6 +145,13 @@ export class OnlineIntentPresentation {
   private prune() {
     for (const [id, { item }] of this.entries) if (!this.owns(item.write)) this.remove(id);
     for (const [id, write] of this.pending) if (!this.owns(write)) this.pending.delete(id);
+    const first = new Map<string, number>();
+    for (const write of [...this.pending.values(), ...[...this.entries.values()].map(entry => entry.item.write)]) {
+      first.set(write.op, Math.min(first.get(write.op) ?? Infinity, this.ordinals.get(write.id)!));
+    }
+    for (const [op, item] of this.evicted) if ((first.get(op) ?? Infinity) >= this.ordinals.get(item.write.id)!) {
+      this.evicted.delete(op); this.forgetOrdinal(item.write.id);
+    }
   }
   admit(id: string) {
     if (!this.check()) return;
@@ -163,15 +190,16 @@ export class OnlineIntentPresentation {
     for (const id of this.pending.keys()) if (!outstanding.has(id)) this.pending.delete(id);
     for (const id of this.retired) if (!outstanding.has(id)) this.retired.delete(id);
     this.prune();
-    for (const id of this.ordinals.keys()) if (!outstanding.has(id) && !this.entries.has(id)) this.ordinals.delete(id);
+    for (const id of this.ordinals.keys()) this.forgetOrdinal(id);
     const terminal = new Set(receipts.filter(write => write.state !== "pending").map(write => write.id));
     return [...this.entries.values()].map(entry => entry.item)
+      .concat([...this.evicted.values()])
       .concat(pending.filter(write => !this.entries.has(write.id) && !terminal.has(write.id) && !this.retired.has(write.id)).map(write => pendingIntent(write)))
       .sort((a, b) => this.ordinals.get(a.write.id)! - this.ordinals.get(b.write.id)!);
   }
   release(id: string) {
     this.outstanding.delete(id); this.pending.delete(id); this.retired.delete(id);
-    if (!this.entries.has(id)) this.ordinals.delete(id);
+    this.forgetOrdinal(id);
   }
   items(): readonly PendingIntent[] {
     if (!this.check()) return [];

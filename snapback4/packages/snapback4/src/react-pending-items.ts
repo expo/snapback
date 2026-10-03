@@ -36,7 +36,7 @@ class PendingIntents {
       for (const notify of this.listeners) notify();
     }).catch(() => { /* Storage failure is not evidence of retirement. */ });
   };
-  private owned = (item: PendingIntent) => [...this.selections.values()].some(select => {
+  private owned = (item: PendingIntent) => item.phase === "evicted" || [...this.selections.values()].some(select => {
     try { return select(item.write); } catch { return false; }
   });
   refreshSelection = () => {

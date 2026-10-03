@@ -101,3 +101,26 @@ LLP 3000.019 and the client reference now describe terminal-only bounds,
 admission ordering and receipt-save retirement; the short guide and emitted
 hook contracts still agree. No contract, journal format, runtime meter, replay
 protocol or wasm engine change. Pilot limits remain explicit. Hand-off: none.
+
+
+## Round 3 context and affected-scope audit
+
+Read both round-2 reviews in full, the Snapback 4 fence/root/design brief,
+NOT-DOING, rules and journal tail; the paved client/writes guide and Client and
+operations; LLP 3000.019 §3.3.1 and LLP 3000.023 §3.4. Applied the read-only
+`llp-orient` from `/home/ccheever/projects/exact/.agents/skills/llp-orient/SKILL.md`
+because the project symlink is still uninitialized. No installation/delegation.
+
+Scope and governing working-set LLPs remain those of Round 2. Active constraints:
+LLP 3000.019#3.3.1 (bounded presentation without new custody or observation),
+LLP 3000.023#3.4 (permanent account withdrawal). Eviction cannot resurrect an
+older admitted value; opening custody cannot miss a complete viewer round trip.
+A payload-free marker cannot re-evaluate an arbitrary argument predicate, so an
+evicted operation conservatively clears older selection; a later scoped match
+can still win. Coalesce markers by operation and keep them only with an older
+owned entry. Existing pending custody bounds and the terminal payload cap stand.
+
+Updates: existing LLP §3.3.1, CLIENT-AND-OPERATIONS wording and this report;
+no new design document, Client contract, journal/wire format, meter or gate.
+The doc regression names prediction withdrawal versus confirmed-row retirement;
+the existing real React witnesses enforce both behaviors. Hand-off: none.

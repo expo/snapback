@@ -82821,3 +82821,36 @@ LLP 3000.019 §3.3.1 and the client reference state the corrected rules. The
 retains reproductions, mutation loaders and qualification evidence. Commit
 locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
 or published.
+
+
+## 2026-10-03 — B round 3: eviction ordering and opening custody retirement
+
+Folded the final round-2 READY WITH CHANGES items on aa5d4c15fc. Online eviction
+keeps a payload-free admission marker so `pendingState` returns `current` rather
+than an older pending value, unless a later scoped match exists. With arguments
+discarded, the marker conservatively fences earlier selection for its operation.
+Markers coalesce to one per operation with older owned intent and release with
+that intent, final unmount or scope retirement. The 256-reference / 1 MiB terminal
+payload bound stands. No new custody, replay, journal format, contract or meter.
+
+Custody subscribes to viewer changes before its opening journal read, records a
+flag while initialization is incomplete, then pauses on that flag or a different
+viewer. A full Alice → Bob → Alice during the read cannot revive startup-secret.
+The raw regression now holds its reply through that same round trip and asserts
+empty direct/pending/mounted views before and after settlement. Removing either
+permanent-retirement guard independently fails at the corresponding assertion.
+The client guide distinguishes withdrawing a prediction from confirmed retirement;
+LLP 3000.019 §3.3.1 records eviction ordering and opening-read retirement.
+
+Both cap cases (two 600,000-byte settles; 256 tiny settles), the opening-read case,
+and the wording assertion fail on exact reviewed source. The raw implementation
+was already correct; its new test passes the baseline and kills the requested
+mutation. All 96 focused process/wasm/React tests pass five times (480 executions),
+all 363 affected clients pass, guide 110 passes, declaration/example/type checks
+pass, and docs budget and delivery-boundary checks pass. Wasm: 2,030,224 B raw /
+610,085 B gzip, 697 B below the unchanged cap. No complete-suite run was requested.
+Evidence and bounded-marker semantics: the
+[Round 3 report](./reports/20261003-b-pending-intents/REPORT.md#round-3--final-round-2-review-items-2026-10-03).
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published.
+Reference audit: 526 LLP docs, 10,110 refs, zero errors or unchecked references.

@@ -460,3 +460,110 @@ One docs-budget command used a nonexistent filename; the correct existing
 `scripts/docs-budget.mjs` invocation is retained separately. Earlier logs remain
 available, and only the final evidence table qualifies the result. No final
 ordinary test failure is waived as inherited or environmental.
+
+
+## Round 3 — final round-2 review items (2026-10-03)
+
+Based on `aa5d4c15fc`. Read both complete reviews,
+`~/sb5-lanes/reviews/b-r2.astra.md` and `b-r2.grok.md`, including their
+original temporary reproductions. Implemented both remaining product fixes,
+strengthened the raw retirement witness, and corrected the guide wording.
+
+### Changes and negative controls
+
+| Review item | Change and permanent regression |
+| --- | --- |
+| Grok Medium: eviction exposes an older pending toggle | Eviction leaves an argument-free, receipt-free marker at the evicted admission ordinal. `pendingState` clears older selection at that operation's marker and uses `current` unless a later non-evicted scoped match exists. Markers do not become cards or pass through argument selectors. Two real online clients share one journal: A holds `set(false)`, B settles `set(true)`, then B settles either **two 600,000-byte sends** or **256 tiny sends**. Both select `CURRENT` after eviction, preserve the mounted marker, omit the evicted secret, resist the older reply arriving late, allow a later matching value, and release the marker once no older owned intent remains. |
+| Grok Low: viewer changes while custody is opening | Register `onViewer` before `await locked(key, read)`. During initialization the listener sets only a flag; after initialization, pause if the flag is set or the viewer differs from the captured viewer. The regression holds the actual initial store read, completes Alice → Bob → Alice before `onlineCustody` resolves, then verifies empty intent/pending lists and mounted presentation. The journal still contains `startup-secret`; retiring presentation does not erase durable custody. |
+| Astra Low: raw round-trip test masks permanent retirement | The new raw-client case holds the reply through Alice → Bob → Alice and checks direct presentation, ordinary pending writes and the mounted snapshot both before and after releasing the reply. No raw-client implementation change was needed. The exact requested two-guard mutation fails before settlement. Removing the pending-list guard alone fails before settlement; removing the late-receipt guard alone fails after settlement. |
+| Grok Low: prediction/confirmation wording | CLIENT-AND-OPERATIONS now says “Withdrawing a prediction reveals the intent again; a confirmed row retires it.” The new documentation regression rejects the old paragraph. Existing real React prediction-withdrawal and confirmed-row-retirement witnesses also ran five times. |
+
+`round3/round2-baseline.mjs` loads the exact four affected implementation files
+and client guide from `aa5d4c15fc` without changing the worktree. The final new
+file has **four expected failures** on that baseline: both cap cases return
+`false` instead of `CURRENT`, the opening-read case republishes
+`startup-secret`, and the old wording fails the documentation assertion.
+Evidence: `baseline-final.log.gz`.
+
+The raw test correctly **passes unmodified aa5d4c15fc**: Astra reported a
+coverage hole, not an implementation bug. `raw-retirement-negative.mjs` applies
+the reviewer mutation to loaded code. `raw-negative-both.log.gz`,
+`raw-negative-pending.log.gz` and `raw-negative-receipt.log.gz` each run against
+the reviewed source and fail at their intended assertion. The initial
+`raw-negative.log.gz` also rejects the combined mutation on the corrected tree.
+These intentional failures are not ordinary qualification failures.
+
+### Bounds and semantics
+
+LLP 3000.019 §3.3.1 and CLIENT-AND-OPERATIONS describe the ordering rule.
+Markers retain only operation/id/status metadata, with no arguments or receipt.
+Because discarded arguments cannot evaluate an arbitrary resource predicate,
+an eviction conservatively clears older selections for the **same operation**;
+a later non-evicted scoped match still wins. No argument predicate or value
+selector is invoked on the marker. Only the newest eviction per operation is
+needed; prune it when no older owned pending/settling entry remains, at final
+unmount, or scope retirement. Marker count is bounded by live owned operations,
+not the number of completed writes. The separate outstanding-custody retirement
+markers from Round 2 still prevent recapture after failed receipt saves.
+
+Terminal payload retention remains **256 references / 1 MiB**. The two large
+settles retain one terminal payload, with **600,461 B** in the complete read
+(including the older pending toggle and marker). The 256 tiny settles retain
+256 terminal payloads, with **54,928 B** in the complete read. The original
+1,000-write probes remain **0 entries / 2 B unowned**, **256 entries /
+316,674 B owned**. No Client contract, engine/meter, journal format, persistence,
+replay authority, observation evidence or retention budget changed.
+
+### Verification
+
+Used the requested environment throughout qualification:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH CARGO_TARGET_DIR=~/sb5-lanes/target CARGO_INCREMENTAL=0
+export SNAPBACK4_BIN=$PWD/target/lane-b-bin/snapback4
+```
+
+Commands run from `snapback4/`, using Node 24.13.1 and the retained lane-private
+CLI. The wasm artifact was rebuilt and copied into the rebuilt client before
+repeats and affected tests. The whole-guide command additionally uses
+`CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu CARGO_BUILD_JOBS=6`.
+
+| Check | Result | Evidence under `round3/` |
+| --- | --- | --- |
+| New cases + all earlier B Node/process/wasm regressions + whole React harness | **96 passed, 0 failed/skipped, each of five runs: 480 executions** | `repeat-1.log.gz` through `repeat-5.log.gz`, `repeats.txt` |
+| Affected clients, same 21 files as Rounds 1–2, concurrency 4 | **363 passed, 0 failed/skipped** | `affected.log.gz` |
+| Client build and typecheck | pass | `build-final.log.gz`, `typecheck.log.gz` |
+| Read declarations, README/client examples, generated ephemeral types | **15 passed** | `types-examples.log.gz` |
+| Package sources without generated declarations | **1 passed** | `package-typecheck.log.gz` |
+| Whole guide | **110 passed** | `guide.log.gz` |
+| Docs budget and first-account-screen check | **300/300 lines; 1 passed** | `docs-budget.log.gz` |
+| Delivery-await classification/boundary | **1 passed**, no seal or recipe change | `delivery-boundary.log.gz` |
+| Wasm build and budget | **2,030,224 B raw / 610,085 B gzip**, unchanged **610,782 B** cap; **697 B headroom** | `wasm.log.gz` |
+| Reference/metadata audit and whitespace | **526 LLP docs, 10,110 refs; zero errors/unchecked; whitespace clean** | `references.log.gz`, `diff-check.log.gz` |
+
+Repeated command, five times:
+
+```sh
+node --test --test-concurrency=3 \
+  packages/snapback4/test/pending-items-round3.test.mjs \
+  packages/snapback4/test/pending-items-round2.test.mjs \
+  packages/snapback4/test/pending-items-round1.test.mjs \
+  packages/snapback4/test/pending-items.test.mjs \
+  packages/snapback4/test/react.test.mjs
+```
+
+`source-hashes.json` binds source/tests, declarations, the private CLI and wasm.
+The affected-scope LLP audit is in CONTEXT.md. No full suite or pilot rerun was
+requested this round; neither was run, and the pilot specimens are unchanged.
+No claim of a new complete-suite receipt or paired wasm feature-size attribution.
+
+### Failure classification and landing
+
+All product tests passed on their first ordinary focused run and their final
+qualification runs. A setup command initially used a repository-root path while
+its working directory was already `snapback4/`; corrected the path and removed
+the empty nested directory before running tests. The baseline and mutation reds
+above are intentional controls. No final ordinary failure is waived.
+
+Commit locally with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Nothing pushed or published.

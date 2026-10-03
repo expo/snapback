@@ -109,6 +109,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       else void settle(write).catch(error => retain(write, error));
     }
   });
+  // Subscribe across the opening read, when pause's journal subscription does
+  // not exist yet. Even a complete viewer round trip retires this lifetime.
+  let viewerChanged = false, initialized = false;
+  const stopViewer = raw.onViewer(next => {
+    if (next !== viewer) { viewerChanged = true; if (initialized) pause(); }
+  });
   const initial = await locked(key, read);
   const journalEvents = journalChanges(key, pending.notify);
   const restoredIds = new Set(initial.pending.map(intent => intent.id));
@@ -297,8 +303,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   inheritClose(client, raw);
   // @ref LLP 3000.023#3.4 — this custody lifetime cannot reactivate after an
   // account flip, even if a later response names its original viewer again.
-  const stopViewer = raw.onViewer(next => { if (next !== viewer) pause(); });
   function pause() { identification.close(); active = false; presentation.clear(); pending.notify(); pending.clear(); journalEvents.close(); stopViewer(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  initialized = true;
+  if (viewerChanged || raw.viewer() !== viewer) pause();
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;

@@ -1018,8 +1018,9 @@ export function History({ conversationId }: { conversationId: string }) {
 Items are `{ kind: "row", key, row }` or `{ kind: "intent", key, write, phase,
 receipt? }`. Supplied rows keep their order; unmatched intents follow in outbox
 order. A visible predicted or confirmed row with the mapped key suppresses its
-card. Withdrawal can reveal the same intent again. No intent is put into query
-data, and its arguments provide no ordinal, recipient count, delivery/seen
+card. Withdrawing a prediction reveals the intent again; a confirmed row retires it.
+No intent is put into query data, and its arguments provide no ordinal, recipient
+count, delivery/seen
 proof, permission, or asset handle. Media cards show text/type only; open media
 from an authorized row using the existing asset API, including once media.
 
@@ -1044,7 +1045,13 @@ receipt transition. Combined pending/settling items keep admission order.
 Observed references cannot return during failed receipt-save retries; their
 payload-free retirement markers last until custody or scope retirement. A payload
 larger than 1 MiB is not retained after settlement. Previously returned intent references become `evicted`
-when the bound drops them, and later reads omit them. Eviction is not observation.
+when the bound drops them, and later cards omit them. A payload-free marker stays
+in admission order while an older owned intent of that operation remains.
+For `usePendingState`, this clears an older selection and returns `current`
+unless a later non-evicted scoped match exists. With no arguments left to test
+the resource predicate, this fallback applies conservatively to the operation.
+Markers coalesce to the newest eviction per operation and release with the
+older owned intents or scope. Eviction is not observation.
 Unmounting releases unowned arguments. Late mounting recovers pending journal
 entries, not terminal arguments already released. Nothing gains replay authority
 or survives closing; durable journal retirement is unchanged. Save a scoped intent reference and use
