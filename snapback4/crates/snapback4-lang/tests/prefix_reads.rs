@@ -3,6 +3,11 @@ use snapback4_core::ir;
 
 const SOURCE: &str = include_str!("../../snapback4-sim/tests/fixtures/prefix-reads.q");
 
+// Lane UB's N_SHAPE_METER advice intentionally reports the grouped search's residual
+// candidate work (issues/20261003-snapback4-shape-meter-test-expectations.md); no other
+// note is expected from these prefix-read programs.
+fn only_shape_meter(notes: &[snapback4_lang::Diagnostic]) -> bool { notes.iter().all(|note| note.code == "N_SHAPE_METER") }
+
 fn checked(source: &str) -> Bound {
     let bound = compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
@@ -13,7 +18,7 @@ fn checked(source: &str) -> Bound {
 fn prefix_reads_compile_without_notes_and_caps_follow_one_schema_number() {
     for cap in [100, 120] {
         let bound = checked(&SOURCE.replace("cap 100 by roomId", &format!("cap {cap} by roomId")));
-        assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+        assert!(only_shape_meter(&bound.notes), "{:?}", bound.notes);
         for name in ["roster", "bump", "nested"] {
             let program = &bound.programs.iter().find(|p| p.program.name == name).unwrap().program;
             assert!(ir::scans(program).iter().any(|scan| scan.table == "members" && scan.take.maximum() == cap));
@@ -95,7 +100,8 @@ fn nonuniform_meter_domains_refuse_but_an_explicit_page_compiles() {
 #[test]
 fn explicit_caps_stay_silent_and_predicting_short_pages_stay_refused() {
     let explicit = SOURCE.replace("members[roomId = roomId]:", "members[roomId = roomId] first 100:").replace("return members[roomId = roomId]\n", "return members[roomId = roomId] first 100\n");
-    assert!(checked(&explicit).notes.is_empty());
+    let explicit_notes = checked(&explicit).notes;
+    assert!(only_shape_meter(&explicit_notes), "{explicit_notes:?}");
     let small = explicit.replace("members[roomId = roomId] first 100:", "members[roomId = roomId] first 20:");
     let error = rejected("", &small, "E_STRUCTURAL_FANOUT");
     assert!(error.message.contains("literal page bound must cover the schema cap 100"));

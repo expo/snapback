@@ -24,6 +24,8 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
         ("src/useTyping.ts", include_str!("social/useTyping.ts").to_owned()),
         ("src/useOnceMedia.ts", include_str!("social/useOnceMedia.ts").to_owned()),
         ("src/Conversation.tsx", include_str!("social/Conversation.tsx").to_owned()),
+        ("src/BoundedConversation.tsx", include_str!("social/BoundedConversation.tsx").to_owned()),
+        ("src/PageLifetime.ts", include_str!("social/PageLifetime.ts").to_owned()),
         ("src/ui.tsx", include_str!("social/ui.tsx").to_owned()),
         ("src/Feed.tsx", include_str!("social/Feed.tsx").to_owned()),
         ("src/Chats.tsx", include_str!("social/Chats.tsx").to_owned()),

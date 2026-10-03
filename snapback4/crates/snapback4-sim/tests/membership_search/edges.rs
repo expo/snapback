@@ -216,7 +216,8 @@ fn calendar_repair_executes_the_same_offset_boundary_predicate() {
         let rewrite=why.rewrite.unwrap();
         let source=format!("{}\nquery repaired(q: text <=100, c: cursor ?):\n  {rewrite}\n",source.split("query newest").next().unwrap());
         let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
-        assert!(b.diagnostics.is_empty() && b.notes.is_empty(),"{rewrite}: {:?} {:?}",b.diagnostics,b.notes);
+        // The repaired grouped search may carry lane UB's N_SHAPE_METER advice; nothing else.
+        assert!(b.diagnostics.is_empty() && b.notes.iter().all(|n| n.code=="N_SHAPE_METER"),"{rewrite}: {:?} {:?}",b.diagnostics,b.notes);
         let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
         e.seed_at(rows,100).unwrap();
         let repaired=e.query("repaired",cx("cof",None)).unwrap();

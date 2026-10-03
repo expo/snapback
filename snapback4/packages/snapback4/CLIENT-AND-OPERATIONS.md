@@ -1574,6 +1574,60 @@ non-revalidating proven absence; the server still authorizes the mutation.
 The shell saves no result, cursor, profile, membership or asset. Expiry, scope
 loss and account/store/program/credential changes keep the SDK's exact fences.
 
+### Bounded route-owned observations
+
+The social starter ships a second, small screen in `src/BoundedConversation.tsx`
+and its `src/PageLifetime.ts` owner marker. `snapback4 guide social` prints both
+complete files. It uses existing observations and hooks; there is no `active`
+observation option or inactive server `Read` arm. Mount the read-owning child
+only while the route is foreground and focused. The executable example follows
+the ordinary lifetime and cursor rules.
+
+In the social starter's PinnedConversation, use
+`import { BoundedConversation } from "../../src/BoundedConversation"`
+and replace ConversationScreen with
+`<BoundedConversation backend={url} conversation={conversation} active={focused && foreground} />`.
+This uses that route's existing visibility listeners and generated schema.
+
+The composer shell is keyed by backend, account, query arguments and client
+instance. It owns submitted text and recovery while hidden: a refusal restores
+text into an empty draft or offers Edit without replacing newer input.
+Inside it, `LiveConversation` owns membership and the root history observation.
+Unmounting that child closes its observations and every requested page/point
+owner. The draft stays mounted. An account change while hidden still resets it.
+The SDK still owns admitted writes; closing a route does not cancel custody.
+
+The marker subscribes to the same default root watch as `usePage`. It saves only
+`{epoch, ready}`, never a row or cursor. Every ready-to-unavailable transition
+increments the epoch synchronously, even when React batches the withdrawal and
+its replacement. Generation, credential and store resets therefore replace the
+page/identity owner; they do not depend on a public generation number or a timer.
+A generation reset keeps the draft but clears the requested page depth, window,
+selected media IDs and point owners. Account/backend/argument changes also clear
+the draft. Ordinary retaining revalidation does neither.
+
+The working screen requests at most three 20-row pages and displays at most 20
+identity slots at a time. Previous/Next rows moves that window. It derives IDs
+from current `page.items` on each render, with no union of previously seen IDs.
+Every slot gets its protected body from its own `messagePhoto` live read.
+“Message unavailable” says nothing about existence; denied/loading/partial-empty
+points show no protected text or media action. A removed ID releases its point
+reader. `usePage` alone owns current cursors and replaces changed suffixes;
+root withdrawal also resets the requested depth. These limits are application
+choices, not larger engine allowances.
+
+The optional photo viewer lives above the window, stores only the selected IDs,
+and rechecks the row with `keep: false` before opening media. No cached body,
+ordinal, asset metadata or placeholder authorizes an asset. For full send
+recovery/receipts use the starter's existing journal and independent receipt
+recipe; this small alternative demonstrates observation ownership.
+
+The default policy closes at the last owner. `keep: true` still explicitly
+requests 30-second live linger and costs background observations; this recipe
+uses no linger. Removing one route leaves a same-key active sibling subscribed.
+Use `inspect(client).totals` and query groups to measure both observations and
+subscribers: the epoch marker adds a root subscriber, not another query watch.
+
 ### Assets
 
 `client.upload` retries only an `E_RATE_LIMIT` refusal with `retryable: true`:

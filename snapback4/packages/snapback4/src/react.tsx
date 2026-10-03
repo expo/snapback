@@ -113,7 +113,14 @@ class Observation<R> {
   };
 }
 
-/** One live read. Re-renders when the value changes; never throws. */
+/** One live read. Re-renders when the value changes; never throws.
+ * Mount route-owned child components only while their route is active. Unmount
+ * releases this owner; keep:true still permits its existing 30-second linger.
+ * Account/backend/argument keys belong to the shell. The bounded screen recipe
+ * in CLIENT-AND-OPERATIONS.md also resets page/identity owners on withdrawal,
+ * including generation changes. There is no inactive Read or query cache.
+ * @ref LLP 3000.023#13 — tested route-owned composition before another hook option.
+ */
 export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> {
   const client = useClient();
   const key = readKey(op, args);
@@ -123,6 +130,11 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOption
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
+/** Own the current requested cursor chain. A changed/withdrawn cursor releases
+ * its old suffix. Mount this hook in an active route child; keep the composer
+ * outside that child and bound point-reader IDs to requested pages/visible rows.
+ * See the bounded screen recipe in CLIENT-AND-OPERATIONS.md.
+ */
 export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
   const client = useClient();
   const key = readKey(op, args);

@@ -1,6 +1,6 @@
 # Snapback 4: shape-meter diagnostics leave existing test expectations stale
 
-Status: Open
+Status: Closed
 Date: 2026-10-03
 Scope: Test expectations following LLP 3000.007 §24 / the landed UB diagnostic
 
@@ -19,3 +19,9 @@ these unrelated tests green.
 
 Reproduction commands, base source custody and lossless logs:
 [Lane A report](../snapback4/reports/20261003-a-read-presentation/REPORT.md).
+
+Resolution (2026-10-03): test expectations updated as this ticket asks. The four
+assertions now accept lane UB's `N_SHAPE_METER` notes and still reject every other
+note and every diagnostic. The query, result and refusal-rewrite assertions are
+unchanged. `snapback4-lang --test prefix_reads` passes 10/10 and
+`snapback4-sim --test membership_search` passes 24/24 on eb1000.
