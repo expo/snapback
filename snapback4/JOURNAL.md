@@ -84784,3 +84784,18 @@ The [Round 7 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-
 retains every result, source amendment and failure classification, including
 development attempts. Reference and whitespace checks accompany the local commit
 with Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-03 — QF runner reverted for 0.4.12; journal and report kept
+
+Merge 7ec5912837 (lane QF's client test runner) is reverted on main, so 0.4.12
+can publish. The seventh cut's Darwin dry run on the M5 failed three suite
+categories inside the runner. Fixture wrappers and client models refused with
+TEST_PROCESS_INSPECTION: one system process (distnoted) has a ps row with a
+negative field, and inspection fails closed on any unparsable row in the
+host's whole process table. The runner's own test also stalled for 900 s, and
+five leak regressions saw other outcomes on that loaded MacBook. QF passed on
+Linux and on the Apartment mini. The revert restores the pre-QF runner, which
+passed lane DR's complete Mac suite with the separately landed fixture fixes.
+QF's journal entries and report stay as the record. The lane returns with
+negative-field parsing, inspection limited to the file's own group, and a
+recorded M5 process table in its regressions.

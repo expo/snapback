@@ -92,10 +92,7 @@ run_client_tests() {
     esac
   done
   echo "-- client test files: ${#client_files[@]}; concurrency: $client_test_concurrency"
-  # Progress watchdog: 15-minute floor; largest single guard plus 25% or
-  # one minute of slack (run-client-tests.mjs), also in serial mode.
-  # Cleanup kills the file's group, then requires two empty group inspections.
-  node scripts/run-client-tests.mjs "$client_test_concurrency" files "${client_files[@]}" &
+  node --test --test-concurrency="$client_test_concurrency" "${client_files[@]}" &
   client_pids+=("$!")
   for pid in "${client_pids[@]}"; do
     wait "$pid" || client_status=1
@@ -132,7 +129,7 @@ run "chat app check" bash -c 'cd apps/chat && ../../target/debug/snapback4 check
 
 (run_logged "cargo-test" "cargo test" node scripts/run-rust-tests.mjs) &
 child_pids+=("$!")
-(run_logged "fixture-tests" "fixture wrapper tests" node scripts/run-client-tests.mjs 1 files fixtures/) &
+(run_logged "fixture-tests" "fixture wrapper tests" node --test fixtures/) &
 child_pids+=("$!")
 (
   run_logged "chat-typecheck" "chat app typecheck" bun run --cwd apps/chat typecheck
@@ -167,10 +164,9 @@ child_pids+=("$!")
 wait "${child_pids[0]}" || true
 child_pids=()
 collect "client-tests" "client tests"
-# The two seeded models keep full counts and declared hang guards. Give them a
+# The three seeded models keep full counts and aggregate hang guards. Give them a
 # serial slot after Rust compilation/tests and every other client file finish.
-# The same progress watchdog and single-guard margins apply to model files.
-run "client models" node scripts/run-client-tests.mjs 1 models \
+run "client models" node --test --test-concurrency=1 \
   packages/snapback4/test/app-session-model.test.mjs \
   packages/snapback4/test/online-client-model.test.mjs
 end=$(date +%s)

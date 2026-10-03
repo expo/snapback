@@ -58,9 +58,3 @@ startup-race fix, taken unchanged from lane QF (both of QF's round-0 reviews
 confirmed them). The suite-level progress watchdog and process containment land
 later with lane QF, whose report, `snapback4/reports/20261002-qf-qualification-flakes/`,
 records the qualification evidence.
-
-QF Round 5 merges this independent landing with the suite-level progress
-watchdog and process containment. The replacement regression now imports
-`runFile` from that shared runner; all independently landed fixture assertions
-remain. The ticket stays closed. Qualification and limits:
-[QF report](../../snapback4/reports/20261002-qf-qualification-flakes/REPORT.md).

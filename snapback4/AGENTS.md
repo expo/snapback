@@ -76,26 +76,7 @@ Gotchas you cannot derive from the code:
   browser renderers and workers. Acquisition and server-e2e share that pool;
   there are no extra shard processes outside it. The two full-count model
   files retain a separate serial slot. `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`
-  still forces one client file at a time. The external file watchdog measures
-  time since a subtest started or finished: max(900 seconds, largest single
-  declared guard + max(60 seconds, 25%)). There is no absolute duration cap.
-  Console output does not count as progress. Serial mode uses the same bounds.
-  See `scripts/run-client-tests.mjs` and the QF round-2 guard census; update
-  named work counts and recheck the census when declarations change. Every
-  file runs as native `node --test` with default isolation, in a process group
-  whose first member is a tiny Node keeper. The runner closes the keeper's stdin
-  on completion, stall or abort; only the keeper calls `kill(0, SIGKILL)`.
-  Runner death also closes that pipe. An unexpectedly exited keeper fails the
-  file and never authorizes a runner signal. Cleanup requires two consecutive
-  inspections (50 ms apart) with no living group member. Observed leftovers
-  fail as TEST_FILE_LEAK. Failed listings remain fail-closed; vanished members
-  count as exited. Processes leaving the group (setsid, setpgid or detached
-  spawns) are out of scope and are not tracked or signalled. Native Node's exit
-  status alone decides test success; reporter counts are diagnostic only.
-  The reporter observes progress as Node delivers it: synchronous work that
-  does not yield may buffer events in Node's child until that work finishes.
-  Such an unreported interval is subject to the same stall bound. See QF Round 7.
-  The M5 MacBook is the publication host; the office M1 is calibration-only.
+  still forces one client file at a time; publication needs no override.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:
   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.

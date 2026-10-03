@@ -334,6 +334,6 @@ the same error and confirms that replacement cleanup never runs. It exits **0**;
 it is not a second full-suite run or a reproduction of the uncontrolled race's
 frequency. Both the lock race and cleanup leak are **baseline test-harness
 defects**, ticketed in
-[`issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../../../issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+[`issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../../../issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
 There are no failures attributed to round-2 code. The unrelated unavailable
 orientation-file lookup is classified separately as environmental in the ledger.

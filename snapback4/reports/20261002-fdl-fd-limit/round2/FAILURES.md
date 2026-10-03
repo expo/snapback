@@ -14,7 +14,7 @@
 No failed suite test was retried or omitted. Existing ignored tests remain
 explicitly ignored. No round-2 product/test failure is attributed to this change.
 The baseline fixture defects are ticketed in
-[`issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../../../../issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+[`issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md`](../../../../issues/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
 The single full suite exits **1**, with exactly **`== 1 failure(s) in 1803 s`**
 and failed category **`client tests`**. Clients: **5,766 passed, two failed,
 ten skipped**. All Rust targets/doctests and **79 final models** pass. There
