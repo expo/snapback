@@ -1,0 +1,10 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "cwd": "/home/ccheever/sb4-intent/lane-qf/snapback4",
+  "started": "2026-10-03T12:10:28.868055+00:00",
+  "host": "expose-builder-pixel",
+  "pid": 3623552,
+  "status": 0,
+  "finished": "2026-10-03T12:35:39.512239+00:00",
+  "sha256": "3b046503df979e4860780fe184b6e08dd2fd4af4b3de905a798adf15db7b0323"
+}

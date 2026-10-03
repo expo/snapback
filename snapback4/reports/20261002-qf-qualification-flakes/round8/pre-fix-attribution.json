@@ -1,0 +1,15 @@
+{
+  "note": "Old source; only assertion messages gain the runFile result. Original assertions unchanged. Native Linux CLI with a real PATH ps shim.",
+  "results": [
+    {
+      "mode": "plain",
+      "status": 0,
+      "inspectionFailure": false
+    },
+    {
+      "mode": "shim",
+      "status": 1,
+      "inspectionFailure": true
+    }
+  ]
+}

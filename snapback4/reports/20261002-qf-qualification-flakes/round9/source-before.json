@@ -1,0 +1,15 @@
+{
+  "started": "2026-10-03T13:53:33.007930+00:00",
+  "host": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "base": "ef1bd50daab55117c0b55243dee2666931d4da35",
+  "sources": {
+    "snapback4/scripts/test-processes.mjs": "fca0821b5264a58aa93936ddc8589733d8e2aee46c3c1d8acc9241edc37a683e",
+    "snapback4/scripts/run-client-tests.mjs": "307b31dd1496bd06c5638f11c827929a61d401cdf35a591f6b534577cfba8cdc",
+    "snapback4/scripts/test.sh": "92723cf1955d95deb7fc1bb37038aebcaa1f495e1290a9625dbda7584c383958",
+    "snapback4/packages/snapback4/test/test-processes.test.mjs": "ebe8fe93571a1939172433ef72f992f5ab3c6a9b9f6ea210da9cfb17ffdbe92b",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs": "2c9fca01fd7067364b0105b6ef941b8a3d09e561968db17b6cd93369ea9ee434",
+    "snapback4/packages/snapback4/test/replacement-fixture.test.mjs": "0537f8c4722fb75a556f514472ff9a420bb13dde5a26bb7d54f066cdccbf4c24",
+    "snapback4/packages/snapback4/test/fixtures/process-tables/ps-nobody.sh": "2dd401b28c73953e6c981fb281207562a38499f0aa845a993ca59abfc4ad5806"
+  }
+}

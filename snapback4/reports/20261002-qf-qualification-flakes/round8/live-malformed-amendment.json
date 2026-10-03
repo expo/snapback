@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-03T12:47:16.342648+00:00",
+  "source": {
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs": "2c9fca01fd7067364b0105b6ef941b8a3d09e561968db17b6cd93369ea9ee434",
+    "snapback4/packages/snapback4/test/test-processes.test.mjs": "9ee46447fccac71a00d9bdd805c46961debe9dfb2f2a7a409c1ad817f8200af3"
+  },
+  "change": "The unrelated malformed-metadata CLI row now uses the caller-owned live fixture PID, not an absent invented PID. Final focused checks use the same stronger live malformed-row shim. Original assertions preserved."
+}

@@ -1,0 +1,1844 @@
+[
+  {
+    "phase": "fixture wrapper tests",
+    "file": "fixtures/",
+    "passed": true,
+    "elapsedMs": 11511
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/approval-lifecycle.test.mjs",
+    "passed": true,
+    "elapsedMs": 1296
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-outcomes.test.mjs",
+    "passed": true,
+    "elapsedMs": 2951
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-receipts.test.mjs",
+    "passed": true,
+    "elapsedMs": 3052
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-storage.test.mjs",
+    "passed": true,
+    "elapsedMs": 4771
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-retirement.test.mjs",
+    "passed": true,
+    "elapsedMs": 4877
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-store-replacement.test.mjs",
+    "passed": true,
+    "elapsedMs": 4976
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-handles.test.mjs",
+    "passed": true,
+    "elapsedMs": 5095
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-local-session.test.mjs",
+    "passed": true,
+    "elapsedMs": 5196
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-global-attempts.test.mjs",
+    "passed": true,
+    "elapsedMs": 5309
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 6145
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answers-stay-bound.test.mjs",
+    "passed": true,
+    "elapsedMs": 6247
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-state.test.mjs",
+    "passed": true,
+    "elapsedMs": 6331
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-global.test.mjs",
+    "passed": true,
+    "elapsedMs": 6452
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/approval-notifications.test.mjs",
+    "passed": true,
+    "elapsedMs": 3598
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/approval-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 4137
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "passed": true,
+    "elapsedMs": 2854
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-local-outcomes.test.mjs",
+    "passed": true,
+    "elapsedMs": 7848
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/astra-projection.test.mjs",
+    "passed": true,
+    "elapsedMs": 1723
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/astra-arguments.test.mjs",
+    "passed": true,
+    "elapsedMs": 2049
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/astra-invalid-input.test.mjs",
+    "passed": true,
+    "elapsedMs": 2912
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/codec.test.mjs",
+    "passed": true,
+    "elapsedMs": 1719
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-online.test.mjs",
+    "passed": true,
+    "elapsedMs": 10106
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/astra-rebirth.test.mjs",
+    "passed": true,
+    "elapsedMs": 3769
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app-local-receipts.test.mjs",
+    "passed": true,
+    "elapsedMs": 10331
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/asset-pressure.test.mjs",
+    "passed": true,
+    "elapsedMs": 6711
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/cross-scope-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 2873
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/composed-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 3616
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answers-stay-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 13290
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-activation.test.mjs",
+    "passed": true,
+    "elapsedMs": 3167
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/asset-buffered.test.mjs",
+    "passed": true,
+    "elapsedMs": 8629
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-cas.test.mjs",
+    "passed": true,
+    "elapsedMs": 1820
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-crash.test.mjs",
+    "passed": true,
+    "elapsedMs": 1648
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/close-boundary.test.mjs",
+    "passed": true,
+    "elapsedMs": 8383
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-integrated.test.mjs",
+    "passed": true,
+    "elapsedMs": 4006
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-clients.test.mjs",
+    "passed": true,
+    "elapsedMs": 4841
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-refusal.test.mjs",
+    "passed": true,
+    "elapsedMs": 3197
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/asset-retry.test.mjs",
+    "passed": true,
+    "elapsedMs": 12412
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/device-diet.test.mjs",
+    "passed": true,
+    "elapsedMs": 1187
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery.test.mjs",
+    "passed": true,
+    "elapsedMs": 1727
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-web.test.mjs",
+    "passed": true,
+    "elapsedMs": 3103
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/effectful-cancellation.test.mjs",
+    "passed": true,
+    "elapsedMs": 1942
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-outbox.test.mjs",
+    "passed": true,
+    "elapsedMs": 6305
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/device-residency.test.mjs",
+    "passed": true,
+    "elapsedMs": 3151
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+    "passed": true,
+    "elapsedMs": 13115
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "passed": true,
+    "elapsedMs": 1199
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-publication.test.mjs",
+    "passed": true,
+    "elapsedMs": 8979
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-fencing.test.mjs",
+    "passed": true,
+    "elapsedMs": 3370
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-lanes.test.mjs",
+    "passed": true,
+    "elapsedMs": 2532
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-sender.test.mjs",
+    "passed": true,
+    "elapsedMs": 796
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+    "passed": true,
+    "elapsedMs": 24633
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/event-slot-capability.test.mjs",
+    "passed": true,
+    "elapsedMs": 940
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-capability.test.mjs",
+    "passed": true,
+    "elapsedMs": 6867
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-types.test.mjs",
+    "passed": true,
+    "elapsedMs": 2957
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "passed": true,
+    "elapsedMs": 5537
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/event-slots.test.mjs",
+    "passed": true,
+    "elapsedMs": 2699
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-routing.test.mjs",
+    "passed": true,
+    "elapsedMs": 5866
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/expo-media-storage.test.mjs",
+    "passed": true,
+    "elapsedMs": 813
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-adoption.test.mjs",
+    "passed": true,
+    "elapsedMs": 11091
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "passed": true,
+    "elapsedMs": 4286
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/expo-scenes.test.mjs",
+    "passed": true,
+    "elapsedMs": 2390
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/export-publication.test.mjs",
+    "passed": true,
+    "elapsedMs": 931
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/export-native.test.mjs",
+    "passed": true,
+    "elapsedMs": 3130
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/export-failure.test.mjs",
+    "passed": true,
+    "elapsedMs": 4604
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/familiar-forms.test.mjs",
+    "passed": true,
+    "elapsedMs": 3735
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/export-native-round2.test.mjs",
+    "passed": true,
+    "elapsedMs": 5750
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answers-stay-react.test.mjs",
+    "passed": true,
+    "elapsedMs": 34718
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+    "passed": true,
+    "elapsedMs": 728
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/approval-model.test.mjs",
+    "passed": true,
+    "elapsedMs": 36162
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "passed": true,
+    "elapsedMs": 18612
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/app.test.mjs",
+    "passed": true,
+    "elapsedMs": 38632
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/following-routing.test.mjs",
+    "passed": true,
+    "elapsedMs": 5677
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-approval.test.mjs",
+    "passed": true,
+    "elapsedMs": 29063
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/id-from.test.mjs",
+    "passed": true,
+    "elapsedMs": 1809
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "passed": true,
+    "elapsedMs": 2130
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answers-stay-round2.test.mjs",
+    "passed": true,
+    "elapsedMs": 40898
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/identity-organizations.test.mjs",
+    "passed": true,
+    "elapsedMs": 2350
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/identity-profile.test.mjs",
+    "passed": true,
+    "elapsedMs": 1925
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/first-account.test.mjs",
+    "passed": true,
+    "elapsedMs": 10600
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/http-bounds.test.mjs",
+    "passed": true,
+    "elapsedMs": 5024
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/intent-views.test.mjs",
+    "passed": true,
+    "elapsedMs": 1506
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/init-recipe.test.mjs",
+    "passed": true,
+    "elapsedMs": 2151
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/following-unfollow.test.mjs",
+    "passed": true,
+    "elapsedMs": 9120
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-app-expiry.test.mjs",
+    "passed": true,
+    "elapsedMs": 1699
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/identity-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 4622
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/identity.test.mjs",
+    "passed": true,
+    "elapsedMs": 4868
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 4495
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "passed": true,
+    "elapsedMs": 42864
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-watches.test.mjs",
+    "passed": true,
+    "elapsedMs": 24600
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+    "passed": true,
+    "elapsedMs": 41500
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-incarnation.test.mjs",
+    "passed": true,
+    "elapsedMs": 3938
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-observation.test.mjs",
+    "passed": true,
+    "elapsedMs": 3360
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-reset.test.mjs",
+    "passed": true,
+    "elapsedMs": 3379
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-adoption.test.mjs",
+    "passed": true,
+    "elapsedMs": 9817
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-expiry.test.mjs",
+    "passed": true,
+    "elapsedMs": 6828
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/linux-package.test.mjs",
+    "passed": true,
+    "elapsedMs": 1469
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/expired-server-watch.test.mjs",
+    "passed": true,
+    "elapsedMs": 26737
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/answers-stay-round3.test.mjs",
+    "passed": true,
+    "elapsedMs": 54813
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+    "passed": true,
+    "elapsedMs": 3820
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-authority-react.test.mjs",
+    "passed": true,
+    "elapsedMs": 13820
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keepalive-reuse.test.mjs",
+    "passed": true,
+    "elapsedMs": 5753
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/generated-effect-context.test.mjs",
+    "passed": true,
+    "elapsedMs": 22803
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keepalive-retry.test.mjs",
+    "passed": true,
+    "elapsedMs": 7925
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+    "passed": true,
+    "elapsedMs": 6039
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/local-reads.test.mjs",
+    "passed": true,
+    "elapsedMs": 2051
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/local-signout.test.mjs",
+    "passed": true,
+    "elapsedMs": 2054
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/client-seams.test.mjs",
+    "passed": true,
+    "elapsedMs": 51395
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/loopbar-bounds.test.mjs",
+    "passed": true,
+    "elapsedMs": 2057
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/loopbar.test.mjs",
+    "passed": true,
+    "elapsedMs": 2056
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "passed": true,
+    "elapsedMs": 60456
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/measure-launch.test.mjs",
+    "passed": true,
+    "elapsedMs": 1407
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/maintains.test.mjs",
+    "passed": true,
+    "elapsedMs": 1945
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/media-dependencies.test.mjs",
+    "passed": true,
+    "elapsedMs": 2373
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/native-opening.test.mjs",
+    "passed": true,
+    "elapsedMs": 1822
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/native-smoke.test.mjs",
+    "passed": true,
+    "elapsedMs": 1822
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/live-propagation-fallback.test.mjs",
+    "passed": true,
+    "elapsedMs": 10380
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+    "passed": true,
+    "elapsedMs": 14939
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+    "passed": true,
+    "elapsedMs": 5901
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/node-transport.test.mjs",
+    "passed": true,
+    "elapsedMs": 1819
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-device.test.mjs",
+    "passed": true,
+    "elapsedMs": 20636
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/decorated-search.test.mjs",
+    "passed": true,
+    "elapsedMs": 54415
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/online-read-order.test.mjs",
+    "passed": true,
+    "elapsedMs": 1700
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/online-intent-store.test.mjs",
+    "passed": true,
+    "elapsedMs": 2365
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/once-preservation.test.mjs",
+    "passed": true,
+    "elapsedMs": 4409
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keepalive-browser.test.mjs",
+    "passed": true,
+    "elapsedMs": 18887
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+    "passed": true,
+    "elapsedMs": 32099
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/native-e2e.test.mjs",
+    "passed": true,
+    "elapsedMs": 7217
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "passed": true,
+    "elapsedMs": 1087
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+    "passed": true,
+    "elapsedMs": 862
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/online-store-order.test.mjs",
+    "passed": true,
+    "elapsedMs": 2711
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/online-session.test.mjs",
+    "passed": true,
+    "elapsedMs": 3717
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/local-e2e.test.mjs",
+    "passed": true,
+    "elapsedMs": 13778
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/one-shot-bounds.test.mjs",
+    "passed": true,
+    "elapsedMs": 8643
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/live-propagation.test.mjs",
+    "passed": true,
+    "elapsedMs": 18242
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/overload-browser.test.mjs",
+    "passed": true,
+    "elapsedMs": 5139
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/one-shot-model.test.mjs",
+    "passed": true,
+    "elapsedMs": 11855
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/one-shot.test.mjs",
+    "passed": true,
+    "elapsedMs": 11739
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/package-typecheck.test.mjs",
+    "passed": true,
+    "elapsedMs": 4286
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+    "passed": true,
+    "elapsedMs": 9263
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/follow-window.test.mjs",
+    "passed": true,
+    "elapsedMs": 43345
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+    "passed": true,
+    "elapsedMs": 1527
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/own-keys.test.mjs",
+    "passed": true,
+    "elapsedMs": 8100
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+    "passed": true,
+    "elapsedMs": 2382
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/one-shot-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 15101
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+    "passed": true,
+    "elapsedMs": 3184
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "passed": true,
+    "elapsedMs": 62519
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/page-ready.test.mjs",
+    "passed": true,
+    "elapsedMs": 7322
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/pending-items.test.mjs",
+    "passed": true,
+    "elapsedMs": 7549
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-inflight.test.mjs",
+    "passed": true,
+    "elapsedMs": 5388
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ordinary-search.test.mjs",
+    "passed": true,
+    "elapsedMs": 16415
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-liveness.test.mjs",
+    "passed": true,
+    "elapsedMs": 7105
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-progress.test.mjs",
+    "passed": true,
+    "elapsedMs": 7402
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-publication.test.mjs",
+    "passed": true,
+    "elapsedMs": 5207
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/page-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 14452
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-retry.test.mjs",
+    "passed": true,
+    "elapsedMs": 3798
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-boundaries.test.mjs",
+    "passed": true,
+    "elapsedMs": 9527
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-retention.test.mjs",
+    "passed": true,
+    "elapsedMs": 5627
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-work.test.mjs",
+    "passed": true,
+    "elapsedMs": 5900
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/page-observation.test.mjs",
+    "passed": true,
+    "elapsedMs": 17053
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ordinary-history.test.mjs",
+    "passed": true,
+    "elapsedMs": 24254
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/pending-writes.test.mjs",
+    "passed": true,
+    "elapsedMs": 14334
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/maintained-columns.test.mjs",
+    "passed": true,
+    "elapsedMs": 33837
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/periphery.test.mjs",
+    "passed": true,
+    "elapsedMs": 6588
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+    "passed": true,
+    "elapsedMs": 3329
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/prediction-routing.test.mjs",
+    "passed": true,
+    "elapsedMs": 6357
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/publish-signing.test.mjs",
+    "passed": true,
+    "elapsedMs": 2107
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+    "passed": true,
+    "elapsedMs": 2058
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/raw-read-deadlines.test.mjs",
+    "passed": true,
+    "elapsedMs": 2612
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-existence.test.mjs",
+    "passed": true,
+    "elapsedMs": 2016
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/presence-refresh.test.mjs",
+    "passed": true,
+    "elapsedMs": 9274
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-nullable-array.test.mjs",
+    "passed": true,
+    "elapsedMs": 2401
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/qualify-linux.test.mjs",
+    "passed": true,
+    "elapsedMs": 6611
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-observation.test.mjs",
+    "passed": true,
+    "elapsedMs": 3463
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/legacy-receipts.test.mjs",
+    "passed": true,
+    "elapsedMs": 47589
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/publish-linux.test.mjs",
+    "passed": true,
+    "elapsedMs": 7897
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "passed": true,
+    "elapsedMs": 6505
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/react.test.mjs",
+    "passed": true,
+    "elapsedMs": 6948
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+    "passed": true,
+    "elapsedMs": 3793
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-presentation.test.mjs",
+    "passed": true,
+    "elapsedMs": 2922
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/presence-composed.test.mjs",
+    "passed": true,
+    "elapsedMs": 13188
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+    "passed": true,
+    "elapsedMs": 875
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/remembered-answers.test.mjs",
+    "passed": true,
+    "elapsedMs": 830
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/presence-live.test.mjs",
+    "passed": true,
+    "elapsedMs": 14537
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/per-row-react.test.mjs",
+    "passed": true,
+    "elapsedMs": 19744
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-through-provenance.test.mjs",
+    "passed": true,
+    "elapsedMs": 5444
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-through-upsert.test.mjs",
+    "passed": true,
+    "elapsedMs": 5110
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/query-publication-session.test.mjs",
+    "passed": true,
+    "elapsedMs": 12443
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/readme-examples.test.mjs",
+    "passed": true,
+    "elapsedMs": 5076
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/release-activation.test.mjs",
+    "passed": true,
+    "elapsedMs": 4528
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/repair-b-round8.test.mjs",
+    "passed": true,
+    "elapsedMs": 2544
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-through.test.mjs",
+    "passed": true,
+    "elapsedMs": 6709
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/read-types.test.mjs",
+    "passed": true,
+    "elapsedMs": 6815
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/refresh-behavior.test.mjs",
+    "passed": true,
+    "elapsedMs": 6159
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/repair-b-round7.test.mjs",
+    "passed": true,
+    "elapsedMs": 4146
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/retention-pages.test.mjs",
+    "passed": true,
+    "elapsedMs": 1170
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/replacement-fixture.test.mjs",
+    "passed": true,
+    "elapsedMs": 3007
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/retention-episode.test.mjs",
+    "passed": true,
+    "elapsedMs": 3089
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "passed": true,
+    "elapsedMs": 3188
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "passed": true,
+    "elapsedMs": 2543
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/repair-b.test.mjs",
+    "passed": true,
+    "elapsedMs": 5539
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+    "passed": true,
+    "elapsedMs": 6490
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+    "passed": true,
+    "elapsedMs": 10375
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/revocation-retention.test.mjs",
+    "passed": true,
+    "elapsedMs": 3495
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+    "passed": true,
+    "elapsedMs": 2223
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+    "passed": true,
+    "elapsedMs": 2644
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/repair-b-round16.test.mjs",
+    "passed": true,
+    "elapsedMs": 10723
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/schema-session.test.mjs",
+    "passed": true,
+    "elapsedMs": 3194
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+    "passed": true,
+    "elapsedMs": 3845
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/residency.test.mjs",
+    "passed": true,
+    "elapsedMs": 8442
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/seen.test.mjs",
+    "passed": true,
+    "elapsedMs": 1422
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/review-probes.test.mjs",
+    "passed": true,
+    "elapsedMs": 6303
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-clock-regressions.test.mjs",
+    "passed": true,
+    "elapsedMs": 1167
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/seen-devices.test.mjs",
+    "passed": true,
+    "elapsedMs": 4799
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-clock.test.mjs",
+    "passed": true,
+    "elapsedMs": 1576
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-clock-recovery.test.mjs",
+    "passed": true,
+    "elapsedMs": 3198
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-clock-live.test.mjs",
+    "passed": true,
+    "elapsedMs": 3738
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-routes.test.mjs",
+    "passed": true,
+    "elapsedMs": 897
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/session-security.test.mjs",
+    "passed": true,
+    "elapsedMs": 1547
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-runtime.test.mjs",
+    "passed": true,
+    "elapsedMs": 1888
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-check.test.mjs",
+    "passed": true,
+    "elapsedMs": 6287
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/store-reset-idb.test.mjs",
+    "passed": true,
+    "elapsedMs": 1160
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/screen-lifetimes.test.mjs",
+    "passed": true,
+    "elapsedMs": 9316
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-clock-browser.test.mjs",
+    "passed": true,
+    "elapsedMs": 9292
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 714
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-deadline.test.mjs",
+    "passed": true,
+    "elapsedMs": 706
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-device.test.mjs",
+    "passed": true,
+    "elapsedMs": 4498
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/retention-lifecycle.test.mjs",
+    "passed": true,
+    "elapsedMs": 22910
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/store-reset.test.mjs",
+    "passed": true,
+    "elapsedMs": 8955
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/screen-lifetimes-react.test.mjs",
+    "passed": true,
+    "elapsedMs": 18496
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-fairness.test.mjs",
+    "passed": true,
+    "elapsedMs": 1550
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "passed": true,
+    "elapsedMs": 12376
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "passed": true,
+    "elapsedMs": 125315
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-online.test.mjs",
+    "passed": true,
+    "elapsedMs": 909
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-names.test.mjs",
+    "passed": true,
+    "elapsedMs": 2943
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-options.test.mjs",
+    "passed": true,
+    "elapsedMs": 977
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/routes.test.mjs",
+    "passed": true,
+    "elapsedMs": 24852
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs",
+    "passed": true,
+    "elapsedMs": 2536
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/social-browser.test.mjs",
+    "passed": true,
+    "elapsedMs": 18170
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs",
+    "passed": true,
+    "elapsedMs": 4912
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-scaling.test.mjs",
+    "passed": true,
+    "elapsedMs": 986
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "passed": true,
+    "elapsedMs": 10809
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-round1.test.mjs",
+    "passed": true,
+    "elapsedMs": 6617
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+    "passed": true,
+    "elapsedMs": 3979
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "passed": true,
+    "elapsedMs": 10560
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "passed": true,
+    "elapsedMs": 22540
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/readauth.test.mjs",
+    "passed": true,
+    "elapsedMs": 42017
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure.test.mjs",
+    "passed": true,
+    "elapsedMs": 2472
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-watermark.test.mjs",
+    "passed": true,
+    "elapsedMs": 3117
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/store-reset-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 22461
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/sync-after-call.test.mjs",
+    "passed": true,
+    "elapsedMs": 2155
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/supervised-workers.test.mjs",
+    "passed": true,
+    "elapsedMs": 2922
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-round3.test.mjs",
+    "passed": true,
+    "elapsedMs": 7865
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/navigation-model.test.mjs",
+    "passed": true,
+    "elapsedMs": 83317
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/presence-local.test.mjs",
+    "passed": true,
+    "elapsedMs": 61224
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/typing-expiry.test.mjs",
+    "passed": true,
+    "elapsedMs": 4675
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/unicode.test.mjs",
+    "passed": true,
+    "elapsedMs": 988
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/sync-scale.test.mjs",
+    "passed": true,
+    "elapsedMs": 9589
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/sync-generation.test.mjs",
+    "passed": true,
+    "elapsedMs": 10455
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "passed": true,
+    "elapsedMs": 19135
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/acquisition.test.mjs",
+    "passed": true,
+    "elapsedMs": 152326
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/wasm-absent.test.mjs",
+    "passed": true,
+    "elapsedMs": 647
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-clock-wire.test.mjs",
+    "passed": true,
+    "elapsedMs": 40523
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/wasm-families.test.mjs",
+    "passed": true,
+    "elapsedMs": 1102
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/test-processes.test.mjs",
+    "passed": true,
+    "elapsedMs": 13684
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "passed": true,
+    "elapsedMs": 142234
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/wasm-budget.test.mjs",
+    "passed": true,
+    "elapsedMs": 3330
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-durability.test.mjs",
+    "passed": true,
+    "elapsedMs": 1409
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs",
+    "passed": true,
+    "elapsedMs": 21061
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "passed": true,
+    "elapsedMs": 57441
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/upload-retry.test.mjs",
+    "passed": true,
+    "elapsedMs": 11312
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-pages.test.mjs",
+    "passed": true,
+    "elapsedMs": 7409
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-shell.test.mjs",
+    "passed": true,
+    "elapsedMs": 1031
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-worker-control.test.mjs",
+    "passed": true,
+    "elapsedMs": 711
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/overload.test.mjs",
+    "passed": true,
+    "elapsedMs": 96844
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 12402
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/wasm-codec-census.test.mjs",
+    "passed": true,
+    "elapsedMs": 17743
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/witness.test.mjs",
+    "passed": true,
+    "elapsedMs": 1447
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/witness-preparation.test.mjs",
+    "passed": true,
+    "elapsedMs": 4170
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/transport-outcomes.test.mjs",
+    "passed": true,
+    "elapsedMs": 29250
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "passed": true,
+    "elapsedMs": 57389
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-start.test.mjs",
+    "passed": true,
+    "elapsedMs": 10454
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/word-expansion.test.mjs",
+    "passed": true,
+    "elapsedMs": 3033
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/upload-lifetime.test.mjs",
+    "passed": true,
+    "elapsedMs": 24532
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-session-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 13520
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/worker-ledger-contention.test.mjs",
+    "passed": true,
+    "elapsedMs": 6441
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "passed": true,
+    "elapsedMs": 22113
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+    "passed": true,
+    "elapsedMs": 28772
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/write-authority.test.mjs",
+    "passed": true,
+    "elapsedMs": 7852
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-navigation.test.mjs",
+    "passed": true,
+    "elapsedMs": 27323
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+    "passed": true,
+    "elapsedMs": 42938
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/transport-http.test.mjs",
+    "passed": true,
+    "elapsedMs": 43256
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/unread-range.test.mjs",
+    "passed": true,
+    "elapsedMs": 35640
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/subscription-pressure-noop.test.mjs",
+    "passed": true,
+    "elapsedMs": 57077
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "passed": true,
+    "elapsedMs": 47589
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/write-ids.test.mjs",
+    "passed": true,
+    "elapsedMs": 19830
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/sync-overflow.test.mjs",
+    "passed": true,
+    "elapsedMs": 56828
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/bounded-following.test.mjs",
+    "passed": true,
+    "elapsedMs": 205152
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/worker.test.mjs",
+    "passed": true,
+    "elapsedMs": 40775
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-clock.test.mjs",
+    "passed": true,
+    "elapsedMs": 193819
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "passed": true,
+    "elapsedMs": 84547
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/web-admission-review.test.mjs",
+    "passed": true,
+    "elapsedMs": 127767
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/keep-app-model.test.mjs",
+    "passed": true,
+    "elapsedMs": 381076
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+    "passed": true,
+    "elapsedMs": 394068
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "passed": true,
+    "elapsedMs": 510047
+  },
+  {
+    "phase": "client tests",
+    "file": "packages/snapback4/test/worker-regressions.test.mjs",
+    "passed": true,
+    "elapsedMs": 441374
+  },
+  {
+    "phase": "client models",
+    "file": "packages/snapback4/test/app-session-model.test.mjs",
+    "passed": true,
+    "elapsedMs": 240557
+  },
+  {
+    "phase": "client models",
+    "file": "packages/snapback4/test/online-client-model.test.mjs",
+    "passed": true,
+    "elapsedMs": 59323
+  }
+]

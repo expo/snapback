@@ -1,0 +1,1537 @@
+[
+  {
+    "verdict": "ok",
+    "file": "fixtures/",
+    "elapsedMs": 11472
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-lifecycle.test.mjs",
+    "elapsedMs": 524
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-outcomes.test.mjs",
+    "elapsedMs": 1160
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-receipts.test.mjs",
+    "elapsedMs": 1426
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-retirement.test.mjs",
+    "elapsedMs": 1479
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-store-replacement.test.mjs",
+    "elapsedMs": 1772
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-storage.test.mjs",
+    "elapsedMs": 2170
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-notifications.test.mjs",
+    "elapsedMs": 1072
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-handles.test.mjs",
+    "elapsedMs": 2732
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-review.test.mjs",
+    "elapsedMs": 1350
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-local-session.test.mjs",
+    "elapsedMs": 3222
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-global.test.mjs",
+    "elapsedMs": 3285
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "elapsedMs": 1527
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-global-attempts.test.mjs",
+    "elapsedMs": 3619
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-bound.test.mjs",
+    "elapsedMs": 3704
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+    "elapsedMs": 3821
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-state.test.mjs",
+    "elapsedMs": 3830
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-arguments.test.mjs",
+    "elapsedMs": 1378
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-projection.test.mjs",
+    "elapsedMs": 1637
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/codec.test.mjs",
+    "elapsedMs": 515
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-invalid-input.test.mjs",
+    "elapsedMs": 2266
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-local-outcomes.test.mjs",
+    "elapsedMs": 6229
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-rebirth.test.mjs",
+    "elapsedMs": 2937
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/cross-scope-review.test.mjs",
+    "elapsedMs": 1490
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/composed-authority.test.mjs",
+    "elapsedMs": 2229
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-pressure.test.mjs",
+    "elapsedMs": 5890
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-online.test.mjs",
+    "elapsedMs": 8673
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-local-receipts.test.mjs",
+    "elapsedMs": 9221
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-activation.test.mjs",
+    "elapsedMs": 1930
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-cas.test.mjs",
+    "elapsedMs": 1087
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-buffered.test.mjs",
+    "elapsedMs": 7580
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-crash.test.mjs",
+    "elapsedMs": 1417
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-review.test.mjs",
+    "elapsedMs": 11302
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-clients.test.mjs",
+    "elapsedMs": 3660
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/close-boundary.test.mjs",
+    "elapsedMs": 8058
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery.test.mjs",
+    "elapsedMs": 557
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-refusal.test.mjs",
+    "elapsedMs": 2006
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/device-diet.test.mjs",
+    "elapsedMs": 456
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-retry.test.mjs",
+    "elapsedMs": 11884
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-integrated.test.mjs",
+    "elapsedMs": 5132
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/effectful-cancellation.test.mjs",
+    "elapsedMs": 1220
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-web.test.mjs",
+    "elapsedMs": 2616
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-outbox.test.mjs",
+    "elapsedMs": 6033
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/device-residency.test.mjs",
+    "elapsedMs": 3023
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-fencing.test.mjs",
+    "elapsedMs": 2523
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "elapsedMs": 598
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+    "elapsedMs": 12643
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-lanes.test.mjs",
+    "elapsedMs": 2160
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-sender.test.mjs",
+    "elapsedMs": 537
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-publication.test.mjs",
+    "elapsedMs": 8416
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+    "elapsedMs": 19454
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/event-slot-capability.test.mjs",
+    "elapsedMs": 534
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-capability.test.mjs",
+    "elapsedMs": 6428
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-types.test.mjs",
+    "elapsedMs": 2780
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/event-slots.test.mjs",
+    "elapsedMs": 2152
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expo-media-storage.test.mjs",
+    "elapsedMs": 422
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "elapsedMs": 4949
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-routing.test.mjs",
+    "elapsedMs": 4947
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expo-scenes.test.mjs",
+    "elapsedMs": 1800
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-adoption.test.mjs",
+    "elapsedMs": 10043
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-publication.test.mjs",
+    "elapsedMs": 777
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "elapsedMs": 3765
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-native.test.mjs",
+    "elapsedMs": 2708
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-failure.test.mjs",
+    "elapsedMs": 4331
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-native-round2.test.mjs",
+    "elapsedMs": 5072
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/familiar-forms.test.mjs",
+    "elapsedMs": 3091
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "elapsedMs": 15759
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/following-routing.test.mjs",
+    "elapsedMs": 4586
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+    "elapsedMs": 551
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-react.test.mjs",
+    "elapsedMs": 33679
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/id-from.test.mjs",
+    "elapsedMs": 550
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "elapsedMs": 565
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/first-account.test.mjs",
+    "elapsedMs": 9672
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-organizations.test.mjs",
+    "elapsedMs": 646
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-approval.test.mjs",
+    "elapsedMs": 27911
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-profile.test.mjs",
+    "elapsedMs": 744
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/following-unfollow.test.mjs",
+    "elapsedMs": 7975
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/http-bounds.test.mjs",
+    "elapsedMs": 4079
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-model.test.mjs",
+    "elapsedMs": 35952
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/intent-views.test.mjs",
+    "elapsedMs": 846
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/init-recipe.test.mjs",
+    "elapsedMs": 1174
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-app-expiry.test.mjs",
+    "elapsedMs": 1529
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app.test.mjs",
+    "elapsedMs": 38331
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-round2.test.mjs",
+    "elapsedMs": 39497
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-review.test.mjs",
+    "elapsedMs": 4551
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity.test.mjs",
+    "elapsedMs": 4644
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-authority.test.mjs",
+    "elapsedMs": 4074
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-watches.test.mjs",
+    "elapsedMs": 24340
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "elapsedMs": 42541
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-incarnation.test.mjs",
+    "elapsedMs": 3752
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-observation.test.mjs",
+    "elapsedMs": 2688
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+    "elapsedMs": 41299
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-adoption.test.mjs",
+    "elapsedMs": 9057
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-reset.test.mjs",
+    "elapsedMs": 2587
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-expiry.test.mjs",
+    "elapsedMs": 6526
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/linux-package.test.mjs",
+    "elapsedMs": 930
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expired-server-watch.test.mjs",
+    "elapsedMs": 26396
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+    "elapsedMs": 2070
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/generated-effect-context.test.mjs",
+    "elapsedMs": 20856
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-reuse.test.mjs",
+    "elapsedMs": 4415
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-authority-react.test.mjs",
+    "elapsedMs": 12418
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/local-reads.test.mjs",
+    "elapsedMs": 493
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/local-signout.test.mjs",
+    "elapsedMs": 600
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+    "elapsedMs": 4193
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/loopbar-bounds.test.mjs",
+    "elapsedMs": 803
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/loopbar.test.mjs",
+    "elapsedMs": 695
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-retry.test.mjs",
+    "elapsedMs": 7134
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/maintains.test.mjs",
+    "elapsedMs": 1486
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/measure-launch.test.mjs",
+    "elapsedMs": 559
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-device.test.mjs",
+    "elapsedMs": 13669
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/client-seams.test.mjs",
+    "elapsedMs": 49954
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/media-dependencies.test.mjs",
+    "elapsedMs": 1513
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/native-smoke.test.mjs",
+    "elapsedMs": 564
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/native-opening.test.mjs",
+    "elapsedMs": 684
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-round3.test.mjs",
+    "elapsedMs": 54897
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/node-transport.test.mjs",
+    "elapsedMs": 575
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+    "elapsedMs": 4854
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-propagation-fallback.test.mjs",
+    "elapsedMs": 8449
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+    "elapsedMs": 13202
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/once-preservation.test.mjs",
+    "elapsedMs": 3248
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/decorated-search.test.mjs",
+    "elapsedMs": 51755
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "elapsedMs": 59423
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-read-order.test.mjs",
+    "elapsedMs": 1282
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-intent-store.test.mjs",
+    "elapsedMs": 1676
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/native-e2e.test.mjs",
+    "elapsedMs": 6845
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "elapsedMs": 664
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-browser.test.mjs",
+    "elapsedMs": 17330
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+    "elapsedMs": 602
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-store-order.test.mjs",
+    "elapsedMs": 2434
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-session.test.mjs",
+    "elapsedMs": 3466
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+    "elapsedMs": 30960
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/local-e2e.test.mjs",
+    "elapsedMs": 14037
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot-bounds.test.mjs",
+    "elapsedMs": 8479
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot-model.test.mjs",
+    "elapsedMs": 10371
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-propagation.test.mjs",
+    "elapsedMs": 17699
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/package-typecheck.test.mjs",
+    "elapsedMs": 3210
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/overload-browser.test.mjs",
+    "elapsedMs": 4550
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot.test.mjs",
+    "elapsedMs": 10169
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+    "elapsedMs": 7968
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/follow-window.test.mjs",
+    "elapsedMs": 41064
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+    "elapsedMs": 1136
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+    "elapsedMs": 1712
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+    "elapsedMs": 2802
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot-review.test.mjs",
+    "elapsedMs": 14681
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/own-keys.test.mjs",
+    "elapsedMs": 7383
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/page-ready.test.mjs",
+    "elapsedMs": 7305
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-inflight.test.mjs",
+    "elapsedMs": 5173
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items.test.mjs",
+    "elapsedMs": 8301
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "elapsedMs": 62674
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-progress.test.mjs",
+    "elapsedMs": 7002
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-liveness.test.mjs",
+    "elapsedMs": 7122
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-publication.test.mjs",
+    "elapsedMs": 4584
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-search.test.mjs",
+    "elapsedMs": 16671
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-boundaries.test.mjs",
+    "elapsedMs": 9428
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/page-authority.test.mjs",
+    "elapsedMs": 13181
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-retry.test.mjs",
+    "elapsedMs": 2932
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-writes.test.mjs",
+    "elapsedMs": 13006
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-retention.test.mjs",
+    "elapsedMs": 5467
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-history.test.mjs",
+    "elapsedMs": 21477
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/page-observation.test.mjs",
+    "elapsedMs": 15688
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/maintained-columns.test.mjs",
+    "elapsedMs": 32002
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-work.test.mjs",
+    "elapsedMs": 5054
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+    "elapsedMs": 1365
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/prediction-routing.test.mjs",
+    "elapsedMs": 4680
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/periphery.test.mjs",
+    "elapsedMs": 5771
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/publish-signing.test.mjs",
+    "elapsedMs": 1927
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-existence.test.mjs",
+    "elapsedMs": 644
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+    "elapsedMs": 1553
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/raw-read-deadlines.test.mjs",
+    "elapsedMs": 2013
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-observation.test.mjs",
+    "elapsedMs": 535
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-nullable-array.test.mjs",
+    "elapsedMs": 765
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-presentation.test.mjs",
+    "elapsedMs": 533
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/qualify-linux.test.mjs",
+    "elapsedMs": 3626
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/publish-linux.test.mjs",
+    "elapsedMs": 4891
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+    "elapsedMs": 2236
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/react.test.mjs",
+    "elapsedMs": 4250
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "elapsedMs": 4100
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-refresh.test.mjs",
+    "elapsedMs": 7450
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+    "elapsedMs": 492
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-through-upsert.test.mjs",
+    "elapsedMs": 3416
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-through-provenance.test.mjs",
+    "elapsedMs": 4408
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/remembered-answers.test.mjs",
+    "elapsedMs": 767
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/legacy-receipts.test.mjs",
+    "elapsedMs": 44993
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-composed.test.mjs",
+    "elapsedMs": 11828
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-through.test.mjs",
+    "elapsedMs": 4692
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/readme-examples.test.mjs",
+    "elapsedMs": 3527
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round8.test.mjs",
+    "elapsedMs": 551
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/release-activation.test.mjs",
+    "elapsedMs": 3114
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-types.test.mjs",
+    "elapsedMs": 5222
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-live.test.mjs",
+    "elapsedMs": 13514
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/replacement-fixture.test.mjs",
+    "elapsedMs": 1895
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/query-publication-session.test.mjs",
+    "elapsedMs": 10627
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-react.test.mjs",
+    "elapsedMs": 18104
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/refresh-behavior.test.mjs",
+    "elapsedMs": 6133
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round7.test.mjs",
+    "elapsedMs": 4016
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-episode.test.mjs",
+    "elapsedMs": 1877
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-pages.test.mjs",
+    "elapsedMs": 894
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b.test.mjs",
+    "elapsedMs": 3968
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "elapsedMs": 1801
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "elapsedMs": 1363
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+    "elapsedMs": 4979
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+    "elapsedMs": 827
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+    "elapsedMs": 661
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/schema-session.test.mjs",
+    "elapsedMs": 720
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/revocation-retention.test.mjs",
+    "elapsedMs": 2139
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+    "elapsedMs": 2194
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/seen.test.mjs",
+    "elapsedMs": 523
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+    "elapsedMs": 8333
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/residency.test.mjs",
+    "elapsedMs": 6983
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round16.test.mjs",
+    "elapsedMs": 9289
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/review-probes.test.mjs",
+    "elapsedMs": 5485
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/seen-devices.test.mjs",
+    "elapsedMs": 3803
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-recovery.test.mjs",
+    "elapsedMs": 2219
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-regressions.test.mjs",
+    "elapsedMs": 1304
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock.test.mjs",
+    "elapsedMs": 583
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-live.test.mjs",
+    "elapsedMs": 2988
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-routes.test.mjs",
+    "elapsedMs": 645
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-runtime.test.mjs",
+    "elapsedMs": 919
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/session-security.test.mjs",
+    "elapsedMs": 896
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-check.test.mjs",
+    "elapsedMs": 5516
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset-idb.test.mjs",
+    "elapsedMs": 906
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/screen-lifetimes.test.mjs",
+    "elapsedMs": 8090
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-browser.test.mjs",
+    "elapsedMs": 9072
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+    "elapsedMs": 505
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-deadline.test.mjs",
+    "elapsedMs": 499
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-device.test.mjs",
+    "elapsedMs": 4243
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset.test.mjs",
+    "elapsedMs": 8283
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-fairness.test.mjs",
+    "elapsedMs": 1047
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/screen-lifetimes-react.test.mjs",
+    "elapsedMs": 17538
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "elapsedMs": 12222
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-lifecycle.test.mjs",
+    "elapsedMs": 22794
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-names.test.mjs",
+    "elapsedMs": 2542
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-online.test.mjs",
+    "elapsedMs": 711
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-options.test.mjs",
+    "elapsedMs": 508
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/social-browser.test.mjs",
+    "elapsedMs": 17201
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/routes.test.mjs",
+    "elapsedMs": 24737
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs",
+    "elapsedMs": 1925
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs",
+    "elapsedMs": 4347
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "elapsedMs": 118542
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-scaling.test.mjs",
+    "elapsedMs": 832
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "elapsedMs": 10340
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "elapsedMs": 8974
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "elapsedMs": 20487
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure.test.mjs",
+    "elapsedMs": 473
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-watermark.test.mjs",
+    "elapsedMs": 2243
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+    "elapsedMs": 3165
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-after-call.test.mjs",
+    "elapsedMs": 1130
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset-review.test.mjs",
+    "elapsedMs": 21170
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-round1.test.mjs",
+    "elapsedMs": 5662
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/supervised-workers.test.mjs",
+    "elapsedMs": 2291
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-round3.test.mjs",
+    "elapsedMs": 7706
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/readauth.test.mjs",
+    "elapsedMs": 40246
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/test-processes.test.mjs",
+    "elapsedMs": 7639
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-scale.test.mjs",
+    "elapsedMs": 9233
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-generation.test.mjs",
+    "elapsedMs": 9522
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/unicode.test.mjs",
+    "elapsedMs": 486
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/typing-expiry.test.mjs",
+    "elapsedMs": 4321
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/navigation-model.test.mjs",
+    "elapsedMs": 82439
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "elapsedMs": 18696
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-absent.test.mjs",
+    "elapsedMs": 430
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-wire.test.mjs",
+    "elapsedMs": 40408
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-local.test.mjs",
+    "elapsedMs": 61121
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-families.test.mjs",
+    "elapsedMs": 431
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-budget.test.mjs",
+    "elapsedMs": 2918
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs",
+    "elapsedMs": 20740
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-durability.test.mjs",
+    "elapsedMs": 970
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/upload-retry.test.mjs",
+    "elapsedMs": 11462
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/acquisition.test.mjs",
+    "elapsedMs": 148686
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "elapsedMs": 57052
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-pages.test.mjs",
+    "elapsedMs": 7078
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-shell.test.mjs",
+    "elapsedMs": 607
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "elapsedMs": 141431
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-worker-control.test.mjs",
+    "elapsedMs": 481
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-codec-census.test.mjs",
+    "elapsedMs": 16835
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "elapsedMs": 56724
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/witness.test.mjs",
+    "elapsedMs": 712
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/transport-outcomes.test.mjs",
+    "elapsedMs": 31526
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/upload-lifetime.test.mjs",
+    "elapsedMs": 25630
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-start.test.mjs",
+    "elapsedMs": 9709
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/overload.test.mjs",
+    "elapsedMs": 96956
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/witness-preparation.test.mjs",
+    "elapsedMs": 3429
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/word-expansion.test.mjs",
+    "elapsedMs": 2441
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-review.test.mjs",
+    "elapsedMs": 12505
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-session-authority.test.mjs",
+    "elapsedMs": 13654
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "elapsedMs": 40352
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/worker-ledger-contention.test.mjs",
+    "elapsedMs": 6183
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+    "elapsedMs": 29468
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/write-authority.test.mjs",
+    "elapsedMs": 7677
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+    "elapsedMs": 42720
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-navigation.test.mjs",
+    "elapsedMs": 27239
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/unread-range.test.mjs",
+    "elapsedMs": 35957
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "elapsedMs": 22382
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/transport-http.test.mjs",
+    "elapsedMs": 43105
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-noop.test.mjs",
+    "elapsedMs": 56926
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/write-ids.test.mjs",
+    "elapsedMs": 19827
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-overflow.test.mjs",
+    "elapsedMs": 56880
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/worker.test.mjs",
+    "elapsedMs": 39867
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/bounded-following.test.mjs",
+    "elapsedMs": 204746
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-clock.test.mjs",
+    "elapsedMs": 193263
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "elapsedMs": 83548
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-admission-review.test.mjs",
+    "elapsedMs": 128236
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-app-model.test.mjs",
+    "elapsedMs": 380989
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+    "elapsedMs": 392712
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "elapsedMs": 503054
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/worker-regressions.test.mjs",
+    "elapsedMs": 446131
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-session-model.test.mjs",
+    "elapsedMs": 268975
+  },
+  {
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-client-model.test.mjs",
+    "elapsedMs": 61834
+  }
+]

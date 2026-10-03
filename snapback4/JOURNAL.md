@@ -84799,3 +84799,76 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+## 2026-10-03 — QF Round 8: process-table scope and signed Darwin UIDs
+
+Merged main through 0185dfd67e (a fast-forward) and re-applied a8c20c40e9 in
+its own commit, 6545d92a6f. Main's entry recording the publication revert remains
+unchanged. The runner accepts Darwin's signed UID presentation, tokenizes
+C-locale start time without fixed widths, and accepts platform state flags and
+spaced command names. Synthetic Darwin/Linux fixtures include the exact
+supplied distnoted row and 5,000-row cases, without user process data.
+
+LLP 3000 §7 records the rule: parse every PID/PPID/PGID prefix fail-closed;
+validate metadata for the file's group and visible transitive descendants;
+count unrelated rows without validating their metadata or probing existence.
+Ancestry expands inspection only. Keeper-owned group signaling, native Node
+verdicts, two empty snapshots, guards, seeds and skips remain unchanged.
+Test inspection adapters preserve that scope, including their deliberately
+injected stale rows. The snapshot fixture also releases its helper in finally:
+with the old parser and the real shim, it now fails promptly instead of hanging.
+
+Every distinct M5 runner failure is attributed in the Round 8 report, including
+19 failed subtests, the test-29 stall and the replacement-fixture failure.
+Controls use a real PATH ps shim. An optional live fixture row makes UID -2 and
+malformed-metadata controls decisive even when synthetic PID 889 is absent.
+Final affected checks pass 64/64 plain and 64/64 with live malformed metadata.
+The single eb1000 full suite reports `== 0 failure(s) in 1511 s`. Its three
+client phases and their separate UID-shim repeats have identical counts:
+wrappers 9/9; ordinary clients 304/304 files, 6,095 passes and 11 existing skips;
+models 79/79. Each set totals 6,183 JavaScript passes, no failures/cancellations.
+The test-only amendments and their final-source checks are explicitly recorded.
+
+The operator withdrew mini execution to protect calibration. No macOS test ran;
+all six mini phase checks are **pending operator verification**, with exact
+commands in the [Round 8 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-8--process-table-isolation-and-darwin-uid-parsing).
+The scratch created for preparation before that amendment was removed. No office
+M1 or M5 was contacted, and no unrelated process was signaled. Reference and
+whitespace checks pass. Local commits carry the required GPT-6 Astra co-author
+trailer. Nothing is pushed or published.
+
+
+## 2026-10-03 — QF Round 9: Darwin identity rereads keep the file scope
+
+Addressed Astra's P2 on Round 8 and Grok's shim-evidence finding. Every Darwin
+identity reread performed by ownedProcesses now receives the keeper's group,
+so its fresh table classifies the group and visible descendants before parsing
+ancillary fields. A reused PID outside that scope counts as exited whether its
+replacement metadata is malformed or well-formed. Related malformed metadata
+and unclassifiable routing prefixes still refuse. LLP 3000 §7 records this
+fresh-snapshot rule; keeper custody, native verdicts and guards are unchanged.
+
+Five new regressions cover scoped identity and both before-release and cleanup
+verification with malformed and well-formed replacements. On the Round 8 code,
+the scoped identity case and both malformed cases fail; the real runner returns
+native exit 0 with TEST_PROCESS_INSPECTION. All five pass after the fix. These
+exercise Darwin's JavaScript branch with controlled snapshots on Linux, not
+native macOS or forced kernel PID reuse. The permanent CLI shim test now
+requires an owned marker count to increase on each shimmed invocation. Removing
+only that write makes the test fail, independently of unrelated-row counts.
+
+All verification ran on eb1000. Focused tests: **69/69 plain and 69/69 shimmed**,
+zero skips. Full suite: **`== 0 failure(s) in 1419 s`**. Its client phases
+and the UID-shim repeat have identical counts: wrappers **9/9**; ordinary
+clients **304/304 files, 6,100 passes and 11 existing skips**; models **79/79**.
+Each set totals **6,188 passes**, zero failures/cancellations, 307 file results.
+The focused external shim records 174 hits; the phase repeat records 1,390.
+Affected source hashes are unchanged throughout qualification. The
+[Round 9 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-9--retain-file-scope-across-darwin-identity-rereads)
+retains the counterexamples, logs, summaries, source hashes and exact commands.
+
+All six macOS cells remain **pending operator verification**, with commands in
+the report. No mini, office M1 or M5 was contacted. Grok's
+`~/sb4-intent/qf-r8-scratch-review` is left for the operator. No unrelated process
+was signaled. Reference and whitespace checks pass; the local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

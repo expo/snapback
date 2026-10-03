@@ -1,0 +1,53 @@
+{
+  "note": "Original test 29 unchanged; a separate outer control watchdog is shortened to 5 seconds. Real PATH ps shim, no parser seam.",
+  "results": [
+    {
+      "mode": "plain",
+      "status": 0,
+      "result": {
+        "file": "/tmp/sb4-qf-r8-hang-control-xuz5i0be/packages/snapback4/test/test-file-runner.test.mjs",
+        "code": 0,
+        "signal": null,
+        "passed": true,
+        "keeperExit": {
+          "code": null,
+          "signal": "SIGKILL",
+          "cleanupAcknowledged": true
+        },
+        "elapsed": 944,
+        "counts": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "stallMs": 5000,
+        "progressCount": 4,
+        "lastProgress": "test:complete: /tmp/sb4-qf-r8-hang-control-xuz5i0be/packages/snapback4/test/test-file-runner.test.mjs"
+      }
+    },
+    {
+      "mode": "shim",
+      "status": 1,
+      "result": {
+        "file": "/tmp/sb4-qf-r8-hang-control-xuz5i0be/packages/snapback4/test/test-file-runner.test.mjs",
+        "code": null,
+        "signal": "SIGKILL",
+        "passed": false,
+        "reason": "TEST_FILE_HANG",
+        "inspectionFailure": "Error: TEST_PROCESS_INSPECTION: {\"pid\":3680284,\"firstError\":\"malformed ps row\",\"rawBase64\":\"MzY4MDI4NCAzNjgwMjgzIDM2ODAyODMgLTIgU2F0IE9jdCAzIDE0OjEzOjM5IDIwMjYgUyBweXRob24z\"}\n    at inspectionError (file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/test-processes.mjs:6:35)\n    at metadataFailure (file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/test-processes.mjs:24:9)\n    at file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/test-processes.mjs:44:7\n    at Array.flatMap (<anonymous>)\n    at processTable (file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/test-processes.mjs:39:84)\n    at ownedProcesses (file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/test-processes.mjs:80:10)\n    at file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/run-client-tests.mjs:116:23\n    at stop (file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/run-client-tests.mjs:121:7)\n    at Timeout._onTimeout (file:///tmp/sb4-qf-r8-hang-control-xuz5i0be/scripts/run-client-tests.mjs:84:62)\n    at listOnTimeout (node:internal/timers:605:17)",
+        "keeperExit": {
+          "code": null,
+          "signal": "SIGKILL",
+          "cleanupAcknowledged": true
+        },
+        "elapsed": 5211,
+        "stallMs": 5000,
+        "progressCount": 2,
+        "lastProgress": "test:dequeue: a completed file passes when its enumerated group member has exited"
+      }
+    }
+  ]
+}

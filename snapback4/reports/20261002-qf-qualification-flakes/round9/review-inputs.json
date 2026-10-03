@@ -1,0 +1,15 @@
+{
+  "reviewedBase": "ef1bd50daa",
+  "inputs": {
+    "/home/ccheever/sb4-intent/qf-r8-evidence/review-astra-20261003/README.md": "e05ba58d90c365e102b334b4364f96baecbbe5e8449c1e5014fd9049bc713374",
+    "/home/ccheever/sb4-intent/qf-r8-evidence/review-astra-20261003/probes.mjs": "ce1e90a96c45dc57b07bad4a8649ad76ea882fa71973dedd554cccdf905c9026"
+  },
+  "findings": {
+    "Astra P2": "Fresh Darwin PID-only identity reread validates unrelated replacement metadata before checking group. Reproduced in both completion phases.",
+    "Grok Low": "Nonzero unrelatedRows cannot establish that a PATH shim ran."
+  },
+  "negativeControls": {
+    "pre-fix-darwin-reuse": "Five new tests on Round 8 production source: three failures (scoped identity plus both malformed-reuse phases); both well-formed replacement controls pass.",
+    "no-marker-control": "Final source except marker printf replaced temporarily by a no-op: CLI test fails at the per-invocation marker assertion. Fixture restored before verification."
+  }
+}

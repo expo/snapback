@@ -63,6 +63,40 @@ the current bearer token. Viewer-authorized asset responses use
 `Cache-Control: private, no-store`; a valid range beyond the file answers
 416 with `Content-Range: bytes */N`, and view-once assets refuse every Range.
 
+## Testing
+
+Run `scripts/test.sh` from this directory with Node 24 and installed workspace
+dependencies. It reports every failing category and continues through the
+remaining categories. Client files share at most 24 slots (one per three
+available CPUs); the full-count model files run afterward in one serial slot.
+
+`scripts/run-client-tests.mjs` runs each file as native `node --test` and uses
+Node's exit status for the test verdict. Its independent progress watchdog
+allows max(15 minutes, largest single declared guard plus 25% or one minute).
+There is no total-duration cap. Console output does not renew progress; native
+Node may buffer synchronous subtests until they yield. All seeds and guards
+remain intact. A stall produces `TEST_FILE_HANG`, the last delivered progress
+and the last 16 KiB of output.
+
+Each file has a fresh process group headed by a Node keeper. Closing its stdin
+asks the keeper to kill its own group, including when the runner dies; the
+runner never signals a test group. Unexpected keeper loss fails the file.
+Cleanup requires two empty inspections 50 ms apart within five seconds;
+leftovers fail as `TEST_FILE_LEAK`. Listings have a two-second bound. PID, PPID
+and PGID must parse for every row. Group members and visible descendants get
+full metadata validation; unrelated metadata only contributes diagnostic
+counts. Signed macOS UIDs, state flags, start-time spacing and command spaces
+are accepted. Vanished members and zombies are exited. Escaped descendants
+receive no cleanup signal and remain the fixture's responsibility.
+
+Worker fixture timeouts include the host log, exit state, persisted worker
+statuses and observed worker PIDs before cleanup removes their project. Fixture
+startup waits for an HTTP response: the printed URL precedes initial worker
+admission. Browser replacement setup retries a busy identity copy for at most
+five seconds and closes its server on every setup failure. Reproduction,
+measured file durations and qualification counts are in the
+[QF report](./reports/20261002-qf-qualification-flakes/REPORT.md).
+
 ## Building the web device
 
 From `snapback4/`, run `bun install --frozen-lockfile` before

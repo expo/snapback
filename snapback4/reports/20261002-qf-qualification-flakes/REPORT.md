@@ -1,6 +1,6 @@
 # QF — qualification flakes
 
-Status: Round 4 complete: vanished-process races handled; full suite 0 failures; both targets 200/200; all 2,031 stress-background executions pass with 0 refusals. Ticket resolved. No push or publication.
+Status: Round 9 complete on eb1000: both review findings fixed; focused checks 69/69 plain and shimmed, full suite and UID-shim client phases pass. All six macOS cells remain pending operator verification. No push or publication.
 
 Round-0 baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
 `sb4-intent/qf-qualification-flakes`. Product sources match release `8e6246be14`;
@@ -1719,3 +1719,405 @@ JOURNAL entry remains unchanged. Final reference and staged whitespace checks
 pass. Logs and JSONL/load timelines are gzip-compressed where indicated by their
 filenames; `summarize.py` reads either representation. The local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published.
+
+## Round 8 — process-table isolation and Darwin UID parsing
+
+The operator superseded the original mini verification instruction during this
+round: **all test execution is on eb1000; macOS execution is pending operator
+verification after calibration.** No office M1 or M5 was contacted. Before the
+amendment, the original session had copied a scratch tree to the Apartment mini
+and started dependency/build preparation (Cargo completed); no test phase ran.
+After the amendment only that task's scratch was removed, without signaling
+another process. `/tmp/sb4-qf-r8.LXZGaS` is confirmed absent. No macOS test result
+or portability qualification is claimed for Round 8.
+
+### Integration, context and policy
+
+Starting from Round 7 `f0a597316e`, fetched and merged `origin/main`
+`0185dfd67e`; Git fast-forwarded because main already contained Round 7's merge
+and subsequent revert. **`6545d92a6f`** is the separate `git revert a8c20c40e9`
+commit reapplying the runner, with main's append-only revert JOURNAL entry
+preserved. Main's newer product work remains intact. The commit carries the
+required GPT-6 Astra co-author trailer. No push or publication occurs.
+
+`llp-orient` covered the runner, keeper, reporter, process inspection and tests.
+[LLP 3000 §7](../../../llp/3000-snapback4.explainer.md#publication-suite-under-contention)
+is the governing current LLP; LLP 2000.000 is the design brief. `rules/RULES.md`
+and `snapback4/NOT-DOING.md` supply the fence. Native Node's exit status,
+keeper-only signaling, two empty snapshots, original guards/seeds and zombie /
+vanished-member handling remain binding. No authoring or product surface changes.
+The affected documentation audit reconciles LLP 3000, AGENTS and README (whose
+restored testing paragraph still described Round 0's obsolete absolute caps and
+runner-owned signaling). Hand-off: none.
+
+The chosen rule is now beside the runner rules in LLP 3000 §7:
+
+- Every PID/PPID/PGID prefix must parse. An unclassifiable prefix fails closed,
+  even when its apparent PID is absent, since ownership cannot be established.
+- Build the complete parent index before selecting metadata. Validate all group
+  members and their visible transitive descendants, regardless of row order,
+  reparented members, cycles or zombie state. Include descendants of the keeper
+  even when the keeper row has disappeared.
+- Rows proven outside this set contribute `unrelatedRows` diagnostics, without
+  ancillary-field validation or existence probes. Their printing cannot fail a
+  file. Selected malformed metadata still refuses while its PID exists; a
+  verified disappeared PID remains exited. Preserve first error and exact bytes.
+- Descendant selection expands inspection, **not cleanup custody**. The keeper
+  still only kills its own group. Escaped descendants are never signaled or
+  classified as an in-group leak; fixtures own their lifetimes.
+
+This prevents unrelated formatting from poisoning the verdict without dropping
+an unparseable owned candidate. The existing vanished-row test now supplies a
+valid routing prefix before truncated metadata; the malformed-parent test is
+strengthened to refuse even when an existence probe would report absence.
+Neither test is skipped or weakened.
+
+### Field audit and regression evidence
+
+The synthetic recorded fixtures under
+`packages/snapback4/test/fixtures/process-tables/` contain no user process data.
+`darwin.txt` includes the exact supplied distnoted row, kernel zero IDs, Z,
+Ss/S+/SN/Rs/S</SNs/U/I/T, unknown-state `?`, variable lstart spacing, spaced
+comm paths, parentheses and `<defunct>`. `linux.txt` includes kernel PGID zero,
+Linux states/flags and unsigned UID boundaries. These are synthesized shape
+records, **not a captured M5 process table**.
+
+The audit used Apple's [field definitions](https://github.com/apple-oss-distributions/adv_cmds/blob/main/ps/keyword.c)
+and [printers](https://github.com/apple-oss-distributions/adv_cmds/blob/main/ps/print.c),
+and the procps [ps manual](https://man7.org/linux/man-pages/man1/ps.1.html).
+The parser accepts UID decimals from -2^31 through 2^32-1, handles C-locale
+lstart as five whitespace-separated fields, accepts platform state flags, and
+keeps comm as the remaining text. Darwin start identity normalizes whitespace;
+Linux retains /proc start ticks. Two-second / 16 MiB listing limits remain.
+The ancestry walk is indexed, order-independent and cycle-safe. Tests cover
+5,000 mixed Darwin rows and a reversed 5,000-row ancestry table, including a
+malformed deepest descendant. Separate assertions cover malformed group,
+direct-descendant and transitive-descendant metadata; unrelated metadata is
+not even probed. Darwin identity lookup is exercised via its platform branch.
+
+The end-to-end test launches the **real runner CLI** with a `ps` executable
+first on PATH. That shim invokes `/bin/ps` and appends the exact supplied row.
+It compares native exits, file verdicts, retained assertion errors, diagnostic
+counts and continued execution after failure against the no-shim control.
+A second shim variant adds malformed ancillary metadata for its own live
+fixture PID outside the nested file group and must leave the same verdicts
+unchanged. There is no inspection seam in this test.
+
+A subtle counterexample is retained: on Linux, PID 889 may be absent, so the
+old parser dismisses the exact appended row as vanished and passes. Therefore
+`SB4_PS_NOBODY_PID` optionally adds the real row of a caller-owned live fixture
+process with UID rendered as -2. The CLI regression sets it to its own test
+process; phase verification uses its still-live script process. Both modes
+always append the exact distnoted row. The pre-fix runner passes without the
+shim (exit 0) and fails with this live-row shim (exit 1,
+TEST_PROCESS_INSPECTION). Final code passes its positive cases and preserves
+its intentional failures under both shims. The initial absent-PID control and
+the decisive control are both retained under `round8/pre-fix-*`.
+
+Focused eb1000 verification: **64/64** (22 process-table / CLI regressions,
+39 existing runner regressions and 3 replacement regressions), no skips.
+After adding the live-row counterexample, the 22 process-table / CLI tests
+pass again. The final focused run also passes **64/64** after the exceptional
+helper cleanup amendment described below. The complete UID shim phases cover
+that cleanup. A later scoped-adapter correction receives its own final
+64-test checks, both plain and with unrelated malformed metadata, as recorded
+below.
+
+### Every M5 runner failure attributed
+
+`round8/m5-failure-audit.json` binds the original full log by SHA-256 and records
+each name, line and cause; the numbered runner and replacement excerpts are
+retained compressed. The log repeats the same execution as a timeout tail and
+final output. There are **19 distinct failed runner subtests**, rather than all
+of 1–23 failing. Tests 4, 7, 15, 21 and 24–28 passed before test 29 stalled;
+30–39 did not complete. Grouped causes below retain each failed test number:
+
+| Runner test(s) | M5 line(s) | Cause beyond the failure line |
+|---|---|---|
+| 1, 2: watchdog event loop / leaked handle | 76938, 76959 | Intended hang occurred; Darwin's post-cleanup identity check reread the whole table and threw on distnoted. |
+| 3: failure then healthy file | 76979 | The healthy result was false; the old assertion omitted its result. A controlled replay of the old source adds only assertion messages and exposes `inspectionFailure` as the cause. No-shim passes; shim fails. |
+| 5: expected TODO | 77008 | Native TODO passes; final cleanup adds inspection failure and makes `passed=false`. |
+| 6: stale parent link | 77131 | The seam's real processTable call fails before the stale link can be added. |
+| 8: unreferenced group orphan | 77160 | Expected leak becomes inspection failure. The same diagnostic-only replay exposes the exact malformed-row cause. |
+| 9: passing double fork | 77186 | ORPHAN_READY is present; inspection replaces the leak verdict. |
+| 10: stalled double fork | 77294 | After the intended hang, Darwin identity throws during the orphan-exit assertion. |
+| 11, 12, 13: injected listing failures | 77315, 77336, 77357 | The intended exit/timeout/malformed refusal occurs; the subsequent Darwin identity assertion throws on unrelated metadata. |
+| 14: locale / empty output | 77378 | Empty-output refusal passes; final identity(process.pid) throws. |
+| 16: persistent injected failure | 77405 | Intended refusal is retained; subsequent Darwin identity throws. |
+| 17: unsampled orphan | 77426 | Real processTable fails before the seam releases the forking parent; expected leak becomes inspection failure. |
+| 18: nested progress | 77532 | Subtests progress and pass; final inspection makes the file fail. |
+| 19: console chatter | 77721 | Watchdog fires correctly, but preliminary inspection throws before the asserted owned-process diagnostic. |
+| 20: stale exited snapshot | 78077 | Real processTable fails before the seam adds its stale row; leak becomes inspection failure. |
+| 22: name/skip filters | 78189 | Selected test and counts pass; cleanup inspection makes `passed=false`. |
+| 23: disappearing process | 78292 | Initial processTable throws before the intended disappearance interleaving. |
+
+The **test-29 stall** is at line 76653: the last dequeue names “a completed
+file passes when its enumerated group member has exited.” Its nested fixture
+calls processTable to save a snapshot **before** ending its helper's stdin.
+The parse error rejects the nested subtest while the helper pipe remains held,
+so native Node and its nested runner cannot finish before the outer 900-second
+watchdog. This source-based attribution is corroborated by a real-shim replay
+of the unchanged old test: no-shim completes; shim stalls at the identical
+last-progress event. A separate outer five-second control watchdog bounds that
+reproduction; it changes no production or existing test guard. See
+`pre-fix-snapshot-hang.json` and its logs. This exposed an additional fixture
+cleanup defect: snapshot failure bypassed helper release. The snapshot producer
+now closes and awaits that helper in `finally`, preserving every assertion.
+With the **old parser** and the same real shim, the corrected fixture now
+reports a native failure and completes in **809 ms**, without using the outer
+watchdog (`snapshot-cleanup-control.json`). The full suite had already executed
+this test when this cleanup-only amendment was made; `source-amendment.json`
+records that boundary. The final focused run and subsequent complete shim
+phases exercise the corrected cleanup.
+
+Final review also found that some real-table inspection adapters in the runner
+regressions discarded their requested scope and could themselves reject
+unrelated malformed ancillary metadata. They now forward group selectors;
+fixture identity lookups select their own PID or group. The stale-parent test
+still explicitly fetches and injects its separate live sibling, and gains an
+assertion that the injected sibling exists. No original assertion is removed.
+`inspection-adapter-amendment.json` records this later test-only delta. The
+runner implementation is unchanged from the full suite and complete UID shim
+phases. The final checks pass **64/64 without a shim and 64/64 with the real-ps shim
+additionally emitting malformed metadata for a live, caller-owned unrelated
+fixture PID**, zero skips or refusals. This live PID prevents disappearance
+handling from hiding an accidental global validation. The permanent CLI
+regression uses the same live malformed-row control. `final-live-*` logs/status,
+`live-malformed-amendment.json` and the final source hashes bind that last test
+strengthening; earlier development checks remain separately named.
+
+The **replacement regression** at line 62124 emits its intended
+`TEST_REPLACEMENT_COPY: writer remained locked for 150 ms` nested failure.
+Inspection then adds a runner refusal where the outer assertion requires
+`reason === undefined`. The original server-reap, temporary-directory removal
+and failure-output assertions remain and are exercised in the final runs.
+No additional product or runner-verdict defect was found in these cases; the
+test-29 exceptional helper cleanup is fixed as described above.
+
+### eb1000 complete verification
+
+The single full suite ran **2026-10-03T12:10:28Z–12:35:39Z**, exit **0**:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Exact line: **`== 0 failure(s) in 1511 s`**. Every category passes. Fixture
+wrappers: **9/9**. Ordinary clients: **304/304 files, 6,095 passes and 11 existing
+skips**. Models: **79/79**. Total JavaScript: **6,183 passed, zero failed or
+cancelled, 11 skipped across 307 file results**. Introduced, baseline,
+environmental and runner-refusal category/file failures are all zero.
+`round8/full-suite-summary.json`, the per-file table, command/status record and
+complete log retain the counts. The cleanup-only test amendment and its
+affected-source checks are explicitly recorded above and below.
+
+The complete UID-shim repeat ran **2026-10-03T12:35:41Z–12:51:08Z**, exit
+**0**, with **the identical counts in all three phases**: wrappers 9/9;
+304/304 ordinary files, 6,095 passed / 11 existing skips; models 79/79. Total:
+**6,183 passed, zero failed or cancelled, 11 skipped across 307 file results**.
+Exact summary: **`== 0 client phase failure(s) (shim)`**. The phase summaries,
+per-file table, separate logs/statuses and timing are under `round8/`.
+
+The final affected-source checks (`final-live-*`) both pass **64/64**, with
+zero skips: ordinary PATH, then a real ps shim with the exact system row,
+live signed-UID row and live unrelated malformed-metadata row. All 39 existing
+runner regressions and all 3 replacement assertions retain their verdicts.
+This covers the test-only scope forwarding and exceptional cleanup amendments
+without repeating unchanged Rust/product checks. No guard, seed or skip changes.
+Final source and built binary/wasm hashes agree; reference and whitespace checks
+pass. Logs are compressed as recorded by `round8/artifact-index.json`. No new
+independent review verdict is claimed.
+The baseline's three phases are the unmodified invocations in `scripts/test.sh`;
+the shim repeat uses `round8/client-phases.sh`, preserving its exact fixture
+invocation, ordinary-file selection/pool and serial full-count model invocation.
+No test filter, seed reduction, added skip or guard override applies.
+
+### macOS checks — pending operator verification
+
+**Pending operator verification:** all six cells below, on the Apartment mini
+only after calibration. None ran in Round 8.
+
+| Check | Without shim | With shim |
+|---|---|---|
+| Fixture wrapper tests (`1 files fixtures/`) | pending operator verification | pending operator verification |
+| Every ordinary client file (suite CPU-derived pool) | pending operator verification | pending operator verification |
+| Full-count client models (serial) | pending operator verification | pending operator verification |
+
+Exact preparation and execution commands, for the operator to run **later**
+from this branch on eb1000 (requires the mini's existing Node 24, Bun, Rust
+and wasm-bindgen toolchain). Both calls to `client-phases.sh` run all three
+listed phases and retain separate logs/status files. The script derives the
+same CPU pool and file exclusions as test.sh; it never selects fewer tests.
+
+```bash
+mini_scratch=$(ssh ccheever@100.64.36.16 'mktemp -d /tmp/sb4-qf-r8-verify.XXXXXX')
+git archive sb4-intent/qf-qualification-flakes snapback4 |
+  ssh ccheever@100.64.36.16 "tar -x -C '$mini_scratch'"
+ssh ccheever@100.64.36.16 "cd '$mini_scratch/snapback4' && /bin/bash -s" <<'MINI'
+export PATH="$HOME/.volta/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
+export LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+node --version
+bun install --frozen-lockfile || exit
+cargo build --workspace || exit
+bash scripts/build-wasm.sh || exit
+bun run --cwd packages/snapback4 build || exit
+(cd apps/chat && ../../target/debug/snapback4 check) || exit
+bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh plain ../plain
+plain_status=$?
+bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh shim ../shim
+shim_status=$?
+printf 'plain=%s shim=%s\n' "$plain_status" "$shim_status"
+[ "$plain_status" = 0 ] && [ "$shim_status" = 0 ]
+MINI
+mkdir -p /tmp/sb4-qf-r8-mini-results
+scp -r "ccheever@100.64.36.16:$mini_scratch/plain" /tmp/sb4-qf-r8-mini-results/
+scp -r "ccheever@100.64.36.16:$mini_scratch/shim" /tmp/sb4-qf-r8-mini-results/
+ssh ccheever@100.64.36.16 "rm -rf '$mini_scratch'"
+```
+
+The phase script contains the exact commands: `node scripts/run-client-tests.mjs
+1 files fixtures/`, the CPU-derived ordinary client invocation, and
+`node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs
+packages/snapback4/test/online-client-model.test.mjs`. Verification does not
+publish packages or signal any process outside those started by its fixtures.
+
+
+## Round 9 — retain file scope across Darwin identity rereads
+
+Round 8 base: `ef1bd50daa`. Read-only `llp-orient` context remains LLP 3000
+(current), §7 `publication-suite-under-contention`: native Node verdicts,
+keeper-owned group cleanup, full counts and fail-closed related inspection.
+The change touches process inspection and its tests, not the client contract.
+The existing §7 rule is clarified; no new LLP or cleanup authority is added.
+Review inputs and their hashes are recorded in `round9/review-inputs.json`.
+
+### Both review findings addressed
+
+**Astra P2:** `ownedProcesses()` now passes the keeper's group to `identity()`.
+Each fresh Darwin listing classifies that group and its visible descendants
+before validating ancillary metadata, then selects the requested PID. A stale
+candidate whose PID now belongs outside that scope is absent from the identity
+result. Both well-formed and malformed unrelated replacements therefore count
+as the original candidate having exited. Malformed routing prefixes and
+malformed metadata for fresh group members or visible descendants still refuse.
+Linux `/proc` identity reads, keeper signaling, leak rules and watchdogs are
+unchanged. This applies before release and in every cleanup verification scan.
+
+Five permanent tests are added: a scoped identity test checks both exclusions
+and fail-closed group/direct/transitive descendant cases; four `runFile()` cases
+cross before-release/cleanup-verification with malformed/well-formed replacement
+metadata. The tests use the actual Darwin JavaScript branch on eb1000, real
+keepers and real `ps` listings, replacing only their own test process's fresh
+row and injecting its stale group row into enumeration. The keeper pipe's
+`writableEnded` state identifies the phase; assertions require the stale
+injection, fresh reread, native exit 0, no inspection/refusal reason, passing
+verdict and acknowledged keeper cleanup. No kernel PID reuse is forced, no
+unrelated process is signaled, and this is not a claim of macOS execution.
+
+Before the fix, the scoped identity test and both malformed-replacement cases
+fail (3 failures / 2 passes); both well-formed controls pass. After the fix,
+all five pass. The retained `pre-fix-darwin-reuse` and `post-fix-regressions`
+logs show the causal difference, including native exit 0 with
+`TEST_PROCESS_INSPECTION` before the fix. No original test assertion is removed.
+
+**Grok Low:** the real PATH shim appends a hit to a test-owned marker file
+after `/bin/ps` succeeds. Each shimmed CLI invocation must increase its count;
+each baseline invocation must leave it unchanged. The nested CLI test isolates
+its marker from an enclosing verification shim. Existing native-exit, per-file
+verdict, continued-execution, assertion-output and diagnostic assertions stay.
+A negative control removing only the marker write fails at the new assertion,
+although the shim still prints the UID row (`no-marker-control.log.gz`). The
+marker write was restored before all qualification runs.
+
+### eb1000 verification
+
+The command record is `round9/verify.sh`, run from `snapback4/`. It runs focused
+checks plain and shimmed, the complete suite, then all three UID-shim client
+phases. The focused shim includes the exact distnoted row, a caller-owned live
+UID -2 row and a live unrelated malformed-metadata row. The phase shim includes
+the exact row and live UID -2 row. Both record actual shim hits. No guard,
+seed count, file selection or skip changes. The suite's own client phases
+supply the unshimmed baseline. The phase helper is the unchanged
+`round8/client-phases.sh`, with Round 9 output paths; it matches the fixture,
+ordinary-file/pool and serial full-count model invocations in `scripts/test.sh`.
+
+Focused checks pass **69/69 plain and 69/69 shimmed**, zero skips: 27
+process-table/CLI tests, 39 existing runner tests and 3 replacement tests.
+The external focused shim records **174 hits**; the permanent CLI regression
+also requires a fresh marker increase for each of its four shimmed invocations.
+`round9/focused-summary.json` retains counts, timings and exit statuses.
+
+The full suite ran **2026-10-03T13:55:32Z–2026-10-03T14:19:11Z**, exit **0**:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Exact line: **`== 0 failure(s) in 1419 s`**. The UID-shim repeat ran
+**2026-10-03T14:19:11Z–2026-10-03T14:34:35Z**, exit **0**, with
+**1,390 recorded shim hits** and exact summary
+**`== 0 client phase failure(s) (shim)`**. Their counts agree in every cell:
+
+| Client phase | Full suite, plain | UID shim |
+|---|---|---|
+| Fixture wrappers | 9/9 passed | 9/9 passed |
+| Ordinary clients | 304/304 files; 6,100 passed, 11 existing skips | 304/304 files; 6,100 passed, 11 existing skips |
+| Full-count models | 79/79 passed | 79/79 passed |
+| Total | 6,188 passed; 11 existing skips; 307 file results | 6,188 passed; 11 existing skips; 307 file results |
+
+Both sets have zero failed or cancelled JavaScript tests and zero failed files.
+The full suite has zero failed categories. `full-suite-summary.json` and
+`uid-shim-summary.json` retain the aggregate comparison; their `*-files.json`
+tables retain every file verdict and duration. All affected source hashes agree
+before and after the entire qualification (`source-before.json` and
+`source-after.json`). No implementation or test amendment occurred mid-run.
+Complete logs, negative controls, status files and their integrity index are
+retained under `round9/`; logs are compressed as recorded in
+`artifact-index.json`. Reference and whitespace checks pass. No new independent
+review verdict is claimed. Nothing is pushed or published.
+
+### macOS checks — pending operator verification
+
+All six cells remain **pending operator verification**, on the Apartment mini
+only after the operator releases it from calibration. No mini, office M1 or M5
+was contacted in Round 9. Grok's `~/sb4-intent/qf-r8-scratch-review` is untouched;
+its removal belongs to the operator.
+
+| Check | Without shim | With shim |
+|---|---|---|
+| Fixture wrapper tests (`1 files fixtures/`) | pending operator verification | pending operator verification |
+| Every ordinary client file (suite CPU-derived pool) | pending operator verification | pending operator verification |
+| Full-count client models (serial) | pending operator verification | pending operator verification |
+
+Exact future operator commands, from the committed Round 9 branch on eb1000.
+These commands are documented only; none was executed this round. The helper
+runs each listed phase and retains its separate log, timing and exit status.
+
+```bash
+mini_scratch=$(ssh ccheever@100.64.36.16 'mktemp -d /tmp/sb4-qf-r9-verify.XXXXXX')
+git archive sb4-intent/qf-qualification-flakes snapback4 |
+  ssh ccheever@100.64.36.16 "tar -x -C '$mini_scratch'"
+ssh ccheever@100.64.36.16 "cd '$mini_scratch/snapback4' && /bin/bash -s" <<'MINI'
+export PATH="$HOME/.volta/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
+export LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+node --version
+bun install --frozen-lockfile || exit
+cargo build --workspace || exit
+bash scripts/build-wasm.sh || exit
+bun run --cwd packages/snapback4 build || exit
+(cd apps/chat && ../../target/debug/snapback4 check) || exit
+bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh plain ../plain
+plain_status=$?
+export SB4_PS_SHIM_HITS="$PWD/../shim-hits"
+bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh shim ../shim
+shim_status=$?
+test -s "$SB4_PS_SHIM_HITS" || shim_status=1
+printf 'plain=%s shim=%s\n' "$plain_status" "$shim_status"
+[ "$plain_status" = 0 ] && [ "$shim_status" = 0 ]
+MINI
+mkdir -p /tmp/sb4-qf-r9-mini-results
+scp -r "ccheever@100.64.36.16:$mini_scratch/plain" /tmp/sb4-qf-r9-mini-results/
+scp -r "ccheever@100.64.36.16:$mini_scratch/shim" /tmp/sb4-qf-r9-mini-results/
+scp "ccheever@100.64.36.16:$mini_scratch/shim-hits" /tmp/sb4-qf-r9-mini-results/
+ssh ccheever@100.64.36.16 "rm -rf '$mini_scratch'"
+```

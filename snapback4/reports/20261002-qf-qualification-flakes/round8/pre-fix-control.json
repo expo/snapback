@@ -1,0 +1,12 @@
+[
+  {
+    "mode": "plain",
+    "status": 0,
+    "inspectionFailure": false
+  },
+  {
+    "mode": "shim",
+    "status": 1,
+    "inspectionFailure": true
+  }
+]
