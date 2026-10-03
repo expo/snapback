@@ -35,6 +35,7 @@ class Progress {
   private floor = 0;
   private acknowledged = 0;
   private target = 0;
+  private rejected: number | undefined;
   private flight: { epoch: number; id: string; through: number } | undefined;
   private failures = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -57,6 +58,7 @@ class Progress {
   }
   private reset = () => {
     this.epoch++; this.member = undefined; this.target = this.floor = this.acknowledged = this.failures = 0;
+    this.rejected = undefined;
     this.flight = undefined; clearTimeout(this.timer); this.timer = undefined;
     this.publish();
   };
@@ -81,9 +83,12 @@ class Progress {
   };
   update(owner: SeenOwner, through: number | null, active: boolean) {
     owner.active = active;
-    if (active && this.member !== undefined && position(through)) {
+    if (active && this.member !== undefined && position(through) && through !== this.rejected) {
       this.target = Math.max(this.target, through);
-      this.publish(this.snapshot.state, this.snapshot.why);
+      if (this.snapshot.state === "failed" && this.rejected !== undefined && this.snapshot.why && !admission(this.snapshot.why)
+        && through > Math.max(this.floor, this.acknowledged)) {
+        this.failures = 0; this.publish();
+      } else this.publish(this.snapshot.state, this.snapshot.why);
     }
     this.schedule();
   }
@@ -126,7 +131,13 @@ class Progress {
       const delay = Math.min(60_000, 1000 * 2 ** this.failures++);
       this.timer = setTimeout(() => { this.timer = undefined; this.publish(); this.schedule(); }, delay);
       this.publish("retrying", write.why);
-    } else this.publish("failed", write.why);
+    } else {
+      if (!admission(write.why)) {
+        this.rejected = flight.through;
+        this.target = Math.max(this.floor, this.acknowledged);
+      }
+      this.publish("failed", write.why);
+    }
   }
   retry = () => {
     if (!this.snapshot.why || !admission(this.snapshot.why)) return;

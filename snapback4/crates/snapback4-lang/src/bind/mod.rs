@@ -251,8 +251,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         doc.tables.iter().filter_map(move |table| table.receipts.as_ref().map(|clause|
             (clause.name.clone(), operation_name(&module, &clause.operations[3]))))
     }).collect();
-    if !schema.receipts.is_empty() && api_roots.contains_key("receiptFamilies") {
-        diagnostics.push(Diagnostic::new(&api_roots["receiptFamilies"].1, "E_RECEIPTS_CLAUSE",
+    if !schema.receipts.is_empty() && let Some(collision) = programs.iter().find(|bound|
+        bound.program.kind != snapback4_core::ir::ProgramKind::Job
+        && bound.program.name.split('.').next() == Some("receiptFamilies")) {
+        diagnostics.push(Diagnostic::new(&collision.site, "E_RECEIPTS_CLAUSE",
             "API name receiptFamilies collides with the generated receipt-family namespace",
             "rename the operation or module receiptFamilies").guide("receipts"));
     }

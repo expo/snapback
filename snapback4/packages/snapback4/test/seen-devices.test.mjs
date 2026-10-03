@@ -53,7 +53,9 @@ for(const tier of ['process','wasm'])test(`seen lifecycle ${tier}: real generate
  const retained=await client.query(api.history,{conversation:'c',c:null});const decorations=await client.query(api.guardedDecorations,{conversation:'c'});
  assert.deepEqual(retained.data.map(m=>m.id).sort(),['m1','m2','m3']);assert.ok('denied'in decorations);assert.equal(a.owner.getSnapshot().through,0);
  const joined=await post('/m/add',{id:'join-bob',args:{conversation:'c',principal:'dev:bob'}});assert.equal(joined.state,'sent',JSON.stringify(joined));await client.sync();
- a.owner.update(3,true);await client.sync();assert.equal((await client.query(api.receiptMember,{conversation:'c'})).data.joinedOrdinal,3);
+ const rejoined=(await client.query(api.receiptMember,{conversation:'c'})).data;assert.equal(rejoined.joinedOrdinal,3);
+ a.owner.update(rejoined.joinedOrdinal,true);await client.sync();
+ assert.equal((await client.query(api.receiptMember,{conversation:'c'})).data.seenOrdinal,rejoined.seenOrdinal,'viewing the join floor must not advance seen');
  const send=await post('/m/send',{id:'four',args:{conversation:'c',text:'four'}});assert.equal(send.state,'sent');await client.sync();
  await waitFor(async()=>{a.owner.update(4,true);return (await client.query(api.receiptMember,{conversation:'c'})).data?.seenOrdinal===4;},'new membership sees new message');
 });

@@ -298,8 +298,9 @@ React Native can use list viewability and AppState. The SDK assumes neither.
 Neither acquisition nor a loaded/background page means viewed. Reset viewport
 IDs on account, backend and conversation changes.
 
-Within one mounted client/family/scope, two screens share monotonic progress,
-one membership read and one admission/pending call. Lower positions and duplicates
+Within one mounted client/family/scope, two screens share progress, one membership
+read and one admission/pending call. Progress coalesces monotonically until a
+terminal failure discards its target as below. Lower positions and duplicates
 are suppressed against confirmed member seen/join floors. Loading, denial,
 missing/pending membership, changed membership identity, session/viewer change
 and client/store/generation resets discard local progress and fence late outcomes.
@@ -312,8 +313,13 @@ The returned `{ state, through, why, retry }` describes local work, not a server
 receipt: `idle`, `admitting`, `pending`, `retrying`, or `failed`. Known
 `E_ADMISSION`, `E_ADMISSION_STORE`, `E_ADMISSION_TIMEOUT` refusals retry after
 1 second, doubling to 60 seconds, at most eight times while a screen is active.
-Reconnect or `retry()` after repair wakes those refusals. Unknown outcomes and
-other terminal failures remain visible and are never automatically resubmitted.
+Reconnect or `retry()` after repair wakes those refusals. Other terminal failures,
+including unknown thrown outcomes, remember the rejected position and reset the
+target to `max(joining floor, acknowledged)` before publishing `failed`. A later
+active update with a different safe integer above that covered floor clears
+`failed` and admits a new attempt, even below the rejected position. Repeated
+input, reconnect and `retry()` never resubmit the rejected position. Reset clears
+the remembered rejection along with local progress.
 Hidden screens collect no new positions and dispatch no retry. A `read` label
 still requires both recorded delivery and seen; removal never claims reading.
 

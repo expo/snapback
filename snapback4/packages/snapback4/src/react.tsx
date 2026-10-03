@@ -410,11 +410,12 @@ export function useInspection(enabled = false): ReadInspection | null {
 }
 
 /** Report only actually visible confirmed message positions. The app supplies
- * foreground/viewport visibility on web or native. Shares monotonic progress
+ * foreground/viewport visibility on web or native. Shares coalesced progress
  * and in-flight admission per client/family/scope; never pages or reports delivery.
  * Withdrawal, member replacement and final unmount discard local progress.
  * Known pre-admission refusals retry with bounded backoff; retry() wakes those
- * after repair. Admitted writes belong to the normal durable outbox.
+ * after repair. Other failures discard the rejected target; a different visible
+ * position can start a new attempt. Admitted writes belong to the normal outbox.
  * @see LLP 3000.032 §4.3; guide receipts
  */
 export function useSeen<M extends { id: string; pending?: boolean }, S extends string, T extends string>(

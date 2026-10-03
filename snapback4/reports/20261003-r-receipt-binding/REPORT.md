@@ -331,3 +331,92 @@ uses browser host stubs, not a macOS/iOS simulator on this Linux host. The pilot
 checks cover receipt integration, not unrelated full application behavior.
 The final-unmount policy intentionally requires renewed visible evidence and
 leaves already submitted mutation custody with the existing SDK.
+
+
+## Round 1 — both blind reviews (2026-10-03)
+
+Folds Astra and Grok's round-0 READY WITH CHANGES reviews of `23049b4fc2`.
+All requested fixes are implemented. No push, publication or full-suite rerun.
+
+- **Namespace collision:** check the final bound programs' emitted API roots,
+  including actions, instead of the earlier declaration-only `api_roots` map.
+  A bare `receiptFamilies` action and an action-only `receiptFamilies.q` module
+  now refuse `E_RECEIPTS_CLAUSE` when a receipt clause exists. Both still compile
+  without a receipt clause. Added separate positive/negative regression cases.
+- **Terminal failure recovery:** a non-admission failure remembers the rejected
+  flight position, resets `target` to `max(floor, acknowledged)`, then publishes
+  `failed`. A later active, different safe position above that covered floor
+  clears the failure and starts a new attempt. Repeated rejected input,
+  reconnect and `retry()` cannot resubmit that position. `reset` clears it.
+  Exhausted admission retries still require reconnect or explicit repair.
+  LLP 3000.022 §14.6, the receipts card, client reference and public hook comments
+  now state this distinction; monotonic coalescing excludes a discarded target.
+- **Regression strength:** each of `PAST_LAST_MESSAGE`, `NOT_MEMBER` with the
+  member still present, and a thrown `E_CLIENT` exercises `100` refused → `40`
+  sent; rejected `100` stays suppressed until reset. The tests also cover queued
+  input discarded by the failure, covered/invalid/hidden input, and reset.
+  Rejoin checks both the exact floor and unchanged `seenOrdinal` after viewing
+  it on process and wasm. Fixtures expose listener counts; final unmount reaches
+  zero after shared ownership, same-turn replay and real React Strict Mode.
+
+Verification used the requested PATH, `CARGO_TARGET_DIR=$HOME/sb5-lanes/target`
+and `CARGO_INCREMENTAL=0`. The newly built CLI was copied to
+`target/lane-r-round1/snapback4` before device tests and pilots, avoiding shared
+binary replacement. [Artifact hashes and tool versions](./round1/artifacts.log.gz)
+record the isolated binary and matching source/distribution wasm.
+
+| Command / scope | Result | Evidence |
+|---|---|---|
+| `cargo test -p snapback4-lang --test declarative_receipts client_binding` | 4 passed, 0 failed | [binding](./round1/binding.log.gz) |
+| `cargo test -p snapback4-lang --test guide` | 110 passed, 0 failed; whole guide | [guide](./round1/guide.log.gz) |
+| `cargo build -p snapback4` | exit 0 | [CLI build](./round1/cli-build.log.gz) |
+| `bun run --cwd packages/snapback4 build` | exit 0; rebuilt after wasm | [client build](./round1/client-build.log.gz) |
+| `node --test --test-concurrency=2` on `seen.test.mjs`, `seen-devices.test.mjs`, `client-lifecycle.test.mjs` | 68 passed, 0 failed/skipped: 9 seen, 2 seen-device, 57 client lifecycle | [lifecycle](./round1/lifecycle.log.gz) |
+| `node --test --test-concurrency=2` on `react.test.mjs`, `read-types.test.mjs` | 64 passed, 0 failed/skipped: 58 React, 6 public types | [React/types](./round1/react-types.log.gz) |
+| `bash scripts/build-wasm.sh` | 2,031,329 B raw / 610,519 B gzip; budget 610,782 B | [wasm](./round1/wasm.log.gz) |
+| `node scripts/docs-budget.mjs` | README 300/300 lines; self-contained first-screen test passes | [docs budget](./round1/docs-budget.log.gz) |
+| `./ref-check --verbose` | 526 LLP docs, 10,108 refs, 0 errors/unchecked | [references](./round1/ref-check-final.log.gz) |
+| `git diff --check` | exit 0 | final working/staged diff checked |
+
+The wasm ceiling is unchanged, with 263 B headroom. This round's gzip measurement
+is 1 B below round 0's final measurement; no per-feature byte saving is claimed.
+The source and distributed wasm SHA-256 hashes match.
+
+The new tests were checked against temporary mutations of the built module,
+then the original module was restored before final verification:
+
+- Removing the `failed` guard admits a tenth call after the nine allowed
+  admission attempts; the new render-after-exhaustion assertion fails
+  ([log](./round1/mutant-failed-guard.log.gz)).
+- Removing the `Progress.close()` unsubscription loop leaves four client
+  listeners after final unmount, including replay; the zero-count assertions
+  fail ([log](./round1/mutant-unsubscribe.log.gz)).
+- Changing the coverage test from `<=` to `<` fails the exact-floor unit case
+  ([log](./round1/mutant-join-floor.log.gz)). The same broad mutant also fails
+  both real-device journeys before rejoin through repeated covered writes;
+  that additional run is supplementary, not isolated evidence for the rejoin
+  assertion ([log](./round1/mutant-device-floor.log.gz)).
+- Removing the terminal target reset fails the new terminal recovery case
+  ([log](./round1/mutant-terminal-target.log.gz)).
+
+One development failure was ours: the first two action fixtures omitted the
+required `use server` directive. The [initial log](./round1/binding-initial.log.gz)
+retains that refusal; both fixtures were corrected and the binding target passes
+4/4. Intentional mutant reds above are test-strength evidence, not unresolved
+product failures. No other final check failed.
+
+**Pilots rerun:** `SNAPBACK4_BIN=$PWD/target/lane-r-round1/snapback4 node
+reports/20261003-r-receipt-binding/pilot-check.mjs` passes for G47 R3 and Cal29:
+schema compilation, actual generated API plus receipt specimen strict typecheck,
+and full edited client syntax ([pilot log](./round1/pilots.log.gz)). Raw compiler
+outputs are preserved for [G47](./round1/pilot-g47-check.log.gz) and
+[Cal29](./round1/pilot-cal29-check.log.gz). All 12 preserved before/after source
+hashes, line counts and byte counts match round 0
+([measurement recheck](./round1/pilot-measurements.log.gz)).
+
+**Round 1 pilot line/byte change: zero in every file.** R3 remains 37 lines /
+1,742 B → 6 / 366; Cal29 R4 remains 2 / 371 → 2 / 297. Including visibility
+wiring, G47's two changed client files remain 452 → 430 lines (−22 / −602 B),
+and Cal29 remains 46 → 50 (+4 / +381 B). The original scope limits stand: this
+is receipt integration qualification, not a full application benchmark or
+native UI runtime qualification. Cal29 has no overall code-size saving.

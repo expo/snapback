@@ -2741,7 +2741,7 @@ on account/backend/scope change. Loaded history and acquisition do not mean seen
 Match current decorations by ID; their denial or loading never removes retained
 history and grants no media authority. These reads are independent snapshots.
 
-The hook shares monotonic progress and one admission/pending call per mounted
+The hook shares progress and one admission/pending call per mounted
 client/family/scope. Member withdrawals, replacement, session and store/generation
 resets discard local progress; final unmount drops unadmitted progress. Admitted
 writes remain in the SDK outbox through restart. The hook never pages history,
@@ -2752,5 +2752,9 @@ handles, actual argument names, mapping and fingerprint come from the compiler.
 progress, never a confirmed receipt. `seen.why` exposes refusals. Known
 E_ADMISSION/E_ADMISSION_STORE/E_ADMISSION_TIMEOUT failures retry with 1–60-second
 backoff, at most eight retries while active. Reconnect or `seen.retry()` after
-repair wakes those refusals. Other failures/unknown outcomes are not resubmitted.
+repair wakes those refusals. Other failures/unknown outcomes remember the rejected
+position and reset local progress to `max(joining floor, acknowledged)` before failing.
+A later different visible position above that floor starts a new attempt, even
+below the rejected position. Repeated input and retry never resubmit the rejected
+position; membership/session reset clears it.
 See `snapback4 guide receipts` for the full rules and two-read recipe.

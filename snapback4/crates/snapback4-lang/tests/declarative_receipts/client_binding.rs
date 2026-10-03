@@ -36,3 +36,22 @@ fn descriptor_defaults_and_namespace_collisions() {
     let plain = bound("query receiptFamilies():\n  return null\n");
     assert!(snapback4_lang::emit::typescript(&plain).contains("export const api: Ops"));
 }
+
+#[test]
+fn descriptor_refuses_bare_action_namespace_collision() {
+    let action = "use server\naction receiptFamilies() <- allow\n";
+    let plain = bound(action);
+    assert!(snapback4_lang::emit::typescript(&plain).contains("receiptFamilies"));
+    let collision = snapback4_lang::compile(&[("schema.q".into(), format!("{}\n{action}", names::SOURCE))]);
+    assert!(collision.diagnostics.iter().any(|d| d.code == "E_RECEIPTS_CLAUSE" && d.message.contains("receiptFamilies")), "{:?}", collision.diagnostics);
+}
+
+#[test]
+fn descriptor_refuses_action_only_module_namespace_collision() {
+    let module = ("receiptFamilies.q".into(), "use server\naction send() <- allow\n".into());
+    let plain = snapback4_lang::compile(&[module.clone()]);
+    assert!(plain.diagnostics.is_empty(), "{:?}", plain.diagnostics);
+    assert!(snapback4_lang::emit::typescript(&plain).contains("receiptFamilies"));
+    let collision = snapback4_lang::compile(&[("schema.q".into(), names::SOURCE.into()), module]);
+    assert!(collision.diagnostics.iter().any(|d| d.code == "E_RECEIPTS_CLAUSE" && d.message.contains("receiptFamilies")), "{:?}", collision.diagnostics);
+}

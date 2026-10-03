@@ -36,11 +36,14 @@ const failed = id => ({ state: "failed", id, why: { code: "E_INPUT", family: "in
 
 function controlled(read = () => ready([])) {
   const records = [], writes = [], viewerListeners = new Set(), writeListeners = new Set(), acquiredListeners = new Set();
+  const sessionListeners = new Set(), linkListeners = new Set();
   const receipts = new Map();
   let viewer = "dev:test";
   const client = {
     records, writes, receipts, closes: 0, acquired: false,
-    onSession() { return () => {}; },
+    listenerCount: () => [viewerListeners, writeListeners, acquiredListeners, sessionListeners, linkListeners].reduce((sum, listeners) => sum + listeners.size, 0)
+      + records.reduce((sum, record) => sum + record.listenerCount(), 0),
+    onSession(listener) { sessionListeners.add(listener); return () => sessionListeners.delete(listener); },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     setAcquired(value) { client.acquired = value; for (const listener of acquiredListeners) listener(value); },
     write: async id => receipts.get(id),
@@ -49,6 +52,7 @@ function controlled(read = () => ready([])) {
       const record = {
         op, args, value: op.name === "myMembership" ? ready({ id: "member" }) : read(args), closes: 0,
         getSnapshot() { return record.value; },
+        listenerCount: () => listeners.size,
         subscribe(callback) { listeners.add(callback); return () => listeners.delete(callback); },
         close() { record.closes++; },
         set(value) { record.value = value; for (const callback of listeners) callback(); },
@@ -61,7 +65,7 @@ function controlled(read = () => ready([])) {
     upload: async () => ({ ok: false, why: { code: "E_ASSET_UNKNOWN", family: "asset", message: "no upload" } }),
     asset: async id => ({ denied: { code: "E_ASSET_UNKNOWN", family: "asset", message: id } }),
     assetSource: id => ({ uri: "mock://" + id, headers: {} }),
-    link: () => "online", onLink: () => () => {},
+    link: () => "online", onLink(listener) { linkListeners.add(listener); return () => linkListeners.delete(listener); },
     viewer: () => viewer,
     onViewer(listener) { viewerListeners.add(listener); return () => viewerListeners.delete(listener); },
     onWrite(listener) { writeListeners.add(listener); return () => writeListeners.delete(listener); },
@@ -189,6 +193,7 @@ const cases = {
     equal(client.calls.map(c => c.through), [5], "one shared call for the committed visible range");
     equal(active(client).filter(r => r.op.name === "receiptMember").length, 1, "one member observation");
     await unmount(); allClosed(client);
+    equal(client.listenerCount(), 0, "final Strict Mode unmount releases client and observation listeners");
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
     let wall = 1000, offset = 90000000, revision = 0, requestDelay = 40;

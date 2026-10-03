@@ -82744,3 +82744,35 @@ Source/distribution wasm hashes agree. README remains 300/300 physical lines,
 client guide 1,200 words; reference validation passes. No unresolved introduced
 failures; full-suite reds are preserved rather than relabeled green. Commit
 locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+
+## 2026-10-03 — Lane R round 1: fold both blind reviews
+
+Closes Astra's action namespace collision and listener-cleanup test findings,
+and Grok's terminal seen-progress wedge and exact-floor test findings against
+`23049b4fc2`. Receipt-family collision checking now uses final bound API roots,
+including actions, and refuses `E_RECEIPTS_CLAUSE`. Terminal non-admission
+failures remember the rejected position and reset the target to covered progress
+before failing. A fresh different visible position can start a new attempt;
+retry, reconnect and repeated input cannot resubmit the rejected position.
+Reset clears it. LLP 3000.022 §14.6 and the receipt/client documentation match.
+
+New regressions cover bare/action-only-module collisions, 100 refused then 40
+sent for PAST_LAST_MESSAGE/NOT_MEMBER/thrown E_CLIENT, exact rejoin floors on
+process and wasm, and zero remaining client/observation listeners after final
+unmount including Strict Mode. Temporary mutants removing the failed guard,
+unsubscription loop, inclusive floor check or terminal reset all fail tests;
+the final restored implementation passes.
+
+Binding 4/4; whole guide 110/110; seen/client lifecycle 68/68; React/public types
+64/64, including six type tests; client/CLI builds, doc budget and references
+pass. The initial action fixtures missed `use server`; corrected and the red
+retained. No full-suite rerun this round. Wasm 2,031,329 B raw / 610,519 B gzip,
+unchanged 610,782 B ceiling, 263 B headroom; source/distribution hashes agree.
+R3 and Cal29 pilots rerun successfully with zero source line/byte changes from
+round 0; all 12 preserved hashes/counts match. R3 stays 37 → 6 lines, Cal29's
+receipt snippet 2 → 2; whole-client deltas stay −22 and +4 respectively.
+
+Details and lossless logs: reports/20261003-r-receipt-binding/REPORT.md, Round 1,
+and round1/. The same record is appended to ~/sb5-lanes/r.report.md. Commit locally
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
