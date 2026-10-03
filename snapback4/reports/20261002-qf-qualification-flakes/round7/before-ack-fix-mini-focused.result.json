@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "snapback4/scripts/run-client-tests.mjs",
+    "1",
+    "files",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "snapback4/packages/snapback4/test/replacement-fixture.test.mjs"
+  ],
+  "cwd": "/private/tmp/qf-r7.T89qjU",
+  "start": "2026-10-03T06:59:12.761119+00:00",
+  "pid": 16518,
+  "status": 0,
+  "end": "2026-10-03T07:00:01.134832+00:00"
+}

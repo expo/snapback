@@ -1,0 +1,170 @@
+{
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-qf/snapback4",
+  "start": "2026-10-03T05:16:55.457706+00:00",
+  "pid": 2689079,
+  "exit": 1,
+  "end": "2026-10-03T05:42:55.380372+00:00",
+  "summary": "== 1 failure(s) in 1560 s",
+  "logSha256": "674fac2369ab52a1fc11c90719f37cd708db998a57e902cc3aacba9f8ee6b62e",
+  "fileResults": 303,
+  "totals": {
+    "tests": 6141,
+    "pass": 6124,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 17,
+    "todo": 0
+  },
+  "failedFiles": [],
+  "failedCategories": [
+    "cargo test (533 s)"
+  ],
+  "failedRustTargets": [
+    "snapback4-lang::prefix_reads (0.0 s)",
+    "snapback4-sim::membership_search (1.2 s)"
+  ],
+  "poolSummaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 300/300; failed 0; tests {\"tests\":6053,\"pass\":6036,\"fail\":0,\"cancelled\":0,\"skipped\":17,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "slowest": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 505395,
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "passed": true,
+      "elapsed": 441009,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 393157,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "passed": true,
+      "elapsed": 380819,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "passed": true,
+      "elapsed": 239146,
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "passed": true,
+      "elapsed": 204795,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-clock.test.mjs",
+      "passed": true,
+      "elapsed": 193282,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "passed": true,
+      "elapsed": 150780,
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "passed": true,
+      "elapsed": 141477,
+      "tests": 335,
+      "pass": 335,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/web-admission-review.test.mjs",
+      "passed": true,
+      "elapsed": 127765,
+      "tests": 55,
+      "pass": 55,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/asset-lists.test.mjs",
+      "passed": true,
+      "elapsed": 119323,
+      "tests": 42,
+      "pass": 42,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/overload.test.mjs",
+      "passed": true,
+      "elapsed": 99897,
+      "tests": 109,
+      "pass": 109,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "unreadableDiagnostics": 21
+}

@@ -1,0 +1,10 @@
+MacMini-Apt101-M5-A
+Darwin MacMini-Apt101-M5-A 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:40 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6050 arm64
+v24.18.0
+b30b96dcb7e66abb4a13ba664d135c218d4d8383b2be45cbc294cbc0b90d8e44  package/snapback4
+9acba0ad9238db01586655ce2eb4e0bb3dce2de0d116ed2fc60386c17a208ced  snapback4/scripts/run-client-tests.mjs
+267568248208a80e207ca45b3537cf27913da8d009edff982b0fe57a017aeb61  snapback4/scripts/test-file-owner.mjs
+6088a7d88f7c5a80d48ac8bb77817a80544de20f9c4fa29f544b533041237904  snapback4/scripts/test-processes.mjs
+957d4256deac8d2004d2e3d27924f4ec64f16008b2833159c434122ad4202a62  snapback4/scripts/test-progress-reporter.mjs
+0537f8c4722fb75a556f514472ff9a420bb13dde5a26bb7d54f066cdccbf4c24  snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+3747b5708b086f56866565275aaea5524649bcefc83d51c1cf1147418b8db780  snapback4/packages/snapback4/test/test-file-runner.test.mjs

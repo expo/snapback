@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-10-02T23:15:08.565141+00:00",
+  "refCheck": "ref-check: ok \u2014 525 LLP docs, 10113 refs in 32506 files, 0 errors, 0 unchecked",
+  "whitespace": "git diff --cached --check: exit 0; raw failure logs retain exact bytes in gzip",
+  "sourceManifest": "2157/2157 match final source-manifest.json",
+  "inputDigests": "16/16 match inputs.sha256, including retained qualified shell copy",
+  "fullSuiteLogDigest": "match",
+  "fullSuiteCountDeltas": "only test-file-runner: 12 to 18"
+}

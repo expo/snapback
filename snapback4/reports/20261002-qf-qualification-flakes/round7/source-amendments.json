@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-03T06:59:46.083290+00:00",
+  "changes": {
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs": {
+      "before": "26dcc677ff2f5107a39edb72aa7ff147aea90b03c53f2f841f78ea165c5d3552",
+      "after": "4457bc6e9ddfc670cffdfeec37a4db88a907b4bf028c7d3794da4d98c3cd5c66"
+    },
+    "snapback4/scripts/run-client-tests.mjs": {
+      "before": "3004b040b831023f317f349dac38c7e5736319736ce3642cf61b2749d3bc39df",
+      "after": "d622142d73e15d29428251d57513b7018e70aa999fbb9f785394e64d03f2898e"
+    },
+    "snapback4/scripts/test-file-owner.mjs": {
+      "before": "eeef912877d5aec85b54c5ca0d6eab58af6b3eb7872324fe94b957ca8ad7cde2",
+      "after": "b8b89b3ea95642b66e81d74b36d81930fa3fa4f5917ce14887fc1953ea6c6309"
+    }
+  },
+  "suiteBoundary": "Rust tests running; ordinary clients have not started. Final fixture-wrapper checks will separately cover their earlier invocation."
+}

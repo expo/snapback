@@ -1,0 +1,30 @@
+-- client file start: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/.qf-worker-before.mjs; limit 900000 ms
+TAP version 13
+# (node:1996848) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: new declarations retry failed admission after Node is repaired without another source edit
+not ok 1 - new declarations retry failed admission after Node is repaired without another source edit
+  ---
+  duration_ms: 122792.336889
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/.qf-worker-before.mjs:384:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    TEST_HANG: () => rows(join(f.dir, 'starts')).length === 1; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+    WORKER_FIXTURE {"dir":"/tmp/sb4-worker-regression-iwCYPC","badNode":false,"servers":[{"pid":1996904,"exitCode":1,"signalCode":null,"url":"http://127.0.0.1:35599","statuses":[],"starts":[],"log":"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576\nsnapback4 dev: http://127.0.0.1:35599  (schema: snapback/, types: /tmp/sb4-worker-regression-iwCYPC/snapback/generated/api.ts)\nstore: /tmp/sb4-worker-regression-iwCYPC/.snapback4/store.sqlite\nsnapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\nSNAPBACK4_EXIT verb=dev generation=1 status=1 reason=\"worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable\"\n"}]}
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+    listOnTimeout (node:internal/timers:605:17)
+    process.processTimers (node:internal/timers:541:7)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 122856.517676
+-- client file FAIL: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/.qf-worker-before.mjs (122889 ms)

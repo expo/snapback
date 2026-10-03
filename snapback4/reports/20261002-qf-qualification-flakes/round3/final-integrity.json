@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-03T03:57:55.920323+00:00",
+  "sourceHashes": 2160,
+  "inputHashes": 18,
+  "allMatch": true,
+  "journalAppendOnly": true,
+  "refCheck": "ref-check: ok \u2014 525 LLP docs, 10114 refs in 32541 files, 0 errors, 0 unchecked",
+  "whitespaceCheck": 0,
+  "fullSuiteSummary": "== 0 failure(s) in 1593 s",
+  "stressTargetFailures": 0,
+  "stressBackgroundRefusals": 2,
+  "stressExitCode": 1,
+  "whitespaceScope": "git diff 062fbc75ed --check; git diff --cached --check",
+  "evidenceWhitespaceCorrection": "Development failure log and fixture-resolution patch compressed byte-for-byte; original staged findings retained in report."
+}

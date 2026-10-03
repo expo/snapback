@@ -1,0 +1,21 @@
+[
+  {
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "before": [
+      26,
+      26,
+      0,
+      0,
+      0,
+      0
+    ],
+    "after": [
+      33,
+      27,
+      0,
+      0,
+      6,
+      0
+    ]
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "started": "2026-10-02T22:15:19.097Z",
+  "finished": "2026-10-02T22:45:06.730Z",
+  "concurrency": 24,
+  "targets": {
+    "worker": {
+      "runs": 200,
+      "failures": 0,
+      "testCounts": [
+        1
+      ],
+      "active": [
+        23
+      ],
+      "minMs": 3009,
+      "medianMs": 3062.5,
+      "maxMs": 4403
+    },
+    "replacement": {
+      "runs": 200,
+      "failures": 0,
+      "testCounts": [
+        2
+      ],
+      "active": [
+        23
+      ],
+      "minMs": 2638,
+      "medianMs": 3783.5,
+      "maxMs": 11945
+    }
+  },
+  "background": {
+    "runs": 1763,
+    "files": 283,
+    "failures": 0,
+    "emptyResults": []
+  }
+}

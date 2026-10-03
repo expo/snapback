@@ -1,0 +1,123 @@
+{
+  "started": "2026-10-03T04:08:31.799Z",
+  "finished": "2026-10-03T04:33:41.919Z",
+  "command": "scripts/test.sh",
+  "args": [],
+  "pid": 1055710,
+  "code": 0,
+  "signal": null,
+  "summary": "== 0 failure(s) in 1510 s",
+  "footer": [
+    "== 0 failure(s) in 1510 s"
+  ],
+  "logSha256": "6181560c5dd093eab007c45de60ad3609af9941e6027789dd93a176efbd12793",
+  "fileResults": 286,
+  "totals": {
+    "tests": 5931,
+    "pass": 5915,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 16,
+    "todo": 0
+  },
+  "failedFiles": [],
+  "failedCategories": [],
+  "poolSummaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 283/283; failed 0; tests {\"tests\":5843,\"pass\":5827,\"fail\":0,\"cancelled\":0,\"skipped\":16,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "unreadableDiagnostics": 14,
+  "uniqueUnreadableCandidates": 14,
+  "controlledUnreadableDiagnostics": 1,
+  "slowest": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 498414,
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "passed": true,
+      "elapsed": 446342,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 392302,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "passed": true,
+      "elapsed": 380779,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "passed": true,
+      "elapsed": 241724,
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "passed": true,
+      "elapsed": 205384,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-clock.test.mjs",
+      "passed": true,
+      "elapsed": 193297,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "passed": true,
+      "elapsed": 152097,
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ]
+}

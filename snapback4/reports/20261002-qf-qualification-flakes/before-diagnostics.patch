@@ -1,0 +1,65 @@
+--- a/worker-regressions.test.mjs
++++ b/worker-regressions.test.mjs
+@@ -9,12 +9,14 @@
+ import { fileURLToPath } from 'node:url';
+ import { setTimeout as sleep } from 'node:timers/promises';
+ import { DatabaseSync } from 'node:sqlite';
++import { AsyncLocalStorage } from 'node:async_hooks';
+ const { runWorker } = await import(process.env.SNAPBACK4_TEST_WORKER ?? '../dist/worker.js');
+ const { WorkerLedger } = await import(process.env.SNAPBACK4_TEST_WORKER_LEDGER ?? '../dist/worker-ledger.js');
+-
++
+ const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../target/debug/snapback4', import.meta.url));
+ const workerModule = new URL('../dist/worker.js', import.meta.url).href;
+-async function until(fn) { return awaitState(fn); }
++const fixtureDiagnostics = new AsyncLocalStorage();
++async function until(fn) { return awaitState(fn, fn.toString(), { diagnostics: () => fixtureDiagnostics.getStore()?.() ?? 'no worker fixture' }); }
+ function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
+ function alive(pid) {
+   try {
+@@ -30,8 +32,30 @@
+   writeFileSync(join(dir, 'snapback/schema.q'), "use personas alice\neffect notify\nmutation send():\n  emit notify { message: 'hello' }\n  return true\n");
+   if (source) writeFileSync(join(dir, 'snapback/workers/push.mjs'), source);
+   const servers = [];
++  const diagnostics = () => {
++    const report = servers.map(s => {
++      let statuses;
++      try {
++        const db = new DatabaseSync(s.mode === 'serve' ? join(dir, 'release/store.sqlite') : join(dir, '.snapback4/store.sqlite'), { readOnly: true });
++        try { statuses = db.prepare("SELECT key, value FROM _meta WHERE key LIKE 'worker:status%'").all(); }
++        finally { db.close(); }
++      } catch (error) { statuses = String(error); }
++      return { pid: s.child.pid, exitCode: s.child.exitCode, signalCode: s.child.signalCode, url: s.url,
++        statuses, starts: rows(join(s.workdir, 'starts')).map(({ pid, helper, name }) => ({ pid, helper, name, alive: alive(pid) })),
++        log: s.log.slice(-32768) };
++    });
++    return `WORKER_FIXTURE ${JSON.stringify({ dir, badNode: existsSync(join(dir, 'bad-node')), servers: report })}`;
++  };
++  fixtureDiagnostics.enterWith(diagnostics);
++  const onAbort = () => t.diagnostic(diagnostics());
++  t.signal.addEventListener('abort', onAbort, { once: true });
+   t.after(async () => {
+-    for (const s of servers) { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
++    t.signal.removeEventListener('abort', onAbort);
++    for (const s of servers) {
++      const timer = setTimeout(() => { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL'); }, 5000);
++      try { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
++      finally { clearTimeout(timer); }
++    }
+     for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
+       for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+     rmSync(dir, { recursive: true, force: true });
+@@ -40,11 +64,11 @@
+     const release = join(dir, 'release');
+     if (mode === 'serve' && !existsSync(release)) { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
+     const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+-    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
++    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], mode, diagnostics, workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
+     servers.push(s);
+     child.stderr.on('data', b => { s.log += b; s.events.push({ at: performance.now(), text: String(b) }); });
+     child.stdout.on('data', b => { s.url ||= String(b).match(/http:\/\/127\.0\.0\.1:\d+/)?.[0] ?? ''; });
+-    await until(() => s.url); return s;
++    await until(() => { assert.equal(child.exitCode, null, diagnostics()); return s.url; }); return s;
+   } };
+ }
+ const idle = `import { appendFileSync } from 'node:fs';

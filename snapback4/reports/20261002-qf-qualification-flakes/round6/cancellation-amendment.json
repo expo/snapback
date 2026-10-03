@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-03T06:00:03.113846+00:00",
+  "beforeClientPhase": true,
+  "lastSuiteLines": [
+    "note: schema.q:78:1 \u2014 N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue",
+    "1 mutations never predict: markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon \u2014 snapback4 why <op>",
+    "check --verbose for explanations, rewrites and execution details; why <op> for one operation",
+    "-- ok: chat app check (0 s)"
+  ],
+  "change": "Reject independently reported cancelled tests even if exit status is overridden to 0."
+}

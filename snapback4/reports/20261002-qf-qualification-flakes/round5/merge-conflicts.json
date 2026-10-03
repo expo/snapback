@@ -1,0 +1,9 @@
+{
+  "laneParent": "4291d06dee9897a1658a69973580aff8174c4c21",
+  "mainParent": "1b879881bee0079c357356685f1a671fe0aed13b",
+  "conflicts": [
+    "issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/packages/snapback4/test/replacement-fixture.test.mjs"
+  ]
+}

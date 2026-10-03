@@ -1,0 +1,20 @@
+{
+  "summaryLine": "== 0 failure(s) in 1484 s",
+  "failedCategories": [],
+  "fileResults": 305,
+  "failedFiles": [],
+  "totals": {
+    "tests": 6159,
+    "pass": 6148,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 11,
+    "todo": 0
+  },
+  "clientBatchSummaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 302/302; failed 0; tests {\"tests\":6071,\"pass\":6060,\"fail\":0,\"cancelled\":0,\"skipped\":11,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "sha256": "df280edc65aa5b704a8f36d00e63996529b0bf8e7b494567f685583389959368"
+}

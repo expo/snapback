@@ -1,0 +1,14 @@
+file	assertions_passed	skipped	classification	candidate_pids
+packages/snapback4/test/delivery-clients.test.mjs	14	0	EACCES inspection refusal	50800
+packages/snapback4/test/following-routing.test.mjs	4	0	EACCES inspection refusal	133250
+packages/snapback4/test/app.test.mjs	78	0	EACCES inspection refusal	140387
+packages/snapback4/test/asset-avatars.test.mjs	14	0	EACCES inspection refusal	146988
+packages/snapback4/test/online-store-terminal.test.mjs	16	0	EACCES inspection refusal	160943
+packages/snapback4/test/one-shot-review.test.mjs	72	0	EACCES inspection refusal	158783
+packages/snapback4/test/page-authority.test.mjs	13	0	EACCES inspection refusal	168999
+packages/snapback4/test/publication-roundtrip.test.mjs	14	0	EACCES inspection refusal	173365
+packages/snapback4/test/schema-capabilities.test.mjs	1	4	EACCES inspection refusal	183040
+packages/snapback4/test/residency.test.mjs	10	0	EACCES inspection refusal	182297,184104
+packages/snapback4/test/server-runtime.test.mjs	47	0	EACCES inspection refusal	185081
+packages/snapback4/test/subscription-pressure-e2e.test.mjs	2	0	EACCES inspection refusal	193845
+packages/snapback4/test/readauth.test.mjs	10	0	EACCES inspection refusal	198131

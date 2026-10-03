@@ -1,0 +1,11 @@
+-- client file start: /tmp/qf-r2-real-stall-MooF5v/stall.test.mjs; stall bound 900000 ms
+
+TEST_FILE_HANG: /tmp/qf-r2-real-stall-MooF5v/stall.test.mjs; 900065 ms elapsed; stall bound 900000 ms; 900000 ms without progress; last progress test:dequeue: /tmp/qf-r2-real-stall-MooF5v/stall.test.mjs
+last output:
+TAP version 13
+# REAL_STALL_READY
+
+owned processes: [{"pid":632281,"start":"333644967","group":632269,"alive":true},{"pid":632297,"start":"333644970","group":632269,"alive":true},{"pid":632330,"start":"333644974","group":632269,"alive":true}]
+TAP version 13
+# REAL_STALL_READY
+-- client file FAIL: /tmp/qf-r2-real-stall-MooF5v/stall.test.mjs (900260 ms)

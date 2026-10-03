@@ -1,0 +1,21 @@
+(node:1000588) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ new declarations retry failed admission after Node is repaired without another source edit (122791.692489ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122848.411587
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/worker-regressions.test.mjs:384:1
+✖ new declarations retry failed admission after Node is repaired without another source edit (122791.692489ms)
+  Error: TEST_HANG: () => rows(join(f.dir, 'starts')).length === 1; 1 work unit(s), 122001 ms elapsed, 122000 ms guard
+  WORKER_FIXTURE {"dir":"/tmp/sb4-worker-regression-INjhhh","badNode":false,"servers":[{"pid":1000622,"exitCode":1,"signalCode":null,"url":"http://127.0.0.1:33811","statuses":[],"starts":[],"log":"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576\nsnapback4 dev: http://127.0.0.1:33811  (schema: snapback/, types: /tmp/sb4-worker-regression-INjhhh/snapback/generated/api.ts)\nstore: /tmp/sb4-worker-regression-INjhhh/.snapback4/store.sqlite\nsnapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\nSNAPBACK4_EXIT verb=dev generation=1 status=1 reason=\"worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable\"\n"}]}
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

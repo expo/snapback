@@ -1,0 +1,25 @@
+{
+  "started": "2026-10-02T22:09:03.511Z",
+  "finished": "2026-10-02T22:24:03.794Z",
+  "result": {
+    "file": "/tmp/qf-r2-real-stall-HNrr3Z/stall.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_HANG",
+    "elapsed": 900237,
+    "counts": {
+      "tests": 0,
+      "pass": 0,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 1,
+    "lastProgress": "test:dequeue: deliberate no-progress fixture"
+  },
+  "survivors": [],
+  "orphanAlive": false
+}

@@ -1,0 +1,26 @@
+{
+  "summary": "== 1 failure(s) in 1452 s",
+  "baseline": {
+    "observed": [
+      "explicit_caps_stay_silent_and_predicting_short_pages_stay_refused",
+      "prefix_reads_compile_without_notes_and_caps_follow_one_schema_number",
+      "edges::calendar_repair_executes_the_same_offset_boundary_predicate",
+      "refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches"
+    ],
+    "classification": "baseline UB failures, unchanged from Round 5 clean-main reproduction and operator direction",
+    "baseline": {
+      "failedTests": [
+        "explicit_caps_stay_silent_and_predicting_short_pages_stay_refused",
+        "prefix_reads_compile_without_notes_and_caps_follow_one_schema_number",
+        "edges::calendar_repair_executes_the_same_offset_boundary_predicate",
+        "refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches"
+      ],
+      "proofMainCommit": "1b879881bee0079c357356685f1a671fe0aed13b",
+      "proofLog": "../round5/main-rust-baseline.log.gz",
+      "ticket": "issues/20261003-snapback4-shape-meter-note-breaks-prefix-and-membership-search-tests.md"
+    }
+  },
+  "introduced": [],
+  "environmental": [],
+  "runnerRefusals": []
+}

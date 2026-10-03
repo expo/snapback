@@ -1,0 +1,317 @@
+-- client file start: snapback4/packages/snapback4/test/test-file-runner.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: file watchdog diagnoses event loop and reaps detached descendants
+ok 1 - file watchdog diagnoses event loop and reaps detached descendants
+  ---
+  duration_ms: 3465.924641
+  type: 'test'
+  ...
+# Subtest: file watchdog diagnoses leaked handle and reaps detached descendants
+ok 2 - file watchdog diagnoses leaked handle and reaps detached descendants
+  ---
+  duration_ms: 3528.269478
+  type: 'test'
+  ...
+# Subtest: file runner preserves test failures and continues to a following healthy file
+ok 3 - file runner preserves test failures and continues to a following healthy file
+  ---
+  duration_ms: 920.310943
+  type: 'test'
+  ...
+# Subtest: file exit cannot orphan an unreferenced detached child and report success
+ok 4 - file exit cannot orphan an unreferenced detached child and report success
+  ---
+  duration_ms: 568.906033
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a passing file
+ok 5 - double-forked shell helper is killed after a passing file
+  ---
+  duration_ms: 540.215314
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a stalled file
+ok 6 - double-forked shell helper is killed after a stalled file
+  ---
+  duration_ms: 3471.972737
+  type: 'test'
+  ...
+# Subtest: process inspection exit cannot establish a passing cleanup
+ok 7 - process inspection exit cannot establish a passing cleanup
+  ---
+  duration_ms: 460.313488
+  type: 'test'
+  ...
+# Subtest: process inspection timeout cannot establish a passing cleanup
+ok 8 - process inspection timeout cannot establish a passing cleanup
+  ---
+  duration_ms: 484.80364
+  type: 'test'
+  ...
+# Subtest: process inspection malformed cannot establish a passing cleanup
+ok 9 - process inspection malformed cannot establish a passing cleanup
+  ---
+  duration_ms: 446.904558
+  type: 'test'
+  ...
+# Subtest: process inspection forces C locale and refuses empty output
+ok 10 - process inspection forces C locale and refuses empty output
+  ---
+  duration_ms: 1.329343
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 11 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 3.884063
+  type: 'test'
+  ...
+# Subtest: file custody reaps a setsid orphan after its parent exits
+ok 12 - file custody reaps a setsid orphan after its parent exits
+  ---
+  duration_ms: 695.812922
+  type: 'test'
+  ...
+# Subtest: file custody reaps a setpgid orphan after its parent exits
+ok 13 - file custody reaps a setpgid orphan after its parent exits
+  ---
+  duration_ms: 920.510412
+  type: 'test'
+  ...
+# Subtest: file custody reaps a setpgid with cleared token orphan after its parent exits
+ok 14 - file custody reaps a setpgid with cleared token orphan after its parent exits
+  ---
+  duration_ms: 1233.794247
+  type: 'test'
+  ...
+# Subtest: file custody reaps a detached Node helper orphan after its parent exits
+ok 15 - file custody reaps a detached Node helper orphan after its parent exits
+  ---
+  duration_ms: 1281.733981
+  type: 'test'
+  ...
+# Subtest: token sweep distinguishes files and never signals a different inherited token
+ok 16 - token sweep distinguishes files and never signals a different inherited token
+  ---
+  duration_ms: 492.512967
+  type: 'test'
+  ...
+# Subtest: token inspection mechanism errors cannot establish a passing cleanup
+ok 17 - token inspection mechanism errors cannot establish a passing cleanup
+  ---
+  duration_ms: 395.428453
+  type: 'test'
+  ...
+# Subtest: an unreadable candidate is diagnosed once without signaling or refusing a healthy file
+ok 18 - an unreadable candidate is diagnosed once without signaling or refusing a healthy file
+  ---
+  duration_ms: 1029.531509
+  type: 'test'
+  ...
+# TEST_PROCESS_UNREADABLE: {"pid":2717476,"executable":"/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node","start":"Sat Oct  3 07:19:21 2026","reason":"EACCES"}; not provably ours; skipped
+# Subtest: token reader mechanism exit fails closed
+ok 19 - token reader mechanism exit fails closed # SKIP
+  ---
+  duration_ms: 0.138488
+  type: 'test'
+  ...
+# Subtest: token reader mechanism timeout fails closed
+ok 20 - token reader mechanism timeout fails closed # SKIP
+  ---
+  duration_ms: 0.064627
+  type: 'test'
+  ...
+# Subtest: token reader mechanism malformed fails closed
+ok 21 - token reader mechanism malformed fails closed # SKIP
+  ---
+  duration_ms: 0.061021
+  type: 'test'
+  ...
+# Subtest: token reader mechanism incomplete fails closed
+ok 22 - token reader mechanism incomplete fails closed # SKIP
+  ---
+  duration_ms: 0.054332
+  type: 'test'
+  ...
+# Subtest: token reader mechanism invalid row fails closed
+ok 23 - token reader mechanism invalid row fails closed # SKIP
+  ---
+  duration_ms: 0.055975
+  type: 'test'
+  ...
+# Subtest: token reader mechanism malformed kernel result fails closed
+ok 24 - token reader mechanism malformed kernel result fails closed # SKIP
+  ---
+  duration_ms: 0.051778
+  type: 'test'
+  ...
+# Subtest: native environment inspection identifies readable tokens and diagnoses Darwin redaction
+ok 25 - native environment inspection identifies readable tokens and diagnoses Darwin redaction
+  ---
+  duration_ms: 336.043152
+  type: 'test'
+  ...
+# native environment token is visible
+# Subtest: a redacted native detached orphan is diagnosed and reaped by its fixture
+ok 26 - a redacted native detached orphan is diagnosed and reaped by its fixture
+  ---
+  duration_ms: 1165.288303
+  type: 'test'
+  ...
+# Subtest: persistent inspection failure stays a failure and kills the owned group
+ok 27 - persistent inspection failure stays a failure and kills the owned group
+  ---
+  duration_ms: 419.111535
+  type: 'test'
+  ...
+# Subtest: group cleanup reaps an unsampled orphan after its sampled parent exits
+ok 28 - group cleanup reaps an unsampled orphan after its sampled parent exits
+  ---
+  duration_ms: 1075.791044
+  type: 'test'
+  ...
+# Subtest: sequential and nested subtests keep progressing beyond the file stall interval
+ok 29 - sequential and nested subtests keep progressing beyond the file stall interval
+  ---
+  duration_ms: 6553.52872
+  type: 'test'
+  ...
+# Subtest: console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+ok 30 - console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+  ---
+  duration_ms: 2383.83276
+  type: 'test'
+  ...
+# Subtest: stale exited members do not reset empty snapshots; observed live leaks remain failures
+ok 31 - stale exited members do not reset empty snapshots; observed live leaks remain failures
+  ---
+  duration_ms: 989.783655
+  type: 'test'
+  ...
+# Subtest: synchronous subtests renew progress before the reporter can format buffered output
+ok 32 - synchronous subtests renew progress before the reporter can format buffered output
+  ---
+  duration_ms: 3895.885727
+  type: 'test'
+  ...
+# Subtest: name and skip filters preserve the selected assertion-bearing cases
+ok 33 - name and skip filters preserve the selected assertion-bearing cases
+  ---
+  duration_ms: 806.734446
+  type: 'test'
+  ...
+# Subtest: a process exiting after enumeration is absent at identity inspection
+ok 34 - a process exiting after enumeration is absent at identity inspection
+  ---
+  duration_ms: 180.444823
+  type: 'test'
+  ...
+# Subtest: stat comm may contain closing and opening parentheses and spaces
+ok 35 - stat comm may contain closing and opening parentheses and spaces
+  ---
+  duration_ms: 0.590215
+  type: 'test'
+  ...
+# Subtest: ps preserves command spaces and parentheses and validates start and parent metadata
+ok 36 - ps preserves command spaces and parentheses and validates start and parent metadata
+  ---
+  duration_ms: 4.399595
+  type: 'test'
+  ...
+# Subtest: present PID with malformed stat refuses the file and retains the first error and exact bytes
+ok 37 - present PID with malformed stat refuses the file and retains the first error and exact bytes
+  ---
+  duration_ms: 419.299957
+  type: 'test'
+  ...
+# Subtest: present PID with malformed ps refuses the file and retains the first error and exact bytes
+ok 38 - present PID with malformed ps refuses the file and retains the first error and exact bytes
+  ---
+  duration_ms: 441.105064
+  type: 'test'
+  ...
+# Subtest: present PID with empty, truncated or missing stat still refuses
+ok 39 - present PID with empty, truncated or missing stat still refuses
+  ---
+  duration_ms: 0.660601
+  type: 'test'
+  ...
+# Subtest: per-process environment ENOENT: gone is exited; present stays classified
+ok 40 - per-process environment ENOENT: gone is exited; present stays classified
+  ---
+  duration_ms: 13.486537
+  type: 'test'
+  ...
+# Subtest: per-process environment ESRCH: gone is exited; present stays classified
+ok 41 - per-process environment ESRCH: gone is exited; present stays classified
+  ---
+  duration_ms: 0.371797
+  type: 'test'
+  ...
+# Subtest: per-process environment EIO: gone is exited; present stays classified
+ok 42 - per-process environment EIO: gone is exited; present stays classified
+  ---
+  duration_ms: 0.504957
+  type: 'test'
+  ...
+# Subtest: per-process environment malformed: gone is exited; present stays classified
+ok 43 - per-process environment malformed: gone is exited; present stays classified
+  ---
+  duration_ms: 0.233049
+  type: 'test'
+  ...
+# Subtest: per-process environment unreadable: gone is exited; present stays classified
+ok 44 - per-process environment unreadable: gone is exited; present stays classified
+  ---
+  duration_ms: 0.361772
+  type: 'test'
+  ...
+# Subtest: a completed file passes when its enumerated group member has exited
+ok 45 - a completed file passes when its enumerated group member has exited
+  ---
+  duration_ms: 1073.873769
+  type: 'test'
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 6
+# todo 0
+# duration_ms 39732.177279
+-- client file ok: snapback4/packages/snapback4/test/test-file-runner.test.mjs (40374 ms)
+-- client file start: snapback4/packages/snapback4/test/replacement-fixture.test.mjs; stall bound 900000 ms
+(node:2730843) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: replacement copy waits for a held writer, retaining real identity in a distinct store
+ok 1 - replacement copy waits for a held writer, retaining real identity in a distinct store
+  ---
+  duration_ms: 481.427669
+  type: 'test'
+  ...
+# Subtest: held replacement writer fails its test, closes its server and exits without hanging
+ok 2 - held replacement writer fails its test, closes its server and exits without hanging
+  ---
+  duration_ms: 1425.255805
+  type: 'test'
+  ...
+# Subtest: replacement also closes when its post-copy admission assertion fails
+ok 3 - replacement also closes when its post-copy admission assertion fails
+  ---
+  duration_ms: 412.729949
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2373.596595
+-- client file ok: snapback4/packages/snapback4/test/replacement-fixture.test.mjs (3071 ms)
+-- client files: 2/2; failed 0; tests {"tests":48,"pass":42,"fail":0,"cancelled":0,"skipped":6,"todo":0}

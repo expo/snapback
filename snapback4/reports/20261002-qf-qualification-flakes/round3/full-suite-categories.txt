@@ -1,0 +1,32 @@
+== cargo build
+-- ok: cargo build (0 s)
+== wasm build
+-- ok: wasm build (65 s)
+== docs budget
+-- ok: docs budget (45 s)
+== release guard
+-- ok: release guard (10 s)
+== package typecheck
+-- ok: package typecheck (2 s)
+== package build
+-- ok: package build (3 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- rust inventory: 285 test binaries, 998 executions; at most 24 concurrent processes
+-- ok: cargo test (566 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: fixture wrapper tests (10 s)
+-- available CPUs: 96; client file concurrency: 24
+== client tests
+-- client files: 283/283; failed 0; tests {"tests":5831,"pass":5815,"fail":0,"cancelled":0,"skipped":16,"todo":0}
+-- ok: client tests (600 s)
+== client models
+-- client files: 2/2; failed 0; tests {"tests":79,"pass":79,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: client models (302 s)
+== 0 failure(s) in 1593 s

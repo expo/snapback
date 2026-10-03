@@ -1,0 +1,120 @@
+{
+  "started": "2026-10-02T22:45:06.774Z",
+  "finished": "2026-10-02T23:12:41.859Z",
+  "command": "scripts/test.sh",
+  "args": [],
+  "pid": 2546751,
+  "code": 0,
+  "signal": null,
+  "summary": "== 0 failure(s) in 1655 s",
+  "footer": [
+    "== 0 failure(s) in 1655 s"
+  ],
+  "logSha256": "173ccd4b50e392822f76fa0bd2b8935bcb44cfd5768888bf28199e4281fdcede",
+  "fileResults": 286,
+  "totals": {
+    "tests": 5904,
+    "pass": 5894,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10,
+    "todo": 0
+  },
+  "failedFiles": [],
+  "failedCategories": [],
+  "poolSummaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 283/283; failed 0; tests {\"tests\":5816,\"pass\":5806,\"fail\":0,\"cancelled\":0,\"skipped\":10,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "slowest": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 493692,
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "passed": true,
+      "elapsed": 441106,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 388902,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "passed": true,
+      "elapsed": 380225,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "passed": true,
+      "elapsed": 239317,
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "passed": true,
+      "elapsed": 206214,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-clock.test.mjs",
+      "passed": true,
+      "elapsed": 193004,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "passed": true,
+      "elapsed": 150748,
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ]
+}

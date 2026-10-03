@@ -1,0 +1,5 @@
+{
+  "snapback4/target/debug/snapback4": "8d27d91ee44a4f9b77ea334b1fa1baf2122f49ecff28c8c68a811975c44da3bd",
+  "snapback4/packages/snapback4/src/wasm/snapback4_device.js": "0ff39271a3b554bd15ab0ef8589d4a40923f848df89b1c83b3ae74430640e485",
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8"
+}

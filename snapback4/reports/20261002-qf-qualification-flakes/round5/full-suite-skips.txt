@@ -1,0 +1,17 @@
+ok 1 - Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle # SKIP requires macOS Foundation and AVFoundation
+ok 10 - react-native.config.mjs refuses through the real static preparation adapter # SKIP
+ok 4 - managed organization and invitation policy runs in the shared interpreter # SKIP set SNAPBACK4_B1D_MANAGED_BIN, SNAPBACK4_B1D_MANAGED_BIN_SHA256, SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT to the pinned parent binary and a private scratch parent
+ok 1 - managed OIDC profile binding orders and expires trusted email evidence # SKIP set SNAPBACK4_IDENTITY_PROFILE_SCRATCH_PARENT to an existing private directory
+ok 6 - published 0.2.27 reference: four tasks with one and two search cursors # SKIP set BOUNDS_BINARY to the published 0.2.27 binary
+ok 1 - published 0.2.33 rejects F2 stores, serving, backend opening and device adoption # SKIP set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary
+ok 1 - published 0.2.33 capability fence: timeline-v2 # SKIP the published 0.2.33 native witness requires darwin-arm64
+ok 2 - published 0.2.33 capability fence: recorded-attribution # SKIP the published 0.2.33 native witness requires darwin-arm64
+ok 3 - published 0.2.33 capability fence: maintained-column # SKIP the published 0.2.33 native witness requires darwin-arm64
+ok 4 - published 0.2.33 control: capability-free bytes and stores stay compatible # SKIP the published 0.2.33 native witness requires darwin-arm64
+ok 23 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+ok 19 - token reader mechanism exit fails closed # SKIP
+ok 20 - token reader mechanism timeout fails closed # SKIP
+ok 21 - token reader mechanism malformed fails closed # SKIP
+ok 22 - token reader mechanism incomplete fails closed # SKIP
+ok 23 - token reader mechanism invalid row fails closed # SKIP
+ok 24 - token reader mechanism malformed kernel result fails closed # SKIP

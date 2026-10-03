@@ -1,0 +1,77 @@
+{
+  "phase": "before",
+  "sourceCommit": "850fea99574d969331f68b0df1417ad1f942d2a9",
+  "workerSourceSha256": "c5073c51844aab4eab93ed8547d61804210f8dae3f44b8586a05c96e0fb2a46d",
+  "binary": "/home/ccheever/sb4-intent/lane-qf/snapback4/target/debug/snapback4",
+  "node": "v24.13.1",
+  "workerBinary": "/home/ccheever/sb4-intent/lane-qf/snapback4/reports/20261002-qf-qualification-flakes/delayed-server.sh",
+  "wrapperSha256": "e6f5a1afe3f389e1576a367a42e017fd3f174f0c015bc18dfa2ad44b5278a129",
+  "pid": 1996555,
+  "cpus": 96,
+  "concurrency": 24,
+  "targetRuns": 1,
+  "started": "2026-10-02T18:44:56.202Z",
+  "finished": "2026-10-02T18:54:27.474Z",
+  "workerRuns": 1,
+  "workerFailures": 1,
+  "loadFiles": 255,
+  "loadFailures": [],
+  "maxActive": 23,
+  "slowest": [
+    {
+      "file": "ordinary-search-oracle.test.mjs",
+      "elapsed": 513743,
+      "passed": true
+    },
+    {
+      "file": "mixed-evidence-oracle.test.mjs",
+      "elapsed": 406908,
+      "passed": true
+    },
+    {
+      "file": "keep-app-model.test.mjs",
+      "elapsed": 380874,
+      "passed": true
+    },
+    {
+      "file": "bounded-following.test.mjs",
+      "elapsed": 206392,
+      "passed": true
+    },
+    {
+      "file": "keep-clock.test.mjs",
+      "elapsed": 196577,
+      "passed": true
+    },
+    {
+      "file": "acquisition.test.mjs",
+      "elapsed": 151198,
+      "passed": true
+    },
+    {
+      "file": "delivery-fault-matrix.test.mjs",
+      "elapsed": 140765,
+      "passed": true
+    },
+    {
+      "file": "asset-lists.test.mjs",
+      "elapsed": 117681,
+      "passed": true
+    },
+    {
+      "file": "overload.test.mjs",
+      "elapsed": 101422,
+      "passed": true
+    },
+    {
+      "file": "navigation-model.test.mjs",
+      "elapsed": 82741,
+      "passed": true
+    }
+  ],
+  "uniqueLoadFiles": 255,
+  "targetActiveLoadSlots": [
+    23
+  ],
+  "rawRunsSha256": "f2bc3067cf8f554479401da81b377d0f51f8c1c1b54b913ea5921ca54833575a"
+}

@@ -1,0 +1,115 @@
+-- client file start: snapback4/packages/snapback4/test/test-file-runner.test.mjs; limit 900000 ms
+TAP version 13
+# Subtest: file watchdog diagnoses event loop and reaps detached descendants
+ok 1 - file watchdog diagnoses event loop and reaps detached descendants
+  ---
+  duration_ms: 11453.471708
+  type: 'test'
+  ...
+# Subtest: file watchdog diagnoses leaked handle and reaps detached descendants
+ok 2 - file watchdog diagnoses leaked handle and reaps detached descendants
+  ---
+  duration_ms: 12875.202875
+  type: 'test'
+  ...
+# Subtest: file runner preserves test failures and continues to a following healthy file
+ok 3 - file runner preserves test failures and continues to a following healthy file
+  ---
+  duration_ms: 2268.783958
+  type: 'test'
+  ...
+# Subtest: file exit cannot orphan an unreferenced detached child and report success
+ok 4 - file exit cannot orphan an unreferenced detached child and report success
+  ---
+  duration_ms: 3816.2995
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a passing file
+ok 5 - double-forked shell helper is killed after a passing file
+  ---
+  duration_ms: 3526.469917
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a stalled file
+ok 6 - double-forked shell helper is killed after a stalled file
+  ---
+  duration_ms: 6286.462959
+  type: 'test'
+  ...
+# Subtest: process inspection exit cannot establish a passing cleanup
+ok 7 - process inspection exit cannot establish a passing cleanup
+  ---
+  duration_ms: 2304.205041
+  type: 'test'
+  ...
+# Subtest: process inspection timeout cannot establish a passing cleanup
+ok 8 - process inspection timeout cannot establish a passing cleanup
+  ---
+  duration_ms: 2895.958375
+  type: 'test'
+  ...
+# Subtest: process inspection malformed cannot establish a passing cleanup
+ok 9 - process inspection malformed cannot establish a passing cleanup
+  ---
+  duration_ms: 2903.143083
+  type: 'test'
+  ...
+# Subtest: process inspection forces C locale and refuses empty output
+ok 10 - process inspection forces C locale and refuses empty output
+  ---
+  duration_ms: 184.458167
+  type: 'test'
+  ...
+# Subtest: long-file caps cover aggregate declared guards with margin, including seed overrides
+ok 11 - long-file caps cover aggregate declared guards with margin, including seed overrides
+  ---
+  duration_ms: 1.206708
+  type: 'test'
+  ...
+# Subtest: persistent inspection failure stays a failure and kills the owned group
+ok 12 - persistent inspection failure stays a failure and kills the owned group
+  ---
+  duration_ms: 819.086166
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 49414.492167
+-- client file ok: snapback4/packages/snapback4/test/test-file-runner.test.mjs (52008 ms)
+-- client file start: snapback4/packages/snapback4/test/replacement-fixture.test.mjs; limit 900000 ms
+TAP version 13
+# Subtest: replacement copy waits for a held writer, retaining real identity in a distinct store
+ok 1 - replacement copy waits for a held writer, retaining real identity in a distinct store
+  ---
+  duration_ms: 1391.39775
+  type: 'test'
+  ...
+# Subtest: held replacement writer fails its test, closes its server and exits without hanging
+ok 2 - held replacement writer fails its test, closes its server and exits without hanging
+  ---
+  duration_ms: 1877.743083
+  type: 'test'
+  ...
+# Subtest: replacement also closes when its post-copy admission assertion fails
+ok 3 - replacement also closes when its post-copy admission assertion fails
+  ---
+  duration_ms: 633.028959
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4222.01725
+-- client file ok: snapback4/packages/snapback4/test/replacement-fixture.test.mjs (5864 ms)
+-- client files: 2/2; failed 0; tests {"tests":15,"pass":15,"fail":0,"cancelled":0,"skipped":0,"todo":0}

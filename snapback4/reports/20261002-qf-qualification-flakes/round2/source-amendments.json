@@ -1,0 +1,31 @@
+[
+  {
+    "path": "snapback4/scripts/test-processes.mjs",
+    "before": "6088a7d88f7c5a80d48ac8bb77817a80544de20f9c4fa29f544b533041237904",
+    "after": "78c13627c14481d4bd5085b239fa93adca333d7b5e2b73419e1d18fec13e317d",
+    "changedAt": "2026-10-02T21:56:29.526262+00:00",
+    "reason": "Comment corrected: keeper reserves the group until whole-group cleanup begins"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "before": "3747b5708b086f56866565275aaea5524649bcefc83d51c1cf1147418b8db780",
+    "after": "af50d074e8b841392f72e4a748ce9afa6cb75eccba05df054ee40bfa615c0888",
+    "changedAt": "2026-10-02T21:55:14.506392+00:00",
+    "reason": "Regression waits for its owned helper ready marker before finishing"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "before": "af50d074e8b841392f72e4a748ce9afa6cb75eccba05df054ee40bfa615c0888",
+    "after": "bbc46acfd18760986c488fa698720b3ffea9644a9ad87593da8b4402c3e76c79",
+    "changedAt": "2026-10-02T21:59:58.183406+00:00",
+    "reason": "Await the diagnostic marker write before deliberately blocking JavaScript; retain the marker assertion"
+  },
+  {
+    "path": "snapback4/scripts/test.sh",
+    "before": "3ad0aa65baa05baed62a8edc497aee45f0c297eac765c1684cce0b597bd96e30",
+    "after": "74f327e8e79ddfdf30541337b96026c832cd7770fdb222694f365513667a377e",
+    "changedAt": "2026-10-02T23:13:59.867245+00:00",
+    "reason": "After the completed suite, replace stale aggregate-cap/TERM comments with the qualified single-guard progress watchdog and whole-group cleanup behavior; comments only",
+    "qualifiedCopy": "test-sh-qualified.txt"
+  }
+]

@@ -1,0 +1,146 @@
+[
+  {
+    "label": "load-202",
+    "file": "repair-b-overflow.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-195",
+    "file": "read-types.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-175",
+    "file": "presence-live.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-168",
+    "file": "per-row-react.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-196",
+    "file": "readauth.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-176",
+    "file": "presence-local.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-135",
+    "file": "navigation-model.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-131",
+    "file": "mixed-evidence-oracle.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-105",
+    "file": "keep-clock.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-149",
+    "file": "ordinary-search-oracle.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-200",
+    "file": "release-activation.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-197",
+    "file": "readme-examples.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-102",
+    "file": "keep-app-model.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-199",
+    "file": "refresh-behavior.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-174",
+    "file": "presence-composed.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-182",
+    "file": "query-publication-session.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-37",
+    "file": "bounded-following.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "replacement-17",
+    "file": "web-admission-review.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-30",
+    "file": "asset-lists.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-152",
+    "file": "overload.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-0",
+    "file": "acquisition.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-194",
+    "file": "read-through.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-203",
+    "file": "repair-b-round16.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  },
+  {
+    "label": "load-51",
+    "file": "delivery-fault-matrix.test.mjs",
+    "reason": "TEST_FILE_ABORT",
+    "classification": "operator stop to avoid mixed-source qualification"
+  }
+]

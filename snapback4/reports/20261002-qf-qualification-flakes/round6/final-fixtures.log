@@ -1,0 +1,67 @@
+-- client file start: snapback4/fixtures; stall bound 900000 ms
+TAP version 13
+# Subtest: all combined, starter, checkpoint, spot and artifact manifest facts match
+ok 1 - all combined, starter, checkpoint, spot and artifact manifest facts match
+  ---
+  duration_ms: 1563.156597
+  type: 'test'
+  ...
+# Subtest: scale hub facts come from the manifest, with the starter contribution removed
+ok 2 - scale hub facts come from the manifest, with the starter contribution removed
+  ---
+  duration_ms: 1309.267941
+  type: 'test'
+  ...
+# Subtest: two full CLI builds are byte-identical, and every output reference resolves
+ok 3 - two full CLI builds are byte-identical, and every output reference resolves
+  ---
+  duration_ms: 3536.154053
+  type: 'test'
+  ...
+# Subtest: sample-50 round trip preserves all verb intents, media, quotes, ids and timestamps
+ok 4 - sample-50 round trip preserves all verb intents, media, quotes, ids and timestamps
+  ---
+  duration_ms: 3.412014
+  type: 'test'
+  ...
+# Subtest: --scale 2 keeps registration order and drops actors and cascading dependencies
+ok 5 - --scale 2 keeps registration order and drops actors and cascading dependencies
+  ---
+  duration_ms: 1468.604096
+  type: 'test'
+  ...
+# Subtest: grammar decodes JSON escapes and enforces schema variants and constraints
+ok 6 - grammar decodes JSON escapes and enforces schema variants and constraints
+  ---
+  duration_ms: 0.937245
+  type: 'test'
+  ...
+# Subtest: set-state retries, DM pair reuse and filtered quote chains retain their meaning
+ok 7 - set-state retries, DM pair reuse and filtered quote chains retain their meaning
+  ---
+  duration_ms: 0.816073
+  type: 'test'
+  ...
+# Subtest: stats CLI verifies manifests and reports the selected dataset
+ok 8 - stats CLI verifies manifests and reports the selected dataset
+  ---
+  duration_ms: 3009.656793
+  type: 'test'
+  ...
+# Subtest: mismatches name the field and both values, and CLI failures exit 1
+ok 9 - mismatches name the field and both values, and CLI failures exit 1
+  ---
+  duration_ms: 104.611259
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11025.634756
+-- client file ok: snapback4/fixtures (11391 ms)
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}

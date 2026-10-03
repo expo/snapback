@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-03T05:21:07.369495+00:00",
+  "modified": [
+    "snapback4/scripts/run-client-tests.mjs",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs"
+  ],
+  "clientPhaseStarted": false,
+  "parallelLogs": [
+    "cargo-test.log",
+    "chat-typecheck.log",
+    "chat-typecheck.status",
+    "expo-typecheck.log",
+    "expo-typecheck.status",
+    "fixture-tests.log",
+    "fixture-tests.status"
+  ]
+}

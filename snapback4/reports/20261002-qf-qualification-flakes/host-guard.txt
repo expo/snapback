@@ -1,0 +1,3 @@
+Publication exit record: EXIT=0 2026-10-02T18:06:35Z
+Requested guard returned: Fri Oct  2 18:07:09 UTC 2026
+Lane load/build preparation started: 2026-10-02T18:07:28Z

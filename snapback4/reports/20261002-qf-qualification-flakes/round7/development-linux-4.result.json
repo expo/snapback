@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "snapback4/scripts/run-client-tests.mjs",
+    "1",
+    "files",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "snapback4/packages/snapback4/test/replacement-fixture.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-qf",
+  "start": "2026-10-03T06:56:45.156538+00:00",
+  "pid": 289147,
+  "status": 1,
+  "end": "2026-10-03T06:57:25.841838+00:00"
+}

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "-p",
+    "snapback4-sim",
+    "--test",
+    "prefix_reads",
+    "--test",
+    "membership_search",
+    "--no-fail-fast"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/qf-round5-main/snapback4",
+  "start": "2026-10-03T05:17:51.225176+00:00",
+  "pid": 2695862,
+  "exit": 101,
+  "end": "2026-10-03T05:18:41.085954+00:00"
+}

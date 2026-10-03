@@ -1,0 +1,17 @@
+{
+  "baseCommit": "3d803c79c094ccc0effdea2a4e5b4d9cd7d3a313",
+  "sourceFiles": 2266,
+  "changesSinceInitialManifest": [
+    "snapback4/AGENTS.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "snapback4/scripts/test-process-token.mjs",
+    "snapback4/scripts/test-processes.mjs"
+  ],
+  "finalInputs": 18,
+  "finalInputsUnchanged": true,
+  "miniSourceFiles": 13,
+  "miniSourceMatches": true,
+  "fullSuiteExit": 0,
+  "stressExit": 0
+}

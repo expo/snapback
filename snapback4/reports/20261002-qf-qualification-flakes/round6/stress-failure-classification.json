@@ -1,0 +1,11 @@
+{
+  "finalRun": "no failures",
+  "introduced": [],
+  "baseline": [],
+  "environmental": [],
+  "runnerRefusals": [],
+  "earlierAttempts": [
+    "preparation-stress/failure-classification.json",
+    "before-cancellation-stress/failure-classification.json"
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "addedFiles": [
+    {
+      "file": "packages/snapback4/test/expo-scenes.test.mjs",
+      "passed": "True",
+      "elapsed": "1882",
+      "tests": "1",
+      "pass": "1",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/export-publication.test.mjs",
+      "passed": "True",
+      "elapsed": "772",
+      "tests": "4",
+      "pass": "4",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/export-native.test.mjs",
+      "passed": "True",
+      "elapsed": "2991",
+      "tests": "10",
+      "pass": "9",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "1",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/export-failure.test.mjs",
+      "passed": "True",
+      "elapsed": "4635",
+      "tests": "2",
+      "pass": "2",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/export-native-round2.test.mjs",
+      "passed": "True",
+      "elapsed": "5209",
+      "tests": "3",
+      "pass": "3",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+      "passed": "True",
+      "elapsed": "2652",
+      "tests": "4",
+      "pass": "4",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+      "passed": "True",
+      "elapsed": "6405",
+      "tests": "1",
+      "pass": "1",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/decorated-search.test.mjs",
+      "passed": "True",
+      "elapsed": "53163",
+      "tests": "57",
+      "pass": "57",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+      "passed": "True",
+      "elapsed": "1156",
+      "tests": "7",
+      "pass": "7",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+      "passed": "True",
+      "elapsed": "1891",
+      "tests": "5",
+      "pass": "5",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+      "passed": "True",
+      "elapsed": "3372",
+      "tests": "6",
+      "pass": "6",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items.test.mjs",
+      "passed": "True",
+      "elapsed": "7661",
+      "tests": "14",
+      "pass": "14",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/read-presentation.test.mjs",
+      "passed": "True",
+      "elapsed": "2397",
+      "tests": "8",
+      "pass": "8",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+      "passed": "True",
+      "elapsed": "4083",
+      "tests": "6",
+      "pass": "6",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/seen.test.mjs",
+      "passed": "True",
+      "elapsed": "2027",
+      "tests": "9",
+      "pass": "9",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/seen-devices.test.mjs",
+      "passed": "True",
+      "elapsed": "5010",
+      "tests": "2",
+      "pass": "2",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    },
+    {
+      "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+      "passed": "True",
+      "elapsed": "29294",
+      "tests": "17",
+      "pass": "17",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0"
+    }
+  ],
+  "removedFiles": [],
+  "changedCounts": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+      "before": {
+        "tests": "35",
+        "pass": "35",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "43",
+        "pass": "43",
+        "fail": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "file": "packages/snapback4/test/periphery.test.mjs",
+      "before": {
+        "tests": "21",
+        "pass": "21",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "22",
+        "pass": "22",
+        "fail": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "file": "packages/snapback4/test/prediction-routing.test.mjs",
+      "before": {
+        "tests": "190",
+        "pass": "190",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "223",
+        "pass": "223",
+        "fail": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+      "before": {
+        "tests": "5",
+        "pass": "5",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "7",
+        "pass": "7",
+        "fail": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "file": "packages/snapback4/test/react.test.mjs",
+      "before": {
+        "tests": "58",
+        "pass": "58",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "64",
+        "pass": "64",
+        "fail": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "file": "packages/snapback4/test/read-types.test.mjs",
+      "before": {
+        "tests": "5",
+        "pass": "5",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "8",
+        "pass": "8",
+        "fail": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "file": "packages/snapback4/test/witness-preparation.test.mjs",
+      "before": {
+        "tests": "14",
+        "pass": "14",
+        "fail": "0",
+        "skipped": "0"
+      },
+      "after": {
+        "tests": "15",
+        "pass": "15",
+        "fail": "0",
+        "skipped": "0"
+      }
+    }
+  ]
+}

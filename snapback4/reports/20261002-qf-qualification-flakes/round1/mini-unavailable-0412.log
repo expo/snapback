@@ -1,0 +1,4 @@
+npm error code ETARGET
+npm error notarget No matching version found for snapback4-darwin-arm64@0.4.12.
+npm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.
+npm error A complete log of this run can be found in: /Users/ccheever/.npm/_logs/2026-10-02T20_20_37_631Z-debug-0.log

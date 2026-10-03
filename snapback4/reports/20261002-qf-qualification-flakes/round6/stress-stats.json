@@ -1,0 +1,13 @@
+{
+  "rows": 1829,
+  "workerRuns": 200,
+  "replacementRuns": 200,
+  "targetFailures": 0,
+  "backgroundRuns": 1429,
+  "backgroundFiles": 300,
+  "backgroundFailures": 0,
+  "runnerRefusals": 0,
+  "minimumBackgroundSlotsAtTargetCompletion": 23,
+  "emptyResults": 0,
+  "runsSha256": "61caff0374e4b7489e21ce1594db9c56564b0e288c3443fceb15f43e347a05d0"
+}

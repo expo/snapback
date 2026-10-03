@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-qf/snapback4",
+  "start": "2026-10-03T06:56:46.294499+00:00",
+  "pid": 289520,
+  "status": 0,
+  "end": "2026-10-03T07:21:30.612255+00:00"
+}

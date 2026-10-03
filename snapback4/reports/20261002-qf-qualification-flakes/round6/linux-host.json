@@ -1,0 +1,8 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "node": "v24.13.1",
+  "head": "808d173ee29704db0de7275d60b139fd282c6121",
+  "branch": "sb4-intent/qf-qualification-flakes",
+  "cwd": "/home/ccheever/sb4-intent/lane-qf"
+}

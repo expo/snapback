@@ -84317,3 +84317,470 @@ Lane DR measured on the Apartment mini: the replay target passed 22/22 on each
 of ten consecutive runs under CPU burners (220/220), and 22/22 on eb1000. On
 main 22ebfac22a, the diagnostics unit tests pass 3/3, replay 22/22, and the
 reference audit passes. DR's own fence change is superseded by main 4c70334fff.
+
+## 2026-10-02 — QF round 0: qualification fixture races and file containment
+
+Fix the browser replacement fixture's uncoordinated identity-table copy with
+one immediate transaction and a five-second bounded SQLite BUSY/LOCKED retry.
+The fixture retains ownership until all setup assertions succeed and closes
+its replacement on every failure. Real held-writer regressions prove successful
+retry after release and a failing nested test that exits with no child server;
+a post-copy probe failure also proves cleanup. Keep every admission assertion.
+Close and move the [replacement ticket](../issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md).
+
+The worker restart failure is a fixture startup race: the URL is printed before
+initial named-worker admission. An immediate declaration can enter initial
+admission and fatally fail the host on Node 23, so repairing Node cannot reach
+the pending-declaration retry. Wait for a served HTTP response before editing;
+retain host logs, exit state, worker status rows and liveness on timeout. A
+permanent held-admission regression fails when that readiness barrier is removed.
+No product code changes. Historical publication logs were discarded, so the
+reproduced counterexample does not uniquely attribute that historical run.
+
+Honor the publication host guard: it released at 18:07:09Z after EXIT=0.
+Natural 24-file load: original worker 0/200 failures. Under a verified 100 ms
+clone3 scheduling delay and 23 real client-file load slots: original fixture
+1/1 failure at the same 122-second wait, fixed fixture 0/200 failures. All 815
+fixed-phase background executions passed and covered the full 283-file ordinary
+inventory. Preserve excluded tracer-development batches separately.
+
+An independent parent now bounds ordinary client/fixture files at fifteen
+minutes and full-count model files at thirty minutes, diagnoses hangs and
+cleans up registered children/descendants with TERM/KILL and start-identity
+checks. Regressions include blocked JavaScript, leaked handles, detached orphans
+and preserved assertion failures. The largest qualified ordinary file took
+513.743 seconds; final model files took 243.106 and 69.991 seconds. No existing
+assertion, case or seed count is removed.
+
+The single final suite reports exactly `== 0 failure(s) in 1446 s`, exit 0.
+All Rust targets/doctests and build/app/fixture categories pass; ordinary clients
+5,792 passed, 0 failed, ten unchanged conditional skips; models 79/79 passed.
+Affected files: worker 61/61, browser admission 55/55, replacement 3/3 and
+watchdog 4/4. Full-suite failures: ours 0, baseline 0, environmental 0.
+File the separate [worker-refusal fixture overhead](../issues/20261002-snapback4-worker-refusal-tests-wait-entire-hang-guard.md)
+follow-up for three tests that unnecessarily consume their entire hang guard.
+Commands, source hashes, all repetition outcomes, controls and failure
+classifications are in the [QF report](./reports/20261002-qf-qualification-flakes/REPORT.md).
+One local commit with the requested Astra co-author trailer; nothing pushed or
+published.
+
+## 2026-10-02 — QF round 1: retained groups and fail-closed inspection
+
+Addressed Astra's two containment findings and Grok's three Lows from f9aa587e10.
+Each client file now has a detached group keeper that survives node:test exit.
+An unregistered shell helper remains owned after its parent exits; a completed
+file with living helpers fails TEST_FILE_LEAK after cleanup. The stalled-file
+case remains TEST_FILE_HANG and also kills its helper. Every process-inspection
+error fails closed, including ps exit/timeout, empty or malformed output and
+identity-read errors. C-locale ps makes macOS start fields stable. Regressions
+cover both shell orphans, transient and persistent inspection errors, and the
+existing blocked-loop/detached-child cases. Group containment is not a subreaper:
+native descendants that deliberately leave the group/session and lose their
+parent before discovery can escape. This limit is explicit on both platforms.
+
+Named long-file caps cover their declared aggregate guards plus 25% and 900
+seconds, also with serial files on the loaded publication MacBook. Search,
+mixed evidence, session and online defaults are 24,060/5,400/26,150/8,400 seconds;
+admission is 9,440 seconds. Conservative case-count bounds for other large files
+and all exact caps are in the report. Existing inner guards and seed counts are
+unchanged. The replacement success regression releases its real writer only
+after observing BUSY/LOCKED, so retry coverage no longer depends on a 100 ms race.
+
+Final focused checks pass 15/15 on Linux and 15/15 on the Apartment mini with a
+non-C ambient locale. Mac source hashes match; its fixture portability checks
+use the available 0.4.10 binary, not a complete release qualification. The
+mini scratch directory was deleted after evidence collection; the office M1
+and publication MacBook were not contacted. Under 24-file Linux stress, both
+original flaky targets pass 200/200, every target completion has 23 background
+slots active, and all 1,714 background executions pass across all 283 files.
+
+The one complete eb1000 suite reports exactly `== 0 failure(s) in 1424 s`, exit
+0. All Rust targets/doctests, build/app/fixture checks pass; clients pass 5,800
+with ten existing conditional skips, models 79/79. Full-suite failures: ours 0,
+baseline 0, environmental 0. No assertion or seed was weakened and no product
+source changed. The only post-suite source edit corrects an obsolete shell
+comment; both the executed and final shell sources are bound in the manifest.
+Reference and whitespace checks accompany the change.
+
+The [Round 1 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-1--review-corrections-2026-10-02)
+retains complete compressed logs, hashes, every stress result, and all failure
+classifications. One preliminary stress batch was deliberately stopped for the
+output-closure correction: 24 aborts, no spontaneous failure. Preparation path
+mistakes were ours; temporary SSH failures and the unavailable 0.4.12 npm
+artifact were environmental and ran no failing test. Local commit with the
+requested Astra co-author trailer; nothing pushed or published.
+
+## 2026-10-03 — QF round 2: whole-group cleanup and progress watchdog
+
+Addressed Astra's round-1 same-group fork/exit race and aggregate-cap finding,
+plus Grok's aggregate-cap and exact-margin findings. Every test file now ends
+with a whole-group SIGKILL, even when preliminary discovery finds nothing.
+A sampled process that exits before identity validation remains leak evidence.
+Cleanup requires two consecutive empty snapshots, repeats the group signal for
+any observed member and fails closed on inspection errors. The real-snapshot
+regression forks an absent child while its sampled parent exits; both Linux and
+the Apartment mini require TEST_FILE_LEAK and verify the orphan is dead. Native
+descendants that deliberately leave the group/session and lose their parent
+remain outside the documented containment boundary.
+
+The independent watchdog now times lack of actual subtest starts/finishes over
+IPC: max(900 seconds, largest single declared guard plus max(60 seconds, 25%)).
+There is no absolute duration cap. The public node:test run API observes events
+synchronously in each already-isolated file process, so CPU-bound consecutive
+tests cannot hide progress in Node's child serializer. Console chatter cannot
+renew the clock. The source census records all 286 client/fixture maxima and
+proves their margins fit, including retained-history's 68 sequential 372-second
+guards. Exact default and override assertions replace the old loose cap checks.
+
+Final focused checks pass 21/21 on Linux and 21/21 on the Apartment mini: 18
+runner regressions plus the unchanged three replacement checks. Mini sources
+match, its non-C locale is retained, and its published 0.4.10 binary provides
+fixture portability evidence only. All task-created mini scratch directories
+were deleted; no other Mac was contacted and no unrelated process was signaled.
+The real default-bound stall emits diagnostics at 900,000 ms without progress,
+returns TEST_FILE_HANG at 900,237 ms and leaves zero live group members.
+Under 24-file stress, worker and observed replacement each pass 200/200;
+all 1,763 background runs pass across all 283 ordinary files. Every target
+completion records 23 active background slots.
+
+The single complete eb1000 suite reports exactly `== 0 failure(s) in 1655 s`,
+exit 0. Every Rust/build/app/fixture category passes; ordinary clients pass
+5,806 with ten unchanged skips, models 79/79 and fixture wrappers 9/9.
+Full-suite failures: ours 0, baseline 0, environmental 0. Per-file counts match
+round 1 except six added runner regressions. All 2,157 source hashes and 15
+qualification input hashes still matched after the run. The only later source
+edit corrects obsolete shell comments; exact qualified and final bytes are
+recorded. No product source, original assertion or seed count changed.
+
+The [Round 2 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-2--whole-group-cleanup-and-progress-watchdog-2026-10-03)
+retains complete logs, manifests, guard census, every stress result and failure
+classifications. Development exposed our buffered-progress and filter-forwarding
+defects and an unflushed fixture marker; all were fixed with regressions.
+Two stopped development stress batches each contain 25 intentional aborts,
+with no spontaneous target/background failure and no additional full-suite run.
+Reference and whitespace checks accompany the local commit with the requested
+Astra co-author trailer. Nothing pushed or published.
+
+## 2026-10-03 — QF Grok follow-up: inherited tokens and session custody
+
+Extended round 2 on top of 11c5a70745 for the operator's native-escape direction.
+Each file has a fresh inherited 256-bit environment token. Cleanup kills the
+whole group first, then checks registered ancestry, the owned POSIX session,
+and same-user token matches until two consecutive snapshots are empty. Positive
+token evidence survives a process exiting during inspection. A child clearing
+its token but remaining in the owned session is still reaped. A detection
+escape now requires removing/replacing the token, starting a new session and
+losing registered/discoverable ancestry. Exact bound assertions cover all 14
+derived files, serial mode, the four model/search overrides and the named floor
+examples; the 286-file single-guard census still fits every stall margin.
+
+Linux reads /proc environments; macOS uses bounded KERN_PROCARGS2/getsid calls
+through Python 3, with C locale and no environment values in diagnostics.
+Preexisting identities, causally unrelated ancestry and still-existing older
+sessions are excluded. Unknown ownership never authorizes a signal. The
+remaining platform restriction is real: Darwin 27 redacts /bin/sleep's token
+from both KERN_PROCARGS2 and ps -E despite successful calls. An opaque candidate
+outside the known session fails closed; its cleanup cannot be claimed. The
+native platform-binary regression refuses that file and reaps only its own
+known child. Three compiled native escape shapes and a cleared-token setpgid
+case require automatic cleanup and TEST_FILE_LEAK.
+
+Final Linux focused checks pass 29/29. On final mini source the combined run
+passed all 29 assertions but refused the outer file on two opaque candidates;
+the replacement file passed. A diagnostic observer rerun passed all 26 runner
+cases and confirmed that an unrelated environment-redacted mdworker_shared in
+preexisting session 1 is excluded by proof, not by ignoring a read failure.
+The mini used a non-C locale and the published 0.4.10 binary only for fixture
+portability. Its task scratch was deleted; no other Mac was contacted.
+
+The single follow-up eb1000 suite reports exactly `== 1 failure(s) in 1722 s`,
+exit 1. All Rust/build/app/fixture categories pass. Ordinary clients pass 5,814
+assertions, models 79/79 and fixture wrappers 9/9, with zero assertion failures
+and ten unchanged skips. Thirteen ordinary files fail the new completeness
+check on candidate-environment EACCES. These are introduced inspection refusals,
+not established baseline product failures. Every file/PID is classified in the
+report; all denied PIDs were absent at a later metadata check and their
+provenance remains unknown. Qualification is not clean. The
+[inspection-refusal ticket](../issues/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+records the remaining ownership/host-access work without suppressing errors.
+
+The [Grok follow-up report](./reports/20261002-qf-qualification-flakes/REPORT.md#grok-follow-up)
+retains all successful and refused checks, final source hashes, the mini's
+redaction probe, observer metadata, every full-suite failure and cleanup receipt.
+Session/metadata corrections occurred during the suite's Rust phase before any
+client/fixture execution; no Rust/product source changed. Final 2,160 source
+hashes and 18 input digests match. Development candidate-scope refusals, our
+Darwin empty-group EPERM defect and preparation mistakes remain separately
+classified. Reference/whitespace checks accompany the local commit with the
+requested Astra co-author trailer. Nothing pushed or published.
+
+## 2026-10-03 — QF round 3: shared-host token inspection
+
+Implemented the operator's distinction between inspection-mechanism failure
+and one opaque candidate. Enumeration, identity, ps/helper failure or timeout,
+and malformed output remain fail-closed. An EACCES/EPERM or Darwin-redacted
+environment is not provably ours: emit one PID/executable/start-time diagnostic
+per identity per file, without refusal or signal. Readable matching tokens
+still require cleanup and TEST_FILE_LEAK. Group/session cleanup, two stable
+empty snapshots, the progress watchdog, exact bounds and readable native escape
+regressions remain intact. No product source or original fixture assertion
+changed. LLP 3000 and AGENTS.md record the ruling.
+
+The residual limitation remains explicit: an escaped process (new session or
+group, lost ancestry) whose environment is unreadable/redacted, or which removed
+its token, is undetected outside group/session custody. On macOS this includes
+restricted executables such as /bin/sleep. The Darwin regression now requires
+no refusal, one diagnostic and no runner signal, then reaps its own recorded
+child. Cleared-token children in the owned session remain covered.
+
+Focused checks pass on Linux (30 passed, six Darwin-only skips) and the
+Apartment mini (36/36), without outer file refusals. The mini's eight opaque
+host candidates were diagnosed, as were the three controlled regression
+candidates. Sources match; the fixture-only mini binary is the same published
+0.4.10 pin, not a current-release Mac qualification. Task scratch was removed.
+No other Mac was contacted and no unrelated process was signalled.
+
+The single complete eb1000 suite reports exactly
+`== 0 failure(s) in 1593 s`, exit 0. All Rust/build/app/fixture categories pass;
+ordinary clients 5,815 passed with 16 skips (ten existing, six Darwin-only),
+models 79/79, fixture wrappers 9/9. Eighteen distinct unreadable host candidates
+were skipped with retained diagnostic lines, plus one deliberately denied
+regression candidate. Full-suite failures: ours 0, baseline 0, environmental 0;
+inspection refusals 0.
+
+Under restarted 24-file stress, worker and observed replacement each pass
+200/200; every target completion has 23 background files active. All 1,953
+background executions finish across 283 files, with zero assertion failures.
+Two background files refuse malformed /proc stat metadata, so the stress
+driver exits 1: schema-capabilities (load-207, PID 4185250) and remembered-answers
+(load-753, PID 268164). These are retained mechanism refusals, not the fixed
+candidate-permission refusal. Their underlying cause is unknown because the
+raw rejected stat snapshots were not retained. Preserve the guard and track
+that evidence gap in the [separate follow-up](../issues/20261003-snapback4-malformed-proc-stat-during-stress.md).
+The [token-permission ticket](../issues/closed/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+is resolved under the operator's ruling.
+
+The operator paused the first stress attempt for publication resources and
+deleted this lane's target. Its 23 aborts and the interrupted ps SIGTERM remain
+separately recorded; no full suite had started. After permission to resume,
+all source hashes matched and a cold rebuild preceded qualification. The
+suite's Cargo test phase reproduced the earlier qualified binary exactly.
+All 2,160 source and 18 final input hashes match. One development diagnostic
+assertion failed on MainThread metadata; executable lookup was corrected before
+focused qualification. No rejected result is represented as a pass.
+
+Main's two fixture commits were compared without merging them. This lane keeps
+the shared runner import; its fixture assertions match main's, and the report
+retains the exact local-helper-to-import landing resolution. The
+[Round 3 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-3--shared-host-token-inspection-2026-10-03)
+contains every run, failure classification, diagnostic and source manifest.
+Reference/whitespace checks accompany the local commit with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Nothing pushed or
+published.
+
+
+## 2026-10-03 — QF round 4: vanished process inspection
+
+Implemented the operator's distinction between an ordinary process-exit race
+and a broken inspection mechanism. Failed per-process stat, identity/parent/
+start-time and environment reads recheck PID existence. Gone candidates count
+as exited, including empty/truncated/unparsable stat and stale group/token
+rows. Whole-group cleanup and two fresh empty snapshots remain required;
+previously observed live leaks still fail. A present malformed PID still
+refuses with exact metadata bytes encoded as base64 and the first error.
+Environment contents are excluded. Secondary cleanup errors are printed but
+cannot replace that first diagnostic. Stat takes fields after the last `)`;
+ps preserves command spaces. Whole-enumeration/helper failures stay fail-closed.
+
+Twelve new deterministic cases cover real enumeration-to-exit interleavings,
+empty/truncated stat, parentheses and spaces, present malformed bytes, first
+error retention, environment races and a passing file whose transient child
+has exited. Final Linux focused checks pass 42 assertions with six Darwin-only
+skips; the Apartment mini passes 48/48. The two former stale-row regressions
+now require the operator's exited-candidate rule while still proving orphan
+cleanup. This correction occurred during the suite's Rust phase, before
+ordinary clients; the nine fixture-wrapper assertions were separately rerun
+on final source and pass 9/9. No Rust or product source changed.
+
+The single eb1000 suite reports exactly `== 0 failure(s) in 1510 s`, exit 0.
+Ordinary clients pass 5,827 assertions with 16 unchanged skips, models 79/79,
+fixture wrappers 9/9. Introduced, baseline, environmental and inspection
+failures: all zero. Fourteen opaque host candidates were diagnosed and skipped
+under Round 3's rule, plus one controlled regression candidate.
+
+The final 24-file stress passes both original flaky regressions 200/200, with
+23 background files active at every target completion. All 2,031 background
+executions across 283 files finish normally with zero assertion failures and
+zero refusals, exit 0. The [proc-stat ticket](../issues/closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
+is resolved. Its two old raw snapshots are irrecoverable and their precise
+cause remains unknown; present malformed recurrences now retain the evidence.
+
+The [Round 4 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-4--vanished-process-inspection-2026-10-03)
+retains every run and source binding, including the initial green development
+checks and one corrected npm-package-name preparation error. The mini used
+the same published 0.4.10 fixture binary as Round 3; its final source hashes
+match and its task scratch was removed. No other Mac was contacted and no
+unrelated process received a terminating signal. All 18 final runner/fixture/
+binary inputs stayed unchanged through qualification. Reference/whitespace
+checks accompany the local commit with the requested GPT-6 Astra co-author
+trailer. Nothing pushed or published.
+
+## 2026-10-03 — QF round 5: merge with main
+
+Merged origin/main 1b879881bee0079c357356685f1a671fe0aed13b into QF round 4
+4291d06dee with a real merge, preserving both histories. The replacement
+regression imports the now-landing shared runFile and keeps main's assertions;
+the replacement-lock ticket keeps main's closed status and independent-landing
+history. The JOURNAL conflict retains main's complete prefix and QF's complete
+suffix, with no earlier entry removed or rewritten. Main's replacement-server,
+worker readiness and devServer PID fixes remain byte-identical. The other lanes'
+product changes and all main Rust source are preserved.
+
+The post-merge guard census exposed one integration gap: main's new live-margin
+browser test declares hangBudget(800), above the default runner stall bound.
+Added that existing work count to the runner and asserted its 2,150,000 ms
+bound in normal and serial mode. All 303 files now fit the unchanged margin
+formula. No product assertion, timeout or seed changed. This correction landed
+in the working tree during Rust execution, before the client phase; both
+hosts' focused checks were then repeated on final source.
+
+Final focused checks pass on eb1000 (42 passed, six Darwin-only skips) and the
+Apartment mini (48/48), without outer file refusals. All 13 mini source hashes
+match; its published 0.4.10 binary is fixture-portability evidence only. The
+mini scratch was removed; no other Mac was contacted and no unrelated process
+received a terminating signal.
+
+The single full eb1000 suite reports exactly `== 1 failure(s) in 1560 s`,
+exit 1. Its only failed category is cargo test: UB's two prefix_reads and two
+membership_search assertions. All four reproduce on a clean main-only
+1b879881be worktree without the QF runner and remain tracked by the existing
+UB ticket. All builds, budgets, doctests, package/app checks and JavaScript
+pass: ordinary clients 6,036 passed / 17 skips across 300 files, serial models
+79/79 and fixture wrappers 9/9. QF failures, remaining merge failures,
+environmental suite failures and runner refusals are all zero. Twenty-one
+opaque host candidates were diagnosed and skipped under Round 3's rule.
+The macOS replay/publication regressions were not exercised by the mini's
+focused runner checks; no new reproduction or fix is claimed for them.
+
+The [Round 5 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-5--merge-with-main-2026-10-03)
+retains the conflict resolutions, failed and corrected guard censuses, both
+focused runs per host, full suite, clean-main baseline, source manifests and
+all failure classifications. The reference check and QF whitespace delta pass;
+43 inherited whitespace-bearing evidence files match main exactly. The local
+merge commit lists every conflict and carries the requested GPT-6 Astra
+co-author trailer. Nothing is pushed or published.
+
+
+## 2026-10-03 — QF round 6: simplification
+
+Read both final reviews in full (Astra NOT READY, Grok READY) and implemented
+the operator's narrower ownership rule. Each test file keeps its own fresh
+process group until one whole-group SIGKILL through its still-held, unreaped
+keeper. Verification then only inspects, requiring two consecutive empty group
+checks including the keeper. No discovered PID authorizes a signal. Ancestry
+inference, spawn registries, environment tokens and the Darwin environment
+helper are removed, along with the escape regressions and native escape helper.
+Processes leaving the group through setsid, setpgid or detached spawning are
+explicitly out of scope and must be managed by their fixtures. AGENTS and
+LLP 3000 record that limitation and replace the previous escape policy.
+
+Node's independent reporter summary now determines failure and cancellation
+counts over IPC alongside the exit status. A beforeExit override cannot erase
+a failed or cancelled test; expected TODO failures keep node --test semantics.
+New regressions compare those results with native Node, retain a separately
+started sibling under a stale-parent injection, and refuse a signal through a
+reaped keeper. The watchdog, its diagnostics and guard formula are unchanged;
+failed listings remain fail-closed and vanished members remain exited. The
+303-file census finds no undercovered guard. No product assertion, guard,
+seed, sample or skip was weakened.
+
+Final focused checks pass 32/32 on eb1000 and 32/32 on the Apartment mini, with
+zero skips or outer runner refusals. The mini's ten source hashes match and
+both task scratches were removed. Its published 0.4.10 binary proves only
+replacement-fixture portability; this is not current-release Mac qualification.
+No other Mac was contacted and no unrelated process received a terminating
+signal. The final fixture-wrapper run passes 9/9.
+
+The single eb1000 scripts/test.sh run reports exactly
+`== 1 failure(s) in 1452 s`, exit 1. The sole failed category is cargo test:
+UB's two prefix_reads and two membership_search assertions, matching Round 5's
+clean-main baseline and the operator's classification. All build, budget,
+package/app and JavaScript categories pass. Ordinary clients: 300/300 files,
+6,026 passed and 11 existing skips; models 79/79; fixture wrappers 9/9.
+Introduced, environmental and runner-refusal suite failures are all zero.
+
+Final 24-file stress passes the worker and observed-replacement regressions
+200/200 each; every target completion has 23 background files active. All
+1,429 background executions across 300 files pass, with zero runner refusals
+or assertion failures. All 1,829 results have nonempty counts and status 0.
+The source, binary and wasm hashes stayed unchanged through final qualification.
+
+The [Round 6 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-6--simplification)
+retains all evidence and failure classifications. It separately records the
+first development reporter-ordering assertion, one preparation failure from
+stress overlapping wasm regeneration, the resulting operator aborts, and a
+second interruption to bind the cancellation correction. That correction
+preceded the full suite's client phase; final checks on both hosts and the
+fixture wrappers cover it. Reference/whitespace checks accompany the local
+commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing is pushed
+or published.
+
+
+## 2026-10-03 — QF round 7: native Node and keeper-owned cleanup
+
+Read Round 6's Astra NOT READY review in full and implemented the operator's
+replacement architecture. Merged origin/main 484c94733c, including the fixed UB
+baseline at 9c048bf174, in a46e58a12f; the only conflict was this append-only
+journal and both complete histories are preserved. No product, Rust, original
+flaky-test assertion, guard, seed or skip changed outside that main merge.
+
+Each file now runs as native node --test with default isolation. Its native
+parent's exit status supplies the test verdict. The reporter only observes
+progress and diagnostic counts; the custom run() and isolation:none path is
+gone. The keeper is a small Node helper held alive by stdin. On completion,
+stall, abort or runner death, pipe EOF makes that live keeper kill its own group
+with kill(0, SIGKILL). The runner never sends a group signal, including when
+libuv has reaped the keeper before delivering its exit callback. Unexpected
+keeper loss is recorded and fails the file. A cleanup acknowledgment is judged
+after the IPC pipe drains, since exit callbacks may arrive first.
+
+Final focused checks pass 42/42 on eb1000 and 42/42 on the Apartment mini,
+with zero skips or outer refusals. Cases cover only, TODO, skip, assertion and
+cancellation overrides, after-hook failure, uncaught exceptions and unhandled
+rejections with overrides, explicit exit, the real reaped-before-callback
+window, group self-kill, runner death, acknowledgment ordering, leaks, stalls,
+failed listings and vanished members. Fixture wrappers separately pass 9/9.
+All ten mini source hashes match; its task scratch was removed. The published
+0.4.10 fixture binary is portability evidence, not current-release Mac product
+qualification. No other Mac was contacted and no unrelated process was signalled.
+
+The watchdog retains its 15-minute floor and largest-single-guard margin;
+305 files have no undercovered guard. Native Node can buffer events across
+synchronous tests that do not yield. Such an unreported interval remains
+subject to the stall bound; the retained synchronous fixture demonstrates that
+limit at a shortened test-only bound. Async/nested progression remains covered.
+Escapes through setsid, setpgid or detached spawning remain explicitly outside
+custody. Failed inspection stays fail-closed and vanished means exited.
+
+The single eb1000 scripts/test.sh invocation exits 0 with the exact summary
+`== 0 failure(s) in 1484 s`. Every category passes, including UB. Ordinary
+clients: 302/302 files, 6,060 passed and 11 existing skips; models 79/79;
+fixture wrappers 9/9. Introduced, baseline, environmental and runner-refusal
+suite failures are all zero. Final 24-file stress passes both original targets
+200/200 with 23 background slots active at every target completion. All 1,501
+background executions across 302 files pass and drain naturally. All 1,901
+results have native exit 0, populated counts and acknowledged keeper cleanup;
+there are zero runner refusals or assertion failures.
+
+The initial stress exposed 27 introduced false keeper-loss refusals caused by
+checking acknowledgment before queued IPC, followed by 24 aborts when that run
+was stopped. Those results and the corrected deterministic regression are
+retained separately. The correction preceded the full suite's ordinary clients;
+final focused checks on both hosts and fixture wrappers cover the final source.
+The 2,438 selected source hashes and three binary/wasm hashes stayed unchanged
+through final qualification. This journal append follows that qualification.
+
+The [Round 7 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-7--native-node-and-keeper-owned-cleanup)
+retains every result, source amendment and failure classification, including
+development attempts. Reference and whitespace checks accompany the local commit
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

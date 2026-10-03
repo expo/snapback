@@ -1,0 +1,12 @@
+✔ file watchdog diagnoses event loop and reaps detached descendants (8094.737076ms)
+✔ file watchdog diagnoses leaked handle and reaps detached descendants (8085.494072ms)
+✔ file runner preserves test failures and continues to a following healthy file (152.363378ms)
+✔ file exit cannot orphan an unreferenced detached child and report success (160.533286ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16549.742896

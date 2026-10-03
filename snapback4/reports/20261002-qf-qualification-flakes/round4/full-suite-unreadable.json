@@ -1,0 +1,86 @@
+[
+  {
+    "pid": 1284864,
+    "executable": "MainThread",
+    "start": "Sat Oct  3 06:18:30 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1387258,
+    "executable": "snapback4",
+    "start": "Sat Oct  3 06:19:17 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1400915,
+    "executable": "snapback4",
+    "start": "Sat Oct  3 06:19:38 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1401211,
+    "executable": "snapback4",
+    "start": "Sat Oct  3 06:19:39 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1399492,
+    "executable": "chrome",
+    "start": "Sat Oct  3 06:19:36 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1399572,
+    "executable": "chrome",
+    "start": "Sat Oct  3 06:19:36 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1401692,
+    "executable": "snapback4",
+    "start": "Sat Oct  3 06:19:41 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1404093,
+    "executable": "chrome",
+    "start": "Sat Oct  3 06:19:46 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1406521,
+    "executable": "chrome_crashpad",
+    "start": "Sat Oct  3 06:19:48 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1406526,
+    "executable": "chrome",
+    "start": "Sat Oct  3 06:19:48 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1406527,
+    "executable": "chrome",
+    "start": "Sat Oct  3 06:19:48 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1412655,
+    "executable": "MainThread",
+    "start": "Sat Oct  3 06:20:01 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1414058,
+    "executable": "snapback4",
+    "start": "Sat Oct  3 06:20:04 2026",
+    "reason": "EACCES"
+  },
+  {
+    "pid": 1461502,
+    "executable": "snapback4",
+    "start": "Sat Oct  3 06:22:25 2026",
+    "reason": "EACCES"
+  }
+]

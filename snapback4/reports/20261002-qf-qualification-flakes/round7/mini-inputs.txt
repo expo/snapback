@@ -1,0 +1,14 @@
+MacMini-Apt101-M5-A
+Darwin MacMini-Apt101-M5-A 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:40 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6050 arm64
+v24.18.0
+ceb0a502f4a895b9f32b5bbbb798a1e1226c18bcfa2eee188d4070f8af18d0f1  snapback4/scripts/run-client-tests.mjs
+b8b89b3ea95642b66e81d74b36d81930fa3fa4f5917ce14887fc1953ea6c6309  snapback4/scripts/test-file-owner.mjs
+30173bbec4e46fa7f31b2dd347c4afb998b1fbda88e84ca50cb052f8b4880b0b  snapback4/scripts/test-processes.mjs
+d0f14f8f0e9ff6dbf2c176e0350b9c50bee4ee38babbdf974c02a95765dc80a5  snapback4/scripts/test-progress-reporter.mjs
+0537f8c4722fb75a556f514472ff9a420bb13dde5a26bb7d54f066cdccbf4c24  snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+7e6472ede1fff37f6027fbdd9b22d98d55fedbf18c03186bc20d5fa36116c1a2  snapback4/packages/snapback4/test/test-file-runner.test.mjs
+52b335dc00ca4750c6a2954d54497c2dac27adf37abc242323d265f875443c77  snapback4/packages/snapback4/test/helpers/replacement-server.mjs
+5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935  snapback4/packages/snapback4/test/helpers/wait.mjs
+07c74f0a88f50a9242704df00f3231e1c2796973f553a7c313e6f722f3152299  snapback4/witness/lib.mjs
+ec33a7d30d37b1ed0a7027cbd668ee9a2042b99da95e090189ae45950431ad43  snapback4/apps/chat/snapback/schema.q
+b30b96dcb7e66abb4a13ba664d135c218d4d8383b2be45cbc294cbc0b90d8e44  package/snapback4

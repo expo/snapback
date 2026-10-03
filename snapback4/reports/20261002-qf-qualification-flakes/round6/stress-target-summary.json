@@ -1,0 +1,15 @@
+{
+  "worker": {
+    "runs": 200,
+    "failures": 0,
+    "assertionsPerRun": 1
+  },
+  "replacement": {
+    "runs": 200,
+    "failures": 0,
+    "assertionsPerRun": 2
+  },
+  "backgroundSlotsAtEveryTargetCompletion": 23,
+  "firstCompletion": "2026-10-03T06:01:06.131Z",
+  "lastCompletion": "2026-10-03T06:18:39.779Z"
+}

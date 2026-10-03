@@ -1,0 +1,2 @@
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- client files: 300/300; failed 0; tests {"tests":6037,"pass":6026,"fail":0,"cancelled":0,"skipped":11,"todo":0}

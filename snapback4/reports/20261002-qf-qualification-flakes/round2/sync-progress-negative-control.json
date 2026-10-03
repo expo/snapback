@@ -1,0 +1,19 @@
+{
+  "file": "/tmp/qf-r2-sync-negative-YQ0Hkt/sync.test.mjs",
+  "code": null,
+  "signal": null,
+  "passed": false,
+  "reason": "TEST_FILE_HANG",
+  "elapsed": 1286,
+  "counts": {
+    "tests": 0,
+    "pass": 0,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "stallMs": 1000,
+  "progressCount": 1,
+  "lastProgress": "test:dequeue: /tmp/qf-r2-sync-negative-YQ0Hkt/sync.test.mjs"
+}

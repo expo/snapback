@@ -1,0 +1,142 @@
+{
+  "started": "2026-10-03T05:56:32.992142+00:00",
+  "finished": "2026-10-03T06:20:44.828659+00:00",
+  "pid": 3267232,
+  "code": 1,
+  "summary": "== 1 failure(s) in 1452 s",
+  "logSha256": "b2893f3736813034c2120ec6c2ecd41c3da190d7d8817a6d7b87bdec0aabc5ab",
+  "fileResults": 303,
+  "totals": {
+    "tests": 6125,
+    "pass": 6114,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 11,
+    "todo": 0
+  },
+  "failedFiles": [],
+  "failedCategories": [
+    "cargo test (504 s)"
+  ],
+  "failedRustTargets": [
+    "snapback4-lang::prefix_reads (0.0 s)",
+    "snapback4-sim::membership_search (1.2 s)"
+  ],
+  "poolSummaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 300/300; failed 0; tests {\"tests\":6037,\"pass\":6026,\"fail\":0,\"cancelled\":0,\"skipped\":11,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "slowest": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 489377,
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "passed": true,
+      "elapsed": 440893,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 385211,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "passed": true,
+      "elapsed": 380069,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "passed": true,
+      "elapsed": 245722,
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "passed": true,
+      "elapsed": 204702,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-clock.test.mjs",
+      "passed": true,
+      "elapsed": 192993,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "passed": true,
+      "elapsed": 151449,
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "passed": true,
+      "elapsed": 141741,
+      "tests": 335,
+      "pass": 335,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/web-admission-review.test.mjs",
+      "passed": true,
+      "elapsed": 121807,
+      "tests": 55,
+      "pass": 55,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ]
+}

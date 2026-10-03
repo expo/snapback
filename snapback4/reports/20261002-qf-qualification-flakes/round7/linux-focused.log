@@ -1,0 +1,279 @@
+-- client file start: snapback4/packages/snapback4/test/test-file-runner.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: file watchdog diagnoses event loop and reaps group descendants
+ok 1 - file watchdog diagnoses event loop and reaps group descendants
+  ---
+  duration_ms: 3430.888105
+  type: 'test'
+  ...
+# Subtest: file watchdog diagnoses leaked handle and reaps group descendants
+ok 2 - file watchdog diagnoses leaked handle and reaps group descendants
+  ---
+  duration_ms: 3435.071217
+  type: 'test'
+  ...
+# Subtest: file runner preserves test failures and continues to a following healthy file
+ok 3 - file runner preserves test failures and continues to a following healthy file
+  ---
+  duration_ms: 835.777067
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 4 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 491.276394
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 5 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 500.598767
+  type: 'test'
+  ...
+# Subtest: a stale parent link cannot claim or signal a process outside the file group
+ok 6 - a stale parent link cannot claim or signal a process outside the file group
+  ---
+  duration_ms: 459.952146
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 7 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 501.5688
+  type: 'test'
+  ...
+# Subtest: file exit cannot orphan an unreferenced group child and report success
+ok 8 - file exit cannot orphan an unreferenced group child and report success
+  ---
+  duration_ms: 497.186012
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a passing file
+ok 9 - double-forked shell helper is killed after a passing file
+  ---
+  duration_ms: 480.699633
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a stalled file
+ok 10 - double-forked shell helper is killed after a stalled file
+  ---
+  duration_ms: 3378.587358
+  type: 'test'
+  ...
+# Subtest: process inspection exit cannot establish a passing cleanup
+ok 11 - process inspection exit cannot establish a passing cleanup
+  ---
+  duration_ms: 421.657403
+  type: 'test'
+  ...
+# Subtest: process inspection timeout cannot establish a passing cleanup
+ok 12 - process inspection timeout cannot establish a passing cleanup
+  ---
+  duration_ms: 421.585665
+  type: 'test'
+  ...
+# Subtest: process inspection malformed cannot establish a passing cleanup
+ok 13 - process inspection malformed cannot establish a passing cleanup
+  ---
+  duration_ms: 436.946718
+  type: 'test'
+  ...
+# Subtest: process inspection forces C locale and refuses empty output
+ok 14 - process inspection forces C locale and refuses empty output
+  ---
+  duration_ms: 1.366068
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 15 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 3.264402
+  type: 'test'
+  ...
+# Subtest: persistent inspection failure stays a failure and kills the owned group
+ok 16 - persistent inspection failure stays a failure and kills the owned group
+  ---
+  duration_ms: 103.744157
+  type: 'test'
+  ...
+# Subtest: group cleanup reaps an unsampled orphan after its sampled parent exits
+ok 17 - group cleanup reaps an unsampled orphan after its sampled parent exits
+  ---
+  duration_ms: 509.183805
+  type: 'test'
+  ...
+# Subtest: sequential and nested subtests keep progressing beyond the file stall interval
+ok 18 - sequential and nested subtests keep progressing beyond the file stall interval
+  ---
+  duration_ms: 6051.182854
+  type: 'test'
+  ...
+# Subtest: console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+ok 19 - console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+  ---
+  duration_ms: 1977.103567
+  type: 'test'
+  ...
+# Subtest: stale exited members do not reset empty snapshots; observed live leaks remain failures
+ok 20 - stale exited members do not reset empty snapshots; observed live leaks remain failures
+  ---
+  duration_ms: 490.429317
+  type: 'test'
+  ...
+# Subtest: native buffered synchronous tests are bounded until Node delivers progress
+ok 21 - native buffered synchronous tests are bounded until Node delivers progress
+  ---
+  duration_ms: 4470.951944
+  type: 'test'
+  ...
+# Subtest: name and skip filters preserve the selected assertion-bearing cases
+ok 22 - name and skip filters preserve the selected assertion-bearing cases
+  ---
+  duration_ms: 414.974459
+  type: 'test'
+  ...
+# Subtest: a process exiting after enumeration is absent at identity inspection
+ok 23 - a process exiting after enumeration is absent at identity inspection
+  ---
+  duration_ms: 80.968322
+  type: 'test'
+  ...
+# Subtest: stat comm may contain closing and opening parentheses and spaces
+ok 24 - stat comm may contain closing and opening parentheses and spaces
+  ---
+  duration_ms: 0.604326
+  type: 'test'
+  ...
+# Subtest: ps preserves command spaces and parentheses and validates start and parent metadata
+ok 25 - ps preserves command spaces and parentheses and validates start and parent metadata
+  ---
+  duration_ms: 1.306227
+  type: 'test'
+  ...
+# Subtest: present PID with malformed stat refuses the file and retains the first error and exact bytes
+ok 26 - present PID with malformed stat refuses the file and retains the first error and exact bytes
+  ---
+  duration_ms: 98.582673
+  type: 'test'
+  ...
+# Subtest: present PID with malformed ps refuses the file and retains the first error and exact bytes
+ok 27 - present PID with malformed ps refuses the file and retains the first error and exact bytes
+  ---
+  duration_ms: 97.334151
+  type: 'test'
+  ...
+# Subtest: present PID with empty, truncated or missing stat still refuses
+ok 28 - present PID with empty, truncated or missing stat still refuses
+  ---
+  duration_ms: 0.648512
+  type: 'test'
+  ...
+# Subtest: a completed file passes when its enumerated group member has exited
+ok 29 - a completed file passes when its enumerated group member has exited
+  ---
+  duration_ms: 508.787852
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 30 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 495.100068
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 31 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 481.384511
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 32 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 474.929017
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 33 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 486.686248
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 34 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 494.860549
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 35 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 464.691423
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 36 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 359.993095
+  type: 'test'
+  ...
+# Subtest: reaped keeper before its exit callback cannot make the runner send a signal
+ok 37 - reaped keeper before its exit callback cannot make the runner send a signal
+  ---
+  duration_ms: 5312.043212
+  type: 'test'
+  ...
+# Subtest: runner death closes the keeper pipe and kills its living group
+ok 38 - runner death closes the keeper pipe and kills its living group
+  ---
+  duration_ms: 231.202949
+  type: 'test'
+  ...
+# Subtest: keeper exit before its queued cleanup acknowledgement is still an expected release
+ok 39 - keeper exit before its queued cleanup acknowledgement is still an expected release
+  ---
+  duration_ms: 408.542068
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 39384.888209
+-- client file ok: snapback4/packages/snapback4/test/test-file-runner.test.mjs (39780 ms)
+-- client file start: snapback4/packages/snapback4/test/replacement-fixture.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:571344) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: replacement copy waits for a held writer, retaining real identity in a distinct store
+ok 1 - replacement copy waits for a held writer, retaining real identity in a distinct store
+  ---
+  duration_ms: 319.457081
+  type: 'test'
+  ...
+# Subtest: held replacement writer fails its test, closes its server and exits without hanging
+ok 2 - held replacement writer fails its test, closes its server and exits without hanging
+  ---
+  duration_ms: 846.98395
+  type: 'test'
+  ...
+# Subtest: replacement also closes when its post-copy admission assertion fails
+ok 3 - replacement also closes when its post-copy admission assertion fails
+  ---
+  duration_ms: 293.742321
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1533.384964
+-- client file ok: snapback4/packages/snapback4/test/replacement-fixture.test.mjs (1916 ms)
+-- client files: 2/2; failed 0; tests {"tests":42,"pass":42,"fail":0,"cancelled":0,"skipped":0,"todo":0}

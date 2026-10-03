@@ -1,0 +1,47 @@
+{
+  "changedAt": "2026-10-02T23:43:51.075112+00:00",
+  "reason": "Add session custody and exclude preexisting sessions while the sole full suite is still in its Rust phase; no client/fixture runner phase has started",
+  "changes": [
+    {
+      "path": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+      "before": "d38c2c391a2050d7cbc09e132e8964b0d56eed41995b69130177cfceedff7aeb",
+      "after": "ad12e1075269a660cd5e11d4cffd03f9d90dd078ab614ad4f248b21a4298d92d"
+    },
+    {
+      "path": "snapback4/scripts/run-client-tests.mjs",
+      "before": "3f25c6fba55fb304140ca19b20e60d112f165a26a120b1418824a47221a33036",
+      "after": "c1e6d662ae5fa68ee4c555883c023badb969b3e598f73cb977627ace503aca69"
+    },
+    {
+      "path": "snapback4/scripts/test-processes.mjs",
+      "before": "7afd45b611d4900ad71ff339289a7a93b3975b499b798c4ab911a415020dea93",
+      "after": "e0301b993c5fb1e7bcef7522459b9c3c63dc5efa791769075bebe9a3366cd40a"
+    },
+    {
+      "path": "snapback4/scripts/test-process-token.mjs",
+      "before": "c442852428ae0a0f792ba737b6d869e82090ac87b9b936820a45738cc8f30ac6",
+      "after": "0a2f43a453bcbc624bf741d67d6361e6fd0b8813bb9f8517d2b6fd1297599141"
+    },
+    {
+      "path": "snapback4/scripts/test-process-environment.py",
+      "before": "8cefddd03105b0f0a38371398b34fb5cb840439a93542b717cbcbe3d4c6c236c",
+      "after": "8073c580653f72ef30a8adddb3511b7a8e7fa03d5db22901f66d9c8baf5c9eac"
+    }
+  ],
+  "validationAmendment": {
+    "changedAt": "2026-10-02T23:50:36.024441+00:00",
+    "reason": "Validate newly read session/parent metadata and environment helper protocol; still before all client/fixture execution",
+    "changes": [
+      {
+        "path": "snapback4/scripts/test-processes.mjs",
+        "before": "e0301b993c5fb1e7bcef7522459b9c3c63dc5efa791769075bebe9a3366cd40a",
+        "after": "16fba305c57c9a79d1e7892ddf94296e0555baa63826375aa45affc1d23c7457"
+      },
+      {
+        "path": "snapback4/scripts/test-process-token.mjs",
+        "before": "0a2f43a453bcbc624bf741d67d6361e6fd0b8813bb9f8517d2b6fd1297599141",
+        "after": "85a5e5d46fff66989f0041e55af583db2fb9046385f3437a7ae6586df67066a9"
+      }
+    ]
+  }
+}
