@@ -9,6 +9,14 @@ use std::time::{Duration, Instant};
 // SQLite commit are indivisible; this is a cooperative budget, not a timeout.
 const DELIVERY_TIME: Duration = Duration::from_millis(1);
 
+// Only a scheduling hint. Durable work cursors and edge epochs remain in the
+// transaction; restart/adoption may begin another round without replaying rows.
+#[derive(Default)]
+pub(crate) struct Schedule {
+    next: usize,
+    after: std::collections::BTreeMap<String, Vec<u8>>,
+}
+
 #[derive(Default)]
 struct Progress { visited: usize, copied: usize, last: Option<Vec<u8>>, exhausted: bool }
 impl Progress {
@@ -145,15 +153,39 @@ impl Engine {
     /// records the last processed row, never the end of the prefetched page.
     /// A zero budget still processes one row so recovery always makes progress.
     pub fn run_timeline_chunk_for(&mut self, now: i64, budget: Duration) -> Result<Option<Metered>, RuntimeError> {
+        self.timeline_chunk(now, budget, false)
+    }
+
+    /// Background service rotates pending items and declarations, rather than
+    /// draining one backfill before admitting a new, small delivery. Explicit
+    /// clock drains keep their existing oldest-first order.
+    // @ref LLP 3000#contended-read-serving — bounded turns protect small deliveries as well as reads.
+    pub fn run_timeline_turn_for(&mut self, now: i64, budget: Duration) -> Result<Option<Metered>, RuntimeError> {
+        self.timeline_chunk(now, budget, true)
+    }
+
+    fn timeline_chunk(&mut self, now: i64, budget: Duration, rotate: bool) -> Result<Option<Metered>, RuntimeError> {
         let started = Instant::now();
-        for timeline in self.schema.timelines.clone() {
+        let count = self.schema.timelines.len();
+        for offset in 0..count {
+            let index = if rotate { (self.timeline_schedule.next + offset) % count } else { offset };
+            let timeline = self.schema.timelines[index].clone();
             let tx = self.store.transaction()?;
             tx.savepoint("timeline_chunk")?;
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::job(), Cut::Abort), seq);
             let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
-            let work = runner.timeline_scan(&timeline.table("Work"), "byStatusTime", vec![Value::String("pending".into())], 1, false)?.pop();
-            let Some(work) = work else { continue; };
+            let after = if rotate { self.timeline_schedule.after.get(&timeline.name).map(Vec::as_slice) } else { None };
+            let pending = vec![Value::String("pending".into())];
+            let (mut rows, mut keys) = runner.timeline_page(&timeline.table("Work"), "byStatusTime", pending.clone(), 1, false, after)?;
+            if rows.is_empty() && after.is_some() {
+                (rows, keys) = runner.timeline_page(&timeline.table("Work"), "byStatusTime", pending, 1, false, None)?;
+            }
+            let Some(work) = rows.pop() else {
+                self.timeline_schedule.after.remove(&timeline.name);
+                continue;
+            };
+            let next = keys.pop().expect("one indexed work row has one key");
             let outcome = runner.timeline_work(&timeline, &work, started, budget).and_then(|()| runner.check_final_exists());
             let events = runner.events.take();
             let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
@@ -164,6 +196,10 @@ impl Engine {
                     tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
                     partition::append(&tx, seq, &events)?;
                     tx.commit()?;
+                    if rotate {
+                        self.timeline_schedule.next = (index + 1) % count;
+                        self.timeline_schedule.after.insert(timeline.name, next);
+                    }
                     return Ok(Some(metered));
                 }
                 Err(error) if error.is_refusal() => {
@@ -180,6 +216,10 @@ impl Engine {
                     tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
                     partition::append(&tx, seq, &events)?;
                     tx.commit()?;
+                    if rotate {
+                        self.timeline_schedule.next = (index + 1) % count;
+                        self.timeline_schedule.after.insert(timeline.name, next);
+                    }
                     return Ok(Some(metered));
                 }
                 Err(error) => return Err(error),

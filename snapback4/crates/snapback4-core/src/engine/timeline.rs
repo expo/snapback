@@ -7,6 +7,8 @@ mod online;
 #[cfg(feature = "sqlite")]
 mod work;
 #[cfg(feature = "sqlite")]
+pub(super) use work::Schedule;
+#[cfg(feature = "sqlite")]
 mod activation;
 #[cfg(feature = "sqlite")]
 pub(crate) use activation::{check_activation, check_activation_read_only, check_no_rebuilds};
@@ -249,10 +251,6 @@ impl Runner<'_> {
         }
         self.timeline_known()?;
         Ok((value != Value::Null).then_some(value))
-    }
-
-    fn timeline_scan(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool) -> Result<Vec<Value>, RuntimeError> {
-        self.timeline_page(table, index, prefix, take, reverse, None).map(|(rows,_)| rows)
     }
 
     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {

@@ -84799,3 +84799,40 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+## 2026-10-03 — LU: small live deliveries get a turn during backfill
+
+The three-browser webDevice/React harness reproduces a Following delivery
+queue delay on eb1000. With 1,000 historical posts and a refollow before each
+write, the original selector drains the oldest work item before a new repost
+gets service. Background delivery now rotates pending items and declarations
+after each bounded transaction. Durable cursors and edge epochs still commit
+with their copies; restart resets only scheduling hints. Explicit clock drains
+retain oldest-first order. CT's pacing, slice limits, aged opportunities and
+read admission are unchanged. LLP 3000 §7 and the feeds guide record the policy.
+
+All experimental servers, browsers and burners were confined to CPUs 80–95;
+formal before/after runs used the same ten physical cores, 80–89, at 0/20/120
+workers. At 120 workers, twenty writes per shape give slower-remote render p95
+of 36,389.7→1,788.2 ms for reposts, 1,917.0→932.4 ms for messages and
+2,279.1→622.1 ms for reactions. All meet the two-second heavy-load p95 target.
+The idle repost p95 is still 929.3 ms, above the 500 ms target: matching query
+responses can wait through repeated change evidence before publication.
+That residual has an [open issue](../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md);
+no authority/retention fence or observation budget was loosened. The small
+steady-state control remains below 500 ms, including heavy load. This does
+not claim to identify the exact frozen calibration app's cause.
+
+Five deterministic service/epoch/restart tests and seventeen existing timeline
+tests pass. The full suite completed in 1,595 seconds with one introduced guide
+line-budget failure; shortening the guide to 401 lines and rerunning its entire
+target passed 112/112. Every other suite category passed, including 6,035 client
+tests, all 79 models and the new Chromium contention witness. Reference and
+whitespace checks pass. Locked wasm stays at 2,048,676 raw / 617,398 gzip bytes
+against the unchanged 618,040-byte cap, retaining its macOS allowance.
+
+The [LU report](./reports/20261003-lu-live-update-latency/REPORT.md) retains
+per-stage percentiles, individual timestamps, confined-load evidence, the
+development failures and reproduction tools. Large raw traces remain ignored
+under `target/`. No remote machine, unrelated process signal, push or publication
+was used.

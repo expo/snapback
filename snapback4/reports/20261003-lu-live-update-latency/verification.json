@@ -1,0 +1,60 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT LU_TEST_CPUS=90-91 taskset -c 0-31,48-79 bash snapback4/scripts/test.sh",
+  "elapsed_seconds": 1595,
+  "exit": 1,
+  "failures": [
+    "guide::start::openings_fit_without_growing_the_eight_reference_cards: feeds 402 > 401"
+  ],
+  "correction": "feeds wording shortened to 401 lines; full guide target rerun: 112 passed, 0 failed",
+  "categories": [
+    "-- ok: cargo build (10 s)",
+    "-- ok: wasm build (61 s)",
+    "-- ok: docs budget (8 s)",
+    "-- ok: release guard (10 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (3 s)",
+    "-- ok: chat app check (0 s)",
+    "-- FAIL: cargo test (515 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (2 s)",
+    "-- ok: fixture wrapper tests (15 s)",
+    "-- ok: client tests (621 s)",
+    "-- ok: client models (365 s)"
+  ],
+  "client_tests": {
+    "passed": 6035,
+    "skipped": 11,
+    "failed": 0
+  },
+  "client_models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "affected_timeline_tests": {
+    "passed": 22,
+    "failed": 0
+  },
+  "reference_check": "ref-check: ok \u2014 527 LLP docs, 10286 refs in 34164 files, 0 errors, 0 unchecked",
+  "raw_logs": {
+    "/tmp/lu-full-suite.log": {
+      "bytes": 989497,
+      "sha256": "d02b5d4ebe67153b8fcf6fa550b90a532b388a736f47739e4621754fac80d339"
+    },
+    "/tmp/lu-guide-final.log": {
+      "bytes": 8298,
+      "sha256": "67651a15e116783ad48ba259852b15f744575627d863e54cc74cdb11f7afe1c7"
+    },
+    "/tmp/lu-turn-tests3.log": {
+      "bytes": 2670,
+      "sha256": "c9fa7809d81ad50981dadd3b50ca09be8720d6b5e2ec6ef0a4d773435dac7110"
+    },
+    "/tmp/lu-ref-check.log": {
+      "bytes": 81,
+      "sha256": "a2d98093107d5427b50d2e6bf8365acc68e077c96d9abe0e66665941de7302ce"
+    },
+    "/tmp/lu-ref-check-final.log": {
+      "bytes": 81,
+      "sha256": "b1bb2252598345b480cdc8897f39d66f2cf99bb6dec9e5485b33f90dac87b65d"
+    }
+  }
+}
