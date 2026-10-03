@@ -83172,3 +83172,31 @@ receipt snippet 2 → 2; whole-client deltas stay −22 and +4 respectively.
 Details and lossless logs: reports/20261003-r-receipt-binding/REPORT.md, Round 1,
 and round1/. The same record is appended to ~/sb5-lanes/r.report.md. Commit locally
 with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+## 2026-10-03 — Lane FD: Following keeps the history window
+
+Recorded Charlie's ruling: Following copies each actor's newest 1,000 events at
+follow time and receives new events afterward; older posts are on the actor's
+profile. LLP 3000.016.000 is Shelved, linked from its parent, with the ruling in
+LLP 3000.016 §3 and LLP 3000.032 §4.4. Closed the follow-history-options ticket.
+The version-3 `timeline experimental history all` prototype remains recoverable
+on `origin/sb5/f-follow-history-prototype-parked` at 0936b660f0; no engine,
+compiler or client implementation is imported. Any future older Following
+support should prefer on-demand pages under a separate design.
+
+Imported only F's RFC and reports/20261003-f-follow-history/ from that commit.
+All 42 evidence files (238,996 file bytes; 384 KiB on disk) match their source
+blobs, and every RFC measurement is preserved. The reasons are followers ×
+history storage (99,000 extra copies / about 286 MB for one reader of a
+100,000-event actor; about 9.9M copies for 100 readers by arithmetic), whole-feed
+withholding during backfill, growing catch-up traffic despite the same device
+floor, and 2/14 calibration mentions with zero workaround lines.
+
+The feeds card states this product boundary, supplies a one-query server
+profile read, and offers “See older posts on their profile” links at the
+complete feed's end. It remains 401/401 lines, with its 15/15-line opening.
+The initial placement beside windowed sources emitted N_SYNC_ORDER; placing
+the profile query with the card's online-only source example makes its server
+requirement explicit. Complete guide suite: 110 passed, 0 failed. Ref-check:
+0 errors, 0 unchecked; edited document links resolve. This is a documentation
+commit only, with no push or publication.
