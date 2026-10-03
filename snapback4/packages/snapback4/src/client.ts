@@ -1,3 +1,4 @@
+import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
@@ -203,11 +204,16 @@ export function createClient(options: ClientOptions): Client {
   const history = new WriteHistory();
   const mutationIds = new MutationIds();
   const pendingEvents = pendingChanges();
+  let intentEpoch = 0;
+  const intentScope = () => closed || !credentials || storeRefusal ? undefined : `${viewer}:${storeIdentity}`;
+  const intentPresentation = new OnlineIntentPresentation(intentScope, pendingEvents.notify);
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
     mutationIds.finish(write.id);
     const entry = pending.find(entry => entry.id === write.id);
+    if (entry && !entry.retired && entry.owner === viewer) intentPresentation.settled(write, { id: entry.id, op: entry.op.name, args: entry.args, state: entry.state, predicted: [] });
+    intentPresentation.release(write.id);
     if (entry) entry.done = true;
     pendingEvents.notify();
     for (const listener of writeListeners) listener(write);
@@ -215,6 +221,7 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const resetWatches = (publish = true, cause = "schema-reset") => {
+    intentEpoch++; intentPresentation.items(); pendingEvents.notify();
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null, null); }
@@ -286,7 +293,7 @@ export function createClient(options: ClientOptions): Client {
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
 
-  const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; state: "queued" | "sent" | "held"; reason?: string; done?: boolean; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
+  const pending: { owner: Principal | null; retired?: boolean; id: string; op: Mutation<unknown, unknown>; args: unknown; state: "queued" | "sent" | "held"; reason?: string; done?: boolean; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
   let sending: (typeof pending)[number] | null = null;
 
   const failUnsentWrites = (why: Refusal) => {
@@ -318,6 +325,7 @@ export function createClient(options: ClientOptions): Client {
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
+    intentPresentation.clear();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
@@ -355,6 +363,13 @@ export function createClient(options: ClientOptions): Client {
 
   const setViewer = (next: Principal | null) => {
     if (viewer === next) return;
+    // @ref LLP 3000.023#3.4 — account retirement also fences queued arguments
+    // and late receipts. The initial token-only identification adopts its queue.
+    for (const entry of pending) {
+      if (viewer !== null) entry.retired = true;
+      else if (!entry.retired) entry.owner = next;
+    }
+    if (viewer !== null) intentPresentation.clear();
     viewer = next;
     void delivery?.reset(true);
     resetWatches(true, "viewer");
@@ -369,6 +384,7 @@ export function createClient(options: ClientOptions): Client {
 
   function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
     if (storeRefusal) return;
+    intentPresentation.clear();
     void delivery?.reset(true);
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
@@ -621,7 +637,11 @@ export function createClient(options: ClientOptions): Client {
     return current;
   };
 
-  function acceptDelivery<R>(result: QueryResult<R>, read: Read<unknown>) {
+  function acceptDelivery<R>(result: QueryResult<R> & { retryExhausted?: boolean }, read: Read<unknown>) {
+    if ("data" in result.read && !result.transportOffline && !result.retryExhausted) {
+      const scope = intentScope();
+      offerIntentRead(read, scope, result.seq, () => scope != null && scope === intentScope() && currentRead(result));
+    }
     offerDelivery(client, read, current => { void delivery?.accept(result.delivery, current).catch(() => {}); },
       () => !closed && !storeRefusal && credentials && currentRead(result));
   }
@@ -1036,8 +1056,9 @@ export function createClient(options: ClientOptions): Client {
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });
-        const entry: (typeof pending)[number] = { id, op: op as Mutation<unknown, unknown>, args, state: "queued", response: closingResponses.request(), resolve: settle };
+        const entry: (typeof pending)[number] = { owner: viewer, id, op: op as Mutation<unknown, unknown>, args, state: "queued", response: closingResponses.request(), resolve: settle };
         pending.push(entry);
+        intentPresentation.admit(id);
         pendingEvents.notify();
         history.remember(write);
         const attempt = flush();
@@ -1054,7 +1075,7 @@ export function createClient(options: ClientOptions): Client {
     }),
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
     async pendingWrites() {
-      return closed || !credentials || storeRefusal ? [] : pending.filter(entry => !entry.done).map(entry => ({
+      return closed || !credentials || storeRefusal ? [] : pending.filter(entry => !entry.done && !entry.retired && entry.owner === viewer).map(entry => ({
         id: entry.id, op: entry.op.name, args: JSON.parse(JSON.stringify(entry.args)), state: entry.state,
         ...(entry.reason ? { reason: entry.reason } : {}), predicted: [],
       }));
@@ -1167,6 +1188,7 @@ export function createClient(options: ClientOptions): Client {
       cancelReadyNotification(); readyNotifications.clear();
       if (closing) return closing;
       closed = true;
+      intentPresentation.clear();
       void delivery?.stop();
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
@@ -1203,5 +1225,10 @@ export function createClient(options: ClientOptions): Client {
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();
+  registerPendingIntents(client, { scope: intentScope, revision: () => `${credentialRevision}:${intentEpoch}`, retain: intentPresentation.retain, read: async () => {
+    const scope = intentScope(), epoch = intentEpoch, revision = credentialRevision, pending = await client.pendingWrites();
+    return scope != null && scope === intentScope() && epoch === intentEpoch && revision === credentialRevision ? intentPresentation.sync(pending) : [];
+  } });
+  registerIntentObserver(client, ids => intentPresentation.observed(ids));
   return client;
 }

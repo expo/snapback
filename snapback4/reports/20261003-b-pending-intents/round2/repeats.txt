@@ -1,0 +1,50 @@
+run 1 exit 0
+✔ React hooks and reference-app lifetimes (3697.845155ms)
+ℹ tests 91
+ℹ suites 0
+ℹ pass 91
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7073.838634
+run 2 exit 0
+✔ React hooks and reference-app lifetimes (4402.976256ms)
+ℹ tests 91
+ℹ suites 0
+ℹ pass 91
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7117.972782
+run 3 exit 0
+✔ React hooks and reference-app lifetimes (4138.109969ms)
+ℹ tests 91
+ℹ suites 0
+ℹ pass 91
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8193.46093
+run 4 exit 0
+✔ React hooks and reference-app lifetimes (4299.182415ms)
+ℹ tests 91
+ℹ suites 0
+ℹ pass 91
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7097.998183
+run 5 exit 0
+✔ React hooks and reference-app lifetimes (4372.153826ms)
+ℹ tests 91
+ℹ suites 0
+ℹ pass 91
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7180.184388

@@ -24,6 +24,12 @@ one ordinary query per scope, combining current server and retained device
 hits online. `usePage` accumulates by message ID; `readPresentation(page.read).incomplete` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
 
+For an explicit-ID send, `guide client` shows `usePendingItems` over text and
+media custody, including success awaiting observation. Supply the conversation
+predicate and both keys; the starter's auto-minted message key cannot be guessed
+from a mutation ID. Keep saved references for failures/unknown outcomes.
+`usePendingState` selects a pending like/repost value without changing its mutation.
+
 ## Background notifications
 
 `snapback/workers/notifications.mjs` declares a supervised worker for dev and

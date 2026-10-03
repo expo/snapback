@@ -110,6 +110,34 @@ function scalar(read: Read<boolean | number | string | undefined>) {
   assert.deepEqual(result.codes, [], result.text);
 });
 
+test('pending items declarations preserve the row/intent union and typed operation arguments', () => {
+  const result = check(`import { usePendingItems, usePendingState } from './dist/react.js';
+import type { Mutation, Read } from './dist/contract.js';
+declare const send: Mutation<{ id: string; room: string; text: string }, void>;
+declare const media: Mutation<{ id: string; room: string; photo: {id: string} }, void>;
+const items = usePendingItems({ writes: [send, media], rows: [{ id: 'row', ordinal: 1 }],
+  scope: w => w.args.room === 'room', rowKey: r => r.id, intentKey: w => w.args.id });
+for (const item of items) {
+  if (item.kind === 'row') {
+    const n: number = item.row.ordinal;
+    // @ts-expect-error rows are not intents
+    item.write;
+  } else {
+    const id: string = item.write.args.id;
+    // @ts-expect-error intent cannot invent an ordinal or a row
+    item.row.ordinal;
+    // @ts-expect-error a mixed operation must narrow its arguments
+    item.write.args.photo.id;
+  }
+}
+declare const set: Mutation<{ post: string; set: boolean }, void>;
+declare const read: Read<boolean>;
+const selected = usePendingState(set, { read, scope: w => w.args.post === 'p', current: false, value: a => a.set });
+const b: boolean = selected.value;
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});
+
 test('receipt family preserves mapped operation types and useSeen requires explicit visibility', () => {
   const result = check(`import type { Client, ReceiptFamily } from './src/contract.ts';
 import { useSeen } from './src/react.tsx';

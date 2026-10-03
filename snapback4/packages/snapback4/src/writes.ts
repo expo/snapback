@@ -177,6 +177,17 @@ export class WriteHistory {
     ]);
   }
 
+  /** Read-only presentation facts. Never refresh a receipt's retention or recover
+   * from shared history to retire this device's custody. */
+  async presentationReceipts(): Promise<ReadonlyMap<string, Terminal>> {
+    const saved = await this.storage?.read();
+    return new Map([
+      ...[...this.values.values()].filter((write): write is Terminal => write.state !== "pending").map(write => [write.id, write] as const),
+      ...(saved ? (JSON.parse(saved) as Terminal[]).map(write => [write.id, write] as const) : []),
+      ...this.unpersisted,
+    ]);
+  }
+
   async acknowledged(id: string, seq: number, qualified = false): Promise<Terminal | undefined> {
     // A replacement refusal says execution is unknown. A correlated outbox
     // acknowledgement proves it; discard the speculative refusal before read

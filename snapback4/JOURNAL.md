@@ -83382,3 +83382,156 @@ Evidence: ~/x27r-evidence/round1/; appended report: ~/x27r.final.md, Round 1.
 Keep supervisor commit 4107563753 and append this existing journal as explicitly
 instructed; its size is not a review finding. No push, publish, tag, other
 simulator, other worktree or delegated agent.
+
+## 2026-10-03 — B: pending intent cards through observed settlement
+
+Implemented Charlie's 2026-10-02 ruling on LLP 3000.032 §4.2. The decided API
+is in LLP 3000.019 §3.3.1: `usePendingItems` composes explicit scoped row/intent
+keys over existing custody and receipt facts; `usePendingState` selects the
+last admitted set-state intent. Terminal local success remains `settling` until
+the existing device observed-write retirement. Prediction only suppresses a
+duplicate card. Scope retirement synchronously exposes no old arguments,
+including during failed or delayed reads. No second outbox, row, receipt
+accounting, media handle, timer retirement or replay mechanism was added.
+The Client contract and Rust engine are unchanged. Online success references
+are session-only; the existing journal's retirement is unchanged.
+
+Real Cal29 B1/B2/B3 rewrites cover text, omitted media sends and like/repost
+selection. Selected code remains 3 physical lines, 561 → 753 B (+192 B);
+whole-file change is +204 B. The pilot shows no code-size saving or measured
+builder-score improvement. Both real rewritten files typecheck. Paved client,
+writes/social guide cards, starter recipe, package README/reference and emitted
+TypeScript declaration docs describe the API. Report and specimens:
+[Lane B](./reports/20261003-b-pending-intents/REPORT.md).
+
+Checks: 14 pending-intent regressions (process and wasm), 110 guide tests,
+150 affected client reruns, 30 store integration and 56 row-view unit reruns,
+and 48 event-slot client reruns pass. The complete required suite ran once;
+its model stage passed all 79 tests. Original summary, verbatim:
+
+```text
+== 2 failure(s) in 2103 s
+   cargo test
+   client tests
+```
+
+Lane-owned guide/example defects were fixed; environmental failures came from
+an initially symlinked private-store directory, a displaced generated trace,
+foreign shared CLI output, and SDK-helper discovery from the shared binary path.
+Every failing case is named in the report and passed its affected rerun. There
+is no single green full-suite receipt. Latest wasm: 2,031,329 B raw / 610,520 B
+gzip, below the unchanged 610,782 B cap; initial build was 2,030,224 / 610,085.
+These shared-target artifacts are not a paired feature-size attribution.
+Commit locally with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push
+or publication.
+
+
+## 2026-10-03 — B round 1: bounded ownership and sequence-backed settlement
+
+Folded both NOT READY blind reviews of 80ec6b66dd. Mounted hooks retain only
+matching online intent arguments, bounded at 256 references and 1 MiB serialized
+payloads, oldest first. Reads reuse frozen payloads; unmount/resource changes
+release unowned arguments. Eviction marks previously returned references
+`evicted` and removes them from later reads, never claiming row observation.
+A 1,000-write probe without a hook retains zero entries (2 B serialized `[]`);
+with an owner it retains 256 (316,674 B for the 1 KiB-payload fixture).
+
+Presentation scope is principal/store; separate read revisions fence bearer,
+schema and generation resets while settling text survives. Account/store
+retirement and close still withdraw synchronously. Online peers retain arguments
+they observed in shared custody across another owner's receipt transition;
+journal entries precede identification callers. No journal format, persistence,
+replay, Client contract or wasm engine change. `usePendingState` accepts the
+authorized `read` supplying current state and retires success when its private
+sequence covers the receipt, including an opposite value from another writer.
+LLP 3000.019 §3.3.1 and the paved client documentation state the corrected rules.
+
+Six Node regressions and three React correctness regressions fail against
+round-0 code. Two further real-online React tests kill the requested disabled-
+observation and predicted-retirement mutations. Empty-argument restart mutation
+is rejected on both process and wasm. Final repeat batch: 83/83 passed five
+times, including all new cases, existing pending-intent process/wasm tests and
+the complete React harness. Affected client run: 363/363. Whole guide: 110/110;
+type/declaration/example checks and docs budget pass. Full suite not rerun this
+round, as requested. Final wasm: 2,031,329 B raw / 610,519 B gzip, 263 B below
+the unchanged cap. Shared-target artifacts are not paired feature attribution.
+
+B1–B3 pilot typechecks again and still saves zero physical lines: 561 → 753 B
+(+192 B selected, +204 B for both whole files); unchanged from round 0. Its
+local-device code does not measure online read-evidence plumbing. The Round 1
+report records baseline failures, mutation controls, development fixture/type
+errors and all final checks. Local commit with the requested Astra co-author
+trailer; nothing pushed or published.
+
+
+## 2026-10-03 — B round 2: principal fences and terminal-only intent retention
+
+Folded both round-1 NOT READY reviews of 6cd62525b4. Fixed the raw-client
+viewer disclosure first: queued arguments carry their admitting principal and
+retire permanently on account change, including late receipt capture. Initial
+token-only identification still adopts its own queue. The presentation audit
+also found direct online custody reactivating across Alice → Bob → Alice;
+that custody lifetime now pauses at its first viewer change.
+
+Pending journal rows borrow their payloads outside the 256-reference / 1 MiB
+terminal pool, so pending backlogs cannot evict a successful card. Arguments
+copy/freeze once at the successful receipt transition. Each id keeps one
+admission ordinal across pending/settling output; a newer settled toggle wins
+over an older held peer write. Payload-free observation markers block recapture
+and settlement retries while failed receipt persistence leaves custody
+outstanding, and release with custody or scope retirement. No new journal
+format, replay authority, contract, engine or meter change.
+
+Six permanent Node regressions fail on exact round-1 source, including the
+additional custody round trip; the token-only preservation control passes.
+The real React saved-read test retains covering sequence evidence, rotates the
+bearer, and refuses to retire success with the invalidated read. Removing only
+`evidence.current()` fails that assertion on both baseline and final source.
+All 91 focused process/wasm/React tests pass five times (455 executions), all
+363 affected clients pass, the whole guide passes 110, and type/declaration/
+example, delivery-boundary and docs-budget checks pass. Development errors
+and intentional negative controls are retained and classified in the report;
+no final ordinary failure is waived. No complete suite was requested or run.
+
+Wasm is 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B
+cap. Shared-target differences are not paired feature-size attribution. The
+actual Cal29 pilot typechecks and has unchanged measurements: zero lines saved,
+561 → 753 B selected (+192 B), +204 B whole files, no builder-score claim.
+LLP 3000.019 §3.3.1 and the client reference state the corrected rules. The
+[Round 2 report](./reports/20261003-b-pending-intents/REPORT.md#round-2--both-round-1-reviews-folded-2026-10-03)
+retains reproductions, mutation loaders and qualification evidence. Commit
+locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published.
+
+
+## 2026-10-03 — B round 3: eviction ordering and opening custody retirement
+
+Folded the final round-2 READY WITH CHANGES items on aa5d4c15fc. Online eviction
+keeps a payload-free admission marker so `pendingState` returns `current` rather
+than an older pending value, unless a later scoped match exists. With arguments
+discarded, the marker conservatively fences earlier selection for its operation.
+Markers coalesce to one per operation with older owned intent and release with
+that intent, final unmount or scope retirement. The 256-reference / 1 MiB terminal
+payload bound stands. No new custody, replay, journal format, contract or meter.
+
+Custody subscribes to viewer changes before its opening journal read, records a
+flag while initialization is incomplete, then pauses on that flag or a different
+viewer. A full Alice → Bob → Alice during the read cannot revive startup-secret.
+The raw regression now holds its reply through that same round trip and asserts
+empty direct/pending/mounted views before and after settlement. Removing either
+permanent-retirement guard independently fails at the corresponding assertion.
+The client guide distinguishes withdrawing a prediction from confirmed retirement;
+LLP 3000.019 §3.3.1 records eviction ordering and opening-read retirement.
+
+Both cap cases (two 600,000-byte settles; 256 tiny settles), the opening-read case,
+and the wording assertion fail on exact reviewed source. The raw implementation
+was already correct; its new test passes the baseline and kills the requested
+mutation. All 96 focused process/wasm/React tests pass five times (480 executions),
+all 363 affected clients pass, guide 110 passes, declaration/example/type checks
+pass, and docs budget and delivery-boundary checks pass. Wasm: 2,030,224 B raw /
+610,085 B gzip, 697 B below the unchanged cap. No complete-suite run was requested.
+Evidence and bounded-marker semantics: the
+[Round 3 report](./reports/20261003-b-pending-intents/REPORT.md#round-3--final-round-2-review-items-2026-10-03).
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published.
+Reference audit: 526 LLP docs, 10,110 refs, zero errors or unchecked references.

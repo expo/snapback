@@ -36,7 +36,7 @@ import { runsOnServer, localWatch, predictedTables, armLocalPresence, notifyLoca
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
-import { localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
+import { registerLocalPendingIntents, localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
 import { episodeDeadline } from "./read-episode.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
@@ -254,7 +254,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const approvals = deferReadNotifications(() => { endLingering(watches.values()); answers.clear(watches.values(), true, undefined, cause); });
     // Finish invalidating every answer before invoking application callbacks.
     const deliver = () => {
-      approvals();
+      approvals(); pending.notify();
       if (wasAcquired) for (const listener of acquiredListeners) listener(false);
       for (const watch of watches.values()) {
         notify(watch);
@@ -1484,6 +1484,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void flush();
     scheduleRefresh();
   };
+  registerLocalPendingIntents(client, queued, history, identification, holds, () => unavailable() || partitionDenied ? undefined : `${viewer}:${storeIdentity}`, () => acquired, () => `${credentialRevision}:${incarnation}`);
   progress.bind(client); readWork.bind(client, watches);
   bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);

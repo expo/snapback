@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import {syncBuiltinESMExports,registerHooks} from 'node:module';
+let mutations=0;
+const transform=source=>{const before=' && evidence.current()';if(!source.includes(before))throw Error('read evidence mutation missing');mutations++;return source.replace(before,'')};
+const replace=(path,body)=>{if(!String(path).endsWith('/snapback4/packages/snapback4/src/pending-items.ts'))return body;const after=transform(String(body));return typeof body==='string'?after:Buffer.from(after)};
+const original=fs.promises.readFile.bind(fs.promises);
+fs.promises.readFile=async(path,...args)=>replace(path,await original(path,...args));
+const originalSync=fs.readFileSync.bind(fs);
+fs.readFileSync=(path,...args)=>replace(path,originalSync(path,...args));
+syncBuiltinESMExports();
+registerHooks({load(url,context,nextLoad){const result=nextLoad(url,context);return url.endsWith('/snapback4/packages/snapback4/dist/pending-items.js')?{...result,source:transform(String(result.source))}:result;}});
+process.on('exit',()=>{if(mutations)console.log('REVIEW_MUTATION ignore stale authorized read evidence; transformed reads='+mutations)});
