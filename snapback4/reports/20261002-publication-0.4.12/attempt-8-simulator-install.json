@@ -1,0 +1,15 @@
+{
+  "step": "simulator-install",
+  "command": [
+    "xcrun",
+    "simctl",
+    "install",
+    "81961F7D-DF85-4A7A-B376-20D9073AC101",
+    "target/expo-release/Snapback4chat.app"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0412/snapback4",
+  "start": 1791026751.5193799,
+  "end": 1791026754.344843,
+  "seconds": 2.825,
+  "exit": 0
+}

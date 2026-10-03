@@ -1,0 +1,34 @@
+witness: using simulator Snapback4-Expo-041b-20260924 (81961F7D-DF85-4A7A-B376-20D9073AC101), runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: offline-done
+witness: backend-ready
+witness: reconnect-signaled
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+witness: Installed-app scenario complete (preparation unknown) — command's own receipt path: /Users/ccheever/projects/snapback-pub-0412/snapback4/reports/20261002-expo-0.4.12/offline-ios-run.json
+witness: using simulator Snapback4-Expo-041b-20260924 (81961F7D-DF85-4A7A-B376-20D9073AC101), runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-relaunch
+witness: relaunch
+witness: offline-relaunched
+witness: waiting-offline-done
+witness: offline-done
+witness: backend-ready
+witness: reconnect-signaled
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+witness: Installed-app scenario complete (preparation unknown) — command's own receipt path: /Users/ccheever/projects/snapback-pub-0412/snapback4/reports/20261002-expo-0.4.12/restart-ios-run.json
+{"witness":"published-ios","ok":true,"ms":45970,"artifacts":"/Users/ccheever/projects/snapback-pub-0412/snapback4/reports/20261002-expo-0.4.12"}

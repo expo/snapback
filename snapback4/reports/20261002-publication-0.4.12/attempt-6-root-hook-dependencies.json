@@ -1,0 +1,13 @@
+{
+  "step": "root-hook-dependencies",
+  "command": [
+    "bun",
+    "install",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0412",
+  "start": 1791013808.5186749,
+  "end": 1791013808.763515,
+  "seconds": 0.245,
+  "exit": 0
+}

@@ -1,0 +1,15 @@
+{
+  "step": "expo-publish",
+  "command": [
+    "npm",
+    "publish",
+    "../../target/expo-0.4.12/snapback4-expo-0.4.12.tgz",
+    "--access",
+    "public"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0412/snapback4/packages/snapback4-expo",
+  "start": 1791042757.659852,
+  "end": 1791042761.3465521,
+  "seconds": 3.687,
+  "exit": 0
+}
