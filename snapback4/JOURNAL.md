@@ -82990,3 +82990,110 @@ Local commit with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`;
 nothing pushed or published.
 Reference validation: 525 LLP docs, 10108 refs, zero errors or unchecked refs.
 Final diff whitespace check passes.
+
+## 2026-10-03 — UB: advise on shape reads that outgrow the meter
+
+Calibration #29's inbox was accepted at check and refused only at full scale.
+Before changing the compiler, reproduced the silent check and the inclusive
+follow's E_SHAPE_EXCEEDS_METER with 9,000 messages, both for an inline unread
+count and the remaining unreadIn helper. The reduced schema and engine witness
+are now compiler regressions.
+
+Add N_SHAPE_METER, advisory rather than static refusal, under LLP 3000.007 §24.
+It identifies the query shape field, source and lowered read site, including
+transitive helpers, and points to maintained counts/views, bounded previews or
+separate queries. Fitting declared table/group caps, pinned total unique keys,
+maintained scalar lookups, ordinary bounded pages and indexed extrema stay
+clean. Residual filters can inspect unbounded rejected candidates despite a
+page limit. Plain unbounded nested collections retain E_QUARRY_BOUND. The note
+is not a whole-shape cost certificate and changes no runtime admission or IR.
+
+Update the why registry and pages, reads/views guidance and defining/recovery
+facts. Repair the jobs guide's own raw unread shape by sharing the inbox and a
+separate unreadTotal query with the digest; retain exact totals and atomic
+emission. Update the corresponding job witnesses and the search-repair test's
+expectation for valid residual-filter meter advice.
+
+Sweep all 606 repository Quarry files (including 75 calibration source modules)
+and calibration #29's two-module schema: nine justified notes in five groups,
+zero new refusals or changed exits. 201 groups already refuse under the baseline
+and are recorded as such. The maintained inbox remains clean. Final affected
+checks pass: 110 guide, seven shape-meter, 18 job-viewer, 84 Quarry check, 242
+CLI unit, 40 expiry-write and 27 fix tests. Wasm is unchanged byte-for-byte:
+2,030,224 B raw / 610,085 B gzip against the unchanged 610,782 B budget.
+
+The requested root inventory check fails in unchanged Snapback 1 inputs:
+unregistered caps.test.mjs, stale/missing generated artifacts and authoring
+profile baselines, and the capabilities page size budget. Snapback 4's diagnostic
+registry checks pass. Shared target artifacts were replaced by concurrent lanes;
+pinned CLI copies and a separate artifact fingerprint within the required shared
+target make the final focused checks attributable to this source. All commands,
+reproduction, complete diagnostic census and failure classifications are in
+`~/sb5-lanes/ub.report.md` with logs in `~/sb5-lanes/ub-evidence/`.
+
+The single complete suite reports exactly `== 2 failure(s) in 1758 s`, exit 1:
+`cargo test` and `client tests`. Rust has ten failed targets: 25 private-store
+assertions rejected this lane's initial ignored target symlink; two job-viewer
+and two search-repair assertions needed the expectation updates above; two
+CLI/guide comparisons and four current-executable child launches suffered shared
+artifact replacement; one simulator target exited without output, with cause
+unproven. Final focused reruns cover all failures and pass. Replacing the target
+symlink with a real local directory also left the event-slot trace in its old
+location; regenerating it restored all 48 affected client cases. The other 36
+client failures could not find witness-acquire's JavaScript helper outside the
+shared executable's ancestors; its existing helper-path override restored all
+43 witness tests. No assertion was weakened to accommodate those environment
+failures. Full-run clients: 5,700 passed, 38 failed, ten skipped; all 79 models
+passed. The whole suite was not rerun; its red result remains explicit.
+
+Reference audit: `ref-check: ok — 525 LLP docs, 10104 refs in 32454 files, 0 errors, 0 unchecked`.
+One local commit with the requested GPT-6 Astra co-author trailer; nothing
+pushed or published.
+
+## 2026-10-03 — UB round 1: fold both blind shape-meter reviews
+
+Fold Astra and Grok's READY WITH CHANGES reviews of b2c0984105. Pair index
+components with scalar prefix keys so words terms cannot pin the next column;
+exclude words scans from the ordinary-page exemption unless their candidates
+have an independent fitting bound. Ordered min/max use the one-value advice
+bound only on non-expiring tables: expired candidates are charged and skipped.
+Correct the why page, LLP 3000.007 §24 and the views card's unreadCounts lookup.
+Runtime admission, authorization, IR and meters are unchanged.
+
+Eleven shape-meter tests pass. New regressions cover both reviewed word-index
+shapes and independently assert on their words scan; correct table/room caps
+stay clean. The literal 'a z' search over 9,000 children containing only 'a'
+emits advice and its cursor follow refuses E_SHAPE_EXCEEDS_METER (64 MiB heap
+isolates the unchanged examined ceiling). Both min and max over 9,000 expired
+children emit advice and refuse on follow at default ceilings. The clean extrema
+fixture gains expiry and capped-expiry controls. An unpinned owner read rule's
+nested page now has uncapped and capped N_SHAPE_METER controls.
+
+All four applied mutations fail tests: forcing uniform=true, restoring the
+word pin bug, allowing words pages, and allowing expiring seeks. Restored code
+passes all eleven. The existing grouped-search guide examples now teach their
+shape note and require that precise note; builtin repair predicates require
+both words and residual-browse advice. No vacuous empty-note assertion remains
+there. Guide wording was shortened to keep existing budgets and compiled examples.
+
+Requested affected checks pass: 110 guide, 18 job-viewer, two search-guidance,
+eight search-repair, 84 Quarry check and 40 expiry-write tests (the latter also
+includes the search-repair module). No complete suite was run this round.
+
+Repeat the same 606-file / 393-group census plus calibration #29. Shape notes
+rise from nine in five groups to 26 in 21 groups: 17 additional words-preview
+notes, each classified in the Round 1 report. All are justified: sixteen have
+no message candidate cap; one has a 200,000-row cap above the ceiling. The 193
+accepted groups and 201 baseline refusals are unchanged, with zero new refusals
+or changed exits. Calibration #29's notes are unchanged.
+
+The isolated wasm output matches round 0 byte-for-byte: 2,030,224 B raw /
+610,085 B gzip against 610,782 B, 697 B spare. An earlier mutable shared-target
+artifact measured 610,519 B; a unique Cargo output followed by the same pinned
+optimizer steps recovered the original SHA-256. No budget raised. Logs, mutation
+results, full sweep outputs and each new note's classification are under
+`~/sb5-lanes/ub-evidence/`; `~/sb5-lanes/ub.report.md` has the Round 1 report.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+Reference validation passes: 525 LLP docs, 10,104 refs in 32,454 files,
+zero errors and zero unchecked; git diff --check passes.

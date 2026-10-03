@@ -366,6 +366,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_NEVER_COMPLETE", "A page's read rule is checked once when the prefix decides it, else per row, and a page whose rule still depends on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names the missing equality columns and an existing compatible index when one is available)."),
     ("N_NOT_PREDICTABLE", "N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one note per mutation for lost eligibility or an added horizon risk, explicitly distinguishing a call that may queue from an operation that never predicts."),
     ("N_NOW_SERVER", "N_NOW_SERVER names a newly server-run query."),
+    ("N_SHAPE_METER", "candidate population can outgrow the default 8,192-row examined meter"),
     ("N_NO_CURSOR", "N_NO_CURSOR: a returned page cannot continue"),
     ("N_SYNC_ORDER", "Ascending reads and other indexes have unknown coverage."),
     ("N_NO_HORIZON", "A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`)."),

@@ -53,7 +53,7 @@ query repeatedFilters(roomId: rooms, c: cursor ?):
   return messages where .roomId = roomId where .body != null last 20 by .at after c
 ```
 
-Quarry defines your tables, access rules and backend operations. Queries and eligible mutations can run on devices that hold their inputs.
+Quarry defines your tables, access rules and backend operations. Queries and eligible mutations can run on devices that hold their inputs. N_SHAPE_METER: `groupedMessages` rejects unbounded candidates; query separately.
 
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
@@ -776,7 +776,7 @@ query inbox(c: cursor ?):
   return unreadCounts where .principal = viewer first 20 after c
 ```
 
-Short-lived server memory uses the ordinary table grammar (`guide ephemeral`):
+`guide ephemeral`: short-lived server memory.
 
 ```quarry
 table typing:
@@ -788,7 +788,7 @@ table typing:
 
 ## Membership paths
 
-An immutable required reference can spell its parent's whole membership rule:
+Immutable required references inherit parent membership rules:
 
 ```quarry
 table members:

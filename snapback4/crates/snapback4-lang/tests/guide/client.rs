@@ -1,4 +1,4 @@
-use super::{card, quarry, compile};
+use super::{card, quarry, compile, guide_context};
 #[path = "published.rs"]
 mod published;
 
@@ -63,8 +63,9 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
     // Turning off every sync deliberately makes searchHeld an unsynced held read.
     let bound = compile(&server);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(!bound.notes.is_empty());
-    assert!(bound.notes.iter().all(|note| note.code == "N_HELD_UNKNOWN" && note.message.contains("searchHeld")), "{:?}", bound.notes);
+    let remaining = guide_context::without_grouped_shape_note(&bound, "searchGrouped");
+    assert_eq!(remaining.len(), 1, "{:?}", bound.notes);
+    assert!(remaining[0].code == "N_HELD_UNKNOWN" && remaining[0].message.contains("searchHeld"), "{:?}", bound.notes);
 }
 
 #[test]

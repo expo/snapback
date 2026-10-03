@@ -1,5 +1,11 @@
 # Reads — E_SHAPE_EXCEEDS_METER
 
+`check` warns earlier with N_SHAPE_METER for shape-field scans that can outgrow
+the default meter, including helper reads. For exact unread totals use a
+row-keyed maintained count (`unreadCounts[.id]`; guide views), or a bounded
+`first N`/`last N` preview or separate query. `why N_SHAPE_METER` explains
+why the warning is advisory and a page limit may still scan rejected rows.
+
 A top-level returned shape carries its page's `next`. A shaped row that cannot
 finish is dropped with later rows; continuation reaches the unfinished visible
 row first. If the same first shape cannot fit on retry, E_SHAPE_EXCEEDS_METER
