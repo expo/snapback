@@ -251,6 +251,7 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn has_provisional(&self, table: &str) -> Result<bool, RuntimeError> { self.tx.base_has_table(table) }
     fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
         self.tx.base_id_after(table, after)
     }

@@ -60,6 +60,14 @@ impl Runner<'_> {
                 if self.device && self.schema.tables[&m.target].sync.is_none() {
                     continue;
                 }
+                if self.defer_receipt_maintain(m) {
+                    // Keep the ordinary authority precondition, without evaluating
+                    // the predicate or reading any count or provisional ordinal.
+                    if m.row_key.as_ref().is_some_and(|k| k.table == table) {
+                        if let Some(row) = new { self.row_view_member_authority(m, row)?; }
+                    }
+                    continue;
+                }
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
                     self.reserve_row_view(m, 1)?;
@@ -394,6 +402,24 @@ impl Runner<'_> {
         self.meter.release_heap(outer);
         result
     }
+    fn row_view_member_authority(&mut self, m: &Maintain, row: &Value) -> Result<(), RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        let readable = if self.device {
+            // Schema admission proves the source rule from the parent key. This
+            // checks authority, not whether the device has the whole count range.
+            let source = crate::value::object([("id", Value::Id(String::new())), (k.source_key.as_str(), row.field(&k.member_key)?.clone())]);
+            self.check_rule(&k.table, crate::schema::Effect::Read, None, row)?
+                && self.check_rule(&m.source, crate::schema::Effect::Read, None, &source)?
+        } else {
+            self.context.is_system() || (self.check_rule(&k.table, crate::schema::Effect::Read, None, row)?
+                && self.row_view_source_readable(m, row)?)
+        };
+        if !readable {
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers before marking (guide maintains)".into() });
+        }
+        Ok(())
+    }
+
     fn row_view_member(
         &mut self,
         m: &Maintain,
@@ -426,13 +452,7 @@ impl Runner<'_> {
         // @ref LLP 3000.015#3 — this is the member-write recount decision point:
         // only a readable new image may select work, even over public sources.
         // Check the member first so its hidden parent cannot even select a refusal.
-        #[cfg(feature = "sqlite")]
-        if !self.device && !self.context.is_system()
-            && (!self.check_rule(&k.table, crate::schema::Effect::Read, None, &u)?
-                || !self.row_view_source_readable(m, &u)?)
-        {
-            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers before marking (guide maintains)".into() });
-        }
+        if !self.device { self.row_view_member_authority(m, &u)?; }
         // A newly readable image never inherits an unreadable old mark's schedule.
         let old = match old {
             Some(old) if self.check_rule(&k.table, crate::schema::Effect::Read, None, old)? => {
@@ -718,7 +738,7 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         // @ref LLP 3000.020#3.2 — current authority is independent of whole-group acquisition.
-        if self.device && m.row_count_needs_live_basis(self.schema) {
+        if self.device && (m.row_count_needs_live_basis(self.schema) || self.defer_receipt_maintain(m)) {
             if source.sync.is_none()
                 || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
                 return Ok(false);
@@ -796,6 +816,12 @@ impl Runner<'_> {
             }
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
+        }
+        if self.receipt_maintain_pending(m)? {
+            self.pending_view_read()?;
+            let mut row = row;
+            if let Value::Row(fields) = &mut row { fields.insert("recountPending".into(), Value::Bool(true)); }
+            return Ok(Some(row));
         }
         if m.row_count_needs_live_basis(self.schema) {
             #[cfg(feature = "sqlite")]

@@ -185,9 +185,12 @@ card/maintains/4:unlikePost | never
 card/maintains/4:unlikeReply | never
 card/maintains/6:like | never
 card/maintains/7:refresh | never
+card/maintains/8:chatCompact | never
+card/maintains/8:chatDelivered | never
+card/maintains/8:chatSeen | never
 card/maintains/8:send | eligible
 card/maintains/8:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/maintains/8:send | unread/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/maintains/8:send | unreadCounts/maintain | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/manual-receipts/1:add | eligible
 card/manual-receipts/1:add | members/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/manual-receipts/1:delivered | eligible

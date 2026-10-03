@@ -13,11 +13,33 @@ use crate::value::canonical_json;
 use std::collections::BTreeMap;
 
 impl Runner<'_> {
+    // @ref LLP 3000.022#14.3 — no predicted delta enters receipt-derived state.
+    pub(super) fn defer_receipt_maintain(&self, m: &Maintain) -> bool {
+        self.device && self.schema.receipt_dependencies.contains_key(&m.target)
+    }
+
+    // Overlay metadata includes deletions, so hiding an old source cannot make
+    // a live recount silently certify a smaller count. No source scan or taint.
+    #[inline(never)] // One shared overlay check for point, scan and live-count reads.
+    pub(super) fn receipt_maintain_pending(&mut self, m: &Maintain) -> Result<bool, RuntimeError> {
+        if !self.defer_receipt_maintain(m) { return Ok(false); }
+        for table in std::iter::once(m.source.as_str()).chain(m.row_key.as_ref().map(|k| k.table.as_str())) {
+            // Device puts remember the base image before writing, including
+            // writes in this invocation. The metadata lookup covers both.
+            if self.tx.has_provisional(table)? {
+                self.value_source_incomplete = true;
+                self.components.note(|frame| frame.pending = true);
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub(super) fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         self.maintain_row_views(source, old, new)?;
         let maintains = self.schema.maintains.iter().filter(|maintain| maintain.source == source && maintain.row_key.is_none());
         for maintain in maintains {
-            if self.device && self.schema.tables[&maintain.target].sync.is_none() { continue; }
+            if self.defer_receipt_maintain(maintain) || (self.device && self.schema.tables[&maintain.target].sync.is_none()) { continue; }
             let source_bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]);
             let target = &self.schema.tables[&maintain.target];
             let bytes = source_bytes.saturating_mul(2).saturating_add(super::write_target::row_copy_ceiling(target).saturating_mul(16 + 4 * target.indexes.len() as u64));

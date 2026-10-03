@@ -634,107 +634,112 @@ and its absence is not proof that a ranking cannot be forged. Sync and
 
 ## A value per member: Clique unread
 
-N_SHAPE_METER warns about raw counts per inbox row, including inside `unreadIn`: a busy chat can starve the shape.
-Use maintained `unreadCounts[.id]`, a bounded preview or a separate query.
+N_SHAPE_METER warns about raw counts per inbox row, including inside `unreadIn`. Use `unreadCounts[.id]` instead.
 
-For receipt gaps in expiring messages, `guide sequences` pairs `sequence by`
-with bounded unique ordinal probes. The count below answers what remains
-unread; it cannot establish which individual messages a client received.
+The receipts-compatible count uses ordinals, join floors and seen watermarks. Sends still predict; counts wait for settlement.
 
-A row-keyed view keeps one count per row of another table. Its read rule and
-sync audience are the keyed row's. The key is exactly one equality between
-required references to the same parent; other conjuncts compare source fields
-with member fields or are ordinary source-only predicates. Cap the member group
-by the parent reference; `check --verbose` prints this key, fanout and writer recount bound.
+A row-keyed view inherits its member's read rule and sync audience. Its key is one
+reference equality; other conjuncts compare source/member fields or source-only values.
+Cap members by that parent; `check --verbose` prints the key, fanout and recount bound.
 
 ```quarry
 table conversations:
   title: text <=100
   timer: int ?
+  lastOrdinal: int default 0
   read <- allow
   sync public last 500 by .id
 table members:
   conversationId: conversations
   principal: principal
-  readUpTo: int default 0
-  immutable conversationId, principal
+  joinedOrdinal: int
+  immutable conversationId, principal, joinedOrdinal
   unique conversationId, principal
-  cap 100 by conversationId
-  read <- .principal = viewer
-  update <- .principal = viewer
-  sync to .principal last 500 by .id
+  cap 50 by conversationId
+  read <- exists members[.conversationId, viewer]
+  insert <- exists members[.conversationId, viewer]
+  sync to members[.conversationId]
 table messages:
+  receipts chat by .conversationId, .ordinal from .senderId to members:
+    counter .lastOrdinal
+    floor .joinedOrdinal
+    count .recipients
+    watermarks .deliveredOrdinal, .seenOrdinal
   conversationId: conversations
-  ordinal: sequence by conversationId
+  ordinal: int
+  recipients: int
   senderId: principal
   tombstone: bool default false
   expiresAt: time ?
+  unique byConversationOrdinal: conversationId, ordinal
+  immutable conversationId, ordinal, senderId, recipients
   expire at .expiresAt
   read <- exists members[.conversationId, viewer]
   insert <- .senderId = viewer and exists members[.conversationId, viewer]
-  sync to members[.conversationId] last 500 by .ordinal
-view unread: count messages by members m
-  where .conversationId = m.conversationId and .ordinal > m.readUpTo
-    and .senderId != m.principal and not .tombstone
+  sync to members[.conversationId] last 500 by byConversationOrdinal
+view unreadCounts: count messages by members m
+  where .conversationId = m.conversationId and .ordinal > m.seenOrdinal
+    and .ordinal > m.joinedOrdinal and .senderId != m.principal and not .tombstone
 mutation send(conversationId: conversations):
   conversation = conversations[conversationId] ! else NOT_FOUND
-  return insert messages { conversationId, senderId: viewer,
+  m = insert messages { conversationId, senderId: viewer,
     expiresAt: now + conversation.timer if conversation.timer != null else null }
+  return m.id
 query myUnread(member: members):
-  return unread[member]
-query unreadBadges(c: cursor ?):
-  return unread where .principal = viewer first 20 after c { member, value, recountPending }
+  return unreadCounts[member]
+query unreadBadges(conversationId: conversations, c: cursor ?):
+  return unreadCounts where .conversationId = conversationId first 50 after c { member, value, recountPending }
 ```
 
-The view carries only the member's read-rule columns, `id`, `member` (the
-same member id), `value` and `recountPending`. It never copies unrelated
-member columns or engine-recorded attribution keys. Delivery keeps the member
-horizon: snapshots select members within that horizon before fetching their
-view values, and catch-up emits no view put for a member outside it. The
-horizon order columns remain on the member table. A device predicts source
-deltas for every held, current member even if other members are outside its
-horizon; retained members are not updated by prediction.
+Predicted writes leave the last settled count with `recountPending: true` and `complete: false`.
+Show a refreshing badge: this is a settled snapshot, not an optimistic estimate or an `L+`
+lower bound. Query recounts exclude the overlay, even at expiry. The check covers the whole
+source/member table, including other held groups. A new predicted member has no count yet.
+Settlement installs the server count; replay leaves it unchanged; refusal withdraws the
+prediction. Once the overlay clears, normal expiry and range coverage resume. A mutation
+that reads the count still cannot predict. See `guide receipts` for the refusal boundaries.
 
-This counts unread messages. If members also have a `joinedAt`
-position, add `and .ordinal > m.joinedAt` to exclude pre-join history. The
-engine assigns the sequence position at commit, shared per conversation.
-Own sends and tombstones are excluded explicitly. A source already expired at
-its commit clock is retired in that transaction, before adding a contribution;
-it will not be subtracted later. Server certification may first probe a necessary
-predicate index: at most 65 stored keys decide whether at most 64 candidates
-can certify the count. These candidates include unswept expired inputs; expiry
-and the full predicate exclude them from the count. Larger ranges and background
-recounts use the null and future ranges of the parent/expiry index, seeking past
-expired inputs. An abandoned probe stays charged against the writer's recount
-allowance; a count that cannot finish leaves a pending recount and commits the mark.
-Server reads certify live counts above the writer allowance whenever the source **or member** can expire, including inherited expiry over non-expiring sources.
-Expiring members always use authorized input: maintenance may have skipped them while absent. Restoring their lifetime recounts or leaves pending work. For non-expiring members, a settled server basis can reuse its
-count while its version matches, its basis is not in the future, and its deadline
-has not arrived. A recount restarts its prefix on clock rollback. Source writes maintain that proof with the count. Every read still
-checks current member and source-group authority. Pending, due or unsupported
-row-dependent disclosure cases use the full authorized live recount.
-Identity and copied read-rule fields follow the member transactionally; private work never flips them; bounded durable chunks reconcile them
-without publishing redundant recount commits or changing watermarks. Each
-private chunk counts against the maintenance allowance and releases the
-engine lock before the next chunk. Both paths keep the fixed public reservation;
-probes and walks use the internal ledger for queries and count-dependent writers.
-Schema adoption atomically rebuilds a count when its member table, predicate
-inputs or expiry interpretation changes, including a default on a legacy absent
+The view carries only the member's read-rule columns, `id`, `member` (the same member id), `value` and
+`recountPending`. It never copies unrelated member columns or engine-recorded attribution keys. Delivery
+keeps the member horizon: snapshots select members within that horizon before fetching their view values,
+and catch-up emits no view put for a member outside it. The horizon order columns remain on the member
+table. For a view without receipt dependencies, a device predicts source deltas for every held, current
+member even outside other members' horizons; retained members are not updated.
+
+The receipts clause allocates positions per conversation; the view excludes pre-join history.
+Own sends and tombstones are excluded explicitly. A source already expired at its commit clock is retired
+in that transaction, before adding a contribution; it will not be subtracted later. Server certification
+may first probe a necessary predicate index: at most 65 stored keys decide whether at most 64 candidates
+can certify the count. These candidates include unswept expired inputs; expiry and the full predicate
+exclude them from the count. Larger ranges and background recounts use the null and future ranges of the
+parent/expiry index, seeking past expired inputs. An abandoned probe stays charged against the writer's
+recount allowance; a count that cannot finish leaves a pending recount and commits the mark. Server reads
+certify live counts above the writer allowance whenever the source **or member** can expire, including
+inherited expiry over non-expiring sources. Expiring members always use authorized input: maintenance may
+have skipped them while absent. Restoring their lifetime recounts or leaves pending work. For non-
+expiring members, a settled server basis can reuse its count while its version matches, its basis is not
+in the future, and its deadline has not arrived. A recount restarts its prefix on clock rollback. Source
+writes maintain that proof with the count. Every read still checks current member and source-group
+authority. Pending, due or unsupported row-dependent disclosure cases use the full authorized live
+recount. Identity and copied read-rule fields follow the member transactionally; private work never flips
+them; bounded durable chunks reconcile them without publishing redundant recount commits or changing
+watermarks. Each private chunk counts against the maintenance allowance and releases the engine lock
+before the next chunk. Both paths keep the fixed public reservation; probes and walks use the internal
+ledger for queries and count-dependent writers. Schema adoption atomically rebuilds a count when its
+member table, predicate inputs or expiry interpretation changes, including a default on a legacy absent
 expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only
-contributions present in that basis, so a sweep after a mark cannot subtract
-an expired input twice.
+contributions present in that basis, so a sweep after a mark cannot subtract an expired input twice.
 
-With whole-group coverage the device keeps its live-basis scan, seeking past
-expired backlog. Otherwise it scans `.ordinal > m.readUpTo`, still testing
-sender, tombstone and expiry; unswept expired candidates cost device work. Its `last 500` window certifies the badge exactly when the encoded
-lower bound lies at or above this conversation's acquired floor key, and the
-scan finishes within the read allowance. This works offline and after a cold
-reload; expiry removes contributions at their deadline without a sync. Deleting
-or expiring the floor row never moves that saved floor. With two lower bounds
-on ordinal it uses the greatest; null is the weakest bound. Only when every
-range operand is null does it require the whole group.
+With whole-group coverage the device keeps its live-basis scan, seeking past expired backlog. Otherwise
+it scans `.ordinal > m.seenOrdinal`, still testing sender, tombstone and expiry; unswept expired
+candidates cost device work. Its `last 500` window certifies the badge exactly when the encoded lower
+bound lies at or above this conversation's acquired floor key, and the scan finishes within the read
+allowance. This works offline and after a cold reload; expiry removes contributions at their deadline
+without a sync. Deleting or expiring the floor row never moves that saved floor. With two lower bounds on
+ordinal it uses the greatest; null is the weakest bound. Only when every range operand is null does it
+require the whole group.
 
-If the unread range extends below the floor, `value` is the number of current,
+Without a pending receipt write, if the unread range extends below the floor, `value` is the number of current,
 authorized, live matching rows examined locally, with `recountPending: true`
 and `complete: false`. Show it as `L+`; online, the client asks the server for
 its exact count when permitted: an unobserved predicted write or a `held` query
@@ -744,24 +749,19 @@ truth. A covered scan cut by the meter also returns its pending partial, but
 asks nothing. Without a range the device still requires the whole group.
 Non-expiring pending views retain their last settled value, not a lower bound.
 
-Every member-row reader must be able to read the whole counted parent group.
-Admission proves this for a public source, the same parent-only `exists` grant
-on source and member, or a non-expiring member whose owner read rule itself
-witnesses the source's unique `exists members[parent, viewer]` membership probe.
-Other combinations refuse with E_VIEW_KEY, including an independently owned
-member with source `read <- .senderId = viewer`, `deny`, or an unrelated
-`exists access` grant. The limit also applies to raw server schemas and device
-open/adoption. Recount work is selected only from an image the writer can read.
-Every member insert/update, including over public sources, needs a readable new
-member image and destination source group. Otherwise E_VIEW_KEY refuses before
-selecting recount work: make the member row readable to its writers before
-marking. An ordinary server mutation retains its caller and adds no authority.
-A blind non-reader cannot use an unchanged private
-parent to select a public group's recount. Deletion needs no source recount.
-Recount commits use global watermarks and `/changes`; filtering the view image
-alone would still expose hidden cardinality through that traffic.
-A defensive unreadable-group image remains zero/pending, not a certified count.
-Private-view scans must pin their audience or use a member key.
+Every member-row reader must be able to read the whole counted parent group. Admission proves this for a
+public source, the same parent-only `exists` grant on source and member, or a non-expiring member whose
+owner read rule itself witnesses the source's unique `exists members[parent, viewer]` membership probe.
+Other combinations refuse with E_VIEW_KEY, including an independently owned member with source `read <-
+.senderId = viewer`, `deny`, or an unrelated `exists access` grant. The limit also applies to raw server
+schemas and device open/adoption. Recount work is selected only from an image the writer can read. Every
+member insert/update, including over public sources, needs a readable new member image and destination
+source group. Otherwise E_VIEW_KEY refuses before selecting recount work: make the member row readable to
+its writers before marking. An ordinary server mutation retains its caller and adds no authority. A blind
+non-reader cannot use an unchanged private parent to select a public group's recount. Deletion needs no
+source recount. Recount commits use global watermarks and `/changes`; filtering the view image alone
+would still expose hidden cardinality through that traffic. A defensive unreadable-group image remains
+zero/pending, not a certified count. Private-view scans must pin their audience or use a member key.
 
 On the server, for an admitted member reader, an equal current live basis produces the same
 certified count, completeness, count-dependent writer result, reserved meter,

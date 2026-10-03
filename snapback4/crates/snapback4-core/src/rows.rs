@@ -226,6 +226,9 @@ pub trait Rows {
     /// Next overlay metadata id, including deleted rows; no confirmed-history scan.
     fn provisional_id_after(&self, _table: &str, _after: &str) -> Result<Option<String>, RuntimeError> { Ok(None) }
 
+    /// Any touched row, including an empty identity or a provisional deletion.
+    fn has_provisional(&self, _table: &str) -> Result<bool, RuntimeError> { Ok(false) }
+
     /// Whether the current image comes from the device prediction overlay.
     fn provisional_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     /// A predicted attribution may use only a currently covered target image.

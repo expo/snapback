@@ -84799,3 +84799,54 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+## 2026-10-03 — RP: receipt-derived unread counts retain send prediction
+
+Calibration #29's receipts plus row-keyed unread view now leaves `send`,
+`sendMedia`, `createGroup` and `addMember` eligible. The exact schema's CLI
+report falls from 15 mutations that never predict on unmodified main to 11.
+Device prediction skips receipt-derived maintenance and its reservation on
+memory, SQLite and wasm; source inserts, edits and deletions leave stored
+counts settled. Pending source/member overlays mark public aggregate reads
+incomplete and row-keyed reads `recountPending`; no query recount observes a
+guessed ordinal. A parent-key aggregate without a settled cache returns
+null/incomplete. Server settlement installs exact counts.
+
+The unrestricted rule is unsafe for sums: two `I53_MAX` contributions refuse
+with E_OVERFLOW. Receipt-derived sums, constrained targets and member moves
+stay server-only. The RY static reader boundary remains: owned/derived fields,
+whole rows, helper/builtin values, loops, ordinal keys and count-dependent
+writers cannot predict. Ordinary member/source authority still runs before
+maintenance is deferred. The new receipt-derived-prediction-v1 capability
+prevents older devices from applying their old maintenance behavior.
+
+Thirteen RP regressions join the existing RY cases: receipt suite 169/169,
+guide 112/112, row-keyed views 46/46, core row-view checks 58/58, affected
+device suites 280/280, and three affected client files
+79/79. They cover pending history, frozen raw counts, restart, multiple queued
+sends, two devices of one user, reordered ordinals, refusal, expiry,
+count-dependent writers and the sum-overflow counterexample on both stores.
+The late empty-id adversary caught a provisional-count leak through a strict
+metadata cursor; a table-existence probe covers empty ids and deletions on
+both stores, with an additional wasm SDK witness.
+Final `scripts/test.sh`: **`== 0 failure(s) in 1420 s`**, exit 0. Rust:
+4,779 passed, zero failed, 34 existing ignores; clients: 6,035 passed, zero
+failed, 11 existing skips; client models: 79/79; fixture wrappers: 9/9.
+No remaining baseline-main failure was observed. The report retains the first
+run's four introduced guide-fixture/text failures and the second run stopped
+after the empty-id counterexample; all were corrected before this final run.
+The 1,829 selected source/test/build/budget hashes stayed unchanged through
+qualification. No test or timeout was weakened.
+
+Locked wasm measures 2,051,596 B raw / 618,306 B gzip. The inherited cap was
+618,040 B; raise it by exactly 266 B, with no new headroom, for shared device
+maintenance suppression, overlay-aware reads, the no-cache unavailable result
+and the capability fence. This is a whole-artifact measurement, not a rebuilt
+main delta or per-component attribution. No runtime ceiling was raised.
+
+Updated the receipts and maintains guides and LLP 3000.022's static rule and
+dated revision; LLP 3000.015 points to the specialization. The
+[RP report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md) records
+the refusal audit, development failures, exact checks and bounded evidence.
+Reference/whitespace checks pass. No new file over 256 KB, gzip or video is
+committed. Work stayed on eb1000; nothing pushed or published.

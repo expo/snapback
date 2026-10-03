@@ -328,7 +328,8 @@ table permits:
                             1,
                         ))
                         .unwrap();
-                    assert!(first.predictable);
+                    assert_eq!(first.predictable, derivation.starts_with("count"));
+                    assert_eq!(int(&d.store().raw_rows("shelves")[0], "total"), 0);
                     let q = deferred(&mut d, request("shelfFollowup", json!({"shelf":"s"}), 2));
                     host.close(&key, d);
                     let mut d = host.open(&key, None).unwrap();

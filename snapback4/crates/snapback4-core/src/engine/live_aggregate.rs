@@ -41,6 +41,7 @@ impl Runner<'_> {
         };
         // @ref LLP 3000.015#3 — a row-keyed count certifies its live basis on the internal ledger.
         if maintain.row_key.is_some() { return self.live_row_view(maintain, row); }
+        if self.receipt_maintain_pending(maintain)? { return Ok(Some(row)); }
         let source = self
             .schema
             .table(&maintain.source)
@@ -63,6 +64,7 @@ impl Runner<'_> {
         self.aggregate_source_dependency(table_name);
         let Some(maintain) = self.schema.maintain_for(table_name) else { return Ok(Some(row)); };
         if maintain.row_key.is_some() { return self.live_row_view(maintain, row); }
+        if self.receipt_maintain_pending(maintain)? { return Ok(Some(row)); }
         if !self.schema.tables[&maintain.source].is_expiring() { return Ok(Some(row)); }
         self.live_aggregate_inner(maintain, row)
     }
@@ -80,6 +82,7 @@ impl Runner<'_> {
         maintain: &crate::schema::Maintain,
         row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
+        if self.receipt_maintain_pending(maintain)? { return Ok(Some(row)); }
         debug_assert!(
             maintain.expiring_read_refusal(self.schema).is_none(),
             "authorize expiring aggregates from their keys before recounting"
