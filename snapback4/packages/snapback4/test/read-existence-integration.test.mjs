@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
-import { existence } from '../dist/contract.js';
+import { existence, readPresentation } from '../dist/contract.js';
 import { processDevice } from '../dist/native.js';
 import { memoryPersistence, webDevice } from '../dist/web.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
@@ -67,7 +67,11 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   assert.deepEqual(await local.query(op, hiddenArgs), await local.query(op, missingArgs));
   const args = { owner: 'dev:alice', label: 'new' };
   const published = [];
-  observed = local.observe(op, args, { keep: true }); const stop = observed.subscribe(() => { published.push(existence(observed.getSnapshot())); }); t.after(stop);
+  observed = local.observe(op, args, { keep: true }); const stop = observed.subscribe(() => {
+    const read = observed.getSnapshot();
+    assert.equal(readPresentation(read).existence, existence(read));
+    published.push(existence(read));
+  }); t.after(stop);
   await until(() => existence(observed.getSnapshot()) === 'absent');
   refuseAdmission = true;
   const rejected = local.mutate({ kind: 'mutation', name: 'add' }, { label: 'refused' }, { waitSeconds: 0 });
@@ -81,9 +85,19 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   assert.equal(admitted.state, 'pending');
   await until(() => observed.getSnapshot().revalidating === true);
   const retained = observed.getSnapshot(); assert.equal(retained.data, null); assert.equal(retained.existence, 'partial');
+  assert.equal(readPresentation(retained).incomplete, true);
+  assert.equal(readPresentation(retained).revalidating, true);
+  assert.equal(readPresentation(retained).pending, false, 'retained pending-write uncertainty is a ready partial read');
   gate.resolve();
   await until(() => existence(observed.getSnapshot()) === 'present');
   assert.equal(observed.getSnapshot().data.label, 'new');
+  assert.equal(readPresentation(observed.getSnapshot()).existence, 'present');
+  await local.close();
+  const closed = readPresentation(observed.getSnapshot());
+  assert.equal(closed.existence, 'denied');
+  assert.equal(closed.why, observed.getSnapshot().denied);
+  assert.equal(closed.incomplete, false); assert.equal(closed.revalidating, false);
+  assert.equal('since' in closed, false);
 });
 
 // @ref LLP 3000.023#10 — same-key completed replacements always replace data.
@@ -116,4 +130,26 @@ for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row ar
     if (read.data === null) assert.notEqual(read.existence, 'present', 'an empty replacement never inherits present');
     else assert.equal(read.existence, 'present', 'an arriving row never inherits absent/partial');
   }
+});
+
+// @ref LLP 3000.031#7 — real device metadata supplies presentation, without a new proof.
+for (const host of ['process', 'wasm']) test(`${host}: presentation keeps nonempty continuation incomplete and offline empty absence stale`, { timeout: hangBudget(10) }, async t => {
+  const { fixture, open, q, source } = await import('./helpers/answers-stay.mjs');
+  const f = await fixture(t, source + '\nquery page(c: cursor?):\n  return messages[\'room\'] first 1 by byRoom after c\n');
+  await f.post('/seed', [{ table: 'messages', row: { id: 'second', room: 'room', body: 'second', at: 2 } }]);
+  let offline = false;
+  const client = await open(t, f, host, { fetch: (input, init) => {
+    if (offline) throw Error('controlled offline');
+    return fetch(input, init);
+  } });
+  const first = await client.query(q('page'), { c: null });
+  assert.equal(first.data.length, 1); assert.ok(first.next);
+  assert.equal(readPresentation(first).existence, 'present');
+  assert.equal(readPresentation(first).incomplete, true);
+  await f.post('/m/erase', {}); await client.sync();
+  offline = true; await client.sync();
+  const empty = await client.query(q('item'), {}), status = readPresentation(empty);
+  assert.equal(empty.data, null); assert.equal(status.existence, existence(empty));
+  assert.equal(status.existence, 'absent'); assert.equal(status.stale, true);
+  assert.equal(status.since, empty.since); assert.equal(status.incomplete, false);
 });

@@ -8,7 +8,7 @@ fn client_aliases_keep_typing_on_ephemeral() {
     assert!(client.lines().count() <= 130);
     assert!(client.contains("eight queued observation attempts"));
     assert!(client.contains("direct queries and timed presence refreshes use separate paths"));
-    for alias in ["client", "react", "hooks", "composer", "unread"] {
+    for alias in ["client", "react", "hooks", "composer", "unread", "readPresentation", "read-presentation"] {
         assert_eq!(card(alias), Some(client));
         assert!(snapback4_lang::guide::listing().contains(alias));
     }

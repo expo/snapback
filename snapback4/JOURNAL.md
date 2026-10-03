@@ -83200,3 +83200,64 @@ the profile query with the card's online-only source example makes its server
 requirement explicit. Complete guide suite: 110 passed, 0 failed. Ref-check:
 0 errors, 0 unchecked; edited document links resolve. This is a documentation
 commit only, with no push or publication.
+
+## 2026-10-03 — Lane A: read presentation and a stable screen
+
+Implemented LLP 3000.032 §4.1 under Charlie's full-implementation commission.
+`readPresentation` from `snapback4/contract` consumes `existence` and unchanged
+metadata: read-loading `pending`, ready `incomplete` (partial/coverage/cut/next),
+`stale`, independent `revalidating`, exact refusal and timestamp. No data
+inspection, subscription, saved result, alternate absence proof or permission
+flag. LLP 3000.031 §7 records the decided API. RV/ON retention, once-media,
+pending predicates and hard withdrawals are unchanged.
+
+The complete React/Expo screen keys its shell by backend/account/resource;
+current results and notices update without unmounting its draft. A browser runs
+the actual published recipe under Strict Mode, checking focus/draft retention,
+withdrawn results, key resets, membership action rules and listener cleanup.
+Native host views are DOM stubs, not native UI qualification. The client,
+offline-interactions and social guide cards, social Search/README, package
+README/reference and generated declaration comments teach the helper. The
+client card stays 1,199 words; README stays 300 lines.
+
+A1/A2 use frozen real Cal29/G47 source with verified evidence-ledger hashes.
+Selected snippets: 1 line / 123 B → 1 / 80 B; 7 / 281 → 4 / 191. Full files
+plus new notices grow by 10 lines / 667 B and 11 / 688 B. A same-behavior
+recipe-only comparison costs 124/81 B more respectively; A2 has equal total
+lines. All 1,010 notice cases per pilot render identically between alternatives.
+The helper earns a small place by centralizing the incomplete predicate,
+including nonempty results. The shell alone removes A2's latch. No overall
+code-size saving or cold-builder score gain. Pilots check generated API types
+and changed integrations, not full app/native execution.
+
+Whole guide 110/110, focused client/types/examples 36/36, expanded real-device
+presentation 7/7, pure presentation 7/7, browser recipe 1/1; source and emitted
+package typechecks pass. Wasm is 2,048,753 B raw / 617,410 B gzip, unchanged
+618,040 B ceiling, 630 B headroom; source/distribution hashes agree. The first
+guide word-budget/required-wording failures and missing browser-runtime alias
+were introduced and repaired, with original red logs retained.
+
+The complete script is running once. Its Rust inventory ran 287 binaries /
+1,000 executions and doctests; five targets failed. Three native fixture
+targets failed because the host-only Cargo artifact-copy wrapper mishandled
+nested builds without CARGO_TARGET_DIR; the repaired environment's reruns pass
+2 + 8 + 11 tests, with one existing ignored test. Four N_SHAPE_METER no-note
+assertions in prefix_reads/membership_search reproduce on untouched base
+1bea1a149c6df00bae7276c7114c06ea5749b7bf with Rust 1.97.0. They are filed in
+issues/20261003-snapback4-shape-meter-test-expectations.md. Final suite summary
+and any client classifications will follow below before this local commit.
+
+Evidence: reports/20261003-a-read-presentation/REPORT.md and pilots/check logs;
+external handoff: ~/sb5-lanes/a.report.md. Commit locally with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
+Lane A final verification: the script completed with the verbatim summary
+`== 2 failure(s) in 1853 s` (`cargo test`, `client tests`). Client models pass
+79/79. The client sweep is 5,927 passed, 4 failed, 10 skipped; its three failing
+social-search assertions plus parent expected incomplete notices to remain
+hidden on nonempty pages. Updated only those expectations to the new truthful
+presentation; all four browser tests pass on the real wasm starter rerun.
+The guide's readPresentation/read-presentation aliases pass the whole guide
+again, 110/110. Original red logs remain in the report. Every introduced
+failure is repaired with passing affected reruns; the four base-reproduced
+N_SHAPE_METER compiler assertions remain ticketed. No full-suite green claim.

@@ -1,13 +1,13 @@
 # Client: answers stay on screen
 
-**Start here:** Use reactive `useQuery`/`usePage` and classify `existence`; keep composers and receipts above transient rows. Page an inbox query.
+**Start here:** Use `useQuery`/`usePage` and `readPresentation`; keep composers and receipts above transient rows.
 
 ```tsx
 import { usePage } from "snapback4/react";
-import { existence } from "snapback4/contract";
+import { readPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
-export function Inbox() { const page = usePage(api.inboxCards, {});
-  return <>{existence(page.read)}{page.items.map(row => <p key={row.id}>{row.title} ({row.memberCount})</p>)}<button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>;
+export function Inbox() { const page = usePage(api.inboxCards, {}), status = readPresentation(page.read);
+  return <>{status.existence}{status.incomplete && "Partial results"}{page.items.map(row => <p key={row.id}>{row.title} ({row.memberCount})</p>)}<button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>;
 }
 ```
 
@@ -34,7 +34,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
     {send.last?.state === "failed" && submitted && <p role="alert">Not sent: {submitted} <button onClick={() => setDraft(current => current ? current + " " + submitted : submitted)}>Edit</button> <button onClick={() => setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Membership with no horizon in the conversation's own group and messages' audience proves presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
+Membership with no horizon, in the conversation's own group and messages' audience, proves presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
 Only `denied` or fresh, non-revalidating `absent` disables Send; stale offline absence queues for sync authorization. `loading`/`partial` never disable.
 
 `waitSeconds: 0` returns at custody; `inFlight` covers admission, ungated by acquisition after session readiness. Identity I/O: 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
@@ -53,17 +53,17 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 | `absent` | Proven empty: resolve missing route/row. |
 | `partial` | Uncertain empty: “Partial results”, never absence/denial. |
 
-Only top-level `null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
+Top-level `null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
 Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
 Answers stay `revalidating` until replaced unless evidence may revoke rows: deletes, policy-input changes and unknown/older evidence start a nonrenewable one-second bound. Inserts, non-policy updates and plain revalidation retain through slow/failed retries. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss immediately withdraws dependent groups; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
-Search: point-decorated hits; `usePage` per scope; render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Loading proves nothing. Unknown counts never hide conversations.
+Search: render `page.items`; classify `page.read`. `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation, including nonempty data), `stale`, `revalidating`, `why?`, `since?`; never action permission. Follow `hasMore`/`loadMore`. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen) keys its shell by backend/account/resource; results cannot unmount drafts.
 
 ## Queries in rows
 Wire-equivalent names/arguments share observations per retention policy. Paging avoids 1,000 row hooks requiring 1,000 evaluations/write. Disjoint writes do zero; authorization inputs are dependencies.
 At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
-Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide. [Read boundaries](CLIENT-AND-OPERATIONS.md).
-Empty flashes: `inspect(client)` from `snapback4/inspection` collects. Compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Includes linger; excludes direct/presence.
+Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
+Flashes: `inspect(client)` from `snapback4/inspection` compares `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Excludes direct/presence.
 Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition

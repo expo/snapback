@@ -64,7 +64,7 @@ never enters the durable outbox and its availability never gates the composer.
 `ConversationScreen` pins ordinary `history` to the route ID. The composer
 and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
-SDK default: plain revalidation retains, change evidence bounds it; no cache holds
+SDK default: plain revalidation retains, possibly revoking change evidence bounds it; no cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
 Membership and receipt decorations withdraw immediately. No-horizon membership
 shares the messages' audience within the conversation's group; after acquisition,
@@ -161,3 +161,10 @@ E_ADMISSION/E_ADMISSION_STORE/E_ADMISSION_TIMEOUT failures retry with 1–60-sec
 backoff, at most eight retries while active. Reconnect or `seen.retry()` after
 repair wakes those refusals. Other failures/unknown outcomes are not resubmitted.
 See `snapback4 guide receipts` for the full rules and two-read recipe.
+
+Search renders `readPresentation(page.read)` from `snapback4/contract`: incomplete
+notices include nonempty pages with incomplete coverage, cuts or continuations.
+`pending` means read loading, not a queued write. Freshness and revalidation have
+separate labels. Keep the search input and conversation draft above results;
+key screen state by backend/account/resource. `guide client` links a complete
+React/Expo screen with this shell and a reusable read notice.

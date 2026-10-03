@@ -21,7 +21,7 @@ index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
 unknown coverage stays loading. See `guide offline-interactions`. Search uses
 one ordinary query per scope, combining current server and retained device
-hits online. `usePage` accumulates by message ID; only `existence(page.read) === "partial"` shows
+hits online. `usePage` accumulates by message ID; `readPresentation(page.read).incomplete` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
 
 ## Background notifications

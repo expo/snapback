@@ -1386,33 +1386,86 @@ suffix. A changed cursor replaces its old suffix.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.
-Render loading, continuation, refusal and incomplete answers explicitly:
+Use the screen below to show loading, refusal and incomplete answers. A ready
+`absent` proves emptiness at the acquired watermark, including offline; nonempty
+answers remain `present` even with incomplete coverage.
+
+### A stable conversation screen
+
+`readPresentation(read)` from `snapback4/contract` derives notice flags without
+subscribing or saving data. `pending` means `loading`, not queued writes.
+`incomplete` covers ready partial answers, incomplete coverage, disclosed cuts
+and continuations, including nonempty `present` pages. `stale` is `!fresh` on a
+ready answer; `revalidating` is independent. `why` is the current refusal and
+`since` the unchanged ready timestamp. Loading/denied carry no ready metadata.
+Use the original read to narrow data or decide an action; there is no permission
+flag. Empty results are proven only by `existence === "absent"`, even offline.
+
+This complete React/Expo screen uses the generated `thread`, `myMembership`
+and `send` handles from the chat shape above. Put it under `AppProvider`.
+The shell key includes backend, signed-in account and resource. Its draft stays
+mounted through every read arm, while results come only from `usePage`'s current
+items. A withdrawal removes protected results without removing the composer.
+For a browser-only UI, substitute HTML controls for the React Native controls.
 
 ```tsx
-import { Button, Text, View } from "react-native";
-import { usePage } from "snapback4/react";
-import { existence } from "snapback4/contract";
+import { useState } from "react";
+import { Button, ScrollView, Text, TextInput, View } from "react-native";
+import { useAuth, useMutation, usePage, useQuery } from "snapback4/react";
+import { existence, isReady, readPresentation, type ReadPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
-export function InboxList() {
-  const { items, hasMore, loadMore, read } = usePage(api.inbox, {});
+export function ConversationScreen({ backend, conversationId }: { backend: string; conversationId: string }) {
+  const auth = useAuth();
+  if (auth.state !== "signed-in") return <Text>{auth.state === "restoring" ? "Restoring account…" : "Sign in"}</Text>;
+  return <ConversationShell key={JSON.stringify([backend, auth.viewer, conversationId])} conversationId={conversationId} />;
+}
+function ConversationShell({ conversationId }: { conversationId: string }) {
+  const [draft, setDraft] = useState("");
+  const send = useMutation(api.send);
+  const member = useQuery(api.myMembership, { conversationId });
+  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
+  async function submit() {
+    if (blocked || send.inFlight || !draft.trim()) return;
+    const body = draft;
+    const write = await send.run({ conversationId, body }, { waitSeconds: 0 });
+    if (write.state !== "failed") setDraft(current => current === body ? "" : current);
+  }
   return <View>
-    {existence(read) === "loading" && <Text>Loading…</Text>}
-    {"denied" in read && <Text>{read.denied.message}</Text>}
-    {items.map(item => <Text key={item.conversationId}>{item.conversationId}</Text>)}
-    {existence(read) === "partial" && <Text>Partial results</Text>}
-    {"data" in read && !read.fresh && <Text>As of {read.since === undefined ? "the last available answer" : new Date(read.since).toISOString()}</Text>}
-    {hasMore && <Button title="Load more" onPress={loadMore} />}
+    <Text>Conversation</Text>
+    <Results conversationId={conversationId} />
+    <TextInput accessibilityLabel="Message" value={draft} onChangeText={setDraft} />
+    <Button title="Send" disabled={blocked || send.inFlight || !draft.trim()} onPress={() => void submit()} />
+    {send.last?.state === "failed" && <Text>{send.last.why.message}</Text>}
+  </View>;
+}
+function Results({ conversationId }: { conversationId: string }) {
+  const page = usePage(api.thread, { conversationId });
+  return <ScrollView>
+    {page.items.map(row => <Text key={row.id}>{row.body ?? "Photo"}</Text>)}
+    <ReadNotice status={readPresentation(page.read)} />
+    {page.hasMore && <Button title="More messages" onPress={page.loadMore} />}
+  </ScrollView>;
+}
+function ReadNotice({ status }: { status: ReadPresentation }) {
+  return <View accessibilityLiveRegion="polite">
+    {status.pending && <Text>Loading…</Text>}
+    {status.why && <Text>{status.why.message}</Text>}
+    {status.existence === "absent" && <Text>No messages in the available snapshot</Text>}
+    {status.incomplete && <Text>Results may be incomplete</Text>}
+    {status.stale && <Text>As of {status.since === undefined ? "the last available answer" : new Date(status.since).toISOString()}</Text>}
+    {status.revalidating && <Text>Updating…</Text>}
   </View>;
 }
 ```
 
-Without `keep`, unmounting a screen closes its observations; remounting starts from the client's
-current answer. Only a local unavailable-read fallback may keep its previous answer
-while the server fetch is pending, marked `fresh: false` with `since`; settlement
-or a local state change clears that retention. Online reads retain no old answer.
-Every loading gap is shown as loading; refusals show their message.
-A ready `absent` proves emptiness at the acquired watermark, including offline. `partial` and `loading` never prove absence. Nonempty answers are `present` even with incomplete coverage.
+The notice labels are application choices. A continuation can coexist with rows
+and “More messages”; `incomplete` does not mean loading or denial. Pending row
+badges and queued intents use their existing APIs. Send follows the membership
+rule in `guide offline-interactions`: deny only on refusal or fresh,
+non-revalidating proven absence; the server still authorizes the mutation.
+The shell saves no result, cursor, profile, membership or asset. Expiry, scope
+loss and account/store/program/credential changes keep the SDK's exact fences.
 
 ### Assets
 
