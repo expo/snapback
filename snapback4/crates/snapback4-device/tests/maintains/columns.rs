@@ -243,10 +243,10 @@ fn recorded_projection<H: Host>(mut host: H) {
     assert!(backend.schema.maintains.is_empty());
     let payload = snapback4_core::json_codec::to_text(&backend).unwrap();
     assert!(!payload.contains("$column"));
-    assert!(payload.contains(r#""Capabilities":["maintained-column","recorded-attribution"]"#));
+    assert!(payload.contains(r#""Capabilities":["maintained-column","recorded-attribution","source-write-reservations-v1"]"#));
     assert!(!payload.contains(r#""Recorded""#));
     let mut backend: Backend = snapback4_core::json_codec::from_text(&payload).unwrap();
-    assert_eq!(backend.schema.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into()].into());
+    assert_eq!(backend.schema.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "source-write-reservations-v1".into()].into());
     assert!(backend.schema.tables.values().all(|table| table.constraints.iter().all(|c|
         !matches!(c, Constraint::Recorded | Constraint::Capabilities(_)))));
     assert!(backend.schema.tables["likes"].recorded.contains_key("postId.parentId"));

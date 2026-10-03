@@ -224,6 +224,7 @@ pub struct Runner<'a> {
     #[cfg(feature = "server-search")]
     pub(super) compact_memberships: usize,
     pub(crate) column_heap: u64,
+    pub(crate) reservation_deferred: bool,
     pub(crate) column_prepaid: bool,
     #[cfg(feature = "sqlite")]
     pub(super) assets_prepaid: bool,
@@ -357,6 +358,7 @@ impl<'a> Runner<'a> {
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,
+            reservation_deferred: false,
             #[cfg(feature = "server-search")]
             compact_memberships: 0,
             column_prepaid: false,

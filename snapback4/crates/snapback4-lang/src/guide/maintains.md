@@ -510,14 +510,14 @@ row; use `view …` with `online only` when the counter changes far more often
 than the row is read. Include the parent's size in that choice: a 4,000-byte
 parent costs every holder about 4 KB per contributing commit.
 
-An insert, if-absent insert, upsert or update result has the ordinary fields
-and id, without maintained fields. It remains a write key. Read the row under
+An insert, if-absent insert, upsert or update result has the ordinary fields and id, without maintained fields. It remains a write key. Read the row under
 its read rule to see the aggregate; selecting the field from a write result
 refuses with E_MAINTAINED_COLUMN_RESULT. Native results follow the same rule;
 the generated `PostsWrite` type contains the ordinary fields and id.
 
-The device receives server values and preserves them through page application
-and cold restoration. It never predicts the aggregate or accepts assignments
+Every source write pays the server's fixed private-maintenance reservation on the device, including schemas without receipts. The compiler exports complete per-source prices, not private formulas or totals. Receipt-derived sums require server settlement because provisional contributions can overflow. A device skipping online-only public aggregates pays their shared worst-case reservation; an ordinary server insert may charge less actual delta work. Writers still predict when the reservation fits.
+
+The device receives server values and preserves them through page application and cold restoration. It never predicts the aggregate or accepts assignments
 to it. A predicted source write changes its own rows; the parent's aggregate
 changes when the server image arrives. Provisional parent rows are authorized
 at read time; an unreadable provisional parent stays hidden. Implicit 0 applies

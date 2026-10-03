@@ -56,12 +56,16 @@ impl Runner<'_> {
             });
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let result = (|| {
+            for phase in [crate::schema::reservations::ROW_SOURCE, crate::schema::reservations::ROW_MEMBER] {
+                let price = self.source_price(table, phase)?;
+                self.charge_price(price)?;
+                self.maintain_heap = self.maintain_heap.saturating_add(price[4]);
+            }
             for m in views {
                 let online = self.device && self.schema.tables[&m.target].sync.is_none();
                 let deferred = self.defer_receipt_maintain(m);
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
-                    self.reserve_row_view(m, 1)?;
                     // Reserve the same bounded scan even if the private predicate is unchanged.
                     // Execute against its original allowance, then retain only the public charge.
                     let scan = self.meter.clone();
@@ -88,7 +92,6 @@ impl Runner<'_> {
                     result?;
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
-                    self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
                     // Online-only recipients are unheld, but their fixed price is public.
                     if online { continue; }
                     self.maintain_prepaid = true;
@@ -128,38 +131,6 @@ impl Runner<'_> {
                 }
             }
         }
-        Ok(())
-    }
-
-    // @ref LLP 3000.015#3 — two parent groups, each bounded by the declared live cap.
-    fn reserve_row_view(&mut self, m: &Maintain, recipients: u64) -> Result<(), RuntimeError> {
-        let k = m.row_key.as_ref().unwrap();
-        let target = &self.schema.tables[&m.target];
-        let image = super::write_target::row_copy_ceiling(target);
-        for (kind, amount) in [
-            (MeterKind::Examined, recipients.saturating_mul(4) + 4),
-            (
-                MeterKind::Steps,
-                recipients.saturating_mul(k.predicate.steps() * 4 + 8),
-            ),
-            (MeterKind::RowsWritten, recipients.saturating_mul(2)),
-            (
-                MeterKind::IndexEntries,
-                recipients.saturating_mul(2 * target.indexes.len() as u64 + 4),
-            ),
-            (
-                MeterKind::OutputBytes,
-                recipients.saturating_mul(image.saturating_mul(2)),
-            ),
-        ] {
-            self.meter.charge(kind, amount)?;
-        }
-        // Member/target/work images are transient; reserve the schema bound, not their contents.
-        let heap = super::write_target::row_copy_ceiling(&self.schema.tables[&k.table])
-            .saturating_mul(4)
-            .saturating_add(image.saturating_mul(16));
-        self.meter.heap(heap)?;
-        self.maintain_heap = self.maintain_heap.saturating_add(heap);
         Ok(())
     }
 

@@ -756,21 +756,5 @@ pub fn write_tables(program: &Program) -> Vec<(String, &'static str)> {
     out
 }
 
-fn stmts_write_tables(stmts: &[Stmt], out: &mut Vec<(String, &'static str)>) {
-    for stmt in stmts {
-        match stmt {
-            Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => out.push((table.clone(), "insert")),
-            Stmt::Update { table, .. } => out.push((table.clone(), "update")),
-            Stmt::Upsert { table, .. } => out.push((table.clone(), "upsert")),
-            Stmt::WriteTarget { target, upsert, .. } => out.push((target.table.clone(), if *upsert { "upsert" } else { "update" })),
-            Stmt::Delete { table, .. } => out.push((table.clone(), "delete")),
-            Stmt::DeleteTarget { target } => out.push((target.table.clone(), "delete")),
-            Stmt::If { then_body, else_body, .. } => {
-                stmts_write_tables(then_body, out);
-                stmts_write_tables(else_body, out);
-            }
-            Stmt::For { body, .. } => stmts_write_tables(body, out),
-            _ => {}
-        }
-    }
-}
+mod writes;
+use writes::stmts_write_tables;

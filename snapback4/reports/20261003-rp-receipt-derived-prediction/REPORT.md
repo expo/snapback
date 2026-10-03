@@ -6,6 +6,8 @@ The initial sections record round 0. **Round 1 below supersedes its compatibilit
 reservation and table-wide pending behavior**, and records its qualification.
 **Round 2 supersedes Round 1's remaining reservation gaps, permissive capability
 waiver, canceled-insert fallback and exact-Linux wasm cap.**
+**Round 3 supersedes the remaining partial reservations and blanket legacy downgrade
+with complete shared prices and program-specific compatibility.**
 All execution stayed in the provided eb1000 Linux workspace (OS hostname
 `expose-builder-pixel`). No office M1/M5, push or publication.
 
@@ -578,3 +580,203 @@ zero errors, zero unchecked** (`/tmp/rp-r2-refcheck-final.log`). Whitespace and
 new-artifact checks pass. No new file is over 256 KB, and no gzip, video or wasm
 artifact is committed. The existing append-only JOURNAL receives the requested
 entry; logs and build outputs stay outside git. Nothing is pushed or published.
+
+## Round 3 — 2026-10-03
+
+Round 3 replaces the partial receipt-only prices with a complete source-write
+reservation plan. The missing ordinary private-maintain charges, online-only
+public aggregate work and receipt counter update charges **predated RP**. They
+also affect ordinary predictions or receipt sends without an unread view; RP
+made them reachable through newly eligible unread-maintaining sends. The blanket
+legacy downgrade was introduced by RP and is narrowed here.
+
+### One source-price calculation
+
+`core/schema/reservations.rs` computes each source's complete fixed plan, and the
+compiler and authoritative engine call these same functions. Compiler prices are
+refreshed after planner-added indexes. All-zero schemas retain their legacy
+bytes and derive their exact zero prices from complete visible declarations;
+all other schemas export every source. The public projection retains source
+prices and omits private formulas, private target names, predicates and totals.
+The old `receipt_column_costs`, duplicated private formula, separate asset-slot
+reservation module and row-view reservation formula are removed.
+
+The plan keeps separate phases rather than adding all dimensions at function
+entry: an unsuccessful insert arm must not pay for a successful counter update,
+and transient scratch must retain its existing lifetime. All seven dimensions
+are represented: steps, indexes, examined, rows written, heap, output and rule
+probes. The audit of reservation entry points is:
+
+| Entry point/work | Shared device/server rule |
+| --- | --- |
+| `reserve_columns` | Every private maintain, receipt-derived or ordinary, including no-receipts schemas; same four-row mirrored-write allowance per maintain and declared scratch/index work. |
+| Declared media lists | Same recursive optional/nested slot walker and 2 rows / 4 examined / 8 steps / 16,384 heap bytes per slot, regardless of null/empty cell and without device asset custody. |
+| `reserve_maintains` | The device skipping receipt-derived/online-only public deltas pays the shared server worst-case reservation, also on insert. Existing server fixed reservations are unchanged; ordinary insert delta work can cost less. Synced ordinary deltas keep their shared path. |
+| Row views | Shared source/member prices before any skip, including online-only targets; source fanout × 4 rows plus all other dimensions, member bounded recount allowance and ordinary-key recipient-cap check. |
+| Receipt allocation | Both hosts pay a fixed 51-key allowance (steps, examined, indexes) before allocation; only the server counts actual recipients. |
+| Receipt counter replacement | Both hosts pay one written row, two steps, declared scope scratch and scope list slots. The server alone executes the replacement in the existing restoring authorization scope. No device path consumes the provisional ordinal there. |
+| `reserve_capture` | Shared declared read-through capture price; capture, parent authority and lifetime checks still run on both hosts. |
+| Target resolution, write-rule and sequence authorization | Existing common entry points still run on both hosts, including input-dependent patch/copy/witness prices. They are not skipped. |
+| Recorded captures, constraints, output, partition/source writes | Existing common interpreter paths remain; recorded activation, timeline edges and generated receipt reports keep their existing server-only fences. |
+
+A receipt counter scope with field-write authority, through/recorded/sequence
+hooks, a counter index, nontrivial constraints, downstream maintenance or timeline
+hooks makes its source writers `never`. Those effects cannot be priced as a
+simple counter replacement. Canonical uniqueness, unchanged text/ordinary
+immutable fields and insert-only final-exists obligations are safe. RY's
+receipt-derived sum fence remains. Ordinary private sums retain their pre-existing
+prediction contract and fixed resource reservation; the resource-admission
+property is not a promise against semantic refusal or concurrent server changes.
+No execution ceiling is raised.
+
+Online-only ordinary counts remain eligible when their reservation fits. The
+six-hundred-insert case now queues on the device and fails server admission after
+1,025 rows. The device pays the exact shared reservation formula rather than
+evaluating unheld totals; the server preserves its existing actual-delta charges
+where no fixed reservation is required. Thus a device may queue earlier. A bound after
+skipped maintenance rolls back the whole prediction and retains the outbox entry.
+
+### Differential and regression evidence
+
+Seed `0x525020261003`, a fixed 64-bit LCG, generates 256 schemas/mutations per
+store. It varies receipts, zero/one/two/ten private counts or sums, zero/one/two/six
+public aggregates, row/non-row keys, synced/online-only targets, declared slots
+from 0 through 512, bursts from 1 through 600 and a second source with up to 30
+writes. Each case prints its seed, ordinal and complete parameter tuple; failures
+also print its schema. It compares admission with actual server-engine execution
+under `Ceilings::default()`. Every predicting case must commit on the server;
+this is stronger than checking only resource refusal codes for these fixtures.
+Every compiled plan is also compared with the authoritative schema's shared
+calculation.
+
+Both stores give the same result: **58 predicted commits, 8 conservative queues
+whose server commits, 190 server refusals**. Conservative queues are **3.125% of all
+cases, 12.12% of server-committing cases**. There are no predicted server refusals.
+Six queues retain RY receipt dependencies; two pay the shared upper reservation
+for skipped public delta work that happens to cost less on the server.
+The successful predictions include 26 receipt cases, 43 private-maintain cases
+(8 private sums), 5 public non-row sums, 16 online-public cases, 5 row-view cases,
+35 media-list cases and 42 multiple-source cases; these categories overlap.
+The differential therefore exercises admission, not just universal queuing.
+Log: `/tmp/rp-r3-differential-qualified.log` (7 tests, 16.31 s).
+
+All six review shapes queue with zero provisional rows on memory and SQLite,
+and are included in the wasm corpus:
+
+| Shape | Server `E_BOUND` rows |
+| --- | ---: |
+| Five receipt messages, unread view, ordinary private shelf count | 1,030 |
+| Five receipt messages with unread view, fifteen plain notes | 1,025 |
+| Receipt send, 510 declared slots, ordinary private count | 1,025 |
+| No receipts, 510 declared slots, private count | 1,025 |
+| No receipts, ten private counts, 26 inserts | 1,025 |
+| Online-only ordinary non-row count, 600 matching inserts | 1,025 |
+
+`rp-reservation-cases.json` contains these six shapes plus the first sixteen seeded
+cases: schema text, authoritative initial snapshot and expected admission outcome,
+not a fabricated backend. Its outcomes are 5 predicted commits, 2 conservative
+queues and 15 server refusals. A Rust test re-executes the server and byte-independent
+JSON-compares the corpus on every suite run. Wasm gets a freshly compiled backend
+from the real server and replays those snapshots. The fixture stays below 256 KB.
+Regeneration uses `UPDATE_RP_WASM_CASES=1`; ordinary suite runs only verify it.
+
+### Selective legacy decoding
+
+New schemas carry `source-write-reservations-v1` as well as their existing
+capabilities. Genuine old representations without prices keep their old wire
+shape on decode. Full visible declarations can reconstruct the price on demand;
+a private projection cannot invent the missing source footprint.
+
+Backend decode and runtime preflight inspect each expanded mutation's complete
+write inventory, including helper expression blocks, selection inputs and merge
+lanes. Receipt-source writes and legacy hidden effects queue, existing read
+fences remain, and a source with no complete recoverable price queues. An old
+private projection without a map conservatively queues all writers because it
+cannot identify hidden effects. Unrelated fully priced programs stay eligible.
+
+Memory and SQLite Kept tests preserve an ordinary post and a conversation-title
+edit, with both ordinary and expression-block receipt sends still queued. The
+client test calls the actual SDK `openLocalDevice` with a new backend available
+and an unstamped kept backend in real wasm persistence: it opens Kept first,
+predicts the unrelated writes offline, and queues the send without a pending
+history row. Authentic a8c20c40e9 fixtures remain unchanged. Strict capability-set
+assertions now include the additional required capability. The byte fixture
+comparison verifies and normalizes only the newly versioned price metadata;
+every pre-existing schema field and emitted TypeScript byte remains compared.
+
+### Qualification
+
+The initial full run was stopped after finding legacy-byte and server-meter
+regressions. Their unchanged codec/fixture/meter/boundary tests now pass. The
+obsolete pre-fix affected run was also stopped after final Rust qualification;
+neither interrupted run is used as qualification. The durable schema
+compatibility test verifies the new prices against the shared calculation, then
+retains every pre-existing schema/type byte comparison; its historical fixture
+files remain untouched. The guide fits its existing line cap without raising it.
+
+Final eb1000 command:
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+It exited **0**, reporting **`== 0 failure(s) in 1489 s`**:
+
+- Rust unit/integration: **4,811 passed**, 34 existing ignores, across 1,000
+  scheduled targets; **17 doctests passed**. This includes all **199 receipt
+  tests**, every RY escape, native upgrade modes, group/expiry cases and the new
+  seeded differential. Rust stage: 513 s.
+- Client pool: **6,063 passed**, 11 existing skips; stage: 609 s. All 22 wasm
+  differential/regression cases and the actual SDK Kept-opening test passed.
+- Serial client models: **79 passed**, including the three 5,000-sequence
+  session models; stage: 323 s. Fixture wrappers: **9 passed**.
+- Wasm build/budget, docs budget, release guard, package build/typecheck and
+  chat/Expo checks all passed. The separate affected client run passed **41**
+  tests; the targeted differential run passed **7** tests.
+
+No failure requires an unmodified-main exception. All **1,850** source/test/build
+qualification inputs remained unchanged throughout the final full run. Staging
+then found one extra terminal blank line in `core/src/ir/writes.rs`; removing it
+was the only post-run source edit. A fresh pinned wasm build remained byte-identical
+(SHA-256 below) and passed the budget. The committed-source manifest records this
+one-byte whitespace cleanup separately from the tested-source manifest.
+`./ref-check --verbose` passes (527 LLPs, 10,296 refs, zero errors/unchecked),
+and `git diff --check` passes.
+
+Evidence remains on eb1000; logs are summarized here rather than committed:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `/tmp/rp-r3-full-final.log` | `ea26663bcf7427a2ead6ff25bb1978b43f16491c8424f7cb88b9baa72842539e` |
+| `/tmp/rp-r3-differential-qualified.log` | `aedb7f7e66b0a743791c58fbc4274c8961da0527f709fdbcd18aca7c891bdd7d` |
+| `/tmp/rp-r3-client-final.log` | `517d2972f1ada0be3456426b057b021168629be0015c2ef5cb09d4b96d56489d` |
+| `/tmp/rp-r3-final-source-start.sha256` | `e2682f7f4401f0e3b8b832fe45af7ddb033e4c8a2542e182808d7947614cf876` |
+| `/tmp/rp-r3-final-source-committed.sha256` | `192d9c9feae870ba44dc9cd0682fd152f2f2a8532efff1ae3737d094692f7295` |
+
+Wasm was rebuilt with the pinned Binaryen pipeline on eb1000. The retained
+unmodified a8c20c40e9 artifact was remeasured on the same host using the same
+filename/gzip command; no Mac was used:
+
+| Revision | Raw bytes | gzip bytes |
+| --- | ---: | ---: |
+| a8c20c40e9 base | 2,048,676 | 617,327 |
+| RP round 2 | 2,072,900 | 624,929 |
+| RP round 3 | 2,096,970 | 633,309 |
+
+Round 3 adds **8,380 B gzip** over Round 2; total RP growth is **15,982 B (2.59%)**
+over base. The artifact includes complete price serialization/calculation,
+shared fixed admission, recursive program write inventories and selective
+legacy decoding. This is whole-artifact attribution, not invented per-function
+sizes. Budget: **633,439 B**, exactly the Linux measurement plus the existing
+130 B macOS allowance recorded in the budget history. The unused partial
+reservation code was removed; no additional margin is requested.
+
+Round 3 wasm SHA-256:
+`12fc73a709d85518530a2e5dc53e1e8520219ce96612a99b1257f643d5dac5bb`.
+Base SHA-256:
+`1fd8cd3fdef29bc5038a642e10ba0eb22df841b44ca704d1f0d2d4f5decf0e74`.
+Final measured command: `bash snapback4/scripts/build-wasm.sh`; its artifact is
+2,096,970 B raw / 633,309 B gzip. The full suite rebuilt and checked the same
+artifact and the 633,439 B cap.
+
+All work stayed on eb1000. No Apartment mini, office M1 or M5 was used.
+Only processes started by this session were signaled. The commit includes the
+requested co-author trailer. Nothing is pushed or published. No wasm, gzip,
+video or new file over 256 KB is added; the existing JOURNAL receives the
+requested append.

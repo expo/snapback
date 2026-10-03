@@ -76,7 +76,7 @@ impl Runner<'_> {
         // worst-case reservation as update/delete before skipping it. Already
         // prepaid writes must not pay twice.
         if self.device && !self.maintain_prepaid && self.schema.maintains.iter().any(|m|
-            m.source == source && m.private.is_none() && m.row_key.is_none() && self.defer_receipt_maintain(m)) {
+            m.source == source && m.private.is_none() && m.row_key.is_none() && (self.schema.receipt_dependencies.contains_key(&m.target) || self.schema.tables[&m.target].sync.is_none())) {
             self.reserve_maintains(source, &self.schema.tables[source])?;
         }
         self.maintain_row_views(source, old, new)?;

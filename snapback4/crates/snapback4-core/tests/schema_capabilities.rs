@@ -19,9 +19,9 @@ fn capabilities_are_derived_independently_and_together() {
     for table in private_only.tables.values_mut() { table.maintained.clear(); }
     assert!(private_only.maintains.iter().any(|m| m.private.is_some()));
     for schema in [&columns, &projection, &private_only] {
-        assert_eq!(schema.required_capabilities(), ["maintained-column".into()].into());
+        assert_eq!(schema.required_capabilities(), ["maintained-column".into(), "source-write-reservations-v1".into()].into());
     }
-    assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into()].into());
+    assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into(), "source-write-reservations-v1".into()].into());
     assert_eq!(timeline.required_capabilities(), ["timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();

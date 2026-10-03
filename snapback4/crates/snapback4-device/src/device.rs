@@ -35,11 +35,27 @@ mod store_identity;
 pub use store_identity::StoreObservation;
 
 /// The compiled backend, as `GET /schema` sends it.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Backend {
     pub generation: u64,
     pub schema: Schema,
     pub programs: Vec<Program>,
+}
+
+impl<'de> Deserialize<'de> for Backend {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Wire { generation: u64, schema: Schema, programs: Vec<Program> }
+        let Wire { generation, mut schema, programs } = Wire::deserialize(deserializer)?;
+        for program in &programs {
+            if program.kind == snapback4_core::ir::ProgramKind::Mutation
+                && schema.prediction_reservation_refusal(program).is_some()
+                && let Some(fact) = schema.operations.get_mut(&program.name) {
+                fact.predicts = Some("never".into());
+            }
+        }
+        Ok(Self { generation, schema, programs })
+    }
 }
 
 /// One transaction's stream request inputs. A response may apply only while

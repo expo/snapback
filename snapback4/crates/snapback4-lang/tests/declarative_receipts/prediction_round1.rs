@@ -95,7 +95,7 @@ fn column_reservations<H: Host>(host: &mut H) {
     seed(&mut e);
     e.seed_at([("shelves".into(), object([("id", id("s"))]))], NOW).unwrap();
     b.schema = b.schema.public_projection();
-    assert_eq!(b.schema.receipt_column_costs["messages"][3], 40);
+    assert_eq!(b.schema.source_reservations["messages"].prices[0][3], 40);
     assert!(b.schema.maintains.iter().all(|m| m.private.is_none()));
     let text = serde_json::to_string(&b).unwrap();
     assert!(text.contains("receipt-derived-prediction-v1"));

@@ -5,7 +5,7 @@ use super::runner::Runner;
 use super::write_target::row_copy_ceiling;
 #[cfg(feature = "sqlite")]
 use super::write::Origin;
-use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, columns::ReceiptColumnCost}, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
 #[cfg(feature = "sqlite")]
 use crate::schema::maintained_id;
 
@@ -88,60 +88,22 @@ impl Runner<'_> {
         self.row_changed(&owner.table,Some(&old),Some(&row),Origin::Maintained)
     }
 
-    /// Private values stay server-only; their schema-derived receipt charges
-    /// survive projection and run before any prediction writes.
-    // @ref LLP 3000.022#14.3 — deferred maintenance retains its fixed resource refusal.
+    // All source attempts use the same complete plan, independent of receipts.
     pub(super) fn reserve_columns(&mut self, source: &str) -> Result<(),RuntimeError> {
-        if self.device {
-            if let Some(cost) = self.schema.receipt_column_costs.get(source) { self.charge_columns(*cost)?; }
-        } else {
-            #[cfg(feature = "sqlite")]
-            self.charge_columns(reservation(self.schema, source))?;
+        // Preserve the write authority/schema refusal for an unknown raw target.
+        if self.schema.table(source).is_none() { return Ok(()); }
+        let price = self.source_price(source, COLUMNS)?;
+        self.reservation_deferred |= self.device && price[3] != 0;
+        self.charge_price(price)?;
+        self.column_heap = price[4];
+        self.column_prepaid = price[3] > 0;
+        let assets = self.source_price(source, ASSETS)?;
+        if self.device || self.tx.holds_assets() {
+            self.charge_price(assets)?;
+            self.column_heap = self.column_heap.saturating_add(assets[4]);
         }
-        let assets = if let Some(table) = self.schema.table(source) { self.reserve_assets(table)? } else { 0 };
-        self.column_heap = self.column_heap.saturating_add(assets);
         #[cfg(feature = "sqlite")]
         { self.assets_prepaid = true; }
         Ok(())
     }
-    fn charge_columns(&mut self, cost: ReceiptColumnCost) -> Result<(),RuntimeError> {
-        for (kind,amount) in [MeterKind::Steps, MeterKind::IndexEntries, MeterKind::Examined,
-            MeterKind::RowsWritten, MeterKind::HeapBytes].into_iter().zip(cost) { self.meter.charge(kind,amount)?; }
-        self.column_heap = cost[4];
-        self.column_prepaid = cost[3] > 0;
-        Ok(())
-    }
-}
-
-// The server and the public device price use precisely the same formula.
-#[cfg(feature = "sqlite")]
-pub(crate) fn reservation(schema: &crate::schema::Schema, source: &str) -> ReceiptColumnCost {
-    let mut steps = 0_u64;
-    let mut entries = 0_u64;
-    let mut heap = 0_u64;
-    let mut count = 0_u64;
-    for m in schema.maintains.iter().filter(|m|m.source == source && m.private.is_some()) {
-        let owner = m.private.as_ref().unwrap();
-        let target = &schema.tables[&m.target];
-        let parent = &schema.tables[&owner.table];
-        count += 1;
-        steps = steps.saturating_add(m.evaluation_steps()*2 + 8);
-        // A words index can order by the maintained column. Each token then
-        // changes two keys, on each of the old and new parents.
-        let parent_entries = parent.indexes.values().map(|index| {
-            if let Some((_,fields)) = index.word_component() {
-                fields.iter().filter_map(|field|parent.columns.get(field)).map(|kind| match kind.required() {
-                    crate::schema::ColumnType::Text { max } => u64::from(*max), _ => 0,
-                }).sum::<u64>().min(crate::words::MAX_TOKENS_PER_ROW as u64)
-            } else { 1 }
-        }).sum::<u64>();
-        entries = entries.saturating_add(4*(target.indexes.len() as u64+parent_entries));
-        // Account for word-key buffers as well as the ordinary row copies.
-        heap = heap.saturating_add(4*parent_entries.saturating_sub(parent.indexes.len() as u64)
-            *(crate::rows::MAX_INDEX_KEY_BYTES as u64+24));
-        heap = heap.saturating_add(row_copy_ceiling(&schema.tables[source])*2)
-            .saturating_add(row_copy_ceiling(target)*(16+4*target.indexes.len() as u64))
-            .saturating_add(row_copy_ceiling(parent)*(16+4*parent.indexes.len() as u64));
-    }
-    [steps, entries, 4*count, 4*count, heap]
 }

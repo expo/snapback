@@ -63,7 +63,7 @@ fn stripped<H: Host>(host: &mut H) {
     b.schema = b.schema.public_projection();
     for (stamp, prices) in [(false,false), (false,true), (true,false)] {
         let mut wire = serde_json::to_value(&b).unwrap();
-        if !prices { wire["schema"].as_object_mut().unwrap().remove("receipt_column_costs"); }
+        if !prices { wire["schema"].as_object_mut().unwrap().remove("source_reservations"); }
         if !stamp {
             for table in wire["schema"]["tables"].as_object_mut().unwrap().values_mut() {
                 for c in table["constraints"].as_array_mut().unwrap() {

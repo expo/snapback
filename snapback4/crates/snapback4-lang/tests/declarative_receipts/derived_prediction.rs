@@ -6,6 +6,8 @@ use super::*;
 mod round1;
 #[path = "prediction_round2.rs"]
 mod round2;
+#[path = "prediction_round3.rs"]
+mod round3;
 
 fn fixture(expiring: bool) -> String {
     let mut src = source().replace("mutation createConversation(", "mutation createGroup(").replace("mutation add(", "mutation addMember(").replace("  text: text <=2000", "  tombstone: bool default false\n  text: text <=2000")

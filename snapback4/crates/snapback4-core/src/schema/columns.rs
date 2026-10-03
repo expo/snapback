@@ -2,10 +2,6 @@
 // @ref LLP 3000.007.001#2 — the binder and raw-schema admission share this walk.
 use super::*;
 
-/// Fixed public reservation: steps, index entries, examined, rows written, heap.
-/// A compact wire tuple avoids a second resource-object codec in the device.
-pub type ReceiptColumnCost = [u64; 5];
-
 pub const GROUP: &str = "$parent";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +34,7 @@ impl Schema {
         let mut schema = self.clone();
         schema.prepare_receipt_dependencies();
         schema.receipt_dependencies.retain(|name, _| self.visible(name));
+        schema.source_reservations.retain(|name, _| self.visible(name));
         schema.tables.retain(|name, _| self.visible(name));
         schema.maintains.retain(|m| self.visible(&m.target));
         schema

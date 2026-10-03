@@ -384,7 +384,7 @@ fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe:
 }
 
 /// The schema-derived probe allowance, independent of short-circuit answers.
-pub(super) fn rule_probes(rule: &RuleExpr) -> u64 {
+pub(crate) fn rule_probes(rule: &RuleExpr) -> u64 {
     match rule {
         RuleExpr::Exists { .. } => 1,
         // @ref LLP 3000.007#17 — created facts with extra equalities take the metered exists path when the fact holds.

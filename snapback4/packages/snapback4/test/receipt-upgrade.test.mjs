@@ -66,7 +66,7 @@ mutation burst(conversation: conversations):
 `;
   const { url } = await server(t, undefined, source);
   const backend = await fetch(`${url}/schema`, { headers: { 'x-snapback-persona': 'alice' } }).then(r => r.json());
-  assert.equal(backend.schema.receipt_column_costs.messages[3], 40);
+  assert.equal(backend.schema.source_reservations.messages.prices[0][3], 40);
   assert.ok(backend.schema.maintains.every(m => !m.private));
   const device = new WebDevice(JSON.stringify(backend), fixture('memory.json'));
   try {
@@ -137,7 +137,7 @@ test('wasm stripped current projections cannot use the legacy waiver to predict'
   assert.equal(original.schema.operations.burst.predicts, 'eligible');
   for (const [stamp, prices] of [[false,false], [false,true], [true,false]]) {
     const backend = structuredClone(original);
-    if (!prices) delete backend.schema.receipt_column_costs;
+    if (!prices) delete backend.schema.source_reservations;
     if (!stamp) for (const table of Object.values(backend.schema.tables)) for (const c of table.constraints) {
       if (c.Capabilities) c.Capabilities = c.Capabilities.filter(name => name !== 'receipt-derived-prediction-v1');
     }

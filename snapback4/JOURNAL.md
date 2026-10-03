@@ -84972,3 +84972,62 @@ The [Round 2 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#
 records counterexamples, remaining limits, artifact/log hashes and validation.
 Work stayed on eb1000; no Apartment mini, office M1 or M5. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-03 — RP round 3: shared source reservations and selective legacy prediction
+
+Replaced receipt-only prices with a complete per-source reservation plan, using
+one calculation for the compiler and authoritative engine. The missing ordinary
+private-maintain prices, online-only ordinary aggregate work and receipt counter
+replacement charges predated RP; newly eligible unread-maintaining sends exposed
+them. Private formulas stay on the server. Prices cover seven meter dimensions
+and retain the existing write phases and scratch lifetimes. All-zero schemas keep
+their old wire bytes; other schemas export every source, including zero-cost ones.
+
+Devices pay every private-maintain reservation, public aggregate reservation,
+row-view fanout, declared media-list slot, receipt allocation/counter allowance
+and capture price before skipping the corresponding work. Ordinary synced public
+aggregates retain their shared delta path. Where an ordinary server insert charges
+actual delta work, a device skipping that work conservatively pays the same
+server worst-case formula; existing server charges and ceilings are preserved.
+Additional data-dependent counter hooks make their source writers server-only.
+Removed the superseded receipt-column price type and duplicate reservation code.
+
+The new source-write-reservations-v1 capability fences earlier devices. Kept
+backends still open. Decode and runtime preflight now inspect each expanded
+program, including expression blocks: receipt sources, hidden effects and writes
+without a recoverable complete price queue, while unrelated posts and title edits
+keep predicting offline. A legacy private projection without prices still queues
+its writers, since it cannot identify the hidden source footprint. Authentic
+predecessor fixtures, queued writes and delivery debt retain their upgrade path.
+
+Added 256 reproducible seeded differential cases per native store and a 22-case
+server-verified wasm corpus. Both native stores produce 58 predicted commits,
+8 conservative queues and 190 server resource refusals, with no predicted server
+refusal. All six reviewers' counterexamples queue without partial provisional
+rows on memory, SQLite and wasm. The SDK regression uses the actual offline
+opening helper with an unstamped kept backend and a new backend available.
+
+The locked eb1000 wasm is 2,096,970 B raw / 633,309 B gzip: +8,380 B gzip over
+Round 2 and +15,982 B (2.59%) over the same-host a8c20c40e9 base. Complete price
+calculation/serialization, shared admission and selective legacy program inspection
+account for this whole-artifact increase. The cap is 633,439 B, the Linux result
+plus the previously recorded 130 B macOS allowance. No Mac was used. No wasm,
+gzip, video or new file over 256 KB is committed; this existing journal receives
+the requested append. The new JSON corpus is 181,978 B.
+
+Full eb1000 suite: **== 0 failure(s) in 1489 s**, exit 0. Rust: 4,811 passed,
+34 existing ignores; doctests: 17; clients: 6,063 passed, 11 existing skips;
+serial models: 79; fixture wrappers: 9. All 199 receipt tests, every RY escape,
+the new differential, authentic upgrades and group/expiry tests passed. The
+separate affected client run passed 41 tests. No failure needs an unmodified-main
+exception. All 1,850 qualification inputs stayed unchanged during the final run.
+Post-run staging removed one terminal blank line from the IR walker; a fresh
+wasm build was byte-identical and within budget. Reference and whitespace checks pass. Earlier pre-fix runs caught compatibility
+and server-meter regressions; those were fixed before this complete qualification.
+
+The [Round 3 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-3--2026-10-03)
+records the reservation audit, conservative admission rate, compatibility limits,
+metrology and qualification hashes. Work stayed on eb1000, with no Apartment mini,
+office M1 or M5. Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

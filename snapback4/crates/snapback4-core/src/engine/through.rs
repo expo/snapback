@@ -29,21 +29,7 @@ impl Runner<'_> {
             return Ok(());
         }
         let parent = &self.schema.tables[&through.parent];
-        let probes =
-            rules::rule_probes(&parent.rules.read) + rules::rule_probes(&table.rules.insert);
-        for (kind, amount) in [
-            (MeterKind::Examined, 1),
-            (MeterKind::RuleProbes, probes),
-            (
-                MeterKind::HeapBytes,
-                super::write_target::row_copy_ceiling(parent)
-                    .saturating_mul(2)
-                    .saturating_add(super::write_target::row_copy_ceiling(table)),
-            ),
-            (MeterKind::Steps, through.fields.len() as u64 + 2),
-        ] {
-            self.meter.charge(kind, amount)?;
-        }
+        self.charge_price(crate::schema::reservations::capture_price(self.schema, table))?;
         self.capture_prepaid = true;
         self.read_tables.insert(through.parent.clone());
         self.rule_dependencies(&parent.rules.read);
