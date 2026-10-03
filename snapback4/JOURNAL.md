@@ -84221,3 +84221,12 @@ The report records initial shared-target guide contamination and repaired harnes
 prerequisites separately from final qualification. No full-suite/native-app claim.
 Round-1 details and compressed logs: reports/20261003-l-screen-lifetimes/REPORT.md.
 Local commit only, with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push.
+
+
+## 2026-10-03 — Fence: neutral additive answer metadata
+
+The 0.4.12 publication dry run (attempt 4) failed the three `published 0.2.33 capability fence` cases again. This time the cause was `decorationExpiry: null`, added to query answers by lane SJ. The fence had grown one hand-written exception per new key (`scopes`, then RV's `preserved`). Lanes on Linux cannot run this darwin-arm64-only fence, so each new key surfaced only at publication.
+
+`sameAnswer` now states the rule instead. Every key the published answer carries keeps its exact value. An extra key the published release never sent is admitted only in its neutral state: `null`, `false`, `[]` or `{}`. On a store the old release wrote, new metadata must have nothing to say; a non-neutral value is a semantic change and still fails. The `scopes` and RV `preserved` exceptions are unchanged. A unit test pins the rule.
+
+Verified on the black M5 against the 0.4.12 cut's built binary and wasm: all 4 fence cases and both allowance tests pass.

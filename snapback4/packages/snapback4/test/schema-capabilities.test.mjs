@@ -32,6 +32,16 @@ function sameAnswer(actual,published,message,operation='query') {
     assert.ok(Array.isArray(actual.preserved)&&actual.preserved.length<=256&&actual.preserved.every(t=>typeof t==='string'&&t.length<=128));
     const {preserved:_preserved,...rest}=actual;actual=rest;
   }
+  // Later answer metadata (decorationExpiry, …) is additive. On a store the
+  // published release wrote, a key that release never sent must sit in its
+  // neutral state; anything else is a semantic change and stays compared.
+  // Every key the published answer carries keeps its exact value.
+  const neutral=v=>v===null||v===false||(Array.isArray(v)&&v.length===0)||(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===0);
+  if(actual?.ok&&published?.ok&&typeof actual.ok==='object'&&typeof published.ok==='object'&&!Array.isArray(actual.ok)) {
+    const ok={...actual.ok};
+    for(const key of Object.keys(ok)) if(key!=='scopes'&&!Object.hasOwn(published.ok,key)&&neutral(ok[key])) delete ok[key];
+    actual={...actual,ok};
+  }
   if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
     const {scopes:_scopes,...rest}=actual.ok;actual={...actual,ok:rest};
   }
@@ -381,4 +391,13 @@ test('RV publication allowance is confined to commit evidence', () => {
   for(const op of ['query','state','adopt','clear_rows']) assert.throws(()=>sameAnswer({ok:null,preserved:[]},{ok:null},op,op));
   assert.throws(()=>sameAnswer({ok:{data:[]},preserved:[]},{ok:{data:[]}}));
   assert.throws(()=>sameAnswer({ok:{changed:true},preserved:[]},{ok:null},'payload','settle'));
+});
+
+test('published answer comparison admits only neutral additive metadata', () => {
+  const published={ok:{complete:true,cut:null,data:[1],next:null,tables:['t']}};
+  for(const extra of [null,false,[],{}]) sameAnswer({ok:{...published.ok,decorationExpiry:extra}},published);
+  for(const extra of [0,'',1,[1],{a:1},true]) assert.throws(()=>sameAnswer({ok:{...published.ok,decorationExpiry:extra}},published));
+  assert.throws(()=>sameAnswer({ok:{...published.ok,data:[2]}},published));
+  assert.throws(()=>sameAnswer({ok:{...published.ok,complete:false,decorationExpiry:null}},published));
+  assert.throws(()=>sameAnswer({ok:{complete:true,cut:null,data:[1],tables:['t'],decorationExpiry:null}},published));
 });
