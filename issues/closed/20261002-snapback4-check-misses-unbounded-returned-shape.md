@@ -2,7 +2,7 @@
 
 **Opened:** 2026-10-02, from calibration #29 (snapback4 0.4.11), grader defect d-01 (major)
 **Area:** `snapback4-lang` read-shape analysis, `snapback4 check`, guide `why/E_SHAPE_EXCEEDS_METER.md`
-**Status:** In progress — sb5 lane UB on eb1000 (`~/sb5-lanes/lane-ub`, branch `sb5/ub-unbounded-shape`)
+**Status:** Closed 2026-10-03 — landed as merge 04441ba8ae (lane UB): advisory `N_SHAPE_METER` in ordinary `check`; see LLP 3000.007 §24 and `snapback4 why N_SHAPE_METER`.
 
 ## What happened
 

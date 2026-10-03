@@ -2,7 +2,7 @@
 
 **Opened:** 2026-10-02, from calibration #29 (snapback4 0.4.11), grader defect d-03 (minor) and the builder's essay
 **Area:** client live delivery (change feed → device apply → observation → render), LLP 3000.023
-**Status:** In progress — sb5 lane LM on eb1000 (`~/sb5-lanes/lane-lm`, branch `sb5/lm-live-margin`)
+**Status:** Closed 2026-10-03 — landed as merge 3d1ec31ff6 (lane LM). Latency: no Snapback mechanism; removal commit-to-React p95 81 ms unloaded / 324 ms loaded, 0 misses in N=20 per condition, so the calibration misses were harness-under-host-load. Empty-list transition: reproduced; a `once` column denies RV's preservation certificate, so slow settlement withdraws history to loading. Follow-up: `issues/20261003-snapback4-once-column-withdraws-whole-history.md`.
 **Related:** `issues/20260930-snapback4-live-propagation-notification-sync-intermittent.md`, `issues/20261002-snapback4-following-replay-delivery-backlog.md`
 
 ## What happened
