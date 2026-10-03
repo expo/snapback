@@ -83535,3 +83535,48 @@ Evidence and bounded-marker semantics: the
 Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
 or published.
 Reference audit: 526 LLP docs, 10,110 refs, zero errors or unchecked references.
+
+## 2026-10-03 — Lane L: bounded route-owned observations before an active hook
+
+Implemented LLP 3000.032 §4.5's recipe-first commission on Cal29 L1–L3. The
+installed social starter now includes BoundedConversation and PageLifetime;
+guide social prints their exact source. A draft shell survives route inactivity
+and read withdrawal, with account/backend/client/argument keys. The active child
+owns its observations. A shared root subscriber saves only an availability bit
+and epoch, catching generation withdrawals even when React batches replacement;
+page depth, row owners and selected media reset while the draft/input survive.
+The example requests at most three pages and displays 20 identity/body readers,
+plus the optional independent selected-photo owner. Bodies use current point
+reads; SDK Pages owns all cursors. No result cache or custody change.
+
+Mounted L1/L2: ten moving 20-row pages accumulate 200 point readers before and
+20 after; a wide 80-row input is bounded to Cal29's 40-ID window. The complete
+starter uses 22 distinct reads / 23 owners initially, zero hidden, and preserves
+an active sibling. Strict Mode setup/cleanup, hidden account changes, backend/
+client/argument keys and coalesced generation resets pass. Real process/wasm
+checks pass cursor-boundary edits, expiry, explicit denial, late responses,
+reactivation and committed generation adoption with an old response held.
+
+No SDK active option is justified: route unmounting delivers the measured
+reduction and an active option would not remove the remaining ID/window/scope
+work. This is the specific commission's conditional outcome, not an unfinished
+hook. The selected lines alone shrink, but including both helper files and the
+edited chat gives +61 physical lines / +3,500 bytes. No score or additive A/R
+savings claim. keep:true linger, server Read, .019 custody, .023 authority and
+.028 cursor ownership are unchanged; .029 remains shelved.
+
+The wasm device measures 2,048,753 bytes raw / 617,410 gzip against the unchanged
+618,040-byte cap. The whole guide passes 111 tests, and the generated starter
+and changed specimens typecheck. Exact final suite results and limitations are
+in reports/20261003-l-screen-lifetimes/REPORT.md and ~/sb5-lanes/l.report.md.
+Local commit only; no push or publication.
+
+Lane L final qualification: `bash snapback4/scripts/test.sh` reported exactly
+`== 2 failure(s) in 1695 s` (cargo test; client tests). Four Cargo failures
+reproduce on unchanged base ffc125ea2439695d06d066dc6b25e45c2a39a088. The first
+client run had 5,946 pass, 38 fail, 10 skip: two lane documentation/assertion
+failures repaired and qualified (8 README and 6 lifetime tests pass), and 36
+witness-helper lookup failures resolved by the supported environment override
+(all 43 witness tests pass). All 79 final model tests pass. The report preserves
+every original summary and the intermediate working-directory fixture error;
+no clean complete-suite claim is made. Remaining known reds are inherited.

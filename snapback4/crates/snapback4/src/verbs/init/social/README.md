@@ -177,3 +177,19 @@ notices include nonempty pages with incomplete coverage, cuts or continuations.
 separate labels. Keep the search input and conversation draft above results;
 key screen state by backend/account/resource. `guide client` links a complete
 React/Expo screen with this shell and a reusable read notice.
+
+## Try a bounded observation screen
+
+`src/BoundedConversation.tsx` and `src/PageLifetime.ts` are a complete smaller
+alternative to the full Conversation screen. In PinnedConversation substitute
+`<BoundedConversation backend={url} conversation={conversation} active={focused && foreground} />`
+for ConversationScreen and import it from `../../src/BoundedConversation`.
+The draft stays outside the active route child. Three requested 20-row pages
+and a 20-ID window bound reads; Previous/Next rows moves the window. Each body's
+point read owns its data, including withdrawal/expiry; a placeholder proves no
+existence. The shared root marker stores only an epoch/availability bit and
+resets page depth/window/media selection at hard withdrawal, including backend
+generation changes. Account/backend/client/argument changes clear the draft too.
+`usePage` owns every cursor; no past body/cursor/asset metadata is retained.
+The full Conversation retains the journal, receipts and richer UI. See
+`guide social` for the full bounded source and `guide client` for the contract.

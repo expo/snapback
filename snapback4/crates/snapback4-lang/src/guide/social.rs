@@ -94,6 +94,24 @@ positions. The starter passes foreground and navigation visibility explicitly.
 // src/Conversation.tsx
 "##, include_str!("../../../snapback4/src/verbs/init/social/Conversation.tsx"), r##"```
 
+## Bounded route-owned alternative
+
+The installed `BoundedConversation` keeps its draft outside an active route
+child. Supply `active={focused && foreground}` from PinnedConversation. Backend,
+account, client and conversation changes reset the shell; the shared root marker
+resets page/identity owners at every hard withdrawal, including generation changes.
+It stores no answer or cursor. Three requested pages, at most 20 row-body readers,
+and current point bodies give the example an explicit observation bound.
+The full Conversation above also supplies saved-send recovery and receipts.
+
+```ts
+// src/PageLifetime.ts
+"##, include_str!("../../../snapback4/src/verbs/init/social/PageLifetime.ts"), r##"```
+
+```tsx
+// src/BoundedConversation.tsx
+"##, include_str!("../../../snapback4/src/verbs/init/social/BoundedConversation.tsx"), r##"```
+
 ## Direct messages and route resolution
 
 Profile's Message button opens `app/dm/[other].tsx`, which mounts `src/Direct.tsx`.

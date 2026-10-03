@@ -1,0 +1,69 @@
+{
+  "method": "UTF-8 bytes excluding final newline; physical source lines; selected blocks overlap the whole-file totals. L3 selected replacement is cleanup only; all visibility/routing/owner overhead is charged below.",
+  "specimens": {
+    "L1": {
+      "before": {
+        "line": 26,
+        "physicalLines": 1,
+        "bytes": 304,
+        "sha256": "bd3232b584dcc10e2994ca0dd479ec4cc447c4f001b43f9c0fda220ee5b2a567"
+      },
+      "after": {
+        "line": 38,
+        "physicalLines": 1,
+        "bytes": 211,
+        "sha256": "5763a4cd59fbed0db59d869a8d414737c44f34c555f35c04b5787f6b39e000bf"
+      }
+    },
+    "L2": {
+      "before": {
+        "line": 39,
+        "physicalLines": 1,
+        "bytes": 180,
+        "sha256": "a411d51c80fecab8080a11d747353f896375cfc861d89d6aa487645a35dc2875"
+      },
+      "after": {
+        "line": 52,
+        "physicalLines": 1,
+        "bytes": 238,
+        "sha256": "92905fa352536154513ff6a95581d9ea486b5abb620ba95a5215fdec704a2991"
+      }
+    },
+    "L3": {
+      "before": {
+        "line": 28,
+        "physicalLines": 1,
+        "bytes": 370,
+        "sha256": "82822368fbc1c4a581f4138c2e2f3a970c5b72413474d1bd96e0ad5e28519399"
+      },
+      "after": {
+        "line": 40,
+        "physicalLines": 1,
+        "bytes": 87,
+        "sha256": "4530b62a9eecc5866744101de04743fea4df914f95b7c32fd31fa1c6b4a03246"
+      }
+    }
+  },
+  "files": {
+    "before/chat.tsx": {
+      "physicalLines": 46,
+      "bytes": 16754,
+      "sha256": "5d54174d9b6d8ce5c86e5e89da2fa3bb5399503a31a02010c71596b751ad9170"
+    },
+    "after/chat.tsx": {
+      "physicalLines": 59,
+      "bytes": 18089,
+      "sha256": "cb55eeeda49c1d2906895214c7a95b37c8aa191e81730db56eca0bbd4b511ffe"
+    },
+    "after/PageLifetime.ts": {
+      "physicalLines": 39,
+      "bytes": 1502,
+      "sha256": "642be4a9d52707e74f593c470cefbe541dfa94d833d5d694283b518a4de678de"
+    },
+    "after/useForeground.ts": {
+      "physicalLines": 9,
+      "bytes": 663,
+      "sha256": "8503f26383b11ec39b4be61a1f44641814406806aef10ff79c82f10f5dc149aa"
+    }
+  }
+}
