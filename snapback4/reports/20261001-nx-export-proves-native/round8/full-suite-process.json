@@ -1,0 +1,7 @@
+{
+  "supervisorPid": 10062,
+  "suiteSupervisorPid": 10067,
+  "startedAt": 1790995953.797041,
+  "nodeLauncher": "/Users/ccheever/.volta/bin/node",
+  "nodeVersion": "24.18.0"
+}

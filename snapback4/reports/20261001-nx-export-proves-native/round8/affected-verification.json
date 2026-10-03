@@ -1,0 +1,56 @@
+{
+  "mini-units-final.log": {
+    "sha256": "2adfe50934803c9c3222f3b9a8460d6afbf2e2d14878a45a1d0455efe61b80e5",
+    "summaries": [
+      "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 3.44s"
+    ]
+  },
+  "mini-integration.log": {
+    "sha256": "d1ee4f6abe4fb02fb79c9e540c11ead43230cbfa3f4d6c27833a8b548aef3cdf",
+    "summaries": [
+      "test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 131.40s"
+    ]
+  },
+  "mini-js.log": {
+    "sha256": "8f34744e3197f50e42c8e20d71caa9d2eeb7d9d98bf3ca699c9045161d121bde",
+    "summaries": [
+      "\u2139 tests 19",
+      "\u2139 pass 19",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ]
+  },
+  "linux-logs/rust-units.log": {
+    "sha256": "7b83155d572cb38337560f348fa8813c30a581e6fb0d9bd0b9c09699150b2787",
+    "summaries": [
+      "test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 3.65s"
+    ]
+  },
+  "linux-logs/rust-integration.log": {
+    "sha256": "6030ff86b5731fc815659e6058238c0ab6481b1ac29ba50546646d3a5e74fd33",
+    "summaries": [
+      "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s"
+    ]
+  },
+  "linux-logs/js-export-shim.log": {
+    "sha256": "c2a869003e756e41dbaa2bc645ba6b0ee2be4752365e1f2d8c4f3b242e7eb343",
+    "summaries": [
+      "\u2139 tests 19",
+      "\u2139 pass 18",
+      "\u2139 fail 0",
+      "\u2139 skipped 1"
+    ]
+  },
+  "mini-units-private-root.log": {
+    "sha256": "a41a87d11dd265ee1561e580113c69491f529e780cc5db5657c862738cbd86ad",
+    "summaries": [
+      "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 3.47s"
+    ]
+  },
+  "linux-private-root-logs/rust-units.log": {
+    "sha256": "3811fe231b19704e3fb8ec42c307af79793287e562842434cb5f1e3de6d28493",
+    "summaries": [
+      "test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 3.34s"
+    ]
+  }
+}

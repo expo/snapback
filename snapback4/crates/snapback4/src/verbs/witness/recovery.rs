@@ -1,12 +1,15 @@
 //! @ref LLP 3000.030#15 — recover abandoned exports only under leases and process birth identities.
 use super::*;
 
-pub(super) fn identity(pid: u32) -> Option<Value> {
+pub(super) fn identity(pid: u32) -> Option<Value> { process_identity(pid, false) }
+pub(super) fn birth(pid: u32) -> Option<Value> { process_identity(pid, true) }
+fn process_identity(pid: u32, include_zombie: bool) -> Option<Value> {
     if pid == 0 { return None; }
     #[cfg(target_os = "macos")]
     {
         let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
         let size = std::mem::size_of_val(&info) as i32;
+        if include_zombie { return darwin_birth(pid); }
         if unsafe { libc::proc_pidinfo(pid as i32, libc::PROC_PIDTBSDINFO, 0, &mut info as *mut _ as *mut _, size) } != size || info.pbi_status == 5 { return None; }
         Some(json!({ "pid": pid, "start": [info.pbi_start_tvsec, info.pbi_start_tvusec] }))
     }
@@ -14,11 +17,26 @@ pub(super) fn identity(pid: u32) -> Option<Value> {
     {
         let text = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
         let fields: Vec<_> = text.rsplit_once(')')?.1.split_whitespace().collect();
-        if fields.first() == Some(&"Z") { return None; }
+        if !include_zombie && fields.first() == Some(&"Z") { return None; }
         Some(json!({ "pid": pid, "start": [fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?, fields.get(19)?] }))
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     { None }
+}
+// PROC_PIDTBSDINFO excludes zombies on Darwin. KERN_PROC_PID includes the
+// unreaped leader. This is the stable prefix of SDK sys/proc.h's extern_proc,
+// the first field of kinfo_proc; the oversized buffer accepts its opaque tail.
+#[cfg(target_os = "macos")]
+fn darwin_birth(pid: u32) -> Option<Value> {
+    #[repr(C)]
+    struct Prefix { start: libc::timeval, vm: *mut libc::c_void, signals: *mut libc::c_void, flags: i32, state: i8, pid: i32 }
+    let mut mib = [libc::CTL_KERN, libc::KERN_PROC, libc::KERN_PROC_PID, pid as i32];
+    let mut buffer = [0u64; 256];
+    let mut size = std::mem::size_of_val(&buffer);
+    if unsafe { libc::sysctl(mib.as_mut_ptr(), 4, buffer.as_mut_ptr().cast(), &mut size, std::ptr::null_mut(), 0) } != 0 || size < std::mem::size_of::<Prefix>() { return None; }
+    let info = unsafe { &*buffer.as_ptr().cast::<Prefix>() };
+    if info.pid != pid as i32 { return None; }
+    Some(json!({ "pid": pid, "start": [info.start.tv_sec, info.start.tv_usec] }))
 }
 fn alive(record: &Value) -> bool {
     record["pid"].as_u64().and_then(|pid| identity(pid as u32)).as_ref() == Some(record) && !record.is_null()
@@ -41,10 +59,12 @@ pub(super) fn child(options: &Options, label: &str, pid: u32) -> Result<()> {
     let id = identity(pid);
     update(options, |value| value["children"][label] = id.map_or(Value::Null, |id| id))
 }
-pub(super) fn group(options: &Options, label: &str, pid: u32) -> Result<()> {
-    let leader = identity(pid).ok_or_else(|| error("E_WITNESS_PROCESS", "cannot record process group birth"))?;
-    if unsafe { libc::getpgid(pid as i32) } != pid as i32 { return Err(error("E_WITNESS_PROCESS", "child is not its process group leader")); }
-    update(options, |value| value["children"][label] = json!({ "group": pid, "leader": leader }))
+pub(super) fn group_record(options: &Options, label: &str, record: &Value) -> Result<()> {
+    let pid = record["group"].as_u64().ok_or_else(|| error("E_WITNESS_PROCESS", "missing native process group"))? as u32;
+    if birth(pid).as_ref() != Some(&record["leader"]) || unsafe { libc::getpgid(pid as i32) } != pid as i32 {
+        return Err(error("E_WITNESS_PROCESS", "native process group birth differs"));
+    }
+    update(options, |value| value["children"][label] = record.clone())
 }
 pub(super) fn simulator(options: &Options, simulator: &Value) -> Result<()> {
     update(options, |value| value["simulator"] = simulator.clone())
@@ -73,7 +93,7 @@ fn stop(record: &Value, signal: i32) -> Result<()> {
     if record["group"].is_number() { return stop_group(record); }
     recorded_process::stop(record, signal)
 }
-fn members(group: u32) -> Result<Vec<Value>> {
+pub(super) fn members(group: u32) -> Result<Vec<Value>> {
     let output = Command::new("ps").args(["-axo", "pid=,pgid=,stat="]).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
     if !output.status.success() { return Err(error("E_WITNESS_PROCESS", "cannot inspect abandoned process group")); }
     Ok(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| {
@@ -86,40 +106,49 @@ fn members(group: u32) -> Result<Vec<Value>> {
 fn stop_group(record: &Value) -> Result<()> { stop_group_with(record, || {}) }
 pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) -> Result<()> {
     let group = record["group"].as_u64().unwrap() as u32;
-    if members(group)?.is_empty() { return Ok(()); }
-    // A persistent preparation leader stays alive even after its worker exits.
-    // Never infer custody from a recycled group number if that anchor is lost.
-    if !alive(&record["leader"]) || unsafe { libc::getpgid(group as i32) } != group as i32 {
-        return Err(error("E_WITNESS_PROCESS", "abandoned process group has no matching birth record; workspace cleanup refused"));
+    if members(group)?.is_empty() {
+        sleep(Duration::from_millis(20));
+        if members(group)?.is_empty() { return Ok(()); }
     }
-    // Keep the verified leader alive while draining descendants. Re-enumerate
-    // before each signal: a compiler may fork while termination is underway.
-    for signal in [libc::SIGTERM, libc::SIGKILL] {
-        let end = Instant::now() + Duration::from_secs(2);
-        loop {
-            if !alive(&record["leader"]) { return Err(error("E_WITNESS_PROCESS", "lost custody of abandoned process group")); }
-            let children: Vec<_> = members(group)?.into_iter().filter(|p| p["pid"] != group).collect();
+    // The native guardian retains its child as a zombie after leader exit.
+    // This lock forbids it from reaping while recovery signals/inspects. The
+    // birth must still match AFTER taking the lock; a number alone grants none.
+    let _reap = record["reapLock"].as_str().map(|p| -> Result<File> {
+        let file = File::options().read(true).write(true).open(p).map_err(|e| error("E_WITNESS_PROCESS", e))?;
+        file.lock().map_err(|e| error("E_WITNESS_PROCESS", e))?; Ok(file)
+    }).transpose()?;
+    let ours = || birth(group).as_ref() == Some(&record["leader"]) &&
+        (unsafe { libc::getpgid(group as i32) } == group as i32 ||
+         // Darwin getpgid also hides zombies. Their birth plus the live
+         // retaining parent and held reaping lock bind the original group.
+         (identity(group).is_none() && _reap.is_some() && alive(&record["guardian"])));
+    if !ours() { return Err(error("E_WITNESS_PROCESS", "abandoned process group has no matching birth record; workspace cleanup refused")); }
+    let end = Instant::now() + Duration::from_secs(4);
+    let mut empty = 0;
+    loop {
+        let live = members(group)?;
+        if live.is_empty() {
+            empty += 1;
+            if empty == 2 { return Ok(()); }
+        } else {
+            empty = 0;
             after_snapshot();
-            // Membership observations belong to this recorded leader only if
-            // its birth still matches AFTER collecting them. Otherwise a reused
-            // group number could authorize unrelated newly observed members.
-            if !alive(&record["leader"]) { return Err(error("E_WITNESS_PROCESS", "lost custody while inspecting abandoned process group")); }
-            if children.is_empty() {
-                stop(&record["leader"], libc::SIGTERM)?;
-                if members(group)?.is_empty() { return Ok(()); }
-                return Err(error("E_WITNESS_PROCESS", "abandoned process group did not drain"));
-            }
-            for child in children {
-                if alive(&child) && unsafe { libc::getpgid(child["pid"].as_u64().unwrap() as i32) } == group as i32 {
-                    recorded_process::stop(&child, signal)?;
+            if !ours() { return Err(error("E_WITNESS_PROCESS", "lost custody while inspecting abandoned process group")); }
+            // Signal the GROUP, including members joining the final snapshot.
+            // STOP inhibits new forks before KILL; the retained leader permits
+            // another group KILL when kernel delivery/exit is still in flight.
+            for signal in [libc::SIGSTOP, libc::SIGKILL] {
+                if !ours() { return Err(error("E_WITNESS_PROCESS", "lost custody of abandoned process group")); }
+                if unsafe { libc::kill(-(group as i32), signal) } < 0 && std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH) {
+                    return Err(error("E_WITNESS_PROCESS", std::io::Error::last_os_error()));
                 }
             }
-            if Instant::now() >= end { break; }
-            sleep(Duration::from_millis(50));
         }
+        if Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", "abandoned process group survived cleanup")); }
+        sleep(Duration::from_millis(20));
     }
-    Err(error("E_WITNESS_PROCESS", "abandoned process group survived cleanup"))
 }
+
 fn recover(dir: &Path) -> Result<bool> {
     let mut record = read(&dir.join("live.json"));
     if alive(&record["owner"]) {
@@ -326,7 +355,9 @@ mod tests {
         let runner = dir.join("runner.mjs"); fs::write(&runner, include_str!("preparation-runner.mjs")).unwrap();
         let heartbeat = dir.join("heartbeat");
         let code = "const fs=require('fs');process.on('SIGTERM',()=>{});setInterval(()=>fs.appendFileSync(process.argv[1],'x'),20)";
-        let runtime = preparation::node_runtime(std::ffi::OsStr::new("node")).unwrap();
+        let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+        let options = Options::parse(&args).unwrap();
+        let runtime = preparation::node_runtime(&options, std::ffi::OsStr::new("node")).unwrap();
         let mut keeper = Command::new(&runtime).arg(runner).arg(dir.join("status.json")).arg(&runtime).args(["-e", code]).arg(&heartbeat)
             .process_group(0).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let leader = identity(keeper.id()).unwrap();

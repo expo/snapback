@@ -81928,3 +81928,70 @@ no new timing cohort and no budget change. Wasm is byte-for-byte unchanged:
 was run; mini-verify-iphone, X27R worktrees/simulators and system settings were
 untouched. Local commit with the requested
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.
+
+
+## 2026-10-02 — NX round 8: native custody and cancellable runtime resolution
+
+Read Astra's full round-7 READY WITH CHANGES review and surviving final-snapshot
+probe. Replaced the production Node group anchor with two native CLI helpers:
+a watchdog outside the group and an anchor that leads it. The driver syncs
+PGID, anchor birth, guardian birth and reaping-lock path before releasing
+the worker, including the Node runtime resolver. Whole-group signals replace
+per-PID snapshot draining; watchdog and recovery both demand two consecutive
+empty live-member inspections. The watchdog retains its child unreaped, and
+recovery's reaping lock prevents it from releasing that identity during signals.
+Linux reads zombie births through /proc; Darwin requires KERN_PROC_PID because
+proc_pidinfo/getpgid hide zombies. The dead-leader regression proves recovery
+with a live member on both hosts. LLP 3000.030 §15 records the structure.
+
+Linux parent-death signals and Darwin kqueue NOTE_EXIT watches prevent driver
+death from leaving work until the next export. Parent identity is checked after
+arming. Resolution is journalled before the launcher runs, uses at most 30 s
+(or a shorter --timeout), and remains cancellable through its bounded native
+handshake. Timeout names the launcher and the pinned-Node installation/download
+remedy with E_WITNESS_PROCESS. TERM/INT/timeout return only after group cleanup.
+
+Retained every earlier regression and added final-empty-child-snapshot cases
+for direct Node, non-exec shell and Volta-style shims; real resolver-owner
+TERM/INT/KILL, timeout and exited-anchor recovery on both hosts; and real public
+CLI TERM/timeout cases on Darwin using fake xcrun. Mini affected results:
+41 units / 55 integration / 19 JS passes. Linux: 42 units / 13 integration /
+18 JS passes, one existing Darwin-only skip. The mini retains actual Volta on
+PATH (Node 24.18.0); Linux uses Node 24.13.1 / Rust 1.97.0. The final mini resolver
+signal observations were 269 ms TERM, 244 ms INT and 66 ms KILL, including
+cleanup; launcher/descendant death is checked before invoking recovery.
+
+Two initial implementation failures exposed Darwin's zombie birth/group APIs;
+the resulting custody fixes are retained in the raw failure logs. Two new test
+fixture failures came from using a one-second deadline for a signal test and
+from observing a partially written PID marker. Signal cases now use the normal
+30 s deadline, the explicit timeout control uses three seconds, and markers
+publish by rename. No existing guard/assertion/budget was weakened. A final test-only path change
+confines the new fixture’s recovery scan to its own private parent; affected
+units were repeated on both hosts. The canonical source snapshot is retained
+separately; product code did not change. Linux had
+no test/setup failure. A final evidence-script print typo followed successful
+hashing/copying; a separate read-back check verified the outputs. The report's
+Round 8 ledger classifies each failure and binds both source transports.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2426 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; complete CLI units 244 passed with four existing ignored;
+witness integration 55/55. No canonical failure occurred; the known unrelated
+delivery-fault follow flake did not reproduce, and NX does not claim to fix it.
+The full raw log and source snapshots are content-addressed outside git and
+read-back verified; small summaries and failure classifications are in the
+Round 8 report. Both Linux scratch directories were deleted after source/log
+verification. Ref-check passed with zero errors and zero unchecked refs.
+
+The remaining exceptional recovery window after another actor destroys the
+retaining guardian, legacy external reaping, intentional process-group escape,
+outside joiners and stalled inspection/kernel limitations are ticketed in
+issues/20261002-snapback4-nx-custody-recovery-residuals.md as the operator directed.
+There is no unconditional orphan-free claim. Publication verification,
+swap-back, orphan reconciliation and leases remain intact. Social's 25 s target
+remains Open pending quiet-host measurement; no new cohort or budget change.
+Wasm matches round 7 byte-for-byte: 2,014,420 B raw / 604,666 B gzip under the
+same 605,225 B cap. No real simulator or protected mini-verify-iphone/X27R
+worktree/simulator was touched. Local commit with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.

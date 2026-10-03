@@ -83,7 +83,7 @@ prepares that project's own Release simulator application with a private stable
 snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl`
 and launches its bundle ID directly. It never opens Simulator.app, invokes
 AppleScript, opens a dev-client URL, or starts Metro. Native preparation has a
-separate 900-second deadline; smoke keeps its 120-second step default.
+separate 900-second deadline; Node launcher resolution gets at most 30 seconds (or a shorter --timeout), with cancellation. Finish any pinned-Node download in the project before retrying; smoke keeps its 120-second step default.
 
 This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0,
 Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and

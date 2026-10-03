@@ -1645,3 +1645,134 @@ The suite's wasm rebuild is byte-for-byte unchanged from round 6:
 SHA-256 `c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`
 ([wasm identity](round7/wasm.json)). No native timing, simulator, publication,
 M6/M8 or new reviewer qualification is claimed. No push or publication.
+
+## Round 8 — structural process custody and cancellable runtime resolution
+
+Astra's full round-7 **READY WITH CHANGES** review identified a final-empty-child
+snapshot survivor and an untracked blocking Node resolver. Both are addressed
+by native process custody. Publication verification, swap-back, orphan
+reconciliation and leases remain intact; their existing regressions are kept.
+
+### Group ownership and source prevention
+
+Each launch now uses the installed Rust CLI as an outer watchdog and a native
+group leader. The leader launches the resolver or preparation worker only after
+the driver syncs its group/birth/guardian/reaping-lock record into `live.json`.
+The watchdog holds that leader **unreaped**, including after it exits. Recovery
+holds the reaping lock and rechecks its birth, signals the **entire group**,
+and requires two consecutive empty live-member inspections, 20 ms apart.
+Late members receive the group signal even when the captured child list was
+empty. No per-child snapshot decides the signal targets.
+
+Linux uses parent-death signals for the supervisor, anchor and worker, with
+post-arm parent checks. Darwin uses kqueue owner-exit notifications for the
+supervisor and anchor, also checked after registration. Driver SIGKILL therefore
+triggers group cleanup without waiting for another export to run recovery.
+Normal cancellation requests the same cleanup and waits for the watchdog.
+The [reproduction notes](round8/NOTES.md) describe the gate, watcher and regression
+boundaries; LLP 3000.030 §15 now records the contract.
+
+**After leader death:** Linux `/proc` and Darwin `KERN_PROC_PID` expose its
+unreaped birth identity. Darwin's ordinary `proc_pidinfo`/`getpgid` hide zombies,
+so a matching retained birth, matching live guardian and held reaping lock bind
+the old group. The guardian cannot reap under recovery's lock; the kernel
+cannot reuse the retained PID. The exited-anchor regression proves recovery
+with a surviving member on both hosts. A missing/mismatched anchor does not
+authorize a signal to a reusable group number.
+
+### Resolution, cancellation and regressions
+
+Runtime selection still honors the builder's direct Node, shell or version
+manager launcher. It now has a journalled native group before it runs and a
+`min(30 seconds, --timeout)` deadline, with a cancellable five-second native
+handshake bound. `E_WITNESS_PROCESS` names a slow launcher and tells the builder
+to finish its pinned Node installation/download in the project before retrying.
+SIGTERM, SIGINT and timeout drain that group before the resolver returns.
+
+The original three late-member regressions remain, with three additional
+**final-empty-child snapshot** cases for direct Node, non-exec shell and
+Volta-style shims. Both hosts also run real owner TERM/INT/KILL, timeout,
+exited-anchor recovery, retained publication/orphan and lease regressions.
+Darwin additionally drives the real public CLI through stalled resolver
+SIGTERM and timeout with fake xcrun. The journal must already name the group,
+the launcher and descendant must be dead before recovery, and cleanup must
+precede `finished.json`. No real simulator is involved.
+
+| Affected check | Apartment mini | Linux eb1000 |
+| --- | --- | --- |
+| Rust witness units | 41 passed | 42 passed |
+| Rust witness integration | 55 passed | 13 passed |
+| Four JS export/shim files | 19 passed | 18 passed, one existing Darwin-only skip |
+
+The mini uses **Volta on PATH, Node 24.18.0**; Linux uses Node 24.13.1 and
+Rust 1.97.0. Mini stalled-resolver owner response including group cleanup:
+TERM **269 ms**, INT **244 ms**, KILL **66 ms**. The three-second timeout
+completed **2.689 s after the launcher marker**, with its deadline starting
+before that marker. These are regression observations, not a timing cohort.
+Linux source and copied logs were hash-verified and the exact scratch
+`/tmp/sb4-nx-r8.2Of3jA` was deleted
+([validation](round8/linux-validation.json), [cleanup](round8/linux-cleanup.json)).
+The test-only private-root follow-up used `/tmp/sb4-nx-r8-final.DZuddG`; all
+2,359 files were verified again and that scratch was also deleted
+([validation](round8/linux-private-root-validation.json),
+[cleanup](round8/linux-private-root-cleanup.json)).
+
+### Verification and evidence
+
+Ran `scripts/test.sh` **exactly once**, with Volta on PATH. Exact summary:
+**`== 0 failure(s) in 2426 s`**, exit 0. Client pool: **5,767 passed**, zero
+failed, five existing skips; final models: **79/79**; guide: **110/110**;
+complete CLI units: **244 passed**, four existing ignored; witness integration:
+**55/55**. No canonical failure occurred. The known delivery-fault follow
+flake did not reproduce; NX does not claim to fix it.
+[Exact summary](round8/full-suite-summary.log),
+[complete log identity](round8/full-suite-archive.json), and
+[affected checks](round8/affected-verification.json) retain the results.
+
+All intermediate failures are retained and classified in the
+[failure ledger](round8/NOTES.md): two initial Darwin exited-leader custody
+failures, then a too-short signal-fixture timeout and a partially written PID
+marker. The first two changed product custody; the latter two changed only the
+new fixtures' synchronization/configuration. Final affected checks passed on
+both hosts. No earlier assertion, suite guard, cohort or budget was weakened.
+The final source transport includes the built JS resolver and benchmark inputs;
+Linux had no provisioning/test failure. A final test-only path adjustment confines
+the resolver fixture’s recovery scan to a private parent directory; affected
+units were repeated on both hosts. Product code is unchanged from the single
+canonical invocation, whose original test-source snapshot is retained. A final evidence-script print typo
+occurred after successful hashing/copying; an independent read-back validation
+confirmed its outputs before scratch deletion.
+
+Raw source archives, compressed logs and oversized evidence live outside git
+in the existing content-addressed archive, indexed by `EVIDENCE-ARCHIVE.tsv`.
+[Source transport](round8/source-transfer.json),
+[final tested-source hashes](round8/tested-source.json),
+[canonical source snapshot](round8/suite-start-source.json),
+[reproduction and full failure ledger](round8/NOTES.md) bind this round's work.
+No raw gzip or binary is added to the commit. `ref-check --verbose` passes:
+525 LLP documents, 10,187 references, zero errors and zero unchecked.
+
+### Remaining limits
+
+Normal/watchdog cleanup owns its unreaped child and has no numeric PID-reuse
+interval. Recovery still has a separate birth-check-to-numeric-group-signal
+interval on **both Darwin and tested Linux 6.8** if another actor kills the
+retaining guardian, the leader is externally reaped, and the entire old group
+exits and is reused within that interval. Linux's individual-process pidfds do
+not make this a pidfd group-signal guarantee. Legacy groups without a guardian
+share the external-reaping residual. Detected missing/mismatched custody refuses.
+
+Intentional `setsid`/`setpgid` escape, outside joiners after both final empty
+inspections, simultaneous watchdog destruction, and uninterruptible kernel or
+`ps` inspection stalls are also outside an absolute orphan-free/wall-time claim.
+These remaining cleanup limits are now
+[ticketed](../../../issues/20261002-snapback4-nx-custody-recovery-residuals.md), per
+the operator's direction. They do not relax export verification or publication.
+
+**Social's 25 s warm target remains open pending quiet-host measurement**;
+round-5b's candidate median remains 26.716 s. This round runs no native timing
+cohort and changes no budget. Wasm stays **2,014,420 B raw / 604,666 B gzip**,
+SHA-256 `c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`,
+under the unchanged **605,225 B** cap. No real simulator, system settings,
+`mini-verify-iphone` or another session's X27R worktree/simulators were touched.
+Local commit with the requested Astra co-author trailer; no push or publication.

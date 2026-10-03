@@ -362,6 +362,46 @@ mod driver {
             .env("WITNESS_TEST_UDID", fixture.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", "normal");
         command
     }
+    fn stalled_runtime_cli(signal: Option<i32>) {
+        use std::time::{Duration, Instant};
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("node"), "#!/bin/sh\nprintf '%s' \"$$\" > launcher.pid\nsleep 60 &\nprintf '%s' \"$!\" > descendant.pid.tmp\nmv descendant.pid.tmp descendant.pid\nwait\n").unwrap();
+        fs::set_permissions(fixture.0.join("node"), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::create_dir(fixture.0.join("dist")).unwrap();
+        let mut command = build_command(&fixture);
+        command.args(["--export", "dist", "--timeout", "2"]);
+        let mut driver = watchdog::Guarded::spawn(&mut command, &fixture.0, Duration::from_secs(15));
+        let end = Instant::now() + Duration::from_secs(10);
+        while !fixture.0.join("descendant.pid").exists() && driver.is_running() && Instant::now() < end { std::thread::sleep(Duration::from_millis(10)); }
+        assert!(fixture.0.join("descendant.pid").exists());
+        let live: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/live.json")).unwrap()).unwrap();
+        let group = &live["children"]["runtime-resolution"];
+        let launcher: i32 = fs::read_to_string(fixture.0.join("launcher.pid")).unwrap().parse().unwrap();
+        let descendant: i32 = fs::read_to_string(fixture.0.join("descendant.pid")).unwrap().parse().unwrap();
+        assert_eq!(unsafe { libc::getpgid(launcher) }, group["group"].as_i64().unwrap() as i32);
+        assert!(group["leader"]["start"].is_array());
+        let started = Instant::now();
+        if let Some(signal) = signal { unsafe { libc::kill(driver.id() as i32, signal); } }
+        let output = driver.finish();
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(if signal.is_some() { "E_WITNESS_INTERRUPTED" } else { "E_WITNESS_PROCESS: Node launcher node exceeded its 2-second" }), "{stderr}");
+        if signal.is_none() { assert!(stderr.contains("installing/downloading")); }
+        for pid in [launcher, descendant] {
+            let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+            let size = std::mem::size_of_val(&info) as i32;
+            assert!(unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 0, &mut info as *mut _ as *mut _, size) } != size || info.pbi_status == 5, "resolver child survived driver cancellation");
+        }
+        assert!(!fixture.0.join("artifacts/finished.json").exists());
+        let cleanup = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["witness", "export-cleanup"])
+            .arg(fixture.0.join("artifacts")).arg(fixture.0.join("artifacts")).output().unwrap();
+        assert!(cleanup.status.success(), "{}", String::from_utf8_lossy(&cleanup.stderr));
+        assert!(fixture.0.join("artifacts/finished.json").exists());
+    }
+    #[test] fn real_cli_stalled_resolver_sigterm_drains_before_finished() { stalled_runtime_cli(Some(libc::SIGTERM)); }
+    #[test] fn real_cli_stalled_resolver_timeout_drains_before_finished() { stalled_runtime_cli(None); }
+
     #[test]
     fn missing_schema_uses_one_message_and_witness_exit_one() {
         for missing_schema in [true, false] {

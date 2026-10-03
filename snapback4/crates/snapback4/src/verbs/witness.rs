@@ -8,6 +8,7 @@ mod simulator;
 mod ownership;
 mod recovery;
 mod recorded_process;
+pub(crate) mod process_group;
 mod publication;
 use protocol::*;
 use serde_json::{Value, json};

@@ -32,42 +32,71 @@ pub(super) fn lease(path: &Path) -> Result<File> {
     Ok(file)
 }
 
-// @ref LLP 3000.030#15 — resolve the builder's launcher before choosing the group anchor.
-pub(super) fn node_runtime(node: &std::ffi::OsStr) -> Result<PathBuf> {
-    let output = Command::new(node).args(["-p", "JSON.stringify(process.execPath)"])
-        .stdin(Stdio::null()).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-    if !output.status.success() { return Err(error("E_WITNESS_PROCESS", "cannot resolve Node runtime through node launcher")); }
-    let path: PathBuf = serde_json::from_slice::<String>(&output.stdout).map(PathBuf::from)
-        .map_err(|_| error("E_WITNESS_PROCESS", "node launcher returned an invalid runtime path"))?;
-    if !path.is_absolute() { return Err(error("E_WITNESS_PROCESS", "node runtime path must be absolute")); }
-    Ok(path)
+// @ref LLP 3000.030#15 — resolution has the same native custody as preparation.
+pub(super) fn node_runtime(options: &Options, node: &std::ffi::OsStr) -> Result<PathBuf> {
+    // Respect a shorter per-step timeout; first-use version-manager downloads
+    // otherwise get 30 seconds before the builder must provision Node explicitly.
+    let budget = options.timeout.min(Duration::from_secs(30));
+    let end = Instant::now() + budget;
+    let mut resolver = PreparationProcess::launch(options, node,
+        &[std::ffi::OsStr::new("-p"), std::ffi::OsStr::new("JSON.stringify(process.execPath)")], "runtime-resolution")?;
+    let result = (|| {
+        loop {
+            interrupted()?;
+            if let Some(status) = resolver.status()? {
+                if !status.success() { return Err(error("E_WITNESS_PROCESS", format!("cannot resolve Node runtime through launcher {}; run that launcher in this project to install/repair its pinned Node, then retry", node.to_string_lossy()))); }
+                let bytes = fs::read(options.artifacts.join("runtime-resolution-stdout.log")).map_err(|e| error("E_WITNESS_PROCESS", e))?;
+                let path = serde_json::from_slice::<String>(&bytes).map(PathBuf::from)
+                    .map_err(|_| error("E_WITNESS_PROCESS", "node launcher returned an invalid runtime path"))?;
+                if !path.is_absolute() { return Err(error("E_WITNESS_PROCESS", "node runtime path must be absolute")); }
+                return Ok(path);
+            }
+            if Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", format!("Node launcher {} exceeded its {}-second runtime-resolution deadline; run that launcher in this project to finish installing/downloading its pinned Node, then retry", node.to_string_lossy(), budget.as_secs()))); }
+            tick()?;
+        }
+    })();
+    resolver.cleanup()?;
+    result
 }
 
-// Keep the unreaped leader (and thus its process-group identity) until every
-// live member has stopped. Parent exit alone says nothing about compilers.
-struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf }
+// The native supervisor owns the unreaped anchor. Its owner-exit watcher drains
+// the group even if this driver is SIGKILLed before the journal/start handshake.
+struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf, group: Value }
 impl PreparationProcess {
     fn spawn(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
         Self::spawn_with_node(options, std::ffi::OsStr::new("node"), command, args, label)
     }
     fn spawn_with_node(options: &Options, node: &std::ffi::OsStr, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
-        // Resolve once per preparation launch, in the builder's cwd/environment.
-        // A version-manager shim can spawn-and-wait rather than exec: recording
-        // that shim would let recovery kill the real runner as a descendant.
-        let runtime = node_runtime(node)?;
+        let runtime = node_runtime(options, node)?;
         let command = if command == "node" { runtime.as_os_str() } else { command };
-        let runner = options.artifacts.join("preparation-runner.mjs");
-        fs::write(&runner, include_str!("preparation-runner.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        Self::launch(options, command, args, label)
+    }
+    fn launch(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
+        interrupted()?;
         let result = options.artifacts.join(format!("{label}-status.json"));
-        let _ = fs::remove_file(&result);
-        let child = Command::new(&runtime).arg(runner).arg(&result).arg(command).args(args)
-            .process_group(0).stdin(Stdio::piped())
-            .stdout(output(&options.artifacts.join(format!("{label}-stdout.log")))?)
+        let ready = options.artifacts.join(format!("{label}-group.json"));
+        for path in [&result, &ready] { let _ = fs::remove_file(path); }
+        let parent = std::process::id().to_string();
+        let mut argv = vec![std::ffi::OsStr::new("supervisor"), parent.as_ref(), ready.as_os_str(), result.as_os_str(), command];
+        argv.extend_from_slice(args);
+        let child = process_group::helper(&argv).process_group(0).stdin(Stdio::piped())
+            .stdout(File::create(options.artifacts.join(format!("{label}-stdout.log"))).map_err(|e| error("E_WITNESS_ARTIFACT", e))?)
             .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?)
             .spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-        let mut owned = Self { child, cleaned: false, result };
-        recovery::group(options, "preparation", owned.child.id())?;
-        owned.child.stdin.take().unwrap().write_all(b"start\n").map_err(|e| error("E_WITNESS_PROCESS", e))?;
+        let mut owned = Self { child, cleaned: false, result, group: Value::Null };
+        let end = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Ok(bytes) = fs::read(&ready) {
+                owned.group = serde_json::from_slice(&bytes).map_err(|e| error("E_WITNESS_PROCESS", e))?;
+                break;
+            }
+            if owned.status()?.is_some() || Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", "native preparation supervisor did not establish custody")); }
+            tick()?;
+        }
+        // The resolver/worker is still behind a pipe gate. Durably journal the
+        // anchor, guardian and reaping lock before releasing arbitrary code.
+        recovery::group_record(options, label, &owned.group)?;
+        owned.child.stdin.as_mut().unwrap().write_all(b"s").map_err(|e| error("E_WITNESS_PROCESS", e))?;
         Ok(owned)
     }
     fn status(&self) -> Result<Option<ExitStatus>> {
@@ -81,33 +110,27 @@ impl PreparationProcess {
             return Err(error("E_WITNESS_PROCESS", std::io::Error::last_os_error()));
         }
         if unsafe { info.si_pid() } == 0 { return Ok(None); }
-        let code = unsafe { info.si_status() };
-        Ok(Some(ExitStatus::from_raw(if info.si_code == libc::CLD_EXITED { code << 8 } else { code })))
+        // A supervisor exit without a worker receipt is always a failure.
+        Ok(Some(ExitStatus::from_raw(1 << 8)))
     }
     fn live_group(&self) -> Result<bool> {
-        let output = Command::new("ps").args(["-axo", "pgid=,stat="]).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-        if !output.status.success() { return Err(error("E_WITNESS_PROCESS", "cannot inspect owned preparation group")); }
-        Ok(String::from_utf8_lossy(&output.stdout).lines().any(|line| {
-            let mut fields = line.split_whitespace();
-            fields.next().and_then(|s| s.parse::<u32>().ok()) == Some(self.child.id())
-                && fields.next().is_some_and(|s| !s.starts_with('Z'))
-        }))
+        Ok(self.group["group"].as_u64().map(|g| recovery::members(g as u32)).transpose()?.is_some_and(|m| !m.is_empty()))
     }
     fn cleanup(&mut self) -> Result<()> {
         if self.cleaned { return Ok(()); }
-        for signal in [libc::SIGTERM, libc::SIGKILL] {
-            unsafe { libc::kill(-(self.child.id() as i32), signal); }
-            let end = Instant::now() + Duration::from_secs(2);
-            loop {
-                if !self.live_group()? {
-                    self.child.wait().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-                    self.cleaned = true; return Ok(());
-                }
-                if Instant::now() >= end { break; }
-                sleep(Duration::from_millis(50));
+        // EOF requests cleanup. A kernel owner watcher also covers inherited
+        // control pipes and SIGKILL; this pipe is only the normal-path request.
+        self.child.stdin.take();
+        let end = Instant::now() + Duration::from_secs(5);
+        loop {
+            if self.child.try_wait().map_err(|e| error("E_WITNESS_PROCESS", e))?.is_some() {
+                if self.live_group()? { recovery::stop_group_with(&self.group, || {})?; }
+                self.cleaned = true;
+                return Ok(());
             }
+            if Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", "native preparation watchdog cleanup did not finish; recovery required")); }
+            sleep(Duration::from_millis(20));
         }
-        Err(error("E_WITNESS_PROCESS", "owned preparation group survived SIGKILL cleanup"))
     }
 }
 impl Drop for PreparationProcess { fn drop(&mut self) { let _ = self.cleanup(); } }
@@ -262,11 +285,14 @@ pub(super) fn binding(rows: &[Value], proof: &Value, run: &str, segment: &str) -
 mod tests {
     use super::*;
 
-    fn recovery_with_late_member(launcher: &str) {
+    fn recovery_with_late_member(launcher: &str, final_empty: bool) {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("sb4-node-anchor-{}-{launcher}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sb4-node-anchor-{}-{launcher}-{final_empty}", std::process::id()));
         fs::create_dir_all(dir.join("export.app")).unwrap();
-        let runtime = node_runtime(std::ffi::OsStr::new("node")).unwrap();
+        let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--export", ".", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+        let options = Options::parse(&args).unwrap();
+        recovery::begin_wrapper(&dir).unwrap();
+        let runtime = node_runtime(&options, std::ffi::OsStr::new("node")).unwrap();
         let shim = dir.join("node");
         let launches = dir.join("launcher-calls");
         match launcher {
@@ -284,7 +310,7 @@ mod tests {
         if launcher != "direct" { fs::set_permissions(&shim, fs::Permissions::from_mode(0o755)).unwrap(); }
         let selected = if launcher == "direct" { &runtime } else { &shim };
         let ready = dir.join("ready.json");
-        let code = "const fs=require('node:fs'),p=process.argv[1];fs.writeFileSync(p+'.tmp',JSON.stringify({parent:process.ppid,runtime:process.execPath}));fs.renameSync(p+'.tmp',p);setInterval(()=>{},1000)";
+        let code = "const fs=require('node:fs'),p=process.argv[1];fs.writeFileSync(p+'.tmp',JSON.stringify({pid:process.pid,parent:process.ppid,runtime:process.execPath}));fs.renameSync(p+'.tmp',p);setInterval(()=>{},1000)";
         let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--export", ".", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
         let options = Options::parse(&args).unwrap();
         recovery::begin_wrapper(&dir).unwrap();
@@ -293,13 +319,21 @@ mod tests {
         let end = Instant::now() + Duration::from_secs(10);
         while !ready.exists() && Instant::now() < end { sleep(Duration::from_millis(10)); }
         let worker: Value = serde_json::from_slice(&fs::read(&ready).expect("worker started")).unwrap();
-        assert_eq!(worker["parent"], keeper.child.id(), "recorded leader must be the runner, not a launcher");
+        assert_eq!(worker["parent"], keeper.group["group"], "recorded leader must be the runner, not a launcher");
         assert_eq!(worker["runtime"], json!(runtime));
         if launcher != "direct" { assert_eq!(fs::read_to_string(&launches).unwrap(), "call\n", "resolve through the shim exactly once"); }
         let journal: Value = serde_json::from_slice(&fs::read(dir.join("live.json")).unwrap()).unwrap();
         let group = &journal["children"]["preparation"];
-        assert_eq!(group["group"], keeper.child.id());
-        assert_eq!(group["leader"], recovery::identity(keeper.child.id()).unwrap());
+        assert_eq!(group["group"], keeper.group["group"]);
+        let pgid = group["group"].as_u64().unwrap() as u32;
+        assert_eq!(group["leader"], recovery::identity(pgid).unwrap());
+        if final_empty {
+            // Remove the worker first: Astra's boundary is the final snapshot
+            // containing only the anchor, not the earlier nonempty snapshot.
+            let pid = worker["pid"].as_u64().unwrap() as u32;
+            recorded_process::stop(&recovery::identity(pid).unwrap(), libc::SIGKILL).unwrap();
+            assert_eq!(recovery::members(pgid).unwrap(), vec![group["leader"].clone()]);
+        }
         let mut late: Option<Owned> = None;
         let mut snapshots = 0;
         recovery::stop_group_with(group, || {
@@ -307,30 +341,118 @@ mod tests {
             if late.is_none() {
                 // Deterministically join AFTER the member snapshot. Recovery
                 // must retain the anchor and enumerate again to find this PID.
-                late = Some(Owned::spawn(Command::new("sleep").arg("60").process_group(keeper.child.id() as i32)).unwrap());
+                late = Some(Owned::spawn(Command::new("sleep").arg("60").process_group(pgid as i32)).unwrap());
             }
         }).unwrap();
-        assert!(snapshots >= 3, "worker, late member, then empty group");
+        assert!(snapshots >= 1);
         assert!(late.as_mut().unwrap().status().unwrap().is_some(), "late member must drain before cleanup succeeds");
-        keeper.child.wait().unwrap();
+        keeper.cleanup().unwrap();
         assert!(!keeper.live_group().unwrap());
-        keeper.cleaned = true;
         // Retry and ordinary abandoned-output recovery must remain idempotent.
         recovery::stop_group_with(group, || panic!("empty group must already be drained")).unwrap();
         recovery::cleanup(&dir, Some(&dir)).unwrap();
         recovery::cleanup(&dir, Some(&dir)).unwrap();
         assert!(!dir.join("export.app").exists());
         assert!(dir.join("finished.json").exists());
-        eprintln!("{launcher}: stable runtime leader; late member drained; retry and output cleanup passed");
+        eprintln!("{launcher}: native leader; late member drained; retry and output cleanup passed");
         fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
-    fn recovery_direct_node_drains_late_group_member() { recovery_with_late_member("direct"); }
+    fn recovery_direct_node_drains_late_group_member() { recovery_with_late_member("direct", false); }
     #[test]
-    fn recovery_volta_style_shim_drains_late_group_member() { recovery_with_late_member("volta-style"); }
+    fn recovery_volta_style_shim_drains_late_group_member() { recovery_with_late_member("volta-style", false); }
     #[test]
-    fn recovery_shell_shim_drains_late_group_member() { recovery_with_late_member("shell"); }
+    fn recovery_shell_shim_drains_late_group_member() { recovery_with_late_member("shell", false); }
+
+    #[test]
+    fn recovery_direct_node_drains_final_empty_snapshot_joiner() { recovery_with_late_member("direct", true); }
+    #[test]
+    fn recovery_volta_style_shim_drains_final_empty_snapshot_joiner() { recovery_with_late_member("volta-style", true); }
+    #[test]
+    fn recovery_shell_shim_drains_final_empty_snapshot_joiner() { recovery_with_late_member("shell", true); }
+
+    // A separate owner process permits real SIGTERM/INT/KILL without touching
+    // the parallel test runner's signal state. It executes the actual resolver.
+    #[test]
+    fn stalled_resolver_owner() {
+        let Some(dir) = std::env::var_os("SB4_RESOLVER_FIXTURE") else { return; };
+        let dir = PathBuf::from(dir);
+        for signal in [libc::SIGTERM, libc::SIGINT] { unsafe { libc::signal(signal, interrupt as *const () as usize); } }
+        let seconds = std::env::var("SB4_RESOLVER_TIMEOUT").unwrap();
+        let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--export", ".", "--timeout", &seconds, "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+        let options = Options::parse(&args).unwrap();
+        let _run = recovery::begin(&options).unwrap();
+        let result = node_runtime(&options, dir.join("node").as_os_str());
+        fs::write(dir.join("outcome"), result.unwrap_err()).unwrap();
+    }
+    fn stalled_resolver(signal: Option<i32>) {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("sb4-stalled-resolver-{}", std::process::id())).join(format!("{signal:?}"));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("node"), "#!/bin/sh\nprintf '%s' \"$$\" > \"$SB4_RESOLVER_FIXTURE/launcher.pid\"\nsleep 60 &\nprintf '%s' \"$!\" > \"$SB4_RESOLVER_FIXTURE/descendant.pid.tmp\"\nmv \"$SB4_RESOLVER_FIXTURE/descendant.pid.tmp\" \"$SB4_RESOLVER_FIXTURE/descendant.pid\"\nwait\n").unwrap();
+        fs::set_permissions(dir.join("node"), fs::Permissions::from_mode(0o755)).unwrap();
+        let mut owner = Owned::spawn(Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "verbs::witness::preparation::tests::stalled_resolver_owner", "--nocapture"])
+            .env("SB4_RESOLVER_FIXTURE", &dir).env("SB4_RESOLVER_TIMEOUT", if signal.is_some() { "30" } else { "3" }).stdout(Stdio::null()).stderr(Stdio::null())).unwrap();
+        let end = Instant::now() + Duration::from_secs(10);
+        while !dir.join("descendant.pid").exists() && Instant::now() < end { sleep(Duration::from_millis(10)); }
+        assert!(dir.join("descendant.pid").exists());
+        let journal: Value = serde_json::from_slice(&fs::read(dir.join("live.json")).unwrap()).unwrap();
+        let group = &journal["children"]["runtime-resolution"];
+        assert!(group["leader"].is_object(), "resolver must be journalled before the launcher starts");
+        let launcher: u32 = fs::read_to_string(dir.join("launcher.pid")).unwrap().parse().unwrap();
+        let descendant: u32 = fs::read_to_string(dir.join("descendant.pid")).unwrap().parse().unwrap();
+        let births = [recovery::identity(launcher).unwrap(), recovery::identity(descendant).unwrap()];
+        assert_eq!(unsafe { libc::getpgid(launcher as i32) }, group["group"].as_i64().unwrap() as i32);
+        let start = Instant::now();
+        if let Some(signal) = signal { unsafe { libc::kill(owner.0.id() as i32, signal); } }
+        while owner.status().unwrap().is_none() && start.elapsed() < Duration::from_secs(5) { sleep(Duration::from_millis(20)); }
+        assert!(owner.status().unwrap().is_some(), "resolver owner must answer cancellation promptly");
+        // SIGKILL does not run Rust Drop: the native watchdog must do this
+        // before recovery, including through a stalled spawn-and-wait launcher.
+        let end = Instant::now() + Duration::from_secs(5);
+        while !recovery::members(group["group"].as_u64().unwrap() as u32).unwrap().is_empty() && Instant::now() < end { sleep(Duration::from_millis(20)); }
+        for record in births { assert_ne!(recovery::identity(record["pid"].as_u64().unwrap() as u32).as_ref(), Some(&record)); }
+        if signal != Some(libc::SIGKILL) {
+            let outcome = fs::read_to_string(dir.join("outcome")).unwrap();
+            if signal.is_some() { assert!(outcome.contains("E_WITNESS_INTERRUPTED"), "{outcome}"); }
+            else { assert!(outcome.contains("E_WITNESS_PROCESS") && outcome.contains("3-second") && outcome.contains("installing/downloading") && outcome.contains(dir.join("node").to_str().unwrap()), "{outcome}"); }
+        }
+        eprintln!("stalled resolver {signal:?}: owner completed in {:?}; launcher and descendant drained before recovery", start.elapsed());
+        recovery::cleanup(&dir, Some(&dir)).unwrap();
+        assert!(dir.join("finished.json").exists());
+        assert!(recovery::members(group["group"].as_u64().unwrap() as u32).unwrap().is_empty());
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test] fn stalled_resolver_sigterm_is_bounded_journalled_and_drained() { stalled_resolver(Some(libc::SIGTERM)); }
+    #[test] fn stalled_resolver_sigint_is_bounded_journalled_and_drained() { stalled_resolver(Some(libc::SIGINT)); }
+    #[test] fn stalled_resolver_sigkill_triggers_watchdog_before_recovery() { stalled_resolver(Some(libc::SIGKILL)); }
+    #[test] fn stalled_resolver_timeout_is_bounded_journalled_and_drained() { stalled_resolver(None); }
+
+    #[test]
+    fn recovery_keeps_group_custody_after_anchor_exit() {
+        let dir = std::env::temp_dir().join(format!("sb4-dead-anchor-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+        let options = Options::parse(&args).unwrap();
+        let mut keeper = PreparationProcess::launch(&options, std::ffi::OsStr::new("sleep"), &[std::ffi::OsStr::new("60")], "preparation").unwrap();
+        // Pause our guardian so recovery, not the watchdog, performs the drain.
+        unsafe { libc::kill(keeper.child.id() as i32, libc::SIGSTOP); }
+        let pgid = keeper.group["group"].as_u64().unwrap() as u32;
+        unsafe { libc::kill(pgid as i32, libc::SIGKILL); }
+        let end = Instant::now() + Duration::from_secs(5);
+        while recovery::identity(pgid).is_some() && Instant::now() < end { sleep(Duration::from_millis(10)); }
+        assert!(recovery::identity(pgid).is_none());
+        assert_eq!(recovery::birth(pgid).as_ref(), Some(&keeper.group["leader"]));
+        let mut late = Owned::spawn(Command::new("sleep").arg("60").process_group(pgid as i32)).unwrap();
+        let result = recovery::stop_group_with(&keeper.group, || {});
+        unsafe { libc::kill(keeper.child.id() as i32, libc::SIGCONT); }
+        result.unwrap();
+        assert!(late.status().unwrap().is_some());
+        keeper.cleanup().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn startup_binds_each_independent_identity() {
