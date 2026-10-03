@@ -61,15 +61,24 @@ fn exchange(source: &Path, target: &Path) -> Result<()> {
         if libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_SWAP) == 0 { return Ok(()); }
     }
     // Portable custody regressions use the same atomic operation on Linux;
-    // automatic native smoke itself still requires macOS. The raw syscall,
-    // not libc's renameat2 wrapper: the musl release build has no wrapper.
+    // automatic native smoke itself still requires macOS.
     #[cfg(target_os = "linux")]
     unsafe {
-        let rename = |flags: libc::c_uint| libc::syscall(libc::SYS_renameat2, libc::AT_FDCWD, source.as_ptr(), libc::AT_FDCWD, target.as_ptr(), flags);
-        if rename(libc::RENAME_NOREPLACE) == 0 { return Ok(()); }
-        if rename(libc::RENAME_EXCHANGE) == 0 { return Ok(()); }
+        if renameat2(&source, &target, libc::RENAME_NOREPLACE) == 0 { return Ok(()); }
+        if renameat2(&source, &target, libc::RENAME_EXCHANGE) == 0 { return Ok(()); }
     }
     Err(error("E_WITNESS_ARTIFACT", std::io::Error::last_os_error()))
+}
+
+// glibc builds call libc's renameat2 wrapper, which the publication fault tests
+// interpose with LD_PRELOAD. The musl release binary has no such wrapper, so it
+// makes the same syscall directly.
+#[cfg(target_os = "linux")]
+unsafe fn renameat2(source: &std::ffi::CStr, target: &std::ffi::CStr, flags: libc::c_uint) -> libc::c_long {
+    #[cfg(target_env = "musl")]
+    { unsafe { libc::syscall(libc::SYS_renameat2, libc::AT_FDCWD, source.as_ptr(), libc::AT_FDCWD, target.as_ptr(), flags) } }
+    #[cfg(not(target_env = "musl"))]
+    { unsafe { libc::renameat2(libc::AT_FDCWD, source.as_ptr(), libc::AT_FDCWD, target.as_ptr(), flags) as libc::c_long } }
 }
 
 // Durable intent precedes the namespace switch. Both the run marker (retention)
