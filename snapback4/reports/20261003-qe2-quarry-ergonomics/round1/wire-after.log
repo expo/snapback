@@ -1,0 +1,16 @@
+✔ wasm: empty-owned-default stays within its heap ceiling (567.148936ms)
+✔ wasm: discarded-insert stays within its heap ceiling (272.578381ms)
+✔ wasm: discarded-if-absent stays within its heap ceiling (271.560463ms)
+✔ process: empty-owned-default stays within its heap ceiling (223.320702ms)
+✔ process: discarded-insert stays within its heap ceiling (426.056342ms)
+✔ process: discarded-if-absent stays within its heap ceiling (523.789423ms)
+✔ wasm: total write images, point guards and authorized rule hops (576.600542ms)
+✔ process: total write images, point guards and authorized rule hops (270.784508ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3415.354336

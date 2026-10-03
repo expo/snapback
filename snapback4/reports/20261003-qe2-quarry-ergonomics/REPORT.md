@@ -23,7 +23,7 @@ three concrete cases; it does not claim a new calibration score.
    raw inserts without a bound result retain their move-only path. Reading an omitted `photo` no longer raises E_FIELD
    and the isolated insert/preview operation remains prediction-eligible.
 
-2. **One live reference hop in write rules.** `.message.conversation` and
+2. **Live reference terms of depth one in write rules.** `.message.conversation` and
    `messages[.message].conversation` lower to a fixed RuleTerm reference with an
    old/next image selector. Insert, named update and delete are supported;
    delete evaluates its pre-delete image. The shared interpreter point-reads
@@ -35,7 +35,7 @@ three concrete cases; it does not claim a new calibration score.
    require current covered authority, including locally pending parents;
    retained-only data cannot supply it. Read-through capture/lifetime semantics
    stay separate. The serialized `rule-reference` capability fences old engines.
-   Multiple hops, private/maintained fields, nonordinary targets and final
+   Deeper hop chains (sibling depth-one hops are legal), private/maintained fields, nonordinary targets and final
    after-insert obligations refuse `E_QUARRY_RULE_HOP` with a concrete lookup
    or read-through rewrite. Invalid raw-schema positions are also rejected.
 
@@ -178,3 +178,140 @@ vendor link is uninitialized.
 Updated the language, types, writes and rules cards and added the dedicated
 `why E_QUARRY_RULE_HOP` card. LLP 3000.007 §5.2/§5.4 and LLP 3000.013 §2.2/§12.3
 carry dated revisions. The journal records the behavior, validation and byte cost.
+
+
+## Round 1 — 2026-10-04
+
+Base: `73041ae848` (the round-0 commit). Both round-0 reviews were READY
+WITH CHANGES. This revision addresses Astra's two allocation regressions and
+Grok's two documentation corrections. Work, tests and measurements remain on
+eb1000 only; nothing is pushed.
+
+### Allocation fixes and reproductions
+
+Before changing the engine, the two new **Quarry-source** regressions failed
+on memory and SQLite devices and through both wasm and process wire hosts.
+The retained [Rust baseline](./round1/allocations-before.log) and
+[wire baseline](./round1/wire-before.log) show the actual E_BOUND values:
+
+| Source case | Round 0 heap at refusal | Round 1 successful server heap |
+| --- | ---: | ---: |
+| Omitted owned `note: text <=5000000 default ''`; bound insert returns id | 20,001,239 | 1,834 |
+| Discarded insert of 3,000,000 text characters; omitted optional boolean; return true | 18,000,929 | 12,000,421 |
+
+The ordinary heap ceiling stays **16,777,216 bytes**. The discarded case is
+back at the review's pre-QE2 price, 12,000,421. The total bound result retains
+a small charge above that older engine's incomplete result.
+
+- `complete_insert_result` reserves the known default's actual clone allocation,
+  alongside the result image and field slots/names. An empty string contributes
+  no owned payload bytes. Viewer defaults use the viewer's byte length;
+  `now` and null add no owned payload. The new unit test compares small and
+  five-million-character declared bounds with both empty and UTF-8 defaults.
+- The compiler creates a temporary even when an insert is discarded. A
+  variable-backed insert alone therefore cannot imply that its result is used.
+  The existing exhaustive IR effects walker now conservatively counts variable
+  uses, capped at two, across expressions, helper blocks, branches and loops.
+  A receiver used only by its own insert preserves the move-only path. An
+  unused `if absent` receiver also skips completion. Whole-program analysis
+  also covers job chunks; standalone statement callers keep
+  conservative completion. Extra syntactic uses can retain a result, never
+  discard an explicit consumer. This adds no serialized field or opcode and
+  does not change the authored insert payload or existing lowering hashes.
+
+The committed source fixtures are `empty-owned-default.q`, `discarded-insert.q`,
+`discarded-if-absent.q` and `result-cost.q` under
+`crates/snapback4-lang/tests/fixtures/qe2/`. Dedicated Rust device and JS wire
+tests cover both reported allocation cases. Separate shared-runner tests keep
+consumed ordinary/if-absent results, including an inlined helper and branch.
+
+A follow-up check reproduced the same discarded-result defect in `if absent`
+with a four-million-character payload on both wire hosts
+([before output](./round1/if-absent-before.log)). This receiver now skips
+completion too, using 16,000,421 heap bytes in the server check. Memory, SQLite
+and wasm regressions cover it. The first full run was stopped after 326 seconds during Rust inventory compilation to include
+this correction; only this lane's own suite processes were signaled. It is
+superseded by the final qualification below.
+
+### Sibling hops and bound-result charges
+
+Sibling depth-one hops are sound and already supported. The report, rules card,
+`why E_QUARRY_RULE_HOP`, its diagnostic expectation and LLP 3000.007 §5.4 now
+say that **deeper chains** refuse; independent sibling terms remain legal under
+the normal ceilings. Each syntactic occurrence prepays its own probe, even
+when both refer to the same parent. No authorization behavior changes here.
+
+The `result-cost.q` fixture inserts a child with a parent reference, integer,
+omitted optional text, default false boolean and default empty text. Its
+`bound` operation returns the three completed fields; `discarded` returns true.
+The shared server/device interpreters, including their normal output charge,
+measure exactly:
+
+| Operation | Rule probes | Heap bytes | Steps | Output bytes |
+| --- | ---: | ---: | ---: | ---: |
+| Bound result, one hop | 1 | 2,778 | 20 | 70 |
+| Discarded result, one hop | 1 | 926 | 12 | 13 |
+| Bound result, two sibling hops | 2 | 2,778 | 20 | 70 |
+| Discarded result, two sibling hops | 2 | 926 | 12 | 13 |
+
+Every row also charges one index entry and one row written, with zero examined.
+These are interpreter prices for this specific fixture, not a fixed surcharge
+on every bound result or transport/admission overhead. Tests assert the exact
+prices and parity. The writes card now quotes the measured bound case and
+states that prediction eligibility does not eliminate resource charges.
+
+### Qualification
+
+The requested `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh` completes with **zero failures in 1,921 seconds**.
+All 4,795 Rust tests and 17 doctests pass (34 existing ignored), all 304 client
+files pass with 6,042 tests passed and 11 existing skips, all 79 model tests
+pass, and all nine fixture wrappers pass. Build, guide-budget, release-guard
+and package/app typecheck stages pass. The
+[summary](./round1/full-suite-summary.txt),
+[complete compressed log](./round1/full-suite.log.gz) and
+[counts and artifact hashes](./round1/verification.json) retain the result.
+All 55 [pinned inputs](./round1/source-sha256.json) stayed unchanged through
+final qualification. Reference/metadata and whitespace audits pass; affected
+Rust files remain below 1,500 lines. This uses the same Cargo environment
+recorded in round 0: eight jobs, no incremental compilation and no dev/test
+debug information, with the required SQLite flag.
+
+The retained focused runs pass **152 Rust tests**:
+[112 guide, 11 lowering and 17 QE2 language tests](./round1/affected-language-final.log),
+[four interpreter tests](./round1/meter-tests-final.log), and
+[eight memory/SQLite device tests](./round1/affected-device.log). All historical
+lowering hashes and ownership differentials match. The existing 22 ergonomics
+tests also passed during development. All
+[eight wasm/process wire tests](./round1/wire-after.log) pass.
+
+The initial guide run identified wording/fact pins and a reference to an
+unshipped test path; a subsequent run exceeded the strict combined word budget
+by two words. These are fixed without changing the budget or dropping existing
+compiled examples. The guide now fits 12,809 / 12,810 words across its six
+budgeted cards. The only updated diagnostic expectation replaces the incorrect
+“multiple live hops” boundary with deeper chains and permitted sibling hops.
+
+The preceding full run exposed two
+[static codec-census failures](./round1/codec-census-before.log) in the new
+unit-test setup's direct serde calls; all runtime and model tests passed.
+The setup now uses `json_codec::to_text`, preserving the ordinary codec funnel
+without an exception. All [26 census checks](./round1/codec-census-after.log)
+and the four interpreter tests then passed, followed by the clean full run
+above. This test-only correction leaves the runtime and wasm bytes unchanged.
+
+### Wasm
+
+| Artifact | Raw bytes | gzip bytes |
+| --- | ---: | ---: |
+| Round 0 | 2,058,160 | 620,784 |
+| Round 1 | 2,065,629 | 623,029 |
+| Round-1 delta | +7,469 | +2,245 (0.36%) |
+
+The total gzip increase from the original main control (617,398 bytes) is
+5,631 bytes (0.91%). This is a whole-artifact measurement with the locked
+Binaryen 132 build, not per-function attribution. The extra code includes
+shared program-use analysis and actual-value allocation pricing. The budget
+is **623,659**: measured Linux plus the unchanged estimated macOS offset of
+**130 bytes** and **500 bytes** headroom. No macOS measurement is claimed.
+Round-0 evidence above remains historical; round-1 inputs and logs are separate.

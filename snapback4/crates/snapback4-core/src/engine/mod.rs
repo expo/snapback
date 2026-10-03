@@ -54,6 +54,8 @@ pub mod delivery;
 mod expiry;
 pub mod rules;
 mod rule_reference;
+#[cfg(test)]
+mod qe2_allocation_tests;
 pub mod runner;
 pub mod validate;
 pub mod write;

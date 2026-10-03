@@ -84848,3 +84848,46 @@ snapback4/scripts/test.sh` exits 0 with `0 failure(s) in 1995 s`. Rust passes
 9/9. All build, documentation and typecheck categories pass. Focused checks
 cover 188 distinct Rust tests and both wire hosts. The 41 pinned inputs stayed
 unchanged; reference, source-size and whitespace audits pass.
+
+
+## 2026-10-04 — QE2 round 1: result allocation and rule-hop wording
+
+Address both Astra P2s from the round-0 review. Completing an omitted default
+now charges its known clone allocation, plus the field and result image,
+rather than the declared column maximum. The owned empty-default counterexample
+falls from E_BOUND at 20,001,239 heap bytes to success at 1,834.
+
+An exhaustive, conservative variable-use pass over the existing IR distinguishes
+the compiler's discarded insert temporary from a consumed result, including
+job chunks and inlined helpers. Ordinary discarded inserts keep their move-only
+path: the three-million-character Quarry case returns to 12,000,421 heap bytes
+from E_BOUND at 18,000,929. Discarded `if absent` results also skip completion;
+a four-million-character case succeeds at 16,000,421. Consumed results remain
+total. Authored payloads and serialized program IR are unchanged; no runtime
+ceiling is raised. Memory, SQLite, wasm and process regressions cover the cases.
+
+Address both Grok documentation corrections: sibling depth-one hops are legal
+and each occurrence prepays a probe; deeper chains refuse. The rules/why cards,
+report and LLP 3000.007 §5.4 agree. Guide writes states the measured bound-result
+cost for the regression: one probe, 2,778 heap bytes, 20 steps and 70 output
+bytes in both interpreters. Two sibling hops charge two probes. LLP 3000.013
+§12.3 carries the matching dated revision.
+
+Locked Linux wasm is 2,065,629 bytes raw / 623,029 gzip, +2,245 gzip (0.36%)
+from round 0. The shared use analysis and actual-value pricing justify the
+small whole-artifact increase. Budget 623,659 retains the recorded estimated
+macOS offset of 130 bytes and 500 bytes headroom; no macOS measurement is claimed.
+
+Final `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh`: zero failures in 1,921 seconds. Rust passes 4,795
+plus 17 doctests (34 existing ignored); 304 client files pass 6,042 tests with
+11 existing skips; models pass 79/79; fixture wrappers pass 9/9. All build,
+guide-budget, release-guard and typecheck stages pass. Focused checks pass 152
+Rust tests, eight wire tests and 26 codec-census checks. An intermediate full
+run caught direct serde calls in the new unit-test setup; routing those through
+`json_codec::to_text` fixed the census without an exception. All 55 final pinned
+inputs remained unchanged. Reference and whitespace checks pass.
+
+The [Round 1 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-1--2026-10-04)
+retains reproductions, exact prices, full-suite output and hashes. Work ran on
+eb1000 only; nothing pushed or published.

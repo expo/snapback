@@ -289,9 +289,13 @@ impl Runner<'_> {
         let missing = |field: &String, ty: &ColumnType| row.field(field).is_err()
             && !table.engine_field(field) && !crate::schema::timeline::is_slot(field)
                 && !table.maintained.contains_key(field) && (ty.is_optional() || table.defaults.contains_key(field));
-        let bytes = table.columns.iter().filter(|(f,t)| missing(f,t)).fold(0u64, |bytes, (f,t)|
+        let bytes = table.columns.iter().filter(|(f,t)| missing(f,t)).fold(0u64, |bytes, (f,_)|
             bytes.saturating_add(80 + f.len() as u64).saturating_add(
-                if table.defaults.contains_key(f) { super::write_target::column_copy_ceiling(t) } else { 0 }));
+                match table.defaults.get(f) {
+                    Some(crate::schema::ColumnDefault::Literal(value)) => super::runner::expression_copy(value),
+                    Some(crate::schema::ColumnDefault::Viewer) => self.context.viewer.len() as u64,
+                    Some(crate::schema::ColumnDefault::Now) | None => 0,
+                }));
         if bytes == 0 { return Ok(row); }
         self.meter.heap(super::runner::expression_heap(&row).saturating_add(bytes))?;
         let now = self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?;
