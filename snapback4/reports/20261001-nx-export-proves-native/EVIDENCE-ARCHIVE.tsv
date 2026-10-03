@@ -1,5 +1,5 @@
 # Raw evidence outside git: compressed dumps, screen recordings and files over 256 KiB.
-# 11391 paths, 3617 distinct files. Columns: sha256, size in bytes, path relative to this directory.
+# 11409 paths, 3635 distinct files. Columns: sha256, size in bytes, path relative to this directory.
 # Archive: ~/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs/<sha256> on the apartment Mac mini.
 # Unslimmed branch: sb4-np/nx-export-proves-native at 5373ff6843, local to the mini.
 # Commit map, unslimmed -> slim: bfe1d7d722 -> 8026cbd2fe, 5d5604a7f5 -> 1722b9b6f6, 5d29493e1b -> ed749e42fd, 5373ff6843 -> 777ca85e82
@@ -11394,3 +11394,21 @@ ce2cf504d451d2e2f47f747e8993e73c4176315cfeaaab90feb962366825b5a7	821	round6/linu
 5c051e74d76f7c6573f87fd36df1a3aaef1e7ac21be45a99725af49af9e0906a	1745	round6/linux-logs/rust-witness-linux.log.gz
 73ac1426713cfe9caefdcd51798e5905bcdb0416083cc7197abe56589612ff65	2122	round6/rust-integration-mini.log.gz
 0ccfd8e78978650e0cd5be0d430351f6ad6665cd679327980bea0a65f955a1c5	1827	round6/rust-witness-mini.log.gz
+36f7e006d9073f5e54f1f53601b1cef1c7de1ae5cf0839e36458db8ef266f460	9214244	round7/source.tar.gz
+ba0b1015bfdffa9d6ee8be382dc91e173b3fad5c6d26adab2fd4c495376d1c4b	114038	round7/source-manifest.json.gz
+b750d1a3f1e38260e060f03c8a7f38fe0052f8b0bb4561980a1005556e648092	350	round7/build-mini.log.gz
+4ae296b234d0760edf6839c8f03facd119d5aff0bd2c2bb4723c15e735e98ff4	1205	round7/js-export-shim-mini.log.gz
+e2a773708d27733f42f4c9c8b14a3bd834ef14e4e6dfee7575201b86fc1fb1d1	195	round7/linux-logs/bun-install.log.gz
+59379f1d7ba5270e55a247b414beae177fa3b5cdea85dc240e0e6d1273dc2f2e	898	round7/linux-logs/cargo-build.log.gz
+0ae963b993f8d79265ba5095ed23a0181c7cbfa5631072c236ddae098489f5c2	114	round7/linux-logs/context.log.gz
+3ade9e62b6c35e1b5bffbe61038e7e40211ddddc07b04b3ea2a7f8687ac15cc8	1207	round7/linux-logs/js-export-shim-with-resolver.log.gz
+fac0da90ca64efb4ff33bd760b5ae07849194ac877fc82667b5b089218ef82a6	2358	round7/linux-logs/js-export-shim.log.gz
+3e7f5c0afeca6fd626ff98b3cc2053b671fcf461ce48fd35ffd79880a19cf02c	823	round7/linux-logs/rust-integration.log.gz
+df0f78e6c4d2ab837e7d4d8fe06459ef442155d4f73a0f85e0a10a02d7d4b210	2574	round7/linux-logs/rust-witness.log.gz
+c8e08fdb1ed2b44d5f4615148c075b26e109166129bfa9f751a28320897831aa	94	round7/ref-check.log.gz
+863d1c3141ac57d812b87f04e3e66c81fa9fd0f7a1108333e4d44ac1d05407bd	2049	round7/rust-integration-mini.log.gz
+d358112acc403733da23e13d6c17f53f33b1a72aef3a331bdb248ef73c4f3eb3	1908	round7/rust-witness-mini-final.log.gz
+9a90f4b87b70951c7e3023a737beba5f91f10297493c727d290ae1ebb4bd56f1	1900	round7/rust-witness-mini.log.gz
+fff61ddb616c36acfa5312fd39ee32deef7723a6cfb1ceec885d7a0a784f9323	621	round7/resolve-binary.js.gz
+940e4baa7cf0058474bfc340ea1f3696214eea62b2b25417127339ee2af8bf4f	167060	round7/full-suite.log.gz
+5cb05b9bd3c165078594a25d737048586d3d683faee2d961e046215bc9af30f0	94	round7/ref-check-final.log.gz

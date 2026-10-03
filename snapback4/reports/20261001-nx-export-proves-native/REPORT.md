@@ -1551,3 +1551,97 @@ all eight new external blobs and the tested source hashes before commit.
 Four small Rust logs omit only their extra terminal blank line for Git whitespace
 checks; [the formatting record](round6/small-log-formatting.json) maps both hashes
 and the archived original bytes. Linux validation records those original hashes.
+
+## Round 7 — stable Node anchors through version-manager launchers
+
+2026-10-02, based on round 6 `bb94366395`. Read Astra's full
+`~/sb4-intent/reviews/nx-r6.astra.md` on eb1000 and its surviving controlled
+late-member probe. The review is **READY WITH CHANGES**: its 90 crash-boundary
+cases per host, locks and lease semantics passed, but an inherited launcher
+anchor defect remained. This section records the fix and its tests; it does
+not claim a new independent reviewer verdict.
+
+### Anchor selection and recovery
+
+Preparation resolves the builder's `node` once per launch, in the builder's
+current directory/environment, using `node -p 'JSON.stringify(process.execPath)'`.
+It requires a successful absolute-path result, then starts that executable
+directly as the persistent preparation group leader. Node workers use the same
+runtime. A Volta/asdf or shell launcher can therefore select Node without its
+shorter-lived launcher PID becoming the journal's anchor. Failure to resolve or
+launch the runtime refuses preparation; there is no fallback to recording a shim.
+[LLP 3000.030 §15](../../../llp/3000.030-native-proof-in-minutes.rfc.md)
+records that choice.
+
+Every recovery identity check remains: birth identity, actual group membership,
+the birth recheck after the member snapshot, and platform-specific recorded-PID
+signaling. Recovery still leaves the leader alive while draining descendants
+and re-enumerates before stopping it last. Missing/reused anchors still refuse.
+There is no relaxation of leases, publication custody or output cleanup rules.
+
+Three regressions run on both hosts: a direct Node binary, a Volta-style
+spawn-and-wait JS launcher, and a non-exec shell-script launcher. Each checks the
+recorded leader against the worker's actual parent/runtime, adds a group member
+**after** the first membership snapshot, and requires that member to be dead
+before successful recovery. Retry and repeated abandoned-output cleanup also
+succeed. Shim cases assert exactly one launcher invocation for resolution.
+The existing live-wrapper test now uses the same runtime resolver, while its
+TERM-resistant descendant and reused-birth checks remain intact.
+
+### Affected checks and scratch custody
+
+| Check | Apartment mini | Linux eb1000 |
+| --- | --- | --- |
+| Rust witness units, including the three new late-member cases | 32 passed | 33 passed |
+| Rust witness integration | 53 passed | 13 passed |
+| Four JS export/shim files | 19 passed | 18 passed, one existing Darwin-only skip |
+
+The mini runs with the **actual Volta `node` launcher on PATH, Node 24.18.0**;
+Linux uses Node 24.13.1 and Rust 1.97.0. Both use the packaged SQLite flag.
+The mini's integration fixtures use fake `xcrun`; no real simulator was run.
+`mini-verify-iphone`, X27R worktrees/simulators and system settings were untouched.
+Linux scratch `/tmp/sb4-nx-r7.Gfl8K2` was deleted after copying and hash-checking
+all logs and affected sources ([validation](round7/linux-validation.json),
+[cleanup](round7/linux-cleanup.json)).
+
+The first Linux JS run was **14 passed, four failed, one skipped** because my
+source transfer omitted the built JS resolver. Two fixture installs failed at
+`copyfile`; the lease and changed-proof cases failed when the CLI could not
+import `dist/resolve-binary.js`. These are scratch provisioning failures, not
+product failures. Supplying the unchanged generated JS file fixed all four on
+the identical rerun. Both logs and each failure's classification are retained in
+[the reproduction/failure ledger](round7/NOTES.md). No assertion, guard, sample
+or budget changed.
+
+### Canonical suite and evidence
+
+Ran `scripts/test.sh` **exactly once**, with Volta on PATH. Its exact summary
+is **`== 0 failure(s) in 2419 s`**, exit 0. Client pool: **5,767 passed, zero
+failed, five existing skips**. Final models: **79/79**. Guide: **110/110**.
+Complete CLI units: **235 passed, four existing ignored**. Witness integration:
+**53/53**. There is no canonical failure to classify; the four Linux scratch
+provisioning failures above remain explicitly recorded. The known delivery-fault
+flake did not reproduce; this round does not claim to fix it.
+
+[Exact suite summary](round7/full-suite-summary.log),
+[raw-log identity](round7/full-suite-archive.json),
+[affected results](round7/affected-verification.json) and
+[tested Rust hashes](round7/tested-source.json) bind the result.
+The complete raw log, source transport, source manifest, supplied JS resolver
+and original small logs are read-back-verified external blobs indexed in
+`EVIDENCE-ARCHIVE.tsv`. No raw gzip or binary is added to git. Small log views
+omit only trailing whitespace; [the mapping](round7/small-log-formatting.json)
+preserves their original and committed hashes. Linux validation records the
+original bytes. The [staged audit](round7/staged-size.json) checks the evidence
+policy and tested source before the local commit with the requested Astra trailer.
+
+### Remaining limits
+
+**Social's 25 s warm target remains open, pending a quiet-host measurement.**
+The round-5b candidate median stays 26.716 s; this round runs no timing cohort
+and changes no budget. The existing timing ticket remains Open.
+The suite's wasm rebuild is byte-for-byte unchanged from round 6:
+**2,014,420 B raw / 604,666 B gzip**, under the unchanged **605,225 B** cap;
+SHA-256 `c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`
+([wasm identity](round7/wasm.json)). No native timing, simulator, publication,
+M6/M8 or new reviewer qualification is claimed. No push or publication.

@@ -1,0 +1,17 @@
+{
+  "stagedFilesExcludingThisAudit": 39,
+  "totalBlobBytesExcludingThisAudit": 6959801,
+  "largestBlob": {
+    "path": "snapback4/JOURNAL.md",
+    "bytes": 5112311,
+    "sha256": "9452288d56c34c59c8896abbfc97e8824e954ed8e39d51fc5e46c7ee5cf17cd2"
+  },
+  "allBlobsUnder15MB": true,
+  "totalBlobsUnder15MB": true,
+  "rawBinaryOrGzipPathsInNewStage": [],
+  "newExternalPathsVerified": 18,
+  "newExternalDistinctBlobsVerified": 18,
+  "testedSourceMatchesStage": true,
+  "linuxScratchDeleted": true,
+  "wasmUnchanged": true
+}

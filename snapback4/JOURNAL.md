@@ -81882,3 +81882,49 @@ states that limit and stays at 399 lines. Wasm is unchanged at 2,014,420 B raw /
 604,666 B gzip under the same 605,225 B cap. No real simulator was used;
 mini-verify-iphone and X27R worktrees/simulators were untouched. Local commit with
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
+
+## 2026-10-02 — NX round 7: stable Node group anchors through launchers
+
+Read Astra's complete round-6 READY WITH CHANGES review on eb1000 and its
+surviving late-member probe. Resolve the builder's `node` once per preparation
+launch with `node -p 'JSON.stringify(process.execPath)'`, require a successful
+absolute runtime path, then execute that runtime directly as the persistent
+process-group leader. Node workers use the same runtime. Volta/asdf and shell
+launchers can select the runtime without becoming the recorded anchor. A failed
+resolution/direct launch refuses preparation. LLP 3000.030 §15 records the choice.
+Every birth, group-membership, post-snapshot birth and platform signal check
+remains intact; recovery's signaling algorithm is unchanged.
+
+Three regressions cover direct Node, a Volta-style spawn-and-wait JS launcher,
+and a non-exec shell shim on both hosts. Each verifies the actual worker parent
+and runtime against the journal, inserts a member after the recovery snapshot,
+and requires it to drain before success. Retry and repeated output cleanup pass;
+the shim is invoked exactly once for resolution. Existing reused-birth,
+anchor-loss, TERM-resistant descendant, publication and lease cases remain.
+
+Affected tests: mini 32 witness units / 53 integration / 19 JS export-shim passes;
+Linux 33 units / 13 integration / 18 JS passes with one existing Darwin-only skip.
+All mini verification keeps the actual Volta launcher on PATH, Node 24.18.0;
+Linux uses Node 24.13.1 and Rust 1.97.0. Linux's initial JS run had four setup
+failures because my source transfer omitted the built `dist/resolve-binary.js`:
+two installed-shim fixture copies and two CLI imports failed. Supplying the
+unchanged generated JS resolver fixed the same four files without code, assertion,
+guard or budget changes. Both runs and all failure classifications are retained.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2419 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; complete CLI units 235 passed, four existing ignored; witness
+integration 53/53. No canonical failure occurred, and the known delivery-fault
+flake did not reproduce. NX does not claim to fix that unrelated flake.
+The NX report's Round 7 section binds the exact summary, tested source hashes,
+raw log and source archives. Raw gzip/binary evidence stays outside git in the
+content-addressed archive and is read-back verified. Linux scratch
+`/tmp/sb4-nx-r7.Gfl8K2` was deleted after copying and verifying its evidence.
+
+Social's **25 s warm target remains open pending quiet-host measurement**;
+no new timing cohort and no budget change. Wasm is byte-for-byte unchanged:
+2,014,420 B raw / 604,666 B gzip under the same 605,225 B cap. No real simulator
+was run; mini-verify-iphone, X27R worktrees/simulators and system settings were
+untouched. Local commit with the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.

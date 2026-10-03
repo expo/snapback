@@ -84,7 +84,7 @@ fn members(group: u32) -> Result<Vec<Value>> {
     }).collect())
 }
 fn stop_group(record: &Value) -> Result<()> { stop_group_with(record, || {}) }
-fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) -> Result<()> {
+pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) -> Result<()> {
     let group = record["group"].as_u64().unwrap() as u32;
     if members(group)?.is_empty() { return Ok(()); }
     // A persistent preparation leader stays alive even after its worker exits.
@@ -326,7 +326,8 @@ mod tests {
         let runner = dir.join("runner.mjs"); fs::write(&runner, include_str!("preparation-runner.mjs")).unwrap();
         let heartbeat = dir.join("heartbeat");
         let code = "const fs=require('fs');process.on('SIGTERM',()=>{});setInterval(()=>fs.appendFileSync(process.argv[1],'x'),20)";
-        let mut keeper = Command::new("node").arg(runner).arg(dir.join("status.json")).args(["node", "-e", code]).arg(&heartbeat)
+        let runtime = preparation::node_runtime(std::ffi::OsStr::new("node")).unwrap();
+        let mut keeper = Command::new(&runtime).arg(runner).arg(dir.join("status.json")).arg(&runtime).args(["-e", code]).arg(&heartbeat)
             .process_group(0).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let leader = identity(keeper.id()).unwrap();
         let group = json!({ "group": keeper.id(), "leader": leader });

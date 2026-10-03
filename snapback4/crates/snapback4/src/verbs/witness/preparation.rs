@@ -32,16 +32,35 @@ pub(super) fn lease(path: &Path) -> Result<File> {
     Ok(file)
 }
 
+// @ref LLP 3000.030#15 — resolve the builder's launcher before choosing the group anchor.
+pub(super) fn node_runtime(node: &std::ffi::OsStr) -> Result<PathBuf> {
+    let output = Command::new(node).args(["-p", "JSON.stringify(process.execPath)"])
+        .stdin(Stdio::null()).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
+    if !output.status.success() { return Err(error("E_WITNESS_PROCESS", "cannot resolve Node runtime through node launcher")); }
+    let path: PathBuf = serde_json::from_slice::<String>(&output.stdout).map(PathBuf::from)
+        .map_err(|_| error("E_WITNESS_PROCESS", "node launcher returned an invalid runtime path"))?;
+    if !path.is_absolute() { return Err(error("E_WITNESS_PROCESS", "node runtime path must be absolute")); }
+    Ok(path)
+}
+
 // Keep the unreaped leader (and thus its process-group identity) until every
 // live member has stopped. Parent exit alone says nothing about compilers.
 struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf }
 impl PreparationProcess {
     fn spawn(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
+        Self::spawn_with_node(options, std::ffi::OsStr::new("node"), command, args, label)
+    }
+    fn spawn_with_node(options: &Options, node: &std::ffi::OsStr, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
+        // Resolve once per preparation launch, in the builder's cwd/environment.
+        // A version-manager shim can spawn-and-wait rather than exec: recording
+        // that shim would let recovery kill the real runner as a descendant.
+        let runtime = node_runtime(node)?;
+        let command = if command == "node" { runtime.as_os_str() } else { command };
         let runner = options.artifacts.join("preparation-runner.mjs");
         fs::write(&runner, include_str!("preparation-runner.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let result = options.artifacts.join(format!("{label}-status.json"));
         let _ = fs::remove_file(&result);
-        let child = Command::new("node").arg(runner).arg(&result).arg(command).args(args)
+        let child = Command::new(&runtime).arg(runner).arg(&result).arg(command).args(args)
             .process_group(0).stdin(Stdio::piped())
             .stdout(output(&options.artifacts.join(format!("{label}-stdout.log")))?)
             .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?)
@@ -242,6 +261,77 @@ pub(super) fn binding(rows: &[Value], proof: &Value, run: &str, segment: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn recovery_with_late_member(launcher: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("sb4-node-anchor-{}-{launcher}", std::process::id()));
+        fs::create_dir_all(dir.join("export.app")).unwrap();
+        let runtime = node_runtime(std::ffi::OsStr::new("node")).unwrap();
+        let shim = dir.join("node");
+        let launches = dir.join("launcher-calls");
+        match launcher {
+            // Like Volta, this launcher keeps its own PID while it waits for
+            // Node. The shell case separately covers a non-exec script shim.
+            "volta-style" => fs::write(&shim, format!(
+                "#!{}\nconst fs=require('node:fs');const cp=require('node:child_process');fs.appendFileSync({},'call\\n');const r=cp.spawnSync({},process.argv.slice(2),{{stdio:'inherit'}});process.exit(r.status??1);\n",
+                runtime.display(), json!(launches), json!(runtime))).unwrap(),
+            "shell" => fs::write(&shim, format!(
+                "#!/bin/sh\nprintf 'call\\n' >> '{}'\n'{}' \"$@\"\nexit $?\n",
+                launches.display().to_string().replace('\'', "'\\''"), runtime.display().to_string().replace('\'', "'\\''"))).unwrap(),
+            "direct" => {},
+            _ => unreachable!(),
+        }
+        if launcher != "direct" { fs::set_permissions(&shim, fs::Permissions::from_mode(0o755)).unwrap(); }
+        let selected = if launcher == "direct" { &runtime } else { &shim };
+        let ready = dir.join("ready.json");
+        let code = "const fs=require('node:fs'),p=process.argv[1];fs.writeFileSync(p+'.tmp',JSON.stringify({parent:process.ppid,runtime:process.execPath}));fs.renameSync(p+'.tmp',p);setInterval(()=>{},1000)";
+        let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--export", ".", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+        let options = Options::parse(&args).unwrap();
+        recovery::begin_wrapper(&dir).unwrap();
+        let mut keeper = PreparationProcess::spawn_with_node(&options, selected.as_os_str(), std::ffi::OsStr::new("node"),
+            &[std::ffi::OsStr::new("-e"), std::ffi::OsStr::new(code), ready.as_os_str()], "preparation").unwrap();
+        let end = Instant::now() + Duration::from_secs(10);
+        while !ready.exists() && Instant::now() < end { sleep(Duration::from_millis(10)); }
+        let worker: Value = serde_json::from_slice(&fs::read(&ready).expect("worker started")).unwrap();
+        assert_eq!(worker["parent"], keeper.child.id(), "recorded leader must be the runner, not a launcher");
+        assert_eq!(worker["runtime"], json!(runtime));
+        if launcher != "direct" { assert_eq!(fs::read_to_string(&launches).unwrap(), "call\n", "resolve through the shim exactly once"); }
+        let journal: Value = serde_json::from_slice(&fs::read(dir.join("live.json")).unwrap()).unwrap();
+        let group = &journal["children"]["preparation"];
+        assert_eq!(group["group"], keeper.child.id());
+        assert_eq!(group["leader"], recovery::identity(keeper.child.id()).unwrap());
+        let mut late: Option<Owned> = None;
+        let mut snapshots = 0;
+        recovery::stop_group_with(group, || {
+            snapshots += 1;
+            if late.is_none() {
+                // Deterministically join AFTER the member snapshot. Recovery
+                // must retain the anchor and enumerate again to find this PID.
+                late = Some(Owned::spawn(Command::new("sleep").arg("60").process_group(keeper.child.id() as i32)).unwrap());
+            }
+        }).unwrap();
+        assert!(snapshots >= 3, "worker, late member, then empty group");
+        assert!(late.as_mut().unwrap().status().unwrap().is_some(), "late member must drain before cleanup succeeds");
+        keeper.child.wait().unwrap();
+        assert!(!keeper.live_group().unwrap());
+        keeper.cleaned = true;
+        // Retry and ordinary abandoned-output recovery must remain idempotent.
+        recovery::stop_group_with(group, || panic!("empty group must already be drained")).unwrap();
+        recovery::cleanup(&dir, Some(&dir)).unwrap();
+        recovery::cleanup(&dir, Some(&dir)).unwrap();
+        assert!(!dir.join("export.app").exists());
+        assert!(dir.join("finished.json").exists());
+        eprintln!("{launcher}: stable runtime leader; late member drained; retry and output cleanup passed");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn recovery_direct_node_drains_late_group_member() { recovery_with_late_member("direct"); }
+    #[test]
+    fn recovery_volta_style_shim_drains_late_group_member() { recovery_with_late_member("volta-style"); }
+    #[test]
+    fn recovery_shell_shim_drains_late_group_member() { recovery_with_late_member("shell"); }
+
     #[test]
     fn startup_binds_each_independent_identity() {
         let proof = json!({ "sha256": "proof", "installedBundlePath": "/app/main.jsbundle", "nativeBase": { "app": "base" }, "javascript": { "sha256": "js" },
