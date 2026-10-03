@@ -1,0 +1,28 @@
+{
+  "pass": true,
+  "at": 1791050894058,
+  "totals": {
+    "profiles": 1008,
+    "followEdges": 5921,
+    "posts": 50228,
+    "topLevelPosts": 48224,
+    "replies": 2004,
+    "activeLikes": 5008,
+    "activeReposts": 1004,
+    "conversations": 1002,
+    "dms": 901,
+    "groups": 101,
+    "memberships": 2053,
+    "messages": 100015,
+    "textMessages": 99105,
+    "mediaMessages": 910,
+    "quotedReplies": 2736,
+    "activeReactions": 2000,
+    "disappearingSettingsEnabled": 0
+  },
+  "followingUsers": 1008,
+  "membershipUsers": 1008,
+  "chats": 1002,
+  "groups": 101,
+  "method": "Published snapback4 sql read-only application views; independent of settle accounting; users verified by auth receipts and profiles, internal auth tables intentionally inaccessible"
+}
