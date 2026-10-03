@@ -36,8 +36,8 @@ The bounded screen has:
   can add one point read outside that window, making the maximum 25 distinct
   observations including three pages and membership. It saves only selected IDs
   and rechecks a live point before opening media.
-- A neutral unavailable placeholder for an unreadable identity. It proves no
-  row exists and exposes no body or media action. The SDK owns all cursor
+- A neutral unavailable placeholder for an unreadable identity. It is evidence neither that the row exists nor that it does not, and exposes
+  no body or media action. The SDK owns all cursor
   continuations; no app state remembers withdrawn cursor suffixes.
 
 LLP 3000.023 §13 records the implemented rules and the conditional no-hook
@@ -378,3 +378,160 @@ Unresolved: the four base Rust failures; full original Cal29 app/native runtime
 qualification remains outside the available specimen harness. No active-hook
 implementation is pending: the condition for it was not established. No wasm
 budget increase, SDK custody/cache change, push or publication.
+
+## Round 1 — fold both blind reviews (2026-10-03)
+
+Reviewed input: `37c77e1dfa`; reviews read in full from
+`~/sb5-lanes/reviews/l-r0.astra.md` and `l-r0.grok.md`. This section supersedes
+round 0's composer-preservation claim, snippet-only mounting evidence and final
+source counts. The earlier check record remains historical. No SDK code or hook
+signature changed.
+
+### Repairs and reproductions
+
+- **Astra 1:** `ClientOwner` owns the mutation, submitted text and recovery.
+  Refusal restores an empty draft or offers Edit without replacing newer input.
+  Hiding the read child does not retire that owner. Account/backend/client/room
+  keys retire it; late replies cannot restore text into another scope.
+- **Astra 2:** Cal29's keyed `ConversationDraft` owns text, edit mode, attachments,
+  once-send intent, reply ID, busy state, mutation hooks and refusal recovery.
+  It remains mounted while the read body unmounts. Late pick/upload/send
+  continuations check the shell's scope. Reply previews read their body live;
+  the shell retains only the reply ID. Complete before/after mounts assert
+  edit → background → foreground → submit still calls `editMessage`, an attached
+  image remains attached, and a refusal received hidden restores the text.
+- **Grok 1:** an epoch change resets `start`, selected media and jump/layout state
+  during render. The image requires a current selection. The selected row's
+  recheck explicitly uses `keep:false`. Both a coalesced withdrawal and a real
+  wasm-device program adoption exercise the complete pilot with an open photo.
+  A React Profiler records every committed DOM tree, including the commit before
+  passive effects: none contains the image after withdrawal/adoption. The
+  generation fixture deliberately preserves the same photo ID.
+- **Grok 2:** a quote target found in `page.items` selects its index rounded down
+  to a 40-row window. Only absent targets with a continuation load another page.
+  The mounted page-4 test loads four pages, mounts message 65, scrolls to its
+  reported layout, and resumes ordinary auto-scroll after the jump clears.
+- **Grok 3–4:** the installed README and this report now say a placeholder is
+  evidence neither that the row exists nor that it does not. Both the installed
+  README and client reference give the named `BoundedConversation` import. Tests
+  apply each documented import and JSX substitution to the actual installed
+  `app/conversation/[id].tsx`, then typecheck the whole generated starter.
+- **Grok 5:** loading, denied, absent and partial placeholders have identical
+  accessible text. Neither `Denied` nor `NO_BODY` can appear. The harness imports
+  the complete real starter `Conversation.tsx` and `useOnceMedia.ts`; it selects
+  a photo, withdraws/revokes its point, and proves no `client.asset` call occurs.
+  A separate authorized open consumes one handle, which epoch reset releases.
+
+The harness mounts the complete source files, including `ConversationDraft`,
+`ConversationBody`, `Bubble`, composer callbacks and viewer. DOM substitutes
+supply React Native/UI controls and layout events; no ownership/list/body
+function is extracted or replaced. Real SDK hooks run over controlled shared
+observations for deterministic transitions/counts. The adoption case instead
+uses `createLocalClient` and the actual wasm device with literal fixture
+programs, controlled schema/sync responses and controlled asset bytes. This is
+not a full Cal29 native application or production asset-server qualification.
+
+**Red evidence:** with both changed recipe/pilot files loaded verbatim from
+`git show 37c77e1dfa:<path>`, the new React suite has **8 failures / 8 passes**.
+The three original-before composer tests pass, while the three round-0-after
+versions fail. Both starter refusal cases, page-4 jump, immediate recheck and
+real-adoption stale-image cases fail. The baseline real-adoption log records
+`image:true` in its first committed tree. The old installed README also fails
+both new documentation tests. See `checks/round1-red-react-final.log.gz` and
+`checks/round1-red-docs.log.gz`.
+
+The review's surviving mutations are now killed, each in its own run:
+
+| Mutation | Failure |
+| --- | --- |
+| Replace the entire pilot `ConversationDraft` with `return null` | Complete mount has 0 rows instead of 20 |
+| Render `read.denied.message` in the starter placeholder | Accessible text differs from neutral loading/absence |
+| Remove `keep:false` from the pilot selected-photo recheck | Viewer no longer shares the immediate-withdrawal owner |
+| Change the documented named import to a default import | Actual route typecheck reports TS2613, no default export |
+
+Logs: `checks/round1-mutation-*.log.gz`. These mutations do not survive in source.
+The correctly neutral round-0 placeholder itself was already sound; its defect
+was the weak oracle, so that regression is qualified by the killed mutation.
+
+### Remeasured ownership and source
+
+These are complete-component measurements. They include the original pilot's
+receipt, quote, author and reaction reads, so they must not be compared as if
+identical in scope to round 0's isolated L1/L2 counts.
+
+| Mounted scenario | Observations | Owners | Mounted rows |
+| --- | ---: | ---: | ---: |
+| Original, after ten disjoint 20-row answers | 407 | 806 | 200 |
+| Repaired pilot, same ten answers | 67 | 87 | 20 |
+| Repaired pilot, one wide 80-row answer | 127 | 167 | 40 |
+| Repaired pilot hidden, controlled source | 0 | 0 | 0 |
+| Installed bounded recipe, first page | 22 | 23 | 20 |
+| Installed bounded recipe hidden | 0 | 0 | 0 |
+
+The original's duplicate quote/body subscribers share default observations;
+Cal29's immediate-withdrawal body reads have a different retention policy from
+its existing quote reads, which explains their separate observations. The
+pilot's `keep:true` typing subscription still has the SDK's independent linger:
+zero in the controlled source counts released ownership, not elimination of
+that production linger. The installed recipe has no such `keep:true` owner.
+Strict Mode initial recipe setup remains 46 opens / 23 closes = 23 owners;
+final unmount balances every open and close, with no visibility/viewer listeners.
+
+Reset probes re-confirm all four shell changes (hidden account, backend,
+conversation arguments, replacement client). A coalesced generation reset
+returns the starter's three-page chain to one and preserves draft/input identity.
+The full pilot also resets two requested pages to one while preserving draft
+text; hidden read owners release, foreground reacquires them, and in-scope
+composer intent/recovery survives. Account/client/room changes during a held
+send discard the old recovery in both compositions. The process and wasm
+lifetime tests retain their actual-adoption/late-old-result checks.
+
+| Source | Physical lines | UTF-8 bytes, excluding final newline |
+| --- | ---: | ---: |
+| Frozen before chat | 46 | 16,754 |
+| Round-1 after chat | 66 | 19,053 |
+| Added PageLifetime | 39 | 1,502 |
+| Added useForeground | 9 | 663 |
+| Whole changed pilot including helpers | **114** | **21,218** |
+| Delta from frozen before | **+68** | **+4,464** |
+| Delta from round 0 | **+7** | **+964** |
+
+Selected L1/L2/L3 counts remain 1/211 B, 1/238 B and 1/87 B respectively;
+these overlap the totals and are not a savings claim. `measurements.json`
+contains final source hashes and locations. The pilot schema/generated API and
+ownership specimen strictly typecheck; the complete edited chat parses. Missing
+original Cal29 UI modules still prevent a full native-app typecheck/launch claim.
+
+### Qualification
+
+All commands use the prescribed PATH, shared Cargo target and disabled
+incremental compilation. Final check logs are under `checks/`:
+
+| Check | Final result |
+| --- | --- |
+| Final combined client/lifetime run on the rebuilt wasm (`round1-combined-final`) | **238 passed, 0 failed, 0 skipped** |
+| Both lifetime files (`round1-lifetimes-final`) | 21 passed, 0 failed |
+| Affected React/social-browser/pages/adoption/keep tests (`round1-affected-react-pages`) | 197 passed, 0 failed |
+| Complete social starter + README examples (`round1-docs-final`) | 20 passed, 0 failed |
+| Installed guide source, both substitutions and placeholder wording after final prose (`round1-substitution-final`) | 3 passed, 0 failed |
+| Guide (`round1-guide-final`) | 111 passed, 0 failed |
+| Package typecheck/build, pilot check and docs budget | Pass |
+| Wasm budget (`round1-wasm-final`) | 2,048,753 B raw / 617,410 B gzip; unchanged 618,040 B cap (630 B headroom) |
+| Reference check | 527 LLPs, 0 errors, 0 unchecked |
+
+The initial shared-target build linked an older language-guide artifact: guide
+output had five snippets while this tree contains seven, and the Rust guide test
+saw an old native-smoke wording. Rebuilding this checkout's language crate fixed
+both; a temporary copied CLI kept subsequent tests insulated
+from concurrent shared-target replacement. The final wasm build likewise
+recompiled this checkout's core/device before copying the raw input into the
+script's local target path; it reproduces round 0's 617,410-byte gzip artifact.
+The first shared-artifact wasm pass was 617,327 bytes and is not the final
+measurement. The initial affected run was 24/25,
+the initial guide 110/111; their corrected final runs above are green. Initial
+harness development errors (missing fake-client link methods, the installed
+route's directory name and literal-program argument declarations) were corrected
+before baseline reproduction. Intermediate logs remain separate from final proof.
+
+No full-suite rerun, native UI qualification, push or publication is claimed.
+The round-0 full-suite inherited failures remain outside this recipe/pilot change.

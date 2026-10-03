@@ -27,3 +27,15 @@ The user's commission already authorizes the spec, guide and ticket updates.
 
 No unresolved scoped doc/code drift found. The final report records check
 results and environmental/base failures separately; this audit is not a gate.
+
+## Round 1
+
+Re-read .023 §13 and .032 §4.5 against the complete mounted components. Composer
+intent and recovery now belong to the scoped shell; quoted bodies stay in live
+read owners. Epoch reset gates selected media before commit; quote jumps select
+the 40-row window. No SDK contract, retention law, outbox or cursor owner changed.
+Updated the existing governing sections and docs under the explicit round-1
+commission; no status changes, new LLPs or overlays. Corrected the existence
+wording in the report as well as the installed README. Both documented named
+imports are compiled in the actual installed route. Complete mounts replace the
+snippet-only test evidence; historical round-0 measurements remain in the report.

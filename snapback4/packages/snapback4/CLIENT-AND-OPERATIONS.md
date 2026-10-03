@@ -1583,12 +1583,15 @@ observation option or inactive server `Read` arm. Mount the read-owning child
 only while the route is foreground and focused. The executable example follows
 the ordinary lifetime and cursor rules.
 
-In the social starter's PinnedConversation, import BoundedConversation from
-`../../src/BoundedConversation` and replace ConversationScreen with
+In the social starter's PinnedConversation, use
+`import { BoundedConversation } from "../../src/BoundedConversation"`
+and replace ConversationScreen with
 `<BoundedConversation backend={url} conversation={conversation} active={focused && foreground} />`.
 This uses that route's existing visibility listeners and generated schema.
 
-The draft shell is keyed by backend, account, query arguments and client instance.
+The composer shell is keyed by backend, account, query arguments and client
+instance. It owns submitted text and recovery while hidden: a refusal restores
+text into an empty draft or offers Edit without replacing newer input.
 Inside it, `LiveConversation` owns membership and the root history observation.
 Unmounting that child closes its observations and every requested page/point
 owner. The draft stays mounted. An account change while hidden still resets it.

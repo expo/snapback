@@ -41,4 +41,4 @@ const program=ts.createProgram([specimen],options),errors=ts.getPreEmitDiagnosti
 if(errors.length)throw Error(ts.formatDiagnosticsWithColorAndContext(errors,{getCanonicalFileName:p=>p,getCurrentDirectory:()=>root,getNewLine:()=> '\n'}));
 const parsed=ts.transpileModule(after,{compilerOptions:options,reportDiagnostics:true});if(parsed.diagnostics?.length)throw Error('full edited chat syntax');
 console.log('Cal29: schema, generated API + L1/L2/L3 ownership specimen strict typecheck, full edited chat syntax: PASS');
-console.log('Scope: mounted specimens and complete published bounded screen; not full Cal29 application/native-runtime qualification.');
+console.log('Scope: complete before/after components and published bounded screen mounted with UI substitutes; not full Cal29 application/native-runtime qualification.');

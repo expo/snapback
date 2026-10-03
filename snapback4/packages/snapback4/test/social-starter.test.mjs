@@ -119,6 +119,31 @@ test("published social starter and guide snippets typecheck against generated op
   }));
 });
 
+test("bounded substitution in both installed and client documentation typechecks", t => {
+  const dir = starter(t), route = join(dir, "app/conversation/[id].tsx");
+  const original = readFileSync(route, "utf8");
+  for (const doc of [join(dir, "README.md"), join(root, "packages/snapback4/CLIENT-AND-OPERATIONS.md")]) {
+    const source = readFileSync(doc, "utf8");
+    const imported = source.match(/`(import [^`]+ from "\.\.\/\.\.\/src\/BoundedConversation")`/);
+    assert.ok(imported, `${doc}: executable substitution import`);
+    const element = source.match(/`(<BoundedConversation [^`]+\/>)`/);
+    assert.ok(element, `${doc}: substitution element`);
+    writeFileSync(route, original.replace(/import \{ ConversationScreen \}[^\n]+/, imported[1] + ";")
+      .replace(/<ConversationScreen [^\n]+\/>/, element[1]));
+    const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
+    const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
+    const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(ts.createProgram(parsed.fileNames, parsed.options))];
+    assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+      getCanonicalFileName: name => name, getCurrentDirectory: () => dir, getNewLine: () => "\n",
+    }));
+  }
+});
+
+test("installed bounded placeholder documentation makes neither existence claim", t => {
+  const dir = starter(t), readme = readFileSync(join(dir, "README.md"), "utf8").replace(/\s+/g, " ");
+  assert.match(readme, /placeholder is evidence neither that the row exists nor that it does not/);
+});
+
 // @ref LLP 3000.028#8 — scaffold/check/dev and the installed client vocabulary.
 test("social starter runs through the public client: feed, likes, receipts, typing, media and retained history", { timeout: hangBudget(62) }, async t => {
   const dir = starter(t), api = await generatedApi(dir);

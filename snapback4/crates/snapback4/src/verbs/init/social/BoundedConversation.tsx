@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import { isReady } from "snapback4/contract";
 import { useClient, useMutation, usePage, useQuery, useViewer } from "snapback4/react";
@@ -8,7 +8,7 @@ import { OnceViewer } from "./Conversation";
 
 // @ref LLP 3000.023#13 — route ownership and a bounded identity-only window.
 // This small alternative screen intentionally renders at most 20 message bodies
-// from at most three requested pages. It keeps only the draft outside the route.
+// from at most three requested pages. Composer intent stays outside read owners.
 export function BoundedConversation({ backend, conversation, active }: {
   backend: string; conversation: string; active: boolean;
 }) {
@@ -20,22 +20,39 @@ export function BoundedConversation({ backend, conversation, active }: {
   return <ClientOwner key={owner.epoch} conversation={conversation} active={active} />;
 }
 function ClientOwner({ conversation, active }: { conversation: string; active: boolean }) {
+  const client = useClient(), viewer = useViewer(), send = useMutation(api.send);
   const [draft, setDraft] = useState("");
+  const [submitted, setSubmitted] = useState<{ id: string; text: string }>();
+  const [refused, setRefused] = useState<{ text: string; message: string }>();
+  const alive = useRef(false);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    if (submitted && send.last?.id === submitted.id && send.last.state === "failed") {
+      setDraft(current => current || submitted.text);
+      setRefused({ text: submitted.text, message: send.last.why.message });
+    }
+  }, [submitted, send.last]);
+  async function submit() {
+    const text = draft; setDraft(""); setSubmitted(undefined); setRefused(undefined);
+    const result = await send.run({ conversation, text, photo: null }, { waitSeconds: 0 });
+    if (!alive.current || client.viewer() !== viewer) return;
+    setSubmitted({ id: result.id, text });
+  }
   return <View><TextInput accessibilityLabel="Message draft" value={draft} onChangeText={setDraft} />
-    {active && <LiveConversation conversation={conversation} draft={draft} clear={() => setDraft("")} />}
+    {refused && <View><Text>{refused.message}</Text><Button title="Edit refused send" onPress={() => {
+      setDraft(refused.text); setRefused(undefined);
+    }} /></View>}
+    {active && <LiveConversation conversation={conversation} canSend={!send.inFlight && !!draft.trim()} submit={submit} />}
   </View>;
 }
-function LiveConversation({ conversation, draft, clear }: { conversation: string; draft: string; clear(): void }) {
-  const client = useClient(), send = useMutation(api.send);
+function LiveConversation({ conversation, canSend, submit }: { conversation: string; canSend: boolean; submit(): Promise<void> }) {
+  const client = useClient();
   const member = useQuery(api.receiptMember, { conversation }, { keep: false });
   const blocked = "denied" in member || (isReady(member) && member.existence === "absent" && member.fresh && !member.revalidating);
   const lifetime = useMemo(() => new PageLifetime(client, api.history, { conversation, c: null }), [client, conversation]);
   const scope = useSyncExternalStore(lifetime.subscribe, lifetime.getSnapshot, lifetime.getSnapshot);
   return <View>
-    <Button title="Send" disabled={blocked || send.inFlight || !draft.trim()} onPress={() => {
-      const text = draft; clear(); void send.run({ conversation, text, photo: null }, { waitSeconds: 0 });
-    }} />
-    {send.last?.state === "failed" && <Text>{send.last.why.message}</Text>}
+    <Button title="Send" disabled={blocked || !canSend} onPress={() => void submit()} />
     {scope.ready ? <IdentityHistory key={scope.epoch} conversation={conversation} /> : <Text>History unavailable</Text>}
   </View>;
 }

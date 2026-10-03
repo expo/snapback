@@ -83580,3 +83580,42 @@ witness-helper lookup failures resolved by the supported environment override
 (all 43 witness tests pass). All 79 final model tests pass. The report preserves
 every original summary and the intermediate working-directory fixture error;
 no clean complete-suite claim is made. Remaining known reds are inherited.
+
+## 2026-10-03 — Lane L round 1: composer intent survives read-owner withdrawal
+
+Folded both blind round-0 reviews against 37c77e1dfa. The bounded starter keeps
+submission and refused-text recovery in its account/backend/client/room shell.
+Cal29 keeps edit mode, attachments, busy state and recovery there too; reply
+intent saves an ID, with protected preview text read only in the mounted body.
+Backgrounding releases read owners without changing a pending edit into a send,
+dropping an attachment or discarding a hidden refusal. Scope replacement still
+retires late callbacks. Epoch changes reset the pilot's window/selection during
+render, its image requires selection, and its media recheck uses keep:false.
+Page-4 quote jumps mount and scroll the aligned 40-row window.
+
+Complete source mounts replace the snippet-only React tests. Eight new assertions
+fail on round-0 recipe/pilot source; the original-before composer transitions
+pass. The real wasm program adoption commits a stale image on round 0 and none
+after repair. Nulling ConversationDraft, disclosing a refusal in the placeholder,
+retaining the photo recheck and using the documented default import are all
+killed mutations. The real starter OnceViewer is mounted, including revocation
+before client.asset. Both documented named imports compile in the installed route.
+The placeholder is evidence neither of existence nor of absence.
+
+Whole pilot: 407 → 67 observations / 200 → 20 mounted rows after ten moving pages;
+wide input stays at 40 rows / 127 observations. The controlled source releases all
+hidden owners; production typing keep:true linger is explicitly excluded from
+that zero-watch claim. Starter remains 22 observations / 23 owners, zero hidden,
+with scope-reset and sibling probes green. Pilot plus helpers is now 114 physical
+lines / 21,218 bytes, +68 lines / +4,464 bytes over the original (+7 / +964 since
+round 0). No SDK API or custody change, and no active-hook value established.
+
+Guide: 111 pass. Lifetime suite: 21 pass. Affected client suites: 197 plus 20 pass;
+both final documentation substitutions and wording: 3 pass. The final combined
+client/lifetime run on the rebuilt wasm passes all 238 tests with no skips. Package types/build,
+pilot schema/specimen types and complete-chat syntax, docs budget and refs pass.
+Final rebuilt wasm: 2,048,753 B raw / 617,410 B gzip against 618,040 (unchanged).
+The report records initial shared-target guide contamination and repaired harness
+prerequisites separately from final qualification. No full-suite/native-app claim.
+Round-1 details and compressed logs: reports/20261003-l-screen-lifetimes/REPORT.md.
+Local commit only, with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push.

@@ -183,11 +183,12 @@ React/Expo screen with this shell and a reusable read notice.
 `src/BoundedConversation.tsx` and `src/PageLifetime.ts` are a complete smaller
 alternative to the full Conversation screen. In PinnedConversation substitute
 `<BoundedConversation backend={url} conversation={conversation} active={focused && foreground} />`
-for ConversationScreen and import it from `../../src/BoundedConversation`.
-The draft stays outside the active route child. Three requested 20-row pages
+for ConversationScreen and use
+`import { BoundedConversation } from "../../src/BoundedConversation"`.
+The draft and send recovery stay outside the active route child; a refusal
+restores text or offers Edit, even after backgrounding. Three requested 20-row pages
 and a 20-ID window bound reads; Previous/Next rows moves the window. Each body's
-point read owns its data, including withdrawal/expiry; a placeholder proves no
-existence. The shared root marker stores only an epoch/availability bit and
+point read owns its data, including withdrawal/expiry; a placeholder is evidence neither that the row exists nor that it does not. The shared root marker stores only an epoch/availability bit and
 resets page depth/window/media selection at hard withdrawal, including backend
 generation changes. Account/backend/client/argument changes clear the draft too.
 `usePage` owns every cursor; no past body/cursor/asset metadata is retained.
